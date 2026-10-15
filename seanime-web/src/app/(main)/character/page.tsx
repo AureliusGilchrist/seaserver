@@ -13,6 +13,7 @@ import React, { useMemo } from "react"
 import { LuArrowLeft } from "react-icons/lu"
 import { AiFillHeart, AiOutlineHeart } from "react-icons/ai"
 import { SeaLink } from "@/components/shared/sea-link"
+import { formatNumber } from "@/lib/helpers/number"
 
 export default function Page() {
     const searchParams = useSearchParams()
@@ -135,7 +136,7 @@ export default function Page() {
                                     disabled={isTogglingFav || !id}
                                     onClick={() => id && toggleFav({ characterId: id })}
                                 />
-                                {data.favourites > 0 && <span>{data.favourites.toLocaleString()}</span>}
+                                {data.favourites > 0 && <span>{formatNumber(data.favourites)}</span>}
                             </span>
                         }>
                             {isFav ? "Remove from favorites" : "Add to favorites"}

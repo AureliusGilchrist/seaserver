@@ -25,16 +25,8 @@ import { useAtom } from "jotai/react"
 import React from "react"
 
 /**
- * The landing page.
- *
- * A map of the app, set like a front door rather than a dashboard: the greeting is the one large
- * thing on the page, the thing that was being watched sits directly under it, the doors the app
- * opens read as a row the way the sidebar does — a name, not a card — and the library's numbers are
- * a line of figures rather than a grid of boxes. Everything after that is the person's own
- * arrangement: every widget optional, every one reorderable, from the gear.
- *
- * The page inherits the app's materials — its background, borders and brand color, so it changes
- * with the wallpaper the way every other screen does — and adds nothing of its own except scale.
+ * The responsive home base for the app: media activity, library widgets, and every main
+ * destination organized into profile-specific folders. Destination pages keep their own routes.
  */
 export function LandingHub() {
     const user = useCurrentUser()
@@ -48,45 +40,49 @@ export function LandingHub() {
     // landing page can know that a menu cannot. Inside the person's order otherwise.
     const ordered = React.useMemo(() => widgets.filter(w => w.enabled), [widgets])
     const firstWidgetId = ordered[0]?.id
+    const quickLinksWidget = ordered.find(w => w.id === "quick-links")
 
-    // The stat doors: the widgets that are a number and a way in. The rest render below, full width.
+    // The stat doors: compact number cards. Navigation folders and content sections use full width.
     const statIds: LandingWidgetId[] = [
-        "quick-links", "anime-stats", "manga-stats", "schedule", "to-watch", "unmatched", "torrents", "achievements",
+        "anime-stats", "manga-stats", "schedule", "to-watch", "unmatched", "torrents", "achievements",
     ]
     const stats = React.useMemo(() => ordered.filter(w => statIds.includes(w.id)), [ordered])
-    const sections = React.useMemo(() => ordered.filter(w => !statIds.includes(w.id)), [ordered])
+    const sections = React.useMemo(
+        () => ordered.filter(w => !statIds.includes(w.id) && w.id !== "quick-links"),
+        [ordered],
+    )
 
     return (
         <>
             <CustomLibraryBanner discrete />
-            <PageWrapper className="relative p-4 sm:p-6 lg:p-10 space-y-10 min-h-screen">
+            <PageWrapper className="relative mx-auto min-h-[100svh] w-full max-w-[1800px] space-y-6 overflow-x-hidden px-3 py-4 sm:space-y-8 sm:px-5 sm:py-6 lg:space-y-10 lg:px-8 xl:px-10">
                 {/* Soft brand glows give the wallpaper some colour without covering it */}
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] -z-0 bg-[radial-gradient(60%_80%_at_15%_0%,rgb(var(--color-brand-500)/0.28),transparent_70%),radial-gradient(45%_70%_at_90%_10%,rgb(var(--color-brand-300)/0.16),transparent_70%)]" />
 
                 {/* Hero */}
-                <section className="relative z-[1] rounded-3xl border border-white/10 bg-black/25 backdrop-blur-md shadow-2xl shadow-black/30 p-6 lg:p-10 overflow-hidden">
+                <section className="relative z-[1] overflow-hidden rounded-3xl border border-white/10 bg-black/25 p-5 shadow-2xl shadow-black/30 backdrop-blur-md sm:p-7 lg:p-10">
                     <div className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-[--brand]/25 blur-3xl" />
-                    <div className="relative flex items-end justify-between gap-6 flex-wrap">
+                    <div className="relative flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-end sm:gap-6">
                         <div className="min-w-0">
-                            <p className="text-sm uppercase tracking-[0.25em] text-[--brand] font-semibold">{greeting()}</p>
-                            <h1 className="mt-2 text-4xl lg:text-6xl font-extrabold tracking-tight leading-[1.05] text-white drop-shadow-lg">
+                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[--brand] sm:text-sm sm:tracking-[0.25em]">{greeting()}</p>
+                            <h1 className="mt-2 break-words text-3xl font-extrabold leading-[1.05] tracking-tight text-white drop-shadow-lg sm:text-4xl lg:text-5xl 2xl:text-6xl">
                                 {user?.viewer?.name
                                     ? <>Welcome back, <span className="bg-gradient-to-r from-brand-200 to-brand-500 bg-clip-text text-transparent">{user.viewer.name}</span></>
                                     : <>Welcome back</>}
                             </h1>
-                            <p className="text-lg text-white/70 mt-3 font-medium">Where do you want to go?</p>
+                            <p className="mt-3 text-base font-medium text-white/70 sm:text-lg">Your library, tools, and community in one place.</p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
                             <button
                                 onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
-                                className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 backdrop-blur-md px-5 py-2.5 text-sm font-medium text-white hover:bg-black/60 hover:border-[--brand]/70 transition-all"
+                                className="flex flex-1 items-center justify-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-medium text-white backdrop-blur-md transition-all hover:border-[--brand]/70 hover:bg-black/60 sm:flex-none sm:px-5"
                             >
                                 <FiSearch className="w-4 h-4" />
                                 Search
                             </button>
                             <button
                                 onClick={() => setSettingsOpen(true)}
-                                className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 backdrop-blur-md px-5 py-2.5 text-sm font-medium text-white hover:bg-black/60 hover:border-[--brand]/70 transition-all"
+                                className="flex flex-1 items-center justify-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-medium text-white backdrop-blur-md transition-all hover:border-[--brand]/70 hover:bg-black/60 sm:flex-none sm:px-5"
                                 title="Landing page settings"
                             >
                                 <LuSettings2 className="w-4 h-4" />
@@ -106,10 +102,16 @@ export function LandingHub() {
                     </div>
                 )}
 
+                {quickLinksWidget && (
+                    <div className="relative z-[1]">
+                        <LandingWidget id={quickLinksWidget.id} />
+                    </div>
+                )}
+
                 {/* The doors and their numbers */}
                 {!!stats.length && (
                     <div
-                        className="relative z-[1] grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"
+                        className="relative z-[1] grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 sm:gap-4"
                         data-landing-stats-strip
                     >
                         {stats.map(widget => (

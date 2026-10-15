@@ -169,8 +169,9 @@ type (
 		OnMangaQueued func(mediaId int) // Called when a manga chapter is queued for download
 		filecacher    *filecache.Cacher
 
-		mediaMap   *MediaMap // Refreshed on start and after each download
-		mediaMapMu sync.RWMutex
+		mediaMap      *MediaMap // Refreshed on start and after each download
+		mediaMapMu    sync.RWMutex
+		mediaMapReady bool
 
 		chapterDownloadedCh chan chapter_downloader.DownloadID
 		readingDownloadDir  bool
@@ -488,8 +489,20 @@ func (d *Downloader) GetMediaDownloads(mediaId int, cached bool) (ret MediaDownl
 
 	if !cached {
 		d.hydrateMediaMap()
+	} else {
+		d.mediaMapMu.RLock()
+		ready := d.mediaMapReady
+		d.mediaMapMu.RUnlock()
+		if !ready {
+			d.hydrateMediaMap()
+		}
 	}
 
+	d.mediaMapMu.RLock()
+	defer d.mediaMapMu.RUnlock()
+	if d.mediaMap == nil {
+		return MediaDownloadData{}, errors.New("could not check downloaded chapters")
+	}
 	return d.mediaMap.getMediaDownload(mediaId, d.database)
 }
 
@@ -1039,13 +1052,12 @@ func (mm *MediaMap) getMediaDownload(mediaId int, db *db.Database) (MediaDownloa
 // hydrateMediaMap hydrates the MediaMap by reading the download directory.
 func (d *Downloader) hydrateMediaMap() {
 
-	if d.readingDownloadDir {
-		return
-	}
-
 	d.mediaMapMu.Lock()
 	defer d.mediaMapMu.Unlock()
 
+	if d.readingDownloadDir {
+		return
+	}
 	d.readingDownloadDir = true
 	defer func() {
 		d.readingDownloadDir = false
@@ -1153,6 +1165,7 @@ func (d *Downloader) hydrateMediaMap() {
 	}
 
 	d.mediaMap = &ret
+	d.mediaMapReady = true
 
 	// When done refreshing, send a message to the client to refetch the download data
 	d.wsEventManager.SendEvent(events.RefreshedMangaDownloadData, nil)

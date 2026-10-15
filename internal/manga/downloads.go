@@ -43,7 +43,7 @@ func (r *Repository) GetDownloadedMangaChapterContainers(mId int, mangaCollectio
 				Msg("manga: No reverse mapping found for this AniList ID")
 		}
 	}
-	
+
 	r.logger.Debug().
 		Int("mediaId", mId).
 		Ints("searchIds", searchIds).
@@ -115,24 +115,24 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 
 	// Track series registries we've processed
 	processedRegistries := make(map[string]*chapter_downloader.SeriesRegistry)
-	
+
 	// Also track old-format chapter directories for legacy support
 	chapterDirs := make([]string, 0)
-	
+
 	for _, mediaDir := range mediaDirs {
 		if !mediaDir.IsDir() {
 			continue
 		}
 
 		mediaDirPath := filepath.Join(r.downloadDir, mediaDir.Name())
-		
+
 		// Check for series-level registry.json (new format)
 		seriesRegistry, err := chapter_downloader.LoadSeriesRegistry(mediaDirPath, r.logger)
 		if err == nil && len(seriesRegistry.Chapters) > 0 {
 			processedRegistries[mediaDirPath] = seriesRegistry
 			continue
 		}
-		
+
 		// Fallback: check for old-format chapter directories
 		chapterFiles, err := os.ReadDir(mediaDirPath)
 		if err != nil {
@@ -149,14 +149,25 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 				chapterDirs = append(chapterDirs, chapterFile.Name())
 			}
 		}
+
 	}
-	
+
+	chapterDirNames := make(map[string]struct{}, len(chapterDirs))
+	chapterDirsByMediaID := make(map[int][]chapter_downloader.DownloadID)
+	for _, dir := range chapterDirs {
+		chapterDirNames[dir] = struct{}{}
+		downloadID, ok := chapter_downloader.ParseChapterDirName(dir)
+		if ok {
+			chapterDirsByMediaID[downloadID.MediaId] = append(chapterDirsByMediaID[downloadID.MediaId], downloadID)
+		}
+	}
+
 	// Process new-format series registries
 	for seriesDir, seriesRegistry := range processedRegistries {
 		if seriesRegistry.MediaId == 0 {
 			continue
 		}
-		
+
 		chapters := make([]*hibikemanga.ChapterDetails, 0, len(seriesRegistry.Chapters))
 		for _, entry := range seriesRegistry.Chapters {
 			chapterNum := manga_providers.GetNormalizedChapter(entry.ChapterNumber)
@@ -168,7 +179,7 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 				Index:    0,
 			})
 		}
-		
+
 		if len(chapters) > 0 {
 			// Sort by chapter number
 			slices.SortFunc(chapters, func(a, b *hibikemanga.ChapterDetails) int {
@@ -176,14 +187,14 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 				chB, _ := strconv.ParseFloat(b.Chapter, 64)
 				return int(chA - chB)
 			})
-			
+
 			// Set indexes
 			for i, chapter := range chapters {
 				chapter.Index = uint(i)
 			}
-			
+
 			mediaId := seriesRegistry.MediaId
-			
+
 			// Check if this synthetic ID is mapped to an AniList ID
 			if mediaId < 0 && r.db != nil {
 				if anilistID, found := r.db.GetMangaIDMapping(mediaId); found {
@@ -195,7 +206,7 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 						Msg("manga: Updated registry container to use mapped AniList ID")
 				}
 			}
-			
+
 			ret = append(ret, &ChapterContainer{
 				MediaId:  mediaId,
 				Provider: seriesRegistry.Provider,
@@ -292,20 +303,14 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 			for _, chapter := range container.Chapters {
 				// Normalize chapter number to padded format
 				normalizedChapterNum := manga_providers.GetNormalizedChapter(chapter.Chapter)
-				
-				// For each chapter, check if the chapter directory exists
-				// Check both padded and unpadded formats for backward compatibility
-				for _, dir := range chapterDirs {
-					paddedDirName := chapter_downloader.FormatChapterDirName(provider, mediaId, chapter.ID, normalizedChapterNum)
-					unpaddedDirName := chapter_downloader.FormatChapterDirName(provider, mediaId, chapter.ID, chapter.Chapter)
-					
-					if dir == paddedDirName || dir == unpaddedDirName {
-						// Use normalized chapter number and keep original title
-						normalizedChapter := *chapter
-						normalizedChapter.Chapter = normalizedChapterNum
-						downloadedContainer.Chapters = append(downloadedContainer.Chapters, &normalizedChapter)
-						break
-					}
+				paddedDirName := chapter_downloader.FormatChapterDirName(provider, mediaId, chapter.ID, normalizedChapterNum)
+				unpaddedDirName := chapter_downloader.FormatChapterDirName(provider, mediaId, chapter.ID, chapter.Chapter)
+				_, paddedExists := chapterDirNames[paddedDirName]
+				_, unpaddedExists := chapterDirNames[unpaddedDirName]
+				if paddedExists || unpaddedExists {
+					normalizedChapter := *chapter
+					normalizedChapter.Chapter = normalizedChapterNum
+					downloadedContainer.Chapters = append(downloadedContainer.Chapters, &normalizedChapter)
 				}
 			}
 
@@ -342,7 +347,7 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 				for _, entry := range list.GetEntries() {
 					media := entry.GetMedia()
 					mediaId := media.GetID()
-					
+
 					// Check if this is a mapped AniList ID
 					originalMediaId := mediaId
 					if mediaId > 0 && r.db != nil {
@@ -388,25 +393,21 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 					// Build chapters from downloaded folders
 					// Use a map to deduplicate by chapter number
 					chapterMap := make(map[string]*hibikemanga.ChapterDetails)
-					for _, dir := range chapterDirs {
-						downloadId, ok := chapter_downloader.ParseChapterDirName(dir)
-						if !ok {
-							continue
-						}
-						
-						// Only include chapters for this media ID (check both AniList and synthetic)
-						if downloadId.MediaId != mediaId && downloadId.MediaId != originalMediaId {
-							continue
-						}
-						
+					downloadIDs := make([]chapter_downloader.DownloadID, 0, len(chapterDirsByMediaID[mediaId])+len(chapterDirsByMediaID[originalMediaId]))
+					downloadIDs = append(downloadIDs, chapterDirsByMediaID[mediaId]...)
+					if originalMediaId != mediaId {
+						downloadIDs = append(downloadIDs, chapterDirsByMediaID[originalMediaId]...)
+					}
+					for _, downloadId := range downloadIDs {
+
 						// Normalize chapter number to padded format for consistent matching
 						chapterNum := manga_providers.GetNormalizedChapter(downloadId.ChapterNumber)
-						
+
 						// Skip if we already have this chapter number
 						if _, exists := chapterMap[chapterNum]; exists {
 							continue
 						}
-						
+
 						// Try to get chapter title from folder name first (new format)
 						var chapterTitle string
 						if downloadId.ChapterTitle != "" {
@@ -426,14 +427,14 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 								}
 							}
 						}
-						
+
 						// Fallback if no title found
 						if chapterTitle == "" {
 							chapterTitle = manga_providers.GetPreferredChapterTitle(dynamicPrefix, "", chapterNum)
 						} else {
 							chapterTitle = manga_providers.GetPreferredChapterTitle(dynamicPrefix, chapterTitle, chapterNum)
 						}
-						
+
 						chapterMap[chapterNum] = &hibikemanga.ChapterDetails{
 							Provider: manga_providers.LocalProvider,
 							ID:       downloadId.ChapterId, // Just the chapter ID, not the full path
@@ -442,13 +443,13 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 							Index:    0,
 						}
 					}
-					
+
 					// Convert map to slice
 					localChapters := make([]*hibikemanga.ChapterDetails, 0, len(chapterMap))
 					for _, chapter := range chapterMap {
 						localChapters = append(localChapters, chapter)
 					}
-					
+
 					if len(localChapters) > 0 {
 						// Sort by chapter number
 						slices.SortFunc(localChapters, func(a, b *hibikemanga.ChapterDetails) int {
@@ -456,12 +457,12 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 							chB, _ := strconv.ParseFloat(b.Chapter, 64)
 							return int(chA - chB)
 						})
-						
+
 						// Set indexes
 						for i, chapter := range localChapters {
 							chapter.Index = uint(i)
 						}
-						
+
 						ret = append(ret, &ChapterContainer{
 							MediaId:  mediaId,
 							Provider: manga_providers.LocalProvider,
@@ -509,7 +510,7 @@ func (r *Repository) getDownloadedMangaPageContainer(
 				Msg("manga: Using synthetic ID for file lookup via reverse mapping")
 		}
 	}
-	
+
 	// Try multiple possible directory names:
 	// 1. Numeric media ID (e.g., "12345" or "-12345")
 	// 2. Sanitized title from synthetic manga database
@@ -522,7 +523,7 @@ func (r *Repository) getDownloadedMangaPageContainer(
 			possibleMediaDirs = append([]string{syntheticManga.Title}, possibleMediaDirs...)
 		}
 	}
-	
+
 	// Also check all series directories for matching mediaId in registry
 	mediaDirs, _ := os.ReadDir(r.downloadDir)
 	for _, dir := range mediaDirs {
@@ -541,18 +542,18 @@ func (r *Repository) getDownloadedMangaPageContainer(
 	// Try to find the chapter using series-level registry (new format)
 	for _, dir := range possibleMediaDirs {
 		mediaDirPath := filepath.Join(r.downloadDir, dir)
-		
+
 		// Try to load series registry
 		seriesRegistry, err := chapter_downloader.LoadSeriesRegistry(mediaDirPath, r.logger)
 		if err != nil || len(seriesRegistry.Chapters) == 0 {
 			continue
 		}
-		
+
 		// Check if registry matches our media ID
 		if seriesRegistry.MediaId != originalMediaId && seriesRegistry.MediaId != mediaId {
 			continue
 		}
-		
+
 		// Look for the chapter in the registry
 		if entry, _, found := seriesRegistry.GetChapterByID(chapterId); found {
 			// When provider is local-manga, accept chapters from any provider
@@ -560,15 +561,15 @@ func (r *Repository) getDownloadedMangaPageContainer(
 			if !providerMatches {
 				continue
 			}
-			
+
 			r.logger.Debug().
 				Str("chapterDir", entry.FolderName).
 				Str("downloadProvider", entry.Provider).
 				Msg("manga: Found matching chapter in series registry")
-			
+
 			pageList := make([]*hibikemanga.ChapterPage, 0)
 			pageDimensions := make(map[int]*PageDimension)
-			
+
 			// Get the downloaded pages from registry
 			for pageIndex, pageInfo := range entry.Pages {
 				pageList = append(pageList, &hibikemanga.ChapterPage{
@@ -581,11 +582,11 @@ func (r *Repository) getDownloadedMangaPageContainer(
 					Height: pageInfo.Height,
 				}
 			}
-			
+
 			slices.SortStableFunc(pageList, func(i, j *hibikemanga.ChapterPage) int {
 				return cmp.Compare(i.Index, j.Index)
 			})
-			
+
 			container := &PageContainer{
 				MediaId:        mediaId,
 				Provider:       provider,
@@ -594,12 +595,12 @@ func (r *Repository) getDownloadedMangaPageContainer(
 				PageDimensions: pageDimensions,
 				IsDownloaded:   true,
 			}
-			
+
 			r.logger.Debug().Str("chapterId", chapterId).Msg("manga: Found downloaded chapter (new format)")
 			return container, nil
 		}
 	}
-	
+
 	// Fallback: try old format (per-chapter registry.json)
 	return r.getDownloadedMangaPageContainerLegacy(provider, mediaId, chapterId, originalMediaId, possibleMediaDirs)
 }
@@ -642,7 +643,7 @@ func (r *Repository) getDownloadedMangaPageContainerLegacy(
 
 			// When provider is local-manga, accept chapters from any provider
 			providerMatches := downloadId.Provider == provider || provider == manga_providers.LocalProvider
-			
+
 			if providerMatches &&
 				downloadId.MediaId == originalMediaId &&
 				downloadId.ChapterId == chapterId {

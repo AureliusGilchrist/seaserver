@@ -12,16 +12,17 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { useRouter } from "@/lib/navigation"
+import { formatNumber } from "@/lib/helpers/number"
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core"
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers"
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import capitalize from "lodash/capitalize"
 import React from "react"
-import { LuGripVertical, LuListVideo, LuPlay, LuTrash2, LuX } from "react-icons/lu"
+import { LuBookOpen, LuGripVertical, LuListVideo, LuPlay, LuTrash2, LuX } from "react-icons/lu"
 
 /**
- * The to-watch list: what somebody means to watch, in the order they arranged.
+ * The todo list: anime and manga somebody means to watch or read, in the order they arranged.
  *
  * A strip of cards rather than a grid, because the whole point of the list is the running order —
  * the next thing is at the top and the rest follow in a line. The cover sits at the far left so
@@ -32,7 +33,7 @@ import { LuGripVertical, LuListVideo, LuPlay, LuTrash2, LuX } from "react-icons/
  * The order is changed with a grab handle, and one drag is one request: the whole order is sent
  * whole, so a move lands as the arrangement that was made rather than a sequence of swaps.
  *
- * It starts blank and every entry on it was put there deliberately from an anime's own page. It is
+ * It starts blank and every entry on it was put there deliberately from a media entry page. It is
  * allowed to be as long as its owner wants — thousands is a list.
  */
 export function ToWatchList({ profileId, readOnly }: { profileId?: number, readOnly?: boolean }) {
@@ -47,8 +48,8 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
     const { mutate: removeItem } = useRemoveFromToWatch()
     const { mutate: clearList } = useClearToWatch()
     const clearConfirmation = useConfirmationDialog({
-        title: "Clear the to-watch list",
-        description: "Removes every entry. The anime themselves are not touched.",
+        title: "Clear the todo list",
+        description: "Removes every entry. The anime and manga themselves are not touched.",
         onConfirm: () => clearList({}),
     })
 
@@ -77,7 +78,7 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
         if (oldIndex < 0 || newIndex < 0) return
 
         const next = arrayMove(items, oldIndex, newIndex)
-        reorder({ animeIds: next.map(e => e.animeId) })
+        reorder({ items: next.map(e => ({ mediaId: toWatchMediaId(e), mediaType: toWatchMediaType(e) })) })
     }, [items, reorder])
 
     if (loading) {
@@ -97,8 +98,8 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
                 <p className="text-lg font-medium">Nothing on the list yet</p>
                 <p className="text-sm text-[--muted] max-w-md mt-1">
                     {isSelf
-                        ? "Every anime page has a button for it — add what you mean to watch, and it lines up here in the order you choose."
-                        : "This person hasn't added anything to their to-watch list yet."}
+                        ? "Add anime or manga from its page, then arrange what you plan to watch or read."
+                        : "This person hasn't added anything to their todo list yet."}
                 </p>
             </div>
         )
@@ -109,7 +110,7 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
             {isSelf && (
                 <div className="flex items-center gap-3 flex-wrap">
                     <p className="text-sm text-[--muted]">
-                        <span className="text-gray-200 font-medium tabular-nums">{items.length}</span> on the list — next up:{" "}
+                        <span className="text-gray-200 font-medium tabular-nums">{formatNumber(items.length)}</span> on the list — next up:{" "}
                         <span className="text-gray-200">{items[0]!.title}</span>
                     </p>
                     <div className="flex-1" />
@@ -134,7 +135,7 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
                                 entry={entry}
                                 position={index + 1}
                                 readOnly={!isSelf}
-                                onRemove={isSelf ? () => removeItem({ animeId: entry.animeId }) : undefined}
+                                onRemove={isSelf ? () => removeItem({ mediaId: toWatchMediaId(entry), mediaType: toWatchMediaType(entry) }) : undefined}
                                 isDragging={draggingId === toWatchKey(entry)}
                             />
                         ))}
@@ -155,7 +156,15 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
 }
 
 function toWatchKey(entry: ToWatchEntry): string {
-    return `tw-${entry.animeId}`
+    return `tw-${toWatchMediaType(entry)}-${toWatchMediaId(entry)}`
+}
+
+function toWatchMediaId(entry: ToWatchEntry): number {
+    return entry.mediaId ?? entry.animeId ?? 0
+}
+
+function toWatchMediaType(entry: ToWatchEntry): "ANIME" | "MANGA" {
+    return entry.mediaType ?? "ANIME"
 }
 
 /** "2023" / "Spring 2023" — the year, said the way a person would. */
@@ -214,7 +223,9 @@ function ToWatchCard({
     isOverlay?: boolean
 }) {
     const router = useRouter()
-    const href = `/entry?id=${entry.animeId}`
+    const mediaType = toWatchMediaType(entry)
+    const mediaId = toWatchMediaId(entry)
+    const href = mediaType === "MANGA" ? `/manga/entry?id=${mediaId}` : `/entry?id=${mediaId}`
 
     const {
         attributes,
@@ -273,7 +284,7 @@ function ToWatchCard({
             ) : (
                 <div className="py-3 flex-shrink-0">
                     <div className="w-[56px] h-[78px] rounded-md bg-gray-800/70 border border-gray-700/60 flex items-center justify-center">
-                        <LuListVideo className="text-lg text-gray-500" />
+                        {mediaType === "MANGA" ? <LuBookOpen className="text-lg text-gray-500" /> : <LuListVideo className="text-lg text-gray-500" />}
                     </div>
                 </div>
             )}
@@ -296,7 +307,9 @@ function ToWatchCard({
                     {entry.format && (
                         <span className="px-1.5 py-px rounded-full bg-white/[0.06] text-gray-300 font-medium">{entry.format}</span>
                     )}
-                    {!!entry.episodes && <span className="tabular-nums">{entry.episodes} ep{entry.episodes === 1 ? "" : "s"}</span>}
+                    {!!entry.episodes && <span className="tabular-nums">{formatNumber(entry.episodes)} ep{entry.episodes === 1 ? "" : "s"}</span>}
+                    {!!entry.chapters && <span className="tabular-nums">{formatNumber(entry.chapters)} ch{entry.chapters === 1 ? "" : "s"}</span>}
+                    {!!entry.volumes && <span className="tabular-nums">{formatNumber(entry.volumes)} vol{entry.volumes === 1 ? "" : "s"}</span>}
                     {seasonYear && <span className="tabular-nums">{seasonYear}</span>}
                     {entry.status && (
                         <span className={cn(
@@ -307,8 +320,8 @@ function ToWatchCard({
                             {entry.status.replace(/_/g, " ").toLowerCase()}
                         </span>
                     )}
-                    {!!entry.meanScore && <span className="text-amber-300/80">★ {entry.meanScore}%</span>}
-                    {!!entry.duration && <span className="tabular-nums">{entry.duration} min/ep</span>}
+                    {!!entry.meanScore && <span className="text-amber-300/80">★ {formatNumber(entry.meanScore)}%</span>}
+                    {!!entry.duration && <span className="tabular-nums">{formatNumber(entry.duration)} min/ep</span>}
                 </div>
 
                 {(!!entry.genres?.length || !!entry.studio) && (
@@ -327,10 +340,10 @@ function ToWatchCard({
                 <Button
                     size="sm"
                     intent="primary"
-                    leftIcon={<LuPlay />}
+                    leftIcon={mediaType === "MANGA" ? <LuBookOpen /> : <LuPlay />}
                     onClick={() => { router.push(href) }}
                 >
-                    Watch
+                    {mediaType === "MANGA" ? "Read" : "Watch"}
                 </Button>
                 {!readOnly && onRemove && (
                     <Button

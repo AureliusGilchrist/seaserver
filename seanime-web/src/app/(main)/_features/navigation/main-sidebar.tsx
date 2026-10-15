@@ -281,7 +281,7 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
         {
             id: "to-watch",
             iconType: LuListVideo,
-            name: "To Watch",
+            name: "Todo List",
             href: "/to-watch",
             isCurrent: pathname === "/to-watch",
         },

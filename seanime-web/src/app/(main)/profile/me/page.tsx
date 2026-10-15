@@ -50,6 +50,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Modal } from "@/components/ui/modal"
 import { Separator } from "@/components/ui/separator"
 import { Stats } from "@/components/ui/stats"
+import { formatNumber } from "@/lib/helpers/number"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAtomValue, useSetAtom } from "jotai/react"
 import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
@@ -76,7 +77,7 @@ function formatDescription(desc: string, thresholds?: number[], tierIdx?: number
     const idx = tierIdx != null ? tierIdx : 0
     const val = thresholds[Math.min(idx, thresholds.length - 1)]
     const parts = desc.split("{threshold}")
-    return <>{parts[0]}<strong className="text-[--foreground]">{val.toLocaleString()}</strong>{parts[1]}</>
+    return <>{parts[0]}<strong className="text-[--foreground]">{formatNumber(val)}</strong>{parts[1]}</>
 }
 
 function isDefUnlocked(def: Achievement_Definition, entryMap: Map<string, Achievement_Entry>): boolean {
@@ -277,7 +278,7 @@ export function MyProfilePage() {
                         <div className="flex flex-wrap items-center gap-6 mt-2">
                             <div className="flex items-center gap-2 text-[--muted]">
                                 <LuStar className="size-4" />
-                                <span className="font-semibold">{(level?.totalXP ?? 0).toLocaleString()}</span>
+                                <span className="font-semibold">{formatNumber(level?.totalXP ?? 0)}</span>
                                 <span className="text-sm">Total XP</span>
                             </div>
                             <div className="flex items-center gap-2 text-[--muted]">
@@ -348,7 +349,7 @@ export function MyProfilePage() {
                             heightClass="h-2"
                         />
                         <div className="text-xs text-[--muted] text-center">
-                            {level.xpInCurrentLevel.toLocaleString()} / {level.xpNeededForLevel.toLocaleString()} XP
+                            {formatNumber(level.xpInCurrentLevel)} / {formatNumber(level.xpNeededForLevel)} XP
                         </div>
                     </div>
                 )}
@@ -578,11 +579,11 @@ function StatsTabContent() {
                     </div>
                 </div>
 
-                <div className="rounded-xl border border-[--border] bg-gray-950/40 p-4">
+                <div className="relative z-[1] rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] via-black/25 to-black/35 p-4 shadow-xl shadow-black/20 backdrop-blur-md">
                     <StatsActivityHeatmap days={profileStats?.activityHeatmap} fillCss={effectiveXPBarFill || undefined} />
                 </div>
 
-                <div className="rounded-xl border border-[--border] bg-gray-950/40 p-4">
+                <div className="relative z-[1] rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] via-black/25 to-black/35 p-4 shadow-xl shadow-black/20 backdrop-blur-md">
                     <DayOfWeekChart patterns={profileStats?.watchPatterns?.byDayOfWeek} />
                 </div>
             </div>
@@ -735,7 +736,7 @@ function AchievementsTabContent({ editable, isAdmin }: { editable?: boolean; isA
 
 export function StreakCard({ label, icon, streak }: { label: string; icon: React.ReactNode; streak?: ProfileStats_StreakInfo }) {
     return (
-        <div className="bg-gray-950/40 border border-[--border] rounded-xl p-4 space-y-2">
+        <div className="relative z-[1] rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] via-black/25 to-black/35 p-4 shadow-xl shadow-black/20 backdrop-blur-md space-y-2">
             <div className="flex items-center gap-2 text-[--muted]">
                 {icon}
                 <span className="text-sm font-medium">{label}</span>
@@ -788,20 +789,23 @@ export function RecentAchievementRow({ entry }: { entry: Handlers_RecentAchievem
 // ─────────────────────── Stats Sub-components ───────────────────────
 
 function HeroStats({ anilistStats, profileStats }: { anilistStats?: AL_Stats; profileStats?: any }) {
+    const cardClass = "rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] via-black/25 to-black/35 shadow-xl shadow-black/20 backdrop-blur-md"
+    const gridClass = "grid-cols-2 gap-3 divide-y-0 divide-x-0 overflow-visible"
+
     return (
         <div className="space-y-2">
-            <Stats className="w-full" size="lg" items={[
+            <Stats className={cn("w-full", gridClass, "sm:grid-cols-4")} itemClass={cn(cardClass, "p-4 sm:p-5")} size="lg" items={[
                 { icon: <LuTv />, name: "Total Anime", value: anilistStats?.animeStats?.count ?? 0 },
                 { icon: <LuBookOpen />, name: "Total Manga", value: anilistStats?.mangaStats?.count ?? 0 },
                 { icon: <LuHourglass />, name: "Watch Time", value: Math.round((anilistStats?.animeStats?.minutesWatched ?? 0) / 60), unit: "hours" },
                 { icon: <LuStar />, name: "Mean Score", value: ((anilistStats?.animeStats?.meanScore ?? 0) / 10).toFixed(1) },
             ]} />
-            <Stats className="w-full" size="md" items={[
+            <Stats className={cn("w-full", gridClass, "sm:grid-cols-3")} itemClass={cn(cardClass, "p-4 sm:p-5")} size="md" items={[
                 { icon: <LuTrophy />, name: "Active Days", value: profileStats?.totalActiveDays ?? 0 },
                 { icon: <LuTv />, name: "Anime Days", value: profileStats?.totalAnimeDays ?? 0 },
                 { icon: <LuBookOpen />, name: "Manga Days", value: profileStats?.totalMangaDays ?? 0 },
             ]} />
-            <Stats className="w-full" size="md" items={[
+            <Stats className={cn("w-full", gridClass, "sm:grid-cols-2")} itemClass={cn(cardClass, "p-4 sm:p-5")} size="md" items={[
                 { icon: <LuClock />, name: "Anime hrs/week", value: (profileStats?.animeHoursPerWeek ?? 0).toFixed(1), unit: "hrs" },
                 { icon: <LuBookOpen />, name: "Manga ch/week", value: (profileStats?.mangaChaptersPerWeek ?? 0).toFixed(1), unit: "ch" },
             ]} />
@@ -843,7 +847,7 @@ function PersonalityCard({ personality }: { personality: ProfileStats_Personalit
                 <LuGlobe className="text-purple-400" />
                 Your Anime Personality
             </h2>
-            <div className="bg-gradient-to-br from-purple-900/30 via-gray-900 to-indigo-900/30 border border-purple-500/20 rounded-xl p-6 space-y-4">
+            <div className="relative z-[1] rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-900/30 via-gray-900/70 to-indigo-900/30 p-6 shadow-xl shadow-black/20 backdrop-blur-md space-y-4">
                 <div className="flex items-center gap-4">
                     {personality.iconSvg && <div className="w-12 h-12 text-purple-400" dangerouslySetInnerHTML={{ __html: personality.iconSvg }} />}
                     <div>
@@ -923,7 +927,7 @@ function AniListCharts({ stats }: { stats?: AL_Stats }) {
                 <h2 className="text-xl font-semibold">Manga Breakdown</h2>
                 <p className="text-xs text-[--muted] mt-0.5">What you read, and what it scores, straight from AniList.</p>
             </div>
-            <Stats className="w-full" size="lg" items={[
+            <Stats className="w-full grid-cols-2 gap-3 divide-y-0 divide-x-0 overflow-visible sm:grid-cols-3" itemClass="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] via-black/25 to-black/35 p-4 shadow-xl shadow-black/20 backdrop-blur-md sm:p-5" size="lg" items={[
                 { icon: <LuBookOpen />, name: "Total Manga", value: stats?.mangaStats?.count ?? 0 },
                 { icon: <LuHourglass />, name: "Chapters Read", value: stats?.mangaStats?.chaptersRead ?? 0 },
                 { icon: <LuStar />, name: "Mean Score", value: ((stats?.mangaStats?.meanScore ?? 0) / 10).toFixed(1) },
@@ -937,7 +941,7 @@ function ChartSection({ title, children }: { title: string; children: React.Reac
     // A panel, like every other section on this page — a chart floating in whitespace reads as
     // decoration; one with an edge reads as something that was measured.
     return (
-        <div className="rounded-xl border border-[--border] bg-gray-950/40 p-4">
+        <div className="relative z-[1] rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] via-black/25 to-black/35 p-4 shadow-xl shadow-black/20 backdrop-blur-md">
             <h3 className="text-sm font-medium mb-3">{title}</h3>
             <div className="w-full">{children}</div>
         </div>
@@ -1285,7 +1289,7 @@ function FavoriteStudioCard({ id }: { id: number }) {
     const favCount = (data as any)?.favourites
     const subtitle = [
         (data as any)?.isAnimationStudio ? "Animation studio" : "Studio",
-        favCount != null ? `\u2764 ${favCount.toLocaleString()}` : null,
+        favCount != null ? `\u2764 ${formatNumber(favCount)}` : null,
     ].filter(Boolean).join(" \u00b7 ")
     return (
         <FavoriteCardShell

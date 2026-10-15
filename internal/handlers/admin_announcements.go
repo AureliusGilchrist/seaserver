@@ -12,6 +12,8 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+const maxAdminAnnouncementDurationHours = 24 * 365
+
 // HandleCreateAdminAnnouncement
 //
 //	@summary creates a new admin announcement. Admin only.
@@ -33,6 +35,9 @@ func (h *Handler) HandleCreateAdminAnnouncement(c echo.Context) error {
 	}
 	if b.DurationHours <= 0 {
 		return h.RespondWithError(c, errors.New("duration must be greater than 0"))
+	}
+	if b.DurationHours > maxAdminAnnouncementDurationHours {
+		return h.RespondWithError(c, fmt.Errorf("duration cannot exceed %d hours", maxAdminAnnouncementDurationHours))
 	}
 
 	// Get admin profile ID

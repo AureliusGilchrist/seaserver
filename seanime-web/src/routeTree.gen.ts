@@ -40,6 +40,7 @@ import { Route as MainProfileStatsIndexRouteImport } from './routes/_main/profil
 import { Route as MainProfileMeIndexRouteImport } from './routes/_main/profile/me/index'
 import { Route as MainMangaEntryIndexRouteImport } from './routes/_main/manga/entry/index'
 import { Route as MainAuthCallbackIndexRouteImport } from './routes/_main/auth/callback/index'
+import { Route as MainAdminAnnouncementsIndexRouteImport } from './routes/_main/admin/announcements/index'
 import { Route as MainOfflineEntryMangaIndexRouteImport } from './routes/_main/offline/entry/manga/index'
 import { Route as MainOfflineEntryAnimeIndexRouteImport } from './routes/_main/offline/entry/anime/index'
 
@@ -439,6 +440,16 @@ const MainAuthCallbackIndexRoute = MainAuthCallbackIndexRouteImport.update({
   path: '/auth/callback/',
   getParentRoute: () => MainRoute,
 } as any)
+const MainAdminAnnouncementsIndexRoute =
+  MainAdminAnnouncementsIndexRouteImport.update({
+    id: '/admin/announcements/',
+    path: '/admin/announcements/',
+    getParentRoute: () => MainRoute,
+  } as any).lazy(() =>
+    import('./routes/_main/admin/announcements/index.lazy').then(
+      (d) => d.Route,
+    ),
+  )
 const MainOfflineEntryMangaIndexRoute =
   MainOfflineEntryMangaIndexRouteImport.update({
     id: '/offline/entry/manga/',
@@ -503,6 +514,7 @@ export interface FileRoutesByFullPath {
   '/torrent-list/': typeof MainTorrentListIndexLazyRoute
   '/unmatched/': typeof MainUnmatchedIndexLazyRoute
   '/webview/': typeof MainWebviewIndexLazyRoute
+  '/admin/announcements/': typeof MainAdminAnnouncementsIndexRoute
   '/auth/callback/': typeof MainAuthCallbackIndexRoute
   '/manga/entry/': typeof MainMangaEntryIndexRoute
   '/profile/me/': typeof MainProfileMeIndexRoute
@@ -557,6 +569,7 @@ export interface FileRoutesByTo {
   '/torrent-list': typeof MainTorrentListIndexLazyRoute
   '/unmatched': typeof MainUnmatchedIndexLazyRoute
   '/webview': typeof MainWebviewIndexLazyRoute
+  '/admin/announcements': typeof MainAdminAnnouncementsIndexRoute
   '/auth/callback': typeof MainAuthCallbackIndexRoute
   '/manga/entry': typeof MainMangaEntryIndexRoute
   '/profile/me': typeof MainProfileMeIndexRoute
@@ -613,6 +626,7 @@ export interface FileRoutesById {
   '/_main/torrent-list/': typeof MainTorrentListIndexLazyRoute
   '/_main/unmatched/': typeof MainUnmatchedIndexLazyRoute
   '/_main/webview/': typeof MainWebviewIndexLazyRoute
+  '/_main/admin/announcements/': typeof MainAdminAnnouncementsIndexRoute
   '/_main/auth/callback/': typeof MainAuthCallbackIndexRoute
   '/_main/manga/entry/': typeof MainMangaEntryIndexRoute
   '/_main/profile/me/': typeof MainProfileMeIndexRoute
@@ -669,6 +683,7 @@ export interface FileRouteTypes {
     | '/torrent-list/'
     | '/unmatched/'
     | '/webview/'
+    | '/admin/announcements/'
     | '/auth/callback/'
     | '/manga/entry/'
     | '/profile/me/'
@@ -723,6 +738,7 @@ export interface FileRouteTypes {
     | '/torrent-list'
     | '/unmatched'
     | '/webview'
+    | '/admin/announcements'
     | '/auth/callback'
     | '/manga/entry'
     | '/profile/me'
@@ -778,6 +794,7 @@ export interface FileRouteTypes {
     | '/_main/torrent-list/'
     | '/_main/unmatched/'
     | '/_main/webview/'
+    | '/_main/admin/announcements/'
     | '/_main/auth/callback/'
     | '/_main/manga/entry/'
     | '/_main/profile/me/'
@@ -1160,6 +1177,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MainAuthCallbackIndexRouteImport
       parentRoute: typeof MainRoute
     }
+    '/_main/admin/announcements/': {
+      id: '/_main/admin/announcements/'
+      path: '/admin/announcements'
+      fullPath: '/admin/announcements/'
+      preLoaderRoute: typeof MainAdminAnnouncementsIndexRouteImport
+      parentRoute: typeof MainRoute
+    }
     '/_main/offline/entry/manga/': {
       id: '/_main/offline/entry/manga/'
       path: '/offline/entry/manga'
@@ -1213,6 +1237,7 @@ interface MainRouteChildren {
   MainTorrentListIndexLazyRoute: typeof MainTorrentListIndexLazyRoute
   MainUnmatchedIndexLazyRoute: typeof MainUnmatchedIndexLazyRoute
   MainWebviewIndexLazyRoute: typeof MainWebviewIndexLazyRoute
+  MainAdminAnnouncementsIndexRoute: typeof MainAdminAnnouncementsIndexRoute
   MainAuthCallbackIndexRoute: typeof MainAuthCallbackIndexRoute
   MainMangaEntryIndexRoute: typeof MainMangaEntryIndexRoute
   MainProfileMeIndexRoute: typeof MainProfileMeIndexRoute
@@ -1261,6 +1286,7 @@ const MainRouteChildren: MainRouteChildren = {
   MainTorrentListIndexLazyRoute: MainTorrentListIndexLazyRoute,
   MainUnmatchedIndexLazyRoute: MainUnmatchedIndexLazyRoute,
   MainWebviewIndexLazyRoute: MainWebviewIndexLazyRoute,
+  MainAdminAnnouncementsIndexRoute: MainAdminAnnouncementsIndexRoute,
   MainAuthCallbackIndexRoute: MainAuthCallbackIndexRoute,
   MainMangaEntryIndexRoute: MainMangaEntryIndexRoute,
   MainProfileMeIndexRoute: MainProfileMeIndexRoute,

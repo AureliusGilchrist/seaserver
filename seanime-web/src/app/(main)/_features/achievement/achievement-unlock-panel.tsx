@@ -6,6 +6,7 @@ import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websocke
 import { cn } from "@/components/ui/core/styling"
 import { useAnimeThemeOrNull } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { WSEvents } from "@/lib/server/ws-events"
+import { formatNumber } from "@/lib/helpers/number"
 import { useQueryClient } from "@tanstack/react-query"
 import React from "react"
 import { LuTrophy, LuFlag, LuCrown } from "react-icons/lu"
@@ -243,7 +244,7 @@ export function AchievementUnlockPanel() {
     const onMilestone = React.useCallback((data: MilestoneUnlockPayload) => {
         addToCache(MILESTONE_CACHE_KEY, [`${data.key}:0`])
         qc.invalidateQueries({ queryKey: [API_ENDPOINTS.MILESTONES.GetMilestones.key] })
-        const desc = `${(data.threshold ?? 0).toLocaleString()} ${(data.category || "").replace(/_/g, " ")}`.trim()
+        const desc = `${formatNumber(data.threshold ?? 0)} ${(data.category || "").replace(/_/g, " ")}`.trim()
         enqueue({
             id: `m:${data.key}:${Date.now()}:${Math.random().toString(36).slice(2, 6)}`,
             kind: "milestone",

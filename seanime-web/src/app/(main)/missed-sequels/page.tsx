@@ -8,6 +8,7 @@ import { __torrentSearch_selectedTorrentsAtom } from "@/app/(main)/entry/_contai
 import { useGetAnimeEntry } from "@/api/hooks/anime_entries.hooks"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
 import { PageWrapper } from "@/components/shared/page-wrapper"
+import { formatNumber } from "@/lib/helpers/number"
 import { Button, IconButton } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { Drawer } from "@/components/ui/drawer"
@@ -79,7 +80,7 @@ function NotWatchedSection() {
                     <h3 className="text-lg font-semibold">Not watched</h3>
                     <p className="text-xs text-[--muted]">Sequels continuing what you have completed, and not on your lists.</p>
                 </div>
-                <span className="text-xs text-[--muted]">{visible.length} to look at</span>
+                <span className="text-xs text-[--muted]">{formatNumber(visible.length)} to look at</span>
             </div>
 
             {isLoading ? (
@@ -140,7 +141,7 @@ function NotMatchedSection() {
                     <h3 className="text-lg font-semibold">Not matched</h3>
                     <p className="text-xs text-[--muted]">In your library, with nothing on disk to watch — press one to download it.</p>
                 </div>
-                <span className="text-xs text-[--muted]">{withNoFiles.length} to get</span>
+                <span className="text-xs text-[--muted]">{formatNumber(withNoFiles.length)} to get</span>
             </div>
 
             {isLoading ? null : !withNoFiles.length ? (

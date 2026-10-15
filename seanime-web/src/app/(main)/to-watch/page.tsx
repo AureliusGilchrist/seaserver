@@ -7,12 +7,11 @@ import React from "react"
 import { LuListVideo } from "react-icons/lu"
 
 /**
- * The to-watch list, as its own screen.
+ * The todo list, as its own screen.
  *
  * The profile tab shows the same list, and this is where it is worked from: a screen of its own,
  * reachable from the sidebar, laid out as one long strip in the order the person arranged — what is
- * next at the top, everything else following, each row recognisable by its cover and answerable by
- * its description, with the button that starts it on the far right.
+ * next at the top, everything else following, with anime and manga in the same ordered list.
  *
  * The list is per-profile, so this screen shows the signed-in profile's own list; other people's
  * are on their profiles, read-only.
@@ -25,9 +24,9 @@ export default function Page() {
                 <div className="flex items-center gap-3">
                     <LuListVideo className="text-3xl text-brand-200" />
                     <div>
-                        <h2 className="text-2xl font-bold">To Watch</h2>
+                        <h2 className="text-2xl font-bold">Todo List</h2>
                         <p className="text-sm text-[--muted] mt-0.5">
-                            What you mean to watch, in the order you mean to watch it. Add to it from any anime's page.
+                            What you plan to watch or read, in the order you choose. Add anime or manga from its page.
                         </p>
                     </div>
                 </div>

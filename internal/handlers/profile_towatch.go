@@ -3,13 +3,14 @@ package handlers
 import (
 	"encoding/json"
 	"strconv"
+	"strings"
 
 	"seanime/internal/database/models"
 
 	"github.com/labstack/echo/v4"
 )
 
-// A profile's to-watch list: what they mean to watch, in the order they arranged, shown on their
+// A profile's todo list: what they mean to watch or read, in the order they arranged, shown on their
 // profile for others to see.
 //
 // It starts blank, and every entry on it was put there deliberately from an anime's own page — so
@@ -17,19 +18,23 @@ import (
 // made it.
 
 // toWatchEntry is one row of the list, as the screen draws it: the snapshot taken when it was added,
-// plus the anime's id, which is the row's identity.
+// plus the media type and id, which together are the row's identity.
 //
 // The snapshot carries everything a row shows, because a list of thousands rendered a row at a time
 // must not ask AniList for each one — and a list that shows what was true when it was added does not
 // change under the person reading it.
 type toWatchEntry struct {
-	AnimeID     int      `json:"animeId"`
+	AnimeID     int      `json:"animeId,omitempty"`
+	MediaID     int      `json:"mediaId"`
+	MediaType   string   `json:"mediaType"`
 	Title       string   `json:"title"`
 	Description string   `json:"description,omitempty"`
 	CoverImage  string   `json:"coverImage,omitempty"`
 	BannerImage string   `json:"bannerImage,omitempty"`
 	Format      string   `json:"format,omitempty"`
 	Episodes    int      `json:"episodes,omitempty"`
+	Chapters    int      `json:"chapters,omitempty"`
+	Volumes     int      `json:"volumes,omitempty"`
 	Duration    int      `json:"duration,omitempty"`
 	Season      string   `json:"season,omitempty"`
 	SeasonYear  int      `json:"seasonYear,omitempty"`
@@ -40,17 +45,33 @@ type toWatchEntry struct {
 }
 
 func decodeToWatchEntry(item *models.ToWatchItem) toWatchEntry {
-	entry := toWatchEntry{AnimeID: item.AnimeID}
+	mediaType := normalizeToWatchMediaType(item.MediaType)
+	entry := toWatchEntry{MediaID: item.AnimeID, MediaType: mediaType}
+	if mediaType == "ANIME" {
+		entry.AnimeID = item.AnimeID
+	}
 	if len(item.Value) > 0 {
 		_ = json.Unmarshal(item.Value, &entry)
-		entry.AnimeID = item.AnimeID // the id is the row's identity, never the snapshot's to overwrite
+		entry.MediaID = item.AnimeID
+		entry.MediaType = mediaType
+		entry.AnimeID = 0
+		if mediaType == "ANIME" {
+			entry.AnimeID = item.AnimeID
+		}
 	}
 	return entry
 }
 
+func normalizeToWatchMediaType(mediaType string) string {
+	if strings.EqualFold(strings.TrimSpace(mediaType), "MANGA") {
+		return "MANGA"
+	}
+	return "ANIME"
+}
+
 // HandleGetToWatch
 //
-//	@summary returns the authenticated profile's to-watch list.
+//	@summary returns the authenticated profile's todo list.
 //	@desc Returns every entry in the list, in the order they arranged. Starts blank; entries are
 //	@desc added from an anime's own page.
 //	@route /api/v1/profile/to-watch [GET]
@@ -66,7 +87,7 @@ func (h *Handler) HandleGetToWatch(c echo.Context) error {
 
 // HandleGetToWatchForUser
 //
-//	@summary returns a profile's to-watch list.
+//	@summary returns a profile's todo list.
 //	@desc The same list, by profile — this is what a public profile shows, so whoever is looking can
 //	@desc see what that person means to watch next.
 //	@route /api/v1/profile/to-watch/user/:profileId [GET]
@@ -96,9 +117,9 @@ func (h *Handler) respondWithToWatch(c echo.Context, profileID uint) error {
 
 // HandleAddToWatch
 //
-//	@summary adds an anime to the end of the authenticated profile's to-watch list.
-//	@desc The entry is added with a snapshot of the anime taken from the body, so the list renders
-//	@desc without asking AniList for every row. Adding the same anime twice is refused — the list is
+//	@summary adds anime or manga to the end of the authenticated profile's todo list.
+//	@desc The entry is added with a snapshot of the media taken from the body, so the list renders
+//	@desc without asking AniList for every row. Adding the same media twice is refused — the list is
 //	@desc a running order, and the same anime twice in it is the same entry.
 //	@route /api/v1/profile/to-watch/add [POST]
 //	@returns []toWatchEntry
@@ -109,13 +130,17 @@ func (h *Handler) HandleAddToWatch(c echo.Context) error {
 	}
 
 	type body struct {
+		MediaID     int      `json:"mediaId"`
 		AnimeID     int      `json:"animeId"`
+		MediaType   string   `json:"mediaType"`
 		Title       string   `json:"title"`
 		Description string   `json:"description"`
 		CoverImage  string   `json:"coverImage"`
 		BannerImage string   `json:"bannerImage"`
 		Format      string   `json:"format"`
 		Episodes    int      `json:"episodes"`
+		Chapters    int      `json:"chapters"`
+		Volumes     int      `json:"volumes"`
 		Duration    int      `json:"duration"`
 		Season      string   `json:"season"`
 		SeasonYear  int      `json:"seasonYear"`
@@ -129,8 +154,16 @@ func (h *Handler) HandleAddToWatch(c echo.Context) error {
 	if err := c.Bind(&b); err != nil {
 		return h.RespondWithError(c, err)
 	}
-	if b.AnimeID <= 0 {
-		return h.RespondWithError(c, echo.NewHTTPError(400, "animeId is required"))
+	mediaID := b.MediaID
+	if mediaID == 0 {
+		mediaID = b.AnimeID
+	}
+	if mediaID <= 0 {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "mediaId is required"))
+	}
+	mediaType := normalizeToWatchMediaType(b.MediaType)
+	if b.MediaType != "" && mediaType == "ANIME" && !strings.EqualFold(strings.TrimSpace(b.MediaType), "ANIME") {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "mediaType must be ANIME or MANGA"))
 	}
 
 	// How many are already on the list, so this one goes at the end. A list is allowed to be as
@@ -140,14 +173,17 @@ func (h *Handler) HandleAddToWatch(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
-	snapshot, err := json.Marshal(toWatchEntry{
-		AnimeID:     b.AnimeID,
+	entry := toWatchEntry{
+		MediaID:     mediaID,
+		MediaType:   mediaType,
 		Title:       b.Title,
 		Description: b.Description,
 		CoverImage:  b.CoverImage,
 		BannerImage: b.BannerImage,
 		Format:      b.Format,
 		Episodes:    b.Episodes,
+		Chapters:    b.Chapters,
+		Volumes:     b.Volumes,
 		Duration:    b.Duration,
 		Season:      b.Season,
 		SeasonYear:  b.SeasonYear,
@@ -155,14 +191,19 @@ func (h *Handler) HandleAddToWatch(c echo.Context) error {
 		MeanScore:   b.MeanScore,
 		Genres:      b.Genres,
 		Studio:      b.Studio,
-	})
+	}
+	if mediaType == "ANIME" {
+		entry.AnimeID = mediaID
+	}
+	snapshot, err := json.Marshal(entry)
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
 
 	item := &models.ToWatchItem{
 		ProfileID: profileID,
-		AnimeID:   b.AnimeID,
+		AnimeID:   mediaID,
+		MediaType: mediaType,
 		Position:  count + 1,
 		Value:     snapshot,
 	}
@@ -171,15 +212,15 @@ func (h *Handler) HandleAddToWatch(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
-	h.App.Logger.Info().Int("animeId", b.AnimeID).Uint("profileId", profileID).
-		Msg("profile: Added to the to-watch list")
+	h.App.Logger.Info().Int("mediaId", mediaID).Str("mediaType", mediaType).Uint("profileId", profileID).
+		Msg("profile: Added to the todo list")
 
 	return h.respondWithToWatch(c, profileID)
 }
 
 // HandleRemoveToWatch
 //
-//	@summary removes an anime from the authenticated profile's to-watch list.
+//	@summary removes anime or manga from the authenticated profile's todo list.
 //	@route /api/v1/profile/to-watch/remove [POST]
 //	@returns []toWatchEntry
 func (h *Handler) HandleRemoveToWatch(c echo.Context) error {
@@ -189,17 +230,27 @@ func (h *Handler) HandleRemoveToWatch(c echo.Context) error {
 	}
 
 	type body struct {
-		AnimeID int `json:"animeId"`
+		MediaID   int    `json:"mediaId"`
+		AnimeID   int    `json:"animeId"`
+		MediaType string `json:"mediaType"`
 	}
 	var b body
 	if err := c.Bind(&b); err != nil {
 		return h.RespondWithError(c, err)
 	}
-	if b.AnimeID <= 0 {
-		return h.RespondWithError(c, echo.NewHTTPError(400, "animeId is required"))
+	mediaID := b.MediaID
+	if mediaID == 0 {
+		mediaID = b.AnimeID
+	}
+	if mediaID <= 0 {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "mediaId is required"))
 	}
 
-	if err := h.App.Database.DeleteToWatchItem(profileID, b.AnimeID); err != nil {
+	mediaType := normalizeToWatchMediaType(b.MediaType)
+	if b.MediaType != "" && mediaType == "ANIME" && !strings.EqualFold(strings.TrimSpace(b.MediaType), "ANIME") {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "mediaType must be ANIME or MANGA"))
+	}
+	if err := h.App.Database.DeleteToWatchItem(profileID, mediaID, mediaType); err != nil {
 		return h.RespondWithError(c, err)
 	}
 
@@ -208,8 +259,8 @@ func (h *Handler) HandleRemoveToWatch(c echo.Context) error {
 
 // HandleReorderToWatch
 //
-//	@summary rewrites the order of the authenticated profile's to-watch list.
-//	@desc The body is the anime ids in their new order; positions are rewritten whole from it, so a
+//	@summary rewrites the order of the authenticated profile's todo list.
+//	@desc The body is the media IDs and types in their new order; positions are rewritten whole from it, so a
 //	@desc reorder is exactly the arrangement that was made.
 //	@route /api/v1/profile/to-watch/reorder [POST]
 //	@returns []toWatchEntry
@@ -221,16 +272,36 @@ func (h *Handler) HandleReorderToWatch(c echo.Context) error {
 
 	type body struct {
 		AnimeIDs []int `json:"animeIds"`
+		Items    []struct {
+			MediaID   int    `json:"mediaId"`
+			MediaType string `json:"mediaType"`
+		} `json:"items"`
 	}
 	var b body
 	if err := c.Bind(&b); err != nil {
 		return h.RespondWithError(c, err)
 	}
-	if len(b.AnimeIDs) == 0 {
+	items := make([]*models.ToWatchItem, 0, len(b.Items)+len(b.AnimeIDs))
+	for _, item := range b.Items {
+		if item.MediaID <= 0 {
+			return h.RespondWithError(c, echo.NewHTTPError(400, "mediaId must be positive"))
+		}
+		mediaType := normalizeToWatchMediaType(item.MediaType)
+		if item.MediaType != "" && mediaType == "ANIME" && !strings.EqualFold(strings.TrimSpace(item.MediaType), "ANIME") {
+			return h.RespondWithError(c, echo.NewHTTPError(400, "mediaType must be ANIME or MANGA"))
+		}
+		items = append(items, &models.ToWatchItem{AnimeID: item.MediaID, MediaType: mediaType})
+	}
+	if len(items) == 0 {
+		for _, animeID := range b.AnimeIDs {
+			items = append(items, &models.ToWatchItem{AnimeID: animeID, MediaType: "ANIME"})
+		}
+	}
+	if len(items) == 0 {
 		return h.RespondWithError(c, echo.NewHTTPError(400, "no order given"))
 	}
 
-	if err := h.App.Database.SetToWatchOrder(profileID, b.AnimeIDs); err != nil {
+	if err := h.App.Database.SetToWatchOrder(profileID, items); err != nil {
 		return h.RespondWithError(c, err)
 	}
 
@@ -239,7 +310,7 @@ func (h *Handler) HandleReorderToWatch(c echo.Context) error {
 
 // HandleClearToWatch
 //
-//	@summary empties the authenticated profile's to-watch list.
+//	@summary empties the authenticated profile's todo list.
 //	@route /api/v1/profile/to-watch/clear [POST]
 //	@returns []toWatchEntry
 func (h *Handler) HandleClearToWatch(c echo.Context) error {

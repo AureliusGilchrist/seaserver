@@ -63,6 +63,20 @@ export function useMangaReaderUtils() {
 }
 
 export function useMangaDownloadDataUtils(data: Manga_MediaDownloadData | undefined, loading: boolean) {
+    const downloadedByProvider = React.useMemo(() => {
+        const result = new Map<string, Set<string>>()
+        for (const [provider, chapters] of Object.entries(data?.downloaded ?? {})) {
+            result.set(provider, new Set(chapters.map(chapter => chapter.chapterId)))
+        }
+        return result
+    }, [data])
+    const queuedByProvider = React.useMemo(() => {
+        const result = new Map<string, Set<string>>()
+        for (const [provider, chapters] of Object.entries(data?.queued ?? {})) {
+            result.set(provider, new Set(chapters.map(chapter => chapter.chapterId)))
+        }
+        return result
+    }, [data])
 
     const isChapterLocal = React.useCallback((chapter: HibikeManga_ChapterDetails | undefined) => {
         if (!chapter) return false
@@ -70,19 +84,18 @@ export function useMangaDownloadDataUtils(data: Manga_MediaDownloadData | undefi
     }, [])
 
     const isChapterDownloaded = React.useCallback((chapter: HibikeManga_ChapterDetails | undefined) => {
-        if (!data || !chapter) return false
-        return (data?.downloaded[chapter.provider]?.findIndex(n => n.chapterId === chapter.id) ?? -1) !== -1
-    }, [data])
+        if (!chapter) return false
+        return downloadedByProvider.get(chapter.provider)?.has(chapter.id) ?? false
+    }, [downloadedByProvider])
 
     const isChapterQueued = React.useCallback((chapter: HibikeManga_ChapterDetails | undefined) => {
-        if (!data || !chapter) return false
-        return (data?.queued[chapter.provider]?.findIndex(n => n.chapterId === chapter.id) ?? -1) !== -1
-    }, [data])
+        if (!chapter) return false
+        return queuedByProvider.get(chapter.provider)?.has(chapter.id) ?? false
+    }, [queuedByProvider])
 
     const getProviderNumberOfDownloadedChapters = React.useCallback((provider: string) => {
-        if (!data) return 0
-        return Object.keys(data.downloaded[provider] || {}).length
-    }, [data])
+        return downloadedByProvider.get(provider)?.size ?? 0
+    }, [downloadedByProvider])
     return {
         isChapterDownloaded,
         isChapterQueued,

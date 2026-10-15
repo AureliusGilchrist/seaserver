@@ -34,6 +34,7 @@ import {
 import { SeaLink } from "@/components/shared/sea-link"
 import { Stats } from "@/components/ui/stats"
 import { ToWatchList } from "@/app/(main)/profile/_components/to-watch-list"
+import { formatNumber } from "@/lib/helpers/number"
 
 export default function Page() {
     const searchParams = useSearchParams()
@@ -187,7 +188,7 @@ function UserProfilePage() {
                         <div className="flex flex-wrap items-center gap-6 mt-2">
                             <div className="flex items-center gap-2 text-[--muted]">
                                 <LuStar className="size-4" />
-                                <span className="font-semibold">{(level?.totalXP ?? 0).toLocaleString()}</span>
+                                <span className="font-semibold">{formatNumber(level?.totalXP ?? 0)}</span>
                                 <span className="text-sm">Total XP</span>
                             </div>
                             <div className="flex items-center gap-2 text-[--muted]">
@@ -228,7 +229,7 @@ function UserProfilePage() {
                             />
                         </div>
                         <div className="text-xs text-[--muted] text-center">
-                            {level.xpInCurrentLevel.toLocaleString()} / {level.xpNeededForLevel.toLocaleString()} XP
+                            {formatNumber(level.xpInCurrentLevel)} / {formatNumber(level.xpNeededForLevel)} XP
                         </div>
                     </div>
                 )}
@@ -242,7 +243,7 @@ function UserProfilePage() {
                             <LuActivity className="mr-1.5" /> Activity
                         </TabsTrigger>
                         <TabsTrigger value="towatch" className={tabsTriggerClass}>
-                            <LuListVideo className="mr-1.5" /> To Watch
+                            <LuListVideo className="mr-1.5" /> Todo List
                         </TabsTrigger>
                         <TabsTrigger value="stats" className={tabsTriggerClass}>
                             <LuStar className="mr-1.5" /> Stats
@@ -302,11 +303,16 @@ function UserStatsTabContent({ userId, xpBarFillCss }: { userId: number; xpBarFi
 
     return (
         <>
-            <Stats className="w-full" size="md" items={[
+            <Stats
+                className="w-full grid-cols-2 gap-3 divide-y-0 divide-x-0 overflow-visible sm:grid-cols-3"
+                itemClass="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] via-black/25 to-black/35 p-4 shadow-xl shadow-black/20 backdrop-blur-md sm:p-5"
+                size="md"
+                items={[
                 { icon: <LuTrophy />, name: "Active Days", value: profileStats?.totalActiveDays ?? 0 },
                 { icon: <LuTv />, name: "Anime Days", value: profileStats?.totalAnimeDays ?? 0 },
                 { icon: <LuBookOpen />, name: "Manga Days", value: profileStats?.totalMangaDays ?? 0 },
-            ]} />
+                ]}
+            />
 
             <Separator />
 
@@ -324,7 +330,7 @@ function UserStatsTabContent({ userId, xpBarFillCss }: { userId: number; xpBarFi
                         Activity
                     </h2>
                     <select
-                        className="bg-gray-900 border border-[--border] rounded-md px-3 py-1.5 text-sm"
+                        className="rounded-lg border border-white/10 bg-gray-900/70 px-3 py-1.5 text-sm backdrop-blur-md"
                         value={selectedYear ?? ""}
                         onChange={(e) => setSelectedYear(e.target.value ? Number(e.target.value) : undefined)}
                     >
@@ -335,8 +341,12 @@ function UserStatsTabContent({ userId, xpBarFillCss }: { userId: number; xpBarFi
                         ))}
                     </select>
                 </div>
-                <StatsActivityHeatmap days={profileStats?.activityHeatmap} fillCss={xpBarFillCss} />
-                <DayOfWeekChart patterns={profileStats?.watchPatterns?.byDayOfWeek} />
+                <div className="relative z-[1] rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] via-black/25 to-black/35 p-4 shadow-xl shadow-black/20 backdrop-blur-md">
+                    <StatsActivityHeatmap days={profileStats?.activityHeatmap} fillCss={xpBarFillCss} />
+                </div>
+                <div className="relative z-[1] rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] via-black/25 to-black/35 p-4 shadow-xl shadow-black/20 backdrop-blur-md">
+                    <DayOfWeekChart patterns={profileStats?.watchPatterns?.byDayOfWeek} />
+                </div>
             </div>
         </>
     )

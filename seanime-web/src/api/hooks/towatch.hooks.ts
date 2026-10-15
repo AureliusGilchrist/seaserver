@@ -3,25 +3,31 @@ import { Nullish } from "@/types/common"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
-// ─── To-watch list ───────────────────────────────────────────────────
+// ─── Todo list ────────────────────────────────────────────────────────
 //
-// A profile's list of what they mean to watch, in the order they arranged. It starts blank and is
-// built from the button on an anime's own page — see internal/handlers/profile_towatch.go. The list
+// A profile's list of what they mean to watch or read, in the order they arranged. It starts blank
+// and is built from anime or manga entry pages — see internal/handlers/profile_towatch.go. The list
 // is what their public profile shows, so it lives on the server rather than in a browser, and it is
 // allowed to be as long as its owner wants.
 //
 // Every mutation answers with the whole list, so the cache is set from the answer rather than
 // invalidated and re-fetched.
 
-/** One row of the list — the snapshot taken when it was added, plus the anime's id. */
+/** One row of the list — a media snapshot and its media-type-qualified ID. */
+export type TodoMediaType = "ANIME" | "MANGA"
+
 export interface ToWatchEntry {
-    animeId: number
+    mediaId?: number
+    mediaType?: TodoMediaType
+    animeId?: number
     title: string
     description?: string
     coverImage?: string
     bannerImage?: string
     format?: string
     episodes?: number
+    chapters?: number
+    volumes?: number
     duration?: number
     season?: string
     seasonYear?: number
@@ -32,13 +38,16 @@ export interface ToWatchEntry {
 }
 
 export interface AddToWatchBody {
-    animeId: number
+    mediaId: number
+    mediaType: TodoMediaType
     title: string
     description?: string
     coverImage?: string
     bannerImage?: string
     format?: string
     episodes?: number
+    chapters?: number
+    volumes?: number
     duration?: number
     season?: string
     seasonYear?: number
@@ -91,24 +100,24 @@ export function useAddToWatch(onSuccess?: (data?: ToWatchEntry[]) => void) {
         method: "POST",
         mutationKey: ["to-watch-add"],
         onSuccess: async (data) => {
-            toast.success("Added to your to-watch list")
+            toast.success("Added to your todo list")
             writeCache(data)
             onSuccess?.(data)
         },
         onError: (error) => {
             const message = (error as Error)?.message || ""
             if (message.includes("already in the to-watch list")) {
-                toast.info("Already in your to-watch list")
+                toast.info("Already in your todo list")
                 return
             }
-            toast.error("Could not add to your to-watch list", { description: message })
+            toast.error("Could not add to your todo list", { description: message })
         },
     })
 }
 
 export function useRemoveFromToWatch() {
     const writeCache = useToWatchCacheWriter()
-    return useServerMutation<ToWatchEntry[], { animeId: number }>({
+    return useServerMutation<ToWatchEntry[], { mediaId: number, mediaType: TodoMediaType }>({
         endpoint: "/api/v1/profile/to-watch/remove",
         method: "POST",
         mutationKey: ["to-watch-remove"],
@@ -117,12 +126,12 @@ export function useRemoveFromToWatch() {
 }
 
 /**
- * Rewrites the running order. The body is the anime ids in their new order, whole — so a move is
+ * Rewrites the running order. The body is the media entries in their new order, whole — so a move is
  * one request rather than a sequence of them.
  */
 export function useReorderToWatch() {
     const writeCache = useToWatchCacheWriter()
-    return useServerMutation<ToWatchEntry[], { animeIds: number[] }>({
+    return useServerMutation<ToWatchEntry[], { items: Array<{ mediaId: number, mediaType: TodoMediaType }> }>({
         endpoint: "/api/v1/profile/to-watch/reorder",
         method: "POST",
         mutationKey: ["to-watch-reorder"],
@@ -137,7 +146,7 @@ export function useClearToWatch() {
         method: "POST",
         mutationKey: ["to-watch-clear"],
         onSuccess: async () => {
-            toast.success("To-watch list cleared")
+            toast.success("Todo list cleared")
             writeCache(true)
         },
     })

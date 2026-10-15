@@ -34,6 +34,7 @@ import { cn } from "@/components/ui/core/styling"
 import { Skeleton } from "@/components/ui/skeleton"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { ThemeLibraryScreenBannerType, useThemeSettings } from "@/lib/theme/hooks"
+import { formatNumber } from "@/lib/helpers/number"
 import { sortByGojuuon } from "@/lib/helpers/filtering"
 import { useDebounce } from "use-debounce"
 import { addDays } from "date-fns/addDays"
@@ -726,29 +727,29 @@ export function HomeScreenItem(props: HomeScreenItemProps) {
                         <p>Library</p>
                     </div>}
                     <div>
-                        <h3>{data?.stats?.totalFiles ?? "-"}</h3>
+                        <h3>{data?.stats?.totalFiles == null ? "-" : formatNumber(data.stats.totalFiles)}</h3>
                         <p>Files</p>
                     </div>
                     <div>
-                        <h3>{data?.stats?.totalEntries ?? "-"}</h3>
+                        <h3>{data?.stats?.totalEntries == null ? "-" : formatNumber(data.stats.totalEntries)}</h3>
                         <p>Entries</p>
                     </div>
                     <div>
-                        <h3>{data?.stats?.totalShows ?? "-"}</h3>
+                        <h3>{data?.stats?.totalShows == null ? "-" : formatNumber(data.stats.totalShows)}</h3>
                         <p>TV Shows</p>
                     </div>
                     <div>
-                        <h3>{data?.stats?.totalMovies ?? "-"}</h3>
+                        <h3>{data?.stats?.totalMovies == null ? "-" : formatNumber(data.stats.totalMovies)}</h3>
                         <p>Movies</p>
                     </div>
                     <div>
-                        <h3>{data?.stats?.totalSpecials ?? "-"}</h3>
+                        <h3>{data?.stats?.totalSpecials == null ? "-" : formatNumber(data.stats.totalSpecials)}</h3>
                         <p>Specials</p>
                     </div>
                     {/* What the scan found and the library cannot show. Absent when there is none. */}
                     {(data?.stats?.unresolvedItems ?? 0) > 0 && <div data-detailed-library-view-unresolved>
-                        <h3 className="text-orange-300">{data?.stats?.unresolvedItems}</h3>
-                        <p title={`${data?.stats?.unresolvedFiles ?? 0} files that are matched to anime missing from your AniList collection, or that matched nothing at all. Resolve them from the Unknown and Unmatched sections.`}>
+                        <h3 className="text-orange-300">{formatNumber(data?.stats?.unresolvedItems ?? 0)}</h3>
+                        <p title={`${formatNumber(data?.stats?.unresolvedFiles ?? 0)} files that are matched to anime missing from your AniList collection, or that matched nothing at all. Resolve them from the Unknown and Unmatched sections.`}>
                             Unresolved
                         </p>
                     </div>}
@@ -1250,33 +1251,33 @@ function MyLists(props: { item: Models_HomeItem }) {
         <PageWrapper className="space-y-6 px-4">
             {(!!currentList?.entries?.length && !isCustomList && (!item.options?.statuses?.length || item.options?.statuses?.includes("CURRENT"))) && <>
                 <h2>{item.options?.type === "manga" ? "Currently reading" : "Currently watching"}
-                    <span className="text-[--muted] font-medium ml-3">{currentList?.entries?.length}</span></h2>
+                    <span className="text-[--muted] font-medium ml-3">{formatNumber(currentList?.entries?.length ?? 0)}</span></h2>
                 <AnilistAnimeEntryList type={item.options?.type ?? "anime"} layout={item.options?.layout} list={currentList} />
             </>}
             {(!!repeatingList?.entries?.length && !isCustomList && (!item.options?.statuses?.length || item.options?.statuses?.includes("REPEATING"))) && <>
-                <h2>Repeating <span className="text-[--muted] font-medium ml-3">{repeatingList?.entries?.length}</span></h2>
+                <h2>Repeating <span className="text-[--muted] font-medium ml-3">{formatNumber(repeatingList?.entries?.length ?? 0)}</span></h2>
                 <AnilistAnimeEntryList type={item.options?.type ?? "anime"} layout={item.options?.layout} list={repeatingList} />
             </>}
             {(!!planningList?.entries?.length && !isCustomList && (!item.options?.statuses?.length || item.options?.statuses?.includes("PLANNING"))) && <>
-                <h2>Planning <span className="text-[--muted] font-medium ml-3">{planningList?.entries?.length}</span></h2>
+                <h2>Planning <span className="text-[--muted] font-medium ml-3">{formatNumber(planningList?.entries?.length ?? 0)}</span></h2>
                 <AnilistAnimeEntryList type={item.options?.type ?? "anime"} layout={item.options?.layout} list={planningList} />
             </>}
             {/* Carved out of Planning, so it follows the same PLANNING status filter. */}
             {(!!toBeReleasedList?.entries?.length && !isCustomList && (!item.options?.statuses?.length || item.options?.statuses?.includes("PLANNING"))) && <>
                 <h2>{TO_BE_RELEASED_LIST_NAME}
-                    <span className="text-[--muted] font-medium ml-3">{toBeReleasedList?.entries?.length}</span></h2>
+                    <span className="text-[--muted] font-medium ml-3">{formatNumber(toBeReleasedList?.entries?.length ?? 0)}</span></h2>
                 <AnilistAnimeEntryList type={item.options?.type ?? "anime"} layout={item.options?.layout} list={toBeReleasedList} />
             </>}
             {(!!pausedList?.entries?.length && !isCustomList && (!item.options?.statuses?.length || item.options?.statuses?.includes("PAUSED"))) && <>
-                <h2>Paused <span className="text-[--muted] font-medium ml-3">{pausedList?.entries?.length}</span></h2>
+                <h2>Paused <span className="text-[--muted] font-medium ml-3">{formatNumber(pausedList?.entries?.length ?? 0)}</span></h2>
                 <AnilistAnimeEntryList type={item.options?.type ?? "anime"} layout={item.options?.layout} list={pausedList} />
             </>}
             {(!!completedList?.entries?.length && !isCustomList && (!item.options?.statuses?.length || item.options?.statuses?.includes("COMPLETED"))) && <>
-                <h2>Completed <span className="text-[--muted] font-medium ml-3">{completedList?.entries?.length}</span></h2>
+                <h2>Completed <span className="text-[--muted] font-medium ml-3">{formatNumber(completedList?.entries?.length ?? 0)}</span></h2>
                 <AnilistAnimeEntryList type={item.options?.type ?? "anime"} layout={item.options?.layout} list={completedList} />
             </>}
             {(!!droppedList?.entries?.length && !isCustomList && (!item.options?.statuses?.length || item.options?.statuses?.includes("DROPPED"))) && <>
-                <h2>Dropped <span className="text-[--muted] font-medium ml-3">{droppedList?.entries?.length}</span></h2>
+                <h2>Dropped <span className="text-[--muted] font-medium ml-3">{formatNumber(droppedList?.entries?.length ?? 0)}</span></h2>
                 <AnilistAnimeEntryList type={item.options?.type ?? "anime"} layout={item.options?.layout} list={droppedList} />
             </>}
             {customLists?.map(list => {

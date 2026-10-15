@@ -1,6 +1,7 @@
 import { useGetCommunityProfiles } from "@/api/hooks/community.hooks"
 import { LevelRingAvatar } from "@/app/(main)/community/page"
 import { SeaLink } from "@/components/shared/sea-link"
+import { formatNumber } from "@/lib/helpers/number"
 import * as React from "react"
 import { LuStar, LuTrophy, LuUsers, LuZap } from "react-icons/lu"
 
@@ -28,10 +29,10 @@ export function CommunityHomeSection() {
 
             {stats && (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <Stat icon={<LuUsers className="size-4" />} label="Profiles" value={stats.totalProfiles} />
-                    <Stat icon={<LuStar className="size-4" />} label="Total XP" value={stats.totalXP.toLocaleString()} />
-                    <Stat icon={<LuTrophy className="size-4" />} label="Achievements" value={stats.totalAchievements} />
-                    <Stat icon={<LuZap className="size-4" />} label="Highest Level" value={stats.highestLevel} />
+                    <Stat icon={<LuUsers className="size-4" />} label="Profiles" value={formatNumber(stats.totalProfiles)} />
+                    <Stat icon={<LuStar className="size-4" />} label="Total XP" value={formatNumber(stats.totalXP)} />
+                    <Stat icon={<LuTrophy className="size-4" />} label="Achievements" value={formatNumber(stats.totalAchievements)} />
+                    <Stat icon={<LuZap className="size-4" />} label="Highest Level" value={formatNumber(stats.highestLevel)} />
                 </div>
             )}
 
@@ -49,7 +50,7 @@ export function CommunityHomeSection() {
                             />
                             <div className="text-center min-w-0 w-full">
                                 <p className="text-sm font-semibold truncate">{profile.name}</p>
-                                <p className="text-xs text-white/60">Lv. {profile.currentLevel} · {profile.totalXP.toLocaleString()} XP</p>
+                                <p className="text-xs text-white/60">Lv. {formatNumber(profile.currentLevel)} · {formatNumber(profile.totalXP)} XP</p>
                             </div>
                         </div>
                     </SeaLink>

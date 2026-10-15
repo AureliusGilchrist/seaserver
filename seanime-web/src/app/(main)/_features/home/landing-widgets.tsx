@@ -76,13 +76,13 @@ export const DEFAULT_LANDING_WIDGETS: LandingWidgetConfig[] = [
 export const LANDING_WIDGET_META: Record<LandingWidgetId, { name: string, description: string }> = {
     "continue-watching": { name: "Continue watching", description: "Whatever was being watched, first." },
     "continue-reading": { name: "Continue reading", description: "The manga you were reading, first." },
-    "quick-links": { name: "Quick links", description: "Every sidebar area, as a card — pick which in its settings." },
+    "quick-links": { name: "App folders", description: "Your app destinations, organized into folders." },
     "anime-stats": { name: "Anime stats", description: "What your anime library holds, counted." },
     "manga-stats": { name: "Manga stats", description: "What your manga library holds, counted." },
     "schedule": { name: "Schedule", description: "What airs next, and what you are behind on." },
     "airing-today": { name: "Airing today", description: "What is out today, from AniList's schedule." },
     "updates": { name: "Updates", description: "What the server was last updated to, and recent commits." },
-    "to-watch": { name: "To Watch", description: "The list you arranged, in your order." },
+    "to-watch": { name: "Todo List", description: "Anime and manga you plan to watch or read." },
     "unmatched": { name: "Unmatched downloads", description: "Finished downloads waiting to be matched." },
     "torrents": { name: "Torrent list", description: "What is downloading, and what is seeding." },
     "achievements": { name: "Achievements", description: "Everything you have unlocked so far." },
@@ -98,17 +98,42 @@ export type LandingQuickLink = {
 
 export const LANDING_QUICK_LINKS: LandingQuickLink[] = [
     { id: "anime", name: "Anime", description: "Your library, everything you have.", href: "/anime" },
-    { id: "schedule", name: "Schedule", description: "What airs next, and what you are behind on.", href: "/schedule" },
     { id: "manga", name: "Manga", description: "Your reading, and what is new.", href: "/manga" },
-    { id: "to-watch", name: "To Watch", description: "The list you arranged, in your order.", href: "/to-watch" },
-    { id: "discover", name: "Discover", description: "Something new, from what you already like.", href: "/discover" },
+    { id: "to-watch", name: "Todo List", description: "Anime and manga you plan to watch or read.", href: "/to-watch" },
     { id: "lists", name: "My List", description: "Your AniList lists, as AniList keeps them.", href: "/lists" },
+    { id: "discover", name: "Discover", description: "Something new, from what you already like.", href: "/discover" },
+    { id: "schedule", name: "Schedule", description: "What airs next, and what you are behind on.", href: "/schedule" },
+    { id: "missed-sequels", name: "Missed Sequels", description: "Follow-up series you may have missed.", href: "/missed-sequels" },
     { id: "unmatched", name: "Unmatched Downloads", description: "Finished downloads waiting to be matched.", href: "/unmatched" },
     { id: "torrent-list", name: "Torrent list", description: "What is downloading, and what is seeding.", href: "/torrent-list" },
+    { id: "debrid", name: "Debrid", description: "Browse and manage debrid downloads.", href: "/debrid" },
+    { id: "enqueue-future", name: "Enqueue Future", description: "What the recommendations queued for you.", href: "/enqueue-future" },
+    { id: "auto-downloader", name: "Auto Downloader", description: "Rules and queues for automatic downloads.", href: "/auto-downloader" },
+    { id: "scan-summaries", name: "Scan Summaries", description: "Review recent library scans.", href: "/scan-summaries" },
     { id: "community", name: "Community", description: "Who else is here, and what they are watching.", href: "/community" },
     { id: "achievements", name: "Achievements", description: "Everything you have unlocked so far.", href: "/achievements" },
-    { id: "enqueue-future", name: "Enqueue Future", description: "What the recommendations queued for you.", href: "/enqueue-future" },
     { id: "milestones", name: "Milestones", description: "How far along your levels you are.", href: "/milestones" },
+    { id: "profile", name: "Profile", description: "Your profile, stats, and activity.", href: "/profile/me" },
+    { id: "enmasse-anime", name: "Anime En Masse", description: "Apply actions to multiple anime at once.", href: "/enmasse-anime" },
+    { id: "enmasse-manga", name: "Manga En Masse", description: "Apply actions to multiple manga at once.", href: "/enmasse-manga" },
+    { id: "extensions", name: "Extensions", description: "Manage extensions and plugins.", href: "/extensions" },
+    { id: "sync", name: "Offline Sync", description: "Manage offline media and synchronization.", href: "/sync" },
+    { id: "theme-manager", name: "Themes", description: "Choose and customize app themes.", href: "/theme-manager" },
+    { id: "settings", name: "Settings", description: "Configure Seanime.", href: "/settings" },
+]
+
+export type LandingFolderConfig = {
+    id: string
+    name: string
+    linkIds: string[]
+}
+
+export const DEFAULT_LANDING_FOLDERS: LandingFolderConfig[] = [
+    { id: "library", name: "Library", linkIds: ["anime", "manga", "lists", "to-watch"] },
+    { id: "discover", name: "Discover", linkIds: ["discover", "schedule", "missed-sequels"] },
+    { id: "downloads", name: "Downloads", linkIds: ["unmatched", "torrent-list", "debrid", "enqueue-future", "auto-downloader", "scan-summaries"] },
+    { id: "community", name: "Community", linkIds: ["community", "achievements", "milestones", "profile"] },
+    { id: "tools", name: "Tools", linkIds: ["enmasse-anime", "enmasse-manga", "extensions", "sync", "theme-manager", "settings"] },
 ]
 
 // ─── The configuration, per profile ───────────────────────────────────────────
@@ -177,4 +202,33 @@ export function useLandingWidgets() {
     }, [profileId, setWidgets])
 
     return { widgets, setWidgetEnabled, moveWidget }
+}
+
+/**
+ * App destinations are grouped into editable folders and saved per profile.
+ */
+export function useLandingFolders() {
+    const profileId = useAtomValue(currentProfileIdAtom)
+    const [foldersByProfile, setFoldersByProfile] = useAtom(
+        React.useMemo(() => atomWithStorage<Record<string, LandingFolderConfig[]>>(
+            "sea-landing-folders",
+            {},
+            undefined,
+            { getOnInit: true },
+        ), []),
+    )
+
+    const folders = React.useMemo(
+        () => foldersByProfile?.[profileId] ?? DEFAULT_LANDING_FOLDERS,
+        [foldersByProfile, profileId],
+    )
+
+    const updateFolders = React.useCallback((update: (current: LandingFolderConfig[]) => LandingFolderConfig[]) => {
+        setFoldersByProfile(prev => ({
+            ...(prev ?? {}),
+            [profileId]: update(prev?.[profileId] ?? DEFAULT_LANDING_FOLDERS),
+        }))
+    }, [profileId, setFoldersByProfile])
+
+    return { folders, updateFolders }
 }

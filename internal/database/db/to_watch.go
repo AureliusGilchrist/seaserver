@@ -8,7 +8,7 @@ import (
 	"seanime/internal/database/models"
 )
 
-// A profile's to-watch list: anime the user means to watch, in the order they arranged. Ordered by
+// A profile's todo list: anime and manga the user means to watch or read, in the order they arranged. Ordered by
 // position; a reorder rewrites the positions whole.
 
 // GetToWatchItems returns a profile's list in their order. A list of thousands is a list, so this
@@ -25,12 +25,15 @@ func (db *Database) GetToWatchItems(profileID uint) ([]*models.ToWatchItem, erro
 	return res, nil
 }
 
-// InsertToWatchItem adds an anime to the end of a profile's list. One copy per profile: the list is
-// a running order, and the same anime twice in it is the same entry, not a second one.
+// InsertToWatchItem adds a media entry to the end of a profile's list. One copy per profile and
+// media type: anime and manga IDs can overlap.
 func (db *Database) InsertToWatchItem(item *models.ToWatchItem) error {
+	if item.MediaType == "" {
+		item.MediaType = "ANIME"
+	}
 	var existing models.ToWatchItem
 	err := retryOnBusy(func() error {
-		return db.gormdb.Where("profile_id = ? AND anime_id = ?", item.ProfileID, item.AnimeID).First(&existing).Error
+		return db.gormdb.Where("profile_id = ? AND anime_id = ? AND media_type = ?", item.ProfileID, item.AnimeID, item.MediaType).First(&existing).Error
 	})
 	if err == nil {
 		return errors.New("already in the to-watch list")
@@ -63,9 +66,12 @@ func (db *Database) CountToWatchItems(profileID uint) (int, error) {
 	return int(count), nil
 }
 
-func (db *Database) DeleteToWatchItem(profileID uint, animeID int) error {
+func (db *Database) DeleteToWatchItem(profileID uint, mediaID int, mediaType string) error {
+	if mediaType == "" {
+		mediaType = "ANIME"
+	}
 	err := retryOnBusy(func() error {
-		return db.gormdb.Where("profile_id = ? AND anime_id = ?", profileID, animeID).
+		return db.gormdb.Where("profile_id = ? AND anime_id = ? AND media_type = ?", profileID, mediaID, mediaType).
 			Delete(&models.ToWatchItem{}).Error
 	})
 	if err != nil {
@@ -75,14 +81,18 @@ func (db *Database) DeleteToWatchItem(profileID uint, animeID int) error {
 	return nil
 }
 
-// SetToWatchOrder rewrites a profile's running order from the ids given, in the order given. One
+// SetToWatchOrder rewrites a profile's running order from the media entries given. One
 // write per profile, so a reorder is a reorder rather than a sequence of moves.
-func (db *Database) SetToWatchOrder(profileID uint, animeIDs []int) error {
+func (db *Database) SetToWatchOrder(profileID uint, items []*models.ToWatchItem) error {
 	err := retryOnBusy(func() error {
 		return db.gormdb.Transaction(func(tx *gorm.DB) error {
-			for i, animeID := range animeIDs {
+			for i, item := range items {
+				mediaType := item.MediaType
+				if mediaType == "" {
+					mediaType = "ANIME"
+				}
 				if err := tx.Model(&models.ToWatchItem{}).
-					Where("profile_id = ? AND anime_id = ?", profileID, animeID).
+					Where("profile_id = ? AND anime_id = ? AND media_type = ?", profileID, item.AnimeID, mediaType).
 					Update("position", i+1).Error; err != nil {
 					return err
 				}

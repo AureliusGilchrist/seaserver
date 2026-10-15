@@ -12,6 +12,7 @@ import {
     MediaPageHeaderEntryDetails,
 } from "@/app/(main)/_features/media/_components/media-page-header-components"
 import { MediaSyncTrackButton } from "@/app/(main)/_features/media/_containers/media-sync-track-button"
+import { ToWatchButton } from "@/app/(main)/_features/media/_components/to-watch-button"
 import { PluginWebviewSlot } from "@/app/(main)/_features/plugin/webview/plugin-webviews"
 import { SeaLink } from "@/components/shared/sea-link"
 import { IconButton } from "@/components/ui/button"
@@ -136,6 +137,8 @@ export function MetaSection(props: { entry: Manga_Entry | undefined, details: AL
                     </Tooltip>
 
                     <MediaSyncTrackButton mediaId={entry.mediaId} type="manga" size="md" />
+
+                    <ToWatchButton media={entry.media} mediaType="MANGA" />
 
                     <PluginMangaPageButtons media={entry.media} />
                 </div>

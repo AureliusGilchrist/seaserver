@@ -1,60 +1,70 @@
 "use client"
 
-import { useAddToWatch, useGetToWatch, useRemoveFromToWatch } from "@/api/hooks/towatch.hooks"
-import { AL_BaseAnime } from "@/api/generated/types"
+import { TodoMediaType, useAddToWatch, useGetToWatch, useRemoveFromToWatch } from "@/api/hooks/towatch.hooks"
+import { AL_BaseAnime, AL_BaseManga } from "@/api/generated/types"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import React from "react"
 import { LuCheck, LuListVideo } from "react-icons/lu"
 
 /**
- * The button the to-watch list is built from.
+ * The button the todo list is built from.
  *
  * The list starts blank, and this is the only way something gets on it — a deliberate act on the
- * anime's own page, which is why there is nothing to turn off: the list is exactly as long as the
+ * media's own page, which is why there is nothing to turn off: the list is exactly as long as the
  * person made it. The snapshot the list shows is taken here, at the moment of adding, so the row
  * never has to ask AniList for itself.
  *
  * A labeled button rather than another icon in the row: this is the only place the list is added
- * to, so it has to be findable. Once the anime is on the list it says so and takes it off again,
+ * to, so it has to be findable. Once the entry is on the list it says so and takes it off again,
  * which is also how somebody checks whether it is already there.
  */
-export function ToWatchButton({ media, studios, className }: { media: AL_BaseAnime, studios?: string, className?: string }) {
+export function ToWatchButton({ media, mediaType = "ANIME", studios, className }: {
+    media: AL_BaseAnime | AL_BaseManga
+    mediaType?: TodoMediaType
+    studios?: string
+    className?: string
+}) {
     const { data: list } = useGetToWatch()
     const { mutate: addToWatch, isPending: isAdding } = useAddToWatch()
     const { mutate: removeFromToWatch, isPending: isRemoving } = useRemoveFromToWatch()
 
     const onList = React.useMemo(
-        () => (list ?? []).some(entry => entry.animeId === media?.id),
-        [list, media?.id],
+        () => (list ?? []).some(entry =>
+            (entry.mediaId ?? entry.animeId) === media?.id &&
+            (entry.mediaType ?? "ANIME") === mediaType,
+        ),
+        [list, media?.id, mediaType],
     )
 
     const handleClick = React.useCallback(() => {
         if (!media?.id) return
         if (onList) {
-            removeFromToWatch({ animeId: media.id })
+            removeFromToWatch({ mediaId: media.id, mediaType })
             return
         }
-        const m = media as any
         addToWatch({
-            animeId: media.id,
-            title: m?.title?.userPreferred || m?.title?.romaji || m?.title?.english || m?.title?.native || `#${media.id}`,
-            description: m?.description
-                ? String(m.description).replace(/<[^>]*>/g, "").slice(0, 400)
+            mediaId: media.id,
+            mediaType,
+            title: media.title?.userPreferred || media.title?.romaji || media.title?.english || media.title?.native || `#${media.id}`,
+            description: media.description
+                ? String(media.description).replace(/<[^>]*>/g, "").slice(0, 400)
                 : undefined,
-            coverImage: m?.coverImage?.extraLarge || m?.coverImage?.large || m?.coverImage?.medium || undefined,
-            bannerImage: m?.bannerImage || undefined,
-            format: m?.format || undefined,
-            episodes: m?.episodes || undefined,
-            duration: m?.duration || undefined,
-            season: m?.season || undefined,
-            seasonYear: m?.seasonYear || undefined,
-            status: m?.status || undefined,
-            meanScore: m?.meanScore ? Math.round(m.meanScore) : undefined,
-            genres: (m?.genres ?? []).slice(0, 5),
-            studio: studios || undefined,
+            coverImage: media.coverImage?.extraLarge || media.coverImage?.large || media.coverImage?.medium || undefined,
+            bannerImage: media.bannerImage || undefined,
+            format: media.format || undefined,
+            episodes: "episodes" in media ? media.episodes : undefined,
+            chapters: "chapters" in media ? media.chapters : undefined,
+            volumes: "volumes" in media ? media.volumes : undefined,
+            duration: "duration" in media ? media.duration : undefined,
+            season: "season" in media ? media.season : undefined,
+            seasonYear: "seasonYear" in media ? media.seasonYear : undefined,
+            status: media.status || undefined,
+            meanScore: media.meanScore ? Math.round(media.meanScore) : undefined,
+            genres: (media.genres ?? []).slice(0, 5),
+            studio: mediaType === "ANIME" ? studios || undefined : undefined,
         })
-    }, [media, studios, onList, addToWatch, removeFromToWatch])
+    }, [media, mediaType, studios, onList, addToWatch, removeFromToWatch])
 
     return (
         <Button
@@ -64,9 +74,9 @@ export function ToWatchButton({ media, studios, className }: { media: AL_BaseAni
             loading={isAdding || isRemoving}
             className={cn("flex-none", className)}
             onClick={handleClick}
-            title={onList ? "On your to-watch list — click to take it off" : "Add to your to-watch list"}
+            title={onList ? "On your todo list — click to take it off" : "Add to your todo list"}
         >
-            {onList ? "On your list" : "To watch"}
+            {onList ? "On your list" : "Add to list"}
         </Button>
     )
 }

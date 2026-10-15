@@ -1,6 +1,7 @@
 import { cva, VariantProps } from "class-variance-authority"
 import * as React from "react"
 import { cn, ComponentAnatomy, defineStyleAnatomy } from "../core/styling"
+import { formatNumber } from "@/lib/helpers/number"
 
 /* -------------------------------------------------------------------------------------------------
  * Anatomy
@@ -127,8 +128,10 @@ export const Stats = React.forwardRef<HTMLDListElement, StatsProps>((props, ref)
                     <dt className={cn(StatsAnatomy.name({ size }), nameClass)}>{item.name}</dt>
 
                     <dd className={cn(StatsAnatomy.value({ size }), valueClass)}>
-                        {item.value}
-                        <span className={cn(StatsAnatomy.unit(), unitClass)}>{item.unit}</span>
+                        {typeof item.value === "number" ? formatNumber(item.value) : item.value}
+                        <span className={cn(StatsAnatomy.unit(), unitClass)}>
+                            {typeof item.unit === "number" ? formatNumber(item.unit) : item.unit}
+                        </span>
                     </dd>
 
                     {(!!item.change || !!item.trend) &&
@@ -137,7 +140,7 @@ export const Stats = React.forwardRef<HTMLDListElement, StatsProps>((props, ref)
                             data-trend={item.trend}
                         >
                             {item.trend && <span> {item.trend === "up" ? "+" : "-"}</span>}
-                            {item.change}
+                            {typeof item.change === "number" ? formatNumber(item.change) : item.change}
                         </div>
                     }
 

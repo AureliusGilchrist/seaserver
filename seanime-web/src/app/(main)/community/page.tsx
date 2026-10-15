@@ -13,6 +13,7 @@ import { useRewards } from "@/lib/rewards/reward-provider"
 import { XPBarFxOverlay } from "@/lib/rewards/xpbar-fx-overlay"
 import { ANIME_THEMES } from "@/lib/theme/anime-themes"
 import { getMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
+import { formatNumber } from "@/lib/helpers/number"
 import { useAtomValue } from "jotai"
 import * as React from "react"
 import { LuUsers, LuLayoutGrid, LuList, LuTrophy, LuStar, LuActivity, LuZap } from "react-icons/lu"
@@ -62,7 +63,7 @@ export default function Page() {
                     <div className="flex items-center gap-3">
                         <LuUsers className="size-7 text-brand-300" />
                         <h1 className="text-2xl font-bold">Community</h1>
-                        <span className="text-[--muted] text-sm">({profiles.length} profiles)</span>
+                        <span className="text-[--muted] text-sm">({formatNumber(profiles.length)} profiles)</span>
                     </div>
                     <div className="flex items-center gap-1 bg-[--subtle] rounded-md p-1">
                         <button
@@ -89,9 +90,9 @@ export default function Page() {
                 {/* Aggregate Stats Bar */}
                 {stats && (
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <StatCard icon={<LuUsers className="size-4" />} label="Profiles" value={stats.totalProfiles} />
-                        <StatCard icon={<LuStar className="size-4" />} label="Total XP" value={stats.totalXP.toLocaleString()} />
-                        <StatCard icon={<LuTrophy className="size-4" />} label="Achievements" value={stats.totalAchievements} />
+                        <StatCard icon={<LuUsers className="size-4" />} label="Profiles" value={formatNumber(stats.totalProfiles)} />
+                        <StatCard icon={<LuStar className="size-4" />} label="Total XP" value={formatNumber(stats.totalXP)} />
+                        <StatCard icon={<LuTrophy className="size-4" />} label="Achievements" value={formatNumber(stats.totalAchievements)} />
                         <StatCard icon={<LuZap className="size-4" />} label="Highest Level" value={stats.highestLevel} />
                     </div>
                 )}
@@ -395,7 +396,7 @@ function CommunityProfileCard({ profile }: { profile: Handlers_CommunityProfile 
                         </span>
                         <span className="flex items-center gap-1">
                             <LuStar className="size-3" />
-                            {profile.totalXP.toLocaleString()} XP
+                            {formatNumber(profile.totalXP)} XP
                         </span>
                     </div>
                 </div>
@@ -479,7 +480,7 @@ function LeaderboardRow({ profile, rank }: { profile: Handlers_CommunityProfile;
                     {profile.achievementCount}
                 </span>
                 <span className="text-right text-[--muted]">
-                    {profile.totalXP.toLocaleString()}
+                    {formatNumber(profile.totalXP)}
                 </span>
             </div>
         </SeaLink>

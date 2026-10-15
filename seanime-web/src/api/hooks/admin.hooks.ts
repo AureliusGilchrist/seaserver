@@ -66,6 +66,7 @@ export function useGetAdminAnnouncements(enabled = true) {
         queryKey: ADMIN_ANNOUNCEMENTS_QUERY_KEY,
         enabled,
         retry: 1,
+        refetchInterval: 30_000,
     })
 }
 

@@ -64,6 +64,7 @@ export function useMangaEntryDownloadedChapters() {
 export function useHandleMangaDownloadData(mediaId: Nullish<string | number>) {
     const { data, isLoading, isError } = useGetMangaDownloadData({
         mediaId: mediaId ? Number(mediaId) : undefined,
+        cached: true,
     })
 
     const setDownloadData = useSetAtom(__manga_entryDownloadDataAtom)
@@ -148,4 +149,3 @@ export function useHandleMangaChapterDownloadQueue() {
         isClearingDownloadQueue: isClearingQueue,
     }
 }
-

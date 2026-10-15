@@ -14,6 +14,7 @@ import { useAnimeThemeOrNull } from "@/lib/theme/anime-themes/anime-theme-provid
 import React from "react"
 import { LuFlag, LuCrown, LuUser, LuCheck } from "react-icons/lu"
 import { Link } from "@tanstack/react-router"
+import { formatNumber } from "@/lib/helpers/number"
 
 export default function Page() {
     const { data, isLoading } = useGetMilestones()
@@ -233,7 +234,7 @@ function MilestoneCard({ definition, achievers }: {
                         {isAchieved && <LuCheck className="text-brand-400 flex-shrink-0" />}
                     </div>
                     <p className="text-xs text-[--muted] mt-0.5">
-                        {definition.threshold.toLocaleString()} {definition.category.replace(/_/g, " ")}
+                        {formatNumber(definition.threshold)} {definition.category.replace(/_/g, " ")}
                     </p>
                 </div>
             </div>
@@ -297,7 +298,7 @@ function FirstToAchieveCard({ definition, achieved, categoryInfo }: {
                         {name}
                     </p>
                     <p className="text-xs text-[--muted] mt-0.5">
-                        First to reach {definition.threshold.toLocaleString()} {(categoryInfo?.name || definition.category).toLowerCase()}
+                        First to reach {formatNumber(definition.threshold)} {(categoryInfo?.name || definition.category).toLowerCase()}
                     </p>
                 </div>
             </div>

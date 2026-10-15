@@ -17,13 +17,14 @@ import { StaticTabs } from "@/components/ui/tabs"
 import React from "react"
 import { LuTrophy, LuLock, LuEye, LuEyeOff } from "react-icons/lu"
 import { useAnimeTheme } from "@/lib/theme/anime-themes/anime-theme-provider"
+import { formatNumber } from "@/lib/helpers/number"
 
 function formatDescription(desc: string, thresholds?: number[], tierIdx?: number): React.ReactNode {
     if (!desc.includes("{threshold}") || !thresholds?.length) return desc
     const idx = tierIdx != null ? tierIdx : 0
     const val = thresholds[Math.min(idx, thresholds.length - 1)]
     const parts = desc.split("{threshold}")
-    return <>{parts[0]}<strong className="text-[--foreground]">{val.toLocaleString()}</strong>{parts[1]}</>
+    return <>{parts[0]}<strong className="text-[--foreground]">{formatNumber(val)}</strong>{parts[1]}</>
 }
 
 function isDefUnlocked(def: Achievement_Definition, entryMap: Map<string, Achievement_Entry>): boolean {

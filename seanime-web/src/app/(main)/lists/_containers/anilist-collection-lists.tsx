@@ -25,6 +25,7 @@ import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { StaticTabs } from "@/components/ui/tabs"
 import { TextInput } from "@/components/ui/text-input"
+import { formatNumber } from "@/lib/helpers/number"
 import { useDebounce } from "@/hooks/use-debounce"
 import { COLLECTION_SORTING_OPTIONS } from "@/lib/helpers/filtering"
 import { getYear } from "date-fns"
@@ -120,32 +121,32 @@ export function AnilistCollectionLists() {
 
                     <div className="py-6 space-y-6" data-anilist-collection-lists-stack>
                         {(!!currentList?.entries?.length && ["-", "CURRENT"].includes(selectedIndex)) && <>
-                            <h2>Current <span className="text-[--muted] font-medium ml-3">{currentList?.entries?.length}</span></h2>
+                            <h2>Current <span className="text-[--muted] font-medium ml-3">{formatNumber(currentList?.entries?.length ?? 0)}</span></h2>
                             <AnilistAnimeEntryList type={pageType} list={currentList} collapsible />
                         </>}
                         {(!!repeatingList?.entries?.length && ["-", "REPEATING"].includes(selectedIndex)) && <>
-                            <h2>Repeating <span className="text-[--muted] font-medium ml-3">{repeatingList?.entries?.length}</span></h2>
+                            <h2>Repeating <span className="text-[--muted] font-medium ml-3">{formatNumber(repeatingList?.entries?.length ?? 0)}</span></h2>
                             <AnilistAnimeEntryList type={pageType} list={repeatingList} collapsible />
                         </>}
                         {(!!planningList?.entries?.length && ["-", "PLANNING"].includes(selectedIndex)) && <>
-                            <h2>Planning <span className="text-[--muted] font-medium ml-3">{planningList?.entries?.length}</span></h2>
+                            <h2>Planning <span className="text-[--muted] font-medium ml-3">{formatNumber(planningList?.entries?.length ?? 0)}</span></h2>
                             <AnilistAnimeEntryList type={pageType} list={planningList} collapsible />
                         </>}
                         {(!!toBeReleasedList?.entries?.length && ["-", TO_BE_RELEASED_LIST_NAME].includes(selectedIndex)) && <>
                             <h2>{TO_BE_RELEASED_LIST_NAME}
-                                <span className="text-[--muted] font-medium ml-3">{toBeReleasedList?.entries?.length}</span></h2>
+                                <span className="text-[--muted] font-medium ml-3">{formatNumber(toBeReleasedList?.entries?.length ?? 0)}</span></h2>
                             <AnilistAnimeEntryList type={pageType} list={toBeReleasedList} collapsible />
                         </>}
                         {(!!pausedList?.entries?.length && ["-", "PAUSED"].includes(selectedIndex)) && <>
-                            <h2>Paused <span className="text-[--muted] font-medium ml-3">{pausedList?.entries?.length}</span></h2>
+                            <h2>Paused <span className="text-[--muted] font-medium ml-3">{formatNumber(pausedList?.entries?.length ?? 0)}</span></h2>
                             <AnilistAnimeEntryList type={pageType} list={pausedList} collapsible />
                         </>}
                         {(!!completedList?.entries?.length && ["-", "COMPLETED"].includes(selectedIndex)) && <>
-                            <h2>Completed <span className="text-[--muted] font-medium ml-3">{completedList?.entries?.length}</span></h2>
+                            <h2>Completed <span className="text-[--muted] font-medium ml-3">{formatNumber(completedList?.entries?.length ?? 0)}</span></h2>
                             <AnilistAnimeEntryList type={pageType} list={completedList} collapsible />
                         </>}
                         {(!!droppedList?.entries?.length && ["-", "DROPPED"].includes(selectedIndex)) && <>
-                            <h2>Dropped <span className="text-[--muted] font-medium ml-3">{droppedList?.entries?.length}</span></h2>
+                            <h2>Dropped <span className="text-[--muted] font-medium ml-3">{formatNumber(droppedList?.entries?.length ?? 0)}</span></h2>
                             <AnilistAnimeEntryList type={pageType} list={droppedList} collapsible />
                         </>}
                         {customLists?.map(list => {

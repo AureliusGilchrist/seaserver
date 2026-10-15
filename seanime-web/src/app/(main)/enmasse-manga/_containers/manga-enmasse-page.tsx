@@ -11,6 +11,7 @@ import React, { useEffect, useRef, useState } from "react"
 import { BiPlay, BiStop, BiPause } from "react-icons/bi"
 import { LuCircleCheck, LuCircleX, LuCircleMinus, LuDownload, LuRefreshCw } from "react-icons/lu"
 import { Switch } from "@/components/ui/switch"
+import { formatNumber } from "@/lib/helpers/number"
 
 export function MangaEnMassePage() {
     const { data: status, isLoading } = useMangaEnMasseStatus()
@@ -140,7 +141,7 @@ export function MangaEnMassePage() {
                                 </div>
                                 <div>
                                     <span className="text-[--muted]">Manga:</span>{" "}
-                                    {status.details.currentMangaIndex || 0}/{status.details.currentMangaTotal || status.totalCount || 0}
+                                    {formatNumber(status.details.currentMangaIndex || 0)}/{formatNumber(status.details.currentMangaTotal || status.totalCount || 0)}
                                 </div>
                                 <div>
                                     <span className="text-[--muted]">Provider:</span> {status.details.provider || "-"}
@@ -191,7 +192,7 @@ export function MangaEnMassePage() {
                             <div className="flex justify-between text-sm mb-1">
                                 <span>Progress</span>
                                 <span>
-                                    {status?.processedCount || 0} / {status?.totalCount || 0}
+                                    {formatNumber(status?.processedCount || 0)} / {formatNumber(status?.totalCount || 0)}
                                 </span>
                             </div>
                             <div className="w-full bg-gray-700 rounded-full h-2.5">
@@ -213,7 +214,7 @@ export function MangaEnMassePage() {
                         <div className="flex items-center gap-2 mb-3">
                             <LuCircleCheck className="text-green-500 text-xl" />
                             <h3 className="font-semibold">
-                                Downloaded ({status?.downloadedManga?.length || 0})
+                                Downloaded ({formatNumber(status?.downloadedManga?.length || 0)})
                             </h3>
                         </div>
                         <div ref={downloadedScrollRef} className="max-h-64 overflow-y-auto space-y-1">
@@ -236,7 +237,7 @@ export function MangaEnMassePage() {
                         <div className="flex items-center gap-2 mb-3">
                             <LuCircleMinus className="text-yellow-500 text-xl" />
                             <h3 className="font-semibold">
-                                Skipped ({status?.skippedManga?.length || 0})
+                                Skipped ({formatNumber(status?.skippedManga?.length || 0)})
                             </h3>
                         </div>
                         <div ref={skippedScrollRef} className="max-h-64 overflow-y-auto space-y-1">
@@ -259,7 +260,7 @@ export function MangaEnMassePage() {
                         <div className="flex items-center gap-2 mb-3">
                             <LuCircleX className="text-red-500 text-xl" />
                             <h3 className="font-semibold">
-                                Failed ({status?.failedManga?.length || 0})
+                                Failed ({formatNumber(status?.failedManga?.length || 0)})
                             </h3>
                         </div>
                         <div ref={failedScrollRef} className="max-h-64 overflow-y-auto space-y-1">

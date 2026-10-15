@@ -22,6 +22,7 @@ import { MdClear } from "react-icons/md"
 import { PiWarningOctagonDuotone } from "react-icons/pi"
 import { TbWorldDownload } from "react-icons/tb"
 import { displayTitle } from "@/lib/helpers/media"
+import { formatNumber } from "@/lib/helpers/number"
 
 export const __manga_chapterDownloadsDrawerIsOpenAtom = atom(false)
 
@@ -206,7 +207,7 @@ function QueueSection(props: {
     return <div className="space-y-2">
         <div className="flex items-center justify-between">
             <h4>{title}</h4>
-            <span className="text-xs text-[--muted]">{items.length}</span>
+            <span className="text-xs text-[--muted]">{formatNumber(items.length)}</span>
         </div>
 
         {!!items.length ? (

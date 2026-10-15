@@ -23,6 +23,7 @@ import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { StaticTabs } from "@/components/ui/tabs"
 import { TextInput } from "@/components/ui/text-input"
+import { formatNumber } from "@/lib/helpers/number"
 import { useDebounce } from "@/hooks/use-debounce"
 import { ANIME_COLLECTION_SORTING_OPTIONS } from "@/lib/helpers/filtering"
 import { getLibraryCollectionTitle } from "@/lib/server/utils"
@@ -142,31 +143,31 @@ export function DetailedLibraryView(props: LibraryViewProps) {
                     <p>Library</p>
                 </div>}
                 <div>
-                    <h3>{stats?.totalFiles}</h3>
+                    <h3>{stats?.totalFiles == null ? "" : formatNumber(stats.totalFiles)}</h3>
                     <p>Files</p>
                 </div>
                 <div>
-                    <h3>{stats?.totalEntries}</h3>
+                    <h3>{stats?.totalEntries == null ? "" : formatNumber(stats.totalEntries)}</h3>
                     <p>Entries</p>
                 </div>
                 <div>
-                    <h3>{stats?.totalShows}</h3>
+                    <h3>{stats?.totalShows == null ? "" : formatNumber(stats.totalShows)}</h3>
                     <p>TV Shows</p>
                 </div>
                 <div>
-                    <h3>{stats?.totalMovies}</h3>
+                    <h3>{stats?.totalMovies == null ? "" : formatNumber(stats.totalMovies)}</h3>
                     <p>Movies</p>
                 </div>
                 <div>
-                    <h3>{stats?.totalSpecials}</h3>
+                    <h3>{stats?.totalSpecials == null ? "" : formatNumber(stats.totalSpecials)}</h3>
                     <p>Specials</p>
                 </div>
                 {/* Only when there is something to report. The counts to its left describe what the
                     library can show; this is what it found and could not, which is the difference
                     between a grid that looks empty and a drive that plainly is not. */}
                 {(stats?.unresolvedItems ?? 0) > 0 && <div data-detailed-library-view-unresolved>
-                    <h3 className="text-orange-300">{stats?.unresolvedItems}</h3>
-                    <p title={`${stats?.unresolvedFiles ?? 0} files that are matched to anime missing from your AniList collection, or that matched nothing at all. Resolve them from the Unknown and Unmatched sections.`}>
+                    <h3 className="text-orange-300">{formatNumber(stats?.unresolvedItems ?? 0)}</h3>
+                    <p title={`${formatNumber(stats?.unresolvedFiles ?? 0)} files that are matched to anime missing from your AniList collection, or that matched nothing at all. Resolve them from the Unknown and Unmatched sections.`}>
                         Unresolved
                     </p>
                 </div>}
@@ -198,7 +199,7 @@ const LibraryCollectionListItem = React.memo(({ list, streamingMediaIds, type }:
 
     return (
         <React.Fragment key={list.type}>
-            <h2>{getLibraryCollectionTitle(list.type)} <span className="text-[--muted] font-medium ml-3">{list?.entries?.length ?? 0}</span></h2>
+            <h2>{getLibraryCollectionTitle(list.type)} <span className="text-[--muted] font-medium ml-3">{formatNumber(list?.entries?.length ?? 0)}</span></h2>
             {type === "grid" && <PaginatedMediaGrid
                 items={list.entries}
                 renderItem={entry => (

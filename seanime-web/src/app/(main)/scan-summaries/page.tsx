@@ -14,6 +14,7 @@ import { Select } from "@/components/ui/select"
 import { TextInput } from "@/components/ui/text-input"
 import { useDebounce } from "@/hooks/use-debounce"
 import { formatDateAndTimeShort } from "@/lib/server/utils"
+import { formatNumber } from "@/lib/helpers/number"
 import React from "react"
 import { AiFillWarning } from "react-icons/ai"
 import { BiCheckCircle, BiInfoCircle, BiXCircle } from "react-icons/bi"
@@ -225,7 +226,7 @@ export default function Page() {
                                                                 ? "is present"
                                                                 : "is not present"} in your AniList collection</p>
                                                             <p className="text-sm flex gap-1 items-center text-[--muted]">
-                                                                <span className="text-base"><LuFileSearch className="text-brand-200" /></span>{group.files.length} file{group.files.length > 1 && "s"} scanned
+                                                                <span className="text-base"><LuFileSearch className="text-brand-200" /></span>{formatNumber(group.files.length)} file{group.files.length > 1 && "s"} scanned
                                                             </p>
                                                         </div>
 

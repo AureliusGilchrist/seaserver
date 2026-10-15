@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch"
 import React from "react"
 import { BiPencil, BiPlus, BiTrash } from "react-icons/bi"
 import { PiTargetBold } from "react-icons/pi"
+import { formatNumber } from "@/lib/helpers/number"
 
 export function AutoDownloaderProfiles() {
     const { data: profiles, isLoading } = useGetAutoDownloaderProfiles()
@@ -115,7 +116,7 @@ function ProfileItem({ profile, onEdit }: { profile: Anime_AutoDownloaderProfile
                         <div className="text-sm text-[--muted] line-clamp-1 gap-2 space-x-3">
                             {!!profile.resolutions?.length && <span className="!pl-0">{profile.resolutions.join(", ")}</span>}
                             {!!profile.conditions?.length &&
-                                <span>{profile.conditions?.length} condition{(profile.conditions?.length !== 1) ? "s" : ""}</span>}
+                                <span>{formatNumber(profile.conditions?.length ?? 0)} condition{(profile.conditions?.length !== 1) ? "s" : ""}</span>}
                             {!!profile.minimumScore && <span>{`>=`} {profile.minimumScore}</span>}
                             {!!profile.delayMinutes && <span>{profile.delayMinutes} min. delay</span>}
 

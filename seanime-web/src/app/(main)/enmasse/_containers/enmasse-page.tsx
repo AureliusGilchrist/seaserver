@@ -13,6 +13,7 @@ import React, { useEffect, useRef, useState } from "react"
 import { BiPlay, BiStop, BiPause } from "react-icons/bi"
 import { LuCircleCheck, LuCircleX, LuDownload, LuRefreshCw } from "react-icons/lu"
 import { Switch } from "@/components/ui/switch"
+import { formatNumber } from "@/lib/helpers/number"
 
 export function EnMassePage() {
     const router = useRouter()
@@ -161,7 +162,7 @@ export function EnMassePage() {
                                 </div>
                                 <div>
                                     <span className="text-[--muted]">Anime:</span>{" "}
-                                    {status.details.currentAnimeIndex || 0}/{status.details.currentAnimeTotal || status.totalCount || 0}
+                                    {formatNumber(status.details.currentAnimeIndex || 0)}/{formatNumber(status.details.currentAnimeTotal || status.totalCount || 0)}
                                 </div>
                                 <div>
                                     <span className="text-[--muted]">Providers:</span>{" "}
@@ -212,7 +213,7 @@ export function EnMassePage() {
                             <div className="flex justify-between text-sm mb-1">
                                 <span>Progress</span>
                                 <span>
-                                    {status?.processedCount || 0} / {status?.totalCount || 0}
+                                    {formatNumber(status?.processedCount || 0)} / {formatNumber(status?.totalCount || 0)}
                                 </span>
                             </div>
                             <div className="w-full bg-gray-700 rounded-full h-2.5">

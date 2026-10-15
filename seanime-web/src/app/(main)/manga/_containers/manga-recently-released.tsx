@@ -3,6 +3,7 @@ import { useGetRecentlyReleasedManga } from "@/api/hooks/manga.hooks"
 import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-entry-card"
 import { Carousel, CarouselContent, CarouselDotButtons, CarouselItem } from "@/components/ui/carousel"
 import { cn } from "@/components/ui/core/styling"
+import { formatNumber } from "@/lib/helpers/number"
 import React from "react"
 
 interface MangaRecentlyReleasedProps {
@@ -34,7 +35,7 @@ export function MangaRecentlyReleased({ onHoverImage, cardSizeClass }: MangaRece
         <div className="px-4 py-8 space-y-4">
             <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-white">Recently Released</h2>
-                <span className="text-sm text-[--muted]">{recentManga.length} series</span>
+                <span className="text-sm text-[--muted]">{formatNumber(recentManga.length)} series</span>
             </div>
 
             <Carousel opts={{ align: "start" }} autoScroll>

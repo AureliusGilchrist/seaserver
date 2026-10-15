@@ -19,6 +19,7 @@ import React from "react"
 import { LuBellRing, LuMegaphone, LuTrash2 } from "react-icons/lu"
 
 const MAX_MESSAGE_LENGTH = 1000
+const MAX_DURATION_HOURS = 24 * 365
 
 export function AdminAnnouncementsBanner() {
     const { data: announcements } = useGetAdminAnnouncements(true)
@@ -40,28 +41,27 @@ export function AdminAnnouncementsBanner() {
 }
 
 function AnnouncementBannerItem({ announcement, onDismiss }: { announcement: AdminAnnouncement, onDismiss: () => void }) {
-    const [shouldAutoClose, setShouldAutoClose] = React.useState(false)
+    const expiresAt = new Date(announcement.expiresAt).getTime()
+    const [isExpired, setIsExpired] = React.useState(() => expiresAt <= Date.now())
 
     React.useEffect(() => {
-        // Check if this announcement is dismissible by looking at expiry vs creation time
-        const expiresAt = new Date(announcement.expiresAt)
-        const now = new Date()
-        const isExpired = now > expiresAt
-
-        if (!isExpired && announcement.createdAt) {
-            // Estimate if it's dismissible (no clear flag from API, so we auto-dismiss newly created ones after 10s as a UX feature)
-            const createdAt = new Date(announcement.createdAt)
-            const ageMs = now.getTime() - createdAt.getTime()
-            
-            // Auto-dismiss after 10 seconds for better UX
-            const timer = setTimeout(() => {
-                setShouldAutoClose(true)
-            }, 10000)
-            return () => clearTimeout(timer)
+        let timer: number | undefined
+        const expireWhenDue = () => {
+            const remainingMs = expiresAt - Date.now()
+            if (remainingMs <= 0) {
+                setIsExpired(true)
+                return
+            }
+            timer = window.setTimeout(expireWhenDue, Math.min(remainingMs, 2_147_483_647))
         }
-    }, [announcement])
 
-    if (shouldAutoClose) {
+        expireWhenDue()
+        return () => {
+            if (timer !== undefined) window.clearTimeout(timer)
+        }
+    }, [expiresAt])
+
+    if (isExpired) {
         return null
     }
 
@@ -106,6 +106,15 @@ export function AdminAnnouncementsPage() {
         },
     })
 
+    const sortedAnnouncements = [...(announcements || [])].sort((a, b) => {
+        return new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime()
+    })
+    const parsedDurationHours = Number(durationHours)
+    const isDurationValid = Number.isInteger(parsedDurationHours)
+        && parsedDurationHours >= 1
+        && parsedDurationHours <= MAX_DURATION_HOURS
+    const durationHoursNum = isDurationValid ? parsedDurationHours : 0
+
     if (!serverStatus?.currentProfile?.isAdmin) {
         return <PageWrapper className="p-4 sm:p-8">
             <Card className="p-6">
@@ -116,14 +125,6 @@ export function AdminAnnouncementsPage() {
             </Card>
         </PageWrapper>
     }
-
-    const sortedAnnouncements = React.useMemo(() => {
-        return (announcements || []).sort((a, b) => {
-            return new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime()
-        })
-    }, [announcements])
-
-    const durationHoursNum = Math.max(1, Number.parseInt(durationHours, 10) || 24)
 
     return <PageWrapper className="p-4 sm:p-8 space-y-4">
         <Card className="p-6 space-y-4">
@@ -159,18 +160,22 @@ export function AdminAnnouncementsPage() {
             <label className="space-y-2 block max-w-40">
                 <span className="text-sm font-medium">Duration in hours</span>
                 <input
+                    type="number"
                     value={durationHours}
-                    onChange={e => {
-                        const val = e.target.value.replace(/[^\d]/g, "")
-                        setDurationHours(val || "1")
-                    }}
+                    onChange={e => setDurationHours(e.target.value)}
                     inputMode="numeric"
                     min="1"
-                    max="8760"
+                    max={MAX_DURATION_HOURS}
+                    step="1"
                     className="w-full rounded-md border border-[--border] bg-[--background] px-3 py-2"
                     aria-label="Announcement duration in hours"
                 />
                 <p className="text-xs text-[--muted]">Min: 1 hour, Max: 1 year</p>
+                {!isDurationValid && (
+                    <p role="alert" className="text-xs text-[--alert]">
+                        Enter a whole number from 1 to {MAX_DURATION_HOURS} hours.
+                    </p>
+                )}
             </label>
 
             <div className="flex gap-2 flex-wrap">
@@ -189,7 +194,7 @@ export function AdminAnnouncementsPage() {
             <Button
                 intent="primary"
                 loading={isCreating}
-                disabled={!message.trim() || isCreating}
+                disabled={!message.trim() || !isDurationValid || isCreating}
                 onClick={() => {
                     setError(null)
                     createAnnouncement({
