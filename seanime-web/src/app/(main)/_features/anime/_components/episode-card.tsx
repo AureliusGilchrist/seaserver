@@ -127,9 +127,29 @@ export function EpisodeCard(props: EpisodeCardProps) {
     const displayTopTitle = spoiler.replaceTitle
         ? spoilerSafeTopTitle || topTitle
         : topTitle
+    const imageSource = image
+        || episode?.episodeMetadata?.image
+        || episode?.baseAnime?.bannerImage
+        || episode?.baseAnime?.coverImage?.extraLarge
+        || episode?.baseAnime?.coverImage?.large
+        || episode?.baseAnime?.coverImage?.medium
+        || anime?.image
     const displayImage = spoiler.replaceImage
-        ? spoilerSafeImage || getSpoilerFreeAnimeImage(episode?.baseAnime) || anime?.image || image
-        : image
+        ? spoilerSafeImage || getSpoilerFreeAnimeImage(episode?.baseAnime) || anime?.image || imageSource
+        : imageSource
+    const imageFallbackSources = [...new Set((
+        spoiler.replaceImage
+            ? [spoilerSafeImage, getSpoilerFreeAnimeImage(episode?.baseAnime)]
+            : [
+                ...(fallbackImage ?? []),
+                episode?.episodeMetadata?.image,
+                episode?.baseAnime?.bannerImage,
+                episode?.baseAnime?.coverImage?.extraLarge,
+                episode?.baseAnime?.coverImage?.large,
+                episode?.baseAnime?.coverImage?.medium,
+                anime?.image,
+            ]
+    ).filter((source): source is string => !!source && source !== displayImage))]
     const Meta = () => (
         <div data-episode-card-info-container className="relative z-[3] w-full space-y-0">
             {(displayTopTitle !== title || showTotalEpisodes) && <p
@@ -233,7 +253,7 @@ export function EpisodeCard(props: EpisodeCardProps) {
                         {!!displayImage ? <SeaImage
                             data-episode-card-image
                             src={getImageUrl(displayImage)}
-                            fallbackSrc={fallbackImage?.filter((src): src is string => !!src).map(getImageUrl)}
+                            fallbackSrc={imageFallbackSources.map(getImageUrl)}
                             alt={""}
                             fill
                             quality={100}

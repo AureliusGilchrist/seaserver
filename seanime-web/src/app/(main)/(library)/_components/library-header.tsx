@@ -32,6 +32,21 @@ export function LibraryHeader({ list }: { list: Anime_Episode[] }) {
     const setHeaderEpisode = useSetAtom(__libraryHeaderEpisodeAtom)
 
     const bannerImage = image?.bannerImage || image?.episodeImage || ""
+    const activeImage = actualImage || prevImage || bannerImage
+    const imageEpisode = list.find(ep => [
+        ep.baseAnime?.bannerImage,
+        ep.episodeMetadata?.image,
+        ep.baseAnime?.coverImage?.extraLarge,
+        ep.baseAnime?.coverImage?.large,
+        ep.baseAnime?.coverImage?.medium,
+    ].includes(activeImage))
+    const fallbackImages = imageEpisode ? [...new Set([
+        imageEpisode.episodeMetadata?.image,
+        imageEpisode.baseAnime?.coverImage?.extraLarge,
+        imageEpisode.baseAnime?.coverImage?.large,
+        imageEpisode.baseAnime?.coverImage?.medium,
+        imageEpisode.baseAnime?.bannerImage,
+    ].filter((source): source is string => !!source && source !== activeImage))] : []
     const shouldHideBanner = (
         (ts.mediaPageBannerType === ThemeMediaPageBannerType.HideWhenUnavailable && !image?.bannerImage)
         || ts.mediaPageBannerType === ThemeMediaPageBannerType.Hide
@@ -53,7 +68,11 @@ export function LibraryHeader({ list }: { list: Anime_Episode[] }) {
         const t = setTimeout(() => {
             if (image != actualImage) {
                 setActualImage(bannerImage)
-                setHeaderEpisode(list.find(ep => ep.baseAnime?.bannerImage === image?.episodeImage || ep.baseAnime?.coverImage?.extraLarge === image?.episodeImage || ep.episodeMetadata?.image === image?.episodeImage) || null)
+                setHeaderEpisode(list.find(ep => ep.baseAnime?.bannerImage === image?.episodeImage
+                    || ep.baseAnime?.coverImage?.extraLarge === image?.episodeImage
+                    || ep.baseAnime?.coverImage?.large === image?.episodeImage
+                    || ep.baseAnime?.coverImage?.medium === image?.episodeImage
+                    || ep.episodeMetadata?.image === image?.episodeImage) || null)
             }
         }, 600)
 
@@ -65,7 +84,11 @@ export function LibraryHeader({ list }: { list: Anime_Episode[] }) {
     useEffect(() => {
         if (actualImage) {
             setPrevImage(actualImage)
-            setHeaderEpisode(list.find(ep => ep.baseAnime?.bannerImage === actualImage || ep.baseAnime?.coverImage?.extraLarge === actualImage || ep.episodeMetadata?.image === actualImage) || null)
+            setHeaderEpisode(list.find(ep => ep.baseAnime?.bannerImage === actualImage
+                || ep.baseAnime?.coverImage?.extraLarge === actualImage
+                || ep.baseAnime?.coverImage?.large === actualImage
+                || ep.baseAnime?.coverImage?.medium === actualImage
+                || ep.episodeMetadata?.image === actualImage) || null)
         }
     }, [actualImage])
 
@@ -138,6 +161,7 @@ export function LibraryHeader({ list }: { list: Anime_Episode[] }) {
                                 <MotionImage
                                     data-library-header-banner-image
                                     src={getImageUrl(actualImage || prevImage!)}
+                                    fallbackSrc={fallbackImages.map(getImageUrl)}
                                     alt="banner image"
                                     fill
                                     quality={100}

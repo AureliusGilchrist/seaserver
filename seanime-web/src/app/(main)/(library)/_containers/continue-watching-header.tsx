@@ -101,6 +101,12 @@ function MediaMetadata({ episode, episodes, onHoverChange }: MediaMetadataProps)
     const ts = useThemeSettings()
     const { setPreviewModalMediaId } = useMediaPreviewModal()
     const anime = episode.baseAnime
+    const coverImages = [...new Set([
+        anime?.coverImage?.extraLarge,
+        anime?.coverImage?.large,
+        anime?.coverImage?.medium,
+    ].filter((source): source is string => !!source))]
+    const coverImage = coverImages[0]
 
     const currentEpisodeIndex = useAtomValue(__continueWatching_currentEpisodeIndexAtom)
     const isTransitioning = useAtomValue(__continueWatching_headerIsTransitioningAtom)
@@ -162,10 +168,11 @@ function MediaMetadata({ episode, episodes, onHoverChange }: MediaMetadataProps)
                     transition={{ duration: 0.5 }}
                 >
                     <SeaLink href={`/entry?id=${anime.id}`}>
-                        {anime.coverImage?.large && (
+                        {coverImage && (
                             <div className="w-[180px] h-[280px] relative rounded-[--radius-md] overflow-hidden bg-[--background] shadow-md">
                                 <SeaImage
-                                    src={anime.coverImage.large}
+                                    src={coverImage}
+                                    fallbackSrc={coverImages.slice(1)}
                                     alt="cover image"
                                     fill
                                     priority
@@ -343,9 +350,19 @@ interface BannerImageProps {
 
 function BannerImage({ episode, isTransitioning, shouldBlurBanner }: BannerImageProps) {
     const ts = useThemeSettings()
-    const bannerImage = (!!ts.libraryScreenCustomBannerImage
-        && ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Custom) ? getAssetUrl(ts.libraryScreenCustomBannerImage) :
-        episode?.baseAnime?.bannerImage || episode?.baseAnime?.coverImage?.extraLarge
+    const customBannerImage = !!ts.libraryScreenCustomBannerImage
+        && ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Custom
+        ? getAssetUrl(ts.libraryScreenCustomBannerImage)
+        : undefined
+    const bannerImages = customBannerImage
+        ? [customBannerImage]
+        : [
+            episode?.baseAnime?.bannerImage,
+            episode?.baseAnime?.coverImage?.extraLarge,
+            episode?.baseAnime?.coverImage?.large,
+            episode?.baseAnime?.coverImage?.medium,
+        ].filter((source): source is string => !!source)
+    const [bannerImage, ...fallbackImages] = [...new Set(bannerImages)]
 
     const { y } = useWindowScroll()
 
@@ -382,6 +399,7 @@ function BannerImage({ episode, isTransitioning, shouldBlurBanner }: BannerImage
                     {bannerImage && (
                         <MotionImage
                             src={bannerImage}
+                            fallbackSrc={fallbackImages}
                             alt="banner image"
                             fill
                             quality={100}
