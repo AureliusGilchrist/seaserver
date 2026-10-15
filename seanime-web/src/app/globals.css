@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+body {
+    -webkit-app-region: no-drag;
+}
+
+.todo-list-window-interaction,
+.todo-list-drag-handle {
+    -webkit-app-region: no-drag;
+}
+
 @layer base {
     :root {
         --media-cue-backdrop: blur(0px);

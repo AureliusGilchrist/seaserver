@@ -744,10 +744,31 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
             return
         }
 
+        const cacheKey = "sea-wallpaper-accent-cache-v1"
+        let cachedAccent: string | null = null
+        const cachedValue = seaStorage.getItem(cacheKey)
+        if (cachedValue) {
+            try {
+                const cached = JSON.parse(cachedValue) as { url?: unknown, accent?: unknown }
+                if (cached.url === url && typeof cached.accent === "string" && /^#[\da-f]{6}$/i.test(cached.accent)) {
+                    cachedAccent = cached.accent
+                    setWallpaperAccent(cachedAccent)
+                }
+            } catch {
+                seaStorage.removeItem(cacheKey)
+            }
+        }
+
         let cancelled = false
         extractWallpaperAccent(url).then(accent => {
             if (cancelled) return
+            if (!accent && cachedAccent) return
             setWallpaperAccent(accent)
+            if (accent) {
+                seaStorage.setItem(cacheKey, JSON.stringify({ url, accent }))
+            } else {
+                seaStorage.removeItem(cacheKey)
+            }
         })
 
         return () => { cancelled = true }

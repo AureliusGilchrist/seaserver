@@ -18,8 +18,9 @@ import { restrictToVerticalAxis } from "@dnd-kit/modifiers"
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import capitalize from "lodash/capitalize"
+import { motion } from "motion/react"
 import React from "react"
-import { LuBookOpen, LuGripVertical, LuListVideo, LuPlay, LuTrash2, LuX } from "react-icons/lu"
+import { LuBookOpen, LuChevronDown, LuChevronUp, LuGripVertical, LuListVideo, LuPlay, LuTrash2, LuX } from "react-icons/lu"
 
 /**
  * The todo list: anime and manga somebody means to watch or read, in the order they arranged.
@@ -44,7 +45,7 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
     const items = (isSelf ? ownList : otherList) ?? []
     const loading = isSelf ? ownLoading : otherLoading
 
-    const { mutate: reorder } = useReorderToWatch()
+    const { mutateAsync: reorder } = useReorderToWatch()
     const { mutate: removeItem } = useRemoveFromToWatch()
     const { mutate: clearList } = useClearToWatch()
     const clearConfirmation = useConfirmationDialog({
@@ -54,16 +55,43 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
     })
 
     const router = useRouter()
+    const [optimisticItems, setOptimisticItems] = React.useState<ToWatchEntry[] | null>(null)
+    const [isReordering, setIsReordering] = React.useState(false)
+    const isReorderingRef = React.useRef(false)
+    const displayItems = optimisticItems ?? items
 
     // The drag is a pointer grab on the handle only — scrolling the strip must never start a drag,
     // which is what a listener on the whole card would do on a phone.
     const sensors = useSensors(
-        useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
-        useSensor(TouchSensor, { activationConstraint: { distance: 4 } }),
+        useSensor(MouseSensor, { activationConstraint: { distance: 2 } }),
+        useSensor(TouchSensor, { activationConstraint: { distance: 2 } }),
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
     )
     const [draggingId, setDraggingId] = React.useState<string | null>(null)
-    const dragging = items.find(e => toWatchKey(e) === draggingId) ?? null
+    const dragging = displayItems.find(e => toWatchKey(e) === draggingId) ?? null
+
+    const saveOrder = React.useCallback(async (next: ToWatchEntry[]) => {
+        if (isReorderingRef.current) return
+
+        isReorderingRef.current = true
+        setIsReordering(true)
+        setOptimisticItems(next)
+        try {
+            await reorder({ items: next.map(e => ({ mediaId: toWatchMediaId(e), mediaType: toWatchMediaType(e) })) })
+        } catch {
+            // The mutation reports request failures; restore the server-backed order.
+        } finally {
+            isReorderingRef.current = false
+            setIsReordering(false)
+            setOptimisticItems(null)
+        }
+    }, [reorder])
+
+    const moveItem = React.useCallback((index: number, direction: -1 | 1) => {
+        const nextIndex = index + direction
+        if (nextIndex < 0 || nextIndex >= displayItems.length || isReorderingRef.current) return
+        void saveOrder(arrayMove(displayItems, index, nextIndex))
+    }, [displayItems, saveOrder])
 
     const handleDragStart = React.useCallback((event: DragStartEvent) => {
         setDraggingId(String(event.active.id))
@@ -74,13 +102,12 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
         const { active, over } = event
         if (!over || active.id === over.id) return
 
-        const oldIndex = items.findIndex(e => toWatchKey(e) === active.id)
-        const newIndex = items.findIndex(e => toWatchKey(e) === over.id)
+        const oldIndex = displayItems.findIndex(e => toWatchKey(e) === active.id)
+        const newIndex = displayItems.findIndex(e => toWatchKey(e) === over.id)
         if (oldIndex < 0 || newIndex < 0) return
 
-        const next = arrayMove(items, oldIndex, newIndex)
-        reorder({ items: next.map(e => ({ mediaId: toWatchMediaId(e), mediaType: toWatchMediaType(e) })) })
-    }, [items, reorder])
+        void saveOrder(arrayMove(displayItems, oldIndex, newIndex))
+    }, [displayItems, saveOrder])
 
     if (loading) {
         return (
@@ -108,7 +135,7 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
     }
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-4 todo-list-window-interaction">
             {isSelf && (
                 <div className="relative isolate overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-r from-brand-500/[0.12] via-black/30 to-black/40 p-4 shadow-lg shadow-black/20 backdrop-blur-xl sm:p-5">
                     <div className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-brand-400/10 blur-3xl" />
@@ -129,7 +156,7 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
                             <p className="mt-0.5 text-xs text-[--muted]">Drag a handle to reorder. Your changes save automatically.</p>
                         </div>
                     <div className="flex-1" />
-                    <Button intent="gray-outline" size="sm" leftIcon={<LuTrash2 />} onClick={clearConfirmation.open}>
+                    <Button intent="gray-outline" size="sm" leftIcon={<LuTrash2 />} onClick={clearConfirmation.open} disabled={isReordering}>
                         Clear
                     </Button>
                     </div>
@@ -144,16 +171,25 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
                 onDragEnd={handleDragEnd}
                 onDragCancel={() => setDraggingId(null)}
             >
-                <SortableContext items={items.map(toWatchKey)} strategy={verticalListSortingStrategy}>
-                    <div className="space-y-2.5">
-                        {items.map((entry, index) => (
-                            <ToWatchCard
+                <SortableContext items={displayItems.map(toWatchKey)} strategy={verticalListSortingStrategy}>
+                    <div className="space-y-2.5 todo-list-window-interaction">
+                        {displayItems.map((entry, index) => (
+                            <motion.div
                                 key={toWatchKey(entry)}
-                                entry={entry}
-                                position={index + 1}
-                                readOnly={!isSelf}
-                                onRemove={isSelf ? () => removeItem({ mediaId: toWatchMediaId(entry), mediaType: toWatchMediaType(entry) }) : undefined}
-                            />
+                                layout="position"
+                                transition={{ layout: { duration: 0.24, ease: "easeOut" } }}
+                            >
+                                <ToWatchCard
+                                    entry={entry}
+                                    position={index + 1}
+                                    readOnly={!isSelf}
+                                    isReordering={isReordering}
+                                    onMove={direction => moveItem(index, direction)}
+                                    canMoveUp={index > 0}
+                                    canMoveDown={index < displayItems.length - 1}
+                                    onRemove={isSelf ? () => removeItem({ mediaId: toWatchMediaId(entry), mediaType: toWatchMediaType(entry) }) : undefined}
+                                />
+                            </motion.div>
                         ))}
                     </div>
                 </SortableContext>
@@ -161,7 +197,7 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
                 {/* The card being carried, above everything while it moves. */}
                 <DragOverlay dropAnimation={{ duration: 180, easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)" }}>
                     {dragging && (
-                        <ToWatchCardPreview entry={dragging} position={items.findIndex(e => toWatchKey(e) === draggingId) + 1} />
+                        <ToWatchCardPreview entry={dragging} position={displayItems.findIndex(e => toWatchKey(e) === draggingId) + 1} />
                     )}
                 </DragOverlay>
             </DndContext>
@@ -228,12 +264,28 @@ type ToWatchCardData = {
     position: number
     readOnly?: boolean
     onRemove?: () => void
+    onMove?: (direction: -1 | 1) => void
+    canMoveUp?: boolean
+    canMoveDown?: boolean
+    isReordering?: boolean
     isOverlay?: boolean
 }
 
-function ToWatchCard({ entry, position, readOnly, onRemove }: ToWatchCardData) {
-    const sortable = useSortable({ id: toWatchKey(entry), disabled: !!readOnly })
-    return <ToWatchCardVisual entry={entry} position={position} readOnly={readOnly} onRemove={onRemove} sortable={sortable} />
+function ToWatchCard({ entry, position, readOnly, onRemove, onMove, canMoveUp, canMoveDown, isReordering }: ToWatchCardData) {
+    const sortable = useSortable({ id: toWatchKey(entry), disabled: !!readOnly || !!isReordering })
+    return (
+        <ToWatchCardVisual
+            entry={entry}
+            position={position}
+            readOnly={readOnly}
+            onRemove={onRemove}
+            onMove={onMove}
+            canMoveUp={canMoveUp}
+            canMoveDown={canMoveDown}
+            isReordering={isReordering}
+            sortable={sortable}
+        />
+    )
 }
 
 function ToWatchCardPreview({ entry, position }: { entry: ToWatchEntry, position: number }) {
@@ -245,6 +297,10 @@ function ToWatchCardVisual({
     position,
     readOnly,
     onRemove,
+    onMove,
+    canMoveUp,
+    canMoveDown,
+    isReordering,
     isOverlay,
     sortable,
 }: ToWatchCardData & { sortable?: ReturnType<typeof useSortable> }) {
@@ -271,17 +327,43 @@ function ToWatchCardVisual({
             )}
         >
             {!readOnly && (
-                <button
-                    ref={sortable?.setActivatorNodeRef}
-                    {...sortable?.attributes}
-                    {...sortable?.listeners}
-                    type="button"
-                    aria-label={`Drag to reorder ${entry.title}`}
-                    title="Drag to reorder"
-                    className="group/handle my-2 ml-2 flex w-10 shrink-0 touch-none cursor-grab items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.025] text-white/45 transition hover:border-brand-300/25 hover:bg-brand-400/10 hover:text-brand-100 active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-300 sm:my-3 sm:ml-3 sm:w-11"
-                >
-                    <LuGripVertical className="size-5 transition-transform group-hover/handle:scale-110" />
-                </button>
+                <>
+                    <button
+                        ref={sortable?.setActivatorNodeRef}
+                        {...sortable?.attributes}
+                        {...sortable?.listeners}
+                        type="button"
+                        draggable={false}
+                        onDragStart={event => event.preventDefault()}
+                        aria-label={`Drag to reorder ${entry.title}`}
+                        title="Drag to reorder"
+                        className="todo-list-drag-handle group/handle relative my-2 ml-2 flex min-h-11 w-11 shrink-0 touch-none select-none cursor-grab items-center justify-center rounded-xl border border-brand-300/20 bg-gradient-to-b from-brand-300/15 via-white/[0.06] to-white/[0.025] text-brand-100/80 shadow-sm shadow-black/30 transition-[transform,border-color,background-color,color,box-shadow] duration-200 hover:border-brand-300/50 hover:from-brand-300/25 hover:to-brand-400/10 hover:text-brand-100 hover:shadow-md hover:shadow-brand-950/40 active:scale-95 active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 sm:my-3"
+                    >
+                        <LuGripVertical className="pointer-events-none size-5 drop-shadow transition-transform group-hover/handle:scale-110 group-active/handle:scale-95" />
+                    </button>
+                    <div className="my-2 ml-1 flex shrink-0 flex-col gap-1 sm:my-3" aria-label={`Reorder ${entry.title}`}>
+                        <button
+                            type="button"
+                            aria-label={`Move ${entry.title} up`}
+                            title="Move up"
+                            disabled={!canMoveUp || isReordering}
+                            onClick={() => onMove?.(-1)}
+                            className="grid size-7 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-white/65 transition-[transform,background-color,color,border-color] duration-150 hover:border-brand-300/40 hover:bg-brand-300/15 hover:text-white active:scale-90 disabled:cursor-not-allowed disabled:opacity-25"
+                        >
+                            <LuChevronUp className="size-4" />
+                        </button>
+                        <button
+                            type="button"
+                            aria-label={`Move ${entry.title} down`}
+                            title="Move down"
+                            disabled={!canMoveDown || isReordering}
+                            onClick={() => onMove?.(1)}
+                            className="grid size-7 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-white/65 transition-[transform,background-color,color,border-color] duration-150 hover:border-brand-300/40 hover:bg-brand-300/15 hover:text-white active:scale-90 disabled:cursor-not-allowed disabled:opacity-25"
+                        >
+                            <LuChevronDown className="size-4" />
+                        </button>
+                    </div>
+                </>
             )}
 
             <div className="flex shrink-0 items-center justify-center">

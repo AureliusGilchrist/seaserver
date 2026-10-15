@@ -2,9 +2,12 @@ package db
 
 import (
 	"encoding/json"
+	"errors"
 	"seanime/internal/database/models"
 	"sync"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // RecordActivityEvent inserts a new granular activity event.
@@ -77,6 +80,99 @@ func (db *Database) HasRecentEpisodeWatchedEvent(mediaId int, episode int, windo
 }
 
 var episodeWatchedMu sync.Mutex
+var mangaChapterReadMu sync.Mutex
+
+// RecordMangaChapterRead records a completed chapter once, including the daily aggregate
+// and granular event used by streaks and achievements.
+func (db *Database) RecordMangaChapterRead(mediaId int, chapter int, minutes int, metadata interface{}) (recorded bool, firstChapter bool, monthlyChapters int, err error) {
+	mangaChapterReadMu.Lock()
+	defer mangaChapterReadMu.Unlock()
+
+	if mediaId == 0 || chapter <= 0 {
+		return false, false, 0, errors.New("media ID and chapter number must be valid")
+	}
+
+	now := time.Now()
+	eventMetadata, err := json.Marshal(metadata)
+	if err != nil {
+		return false, false, 0, err
+	}
+
+	err = db.gormdb.Transaction(func(tx *gorm.DB) error {
+		var recentEvents []models.ActivityEvent
+		err := tx.
+			Where("event_type = ? AND media_id = ? AND created_at >= ?", models.ActivityEventMangaChapterRead, mediaId, now.Add(-12*time.Hour)).
+			Find(&recentEvents).Error
+		if err != nil {
+			return err
+		}
+		for _, event := range recentEvents {
+			var eventData struct {
+				Chapter int `json:"chapter"`
+			}
+			if json.Unmarshal([]byte(event.Metadata), &eventData) == nil && eventData.Chapter == chapter {
+				return nil
+			}
+		}
+
+		var chaptersRead int64
+		if err := tx.Model(&models.ActivityLog{}).
+			Select("COALESCE(SUM(manga_chapters), 0)").
+			Scan(&chaptersRead).Error; err != nil {
+			return err
+		}
+		firstChapter = chaptersRead == 0
+
+		monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location()).Format("2006-01-02")
+		today := now.Format("2006-01-02")
+		var currentMonthChapters int64
+		if err := tx.Model(&models.ActivityLog{}).
+			Where("date >= ? AND date <= ?", monthStart, today).
+			Select("COALESCE(SUM(manga_chapters), 0)").
+			Scan(&currentMonthChapters).Error; err != nil {
+			return err
+		}
+		monthlyChapters = int(currentMonthChapters) + 1
+
+		var activityLog models.ActivityLog
+		result := tx.Where("date = ?", today).First(&activityLog)
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			if err := tx.Create(&models.ActivityLog{
+				Date:          today,
+				MangaChapters: 1,
+				MangaMinutes:  max(minutes, 0),
+			}).Error; err != nil {
+				return err
+			}
+		} else if result.Error != nil {
+			return result.Error
+		} else {
+			updates := map[string]interface{}{
+				"manga_chapters": gorm.Expr("manga_chapters + ?", 1),
+			}
+			if minutes > 0 {
+				updates["manga_minutes"] = gorm.Expr("manga_minutes + ?", minutes)
+			}
+			if err := tx.Model(&activityLog).Updates(updates).Error; err != nil {
+				return err
+			}
+		}
+
+		if err := tx.Create(&models.ActivityEvent{
+			EventType: models.ActivityEventMangaChapterRead,
+			MediaId:   mediaId,
+			Metadata:  string(eventMetadata),
+		}).Error; err != nil {
+			return err
+		}
+		recorded = true
+		return nil
+	})
+	if err != nil {
+		return false, false, 0, err
+	}
+	return recorded, firstChapter, monthlyChapters, nil
+}
 
 // RecordEpisodeWatched records both the daily aggregate and the granular event for a
 // watched episode, skipping both when the same (media, episode) was already recorded in

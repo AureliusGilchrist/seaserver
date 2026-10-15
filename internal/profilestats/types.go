@@ -2,18 +2,19 @@ package profilestats
 
 // ProfileStats is the response for GET /api/v1/profile/stats.
 type ProfileStats struct {
-	ActivityHeatmap            []*ActivityDay     `json:"activityHeatmap"`
-	AnimeStreak                *StreakInfo        `json:"animeStreak"`
-	MangaStreak                *StreakInfo        `json:"mangaStreak"`
-	TotalActiveDays            int                `json:"totalActiveDays"`
-	TotalAnimeDays             int                `json:"totalAnimeDays"`
-	TotalMangaDays             int                `json:"totalMangaDays"`
-	Personality                *PersonalityResult `json:"personality"`
-	WatchPatterns              *WatchPatterns     `json:"watchPatterns"`
-	TotalWatchMinutesWithRewatches int            `json:"totalWatchMinutesWithRewatches"`
-	EstimatedReadingMinutes    int                `json:"estimatedReadingMinutes"`
+	ActivityHeatmap                []*ActivityDay     `json:"activityHeatmap"`
+	AnimeStreak                    *StreakInfo        `json:"animeStreak"`
+	MangaStreak                    *StreakInfo        `json:"mangaStreak"`
+	TotalActiveDays                int                `json:"totalActiveDays"`
+	TotalAnimeDays                 int                `json:"totalAnimeDays"`
+	TotalMangaDays                 int                `json:"totalMangaDays"`
+	TotalMangaChapters             int                `json:"totalMangaChapters"`
+	Personality                    *PersonalityResult `json:"personality"`
+	WatchPatterns                  *WatchPatterns     `json:"watchPatterns"`
+	TotalWatchMinutesWithRewatches int                `json:"totalWatchMinutesWithRewatches"`
+	EstimatedReadingMinutes        int                `json:"estimatedReadingMinutes"`
 	// Weekly averages over the last 4 weeks
-	AnimeHoursPerWeek   float64 `json:"animeHoursPerWeek"`
+	AnimeHoursPerWeek    float64 `json:"animeHoursPerWeek"`
 	MangaChaptersPerWeek float64 `json:"mangaChaptersPerWeek"`
 }
 

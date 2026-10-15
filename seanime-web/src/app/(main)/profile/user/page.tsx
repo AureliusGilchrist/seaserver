@@ -306,13 +306,14 @@ function UserStatsTabContent({ userId, xpBarFillCss }: { userId: number; xpBarFi
     return (
         <>
             <Stats
-                className="w-full grid-cols-2 gap-3 divide-y-0 divide-x-0 overflow-visible sm:grid-cols-3"
+                className="w-full grid-cols-2 gap-3 divide-y-0 divide-x-0 overflow-visible sm:grid-cols-4"
                 itemClass="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] via-black/25 to-black/35 p-4 shadow-xl shadow-black/20 backdrop-blur-md sm:p-5"
                 size="md"
                 items={[
                 { icon: <LuTrophy />, name: "Active Days", value: profileStats?.totalActiveDays ?? 0 },
                 { icon: <LuTv />, name: "Anime Days", value: profileStats?.totalAnimeDays ?? 0 },
                 { icon: <LuBookOpen />, name: "Manga Days", value: profileStats?.totalMangaDays ?? 0 },
+                { icon: <LuBookOpen />, name: "Chapters Read Here", value: profileStats?.totalMangaChapters ?? 0 },
                 ]}
             />
 

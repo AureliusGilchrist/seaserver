@@ -68,6 +68,7 @@ func (h *Handler) HandleGetProfileStats(c echo.Context) error {
 
 	// Count active days (all time)
 	totalActive, animeDays, mangaDays := profilestats.CountActiveDays(allLogs)
+	totalMangaChapters := profilestats.CountMangaChapters(allLogs)
 
 	// Compute personality from anime collection genre distribution
 	// Compute reading time and rewatch time from AniList collections.
@@ -98,6 +99,7 @@ func (h *Handler) HandleGetProfileStats(c echo.Context) error {
 		TotalActiveDays:                totalActive,
 		TotalAnimeDays:                 animeDays,
 		TotalMangaDays:                 mangaDays,
+		TotalMangaChapters:             totalMangaChapters,
 		Personality:                    personality,
 		WatchPatterns:                  watchPatterns,
 		TotalWatchMinutesWithRewatches: totalWatchMinWithRewatches,
@@ -171,6 +173,7 @@ func (h *Handler) HandleGetUserProfileStats(c echo.Context) error {
 	}
 	watchPatterns := profilestats.ComputeWatchPatterns(heatmapLogs)
 	totalActive, animeDays, mangaDays := profilestats.CountActiveDays(allLogs)
+	totalMangaChapters := profilestats.CountMangaChapters(allLogs)
 	animeHoursPerWeek, mangaChaptersPerWeek := computeWeeklyAverages(allLogs)
 
 	result := &profilestats.ProfileStats{
@@ -180,6 +183,7 @@ func (h *Handler) HandleGetUserProfileStats(c echo.Context) error {
 		TotalActiveDays:      totalActive,
 		TotalAnimeDays:       animeDays,
 		TotalMangaDays:       mangaDays,
+		TotalMangaChapters:   totalMangaChapters,
 		WatchPatterns:        watchPatterns,
 		AnimeHoursPerWeek:    animeHoursPerWeek,
 		MangaChaptersPerWeek: mangaChaptersPerWeek,

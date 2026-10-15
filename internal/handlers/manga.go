@@ -674,6 +674,9 @@ func (h *Handler) HandleUpdateMangaProgress(c echo.Context) error {
 	if err := c.Bind(b); err != nil {
 		return h.RespondWithError(c, err)
 	}
+	if b.MediaId == 0 || b.ChapterNumber <= 0 || b.TotalChapters < 0 || b.ReadingMinutes < 0 {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "invalid manga progress"))
+	}
 
 	// Update the progress on AniList
 	profileID := h.GetProfileID(c)
@@ -732,36 +735,31 @@ func (h *Handler) HandleUpdateMangaProgress(c echo.Context) error {
 	now := time.Now()
 	isCompleted := b.TotalChapters > 0 && b.ChapterNumber >= b.TotalChapters
 
-	// Record activity (heatmap + granular event)
-	pdbChapter := h.GetProfileDatabase(c)
-	go func() {
-		pdb := pdbChapter
-		if pdb == nil {
-			return
-		}
-		_ = pdb.RecordMangaActivity(1, b.ReadingMinutes)
-		_ = pdb.RecordActivityEvent(models.ActivityEventMangaChapterRead, b.MediaId, map[string]interface{}{
-			"chapter":         b.ChapterNumber,
-			"totalChapters":   b.TotalChapters,
-			"readingMinutes":  b.ReadingMinutes,
-			"sessionChapters": sessionChapters,
-			"sessionMinutes":  sessionMinutes,
-		})
-		if isCompleted {
-			_ = pdb.RecordActivityEvent("series_complete", b.MediaId, map[string]interface{}{
-				"type":     "manga",
-				"chapters": b.TotalChapters,
-			})
-		}
-	}()
+	// Record completed chapters before evaluating achievements so streaks and progress
+	// are based on persisted, deduplicated activity rather than request timing.
+	pdb := h.GetProfileDatabase(c)
+	if pdb == nil {
+		return h.RespondWithError(c, errors.New("profile database unavailable"))
+	}
+	activityMetadata := map[string]interface{}{
+		"chapter":         b.ChapterNumber,
+		"totalChapters":   b.TotalChapters,
+		"readingMinutes":  b.ReadingMinutes,
+		"sessionChapters": sessionChapters,
+		"sessionMinutes":  sessionMinutes,
+	}
+	recorded, firstChapter, monthlyChapters, err := pdb.RecordMangaChapterRead(
+		b.MediaId,
+		b.ChapterNumber,
+		b.ReadingMinutes,
+		activityMetadata,
+	)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
 
-	// Fire chapter progress achievement with full metadata
-	h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
-		ProfileID: profileID,
-		Trigger:   achievement.TriggerChapterProgress,
-		MediaID:   b.MediaId,
-		Timestamp: now,
-		Metadata: map[string]interface{}{
+	if recorded {
+		achievementMetadata := map[string]interface{}{
 			"chapter":          b.ChapterNumber,
 			"total_chapters":   b.TotalChapters,
 			"reading_minutes":  b.ReadingMinutes,
@@ -770,29 +768,45 @@ func (h *Handler) HandleUpdateMangaProgress(c echo.Context) error {
 			"hour":             now.Hour(),
 			"day_of_week":      int(now.Weekday()),
 			"count":            float64(1),
-		},
-	})
-
-	// Fire manga complete achievement
-	if isCompleted {
+		}
+		if firstChapter {
+			achievementMetadata["m_first_chapter"] = 1
+			achievementMetadata["m_first_day"] = 1
+		}
+		if monthlyChapters >= 100 {
+			achievementMetadata["m_century_reader"] = 1
+		}
 		h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
 			ProfileID: profileID,
-			Trigger:   achievement.TriggerMangaComplete,
+			Trigger:   achievement.TriggerChapterProgress,
 			MediaID:   b.MediaId,
 			Timestamp: now,
-			Metadata: map[string]interface{}{
-				"chapters":      b.TotalChapters,
-				"session_hours": sessionHours,
-			},
+			Metadata:  achievementMetadata,
 		})
-	}
 
-	// Evaluate milestones
-	go func() {
-		if h.App.MilestoneEngine != nil {
-			h.App.MilestoneEngine.EvaluateProfile(profileID)
+		if isCompleted {
+			if err := pdb.RecordActivityEvent("series_complete", b.MediaId, map[string]interface{}{
+				"type":     "manga",
+				"chapters": b.TotalChapters,
+			}); err != nil {
+				return h.RespondWithError(c, err)
+			}
+			h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
+				ProfileID: profileID,
+				Trigger:   achievement.TriggerMangaComplete,
+				MediaID:   b.MediaId,
+				Timestamp: now,
+				Metadata: map[string]interface{}{
+					"chapters":      b.TotalChapters,
+					"session_hours": sessionHours,
+				},
+			})
 		}
-	}()
+
+		if h.App.MilestoneEngine != nil {
+			go h.App.MilestoneEngine.EvaluateProfile(profileID)
+		}
+	}
 
 	if profileID > 0 {
 		h.App.AnilistClientManager.InvalidateMangaCollection(profileID)

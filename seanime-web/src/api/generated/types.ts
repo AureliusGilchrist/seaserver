@@ -6074,6 +6074,7 @@ export type ProfileStats_ProfileStats = {
     totalActiveDays: number
     totalAnimeDays: number
     totalMangaDays: number
+    totalMangaChapters: number
     personality?: ProfileStats_PersonalityResult
     watchPatterns?: ProfileStats_WatchPatterns
     totalWatchMinutesWithRewatches: number
@@ -7326,4 +7327,3 @@ export type Video = {
     height: number
     bitrate: number
 }
-

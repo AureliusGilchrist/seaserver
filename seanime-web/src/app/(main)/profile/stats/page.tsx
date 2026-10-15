@@ -5,6 +5,7 @@ import { useGetProfileStats } from "@/api/hooks/profile-stats.hooks"
 import {
     ProfileStats_ActivityDay,
     ProfileStats_PersonalityResult,
+    ProfileStats_ProfileStats,
     ProfileStats_StreakInfo,
     AL_Stats,
 } from "@/api/generated/types"
@@ -132,7 +133,7 @@ export default function Page() {
                 <Separator />
 
                 {/* AniList Charts - Genre */}
-                <AniListCharts stats={anilistStats} />
+                <AniListCharts stats={anilistStats} profileStats={profileStats} />
 
             </PageWrapper>
         </>
@@ -176,7 +177,7 @@ function HeroStats({ anilistStats, profileStats }: { anilistStats?: AL_Stats, pr
                 ]}
             />
             <Stats
-                className="grid grid-cols-1 gap-3 divide-x-0 divide-y-0 overflow-visible sm:grid-cols-3"
+                className="grid grid-cols-1 gap-3 divide-x-0 divide-y-0 overflow-visible sm:grid-cols-4"
                 itemClass="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-black/25 p-4 shadow-lg shadow-black/10 backdrop-blur-md sm:p-5"
                 nameClass="text-xs font-semibold uppercase tracking-wide text-[--muted]"
                 valueClass="mt-2 flex items-baseline font-bold md:block lg:flex"
@@ -445,7 +446,7 @@ function PersonalityCard({ personality }: { personality: ProfileStats_Personalit
 
 // ───────────────────────────── AniList Charts ─────────────────────────────
 
-function AniListCharts({ stats }: { stats?: AL_Stats }) {
+function AniListCharts({ stats, profileStats }: { stats?: AL_Stats; profileStats?: ProfileStats_ProfileStats }) {
     const genreData = React.useMemo(() => {
         if (!stats?.animeStats?.genres) return []
         return stats.animeStats.genres
@@ -598,7 +599,7 @@ function AniListCharts({ stats }: { stats?: AL_Stats }) {
             </h2>
 
             <Stats
-                className="grid grid-cols-1 gap-3 divide-x-0 divide-y-0 overflow-visible sm:grid-cols-3"
+                className="grid grid-cols-1 gap-3 divide-x-0 divide-y-0 overflow-visible sm:grid-cols-4"
                 itemClass="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-black/25 p-4 shadow-lg shadow-black/10 backdrop-blur-md sm:p-5"
                 nameClass="text-xs font-semibold uppercase tracking-wide text-[--muted]"
                 valueClass="mt-2 flex items-baseline font-bold md:block lg:flex"
@@ -614,6 +615,11 @@ function AniListCharts({ stats }: { stats?: AL_Stats }) {
                         icon: <LuHourglass />,
                         name: "Chapters Read",
                         value: stats?.mangaStats?.chaptersRead ?? 0,
+                    },
+                    {
+                        icon: <LuBookOpen />,
+                        name: "Chapters Read Here",
+                        value: profileStats?.totalMangaChapters ?? 0,
                     },
                     {
                         icon: <LuStar />,

@@ -802,10 +802,11 @@ function HeroStats({ anilistStats, profileStats }: { anilistStats?: AL_Stats; pr
                 { icon: <LuHourglass />, name: "Watch Time", value: Math.round((anilistStats?.animeStats?.minutesWatched ?? 0) / 60), unit: "hours" },
                 { icon: <LuStar />, name: "Mean Score", value: ((anilistStats?.animeStats?.meanScore ?? 0) / 10).toFixed(1) },
             ]} />
-            <Stats className={cn("w-full", gridClass, "sm:grid-cols-3")} itemClass={cn(cardClass, "p-4 sm:p-5")} size="md" items={[
+            <Stats className={cn("w-full", gridClass, "sm:grid-cols-4")} itemClass={cn(cardClass, "p-4 sm:p-5")} size="md" items={[
                 { icon: <LuTrophy />, name: "Active Days", value: profileStats?.totalActiveDays ?? 0 },
                 { icon: <LuTv />, name: "Anime Days", value: profileStats?.totalAnimeDays ?? 0 },
                 { icon: <LuBookOpen />, name: "Manga Days", value: profileStats?.totalMangaDays ?? 0 },
+                { icon: <LuBookOpen />, name: "Chapters Read Here", value: profileStats?.totalMangaChapters ?? 0 },
             ]} />
             <Stats className={cn("w-full", gridClass, "sm:grid-cols-2")} itemClass={cn(cardClass, "p-4 sm:p-5")} size="md" items={[
                 { icon: <LuClock />, name: "Anime hrs/week", value: (profileStats?.animeHoursPerWeek ?? 0).toFixed(1), unit: "hrs" },

@@ -38,6 +38,15 @@ func BuildHeatmap(logs []*models.ActivityLog, startDate, endDate string) []*Acti
 	return days
 }
 
+// CountMangaChapters returns the number of chapters recorded in activity logs.
+func CountMangaChapters(logs []*models.ActivityLog) int {
+	total := 0
+	for _, log := range logs {
+		total += log.MangaChapters
+	}
+	return total
+}
+
 // ComputeStreaks calculates current and longest streak from activity logs.
 // animeOnly: only count days with AnimeEpisodes > 0.
 // mangaOnly: only count days with MangaChapters > 0.
