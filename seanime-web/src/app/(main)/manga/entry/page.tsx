@@ -20,6 +20,11 @@ export default function Page() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const mediaId = searchParams.get("id")
+
+    React.useLayoutEffect(() => {
+        window.scrollTo(0, 0)
+    }, [mediaId])
+
     const {
         data: mangaEntry,
         isLoading: mangaEntryLoading,
