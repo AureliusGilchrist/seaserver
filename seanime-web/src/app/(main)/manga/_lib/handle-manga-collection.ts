@@ -179,6 +179,8 @@ export function useHandleMangaCollection() {
     return {
         genres,
         hasManga: !!data?.lists?.some(l => !!l.entries?.length),
+        sourceMangaCollection: data,
+        latestChapterNumbers,
         mangaCollection: sortedCollection,
         filteredMangaCollection: filteredCollection,
         mangaCollectionGenres: libraryGenres,

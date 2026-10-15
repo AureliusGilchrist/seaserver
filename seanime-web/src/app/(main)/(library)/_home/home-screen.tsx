@@ -119,6 +119,15 @@ export function HomeScreen() {
 
     const homeItems = React.useMemo(() => {
         let ret = !!_homeItems?.length ? _homeItems : DEFAULT_HOME_ITEMS
+        if (!ret.some(n => n.type === "local-anime-library-stats")) {
+            const libraryIdx = ret.findIndex(n => n.type === "anime-library")
+            const insertIdx = libraryIdx >= 0 ? libraryIdx : ret.length
+            ret = [...ret.slice(0, insertIdx), {
+                id: "local-anime-library-stats",
+                type: "local-anime-library-stats",
+                schemaVersion: 1,
+            }, ...ret.slice(insertIdx)]
+        }
         // replace anime-continue-watching-header with anime-continue-watching on mobile
         if (width < 1024 && ret[0]?.type === "anime-continue-watching-header") {
             if (ret.find(n => n.type === "anime-continue-watching")) {
@@ -709,50 +718,45 @@ export function HomeScreenItem(props: HomeScreenItemProps) {
     }
 
     if (item.type === "local-anime-library-stats") {
+        const listEntries = statusCollectionList.flatMap(list => list.entries ?? [])
+        const countFor = (status: string) => statusCollectionList.find(list => list.type === status)?.entries?.length ?? 0
+        const episodesWatched = listEntries.reduce((total, entry) => total + (entry.listData?.progress ?? 0), 0)
+        const episodesRemaining = statusCollectionList
+            .filter(list => list.type !== "COMPLETED" && list.type !== "DROPPED")
+            .flatMap(list => list.entries ?? [])
+            .reduce((total, entry) => total + Math.max(0, (entry.media?.episodes ?? 0) - (entry.listData?.progress ?? 0)), 0)
+        const stats: Array<[string | number, string]> = [
+            ...(!isNakamaLibrary ? [[data?.stats?.totalSize ?? "-", "Library"] as [string, string]] : []),
+            [data?.stats?.totalFiles == null ? "-" : data.stats.totalFiles, "Files"],
+            [data?.stats?.totalEntries ?? "-", "Local entries"],
+            [data?.stats?.totalShows ?? "-", "TV shows"],
+            [data?.stats?.totalMovies ?? "-", "Movies"],
+            [data?.stats?.totalSpecials ?? "-", "Specials"],
+            ...((data?.stats?.unresolvedItems ?? 0) > 0 ? [[data?.stats?.unresolvedItems ?? 0, "Unresolved"] as [number, string]] : []),
+            [listEntries.length, "AniList series"],
+            [countFor("CURRENT"), "Watching"],
+            [countFor("REPEATING"), "Rewatching"],
+            [countFor("PLANNING"), "Planning"],
+            [countFor("PAUSED"), "Paused"],
+            [countFor("COMPLETED"), "Completed"],
+            [countFor("DROPPED"), "Dropped"],
+            [episodesWatched, "Episodes watched"],
+            [episodesRemaining, "Known episodes left"],
+        ]
         return (
             <PageWrapper>
                 <div
-                    className={cn(
-                        "grid grid-cols-3 gap-4 [&>div]:text-center [&>div>p]:text-[--muted] py-4",
-                        // Widens only when there is an unresolved tile to hold — see the same row in
-                        // detailed-library-view.
-                        isNakamaLibrary
-                            ? ((data?.stats?.unresolvedItems ?? 0) > 0 ? "lg:grid-cols-6" : "lg:grid-cols-5")
-                            : ((data?.stats?.unresolvedItems ?? 0) > 0 ? "lg:grid-cols-7" : "lg:grid-cols-6"),
-                    )}
+                    className="grid grid-cols-3 gap-4 py-4 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 [&>div]:text-center [&>div>p]:text-[--muted]"
                     data-detailed-library-view-stats-container
                 >
-                    {!isNakamaLibrary && <div>
-                        <h3>{data?.stats?.totalSize ?? "-"}</h3>
-                        <p>Library</p>
-                    </div>}
-                    <div>
-                        <h3>{data?.stats?.totalFiles == null ? "-" : formatNumber(data.stats.totalFiles)}</h3>
-                        <p>Files</p>
-                    </div>
-                    <div>
-                        <h3>{data?.stats?.totalEntries == null ? "-" : formatNumber(data.stats.totalEntries)}</h3>
-                        <p>Entries</p>
-                    </div>
-                    <div>
-                        <h3>{data?.stats?.totalShows == null ? "-" : formatNumber(data.stats.totalShows)}</h3>
-                        <p>TV Shows</p>
-                    </div>
-                    <div>
-                        <h3>{data?.stats?.totalMovies == null ? "-" : formatNumber(data.stats.totalMovies)}</h3>
-                        <p>Movies</p>
-                    </div>
-                    <div>
-                        <h3>{data?.stats?.totalSpecials == null ? "-" : formatNumber(data.stats.totalSpecials)}</h3>
-                        <p>Specials</p>
-                    </div>
-                    {/* What the scan found and the library cannot show. Absent when there is none. */}
-                    {(data?.stats?.unresolvedItems ?? 0) > 0 && <div data-detailed-library-view-unresolved>
-                        <h3 className="text-orange-300">{formatNumber(data?.stats?.unresolvedItems ?? 0)}</h3>
-                        <p title={`${formatNumber(data?.stats?.unresolvedFiles ?? 0)} files that are matched to anime missing from your AniList collection, or that matched nothing at all. Resolve them from the Unknown and Unmatched sections.`}>
-                            Unresolved
-                        </p>
-                    </div>}
+                    {stats.map(([value, label]) => (
+                        <div key={label}>
+                            <h3>{typeof value === "number" ? formatNumber(value) : value}</h3>
+                            <p title={label === "Unresolved" ? `${formatNumber(data?.stats?.unresolvedFiles ?? 0)} files are unresolved.` : undefined}>
+                                {label}
+                            </p>
+                        </div>
+                    ))}
                 </div>
             </PageWrapper>
         )

@@ -16,6 +16,11 @@ export const DEFAULT_HOME_ITEMS: Models_HomeItem[] = [
         },
     },
     {
+        id: "local-anime-library-stats",
+        type: "local-anime-library-stats",
+        schemaVersion: 1,
+    },
+    {
         id: "anime-library",
         type: "anime-library",
         schemaVersion: 3,

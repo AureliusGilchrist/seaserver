@@ -23,6 +23,7 @@ import { MangaRecentlyReleased } from "@/app/(main)/manga/_containers/manga-rece
 import { MangaMissedSequels } from "@/app/(main)/manga/_containers/manga-missed-sequels"
 import { useGetMangaHomeItems } from "@/api/hooks/status.hooks"
 import { MangaContinueReadingEntry, useMangaContinueReadingList } from "@/app/(main)/manga/_lib/use-manga-continue-reading"
+import { Manga_Collection, Manga_MangaLatestChapterNumberItem } from "@/api/generated/types"
 import { mangaCardSizeAtom, getCardSizeClasses } from "@/app/(main)/_atoms/card-size.atoms"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { SeaLink } from "@/components/shared/sea-link"
@@ -35,6 +36,7 @@ import { Carousel, CarouselContent, CarouselDotButtons, CarouselItem } from "@/c
 import { ThemeLibraryScreenBannerType, useThemeSettings } from "@/lib/theme/hooks"
 import { __isDesktop__ } from "@/types/constants"
 import { displayTitle } from "@/lib/helpers/media"
+import { formatNumber } from "@/lib/helpers/number"
 import { AnimatePresence } from "motion/react"
 import { useAtomValue } from "jotai/react"
 import { useWindowSize } from "react-use"
@@ -53,6 +55,8 @@ export default function Page() {
         mangaCollectionLoading,
         mangaCollectionError,
         refetchMangaCollection,
+        sourceMangaCollection,
+        latestChapterNumbers,
         storedFilters,
         storedProviders,
         mangaCollectionGenres,
@@ -137,9 +141,8 @@ export default function Page() {
         // Saved layouts that predate the stats row get it right above the library.
         if (!ret.some(n => n.type === "local-manga-library-stats")) {
             const libIdx = ret.findIndex(n => n.type === "manga-library")
-            if (libIdx >= 0) {
-                ret = [...ret.slice(0, libIdx), { id: "local-manga-library-stats", type: "local-manga-library-stats", schemaVersion: 1 }, ...ret.slice(libIdx)]
-            }
+            const insertIdx = libIdx >= 0 ? libIdx : ret.length
+            ret = [...ret.slice(0, insertIdx), { id: "local-manga-library-stats", type: "local-manga-library-stats", schemaVersion: 1 }, ...ret.slice(insertIdx)]
         }
         // The header's banner, metadata block and chapter card are all lg-only, so below lg the
         // header collapses to an empty block — the same reason the anime home swaps its
@@ -359,6 +362,8 @@ export default function Page() {
                                         downloadedList={downloadedList}
                                         mangaCollection={mangaCollection}
                                         filteredMangaCollection={filteredMangaCollection}
+                                        sourceMangaCollection={sourceMangaCollection}
+                                        latestChapterNumbers={latestChapterNumbers}
                                         mangaCollectionGenres={mangaCollectionGenres}
                                         storedProviders={storedProviders}
                                         hasManga={hasManga}
@@ -399,6 +404,8 @@ interface MangaHomeScreenItemProps {
     downloadedList: any[] | undefined
     mangaCollection: any
     filteredMangaCollection: any
+    sourceMangaCollection: Manga_Collection | undefined
+    latestChapterNumbers: Record<number, Manga_MangaLatestChapterNumberItem[]> | undefined
     mangaCollectionGenres: string[]
     storedProviders: any
     hasManga: boolean
@@ -423,6 +430,8 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
         downloadedList,
         mangaCollection,
         filteredMangaCollection,
+        sourceMangaCollection,
+        latestChapterNumbers,
         mangaCollectionGenres,
         storedProviders,
         hasManga,
@@ -709,25 +718,46 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
 
     // Local Manga Library Stats, laid out like the anime home's row
     if (item.type === "local-manga-library-stats") {
-        const entries = mangaCollection?.lists?.flatMap((l: any) => l.entries ?? []).filter(Boolean) ?? []
-        const countOf = (type: string) => mangaCollection?.lists?.find((l: any) => l.type === type)?.entries?.length ?? 0
+        const lists = sourceMangaCollection?.lists ?? []
+        const entries = lists.flatMap(list => list.entries ?? [])
+        const countFor = (status: string) => lists.find(list => list.type === status)?.entries?.length ?? 0
+        const chaptersRead = entries.reduce((total, entry) => total + (entry.listData?.progress ?? 0), 0)
+        const incompleteEntries = lists
+            .filter(list => list.type !== "COMPLETED" && list.type !== "DROPPED")
+            .flatMap(list => list.entries ?? [])
+        const knownChaptersLeft = incompleteEntries.reduce((total, entry) => {
+            return total + Math.max(0, (entry.media?.chapters ?? 0) - (entry.listData?.progress ?? 0))
+        }, 0)
+        const newChapterSeries = lists
+            .filter(list => list.type === "CURRENT" || list.type === "REPEATING")
+            .flatMap(list => list.entries ?? [])
+            .filter(entry => latestChapterNumbers?.[entry.mediaId]?.some(chapter => chapter.number > (entry.listData?.progress ?? 0)))
+            .length
+        const downloadStatsAvailable = !downloadsLoading && !downloadsError
         const stats: [string | number, string][] = [
-            [entries.length, "Entries"],
-            [countOf("CURRENT"), "Reading"],
-            [countOf("COMPLETED"), "Completed"],
-            [downloadedList?.length ?? 0, "Downloaded series"],
-            [downloadedChaptersTotal, "Downloaded chapters"],
-            [downloadedWithMedia.length, "With metadata"],
+            [entries.length, "AniList series"],
+            [countFor("CURRENT"), "Reading"],
+            [countFor("REPEATING"), "Repeating"],
+            [countFor("PLANNING"), "Planning"],
+            [countFor("PAUSED"), "Paused"],
+            [countFor("COMPLETED"), "Completed"],
+            [countFor("DROPPED"), "Dropped"],
+            [chaptersRead, "Chapters read"],
+            [knownChaptersLeft, "Known chapters left"],
+            [latestChapterNumbers ? newChapterSeries : "-", "New chapters available"],
+            [downloadStatsAvailable ? downloadedList?.length ?? 0 : "-", "Downloaded series"],
+            [downloadStatsAvailable ? downloadedChaptersTotal : "-", "Downloaded chapters"],
+            [downloadStatsAvailable ? downloadedWithMedia.length : "-", "With metadata"],
         ]
         return (
             <PageWrapper>
                 <div
-                    className="grid grid-cols-3 lg:grid-cols-6 gap-4 [&>div]:text-center [&>div>p]:text-[--muted] py-4"
+                    className="grid grid-cols-3 gap-4 py-4 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 [&>div]:text-center [&>div>p]:text-[--muted]"
                     data-manga-library-stats-container
                 >
                     {stats.map(([value, label]) => (
                         <div key={label}>
-                            <h3>{value}</h3>
+                            <h3>{typeof value === "number" ? formatNumber(value) : value}</h3>
                             <p>{label}</p>
                         </div>
                     ))}
