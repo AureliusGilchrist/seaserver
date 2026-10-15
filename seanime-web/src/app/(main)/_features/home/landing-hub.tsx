@@ -35,6 +35,29 @@ export function LandingHub() {
     const { continueWatchingList, isLoading: isLibraryLoading } = useHandleLibraryCollection()
 
     const [settingsOpen, setSettingsOpen] = useAtom(__landingSettingsModalOpen)
+    const heroRef = React.useRef<HTMLElement>(null)
+
+    React.useEffect(() => {
+        const hero = heroRef.current
+        if (!hero || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
+
+        let frame = 0
+        const updateOpacity = () => {
+            if (frame) return
+            frame = window.requestAnimationFrame(() => {
+                frame = 0
+                const fadeProgress = Math.min(1, Math.max(0, window.scrollY / 220))
+                hero.style.opacity = String(1 - fadeProgress)
+            })
+        }
+
+        updateOpacity()
+        window.addEventListener("scroll", updateOpacity, { passive: true })
+        return () => {
+            window.removeEventListener("scroll", updateOpacity)
+            if (frame) window.cancelAnimationFrame(frame)
+        }
+    }, [])
 
     // Whatever was being watched reads full width when it is the first thing on — the one thing a
     // landing page can know that a menu cannot. Inside the person's order otherwise.
@@ -60,7 +83,7 @@ export function LandingHub() {
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] -z-0 bg-[radial-gradient(60%_80%_at_15%_0%,rgb(var(--color-brand-500)/0.28),transparent_70%),radial-gradient(45%_70%_at_90%_10%,rgb(var(--color-brand-300)/0.16),transparent_70%)]" />
 
                 {/* Hero */}
-                <section className="relative z-[1] overflow-hidden rounded-3xl border border-white/10 bg-black/25 p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl sm:p-7 lg:p-10">
+                <section ref={heroRef} data-landing-hero className="relative z-[1] overflow-hidden rounded-3xl border border-white/10 bg-black/25 p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl sm:p-7 lg:p-10">
                     <div className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-[--brand]/25 blur-3xl" />
                     <div className="relative flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-end sm:gap-6">
                         <div className="min-w-0">
