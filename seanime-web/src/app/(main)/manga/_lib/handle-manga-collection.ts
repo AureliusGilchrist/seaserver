@@ -7,7 +7,6 @@ import { useThemeSettings } from "@/lib/theme/hooks"
 import { atomWithImmer } from "jotai-immer"
 import { useAtom } from "jotai/react"
 import { atomWithStorage } from "jotai/utils"
-import { usePathname, useRouter } from "@/lib/navigation"
 import React from "react"
 import { MangaEntryFilters, useStoredMangaFilters, useStoredMangaProviders } from "./handle-manga-selected-provider"
 
@@ -37,9 +36,7 @@ export const __mangaLibrary_latestChapterNumbersAtom = atomWithImmer<{
  * Get the manga collection
  */
 export function useHandleMangaCollection() {
-    const router = useRouter()
-    const pathname = usePathname()
-    const { data, isLoading, isError } = useGetMangaCollection()
+    const { data, isLoading, error, refetch } = useGetMangaCollection()
 
     // const { data: chapterCounts } = useGetMangaChapterCountMap()
     const { data: latestChapterNumbers } = useGetMangaLatestChapterNumbersMap()
@@ -47,15 +44,6 @@ export function useHandleMangaCollection() {
     const { data: _extensions } = useListMangaProviderExtensions()
 
     const { mangaLibraryCollectionDefaultSorting } = useThemeSettings()
-
-    // Only the manga pages should bounce home when the collection fails. The anime page reads this
-    // hook too (for its manga rows), and "/" is no longer that page — it is the landing hub — so
-    // an error here used to throw every visit to /anime back to the landing page.
-    React.useEffect(() => {
-        if (isError && pathname.startsWith("/manga")) {
-            router.push("/")
-        }
-    }, [isError])
 
     const { storedProviders } = useStoredMangaProviders(_extensions)
     const { storedFilters } = useStoredMangaFilters(_extensions, storedProviders)
@@ -195,6 +183,8 @@ export function useHandleMangaCollection() {
         filteredMangaCollection: filteredCollection,
         mangaCollectionGenres: libraryGenres,
         mangaCollectionLoading: isLoading,
+        mangaCollectionError: error,
+        refetchMangaCollection: refetch,
         storedFilters,
         storedProviders,
     }

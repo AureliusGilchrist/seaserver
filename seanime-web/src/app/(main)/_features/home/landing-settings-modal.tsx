@@ -124,7 +124,7 @@ export function LandingSettingsModal({ open, onOpenChange }: { open: boolean, on
                     {folders.length > 0 && (
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                             {folders.map(folder => (
-                                <div key={folder.id} className="flex min-w-0 items-center gap-2 rounded-xl border border-white/10 bg-black/20 p-2.5 backdrop-blur-2xl">
+                                <div key={folder.id} className="flex min-w-0 items-center gap-2 rounded-xl border border-white/10 bg-black/20 p-2.5 backdrop-blur-md">
                                     <input
                                         value={folder.name}
                                         onChange={event => updateFolders(current => current.map(item =>
@@ -155,7 +155,7 @@ export function LandingSettingsModal({ open, onOpenChange }: { open: boolean, on
                         {LANDING_QUICK_LINKS.map(link => {
                             const folderId = folders.find(folder => folder.linkIds.includes(link.id))?.id ?? ""
                             return (
-                                <label key={link.id} className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 backdrop-blur-2xl">
+                                <label key={link.id} className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 backdrop-blur-md">
                                     <span className="min-w-0">
                                         <span className="block truncate text-sm font-medium text-white">{link.name}</span>
                                         <span className="block truncate text-xs text-[--muted]">{link.description}</span>

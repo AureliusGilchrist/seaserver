@@ -79,11 +79,8 @@ export function LandingHub() {
         <>
             <CustomLibraryBanner discrete />
             <PageWrapper className="relative mx-auto min-h-[100svh] w-full max-w-[1800px] space-y-6 overflow-x-hidden px-3 py-4 sm:space-y-8 sm:px-5 sm:py-6 lg:space-y-10 lg:px-8 xl:px-10">
-                {/* Soft brand glows give the wallpaper some colour without covering it */}
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] -z-0 bg-[radial-gradient(60%_80%_at_15%_0%,rgb(var(--color-brand-500)/0.28),transparent_70%),radial-gradient(45%_70%_at_90%_10%,rgb(var(--color-brand-300)/0.16),transparent_70%)]" />
-
                 {/* Hero */}
-                <section ref={heroRef} data-landing-hero className="relative z-[1] overflow-hidden rounded-3xl border border-white/10 bg-black/25 p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl sm:p-7 lg:p-10">
+                <section ref={heroRef} data-landing-hero className="relative z-[1] overflow-hidden rounded-3xl border border-white/10 bg-black/25 p-5 shadow-2xl shadow-black/30 backdrop-blur-md sm:p-7 lg:p-10">
                     <div className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-[--brand]/25 blur-3xl" />
                     <div className="relative flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-end sm:gap-6">
                         <div className="min-w-0">
@@ -98,14 +95,14 @@ export function LandingHub() {
                         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
                             <button
                                 onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
-                                className="flex flex-1 items-center justify-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-medium text-white backdrop-blur-2xl transition-all hover:border-[--brand]/70 hover:bg-black/60 sm:flex-none sm:px-5"
+                                className="flex flex-1 items-center justify-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-medium text-white backdrop-blur-md transition-all hover:border-[--brand]/70 hover:bg-black/60 sm:flex-none sm:px-5"
                             >
                                 <FiSearch className="w-4 h-4" />
                                 Search
                             </button>
                             <button
                                 onClick={() => setSettingsOpen(true)}
-                                className="flex flex-1 items-center justify-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-medium text-white backdrop-blur-2xl transition-all hover:border-[--brand]/70 hover:bg-black/60 sm:flex-none sm:px-5"
+                                className="flex flex-1 items-center justify-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-medium text-white backdrop-blur-md transition-all hover:border-[--brand]/70 hover:bg-black/60 sm:flex-none sm:px-5"
                                 title="Landing page settings"
                             >
                                 <LuSettings2 className="w-4 h-4" />
@@ -117,7 +114,7 @@ export function LandingHub() {
 
                 {/* Whatever was being watched */}
                 {firstWidgetId === "continue-watching" && (
-                    <div className="relative z-[1] rounded-3xl border border-white/10 bg-black/20 p-4 shadow-xl shadow-black/20 backdrop-blur-2xl sm:p-5">
+                    <div className="relative z-[1] rounded-3xl border border-white/10 bg-black/20 p-4 shadow-xl shadow-black/20 backdrop-blur-md sm:p-5">
                         <ContinueWatching
                             episodes={continueWatchingList}
                             isLoading={isLibraryLoading}

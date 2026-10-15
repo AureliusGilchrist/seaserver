@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/components/ui/core/styling"
 import React from "react"
 import { IoLibrarySharp } from "react-icons/io5"
+import { LuSparkles } from "react-icons/lu"
 
 /**
  * The manga counterpart of AnimeDownloadingBadge, drawn to match it: same corner, same shapes, same
@@ -94,8 +95,8 @@ const STATE_PRESENTATION: Record<MangaBadgeState, {
     },
 }
 
-/** The synthetic tag's own colour, kept away from the three state colours so it reads as a note. */
-const SYNTHETIC_CLASS = "bg-amber-600/90 text-white"
+/** A warm addon label that stays distinct from the download-state badge. */
+const SYNTHETIC_CLASS = "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-black/20"
 
 export type MangaBadgeProps = {
     mediaId: number | null | undefined
@@ -152,12 +153,12 @@ export function MangaBadge(props: MangaBadgeProps) {
                         data-manga-synthetic-tag
                         title="Synthetic — described locally rather than from AniList"
                         className={cn(
-                            "px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wider",
-                            // Square where it meets the state badge, so the two read as one mark.
-                            presentation ? "rounded-br" : "rounded-br rounded-tl-[--radius]",
+                            "inline-flex h-8 items-center gap-1.5 border-l border-white/25 px-2.5 text-[10px] font-bold uppercase tracking-[0.12em]",
+                            presentation ? "rounded-br" : "rounded-bl-none rounded-br rounded-tr-none rounded-tl-[--radius]",
                             SYNTHETIC_CLASS,
                         )}
                     >
+                        <LuSparkles className="size-3.5 shrink-0" aria-hidden="true" />
                         Synthetic
                     </span>
                 )}
@@ -185,8 +186,12 @@ export function MangaBadge(props: MangaBadgeProps) {
                 {showSynthetic && (
                     <span
                         data-manga-synthetic-tag
-                        className="inline-flex items-center px-1.5 py-0.5 rounded-sm text-[10px] uppercase tracking-wider font-medium bg-amber-600/90 text-white"
+                        className={cn(
+                            "inline-flex items-center gap-1 rounded-sm border border-amber-300/30 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+                            SYNTHETIC_CLASS,
+                        )}
                     >
+                        <LuSparkles className="size-3" aria-hidden="true" />
                         Synthetic
                     </span>
                 )}
@@ -213,7 +218,9 @@ export function MangaBadge(props: MangaBadgeProps) {
                     data-manga-synthetic-tag
                     size={size === "lg" ? "lg" : "md"}
                     intent="unstyled"
-                    className="text-amber-300 bg-amber-500 bg-opacity-10 border-amber-500 border-opacity-40"
+                    leftIcon={<LuSparkles />}
+                    iconSpacing="0.35rem"
+                    className="border-amber-400/40 bg-gradient-to-r from-amber-500/15 to-orange-500/15 text-amber-200"
                 >
                     Synthetic
                 </Badge>

@@ -25,6 +25,8 @@ import { MangaContinueReadingEntry, useMangaContinueReadingList } from "@/app/(m
 import { mangaCardSizeAtom, getCardSizeClasses } from "@/app/(main)/_atoms/card-size.atoms"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { SeaLink } from "@/components/shared/sea-link"
+import { Alert } from "@/components/ui/alert/alert"
+import { Button } from "@/components/ui/button"
 import { LuBookMarked } from "react-icons/lu"
 import { cn } from "@/components/ui/core/styling"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -48,6 +50,8 @@ export default function Page() {
         mangaCollection,
         filteredMangaCollection,
         mangaCollectionLoading,
+        mangaCollectionError,
+        refetchMangaCollection,
         storedFilters,
         storedProviders,
         mangaCollectionGenres,
@@ -162,6 +166,27 @@ export default function Page() {
     // alone, whose media enrichment can come back empty and leave both blank.
     const { entries: continueReadingList } = useMangaContinueReadingList()
     const hasContinueReadingHeader = continueReadingList.some(entry => !!entry.media)
+
+    if (mangaCollectionError && !mangaCollection) {
+        return (
+            <>
+                <CustomLibraryBanner discrete />
+                <PageWrapper className="p-4 sm:p-8">
+                    <div className="mx-auto flex max-w-2xl flex-col items-start gap-4">
+                        <Alert
+                            intent="alert"
+                            title="Could not load the manga library"
+                            description={mangaCollectionError.message || "The manga collection request failed."}
+                            className="w-full"
+                        />
+                        <Button intent="gray-outline" onClick={() => { void refetchMangaCollection() }}>
+                            Retry
+                        </Button>
+                    </div>
+                </PageWrapper>
+            </>
+        )
+    }
 
     // Loading state - matching anime home screen skeleton
     if (!mangaCollection || mangaCollectionLoading) {

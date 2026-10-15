@@ -39,8 +39,7 @@ export function profileAccentStyle(fill: string | null | undefined): React.CSSPr
         vars[`--color-brand-${step}`] = `${r} ${g} ${b}`
         rgbOf[step] = `${r} ${g} ${b}`
     }
-    // These are resolved where they are declared (the app root), so a scoped ramp alone leaves them
-    // on the wallpaper's color. They are restated here from the new ramp.
+    // Keep the profile's accent tokens aligned with its XP bar fill.
     vars["--brand"] = `rgb(${rgbOf["500"]})`
     vars["--ring"] = `rgb(${rgbOf["500"]})`
     vars["--accent-1"] = `rgb(${rgbOf["200"]} / 0.82)`
@@ -49,23 +48,4 @@ export function profileAccentStyle(fill: string | null | undefined): React.CSSPr
     vars["--accent-4"] = `rgb(${rgbOf["300"]} / 0.7)`
     vars["--halo-1"] = `radial-gradient(60% 60% at 20% 18%, rgb(${rgbOf["400"]} / 0.24), transparent 60%)`
     return vars as React.CSSProperties
-}
-
-/**
- * Puts a profile's palette on the app root for as long as the profile is open, so the chrome around
- * it (sidebar, glows, page background) matches the page instead of staying the wallpaper's color.
- * The previous values are put back on leaving.
- */
-export function useProfileAccentOnRoot(fill: string | null | undefined) {
-    const vars = React.useMemo(() => profileAccentStyle(fill) as Record<string, string>, [fill])
-    React.useEffect(() => {
-        const entries = Object.entries(vars)
-        if (!entries.length) return
-        const root = document.documentElement
-        const previous = entries.map(([k]) => [k, root.style.getPropertyValue(k)] as const)
-        entries.forEach(([k, v]) => root.style.setProperty(k, v))
-        return () => {
-            previous.forEach(([k, v]) => (v ? root.style.setProperty(k, v) : root.style.removeProperty(k)))
-        }
-    }, [vars])
 }

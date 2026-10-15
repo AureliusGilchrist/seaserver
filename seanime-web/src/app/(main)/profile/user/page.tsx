@@ -26,7 +26,7 @@ import { ActivityBuffBadge, MyProfilePage, StreakCard, StatsActivityHeatmap, Day
 import { getProfileOwnerMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { XPBarFill } from "@/lib/rewards/xp-bar-fill"
 import * as React from "react"
-import { profileAccentStyle, useProfileAccentOnRoot } from "@/lib/rewards/profile-accent"
+import { profileAccentStyle } from "@/lib/rewards/profile-accent"
 import {
     LuTrophy, LuStar, LuArrowLeft, LuCalendar, LuBookOpen,
     LuTv, LuActivity, LuListVideo,
@@ -35,6 +35,7 @@ import { SeaLink } from "@/components/shared/sea-link"
 import { Stats } from "@/components/ui/stats"
 import { ToWatchList } from "@/app/(main)/profile/_components/to-watch-list"
 import { formatNumber } from "@/lib/helpers/number"
+import { __isDesktop__ } from "@/types/constants"
 
 export default function Page() {
     const searchParams = useSearchParams()
@@ -88,7 +89,6 @@ function UserProfilePage() {
 
     // Derive a solid accent color from the XP bar fill for scoped brand overrides
     const profileAccentVars = React.useMemo(() => profileAccentStyle(xpBarFillCss), [xpBarFillCss])
-    useProfileAccentOnRoot(xpBarFillCss)
 
     // Name style: driven by xpBarFillCss skin first, then nameGradientCss/nameColorCss
     const nameStyle: React.CSSProperties = xpBarFillCss
@@ -127,8 +127,10 @@ function UserProfilePage() {
             <ProfileWallpaper url={profile!.wallpaperUrl} effects={profile!.wallpaperEffects} />
             {profile!.bannerImage ? (
                 <div
-                    className="relative h-[300px] overflow-hidden"
-                    style={{ width: "calc(100% + 5rem)", marginLeft: "-5rem", marginTop: "-2rem" }}
+                    className={cn(
+                        "relative -mt-20 h-[300px] w-full overflow-hidden lg:mt-0 lg:-ml-20 lg:w-[calc(100%+5rem)]",
+                        __isDesktop__ && "lg:-mt-4",
+                    )}
                 >
                     <div
                         className="absolute inset-0 bg-no-repeat bg-cover"

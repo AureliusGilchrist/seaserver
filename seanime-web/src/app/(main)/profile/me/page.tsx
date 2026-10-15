@@ -60,12 +60,13 @@ import { ANIME_THEMES } from "@/lib/theme/anime-themes"
 import { RewardShop } from "@/app/(main)/profile/me/_components/reward-shop"
 import { useRewards } from "@/lib/rewards/reward-provider"
 import { XPBarFill } from "@/lib/rewards/xp-bar-fill"
+import { __isDesktop__ } from "@/types/constants"
 import { userSoundLevelAtom } from "@/lib/sounds/sound-provider"
 import { LuGift, LuImage } from "react-icons/lu"
 import { useEasterEggs } from "@/lib/easter-eggs/easter-egg-engine"
 import { EASTER_EGG_DEFINITIONS } from "@/lib/easter-eggs/easter-egg-definitions"
 import * as React from "react"
-import { profileAccentStyle, useProfileAccentOnRoot } from "@/lib/rewards/profile-accent"
+import { profileAccentStyle } from "@/lib/rewards/profile-accent"
 import {
     LuTrophy, LuStar, LuPencil, LuCheck, LuX, LuFlame,
     LuCalendar, LuBookOpen, LuTv, LuClock, LuActivity, LuListVideo,
@@ -184,7 +185,6 @@ export function MyProfilePage() {
 
     // Derive a solid accent color from XP bar fill for scoped brand overrides
     const profileAccentVars = React.useMemo(() => profileAccentStyle(effectiveXPBarFill), [effectiveXPBarFill])
-    useProfileAccentOnRoot(effectiveXPBarFill)
 
     // Merge any page-level effect vars from the active XP bar skin (effects category)
     const pageEffectVarsStyle: React.CSSProperties = activeXPBarSkin?.pageEffectVars
@@ -208,8 +208,10 @@ export function MyProfilePage() {
             {/* Banner */}
             {profile!.bannerImage ? (
                 <div
-                    className="relative h-[320px] overflow-hidden"
-                    style={{ width: "calc(100% + 5rem)", marginLeft: "-5rem", marginTop: "-2rem" }}
+                    className={cn(
+                        "relative -mt-20 h-[320px] w-full overflow-hidden lg:mt-0 lg:-ml-20 lg:w-[calc(100%+5rem)]",
+                        __isDesktop__ && "lg:-mt-4",
+                    )}
                 >
                     <div
                         className="absolute inset-0 bg-no-repeat bg-cover"
