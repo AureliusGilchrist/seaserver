@@ -13,7 +13,7 @@ import { cn } from "@/components/ui/core/styling"
 import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { useRouter } from "@/lib/navigation"
 import { formatNumber } from "@/lib/helpers/number"
-import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core"
+import { closestCenter, DndContext, DragEndEvent, DragOverlay, DragStartEvent, KeyboardSensor, MouseSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core"
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers"
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
@@ -58,8 +58,8 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
     // The drag is a pointer grab on the handle only — scrolling the strip must never start a drag,
     // which is what a listener on the whole card would do on a phone.
     const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-        useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
+        useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+        useSensor(TouchSensor, { activationConstraint: { distance: 4 } }),
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
     )
     const [draggingId, setDraggingId] = React.useState<string | null>(null)
@@ -138,6 +138,7 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
 
             <DndContext
                 sensors={sensors}
+                collisionDetection={closestCenter}
                 modifiers={[restrictToVerticalAxis]}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
