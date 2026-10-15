@@ -34,6 +34,7 @@ import { Carousel, CarouselContent, CarouselDotButtons, CarouselItem } from "@/c
 import { ThemeLibraryScreenBannerType, useThemeSettings } from "@/lib/theme/hooks"
 import { __isDesktop__ } from "@/types/constants"
 import { displayTitle } from "@/lib/helpers/media"
+import { formatNumber } from "@/lib/helpers/number"
 import { AnimatePresence } from "motion/react"
 import { useAtomValue } from "jotai/react"
 import { useWindowSize } from "react-use"
@@ -706,7 +707,7 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
     if (item.type === "local-manga-library-stats") {
         const entries = mangaCollection?.lists?.flatMap((l: any) => l.entries ?? []).filter(Boolean) ?? []
         const countOf = (type: string) => mangaCollection?.lists?.find((l: any) => l.type === type)?.entries?.length ?? 0
-        const stats: [string | number, string][] = [
+        const stats: [number, string][] = [
             [entries.length, "Entries"],
             [countOf("CURRENT"), "Reading"],
             [countOf("COMPLETED"), "Completed"],
@@ -722,7 +723,7 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                 >
                     {stats.map(([value, label]) => (
                         <div key={label}>
-                            <h3>{value}</h3>
+                            <h3>{formatNumber(value)}</h3>
                             <p>{label}</p>
                         </div>
                     ))}
