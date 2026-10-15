@@ -26,6 +26,8 @@ import React from "react"
 import { BiCog, BiPlus, BiStats, BiTrash } from "react-icons/bi"
 import { IoHomeOutline, IoLibraryOutline } from "react-icons/io5"
 import {
+    LuArrowDown,
+    LuArrowUp,
     LuBookOpen,
     LuCalendar,
     LuCalendarClock,
@@ -131,6 +133,16 @@ export function HomeSettingsModal({ emptyLibrary, isNakamaLibrary }: { emptyLibr
                 },
             })
         }
+    }, [currentItems, updateHomeItems])
+
+    const handleMoveItem = React.useCallback((id: string, offset: -1 | 1) => {
+        const oldIndex = currentItems.findIndex(item => item.id === id)
+        const newIndex = oldIndex + offset
+        if (oldIndex < 0 || newIndex < 0 || newIndex >= currentItems.length) return
+
+        const newItems = normalizeHomeItems(arrayMove(currentItems, oldIndex, newIndex))
+        setCurrentItems(newItems)
+        updateHomeItems({ items: newItems })
     }, [currentItems, updateHomeItems])
 
     function normalizeHomeItems(items: Models_HomeItem[]) {
@@ -326,7 +338,9 @@ export function HomeSettingsModal({ emptyLibrary, isNakamaLibrary }: { emptyLibr
                                                     key={item.id}
                                                     item={item}
                                                     index={index}
+                                                    itemCount={currentItems.length}
                                                     onRemove={handleRemoveItem}
+                                                    onMove={handleMoveItem}
                                                     onEditOptions={setOptionsModalOpen}
                                                     isUpdating={isUpdatingHomeItems}
                                                 />
@@ -388,12 +402,14 @@ export function HomeSettingsModal({ emptyLibrary, isNakamaLibrary }: { emptyLibr
 interface SortableHomeItemProps {
     item: Models_HomeItem
     onRemove: (id: string) => void
+    onMove: (id: string, offset: -1 | 1) => void
     onEditOptions: (id: string) => void
     isUpdating: boolean
     index: number
+    itemCount: number
 }
 
-function SortableHomeItem({ item, onRemove, onEditOptions, isUpdating, index }: SortableHomeItemProps) {
+function SortableHomeItem({ item, onRemove, onMove, onEditOptions, isUpdating, index, itemCount }: SortableHomeItemProps) {
     const {
         attributes,
         listeners,
@@ -442,6 +458,34 @@ function SortableHomeItem({ item, onRemove, onEditOptions, isUpdating, index }: 
             </div>
 
             <div className="flex items-center gap-1">
+                <div className="flex flex-col">
+                    <IconButton
+                        intent="gray-subtle"
+                        size="xs"
+                        aria-label={`Move ${homeItemConfig.name} up`}
+                        disabled={isUpdating || index === 0}
+                        onClick={event => {
+                            event.stopPropagation()
+                            onMove(item.id, -1)
+                        }}
+                        onPointerDown={event => event.stopPropagation()}
+                        className="h-6"
+                        icon={<LuArrowUp className="size-3.5" />}
+                    />
+                    <IconButton
+                        intent="gray-subtle"
+                        size="xs"
+                        aria-label={`Move ${homeItemConfig.name} down`}
+                        disabled={isUpdating || index === itemCount - 1}
+                        onClick={event => {
+                            event.stopPropagation()
+                            onMove(item.id, 1)
+                        }}
+                        onPointerDown={event => event.stopPropagation()}
+                        className="h-6"
+                        icon={<LuArrowDown className="size-3.5" />}
+                    />
+                </div>
                 {homeItemConfig.options && (
                     <IconButton
                         intent="gray-subtle"

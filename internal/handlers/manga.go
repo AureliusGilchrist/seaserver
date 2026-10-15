@@ -979,6 +979,11 @@ func (h *Handler) HandleGetMangaReadingHistory(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
+	mangaCollection, err := h.mangaCollectionForProfile(c)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
 	// Enrich with media details
 	var enrichedHistory []MangaReadingHistoryItem
 	for _, entry := range history {
@@ -1010,20 +1015,14 @@ func (h *Handler) HandleGetMangaReadingHistory(c echo.Context) error {
 				}
 			}
 		} else {
-			// Get AniList manga from collection
-			mangaCollection, err := h.App.GetMangaCollection(false)
-			if err == nil && mangaCollection != nil && mangaCollection.MediaListCollection != nil {
-				// Find manga in collection
-				for _, list := range mangaCollection.MediaListCollection.Lists {
-					for _, entry := range list.Entries {
-						if entry.Media != nil && entry.Media.ID == item.MediaID {
-							item.Media = entry.Media
-							break
-						}
-					}
-					if item.Media != nil {
-						break
-					}
+			if mangaCollection != nil {
+				if listEntry, found := mangaCollection.GetListEntryFromMangaId(item.MediaID); found && listEntry.GetMedia() != nil {
+					item.Media = listEntry.GetMedia()
+				}
+			}
+			if item.Media == nil {
+				if cachedMedia, found := baseMangaCache.Get(item.MediaID); found {
+					item.Media = cachedMedia
 				}
 			}
 		}

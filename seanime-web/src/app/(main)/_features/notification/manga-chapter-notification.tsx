@@ -98,9 +98,7 @@ export function MangaChapterNotification() {
                 for (const source of sources) {
                     const sourceKey = getSourceKey(entry.mediaId, source)
                     const previousNumber = observedChapterNumbers[sourceKey]
-                    const isNewRelease = previousNumber !== undefined
-                        ? source.number > previousNumber && source.number > progress
-                        : source.number > progress && source.number <= progress + 1
+                    const isNewRelease = previousNumber !== undefined && source.number > previousNumber && source.number > progress
 
                     nextObserved[sourceKey] = Math.max(previousNumber ?? 0, source.number)
 

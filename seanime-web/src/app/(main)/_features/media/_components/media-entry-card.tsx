@@ -140,6 +140,8 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
     const [__atomicLibraryCollection, getAtomicLibraryEntry] = useAtom(getAtomicLibraryEntryAtom)
 
     const mediaId = media.id
+    const coverImage = media.coverImage?.extraLarge || media.coverImage?.large || media.coverImage?.medium || ""
+    const cardBannerImage = media.bannerImage || coverImage
     const mediaEpisodes = (media as AL_BaseAnime)?.episodes
     const mediaChapters = (media as AL_BaseManga)?.chapters
     const mediaIsAdult = media?.isAdult
@@ -278,7 +280,7 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
             data-list-data={stringifiedListData}
             onMouseEnter={() => {
                 setIsHoveringCard(true)
-                onHoverImage?.(media.bannerImage || media.coverImage?.extraLarge || null)
+                onHoverImage?.(cardBannerImage || null)
             }}
             onMouseLeave={() => {
                 setIsHoveringCard(false)
@@ -326,7 +328,7 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
                     <MediaEntryCardHoverPopup
                         onMouseEnter={onPopupMouseEnter}
                         onMouseLeave={onPopupMouseLeave}
-                        coverImage={media.bannerImage || media.coverImage?.extraLarge || ""}
+                        coverImage={cardBannerImage}
                         shouldRenderPopup={shouldRenderPopup}
                     >
 
@@ -342,7 +344,7 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
                                 progressTotal={progressTotal}
                                 showTrailer={showTrailer}
                                 disableAnimeCardTrailers={serverStatus?.settings?.library?.disableAnimeCardTrailers}
-                                bannerImage={media.bannerImage || media.coverImage?.extraLarge}
+                                bannerImage={cardBannerImage}
                                 isAdult={media.isAdult}
                                 blurAdultContent={serverStatus?.settings?.anilist?.blurAdultContent}
                                 link={link}
@@ -451,7 +453,7 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
                 progress={listData?.progress}
                 progressTotal={progressTotal}
                 startDate={media.startDate}
-                bannerImage={media.coverImage?.extraLarge || ""}
+                bannerImage={coverImage}
                 isAdult={media.isAdult}
                 showLibraryBadge={showLibraryBadge}
                 mediaId={!hideDownloadBadges ? media.id : undefined}
@@ -559,5 +561,4 @@ const MakoMark = React.memo(function MakoMark() {
         </div>
     )
 })
-
 
