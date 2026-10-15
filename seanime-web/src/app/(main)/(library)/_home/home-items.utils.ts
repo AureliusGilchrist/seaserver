@@ -28,6 +28,11 @@ export const DEFAULT_HOME_ITEMS: Models_HomeItem[] = [
             layout: "grid",
         },
     },
+    {
+        id: "community",
+        type: "community",
+        schemaVersion: 1,
+    },
 ]
 
 export const ANIME_HOME_ITEM_IDS = [
@@ -45,6 +50,7 @@ export const ANIME_HOME_ITEM_IDS = [
     "local-anime-library-stats",
     "discover-header",
     "anime-carousel",
+    "community",
 ] as const
 
 export const MANGA_HOME_ITEM_IDS = [
@@ -58,10 +64,9 @@ export const MANGA_HOME_ITEM_IDS = [
     "local-manga-library-stats",
     "manga-upcoming-chapters",
     "manga-aired-recently",
-    "manga-missed-sequels",
-    "manga-schedule-calendar",
     "manga-discover-header",
     "manga-carousel",
+    "community",
 ] as const
 
 export function isAnimeHomeItem(type: string): type is typeof ANIME_HOME_ITEM_IDS[number] {
@@ -233,6 +238,12 @@ export const HOME_ITEMS = {
             name: "text",
         }],
     },
+    community: {
+        name: "Community",
+        kind: ["row"],
+        schemaVersion: 1,
+        description: "Show community stats and top profiles.",
+    },
     "anime-continue-watching": {
         name: "Continue Watching",
         kind: ["row", "header"],
@@ -323,6 +334,10 @@ export const HOME_ITEMS = {
                     {
                         value: "CURRENT",
                         label: "Current",
+                    },
+                    {
+                        value: "REPEATING",
+                        label: "Repeating",
                     },
                     {
                         value: "PAUSED",
@@ -600,22 +615,22 @@ export const HOME_ITEMS = {
         ],
     },
     "manga-upcoming-chapters": {
-        name: "Upcoming Manga Chapters",
+        name: "Currently Releasing Manga",
         kind: ["row"],
         schemaVersion: 1,
-        description: "Coming soon: carousel of upcoming chapters from your library.",
+        description: "Show manga from your list that AniList currently marks as releasing.",
     },
     "manga-aired-recently": {
-        name: "Recently Released (Manga)",
+        name: "New Chapters Available",
         kind: ["row"],
         schemaVersion: 1,
-        description: "Coming soon: recently released manga chapters.",
+        description: "Show manga you are reading with unread chapters found in your provider cache.",
     },
     "manga-missed-sequels": {
         name: "Missed Manga Sequels",
         kind: ["row"],
         schemaVersion: 1,
-        description: "Coming soon: sequels not in your manga collection.",
+        description: "Manga sequel discovery is not currently supported.",
     },
     "manga-schedule-calendar": {
         name: "Manga Release Calendar",

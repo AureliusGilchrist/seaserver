@@ -12,7 +12,8 @@ import { useMangaCoverProxy } from "@/app/(main)/manga/_lib/use-manga-cover-prox
 import { useMangaFavorites } from "@/app/(main)/manga/_lib/use-manga-favorites"
 import { useGetMangaDownloadsList } from "@/api/hooks/manga_download.hooks"
 import { MangaLibraryView } from "@/app/(main)/manga/_screens/manga-library-view"
-import { MangaCarousel } from "@/app/(main)/(library)/_home/home-screen"
+import { MangaCarousel, MyLists } from "@/app/(main)/(library)/_home/home-screen"
+import { CommunityHomeSection } from "@/app/(main)/_features/community/community-home-section"
 import { MangaHomeSettingsModal, DEFAULT_MANGA_HOME_ITEMS } from "@/app/(main)/manga/_components/manga-home-settings"
 import { MangaContinueReading } from "@/app/(main)/manga/_containers/manga-continue-reading"
 import { MangaContinueReadingHeader } from "@/app/(main)/manga/_containers/manga-continue-reading-header"
@@ -438,6 +439,10 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
         )
     }
 
+    if (item.type === "community") {
+        return <CommunityHomeSection />
+    }
+
     // Favorite Manga
     if (item.type === "manga-favorites") {
         return (
@@ -505,9 +510,9 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
         )
     }
 
-    // My Lists - handled by shared component, skip for now
+    // My Lists
     if (item.type === "my-lists") {
-        return null
+        return <MyLists item={item} />
     }
 
     // Manga Continue Reading
@@ -763,7 +768,16 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
 
     // Schedule Calendar - hide for now, calendar requires more complex implementation
     if (item.type === "manga-schedule-calendar") {
-        return null
+        return (
+            <PageWrapper className="px-4 py-8">
+                <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                    <h2 className="text-lg font-semibold">Manga Release Calendar</h2>
+                    <p className="mt-1 text-sm text-[--muted]">
+                        AniList does not provide scheduled chapter release dates. Use Upcoming Chapters to see currently releasing manga.
+                    </p>
+                </div>
+            </PageWrapper>
+        )
     }
 
     // Discover Header - skip in item list since rendered separately

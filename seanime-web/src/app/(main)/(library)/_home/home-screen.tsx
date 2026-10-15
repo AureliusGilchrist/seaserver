@@ -444,10 +444,6 @@ export function HomeScreen() {
 
                     <div data-home-screen-item-divider className="h-8" />
 
-                    <CommunityHomeSection />
-
-                    <div data-home-screen-item-divider className="h-8" />
-
                     <PluginWebviewSlot slot="home-screen-bottom" />
                 </PageWrapper>}
 
@@ -552,6 +548,10 @@ export function HomeScreenItem(props: HomeScreenItemProps) {
                 </h2>
             </>
         )
+    }
+
+    if (item.type === "community") {
+        return <CommunityHomeSection />
     }
 
     if (item.type === "anime-continue-watching") {
@@ -1231,7 +1231,7 @@ export function AnimeCarousel(props: { libraryCollectionProps: HandleLibraryColl
     )
 }
 
-function MyLists(props: { item: Models_HomeItem }) {
+export function MyLists(props: { item: Models_HomeItem }) {
     const { item } = props
 
     const {

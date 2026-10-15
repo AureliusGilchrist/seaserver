@@ -81,6 +81,7 @@ export function useGetMangaCollection() {
         method: API_ENDPOINTS.MANGA.GetMangaCollection.methods[0],
         queryKey: [API_ENDPOINTS.MANGA.GetMangaCollection.key],
         enabled: true,
+        refetchInterval: 30_000,
     })
 }
 
@@ -199,6 +200,8 @@ export function useUpdateMangaProgress(id: Nullish<string | number>) {
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA.GetMangaEntry.key, String(id)] })
             await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA.GetMangaCollection.key] })
+            await queryClient.invalidateQueries({ queryKey: ["manga-reading-history"] })
+            await queryClient.invalidateQueries({ queryKey: ["recently-read-synthetic-manga"] })
         },
     })
 }
@@ -270,6 +273,7 @@ export function useGetMangaLatestChapterNumbersMap() {
         method: API_ENDPOINTS.MANGA.GetMangaLatestChapterNumbersMap.methods[0],
         queryKey: [API_ENDPOINTS.MANGA.GetMangaLatestChapterNumbersMap.key],
         enabled: true,
+        refetchInterval: 60_000,
     })
 }
 
@@ -329,6 +333,7 @@ export function useGetRecentlyReadSyntheticManga() {
         method: "GET",
         queryKey: ["recently-read-synthetic-manga"],
         enabled: true,
+        refetchInterval: 30_000,
     })
 }
 
@@ -345,6 +350,7 @@ export function useGetMangaReadingHistory() {
         endpoint: "/api/v1/manga/reading-history",
         method: "GET",
         queryKey: ["manga-reading-history"],
+        refetchInterval: 30_000,
     })
 }
 
@@ -353,6 +359,7 @@ export function useGetTrendingManga() {
         endpoint: "/api/v1/manga/trending",
         method: "GET",
         queryKey: ["manga-trending"],
+        refetchInterval: 5 * 60_000,
     })
 }
 
@@ -361,6 +368,7 @@ export function useGetRecentlyReleasedManga() {
         endpoint: "/api/v1/manga/recently-released",
         method: "GET",
         queryKey: ["manga-recently-released"],
+        refetchInterval: 5 * 60_000,
     })
 }
 
@@ -369,6 +377,7 @@ export function useGetUpcomingMangaChapters() {
         endpoint: "/api/v1/manga/upcoming-chapters",
         method: "GET",
         queryKey: ["manga-upcoming-chapters"],
+        refetchInterval: 5 * 60_000,
     })
 }
 
@@ -377,5 +386,6 @@ export function useGetMangaMissedSequels() {
         endpoint: "/api/v1/manga/missed-sequels",
         method: "GET",
         queryKey: ["manga-missed-sequels"],
+        refetchInterval: 5 * 60_000,
     })
 }

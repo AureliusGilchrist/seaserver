@@ -15,6 +15,8 @@ export function useGetCommunityProfiles() {
         endpoint: API_ENDPOINTS.COMMUNITY.GetCommunityProfiles.endpoint,
         method: API_ENDPOINTS.COMMUNITY.GetCommunityProfiles.methods[0],
         queryKey: [API_ENDPOINTS.COMMUNITY.GetCommunityProfiles.key],
+        refetchInterval: 30_000,
+        refetchOnWindowFocus: true,
     })
 }
 

@@ -29,11 +29,18 @@ export function useAnimeCollectionListener() {
         type: WSEvents.REFRESHED_ANILIST_MANGA_COLLECTION,
         onMessage: data => {
             (async () => {
-                await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA.GetAnilistMangaCollection.key] })
-                await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA.GetMangaEntry.key] })
+                await Promise.all([
+                    qc.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA.GetAnilistMangaCollection.key] }),
+                    qc.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA.GetMangaCollection.key] }),
+                    qc.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA.GetMangaEntry.key] }),
+                    qc.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA.GetMangaLatestChapterNumbersMap.key] }),
+                    qc.invalidateQueries({ queryKey: ["manga-reading-history"] }),
+                    qc.invalidateQueries({ queryKey: ["manga-upcoming-chapters"] }),
+                    qc.invalidateQueries({ queryKey: ["manga-recently-released"] }),
+                    qc.invalidateQueries({ queryKey: ["manga-missed-sequels"] }),
+                ])
             })()
         },
     })
 
 }
-

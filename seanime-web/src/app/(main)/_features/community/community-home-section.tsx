@@ -1,7 +1,11 @@
 import { useGetCommunityProfiles } from "@/api/hooks/community.hooks"
+import { API_ENDPOINTS } from "@/api/generated/endpoints"
+import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
 import { LevelRingAvatar } from "@/app/(main)/community/page"
 import { SeaLink } from "@/components/shared/sea-link"
 import { formatNumber } from "@/lib/helpers/number"
+import { WSEvents } from "@/lib/server/ws-events"
+import { useQueryClient } from "@tanstack/react-query"
 import * as React from "react"
 import { LuStar, LuTrophy, LuUsers, LuZap } from "react-icons/lu"
 
@@ -10,6 +14,26 @@ const MAX_PROFILES = 8
 /** Community stats and top profiles, shown on the landing page. */
 export function CommunityHomeSection() {
     const { data } = useGetCommunityProfiles()
+    const queryClient = useQueryClient()
+
+    const refreshCommunity = React.useCallback(() => {
+        void queryClient.invalidateQueries({
+            queryKey: [API_ENDPOINTS.COMMUNITY.GetCommunityProfiles.key],
+        })
+    }, [queryClient])
+
+    useWebsocketMessageListener({
+        type: WSEvents.ACHIEVEMENTS_UNLOCKED,
+        onMessage: refreshCommunity,
+    })
+    useWebsocketMessageListener({
+        type: WSEvents.ACHIEVEMENT_UNLOCKED,
+        onMessage: refreshCommunity,
+    })
+    useWebsocketMessageListener({
+        type: WSEvents.MILESTONE_ACHIEVED,
+        onMessage: refreshCommunity,
+    })
 
     const profiles = React.useMemo(
         () => [...(data?.profiles ?? [])].sort((a: any, b: any) => b.totalXP - a.totalXP).slice(0, MAX_PROFILES),

@@ -1121,8 +1121,8 @@ func (h *Handler) HandleGetRecentlyReleasedManga(c echo.Context) error {
 
 // HandleGetUpcomingMangaChapters
 //
-//	@summary returns upcoming manga chapters.
-//	@desc Returns manga with upcoming chapters from user's library.
+//	@summary returns currently releasing manga from the user's list.
+//	@desc Returns manga AniList marks as releasing from the user's current or repeating list.
 //	@route /api/v1/manga/upcoming-chapters [GET]
 //	@returns []*anilist.BaseManga
 func (h *Handler) HandleGetUpcomingMangaChapters(c echo.Context) error {
@@ -1134,9 +1134,12 @@ func (h *Handler) HandleGetUpcomingMangaChapters(c echo.Context) error {
 
 	var upcomingManga []*anilist.BaseManga
 
-	// Get manga that are currently releasing
+	// AniList only provides a series-level releasing status, not scheduled chapter dates.
 	if mangaCollection.MediaListCollection != nil {
 		for _, list := range mangaCollection.MediaListCollection.Lists {
+			if list.Status == nil || (*list.Status != anilist.MediaListStatusCurrent && *list.Status != anilist.MediaListStatusRepeating) {
+				continue
+			}
 			for _, entry := range list.Entries {
 				if entry.Media != nil && entry.Media.Status != nil && *entry.Media.Status == anilist.MediaStatusReleasing {
 					upcomingManga = append(upcomingManga, entry.Media)

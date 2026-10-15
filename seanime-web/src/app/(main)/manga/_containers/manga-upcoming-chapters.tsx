@@ -12,17 +12,26 @@ interface MangaUpcomingChaptersProps {
 }
 
 export function MangaUpcomingChapters({ onHoverImage, cardSizeClass }: MangaUpcomingChaptersProps) {
-    const { data: upcomingManga, isLoading } = useGetUpcomingMangaChapters()
+    const { data: upcomingManga, isLoading, isError } = useGetUpcomingMangaChapters()
 
     if (isLoading) {
         return (
             <div className="px-4 py-8">
-                <h2 className="text-xl font-semibold text-white mb-4">Upcoming Chapters</h2>
+                <h2 className="text-xl font-semibold text-white mb-4">Currently Releasing Manga</h2>
                 <div className="flex gap-4 overflow-hidden">
                     {[...Array(5)].map((_, i) => (
                         <div key={i} className="w-48 h-72 bg-gray-800/50 rounded-lg animate-pulse" />
                     ))}
                 </div>
+            </div>
+        )
+    }
+
+    if (isError) {
+        return (
+            <div className="px-4 py-8">
+                <h2 className="text-xl font-semibold text-white">Currently Releasing Manga</h2>
+                <p className="mt-2 text-sm text-red-400">Unable to load your currently releasing manga. Please try refreshing the page.</p>
             </div>
         )
     }
@@ -34,7 +43,7 @@ export function MangaUpcomingChapters({ onHoverImage, cardSizeClass }: MangaUpco
     return (
         <div className="px-4 py-8 space-y-4">
             <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-white">Upcoming Chapters</h2>
+                <h2 className="text-xl font-semibold text-white">Currently Releasing Manga</h2>
                 <span className="text-sm text-[--muted]">{formatNumber(upcomingManga.length)} series</span>
             </div>
 
