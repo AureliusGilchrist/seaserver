@@ -12,26 +12,69 @@ import { VerticalMenu } from "@/components/ui/vertical-menu"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import { __isDesktop__ } from "@/types/constants"
 import { useSetAtom } from "jotai/react"
-import { usePathname } from "@/lib/navigation"
+import { usePathname, useRouter, useSearchParams } from "@/lib/navigation"
 import React from "react"
 import { LuFolderDown, LuChevronLeft, LuChevronRight } from "react-icons/lu"
 import { PluginSidebarTray } from "../plugin/tray/plugin-sidebar-tray"
 import { Tooltip } from "@/components/ui/tooltip"
 
 function NavHistoryButtons({ vertical = false }: { vertical?: boolean }) {
-    const [canGoBack, setCanGoBack] = React.useState(false)
-    const [canGoForward, setCanGoForward] = React.useState(false)
     const pathname = usePathname()
+    const searchParams = useSearchParams()
+    const router = useRouter()
+    const route = `${pathname}${searchParams.size ? `?${searchParams.toString()}` : ""}`
+    const historyRef = React.useRef<{ routes: string[], index: number }>({ routes: [], index: -1 })
+    const [canGoBack, setCanGoBack] = React.useState(pathname !== "/")
+    const [canGoForward, setCanGoForward] = React.useState(false)
 
     React.useEffect(() => {
-        setCanGoBack(window.history.length > 1)
-        // No standard API to detect forward availability; track it with popstate
-        const onPop = () => {
-            setCanGoBack(window.history.length > 1)
+        const history = historyRef.current
+        if (history.index < 0) {
+            history.routes = [route]
+            history.index = 0
         }
-        window.addEventListener("popstate", onPop)
-        return () => window.removeEventListener("popstate", onPop)
-    }, [pathname])
+        else if (history.routes[history.index] !== route) {
+            if (history.routes[history.index - 1] === route) {
+                history.index--
+            }
+            else if (history.routes[history.index + 1] === route) {
+                history.index++
+            }
+            else {
+                history.routes = [...history.routes.slice(0, history.index + 1), route]
+                history.index++
+            }
+        }
+        setCanGoBack(history.index > 0 || pathname !== "/")
+        setCanGoForward(history.index < history.routes.length - 1)
+    }, [pathname, route])
+
+    const goBack = () => {
+        const history = historyRef.current
+        if (history.index > 0) {
+            history.index--
+            setCanGoBack(history.index > 0 || history.routes[history.index] !== "/")
+            setCanGoForward(true)
+            router.push(history.routes[history.index])
+            return
+        }
+
+        const fallback = pathname.startsWith("/manga/entry") ? "/manga" : "/"
+        history.routes = [fallback]
+        history.index = 0
+        setCanGoBack(fallback !== "/")
+        setCanGoForward(false)
+        router.replace(fallback)
+    }
+
+    const goForward = () => {
+        const history = historyRef.current
+        if (history.index >= history.routes.length - 1) return
+        history.index++
+        setCanGoBack(true)
+        setCanGoForward(history.index < history.routes.length - 1)
+        router.push(history.routes[history.index])
+    }
 
     const btnClass = cn(
         "flex items-center justify-center rounded-md transition-colors",
@@ -44,7 +87,7 @@ function NavHistoryButtons({ vertical = false }: { vertical?: boolean }) {
             <Tooltip trigger={
                 <button
                     className={cn(btnClass, !canGoBack && "opacity-30 pointer-events-none")}
-                    onClick={() => window.history.back()}
+                    onClick={goBack}
                     aria-label="Go back"
                 >
                     <LuChevronLeft className="w-4 h-4" />
@@ -53,7 +96,7 @@ function NavHistoryButtons({ vertical = false }: { vertical?: boolean }) {
             <Tooltip trigger={
                 <button
                     className={cn(btnClass)}
-                    onClick={() => window.history.forward()}
+                    onClick={goForward}
                     aria-label="Go forward"
                 >
                     <LuChevronRight className="w-4 h-4" />

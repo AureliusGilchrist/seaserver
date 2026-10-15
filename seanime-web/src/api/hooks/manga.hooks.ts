@@ -139,6 +139,7 @@ export function useGetMangaEntryDetails(id: Nullish<string | number>) {
         endpoint: API_ENDPOINTS.MANGA.GetMangaEntryDetails.endpoint.replace("{id}", String(id)),
         method: API_ENDPOINTS.MANGA.GetMangaEntryDetails.methods[0],
         queryKey: [API_ENDPOINTS.MANGA.GetMangaEntryDetails.key, String(id)],
+        staleTime: 60 * 60 * 1000,
         enabled: !!id,
     })
 }

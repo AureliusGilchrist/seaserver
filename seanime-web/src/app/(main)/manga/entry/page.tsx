@@ -28,7 +28,6 @@ export default function Page() {
     } = useGetMangaEntry(mediaId)
     const {
         data: mangaDetails,
-        isLoading: mangaDetailsLoading,
         isError: mangaDetailsError,
         refetch: refetchMangaDetails,
     } = useGetMangaEntryDetails(mediaId)
@@ -54,7 +53,7 @@ export default function Page() {
         }
     }, [mangaEntry])
 
-    if (mangaEntryLoading || mangaDetailsLoading) return <MediaEntryPageLoadingDisplay />
+    if (mangaEntryLoading) return <MediaEntryPageLoadingDisplay />
 
     if (!mangaEntry) {
         return (

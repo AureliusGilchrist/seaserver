@@ -255,7 +255,7 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
             // the page — swap from the anime page and this is the manga door, highlighted; swap
             // back and it is the anime door again. Two entries read as two unrelated things; one
             // that flips reads as what it is: the same shelf, with its other half on it.
-            iconType: isOnManga ? LuMonitorPlay : LuBookOpen,
+            iconType: isOnManga ? LuBookOpen : LuMonitorPlay,
             name: isOnManga ? "Anime" : "Manga",
             href: isOnManga ? "/anime" : "/manga",
             isCurrent: isOnManga ? pathname.startsWith("/manga") : pathname === "/anime",
