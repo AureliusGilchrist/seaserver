@@ -89,7 +89,7 @@ export function LandingQuickLinksWidget({ visibleLinks }: { visibleLinks?: strin
                     <button
                         type="button"
                         onClick={() => setOpenFolderId(null)}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80 backdrop-blur-2xl transition hover:bg-white/10 hover:text-white"
                     >
                         <LuChevronLeft className="size-4" />
                         All folders
@@ -98,7 +98,7 @@ export function LandingQuickLinksWidget({ visibleLinks }: { visibleLinks?: strin
             </div>
 
             {selectedFolder ? (
-                <section className="relative z-[1] mt-4 rounded-3xl border border-white/10 bg-black/25 p-4 shadow-xl shadow-black/20 backdrop-blur-md sm:p-5">
+                <section className="relative z-[1] mt-4 rounded-3xl border border-white/10 bg-black/25 p-4 shadow-xl shadow-black/20 backdrop-blur-2xl sm:p-5">
                     <div className="mb-4 flex items-center gap-3">
                         <div className="flex size-10 items-center justify-center rounded-xl bg-brand-500/15 text-[--brand]">
                             <LuFolderOpen className="size-5" />
@@ -113,7 +113,7 @@ export function LandingQuickLinksWidget({ visibleLinks }: { visibleLinks?: strin
                             {selectedFolder.links.map(link => <QuickLinkCard key={link.id} link={link} />)}
                         </div>
                     ) : (
-                        <p className="rounded-xl border border-dashed border-white/15 bg-white/[0.03] px-4 py-8 text-center text-sm text-[--muted]">
+                        <p className="rounded-xl border border-dashed border-white/15 bg-white/[0.03] px-4 py-8 text-center text-sm text-[--muted] backdrop-blur-2xl">
                             This folder is empty. Add destinations from Customize.
                         </p>
                     )}
@@ -125,7 +125,7 @@ export function LandingQuickLinksWidget({ visibleLinks }: { visibleLinks?: strin
                             key={folder.id}
                             type="button"
                             onClick={() => setOpenFolderId(folder.id)}
-                            className="group relative z-[1] flex min-h-28 items-center gap-4 overflow-hidden rounded-2xl border border-white/10 bg-black/25 p-4 text-left shadow-xl shadow-black/20 backdrop-blur-md transition hover:-translate-y-0.5 hover:border-[--brand]/60 hover:bg-black/35 sm:p-5"
+                            className="group relative z-[1] flex min-h-28 items-center gap-4 overflow-hidden rounded-2xl border border-white/10 bg-black/25 p-4 text-left shadow-xl shadow-black/20 backdrop-blur-2xl transition hover:-translate-y-0.5 hover:border-[--brand]/60 hover:bg-black/35 sm:p-5"
                         >
                             <span className="pointer-events-none absolute -right-8 -top-8 size-28 rounded-full bg-[--brand]/15 blur-2xl transition-opacity group-hover:opacity-100" />
                             <span className="relative flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-400/30 to-brand-600/20 text-white ring-1 ring-white/10">
@@ -148,7 +148,7 @@ function QuickLinkCard({ link }: { link: typeof LANDING_QUICK_LINKS[number] }) {
     const Icon = quickLinkIcons[link.id] ?? LuArrowRight
     return (
         <SeaLink href={link.href} className="block h-full">
-            <div className="group relative z-[1] h-full min-h-32 overflow-hidden rounded-2xl border border-white/10 bg-black/20 p-4 text-left shadow-lg shadow-black/15 backdrop-blur-md transition hover:-translate-y-0.5 hover:border-[--brand]/60 hover:bg-black/30 sm:p-5">
+            <div className="group relative z-[1] h-full min-h-32 overflow-hidden rounded-2xl border border-white/10 bg-black/20 p-4 text-left shadow-lg shadow-black/15 backdrop-blur-2xl transition hover:-translate-y-0.5 hover:border-[--brand]/60 hover:bg-black/30 sm:p-5">
                 <div className="pointer-events-none absolute -right-10 -bottom-10 size-32 rounded-full bg-[--brand]/15 blur-2xl opacity-0 transition-opacity group-hover:opacity-100" />
                 <div className="relative flex items-center justify-between gap-3">
                     <span className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-400/35 to-brand-600/20 text-white ring-1 ring-white/10">
@@ -308,7 +308,7 @@ function StatsDoor({ title, icon, stats, href }: {
         <SeaLink href={href} className="group/door block h-full">
             <button
                 className={cn(
-                    "group relative z-[1] w-full h-full text-left rounded-2xl border border-white/10 bg-black/25 backdrop-blur-md shadow-lg shadow-black/20 p-4 lg:p-5 overflow-hidden",
+                    "group relative z-[1] w-full h-full text-left rounded-2xl border border-white/10 bg-black/25 backdrop-blur-2xl shadow-lg shadow-black/20 p-4 lg:p-5 overflow-hidden",
                     "transition-all duration-300 hover:-translate-y-1 hover:border-[--brand]/70 hover:bg-black/60 hover:shadow-xl hover:shadow-[--brand]/20",
                 )}
             >
@@ -346,7 +346,7 @@ function StatsDoor({ title, icon, stats, href }: {
  */
 export function LandingUpdatesWidget() {
     return (
-        <div className="relative z-[1] rounded-xl border border-brand-500/20 bg-black/25 backdrop-blur-md shadow-lg shadow-black/20 p-5">
+        <div className="relative z-[1] rounded-xl border border-brand-500/20 bg-black/25 backdrop-blur-2xl shadow-lg shadow-black/20 p-5">
             <div className="flex items-center gap-3">
                 <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-brand-500/15">
                     <LuRss className="w-4 h-4 text-[--brand]" />

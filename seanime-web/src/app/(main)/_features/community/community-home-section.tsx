@@ -18,7 +18,7 @@ export function CommunityHomeSection() {
     const stats = data?.aggregateStats
 
     return (
-        <div data-community-home-section className="relative z-[1] mx-4 md:mx-6 lg:mx-8 rounded-3xl border border-white/10 bg-black/25 backdrop-blur-md shadow-xl shadow-black/20 p-5 lg:p-6 space-y-5">
+        <div data-community-home-section className="relative z-[1] mx-4 md:mx-6 lg:mx-8 rounded-3xl border border-white/10 bg-black/25 backdrop-blur-2xl shadow-xl shadow-black/20 p-5 lg:p-6 space-y-5">
             <div className="flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
                     <LuUsers className="text-brand-300" />
@@ -42,7 +42,7 @@ export function CommunityHomeSection() {
                 )}
                 {profiles.map((profile: any) => (
                     <SeaLink key={profile.id} href={`/profile/user?id=${profile.id}`}>
-                        <div className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-[--brand]/50 hover:-translate-y-0.5 transition-all">
+                        <div className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-white/5 border border-white/5 backdrop-blur-2xl hover:bg-white/10 hover:border-[--brand]/50 hover:-translate-y-0.5 transition-all">
                             <LevelRingAvatar
                                 profile={profile}
                                 size={56}

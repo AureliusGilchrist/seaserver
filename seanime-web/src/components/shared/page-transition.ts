@@ -87,7 +87,11 @@ export function getLayerVariants(
         case "blur":
             return {
                 initial: { opacity: 0, filter: "blur(64px)" },
-                animate: { opacity: 1, filter: "none" },
+                animate: {
+                    opacity: 1,
+                    filter: "blur(0px)",
+                    transitionEnd: { filter: "none" },
+                },
                 exit:    { opacity: 0, filter: "blur(64px)" },
             }
         case "rotate":
