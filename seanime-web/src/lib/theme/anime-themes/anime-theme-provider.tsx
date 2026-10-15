@@ -739,8 +739,8 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
                     ? profileWallpaperUrl
                     : null
 
-        setWallpaperAccent(null)
         if (!url) {
+            setWallpaperAccent(null)
             return
         }
 
