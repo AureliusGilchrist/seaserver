@@ -1609,6 +1609,7 @@ export type EmptyMangaEntryCache_Variables = {
 export type GetMangaEntryChapters_Variables = {
     mediaId: number
     provider: string
+    refresh?: boolean
 }
 
 /**
@@ -1758,6 +1759,7 @@ export type DownloadMangaChapters_Variables = {
     startNow: boolean
     mediaTitle: string
     coverImage: string
+    silent?: boolean
 }
 
 /**

@@ -120,13 +120,20 @@ export function HomeScreen() {
     const homeItems = React.useMemo(() => {
         let ret = !!_homeItems?.length ? _homeItems : DEFAULT_HOME_ITEMS
         if (!ret.some(n => n.type === "local-anime-library-stats")) {
-            const libraryIdx = ret.findIndex(n => n.type === "anime-library")
-            const insertIdx = libraryIdx >= 0 ? libraryIdx : ret.length
+            const continueWatchingIdx = ret.findIndex(n => n.type === "anime-continue-watching-header" || n.type === "anime-continue-watching")
+            const insertIdx = continueWatchingIdx >= 0 ? continueWatchingIdx + 1 : 0
             ret = [...ret.slice(0, insertIdx), {
                 id: "local-anime-library-stats",
                 type: "local-anime-library-stats",
                 schemaVersion: 1,
             }, ...ret.slice(insertIdx)]
+        }
+        const statsItem = ret.find(n => n.type === "local-anime-library-stats")
+        if (statsItem) {
+            ret = ret.filter(n => n.type !== "local-anime-library-stats")
+            const continueWatchingIdx = ret.findIndex(n => n.type === "anime-continue-watching-header" || n.type === "anime-continue-watching")
+            const insertIdx = continueWatchingIdx >= 0 ? continueWatchingIdx + 1 : 0
+            ret = [...ret.slice(0, insertIdx), statsItem, ...ret.slice(insertIdx)]
         }
         // replace anime-continue-watching-header with anime-continue-watching on mobile
         if (width < 1024 && ret[0]?.type === "anime-continue-watching-header") {
@@ -745,19 +752,24 @@ export function HomeScreenItem(props: HomeScreenItemProps) {
         ]
         return (
             <PageWrapper>
-                <div
-                    className="grid grid-cols-3 gap-4 py-4 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 [&>div]:text-center [&>div>p]:text-[--muted]"
-                    data-detailed-library-view-stats-container
-                >
-                    {stats.map(([value, label]) => (
-                        <div key={label}>
-                            <h3>{typeof value === "number" ? formatNumber(value) : value}</h3>
-                            <p title={label === "Unresolved" ? `${formatNumber(data?.stats?.unresolvedFiles ?? 0)} files are unresolved.` : undefined}>
-                                {label}
-                            </p>
-                        </div>
-                    ))}
-                </div>
+                <section className="py-4" aria-label="Anime library statistics" data-detailed-library-view-stats-container>
+                    <h2 className="mb-3 text-lg font-semibold">Anime at a glance</h2>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-8">
+                        {stats.map(([value, label]) => (
+                            <div key={label} className="rounded-xl border border-[--border] bg-[--paper]/70 px-3 py-3 text-center shadow-sm">
+                                <p className="text-xl font-semibold text-[--foreground]">
+                                    {typeof value === "number" ? formatNumber(value) : value}
+                                </p>
+                                <p
+                                    className="mt-1 text-xs text-[--muted]"
+                                    title={label === "Unresolved" ? `${formatNumber(data?.stats?.unresolvedFiles ?? 0)} files are unresolved.` : undefined}
+                                >
+                                    {label}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </section>
             </PageWrapper>
         )
     }

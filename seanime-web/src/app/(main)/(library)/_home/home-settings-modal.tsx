@@ -90,26 +90,23 @@ export function HomeSettingsModal({ emptyLibrary, isNakamaLibrary }: { emptyLibr
     const checkTimeRef = React.useRef<NodeJS.Timeout | null>(null)
     React.useEffect(() => {
         const homeItems = _homeItems || DEFAULT_HOME_ITEMS
-        setCurrentItems(homeItems)
+        const normalizedItems = normalizeHomeItems(homeItems)
+        setCurrentItems(normalizedItems)
 
         if (checkTimeRef.current) {
             clearTimeout(checkTimeRef.current)
             checkTimeRef.current = null
         }
 
-        // Check if an item doesn't exist anymore and remove it
-        checkTimeRef.current = setTimeout(() => {
-            const newItems = normalizeHomeItems(currentItems)
-
-            if (newItems.length !== homeItems.length) {
-                setCurrentItems(newItems)
-                updateHomeItems({ items: newItems }, {
+        if (JSON.stringify(normalizedItems) !== JSON.stringify(homeItems)) {
+            checkTimeRef.current = setTimeout(() => {
+                updateHomeItems({ items: normalizedItems }, {
                     onSuccess: () => {
                         console.log("Home items updated")
                     },
                 })
-            }
-        }, 500)
+            }, 500)
+        }
 
         return () => {
             if (checkTimeRef.current) {
@@ -117,7 +114,7 @@ export function HomeSettingsModal({ emptyLibrary, isNakamaLibrary }: { emptyLibr
                 checkTimeRef.current = null
             }
         }
-    }, [_homeItems])
+    }, [_homeItems, updateHomeItems])
 
     const handleDragEnd = React.useCallback((event: DragEndEvent) => {
         const { active, over } = event

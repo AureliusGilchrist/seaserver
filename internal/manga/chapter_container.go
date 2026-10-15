@@ -158,10 +158,11 @@ func (r *Repository) MergeDownloadedChaptersWithProviderAndCollection(providerCo
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 type GetMangaChapterContainerOptions struct {
-	Provider string
-	MediaId  int
-	Titles   []*string
-	Year     int
+	Provider     string
+	MediaId      int
+	Titles       []*string
+	Year         int
+	ForceRefresh bool
 }
 
 // GetMangaChapterContainer returns the ChapterContainer for a manga entry based on the provider.
@@ -270,8 +271,12 @@ func (r *Repository) GetMangaChapterContainer(opts *GetMangaChapterContainerOpti
 	var container *ChapterContainer
 	containerBucket := r.getFcProviderBucket(provider, cacheMediaId, bucketTypeChapter)
 
+	if opts.ForceRefresh {
+		mangaLatestChapterNumberMap.Delete(ChapterCountMapCacheKey)
+	}
+
 	// Check if the container is in the cache
-	if found, _ := r.fileCacher.Get(containerBucket, chapterContainerKey, &container); found {
+	if found, _ := r.fileCacher.Get(containerBucket, chapterContainerKey, &container); found && !opts.ForceRefresh {
 		r.logger.Info().Str("bucket", containerBucket.Name()).Msg("manga: Chapter Container Cache HIT")
 
 		// Normalize chapter numbers in cached container (handles legacy caches with unpadded numbers)

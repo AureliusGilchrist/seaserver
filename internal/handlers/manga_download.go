@@ -23,6 +23,7 @@ func (h *Handler) HandleDownloadMangaChapters(c echo.Context) error {
 		StartNow   bool     `json:"startNow"`
 		MediaTitle string   `json:"mediaTitle"` // Romaji title for folder naming
 		CoverImage string   `json:"coverImage"` // Optional cover image URL
+		Silent     bool     `json:"silent"`
 	}
 
 	var b body
@@ -81,7 +82,7 @@ func (h *Handler) HandleDownloadMangaChapters(c echo.Context) error {
 
 	scheduled := h.queueChaptersInBackground(jobs)
 
-	if scheduled > 0 {
+	if scheduled > 0 && !b.Silent {
 		h.App.WSEventManager.SendEvent(events.InfoToast, fmt.Sprintf(
 			"Queueing %d chapter(s), one every %d seconds — you can leave this page",
 			scheduled, int(chapterQueueingInterval.Seconds()),

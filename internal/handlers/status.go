@@ -680,39 +680,6 @@ func (h *Handler) HandleGetHomeItems(c echo.Context) error {
 	var items []*models.HomeItem
 	_ = json.Unmarshal(theme.HomeItems, &items)
 
-	// Auto-inject "local-anime-library" for existing configs that don't have it
-	if len(items) > 0 {
-		hasLocalAnimeLibrary := false
-		for _, item := range items {
-			if item.Type == "local-anime-library" {
-				hasLocalAnimeLibrary = true
-				break
-			}
-		}
-		if !hasLocalAnimeLibrary {
-			localItem := &models.HomeItem{
-				ID:            "local-anime-library",
-				Type:          "local-anime-library",
-				SchemaVersion: 2,
-				Options: map[string]interface{}{
-					"layout": "grid",
-				},
-			}
-			// Insert after "anime-continue-watching" if present, otherwise prepend
-			insertIdx := 0
-			for i, item := range items {
-				if item.Type == "anime-continue-watching" || item.Type == "anime-continue-watching-header" {
-					insertIdx = i + 1
-				}
-			}
-			items = append(items[:insertIdx], append([]*models.HomeItem{localItem}, items[insertIdx:]...)...)
-
-			// Persist the migration
-			theme.HomeItems, _ = json.Marshal(items)
-			_, _ = h.App.Database.UpsertTheme(theme)
-		}
-	}
-
 	return h.RespondWithData(c, items)
 }
 

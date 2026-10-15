@@ -20,6 +20,7 @@ import { useGetUnmatchedTorrents } from "@/api/hooks/unmatched.hooks"
 import { NotificationCreatedEvent, useGetUnreadNotificationCount, useNotificationWSListener } from "@/api/hooks/notifications.hooks"
 import { NotificationDrawer } from "@/app/(main)/_features/notification/notification-drawer"
 import { LiveNotificationPanel } from "@/app/(main)/_features/notification/live-notification-panel"
+import { MangaChapterNotification } from "@/app/(main)/_features/notification/manga-chapter-notification"
 import { TauriUpdateModal } from "@/app/(main)/_tauri/tauri-update-modal"
 import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { SeaLink } from "@/components/shared/sea-link"
@@ -574,6 +575,7 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
                     setNotificationDrawerOpen(true)
                 }}
             />
+            <MangaChapterNotification />
 
         </div>
     )

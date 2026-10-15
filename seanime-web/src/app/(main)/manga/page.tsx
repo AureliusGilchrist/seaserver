@@ -140,9 +140,16 @@ export default function Page() {
         let ret = !!mangaHomeItems?.length ? mangaHomeItems : DEFAULT_MANGA_HOME_ITEMS
         // Saved layouts that predate the stats row get it right above the library.
         if (!ret.some(n => n.type === "local-manga-library-stats")) {
-            const libIdx = ret.findIndex(n => n.type === "manga-library")
-            const insertIdx = libIdx >= 0 ? libIdx : ret.length
+            const continueReadingIdx = ret.findIndex(n => n.type === "manga-continue-reading-header" || n.type === "manga-continue-reading")
+            const insertIdx = continueReadingIdx >= 0 ? continueReadingIdx + 1 : 0
             ret = [...ret.slice(0, insertIdx), { id: "local-manga-library-stats", type: "local-manga-library-stats", schemaVersion: 1 }, ...ret.slice(insertIdx)]
+        }
+        const statsItem = ret.find(n => n.type === "local-manga-library-stats")
+        if (statsItem) {
+            ret = ret.filter(n => n.type !== "local-manga-library-stats")
+            const continueReadingIdx = ret.findIndex(n => n.type === "manga-continue-reading-header" || n.type === "manga-continue-reading")
+            const insertIdx = continueReadingIdx >= 0 ? continueReadingIdx + 1 : 0
+            ret = [...ret.slice(0, insertIdx), statsItem, ...ret.slice(insertIdx)]
         }
         // The header's banner, metadata block and chapter card are all lg-only, so below lg the
         // header collapses to an empty block — the same reason the anime home swaps its
@@ -716,12 +723,19 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
         )
     }
 
-    // Local Manga Library Stats, laid out like the anime home's row
+    // Local Manga Library Stats
     if (item.type === "local-manga-library-stats") {
         const lists = sourceMangaCollection?.lists ?? []
         const entries = lists.flatMap(list => list.entries ?? [])
         const countFor = (status: string) => lists.find(list => list.type === status)?.entries?.length ?? 0
         const chaptersRead = entries.reduce((total, entry) => total + (entry.listData?.progress ?? 0), 0)
+        const readingEntries = lists
+            .filter(list => list.type === "CURRENT" || list.type === "REPEATING")
+            .flatMap(list => list.entries ?? [])
+        const availableChapters = readingEntries.reduce((total, entry) => {
+            const latestNumber = Math.max(0, ...(latestChapterNumbers?.[entry.mediaId] ?? []).map(chapter => chapter.number))
+            return total + Math.max(0, latestNumber - (entry.listData?.progress ?? 0))
+        }, 0)
         const incompleteEntries = lists
             .filter(list => list.type !== "COMPLETED" && list.type !== "DROPPED")
             .flatMap(list => list.entries ?? [])
@@ -743,6 +757,7 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
             [countFor("COMPLETED"), "Completed"],
             [countFor("DROPPED"), "Dropped"],
             [chaptersRead, "Chapters read"],
+            [latestChapterNumbers ? availableChapters : "-", "Available chapters"],
             [knownChaptersLeft, "Known chapters left"],
             [latestChapterNumbers ? newChapterSeries : "-", "New chapters available"],
             [downloadStatsAvailable ? downloadedList?.length ?? 0 : "-", "Downloaded series"],
@@ -751,17 +766,19 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
         ]
         return (
             <PageWrapper>
-                <div
-                    className="grid grid-cols-3 gap-4 py-4 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 [&>div]:text-center [&>div>p]:text-[--muted]"
-                    data-manga-library-stats-container
-                >
-                    {stats.map(([value, label]) => (
-                        <div key={label}>
-                            <h3>{typeof value === "number" ? formatNumber(value) : value}</h3>
-                            <p>{label}</p>
-                        </div>
-                    ))}
-                </div>
+                <section className="py-4" aria-label="Manga library statistics" data-manga-library-stats-container>
+                    <h2 className="mb-3 text-lg font-semibold">Manga at a glance</h2>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7">
+                        {stats.map(([value, label]) => (
+                            <div key={label} className="rounded-xl border border-[--border] bg-[--paper]/70 px-3 py-3 text-center shadow-sm">
+                                <p className="text-xl font-semibold text-[--foreground]">
+                                    {typeof value === "number" ? formatNumber(value) : value}
+                                </p>
+                                <p className="mt-1 text-xs text-[--muted]">{label}</p>
+                            </div>
+                        ))}
+                    </div>
+                </section>
             </PageWrapper>
         )
     }

@@ -430,6 +430,7 @@ func (h *Handler) HandleGetMangaEntryChapters(c echo.Context) error {
 	type body struct {
 		MediaId  int    `json:"mediaId"`
 		Provider string `json:"provider"`
+		Refresh  bool   `json:"refresh"`
 	}
 
 	var b body
@@ -465,10 +466,11 @@ func (h *Handler) HandleGetMangaEntryChapters(c echo.Context) error {
 	}
 
 	container, err := h.App.MangaRepository.GetMangaChapterContainer(&manga.GetMangaChapterContainerOptions{
-		Provider: b.Provider,
-		MediaId:  b.MediaId,
-		Titles:   titles,
-		Year:     year,
+		Provider:     b.Provider,
+		MediaId:      b.MediaId,
+		Titles:       titles,
+		Year:         year,
+		ForceRefresh: b.Refresh,
 	})
 	if err != nil {
 		return h.RespondWithError(c, err)

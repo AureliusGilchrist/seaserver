@@ -162,9 +162,10 @@ export function useGetMangaEntryChapters(variables: Partial<GetMangaEntryChapter
     return useServerQuery<Manga_ChapterContainer, GetMangaEntryChapters_Variables>({
         endpoint: API_ENDPOINTS.MANGA.GetMangaEntryChapters.endpoint,
         method: API_ENDPOINTS.MANGA.GetMangaEntryChapters.methods[0],
-        queryKey: [API_ENDPOINTS.MANGA.GetMangaEntryChapters.key, String(variables.mediaId), variables.provider],
+        queryKey: [API_ENDPOINTS.MANGA.GetMangaEntryChapters.key, String(variables.mediaId), variables.provider, String(variables.refresh ?? false)],
         data: variables as GetMangaEntryChapters_Variables,
         enabled: !!variables.mediaId && !!variables.provider,
+        refetchInterval: variables.refresh ? 30 * 60 * 1000 : undefined,
         muteError: true,
     })
 }
