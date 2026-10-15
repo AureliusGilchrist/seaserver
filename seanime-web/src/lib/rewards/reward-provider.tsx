@@ -22,7 +22,7 @@ import {
 } from "@/lib/rewards/reward-definitions"
 import { ANIME_THEMES } from "@/lib/theme/anime-themes"
 import type { AnimeThemeConfig } from "@/lib/theme/anime-themes"
-import { wallpaperAccentColorAtom, xpBarSkinBrandColorAtom } from "@/lib/theme/color-mixing"
+import { wallpaperAccentColorAtom } from "@/lib/theme/color-mixing"
 import { accentGradient } from "@/lib/theme/wallpaper-accent"
 import { getCachedMarketplaceThemeMeta, fetchMarketplaceThemeMeta } from "@/lib/theme/marketplace-theme-loader"
 import { seaStorage } from "@/lib/sea-storage/sea-storage"
@@ -434,25 +434,11 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
     )
 
     const wallpaperAccent = useAtomValue(wallpaperAccentColorAtom)
-    const setXpBarSkinBrandColor = useSetAtom(xpBarSkinBrandColorAtom)
 
-    // "Default" is the bar nobody chose: it is not a skin with a color of its own, it is the place
-    // the app's own color goes. Anything else was picked deliberately and keeps its colors.
+    // The equipped skin affects the XP bar only; it never changes the app-wide accent.
     const explicitSkin = !!active.xpBarSkinId && active.xpBarSkinId !== "xpbar-default"
 
-    // The color an equipped skin colors the app with, when the wallpaper has none to give. Read
-    // from the skin's own definition rather than its (possibly accent-recolored) fill.
-    const skinAccentColor = React.useMemo(() => {
-        if (!explicitSkin) return null
-        const def = XP_BAR_SKIN_REWARDS.find(r => r.id === active.xpBarSkinId)
-        const css = def?.fillCss ?? xpBarDef?.fillCss ?? null
-        if (!css) return null
-        const solid = css.startsWith("#") ? css : css.match(/#[0-9a-fA-F]{6}/)?.[0]
-        return solid ?? null
-    }, [explicitSkin, active.xpBarSkinId, xpBarDef])
-
-    // What the bar is actually drawn with. With no skin chosen it is the wallpaper's color, so the
-    // bar and the rest of the interface are the same color; with one chosen it is the skin's.
+    // With no skin chosen, the bar follows the wallpaper accent; an equipped skin keeps its own fill.
     const effectiveXPBarFill = React.useMemo(() => {
         if (explicitSkin) return xpBarDef?.fillCss ?? null
         if (wallpaperAccent) return accentGradient(wallpaperAccent)
@@ -515,14 +501,6 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
             root.style.removeProperty("--sea-xpbar-track")
         }
     }, [xpBarDef, effectiveXPBarFill])
-
-    // Publish the equipped skin's color for the brand ramp: it colors the app when the wallpaper has
-    // no color to give (no wallpaper, or one that cannot be read), and steps aside when it does.
-    React.useEffect(() => {
-        const color = explicitSkin ? skinAccentColor : null
-        setXpBarSkinBrandColor(color)
-        return () => setXpBarSkinBrandColor(null)
-    }, [explicitSkin, skinAccentColor, setXpBarSkinBrandColor])
 
     const activeParticleSets = React.useMemo(
         () => (active.particleSetIds ?? []).map(id => lookupParticleSet(id)).filter(Boolean) as import("@/lib/rewards/reward-definitions").ParticleSetReward[],

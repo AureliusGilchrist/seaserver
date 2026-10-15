@@ -1,4 +1,4 @@
-import { animeThemeBaseColorAtom, animeThemeBrandOverrideAtom, mixWithThemeTint } from "@/lib/theme/color-mixing"
+import { animeThemeBaseColorAtom, animeThemeBrandOverrideAtom, mixWithThemeTint, wallpaperAccentColorAtom } from "@/lib/theme/color-mixing"
 import { THEME_DEFAULT_VALUES, useThemeSettings } from "@/lib/theme/hooks"
 import { colord, extend, RgbColor } from "colord"
 import mixPlugin from "colord/plugins/mix"
@@ -42,6 +42,7 @@ export function CustomThemeProvider(props: CustomColorProviderProps) {
     // effects stay untouched — only its base color is mixed into the settings background.
     const animeThemeBaseColor = useAtomValue(animeThemeBaseColorAtom)
     const animeThemeBrandOverride = useAtomValue(animeThemeBrandOverrideAtom)
+    const wallpaperAccent = useAtomValue(wallpaperAccentColorAtom)
     const backgroundColor = mixWithThemeTint(ts.backgroundColor, animeThemeBaseColor)
 
     function setBgColor(r: any, variable: string, defaultColor: string | null, customColor: string | RgbColor) {
@@ -100,27 +101,33 @@ export function CustomThemeProvider(props: CustomColorProviderProps) {
     React.useEffect(() => {
         let r = document.querySelector(":root") as any
 
-        if (!ts.enableColorSettings) return
+        if (ts.enableColorSettings) {
+            setColor(r, "--color-brand-200", "212 208 255", colord(ts.accentColor).lighten(0.35).desaturate(0.05).toRgb())
+            setColor(r, "--color-brand-300", "199 194 255", colord(ts.accentColor).lighten(0.3).desaturate(0.05).toRgb())
+            setColor(r, "--color-brand-400", "159 146 255", colord(ts.accentColor).lighten(0.1).toRgb())
+            setColor(r, "--color-brand-500", "97 82 223", colord(ts.accentColor).toRgb())
+            setColor(r, "--color-brand-600", "82 67 203", colord(ts.accentColor).darken(0.1).toRgb())
+            setColor(r, "--color-brand-700", "63 46 178", colord(ts.accentColor).darken(0.15).toRgb())
+            setColor(r, "--color-brand-800", "49 40 135", colord(ts.accentColor).darken(0.2).toRgb())
+            setColor(r, "--color-brand-900", "35 28 107", colord(ts.accentColor).darken(0.25).toRgb())
+            setColor(r, "--color-brand-950", "26 20 79", colord(ts.accentColor).darken(0.3).toRgb())
+            setColor(r, "--brand", colord("rgba(199 194 255)").toHex(), colord(ts.accentColor).lighten(0.35).desaturate(0.1).toHex())
 
-        setColor(r, "--color-brand-200", "212 208 255", colord(ts.accentColor).lighten(0.35).desaturate(0.05).toRgb())
-        setColor(r, "--color-brand-300", "199 194 255", colord(ts.accentColor).lighten(0.3).desaturate(0.05).toRgb())
-        setColor(r, "--color-brand-400", "159 146 255", colord(ts.accentColor).lighten(0.1).toRgb())
-        setColor(r, "--color-brand-500", "97 82 223", colord(ts.accentColor).toRgb())
-        setColor(r, "--color-brand-600", "82 67 203", colord(ts.accentColor).darken(0.1).toRgb())
-        setColor(r, "--color-brand-700", "63 46 178", colord(ts.accentColor).darken(0.15).toRgb())
-        setColor(r, "--color-brand-800", "49 40 135", colord(ts.accentColor).darken(0.2).toRgb())
-        setColor(r, "--color-brand-900", "35 28 107", colord(ts.accentColor).darken(0.25).toRgb())
-        setColor(r, "--color-brand-950", "26 20 79", colord(ts.accentColor).darken(0.3).toRgb())
-        setColor(r, "--brand", colord("rgba(199 194 255)").toHex(), colord(ts.accentColor).lighten(0.35).desaturate(0.1).toHex())
+            // An explicit brand color picked in the Theme Manager wins over the settings accent.
+            if (animeThemeBrandOverride) {
+                for (const [k, v] of Object.entries(deriveBrandShadeVars(animeThemeBrandOverride))) {
+                    r.style.setProperty(k, v)
+                }
+            }
+        }
 
-        // An explicit brand color picked in the Theme Manager still wins over the settings accent.
-        if (animeThemeBrandOverride) {
-            for (const [k, v] of Object.entries(deriveBrandShadeVars(animeThemeBrandOverride))) {
+        // The selected wallpaper owns the global accent, regardless of XP-bar skin or settings color.
+        if (wallpaperAccent) {
+            for (const [k, v] of Object.entries(deriveBrandShadeVars(wallpaperAccent))) {
                 r.style.setProperty(k, v)
             }
         }
-    }, [ts.enableColorSettings, ts.accentColor, animeThemeBrandOverride])
+    }, [ts.enableColorSettings, ts.accentColor, animeThemeBrandOverride, wallpaperAccent])
 
     return null
 }
-

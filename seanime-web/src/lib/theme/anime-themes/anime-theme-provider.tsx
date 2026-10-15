@@ -26,10 +26,13 @@ import { resolveIcon } from "@/lib/theme/anime-themes/icon-registry"
 import { recordActivatedTheme } from "@/lib/theme/anime-themes/theme-prerequisites"
 import { fetchMarketplaceThemeMeta, getCachedMarketplaceThemeMeta } from "@/lib/theme/marketplace-theme-loader"
 import { applyRootCssVars } from "@/lib/helpers/css"
-import { animeThemeBaseColorAtom, animeThemeBrandOverrideAtom, animeThemePrimaryColorAtom, SETTINGS_OWNED_COLOR_VARS, wallpaperAccentColorAtom, xpBarSkinBrandColorAtom } from "@/lib/theme/color-mixing"
+import { animeThemeBaseColorAtom, animeThemeBrandOverrideAtom, animeThemePrimaryColorAtom, SETTINGS_OWNED_COLOR_VARS, wallpaperAccentColorAtom } from "@/lib/theme/color-mixing"
 import { extractWallpaperAccent } from "@/lib/theme/wallpaper-accent"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import { seaStorage } from "@/lib/sea-storage/sea-storage"
+import { getAssetUrl } from "@/lib/server/assets"
+import { getServerBaseUrl } from "@/api/client/server-url"
+import { usePathname } from "@/lib/navigation"
 
 function readBackgroundBlur(profileKey: string, themeId: AnimeThemeId): number {
     const globalKey = "sea-global-anime-bgblur"
@@ -302,6 +305,7 @@ export function useAnimeThemeOrNull(): AnimeThemeContextValue | null {
 
 export function AnimeThemeProvider({ children }: { children: React.ReactNode }) {
     const currentProfile = useAtomValue(currentProfileAtom)
+    const pathname = usePathname()
     const profileKey = currentProfile?.id ? String(currentProfile.id) : "default"
     const profileId = currentProfile?.id ?? 0
 
@@ -312,7 +316,6 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     const setAnimeThemePrimaryColor = useSetAtom(animeThemePrimaryColorAtom)
     const setWallpaperAccent = useSetAtom(wallpaperAccentColorAtom)
     const wallpaperAccent = useAtomValue(wallpaperAccentColorAtom)
-    const xpBarSkinBrandColor = useAtomValue(xpBarSkinBrandColorAtom)
 
     // ── Theme persistence ──
     // Allow any string theme ID (including marketplace themes not bundled in-app)
@@ -684,11 +687,6 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
             const shades = deriveBrandShades(brandColorOverride)
             Object.entries(shades).forEach(([k, v]) => root.style.setProperty(k, v))
         }
-        // The equipped XP bar skin colors the ramp when nothing else does.
-        if (xpBarSkinBrandColor) {
-            const shades = deriveBrandShades(xpBarSkinBrandColor)
-            Object.entries(shades).forEach(([k, v]) => root.style.setProperty(k, v))
-        }
         // The wallpaper has the last word, and deliberately so: the primary color is the general
         // highlight of the picture behind the UI, not a color a theme or a reward declares. A theme
         // still contributes its wallpaper, its effects, its fonts — and the interface's color comes
@@ -702,7 +700,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
             // On cleanup, clear only the vars this theme set (next theme will overwrite)
             entries.forEach(([k]) => root.style.removeProperty(k))
         }
-    }, [config, brandColorOverride, colorSettingsEnabled, xpBarSkinBrandColor, wallpaperAccent])
+    }, [config, brandColorOverride, colorSettingsEnabled, wallpaperAccent])
 
     // ── Publish the theme's own colors so the settings color scheme can mix them in ──
     React.useEffect(() => {
@@ -715,9 +713,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         return () => setAnimeThemeBrandOverride(null)
     }, [brandColorOverride, setAnimeThemeBrandOverride])
 
-    // ── Publish the theme's primary color ──
-    // The exp bar reads this: with a theme equipped and no XP bar skin chosen, the bar is drawn in
-    // the theme's own color, which is what keeps the bar and the app's primary color the same.
+    // ── Publish the theme's own primary color for theme-aware consumers ──
     React.useEffect(() => {
         setAnimeThemePrimaryColor(config.id === "seanime" ? null : (config.previewColors?.primary ?? null))
         return () => setAnimeThemePrimaryColor(null)
@@ -725,15 +721,26 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
 
     // ── The wallpaper's color ──
     //
-    // Read from the image itself, every time it changes: the wallpaper is picked in the theme
-    // manager and the primary color has to change with it, at that moment, without a reload. The
-    // extraction is asynchronous and the result only lands if the wallpaper it was taken from is
-    // still the one on screen — switching wallpapers quickly must not leave the color of the one
-    // before it behind.
+    // Read the wallpaper currently shown by the app: a Settings background takes priority, then a
+    // Theme Manager wallpaper, then the active profile wallpaper. Profile pages keep their own
+    // scoped colors and are deliberately excluded from the latter two fallback sources.
     React.useEffect(() => {
-        const url = config.id === "seanime" ? null : activeBackgroundUrl
+        const isProfilePage = pathname.startsWith("/profile")
+        const profileWallpaperUrl = currentProfile?.wallpaperUrl
+            ? currentProfile.wallpaperUrl.startsWith("/")
+                ? `${getServerBaseUrl()}${currentProfile.wallpaperUrl}`
+                : currentProfile.wallpaperUrl
+            : null
+        const url = !isProfilePage && themeSettings.libraryScreenCustomBackgroundImage
+            ? getAssetUrl(themeSettings.libraryScreenCustomBackgroundImage)
+            : config.id !== "seanime" && activeBackgroundUrl
+                ? activeBackgroundUrl
+                : !isProfilePage
+                    ? profileWallpaperUrl
+                    : null
+
+        setWallpaperAccent(null)
         if (!url) {
-            setWallpaperAccent(null)
             return
         }
 
@@ -744,7 +751,14 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         })
 
         return () => { cancelled = true }
-    }, [config.id, activeBackgroundUrl, setWallpaperAccent])
+    }, [
+        config.id,
+        activeBackgroundUrl,
+        currentProfile?.wallpaperUrl,
+        pathname,
+        themeSettings.libraryScreenCustomBackgroundImage,
+        setWallpaperAccent,
+    ])
 
     // ── Background image: hide default body:before AND body:after when a custom bg is active ──
     React.useEffect(() => {

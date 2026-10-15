@@ -251,11 +251,8 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
         },
         {
             id: "home",
-            // One slot for both libraries, whichever one you are in. The icon and the label follow
-            // the page — swap from the anime page and this is the manga door, highlighted; swap
-            // back and it is the anime door again. Two entries read as two unrelated things; one
-            // that flips reads as what it is: the same shelf, with its other half on it.
-            iconType: isOnManga ? LuMonitorPlay : LuBookOpen,
+            // Keep the icon tied to the library currently open; the label and link are the switch target.
+            iconType: isOnManga ? LuBookOpen : LuMonitorPlay,
             name: isOnManga ? "Anime" : "Manga",
             href: isOnManga ? "/anime" : "/manga",
             isCurrent: isOnManga ? pathname.startsWith("/manga") : pathname === "/anime",

@@ -8,8 +8,9 @@ extend([mixPlugin])
  * CSS variables owned by the Settings > Color scheme section when `enableColorSettings` is on.
  *
  * An anime theme from the Theme Manager still contributes its wallpaper, particles, effects,
- * fonts, cursors and icons — but these colors come from the user's color scheme instead, with
- * the theme's own background mixed in as a tint (see `mixWithThemeTint`).
+ * fonts, cursors and icons — but these colors start from the user's color scheme, with the theme's
+ * own background mixed in as a tint (see `mixWithThemeTint`). A readable wallpaper accent wins
+ * over the configured brand color.
  */
 export const SETTINGS_OWNED_COLOR_VARS = new Set([
     "--background",
@@ -48,11 +49,8 @@ export const animeThemeBaseColorAtom = atom<string | null>(null)
 export const animeThemeBrandOverrideAtom = atom<string | null>(null)
 
 /**
- * Primary color of the active anime theme, published by `AnimeThemeProvider`.
- *
- * The exp bar and the app's primary color are one choice, and a theme is one way of making it:
- * with a theme equipped and no XP bar skin chosen, the bar is drawn in the theme's own color, which
- * is the same color the theme gives the rest of the UI.
+ * Primary color of the active anime theme, published by `AnimeThemeProvider` for theme-aware
+ * consumers. The global brand ramp is derived from the wallpaper accent instead.
  */
 export const animeThemePrimaryColorAtom = atom<string | null>(null)
 
@@ -65,15 +63,6 @@ export const animeThemePrimaryColorAtom = atom<string | null>(null)
  * nothing readable can be taken from it, in which case the theme's own colors stand.
  */
 export const wallpaperAccentColorAtom = atom<string | null>(null)
-
-/**
- * The color of the XP bar skin the user has equipped, published by `RewardProvider` — null when no
- * skin has been chosen (the default bar is the theme's to color, not its own).
- *
- * `AnimeThemeProvider` applies this to the brand ramp last, so equipping a skin is what the app's
- * primary color follows: the bar and everything around it end up the same color.
- */
-export const xpBarSkinBrandColorAtom = atom<string | null>(null)
 
 /** How much of the anime theme's background bleeds into the settings background color. */
 export const THEME_TINT_RATIO = 0.35

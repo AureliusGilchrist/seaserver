@@ -202,8 +202,8 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
     /**
      * If the server status is loading or doesn't exist, show the loading overlay
      */
-    if (isLoading || !serverStatus || !authenticated) return <LoadingOverlayWithLogo />
-    if (!serverStatus?.serverReady) return <LoadingOverlayWithLogo title="L o a d i n g" />
+    if (isLoading || !serverStatus || !authenticated) return <LoadingOverlayWithLogo refetch={refetch} />
+    if (!serverStatus?.serverReady) return <LoadingOverlayWithLogo refetch={refetch} title="L o a d i n g" />
 
     /**
      * If the pathname is /auth/callback, show the callback page
