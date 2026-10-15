@@ -1099,11 +1099,11 @@ export function getLevelColor(level: number): { ring: string; glow: string; labe
 // ─────────────────────── Favorites Tab ───────────────────────
 
 function FavoritesTabContent() {
-    const { data: animeIds } = useGetAnimeFavorites()
-    const { data: mangaIds } = useGetMangaFavorites()
-    const { data: characterIds } = useGetCharacterFavorites()
-    const { data: staffIds } = useGetStaffFavorites()
-    const { data: studioIds } = useGetStudioFavorites()
+    const { data: animeIds, isLoading: animeLoading } = useGetAnimeFavorites()
+    const { data: mangaIds, isLoading: mangaLoading } = useGetMangaFavorites()
+    const { data: characterIds, isLoading: characterLoading } = useGetCharacterFavorites()
+    const { data: staffIds, isLoading: staffLoading } = useGetStaffFavorites()
+    const { data: studioIds, isLoading: studioLoading } = useGetStudioFavorites()
 
     const sections = [
         { label: "Anime", ids: animeIds, type: "anime" as const },
@@ -1114,41 +1114,120 @@ function FavoritesTabContent() {
     ]
 
     const totalCount = sections.reduce((acc, s) => acc + (s.ids?.length ?? 0), 0)
+    const favoritesLoading = animeLoading || mangaLoading || characterLoading || staffLoading || studioLoading
 
     return (
-        <div className="space-y-8">
-            <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold flex items-center gap-2">
-                    <LuHeart className="text-red-400" /> My Favorites
-                </h2>
-                <span className="text-sm text-[--muted]">{totalCount} total</span>
-            </div>
-            {sections.map((section) => (
-                <FavoriteSection key={section.type} label={section.label} ids={section.ids ?? []} type={section.type} />
-            ))}
+        <div className="space-y-7">
+            <section className="relative isolate overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-brand-500/[0.16] via-black/35 to-black/55 p-5 shadow-xl shadow-black/20 backdrop-blur-2xl sm:p-7">
+                <div className="pointer-events-none absolute -right-20 -top-28 size-72 rounded-full bg-brand-400/15 blur-3xl" />
+                <div className="pointer-events-none absolute -bottom-24 left-1/4 size-56 rounded-full bg-rose-400/10 blur-3xl" />
+                <div className="relative flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex min-w-0 items-center gap-4">
+                        <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl border border-rose-300/20 bg-rose-400/10 text-rose-200 shadow-lg shadow-rose-950/25">
+                            <LuHeart className="size-7" />
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand-200">Your collection</p>
+                            <h2 className="mt-1 text-2xl font-extrabold tracking-tight text-white sm:text-3xl">Favorites</h2>
+                            <p className="mt-1 text-sm text-white/60">The anime, manga, characters, creators, and studios you love.</p>
+                        </div>
+                    </div>
+                    <div className="min-w-28 rounded-2xl border border-white/10 bg-black/25 px-5 py-3 text-center">
+                        <p className="text-2xl font-extrabold tabular-nums text-white">
+                            {favoritesLoading ? "…" : formatNumber(totalCount)}
+                        </p>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/45">Saved</p>
+                    </div>
+                </div>
+                <div className="relative mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                    {sections.map(section => (
+                        <div key={section.type} className="flex items-center justify-between gap-2 rounded-xl border border-white/[0.08] bg-black/20 px-3 py-2.5">
+                            <span className="truncate text-xs font-medium text-white/65">{section.label}</span>
+                            <span className="shrink-0 text-sm font-bold tabular-nums text-white">
+                                {favoritesLoading ? "—" : formatNumber(section.ids?.length ?? 0)}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            {favoritesLoading ? (
+                <div className="rounded-2xl border border-white/10 bg-black/25 p-8 text-center text-sm text-[--muted] backdrop-blur-xl">
+                    Loading your favorites…
+                </div>
+            ) : totalCount === 0 ? (
+                <div className="relative isolate overflow-hidden rounded-3xl border border-dashed border-white/15 bg-black/20 px-6 py-14 text-center backdrop-blur-xl">
+                    <div className="pointer-events-none absolute left-1/2 top-0 size-48 -translate-x-1/2 rounded-full bg-rose-400/10 blur-3xl" />
+                    <div className="relative mx-auto flex size-14 items-center justify-center rounded-2xl border border-rose-300/20 bg-rose-400/10 text-rose-200">
+                        <LuHeart className="size-6" />
+                    </div>
+                    <h3 className="relative mt-4 text-lg font-bold text-white">Your collection starts with a favorite</h3>
+                    <p className="relative mx-auto mt-2 max-w-lg text-sm leading-relaxed text-[--muted]">
+                        Tap the heart on an anime, manga, character, staff member, or studio page to save it here.
+                    </p>
+                </div>
+            ) : (
+                <div className="space-y-8">
+                    {sections.map(section => (
+                        <FavoriteSection key={section.type} label={section.label} ids={section.ids ?? []} type={section.type} />
+                    ))}
+                </div>
+            )}
         </div>
     )
 }
 
-function FavoriteSection({ label, ids, type }: { label: string; ids: number[]; type: "anime" | "manga" | "character" | "staff" | "studio" }) {
+type FavoriteType = "anime" | "manga" | "character" | "staff" | "studio"
+
+function FavoriteSection({ label, ids, type }: { label: string; ids: number[]; type: FavoriteType }) {
+    const icon = type === "anime" ? <LuTv className="size-5" />
+        : type === "manga" ? <LuBookOpen className="size-5" />
+            : type === "character" ? <LuHeart className="size-5" />
+                : type === "staff" ? <LuActivity className="size-5" />
+                    : <LuGlobe className="size-5" />
+    const accent = type === "manga"
+        ? "border-rose-300/20 bg-rose-400/10 text-rose-200"
+        : type === "character"
+            ? "border-amber-300/20 bg-amber-400/10 text-amber-200"
+            : type === "staff"
+                ? "border-cyan-300/20 bg-cyan-400/10 text-cyan-200"
+                : type === "studio"
+                    ? "border-emerald-300/20 bg-emerald-400/10 text-emerald-200"
+                    : "border-brand-300/20 bg-brand-400/10 text-brand-200"
+
     if (ids.length === 0) {
         return (
-            <div className="space-y-2">
-                <h3 className="text-lg font-medium text-[--muted]">{label}</h3>
-                <p className="text-sm text-[--muted] italic">No {label.toLowerCase()} favorited yet</p>
-            </div>
+            <section className="rounded-2xl border border-dashed border-white/10 bg-black/15 p-4 backdrop-blur-md sm:p-5">
+                <div className="flex items-center gap-3">
+                    <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl border", accent)}>{icon}</div>
+                    <div className="min-w-0">
+                        <h3 className="font-semibold text-white/75">{label}</h3>
+                        <p className="mt-0.5 text-xs text-[--muted]">No {label.toLowerCase()} favorited yet</p>
+                    </div>
+                    <span className="ml-auto rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-xs font-semibold tabular-nums text-white/40">0</span>
+                </div>
+            </section>
         )
     }
 
     return (
-        <div className="space-y-3">
-            <h3 className="text-lg font-medium">{label} <span className="text-[--muted] text-sm">({ids.length})</span></h3>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-3">
+        <section className="space-y-4">
+            <div className="flex items-center gap-3 border-b border-white/10 pb-3">
+                <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl border", accent)}>{icon}</div>
+                <div className="min-w-0">
+                    <h3 className="text-lg font-bold tracking-tight text-white">{label}</h3>
+                    <p className="text-xs text-[--muted]">{formatNumber(ids.length)} saved</p>
+                </div>
+                <span className="ml-auto rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold tabular-nums text-white/65">
+                    {formatNumber(ids.length)}
+                </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 min-[480px]:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
                 {ids.map((id) => (
                     <FavoriteCard key={id} id={id} type={type} />
                 ))}
             </div>
-        </div>
+        </section>
     )
 }
 
@@ -1157,7 +1236,7 @@ function stripHtml(html: string | null | undefined): string {
     return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim()
 }
 
-function FavoriteCard({ id, type }: { id: number; type: "anime" | "manga" | "character" | "staff" | "studio" }) {
+function FavoriteCard({ id, type }: { id: number; type: FavoriteType }) {
     if (type === "anime") return <FavoriteAnimeCard id={id} />
     if (type === "manga") return <FavoriteMangaCard id={id} />
     if (type === "character") return <FavoriteCharacterCard id={id} />
@@ -1173,6 +1252,7 @@ function FavoriteCardShell({
     subtitle,
     description,
     isLoading,
+    kind,
 }: {
     href: string
     image?: string | null
@@ -1180,34 +1260,44 @@ function FavoriteCardShell({
     subtitle?: string | null
     description?: string | null
     isLoading?: boolean
+    kind: string
 }) {
     return (
         <a
             href={href}
-            className="group relative flex flex-col rounded-lg overflow-hidden bg-[--subtle] border border-[--border] hover:border-[--brand] hover:shadow-lg transition-all"
+            className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.07] to-black/55 shadow-lg shadow-black/20 backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-brand-300/35 hover:shadow-2xl hover:shadow-brand-950/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300/70"
         >
-            <div className="relative aspect-[3/4] w-full bg-gray-900 overflow-hidden">
+            <div className="relative aspect-[3/4] w-full overflow-hidden bg-black/40">
                 {image
                     ? (
                         <img
                             src={image}
                             alt={title ?? ""}
-                            className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
+                            className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.06]"
                             loading="lazy"
                         />
                     )
                     : isLoading
-                        ? <div className="w-full h-full animate-pulse bg-gray-800" />
-                        : <div className="w-full h-full flex items-center justify-center text-[--muted] text-xs">No image</div>
+                        ? <div className="size-full animate-pulse bg-gradient-to-br from-white/10 via-white/[0.03] to-black/30" />
+                        : (
+                            <div className="flex size-full flex-col items-center justify-center gap-2 text-white/35">
+                                <LuHeart className="size-8" />
+                                <span className="text-xs">Artwork unavailable</span>
+                            </div>
+                        )
                 }
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent" />
+                <span className="absolute left-3 top-3 rounded-full border border-white/15 bg-black/55 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-white/80 shadow backdrop-blur-lg">
+                    {kind}
+                </span>
             </div>
-            <div className="p-2.5 flex flex-col gap-1 min-h-[3.5rem]">
-                <p className="text-sm font-semibold line-clamp-2 leading-snug" title={title ?? undefined}>
+            <div className="flex flex-1 flex-col gap-1.5 p-3">
+                <p className="line-clamp-2 text-sm font-bold leading-snug text-white" title={title ?? undefined}>
                     {title || (isLoading ? "Loading…" : `#${href.split("=").pop()}`)}
                 </p>
-                {subtitle && <p className="text-xs text-[--muted] line-clamp-1">{subtitle}</p>}
+                {subtitle && <p className="line-clamp-1 text-[11px] font-medium uppercase tracking-wide text-brand-100/65">{subtitle}</p>}
                 {description && (
-                    <p className="text-xs text-[--muted] line-clamp-3 mt-1">{description}</p>
+                    <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-white/50">{description}</p>
                 )}
             </div>
         </a>
@@ -1229,6 +1319,7 @@ function FavoriteAnimeCard({ id }: { id: number }) {
             subtitle={subtitle || undefined}
             description={stripHtml(d?.description)}
             isLoading={isLoading}
+            kind="Anime"
         />
     )
 }
@@ -1248,6 +1339,7 @@ function FavoriteMangaCard({ id }: { id: number }) {
             subtitle={subtitle || undefined}
             description={stripHtml(d?.description)}
             isLoading={isLoading}
+            kind="Manga"
         />
     )
 }
@@ -1262,6 +1354,7 @@ function FavoriteCharacterCard({ id }: { id: number }) {
             subtitle={data?.name?.native && data?.name?.native !== data?.name?.full ? data?.name?.native : undefined}
             description={stripHtml(data?.description)}
             isLoading={isLoading}
+            kind="Character"
         />
     )
 }
@@ -1277,6 +1370,7 @@ function FavoriteStaffCard({ id }: { id: number }) {
             subtitle={role ?? undefined}
             description={stripHtml((data as any)?.description)}
             isLoading={isLoading}
+            kind="Staff"
         />
     )
 }
@@ -1298,6 +1392,7 @@ function FavoriteStudioCard({ id }: { id: number }) {
             title={(data as any)?.name}
             subtitle={subtitle || undefined}
             isLoading={isLoading}
+            kind="Studio"
         />
     )
 }

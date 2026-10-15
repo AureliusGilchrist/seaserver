@@ -161,6 +161,7 @@ export default function Page() {
     // the collection the way the anime home's continue-watching list is, not the reading history
     // alone, whose media enrichment can come back empty and leave both blank.
     const { entries: continueReadingList } = useMangaContinueReadingList()
+    const hasContinueReadingHeader = continueReadingList.some(entry => !!entry.media)
 
     // Loading state - matching anime home screen skeleton
     if (!mangaCollection || mangaCollectionLoading) {
@@ -210,7 +211,7 @@ export default function Page() {
                     description, genres, the chapter card on the right — the way the anime home
                     screen's is. It renders in flow (a tall block), which is also what keeps the
                     toolbar below it out of the window's title bar. */}
-                {homeItems[0]?.type === "manga-continue-reading-header" && (
+                {homeItems[0]?.type === "manga-continue-reading-header" && hasContinueReadingHeader && (
                     <MangaContinueReadingHeader list={continueReadingList} />
                 )}
 
@@ -248,9 +249,9 @@ export default function Page() {
                     covers every other arrangement. */}
                 {(
                     homeItems[0]?.type !== "manga-discover-header"
-                    && homeItems[0]?.type !== "manga-continue-reading-header"
+                    && !(homeItems[0]?.type === "manga-continue-reading-header" && hasContinueReadingHeader)
                     && !(ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Dynamic && hasManga && homeItems[0]?.type === "manga-library")
-                    && !(!!ts.libraryScreenCustomBannerImage && ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Custom && homeItems[0]?.type !== "manga-discover-header" && homeItems[0]?.type !== "manga-continue-reading-header")
+                    && !(!!ts.libraryScreenCustomBannerImage && ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Custom && homeItems[0]?.type !== "manga-discover-header" && !(homeItems[0]?.type === "manga-continue-reading-header" && hasContinueReadingHeader))
                 ) && <div
                     className={cn(
                         "h-14",
@@ -266,7 +267,7 @@ export default function Page() {
                 <MangaHomeToolbar
                     hasManga={hasManga}
                     className={cn(
-                        (homeItems[0]?.type === "manga-discover-header" || (homeItems[0]?.type === "manga-continue-reading-header" && !!continueReadingList.length)) && "!mt-[-4rem] !mb-[-1rem]",
+                        (homeItems[0]?.type === "manga-discover-header" || (homeItems[0]?.type === "manga-continue-reading-header" && hasContinueReadingHeader)) && "!mt-[-4rem] !mb-[-1rem]",
                     )}
                 />
 
@@ -274,7 +275,7 @@ export default function Page() {
                 {(!!ts.libraryScreenCustomBannerImage
                     && ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Custom
                     && homeItems[0]?.type !== "manga-discover-header"
-                    && homeItems[0]?.type !== "manga-continue-reading-header"
+                    && !(homeItems[0]?.type === "manga-continue-reading-header" && hasContinueReadingHeader)
                 ) && <div
                     data-custom-library-banner-top-spacer
                     className={cn(
@@ -287,7 +288,7 @@ export default function Page() {
                     hasManga &&
                     ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Custom
                     && homeItems[0]?.type !== "manga-discover-header"
-                    && homeItems[0]?.type !== "manga-continue-reading-header"
+                    && !(homeItems[0]?.type === "manga-continue-reading-header" && hasContinueReadingHeader)
                 ) && <CustomLibraryBanner isLibraryScreen isHomeScreen />}
 
                 {/* Render manga home items - matching anime home screen pattern */}

@@ -423,7 +423,9 @@ export function MangaContinueReadingHeader({ list, className }: { list: MangaCon
     const setCurrentIndex = useSetAtom(__mangaHeader_setCurrentIndexAtom)
     const [isHoveringHeader, setHoveringHeader] = useAtom(__mangaHeader_hoveringHeaderAtom)
 
-    const currentMangaItem = list[currentIndex] || list[0] || null
+    const mediaList = React.useMemo(() => list.filter(item => !!item.media), [list])
+    const visibleIndex = mediaList.length ? currentIndex % mediaList.length : 0
+    const currentMangaItem = mediaList[visibleIndex] ?? null
     const manga = currentMangaItem?.media ?? null
 
     const shouldBlurBanner = ts.mediaPageBannerType === ThemeMediaPageBannerType.BlurWhenUnavailable &&
@@ -431,18 +433,19 @@ export function MangaContinueReadingHeader({ list, className }: { list: MangaCon
 
     // Walk the recent series when nobody is hovering, the way the anime header does.
     React.useEffect(() => {
-        if (list.length <= 1) return
+        if (mediaList.length <= 1) return
 
         const interval = setInterval(() => {
             if (!isHoveringHeader) {
-                setCurrentIndex((currentIndex + 1) % list.length)
+                setCurrentIndex((currentIndex % mediaList.length + 1) % mediaList.length)
             }
         }, 8000)
 
         return () => clearInterval(interval)
-    }, [currentIndex, list.length, isHoveringHeader, setCurrentIndex])
+    }, [currentIndex, mediaList.length, isHoveringHeader, setCurrentIndex])
 
-    if (!list.length) return null
+    // Keep metadata-free history entries in the carousel, but don't reserve a blank hero for one.
+    if (!mediaList.length) return null
 
     return (
         <motion.div
@@ -476,8 +479,8 @@ export function MangaContinueReadingHeader({ list, className }: { list: MangaCon
             </AnimatePresence>
 
             <HeaderCarouselDots
-                totalManga={list.length}
-                currentIndex={currentIndex}
+                totalManga={mediaList.length}
+                currentIndex={visibleIndex}
                 onIndexChange={setCurrentIndex}
             />
         </motion.div>

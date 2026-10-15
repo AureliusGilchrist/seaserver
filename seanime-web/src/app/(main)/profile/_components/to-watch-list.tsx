@@ -13,9 +13,9 @@ import { cn } from "@/components/ui/core/styling"
 import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { useRouter } from "@/lib/navigation"
 import { formatNumber } from "@/lib/helpers/number"
-import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core"
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core"
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers"
-import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import capitalize from "lodash/capitalize"
 import React from "react"
@@ -60,6 +60,7 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
         useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
     )
     const [draggingId, setDraggingId] = React.useState<string | null>(null)
     const dragging = items.find(e => toWatchKey(e) === draggingId) ?? null
@@ -91,14 +92,15 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
 
     if (items.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="w-16 h-16 rounded-2xl bg-gray-900/70 border border-gray-800 flex items-center justify-center mb-5">
-                    <LuListVideo className="text-3xl text-brand-300" />
+            <div className="relative isolate flex flex-col items-center justify-center overflow-hidden rounded-3xl border border-white/10 bg-black/25 px-6 py-16 text-center shadow-xl shadow-black/20 backdrop-blur-2xl">
+                <div className="pointer-events-none absolute -top-24 size-56 rounded-full bg-brand-500/15 blur-3xl" />
+                <div className="relative mb-5 flex size-16 items-center justify-center rounded-2xl border border-brand-300/20 bg-brand-400/10 shadow-lg shadow-brand-950/30">
+                    <LuListVideo className="size-8 text-brand-200" />
                 </div>
-                <p className="text-lg font-medium">Nothing on the list yet</p>
-                <p className="text-sm text-[--muted] max-w-md mt-1">
+                <p className="relative text-lg font-semibold tracking-tight">Your next favorite starts here</p>
+                <p className="relative mt-2 max-w-md text-sm leading-relaxed text-[--muted]">
                     {isSelf
-                        ? "Add anime or manga from its page, then arrange what you plan to watch or read."
+                        ? "Add anime or manga from its page and build a personal queue. Drag items into the order you want to watch or read them."
                         : "This person hasn't added anything to their todo list yet."}
                 </p>
             </div>
@@ -108,15 +110,29 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
     return (
         <div className="space-y-4">
             {isSelf && (
-                <div className="flex items-center gap-3 flex-wrap">
-                    <p className="text-sm text-[--muted]">
-                        <span className="text-gray-200 font-medium tabular-nums">{formatNumber(items.length)}</span> on the list — next up:{" "}
-                        <span className="text-gray-200">{items[0]!.title}</span>
-                    </p>
+                <div className="relative isolate overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-r from-brand-500/[0.12] via-black/30 to-black/40 p-4 shadow-lg shadow-black/20 backdrop-blur-xl sm:p-5">
+                    <div className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-brand-400/10 blur-3xl" />
+                    <div className="relative flex flex-wrap items-center gap-3">
+                        <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-brand-300/20 bg-brand-400/10 text-brand-200">
+                            <LuListVideo className="size-5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <span className="text-xs font-bold uppercase tracking-[0.16em] text-brand-200">Your queue</span>
+                                <span className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-0.5 text-xs font-semibold tabular-nums text-white/80">
+                                    {formatNumber(items.length)} {items.length === 1 ? "item" : "items"}
+                                </span>
+                            </div>
+                            <p className="mt-1 truncate text-sm text-white/75">
+                                Up next: <span className="font-semibold text-white">{items[0]!.title}</span>
+                            </p>
+                            <p className="mt-0.5 text-xs text-[--muted]">Drag a handle to reorder. Your changes save automatically.</p>
+                        </div>
                     <div className="flex-1" />
                     <Button intent="gray-outline" size="sm" leftIcon={<LuTrash2 />} onClick={clearConfirmation.open}>
                         Clear
                     </Button>
+                    </div>
                 </div>
             )}
 
@@ -136,7 +152,6 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
                                 position={index + 1}
                                 readOnly={!isSelf}
                                 onRemove={isSelf ? () => removeItem({ mediaId: toWatchMediaId(entry), mediaType: toWatchMediaType(entry) }) : undefined}
-                                isDragging={draggingId === toWatchKey(entry)}
                             />
                         ))}
                     </div>
@@ -145,7 +160,7 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
                 {/* The card being carried, above everything while it moves. */}
                 <DragOverlay dropAnimation={{ duration: 180, easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)" }}>
                     {dragging && (
-                        <ToWatchCard entry={dragging} position={items.findIndex(e => toWatchKey(e) === draggingId) + 1} readOnly isOverlay />
+                        <ToWatchCardPreview entry={dragging} position={items.findIndex(e => toWatchKey(e) === draggingId) + 1} />
                     )}
                 </DragOverlay>
             </DndContext>
@@ -207,69 +222,71 @@ function ToWatchCover({ src, alt }: { src: string, alt: string }) {
  * recognisable, the title, the description that answers "should I watch this?", the metadata it
  * carries, and the button that starts it.
  */
-function ToWatchCard({
-    entry,
-    position,
-    readOnly,
-    onRemove,
-    isDragging,
-    isOverlay,
-}: {
+type ToWatchCardData = {
     entry: ToWatchEntry
     position: number
     readOnly?: boolean
     onRemove?: () => void
-    isDragging?: boolean
     isOverlay?: boolean
-}) {
+}
+
+function ToWatchCard({ entry, position, readOnly, onRemove }: ToWatchCardData) {
+    const sortable = useSortable({ id: toWatchKey(entry), disabled: !!readOnly })
+    return <ToWatchCardVisual entry={entry} position={position} readOnly={readOnly} onRemove={onRemove} sortable={sortable} />
+}
+
+function ToWatchCardPreview({ entry, position }: { entry: ToWatchEntry, position: number }) {
+    return <ToWatchCardVisual entry={entry} position={position} readOnly isOverlay />
+}
+
+function ToWatchCardVisual({
+    entry,
+    position,
+    readOnly,
+    onRemove,
+    isOverlay,
+    sortable,
+}: ToWatchCardData & { sortable?: ReturnType<typeof useSortable> }) {
     const router = useRouter()
     const mediaType = toWatchMediaType(entry)
     const mediaId = toWatchMediaId(entry)
     const href = mediaType === "MANGA" ? `/manga/entry?id=${mediaId}` : `/entry?id=${mediaId}`
 
-    const {
-        attributes,
-        listeners,
-        setNodeRef,
-        transform,
-        transition,
-        isDragging: isSortDragging,
-    } = useSortable({ id: toWatchKey(entry), disabled: !!readOnly })
-
     const seasonYear = toWatchSeasonYear(entry)
 
     return (
         <div
-            ref={setNodeRef}
-            {...attributes}
+            ref={sortable?.setNodeRef}
             style={{
-                transform: CSS.Transform.toString(transform ? { ...transform, scaleY: 1 } : null),
-                transition,
+                transform: CSS.Transform.toString(sortable?.transform ? { ...sortable.transform, scaleY: 1 } : null),
+                transition: sortable?.transition,
             }}
             className={cn(
-                "relative z-[1] flex items-stretch gap-3 rounded-xl border border-white/10 bg-black/25 backdrop-blur-md overflow-hidden",
-                "transition-colors",
-                isSortDragging
-                    ? "border-brand-500/70 opacity-40"
-                    : "border-white/10 hover:border-white/20",
-                isOverlay && "border-brand-500/70 shadow-2xl shadow-black/60 bg-gray-900",
+                "group relative z-[1] flex min-h-[104px] items-stretch gap-2 overflow-hidden rounded-2xl border bg-gradient-to-r from-white/[0.04] via-black/30 to-black/40 shadow-lg shadow-black/20 backdrop-blur-xl transition-[border-color,background-color,box-shadow,opacity] duration-200 sm:gap-3",
+                sortable?.isDragging
+                    ? "border-brand-300/50 opacity-35"
+                    : "border-white/10 hover:border-brand-300/35 hover:bg-white/[0.04]",
+                isOverlay && "border-brand-300/60 bg-gray-950/90 shadow-2xl shadow-brand-950/60 ring-1 ring-brand-300/25",
             )}
         >
-            {/* The grab handle. The order is changed from here and nowhere else — the rest of the
-                card is for reading and starting. */}
             {!readOnly && (
                 <button
-                    {...listeners}
-                    aria-label="Drag to reorder"
-                    className="flex items-center justify-center w-7 flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-600 hover:text-gray-300 touch-none"
+                    ref={sortable?.setActivatorNodeRef}
+                    {...sortable?.attributes}
+                    {...sortable?.listeners}
+                    type="button"
+                    aria-label={`Drag to reorder ${entry.title}`}
+                    title="Drag to reorder"
+                    className="group/handle my-2 ml-2 flex w-10 shrink-0 touch-none cursor-grab items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.025] text-white/45 transition hover:border-brand-300/25 hover:bg-brand-400/10 hover:text-brand-100 active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-300 sm:my-3 sm:ml-3 sm:w-11"
                 >
-                    <LuGripVertical className="w-4 h-4" />
+                    <LuGripVertical className="size-5 transition-transform group-hover/handle:scale-110" />
                 </button>
             )}
 
-            {/* Where it sits in the order. A list is a sequence, so the number is information. */}
-            <div className="flex items-center justify-center w-8 flex-shrink-0 text-[--muted]">
-                <span className="text-sm font-semibold tabular-nums">{position}</span>
+            <div className="flex shrink-0 items-center justify-center">
+                <span className="grid size-7 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-xs font-bold tabular-nums text-white/70">
+                    {position}
+                </span>
             </div>
 
             {entry.coverImage ? (
@@ -338,6 +355,7 @@ function ToWatchCard({
 
             <div className="flex items-center gap-1.5 flex-shrink-0 pr-3">
                 <Button
+                    type="button"
                     size="sm"
                     intent="primary"
                     leftIcon={mediaType === "MANGA" ? <LuBookOpen /> : <LuPlay />}
@@ -347,6 +365,7 @@ function ToWatchCard({
                 </Button>
                 {!readOnly && onRemove && (
                     <Button
+                        type="button"
                         size="sm"
                         intent="gray-outline"
                         className="px-2"
