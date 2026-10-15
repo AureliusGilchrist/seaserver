@@ -19,7 +19,6 @@ import capitalize from "lodash/capitalize"
 import startCase from "lodash/startCase"
 import React, { memo } from "react"
 import { BiCalendarAlt } from "react-icons/bi"
-import { IoLibrarySharp } from "react-icons/io5"
 import { RiSignalTowerLine } from "react-icons/ri"
 
 type MediaEntryCardContainerProps = {
@@ -409,7 +408,7 @@ export function MediaEntryCardBody(props: MediaEntryCardBodyProps) {
                      `showMangaDownloadedBadge` used to decide this from a chapter-count ratio the
                      card computed itself, which meant a card could only ever say "downloaded" and
                      only when the count happened to be to hand. */}
-                    {type === "manga" && <MangaBadge mediaId={mediaId} variant="overlay" />}
+                    {type === "manga" && <MangaBadge mediaId={mediaId} inLibrary={showLibraryBadge} variant="overlay" />}
 
                     {/* Anime: downloading, downloaded or matched — whichever it is, drawn once.
                      Pinned to the cover art itself, above the gradient, the adult-content blur and

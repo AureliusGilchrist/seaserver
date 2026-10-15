@@ -100,6 +100,7 @@ const SYNTHETIC_CLASS = "bg-gradient-to-r from-amber-500 to-orange-500 text-whit
 
 export type MangaBadgeProps = {
     mediaId: number | null | undefined
+    inLibrary?: boolean
     /**
      * "badge" is the pill used in prose-like rows (entry page).
      * "compact" is the smaller marker used over artwork.
@@ -117,35 +118,39 @@ export type MangaBadgeProps = {
  * be dropped anywhere a manga is shown without the caller checking first.
  */
 export function MangaBadge(props: MangaBadgeProps) {
-    const { mediaId, variant = "badge", size = "sm", hideSyntheticTag = false, className } = props
+    const { mediaId, inLibrary = false, variant = "badge", size = "sm", hideSyntheticTag = false, className } = props
 
     const { state, isSynthetic } = useMangaBadgeState(mediaId)
     const showSynthetic = isSynthetic && !hideSyntheticTag
+    const showInLibrary = inLibrary && state !== "downloading"
 
-    if (!state && !showSynthetic) return null
+    if (!state && !showSynthetic && !showInLibrary) return null
 
     const presentation = state ? STATE_PRESENTATION[state] : null
-    const Icon = presentation?.icon
+    const badgePresentation = showInLibrary ? STATE_PRESENTATION.matched : presentation
+    const badgeLabel = showInLibrary ? "In library" : presentation?.label
+    const Icon = badgePresentation?.icon
 
     if (variant === "overlay") {
         return (
             <div
                 data-manga-badge-overlay
-                data-badge-state={state ?? "none"}
+                data-badge-state={showInLibrary ? "in-library" : state ?? "none"}
                 data-synthetic={showSynthetic || undefined}
                 // Above the card's own layers — the bottom gradient sits at z-5 and the
                 // adult-content blur at z-3, so anything lower gets painted over.
                 className={cn("absolute z-[15] left-0 top-0 flex items-start pointer-events-none", className)}
             >
-                {presentation && Icon && (
+                {badgePresentation && Icon && (
                     <Badge
                         size="xl"
                         intent="primary-solid"
-                        title={presentation.label}
-                        aria-label={presentation.label}
-                        className={cn("rounded-[--radius] rounded-bl-none rounded-tr-none", presentation.overlayClass)}
+                        title={badgeLabel}
+                        aria-label={badgeLabel}
+                        className={cn("rounded-[--radius] rounded-bl-none rounded-tr-none", badgePresentation.overlayClass)}
                     >
                         <Icon className="h-5 w-5" />
+                        {showInLibrary && <span>In library</span>}
                     </Badge>
                 )}
                 {showSynthetic && (
@@ -154,7 +159,7 @@ export function MangaBadge(props: MangaBadgeProps) {
                         title="Synthetic — described locally rather than from AniList"
                         className={cn(
                             "inline-flex h-8 items-center gap-1.5 border-l border-white/25 px-2.5 text-[10px] font-bold uppercase tracking-[0.12em]",
-                            presentation ? "rounded-br" : "rounded-bl-none rounded-br rounded-tr-none rounded-tl-[--radius]",
+                            badgePresentation ? "rounded-br" : "rounded-bl-none rounded-br rounded-tr-none rounded-tl-[--radius]",
                             SYNTHETIC_CLASS,
                         )}
                     >
@@ -169,18 +174,18 @@ export function MangaBadge(props: MangaBadgeProps) {
     if (variant === "compact") {
         return (
             <span data-manga-badge-compact className={cn("inline-flex items-center gap-1", className)}>
-                {presentation && Icon && (
+                {badgePresentation && Icon && (
                     <span
-                        data-badge-state={state}
-                        title={presentation.label}
-                        aria-label={presentation.label}
+                        data-badge-state={showInLibrary ? "in-library" : state}
+                        title={badgeLabel}
+                        aria-label={badgeLabel}
                         className={cn(
                             "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[10px] uppercase tracking-wider font-medium",
                             "bg-black/40 backdrop-blur-sm border",
-                            presentation.compactClass,
+                            badgePresentation.compactClass,
                         )}
                     >
-                        <Icon className="h-3 w-3" /> {presentation.label}
+                        <Icon className="h-3 w-3" /> {badgeLabel}
                     </span>
                 )}
                 {showSynthetic && (
@@ -201,16 +206,16 @@ export function MangaBadge(props: MangaBadgeProps) {
 
     return (
         <span data-manga-badge className={cn("inline-flex items-center gap-2", className)}>
-            {presentation && Icon && (
+            {badgePresentation && Icon && (
                 <Badge
-                    data-badge-state={state}
+                    data-badge-state={showInLibrary ? "in-library" : state}
                     size={size === "lg" ? "lg" : "md"}
                     intent="unstyled"
                     leftIcon={<Icon />}
                     iconSpacing="0.35rem"
-                    className={presentation.pillClass}
+                    className={badgePresentation.pillClass}
                 >
-                    {presentation.label}
+                    {badgeLabel}
                 </Badge>
             )}
             {showSynthetic && (
