@@ -21,7 +21,7 @@ import { MangaDiscoverHeader } from "@/app/(main)/manga/_containers/manga-discov
 import { MangaUpcomingChapters } from "@/app/(main)/manga/_containers/manga-upcoming-chapters"
 import { MangaRecentlyReleased } from "@/app/(main)/manga/_containers/manga-recently-released"
 import { MangaMissedSequels } from "@/app/(main)/manga/_containers/manga-missed-sequels"
-import { useGetMangaHomeItems } from "@/api/hooks/status.hooks"
+import { useGetMangaHomeItems, useUpdateMangaHomeItems } from "@/api/hooks/status.hooks"
 import { MangaContinueReadingEntry, useMangaContinueReadingList } from "@/app/(main)/manga/_lib/use-manga-continue-reading"
 import { Manga_Collection, Manga_MangaLatestChapterNumberItem } from "@/api/generated/types"
 import { mangaCardSizeAtom, getCardSizeClasses } from "@/app/(main)/_atoms/card-size.atoms"
@@ -41,11 +41,20 @@ import { AnimatePresence } from "motion/react"
 import { useAtomValue } from "jotai/react"
 import { useWindowSize } from "react-use"
 import React from "react"
+import { toast } from "sonner"
 
 export const dynamic = "force-static"
 
+const LOCAL_MANGA_LIBRARY_LAYOUT_MIGRATION_KEY = "sea-manga-home-local-library-migrated-v1"
+
 export default function Page() {
-    const { data: mangaHomeItems } = useGetMangaHomeItems()
+    const {
+        data: mangaHomeItems,
+        isLoading: mangaHomeItemsLoading,
+        isError: mangaHomeItemsError,
+    } = useGetMangaHomeItems()
+    const { mutate: updateMangaHomeItems } = useUpdateMangaHomeItems()
+    const localLibraryMigrationStarted = React.useRef(false)
     const cardSize = useAtomValue(mangaCardSizeAtom)
     const cardSizeClass = getCardSizeClasses(cardSize)
     const { width } = useWindowSize()
@@ -74,6 +83,55 @@ export default function Page() {
 
     const ts = useThemeSettings()
     const handleHoverImage = React.useCallback((_image: string | null) => undefined, [])
+
+    React.useEffect(() => {
+        if (mangaHomeItemsLoading || mangaHomeItemsError || !mangaHomeItems) return
+        if (mangaHomeItems.some(item => item.type === "local-manga-library")) {
+            window.localStorage.setItem(LOCAL_MANGA_LIBRARY_LAYOUT_MIGRATION_KEY, "done")
+            return
+        }
+        if (window.localStorage.getItem(LOCAL_MANGA_LIBRARY_LAYOUT_MIGRATION_KEY) === "done") return
+        if (!mangaHomeItems.length) {
+            window.localStorage.setItem(LOCAL_MANGA_LIBRARY_LAYOUT_MIGRATION_KEY, "done")
+            return
+        }
+        if (localLibraryMigrationStarted.current) return
+
+        localLibraryMigrationStarted.current = true
+        const migratedItems = [...mangaHomeItems]
+        const statsIndex = migratedItems.findIndex(item => item.type === "local-manga-library-stats")
+        const libraryIndex = migratedItems.findIndex(item => item.type === "manga-library")
+        const insertIndex = statsIndex >= 0
+            ? statsIndex + 1
+            : libraryIndex >= 0
+                ? libraryIndex
+                : migratedItems.length
+        migratedItems.splice(insertIndex, 0, {
+            id: "local-manga-library",
+            type: "local-manga-library",
+            schemaVersion: 2,
+            options: {
+                layout: "grid",
+                source: "both",
+            },
+        })
+
+        updateMangaHomeItems({ items: migratedItems }, {
+            onSuccess: () => {
+                window.localStorage.setItem(LOCAL_MANGA_LIBRARY_LAYOUT_MIGRATION_KEY, "done")
+            },
+            onError: () => {
+                toast.error("Could not add the Local Manga Library to your Manga home layout.", {
+                    description: "You can add it from Manga Home settings.",
+                })
+            },
+        })
+    }, [
+        mangaHomeItems,
+        mangaHomeItemsError,
+        mangaHomeItemsLoading,
+        updateMangaHomeItems,
+    ])
 
     // No hover-driven wallpaper here — the theme's background stays put, and the only banners are
     // the continue-reading header's and the library header's, which belong to headers, not to

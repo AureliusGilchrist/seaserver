@@ -587,7 +587,7 @@ export const HOME_ITEMS = {
         name: "Local Manga Library",
         kind: ["row"],
         schemaVersion: 2,
-        description: "Coming soon: complete grid of manga in your local library.",
+        description: "Browse and search manga chapters downloaded for offline reading.",
         options: [
             {
                 label: "Layout",

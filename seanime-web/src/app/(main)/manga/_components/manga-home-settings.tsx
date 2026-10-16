@@ -75,6 +75,15 @@ export const DEFAULT_MANGA_HOME_ITEMS: Models_HomeItem[] = [
         schemaVersion: 1,
     },
     {
+        id: "local-manga-library",
+        type: "local-manga-library",
+        schemaVersion: 2,
+        options: {
+            layout: "grid",
+            source: "both",
+        },
+    },
+    {
         id: "manga-upcoming-chapters",
         type: "manga-upcoming-chapters",
         schemaVersion: 1,
@@ -452,7 +461,7 @@ export function MangaHomeSettingsModal() {
     const { data: _homeItems, isLoading: isLoadingHomeItems } = useGetMangaHomeItems()
     const { mutate: updateHomeItems, isPending: isUpdatingHomeItems } = useUpdateMangaHomeItems()
 
-    const [currentItems, setCurrentItems] = React.useState<Models_HomeItem[]>(_homeItems || DEFAULT_MANGA_HOME_ITEMS)
+    const [currentItems, setCurrentItems] = React.useState<Models_HomeItem[]>(_homeItems?.length ? _homeItems : DEFAULT_MANGA_HOME_ITEMS)
     const availableItems = MANGA_HOME_ITEM_IDS.filter(type => {
         if (type === "manga-carousel" || type === "centered-title" || type === "my-lists") {
             return true
@@ -462,7 +471,7 @@ export function MangaHomeSettingsModal() {
 
     const checkTimeRef = React.useRef<NodeJS.Timeout | null>(null)
     React.useEffect(() => {
-        const homeItems = _homeItems || DEFAULT_MANGA_HOME_ITEMS
+        const homeItems = _homeItems?.length ? _homeItems : DEFAULT_MANGA_HOME_ITEMS
         setCurrentItems(homeItems)
 
         if (checkTimeRef.current) {
