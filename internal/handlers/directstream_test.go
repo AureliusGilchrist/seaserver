@@ -92,3 +92,30 @@ func TestHandleDirectstreamConvertSubsRetriesUnconvertibleSuccess(t *testing.T) 
 		t.Fatalf("expected original provider origin to be preserved on first request, got %#v", origins)
 	}
 }
+
+func TestHandleDirectstreamConvertSubsDetectsSingleCueSRT(t *testing.T) {
+	payload, err := json.Marshal(map[string]any{
+		"content": "1\n00:00:01,000 --> 00:00:02,000\nA single subtitle cue.\n",
+		"to":      "ass",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/directstream/subs/convert-subs", bytes.NewReader(payload))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	handler := &Handler{App: &core.App{VideoCore: &videocore.VideoCore{}}}
+	if err := handler.HandleDirectstreamConvertSubs(c); err != nil {
+		t.Fatal(err)
+	}
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected HTTP 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "A single subtitle cue.") {
+		t.Fatalf("expected converted subtitle in response, got %s", rec.Body.String())
+	}
+}

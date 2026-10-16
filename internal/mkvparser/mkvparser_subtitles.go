@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/5rahim/go-astisub"
@@ -19,21 +20,24 @@ const (
 	SubtitleTypeWEBVTT
 )
 
+var srtTimestampLine = regexp.MustCompile(`(?m)^\s*\d{2}:\d{2}:\d{2}[,.]\d{1,3}\s*-->\s*\d{2}:\d{2}:\d{2}[,.]\d{1,3}(?:\s|$)`)
+
 func isProbablySrt(content string) bool {
-	separatorCounts := strings.Count(content, "-->")
-	return separatorCounts > 5
+	return srtTimestampLine.MatchString(content)
 }
 
 func DetectSubtitleType(content string) int {
-	if strings.HasPrefix(strings.TrimSpace(content), "[Script Info]") {
+	content = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(content), "\uFEFF"))
+	switch {
+	case strings.HasPrefix(content, "[Script Info]"):
 		return SubtitleTypeASS
-	} else if isProbablySrt(content) {
-		return SubtitleTypeSRT
-	} else if strings.Contains(content, "<tt ") || strings.Contains(content, "<tt>") {
-		return SubtitleTypeTTML
-	} else if strings.HasPrefix(strings.TrimSpace(content), "WEBVTT") {
+	case strings.HasPrefix(content, "WEBVTT"):
 		return SubtitleTypeWEBVTT
-	} else if strings.Contains(content, "{\\") || strings.Contains(content, "\\N") {
+	case strings.Contains(content, "<tt ") || strings.Contains(content, "<tt>"):
+		return SubtitleTypeTTML
+	case isProbablySrt(content):
+		return SubtitleTypeSRT
+	case strings.Contains(content, "{\\") || strings.Contains(content, "\\N"):
 		return SubtitleTypeSTL
 	}
 	return SubtitleTypeUnknown

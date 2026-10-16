@@ -37,9 +37,12 @@ export function useRequestMediastreamMediaContainer(variables: Partial<RequestMe
     return useServerQuery<Mediastream_MediaContainer, RequestMediastreamMediaContainer_Variables>({
         endpoint: API_ENDPOINTS.MEDIASTREAM.RequestMediastreamMediaContainer.endpoint,
         method: API_ENDPOINTS.MEDIASTREAM.RequestMediastreamMediaContainer.methods[0],
-        queryKey: [API_ENDPOINTS.MEDIASTREAM.RequestMediastreamMediaContainer.key, variables?.path, variables?.streamType],
+        queryKey: [API_ENDPOINTS.MEDIASTREAM.RequestMediastreamMediaContainer.key, variables?.clientId, variables?.path, variables?.streamType],
         data: variables as RequestMediastreamMediaContainer_Variables,
         enabled: !!variables.path && !!variables.streamType && enabled,
+        staleTime: 0,
+        gcTime: 0,
+        refetchOnMount: "always",
     })
 }
 

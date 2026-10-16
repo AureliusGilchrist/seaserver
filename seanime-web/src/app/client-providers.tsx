@@ -71,6 +71,8 @@ const NON_PERSISTED_QUERY_KEYS = new Set<string>([
     API_ENDPOINTS.ANIME.GetAnimeEpisodeCollection.key,
     API_ENDPOINTS.MANGA.GetMangaEntry.key,
     API_ENDPOINTS.MANGA.GetMangaEntryDetails.key,
+    // A media container contains a per-client live stream URL and must never survive that session.
+    API_ENDPOINTS.MEDIASTREAM.RequestMediastreamMediaContainer.key,
 ])
 
 export const ClientProviders: React.FC<ClientProvidersProps> = ({ children }) => {
