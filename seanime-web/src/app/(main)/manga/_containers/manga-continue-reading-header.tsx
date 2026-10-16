@@ -124,10 +124,12 @@ type MediaMetadataProps = {
 function MediaMetadata({ manga, onHoverChange }: MediaMetadataProps) {
     const ts = useThemeSettings()
     const { setPreviewModalMediaId } = useMediaPreviewModal()
+    const volumeCover = useMangaVolumeCover(manga)
     const { src: coverImage, onError: handleCoverError } = useFallbackImageSource([
         manga.coverImage?.extraLarge,
         manga.coverImage?.large,
         manga.coverImage?.medium,
+        volumeCover,
     ], String(manga.id))
 
     return (
@@ -355,6 +357,7 @@ type BannerImageProps = {
 
 function BannerImage({ manga, isTransitioning, shouldBlurBanner }: BannerImageProps) {
     const ts = useThemeSettings()
+    const volumeCover = useMangaVolumeCover(manga)
     const customBannerImage = !!ts.libraryScreenCustomBannerImage
         && ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Custom
         ? getAssetUrl(ts.libraryScreenCustomBannerImage)
@@ -365,6 +368,7 @@ function BannerImage({ manga, isTransitioning, shouldBlurBanner }: BannerImagePr
         manga?.coverImage?.extraLarge,
         manga?.coverImage?.large,
         manga?.coverImage?.medium,
+        volumeCover,
     ], `${manga?.id ?? "none"}:${customBannerImage ?? ""}`)
     const isPrimaryBanner = !!bannerImage && (bannerImage === customBannerImage || bannerImage === manga?.bannerImage)
 
