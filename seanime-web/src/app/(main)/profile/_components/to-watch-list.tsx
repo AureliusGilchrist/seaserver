@@ -13,13 +13,11 @@ import { cn } from "@/components/ui/core/styling"
 import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { useRouter } from "@/lib/navigation"
 import { formatNumber } from "@/lib/helpers/number"
-import { closestCenter, DndContext, DragEndEvent, DragOverlay, DragStartEvent, KeyboardSensor, MouseSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core"
-import { restrictToVerticalAxis } from "@dnd-kit/modifiers"
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
-import { CSS } from "@dnd-kit/utilities"
+import { useQueryClient } from "@tanstack/react-query"
 import capitalize from "lodash/capitalize"
+import { AnimatePresence, motion } from "motion/react"
 import React from "react"
-import { LuBookOpen, LuGripVertical, LuLayers, LuListVideo, LuPlay, LuTrash2, LuTv, LuX } from "react-icons/lu"
+import { LuBookOpen, LuChevronDown, LuChevronUp, LuLayers, LuListVideo, LuPlay, LuTrash2, LuTv, LuX } from "react-icons/lu"
 
 /**
  * The todo list: anime and manga somebody means to watch or read, in the order they arranged.
@@ -30,8 +28,9 @@ import { LuBookOpen, LuGripVertical, LuLayers, LuListVideo, LuPlay, LuTrash2, Lu
  * "should I watch this?" is answered from; the metadata sits to the right of it; and the button
  * that starts it is on the far right.
  *
- * The order is changed with a grab handle, and one drag is one request: the whole order is sent
- * whole, so a move lands as the arrangement that was made rather than a sequence of swaps.
+ * The order is changed with up/down arrows, and one move is one request: the whole order is sent
+ * whole, so a move lands as the arrangement that was made. The cache is updated first so the cards
+ * glide to their new places immediately.
  *
  * It starts blank and every entry on it was put there deliberately from a media entry page. It is
  * allowed to be as long as its owner wants — thousands is a list.
@@ -58,43 +57,31 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
     })
 
     const router = useRouter()
+    const queryClient = useQueryClient()
 
-    // The drag is a pointer grab on the handle only — scrolling the strip must never start a drag,
-    // which is what a listener on the whole card would do on a phone.
-    const sensors = useSensors(
-        useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
-        useSensor(TouchSensor, { activationConstraint: { distance: 4 } }),
-        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-    )
-    const [draggingId, setDraggingId] = React.useState<string | null>(null)
-    const dragging = visibleItems.find(e => toWatchKey(e) === draggingId) ?? null
+    const moveItem = React.useCallback((key: string, direction: -1 | 1) => {
+        const from = visibleItems.findIndex(e => toWatchKey(e) === key)
+        const to = from + direction
+        if (from < 0 || to < 0 || to >= visibleItems.length) return
 
-    const handleDragStart = React.useCallback((event: DragStartEvent) => {
-        setDraggingId(String(event.active.id))
-    }, [])
+        const nextVisibleItems = [...visibleItems]
+        ;[nextVisibleItems[from], nextVisibleItems[to]] = [nextVisibleItems[to]!, nextVisibleItems[from]!]
 
-    const handleDragEnd = React.useCallback((event: DragEndEvent) => {
-        setDraggingId(null)
-        const { active, over } = event
-        if (!over || active.id === over.id) return
-
-        const oldIndex = visibleItems.findIndex(e => toWatchKey(e) === active.id)
-        const newIndex = visibleItems.findIndex(e => toWatchKey(e) === over.id)
-        if (oldIndex < 0 || newIndex < 0) return
-
-        const nextVisibleItems = arrayMove(visibleItems, oldIndex, newIndex)
+        // Under a filter, the visible entries keep the slots they already occupy in the full list.
         const nextItems = [...items]
-        const visibleIndexes = items.reduce<number[]>((indexes, entry, index) => {
-            if (filter === "all" || (filter === "anime" && toWatchMediaType(entry) === "ANIME") || (filter === "manga" && toWatchMediaType(entry) === "MANGA")) {
-                indexes.push(index)
+        let slot = 0
+        items.forEach((entry, index) => {
+            if (filter === "all" || toWatchMediaType(entry) === (filter === "anime" ? "ANIME" : "MANGA")) {
+                nextItems[index] = nextVisibleItems[slot++]!
             }
-            return indexes
-        }, [])
-        visibleIndexes.forEach((itemIndex, index) => {
-            nextItems[itemIndex] = nextVisibleItems[index]!
         })
-        reorder({ items: nextItems.map(e => ({ mediaId: toWatchMediaId(e), mediaType: toWatchMediaType(e) })) })
-    }, [filter, items, reorder, visibleItems])
+
+        queryClient.setQueryData(["to-watch"], nextItems)
+        reorder(
+            { items: nextItems.map(e => ({ mediaId: toWatchMediaId(e), mediaType: toWatchMediaType(e) })) },
+            { onError: () => queryClient.invalidateQueries({ queryKey: ["to-watch"] }) },
+        )
+    }, [filter, items, queryClient, reorder, visibleItems])
 
     if (loading) {
         return (
@@ -114,7 +101,7 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
                 <p className="relative text-lg font-semibold tracking-tight">Your next favorite starts here</p>
                 <p className="relative mt-2 max-w-md text-sm leading-relaxed text-[--muted]">
                     {isSelf
-                        ? "Add anime or manga from its page and build a personal todo list. Drag items into the order you want to watch or read them."
+                        ? "Add anime or manga from its page and build a personal todo list. Use the arrows to put items in the order you want to watch or read them."
                         : "This person hasn't added anything to their todo list yet."}
                 </p>
             </div>
@@ -168,7 +155,7 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
                             {visibleItems[0] && <p className="mt-1 truncate text-sm text-white/75">
                                 Up next: <span className="font-semibold text-white">{visibleItems[0].title}</span>
                             </p>}
-                            <p className="mt-0.5 text-xs text-[--muted]">Drag a handle to reorder. Your changes save automatically.</p>
+                            <p className="mt-0.5 text-xs text-[--muted]">Use the arrows to reorder. Your changes save automatically.</p>
                         </div>
                     <div className="flex-1" />
                     <Button intent="gray-outline" size="sm" leftIcon={<LuTrash2 />} onClick={clearConfirmation.open}>
@@ -186,34 +173,22 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
                     </p>
                 </div>
             ) : (
-                <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    modifiers={[restrictToVerticalAxis]}
-                    onDragStart={handleDragStart}
-                    onDragEnd={handleDragEnd}
-                    onDragCancel={() => setDraggingId(null)}
-                >
-                    <SortableContext items={visibleItems.map(toWatchKey)} strategy={verticalListSortingStrategy}>
-                        <div className="space-y-2.5">
-                            {visibleItems.map((entry, index) => (
-                                <ToWatchCard
-                                    key={toWatchKey(entry)}
-                                    entry={entry}
-                                    position={index + 1}
-                                    readOnly={!isSelf}
-                                    onRemove={isSelf ? () => removeItem({ mediaId: toWatchMediaId(entry), mediaType: toWatchMediaType(entry) }) : undefined}
-                                />
-                            ))}
-                        </div>
-                    </SortableContext>
-
-                    <DragOverlay dropAnimation={{ duration: 180, easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)" }}>
-                        {dragging && (
-                            <ToWatchCardPreview entry={dragging} position={visibleItems.findIndex(e => toWatchKey(e) === draggingId) + 1} />
-                        )}
-                    </DragOverlay>
-                </DndContext>
+                <motion.div layout className="space-y-2.5">
+                    <AnimatePresence initial={false} mode="popLayout">
+                        {visibleItems.map((entry, index) => (
+                            <ToWatchCard
+                                key={toWatchKey(entry)}
+                                entry={entry}
+                                position={index + 1}
+                                readOnly={!isSelf}
+                                canMoveUp={index > 0}
+                                canMoveDown={index < visibleItems.length - 1}
+                                onMove={(direction) => moveItem(toWatchKey(entry), direction)}
+                                onRemove={isSelf ? () => removeItem({ mediaId: toWatchMediaId(entry), mediaType: toWatchMediaType(entry) }) : undefined}
+                            />
+                        ))}
+                    </AnimatePresence>
+                </motion.div>
             )}
 
             <ConfirmationDialog {...clearConfirmation} />
@@ -277,27 +252,13 @@ type ToWatchCardData = {
     entry: ToWatchEntry
     position: number
     readOnly?: boolean
+    canMoveUp?: boolean
+    canMoveDown?: boolean
+    onMove?: (direction: -1 | 1) => void
     onRemove?: () => void
-    isOverlay?: boolean
 }
 
-function ToWatchCard({ entry, position, readOnly, onRemove }: ToWatchCardData) {
-    const sortable = useSortable({ id: toWatchKey(entry), disabled: !!readOnly })
-    return <ToWatchCardVisual entry={entry} position={position} readOnly={readOnly} onRemove={onRemove} sortable={sortable} />
-}
-
-function ToWatchCardPreview({ entry, position }: { entry: ToWatchEntry, position: number }) {
-    return <ToWatchCardVisual entry={entry} position={position} readOnly isOverlay />
-}
-
-function ToWatchCardVisual({
-    entry,
-    position,
-    readOnly,
-    onRemove,
-    isOverlay,
-    sortable,
-}: ToWatchCardData & { sortable?: ReturnType<typeof useSortable> }) {
+function ToWatchCard({ entry, position, readOnly, canMoveUp, canMoveDown, onMove, onRemove }: ToWatchCardData) {
     const router = useRouter()
     const mediaType = toWatchMediaType(entry)
     const mediaId = toWatchMediaId(entry)
@@ -306,32 +267,38 @@ function ToWatchCardVisual({
     const seasonYear = toWatchSeasonYear(entry)
 
     return (
-        <div
-            ref={sortable?.setNodeRef}
-            style={{
-                transform: CSS.Transform.toString(sortable?.transform ? { ...sortable.transform, scaleY: 1 } : null),
-                transition: sortable?.transition,
+        <motion.div
+            layout="position"
+            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={{
+                layout: { type: "spring", stiffness: 500, damping: 40, mass: 0.9 },
+                opacity: { duration: 0.2 },
+                default: { type: "spring", stiffness: 400, damping: 32 },
             }}
-            className={cn(
-                "group relative z-[1] flex min-h-[104px] items-stretch gap-2 overflow-hidden rounded-2xl border bg-gradient-to-r from-white/[0.04] via-black/30 to-black/40 shadow-lg shadow-black/20 backdrop-blur-xl transition-[border-color,background-color,box-shadow,opacity] duration-200 sm:gap-3",
-                sortable?.isDragging
-                    ? "border-brand-300/50 opacity-35"
-                    : "border-white/10 hover:border-brand-300/35 hover:bg-white/[0.04]",
-                isOverlay && "border-brand-300/60 bg-gray-950/90 shadow-2xl shadow-brand-950/60 ring-1 ring-brand-300/25",
-            )}
+            className="group relative z-[1] flex min-h-[104px] items-stretch gap-2 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-r from-white/[0.04] via-black/30 to-black/40 shadow-lg shadow-black/20 backdrop-blur-xl transition-[border-color,background-color,box-shadow] duration-200 hover:border-brand-300/35 hover:bg-white/[0.04] sm:gap-3"
         >
             {!readOnly && (
-                <button
-                    ref={sortable?.setActivatorNodeRef}
-                    {...sortable?.attributes}
-                    {...sortable?.listeners}
-                    type="button"
-                    aria-label={`Drag to reorder ${entry.title}`}
-                    title="Drag to reorder"
-                    className="group/handle my-2 ml-2 flex w-10 shrink-0 touch-none cursor-grab items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.025] text-white/45 transition hover:border-brand-300/25 hover:bg-brand-400/10 hover:text-brand-100 active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-300 sm:my-3 sm:ml-3 sm:w-11"
-                >
-                    <LuGripVertical className="size-5 transition-transform group-hover/handle:scale-110" />
-                </button>
+                <div className="my-2 ml-2 flex w-10 shrink-0 flex-col gap-1 sm:my-3 sm:ml-3 sm:w-11">
+                    {([
+                        { dir: -1, enabled: canMoveUp, Icon: LuChevronUp, label: "Move up" },
+                        { dir: 1, enabled: canMoveDown, Icon: LuChevronDown, label: "Move down" },
+                    ] as const).map(({ dir, enabled, Icon, label }) => (
+                        <motion.button
+                            key={dir}
+                            type="button"
+                            disabled={!enabled}
+                            whileTap={enabled ? { scale: 0.85 } : undefined}
+                            onClick={() => onMove?.(dir)}
+                            aria-label={`${label}: ${entry.title}`}
+                            title={label}
+                            className="flex flex-1 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.025] text-white/60 transition-colors hover:border-brand-300/30 hover:bg-brand-400/15 hover:text-brand-100 disabled:cursor-not-allowed disabled:opacity-25 disabled:hover:border-white/[0.06] disabled:hover:bg-white/[0.025] disabled:hover:text-white/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-300"
+                        >
+                            <Icon className="size-5" />
+                        </motion.button>
+                    ))}
+                </div>
             )}
 
             <div className="flex shrink-0 items-center justify-center">
@@ -427,6 +394,6 @@ function ToWatchCardVisual({
                     </Button>
                 )}
             </div>
-        </div>
+        </motion.div>
     )
 }
