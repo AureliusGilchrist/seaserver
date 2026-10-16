@@ -71,9 +71,9 @@ export function OfflineSidebar() {
                 <div>
                     <div className="mb-4 p-4 pb-0 flex justify-center w-full">
                         <img
-                            src="/seanime-logo.png"
-                            alt="logo"
-                            className="w-15 h-10 transition-all duration-300"
+                            src="/deus-ex-aeternae-emblem.svg"
+                            alt="Deus ex Aeternae"
+                            className="size-10 transition-all duration-300"
                         />
                     </div>
                     <VerticalMenu

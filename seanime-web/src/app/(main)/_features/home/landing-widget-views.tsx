@@ -4,8 +4,12 @@ import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
 import { useGetToWatch } from "@/api/hooks/towatch.hooks"
 import { useGetUnmatchedTorrents } from "@/api/hooks/unmatched.hooks"
 import { useGetAchievementSummary } from "@/api/hooks/achievement.hooks"
+import { useAnilistListRecentAiringAnime } from "@/api/hooks/anilist.hooks"
+import { useGetTorrentAddQueue } from "@/api/hooks/torrent_client.hooks"
 import { useMissingEpisodeCount } from "@/app/(main)/_hooks/missing-episodes-loader"
 import { useGetMangaCollection } from "@/api/hooks/manga.hooks"
+import { MangaContinueReading } from "@/app/(main)/manga/_containers/manga-continue-reading"
+import { useMangaContinueReadingList } from "@/app/(main)/manga/_lib/use-manga-continue-reading"
 import { LANDING_QUICK_LINKS, useLandingFolders } from "@/app/(main)/_features/home/landing-widgets"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { SeaLink } from "@/components/shared/sea-link"
@@ -164,25 +168,29 @@ function QuickLinkCard({ link }: { link: typeof LANDING_QUICK_LINKS[number] }) {
 }
 
 export function LandingAnimeStatsWidget() {
-    const { data: libraryCollection } = useGetLibraryCollection({ staleTime: 30_000 })
-
-    const count = React.useMemo(() => {
-        let total = 0
-        for (const list of libraryCollection?.lists ?? []) {
-            total += list.entries?.length ?? 0
-        }
-        return total
-    }, [libraryCollection])
-
-    const watching = libraryCollection?.lists?.find(l => l.type === "CURRENT")?.entries?.length ?? 0
+    const { data: libraryCollection, isLoading } = useGetLibraryCollection({ staleTime: 30_000 })
+    const entries = React.useMemo(
+        () => libraryCollection?.lists?.flatMap(list => list.entries ?? []) ?? [],
+        [libraryCollection],
+    )
+    const episodesWatched = entries.reduce((total, entry) => total + (entry.listData?.progress ?? 0), 0)
+    const episodesTotal = entries.reduce((total, entry) => total + (entry.media?.episodes ?? 0), 0)
+    const completed = libraryCollection?.lists?.find(list => list.type === "COMPLETED")?.entries?.length ?? 0
+    const watching = (libraryCollection?.lists?.find(list => list.type === "CURRENT")?.entries?.length ?? 0)
+        + (libraryCollection?.lists?.find(list => list.type === "REPEATING")?.entries?.length ?? 0)
+    const progress = episodesTotal > 0 ? `${Math.min(100, Math.round((episodesWatched / episodesTotal) * 100))}%` : "—"
 
     return (
         <StatsDoor
             title="Anime"
             icon={<LuMonitorPlay className="w-5 h-5" />}
             stats={[
-                { label: "in your library", value: count },
-                { label: "watching", value: watching },
+                { label: "in your library", value: isLoading ? null : entries.length },
+                { label: "watching / rewatching", value: isLoading ? null : watching },
+                { label: "completed", value: isLoading ? null : completed },
+                { label: "episodes watched", value: isLoading ? null : episodesWatched },
+                { label: "progress", value: isLoading ? null : progress },
+                { label: "local files", value: isLoading ? null : libraryCollection?.stats?.totalFiles ?? 0 },
             ]}
             href="/anime"
         />
@@ -190,25 +198,26 @@ export function LandingAnimeStatsWidget() {
 }
 
 export function LandingMangaStatsWidget() {
-    const { data: mangaCollection } = useGetMangaCollection()
-
-    const count = React.useMemo(() => {
-        let total = 0
-        for (const list of mangaCollection?.lists ?? []) {
-            total += list.entries?.length ?? 0
-        }
-        return total
-    }, [mangaCollection])
-
-    const reading = mangaCollection?.lists?.find(l => l.type === "CURRENT")?.entries?.length ?? 0
+    const { data: mangaCollection, isLoading } = useGetMangaCollection()
+    const entries = React.useMemo(
+        () => mangaCollection?.lists?.flatMap(list => list.entries ?? []) ?? [],
+        [mangaCollection],
+    )
+    const reading = mangaCollection?.lists?.find(list => list.type === "CURRENT")?.entries?.length ?? 0
+    const completed = mangaCollection?.lists?.find(list => list.type === "COMPLETED")?.entries?.length ?? 0
+    const chaptersRead = entries.reduce((total, entry) => total + (entry.listData?.progress ?? 0), 0)
+    const chaptersDownloaded = entries.reduce((total, entry) => total + (entry.downloadedChapterCount ?? 0), 0)
 
     return (
         <StatsDoor
             title="Manga"
             icon={<BiBook className="w-5 h-5" />}
             stats={[
-                { label: "in your library", value: count },
-                { label: "reading", value: reading },
+                { label: "in your library", value: isLoading ? null : entries.length },
+                { label: "currently reading", value: isLoading ? null : reading },
+                { label: "completed", value: isLoading ? null : completed },
+                { label: "chapters read", value: isLoading ? null : chaptersRead },
+                { label: "chapters downloaded", value: isLoading ? null : chaptersDownloaded },
             ]}
             href="/manga"
         />
@@ -217,6 +226,14 @@ export function LandingMangaStatsWidget() {
 
 export function LandingScheduleWidget() {
     const missingEpisodes = useMissingEpisodeCount()
+    const now = React.useMemo(() => Math.floor(Date.now() / 1000), [])
+    const { data: upcoming } = useAnilistListRecentAiringAnime({
+        page: 1,
+        perPage: 50,
+        airingAt_greater: now,
+        airingAt_lesser: now + 7 * 24 * 60 * 60,
+        notYetAired: true,
+    })
 
     return (
         <StatsDoor
@@ -224,6 +241,40 @@ export function LandingScheduleWidget() {
             icon={<LuCalendar className="w-5 h-5" />}
             stats={[
                 { label: "missing episodes", value: missingEpisodes },
+                { label: "airing this week", value: upcoming?.Page?.airingSchedules?.length ?? 0 },
+            ]}
+            href="/schedule"
+        />
+    )
+}
+
+export function LandingAiringTodayWidget() {
+    const now = React.useMemo(() => Math.floor(Date.now() / 1000), [])
+    const dayEnd = React.useMemo(() => {
+        const end = new Date()
+        end.setHours(24, 0, 0, 0)
+        return Math.floor(end.getTime() / 1000)
+    }, [])
+    const { data, isLoading } = useAnilistListRecentAiringAnime({
+        page: 1,
+        perPage: 50,
+        airingAt_greater: now,
+        airingAt_lesser: dayEnd,
+        notYetAired: true,
+    })
+    const schedules = data?.Page?.airingSchedules ?? []
+    const next = [...schedules].sort((a, b) => a.airingAt - b.airingAt)[0]
+
+    return (
+        <StatsDoor
+            title="Airing today"
+            icon={<LuCalendar className="w-5 h-5" />}
+            stats={[
+                { label: "episodes today", value: isLoading ? null : schedules.length },
+                {
+                    label: "next release",
+                    value: isLoading ? null : next ? `${Math.max(0, Math.ceil(next.timeUntilAiring / 3600))}h` : "none",
+                },
             ]}
             href="/schedule"
         />
@@ -231,14 +282,18 @@ export function LandingScheduleWidget() {
 }
 
 export function LandingToWatchWidget() {
-    const { data: toWatch } = useGetToWatch()
+    const { data: toWatch, isLoading } = useGetToWatch()
+    const animeCount = toWatch?.filter(entry => (entry.mediaType ?? "ANIME") === "ANIME").length ?? 0
+    const mangaCount = toWatch?.filter(entry => entry.mediaType === "MANGA").length ?? 0
 
     return (
         <StatsDoor
             title="Todo List"
             icon={<LuListVideo className="w-5 h-5" />}
             stats={[
-                { label: "queued", value: toWatch?.length ?? 0 },
+                { label: "total queued", value: isLoading ? null : toWatch?.length ?? 0 },
+                { label: "anime", value: isLoading ? null : animeCount },
+                { label: "manga", value: isLoading ? null : mangaCount },
             ]}
             href="/to-watch"
         />
@@ -261,14 +316,16 @@ export function LandingUnmatchedWidget() {
 }
 
 export function LandingTorrentsWidget() {
-    const { data: unmatched } = useGetUnmatchedTorrents({ staleTime: 60_000 })
+    const { data: queue, isLoading } = useGetTorrentAddQueue()
 
     return (
         <StatsDoor
             title="Torrent list"
             icon={<LuWand className="w-5 h-5" />}
             stats={[
-                { label: "waiting", value: unmatched?.length ?? 0 },
+                { label: "waiting to add", value: isLoading ? null : queue?.waiting ?? 0 },
+                { label: "adding", value: isLoading ? null : queue?.adding ?? 0 },
+                { label: "in queue", value: isLoading ? null : queue?.total ?? 0 },
             ]}
             href="/torrent-list"
         />
@@ -276,18 +333,88 @@ export function LandingTorrentsWidget() {
 }
 
 export function LandingAchievementsWidget() {
-    const { data: achievements } = useGetAchievementSummary()
+    const { data: achievements, isLoading } = useGetAchievementSummary()
+    const completion = achievements?.totalCount
+        ? `${Math.round((achievements.unlockedCount / achievements.totalCount) * 100)}%`
+        : "—"
 
     return (
         <StatsDoor
             title="Achievements"
             icon={<GiTrophyCup className="w-5 h-5" />}
             stats={[
-                { label: "unlocked", value: achievements?.unlockedCount ?? 0 },
+                { label: "unlocked", value: isLoading ? null : achievements?.unlockedCount ?? 0 },
+                { label: "available", value: isLoading ? null : achievements?.totalCount ?? 0 },
+                { label: "completion", value: isLoading ? null : completion },
             ]}
             href="/achievements"
         />
     )
+}
+
+export function LandingLibraryInsightsWidget() {
+    const { data: anime, isLoading: animeLoading } = useGetLibraryCollection({ staleTime: 30_000 })
+    const { data: manga, isLoading: mangaLoading } = useGetMangaCollection()
+    const { data: todo, isLoading: todoLoading } = useGetToWatch()
+
+    const animeEntries = anime?.lists?.flatMap(list => list.entries ?? []) ?? []
+    const mangaEntries = manga?.lists?.flatMap(list => list.entries ?? []) ?? []
+    const animeCurrent = (anime?.lists?.find(list => list.type === "CURRENT")?.entries?.length ?? 0)
+        + (anime?.lists?.find(list => list.type === "REPEATING")?.entries?.length ?? 0)
+    const mangaCurrent = manga?.lists?.find(list => list.type === "CURRENT")?.entries?.length ?? 0
+    const episodesWatched = animeEntries.reduce((total, entry) => total + (entry.listData?.progress ?? 0), 0)
+    const chaptersRead = mangaEntries.reduce((total, entry) => total + (entry.listData?.progress ?? 0), 0)
+    const chaptersDownloaded = mangaEntries.reduce((total, entry) => total + (entry.downloadedChapterCount ?? 0), 0)
+    const totalEntries = animeEntries.length + mangaEntries.length
+
+    const metrics: { label: string, value: number | null, detail: string }[] = [
+        { label: "Anime", value: animeLoading ? null : animeEntries.length, detail: `${animeCurrent} watching or rewatching` },
+        { label: "Manga", value: mangaLoading ? null : mangaEntries.length, detail: `${mangaCurrent} currently reading` },
+        { label: "Episodes watched", value: animeLoading ? null : episodesWatched, detail: "Progress recorded in AniList" },
+        { label: "Chapters read", value: mangaLoading ? null : chaptersRead, detail: "Progress recorded in AniList" },
+        { label: "Downloaded chapters", value: mangaLoading ? null : chaptersDownloaded, detail: "Available in your local library" },
+        { label: "Todo items", value: todoLoading ? null : todo?.length ?? 0, detail: "Anime and manga planned" },
+    ]
+
+    return (
+        <section
+            className="relative isolate overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-black/40 via-black/25 to-brand-950/25 p-5 shadow-2xl shadow-black/25 backdrop-blur-xl sm:p-7"
+            data-library-insights
+        >
+            <div className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full bg-[--brand]/15 blur-3xl" />
+            <header className="relative flex flex-wrap items-end justify-between gap-3">
+                <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[--brand]">Your numbers</p>
+                    <h2 className="mt-1 text-2xl font-bold tracking-tight text-white">Library insights</h2>
+                    <p className="mt-1 text-sm text-white/60">
+                        {animeLoading || mangaLoading ? "Updating your collection…" : `${formatNumber(totalEntries)} titles tracked across anime and manga.`}
+                    </p>
+                </div>
+                <div className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-xs font-semibold text-white/70">
+                    {todoLoading ? "Loading queue…" : `${formatNumber(todo?.length ?? 0)} in your Todo List`}
+                </div>
+            </header>
+            <div className="relative mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
+                {metrics.map(metric => (
+                    <div key={metric.label} className="min-w-0 rounded-2xl border border-white/[0.08] bg-black/25 p-3.5 shadow-lg shadow-black/10">
+                        <p className="text-2xl font-extrabold tabular-nums text-white sm:text-3xl">
+                            {metric.value === null ? "—" : formatNumber(metric.value)}
+                        </p>
+                        <p className="mt-1 truncate text-[10px] font-bold uppercase tracking-wider text-white/75">{metric.label}</p>
+                        <p className="mt-1 line-clamp-1 text-[11px] text-white/45">{metric.detail}</p>
+                    </div>
+                ))}
+            </div>
+        </section>
+    )
+}
+
+export function LandingContinueReadingWidget() {
+    const { entries, isLoading } = useMangaContinueReadingList()
+    if (isLoading) {
+        return <div className="px-4 py-6 text-sm text-[--muted]">Loading your reading list…</div>
+    }
+    return <MangaContinueReading list={entries} withTitle />
 }
 
 /**
@@ -301,12 +428,12 @@ export function LandingAchievementsWidget() {
 function StatsDoor({ title, icon, stats, href }: {
     title: string
     icon: React.ReactNode
-    stats: { label: string, value: number }[]
+    stats: { label: string, value: number | string | null }[]
     href: string
 }) {
     return (
         <SeaLink href={href} className="group/door block h-full">
-            <button
+            <div
                 className={cn(
                     "group relative z-[1] w-full h-full text-left rounded-2xl border border-white/10 bg-black/25 backdrop-blur-md shadow-lg shadow-black/20 p-4 lg:p-5 overflow-hidden",
                     "transition-all duration-300 hover:-translate-y-1 hover:border-[--brand]/70 hover:bg-black/60 hover:shadow-xl hover:shadow-[--brand]/20",
@@ -323,16 +450,22 @@ function StatsDoor({ title, icon, stats, href }: {
                     <LuArrowRight className="w-4 h-4 text-white/40 -translate-x-1 opacity-0 group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-[--brand] transition-all" />
                 </div>
                 {!!stats.length && (
-                    <div className="relative mt-4 flex flex-wrap items-end gap-x-5 gap-y-2">
+                    <div className="relative mt-4 grid grid-cols-2 gap-x-3 gap-y-3">
                         {stats.map(stat => (
-                            <div key={stat.label} className="leading-none">
-                                <p className="text-3xl lg:text-4xl font-extrabold text-white tabular-nums">{formatNumber(stat.value)}</p>
-                                <p className="text-[11px] uppercase tracking-wider text-white/80 mt-1.5 whitespace-nowrap">{stat.label}</p>
+                            <div key={stat.label} className="min-w-0 leading-none">
+                                <p className="text-2xl font-extrabold text-white tabular-nums lg:text-3xl">
+                                    {stat.value === null
+                                        ? "—"
+                                        : typeof stat.value === "number"
+                                            ? formatNumber(stat.value)
+                                            : stat.value}
+                                </p>
+                                <p className="mt-1.5 truncate text-[10px] uppercase tracking-wider text-white/75">{stat.label}</p>
                             </div>
                         ))}
                     </div>
                 )}
-            </button>
+            </div>
         </SeaLink>
     )
 }

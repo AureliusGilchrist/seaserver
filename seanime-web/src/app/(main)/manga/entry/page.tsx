@@ -5,13 +5,16 @@ import { MediaEntryPageLoadingDisplay } from "@/app/(main)/_features/media/_comp
 import { PluginWebviewSlot } from "@/app/(main)/_features/plugin/webview/plugin-webviews"
 import { CommentSection } from "@/app/(main)/_features/comment/comment-section"
 import { MangaRecommendations } from "@/app/(main)/manga/_components/manga-recommendations"
+import { MangaReleaseEstimate } from "@/app/(main)/manga/_components/manga-release-estimate"
 import { MetaSection } from "@/app/(main)/manga/_components/meta-section"
 import { ChapterList } from "@/app/(main)/manga/_containers/chapter-list/chapter-list"
 import { useHandleMangaDownloadData } from "@/app/(main)/manga/_lib/handle-manga-downloads"
+import { __manga_selectedChapterAtom } from "@/app/(main)/manga/_lib/handle-chapter-reader"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { Button } from "@/components/ui/button"
 import { displayTitle } from "@/lib/helpers/media"
 import { useRouter, useSearchParams } from "@/lib/navigation"
+import { useSetAtom } from "jotai/react"
 import React from "react"
 
 export const dynamic = "force-static"
@@ -20,6 +23,10 @@ export default function Page() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const mediaId = searchParams.get("id")
+    const readProvider = searchParams.get("readProvider")
+    const readChapterId = searchParams.get("readChapterId")
+    const readChapterNumber = searchParams.get("readChapterNumber")
+    const setSelectedChapter = useSetAtom(__manga_selectedChapterAtom)
     const {
         data: mangaEntry,
         isLoading: mangaEntryLoading,
@@ -43,6 +50,18 @@ export default function Page() {
             router.push("/")
         }
     }, [mediaId, router])
+
+    React.useEffect(() => {
+        if (!mediaId || !readProvider || !readChapterId) return
+
+        setSelectedChapter({
+            mediaId: Number(mediaId),
+            provider: readProvider,
+            chapterId: readChapterId,
+            chapterNumber: readChapterNumber || "?",
+        })
+        router.replace(`/manga/entry?id=${encodeURIComponent(mediaId)}`)
+    }, [mediaId, readProvider, readChapterId, readChapterNumber, router, setSelectedChapter])
 
     React.useEffect(() => {
         try {
@@ -88,6 +107,10 @@ export default function Page() {
             data-manga-entry-list-data={JSON.stringify(mangaEntry.listData)}
         >
             <MetaSection entry={mangaEntry} details={mangaDetails} />
+            <MangaReleaseEstimate
+                mediaId={mangaEntry.mediaId}
+                status={mangaEntry.media?.status}
+            />
 
             <div data-manga-entry-page-content-container className="px-4 md:px-8 relative z-[8]">
 

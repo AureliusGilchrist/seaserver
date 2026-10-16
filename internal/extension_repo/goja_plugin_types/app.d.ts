@@ -3374,6 +3374,10 @@ declare namespace $app {
          */
         hasImage?: boolean;
         title?: string;
+        /**
+         * Episode rating out of 10, when the metadata source provides one
+         */
+        rating?: number;
     }
 
     /**
@@ -3658,6 +3662,15 @@ declare namespace $app {
     }
 
     /**
+     * - Filepath: internal/continuity/history.go
+     */
+    interface Continuity_EpisodeWatchPosition {
+        currentTime: number;
+        duration: number;
+        timeUpdated?: string;
+    }
+
+    /**
      * - Filepath: internal/continuity/manager.go
      */
     export type Continuity_Kind = "onlinestream" | "mediastream" | "external_player";
@@ -3691,6 +3704,7 @@ declare namespace $app {
         duration: number;
         timeAdded?: string;
         timeUpdated?: string;
+        episodes?: Record<number, Continuity_EpisodeWatchPosition>;
     }
 
     /**
@@ -3874,6 +3888,12 @@ declare namespace $app {
         scanlator: string;
         language: string;
         number: number;
+        chapter: string;
+        chapterId: string;
+        title: string;
+        updatedAt?: string;
+        cadenceDays?: number;
+        estimatedNextAt?: string;
     }
 
     /**
@@ -3954,6 +3974,7 @@ declare namespace $app {
          * Indicates if the episode has a real image
          */
         hasImage: boolean;
+        rating?: number;
     }
 
     /**

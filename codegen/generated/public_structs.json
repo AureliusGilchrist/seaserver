@@ -1773,6 +1773,24 @@
         "comments": []
       },
       {
+        "name": "tokenExpiredProfileID",
+        "jsonName": "tokenExpiredProfileID",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "tokenExpiredProfileIDSet",
+        "jsonName": "tokenExpiredProfileIDSet",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "httpClient",
         "jsonName": "httpClient",
         "goType": "http.Client",
@@ -30954,6 +30972,15 @@
         "comments": [
           " Indicates if the episode has a real image"
         ]
+      },
+      {
+        "name": "Rating",
+        "jsonName": "rating",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": []
@@ -31576,6 +31603,17 @@
         "goType": "time.Time",
         "typescriptType": "string",
         "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Episodes",
+        "jsonName": "episodes",
+        "goType": "map[int]EpisodeWatchPosition",
+        "typescriptType": "Record\u003cnumber, Continuity_EpisodeWatchPosition\u003e",
+        "usedTypescriptType": "Continuity_EpisodeWatchPosition",
+        "usedStructName": "continuity.EpisodeWatchPosition",
         "required": false,
         "public": true,
         "comments": []
@@ -32413,6 +32451,17 @@
         "comments": []
       },
       {
+        "name": "torrentModuleSettings",
+        "jsonName": "torrentModuleSettings",
+        "goType": "models.TorrentSettings",
+        "typescriptType": "Models_TorrentSettings",
+        "usedTypescriptType": "Models_TorrentSettings",
+        "usedStructName": "models.TorrentSettings",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "Watcher",
         "jsonName": "Watcher",
         "goType": "scanner.Watcher",
@@ -32917,9 +32966,11 @@
       {
         "name": "ServerReady",
         "jsonName": "ServerReady",
-        "goType": "bool",
-        "typescriptType": "boolean",
-        "required": true,
+        "goType": "atomic.Bool",
+        "typescriptType": "Bool",
+        "usedTypescriptType": "Bool",
+        "usedStructName": "atomic.Bool",
+        "required": false,
         "public": true,
         "comments": []
       },
@@ -34313,6 +34364,24 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "WallpaperURL",
+        "jsonName": "wallpaperUrl",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "WallpaperEffects",
+        "jsonName": "wallpaperEffects",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [
@@ -34495,6 +34564,24 @@
         "jsonName": "anilistAuthenticated",
         "goType": "bool",
         "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "WallpaperURL",
+        "jsonName": "wallpaperUrl",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "WallpaperEffects",
+        "jsonName": "wallpaperEffects",
+        "goType": "string",
+        "typescriptType": "string",
         "required": true,
         "public": true,
         "comments": []
@@ -37188,6 +37275,321 @@
       " UnmatchedMatchRecord is one match performed from the Unmatched Downloads screen, kept so it can",
       " be reviewed and undone afterwards. The columns are what the undo list is built and sorted from;",
       " Value holds the full record (every file's original and new path) as JSON."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "UnmatchedMatchQueueItem",
+    "formattedName": "Models_UnmatchedMatchQueueItem",
+    "package": "models",
+    "fields": [
+      {
+        "name": "TorrentName",
+        "jsonName": "torrentName",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeID",
+        "jsonName": "animeId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeTitle",
+        "jsonName": "animeTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FileCount",
+        "jsonName": "fileCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CoverImage",
+        "jsonName": "coverImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ErrorMessage",
+        "jsonName": "errorMessage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Attempts",
+        "jsonName": "attempts",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NextAttemptAt",
+        "jsonName": "nextAttemptAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Request",
+        "jsonName": "",
+        "goType": "string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Conflict",
+        "jsonName": "",
+        "goType": "string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CountMismatch",
+        "jsonName": "",
+        "goType": "string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StartedAt",
+        "jsonName": "startedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FinishedAt",
+        "jsonName": "finishedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " UnmatchedMatchQueueItem is one match the user has decided on and the server has yet to carry out.",
+      "",
+      " A match decided in the Unmatched screen used to be performed inside that request, with the screen",
+      " waiting on it: minutes of copying for a season pack, and an AniList outage in the middle of it",
+      " meant the work was lost rather than postponed. Here the decision is written down first and the",
+      " server works through the decisions in the order they were made — so the answer to \"match this\" is",
+      " \"queued\", the screen is free immediately, and a server that stops has not forgotten anything.",
+      "",
+      " The row is the whole job: the request as it was made (everything the worker needs to run it) and,",
+      " when the match stopped on a question, the question itself, so the screen can put it to the user",
+      " without re-running anything."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "TorrentAddQueueItem",
+    "formattedName": "Models_TorrentAddQueueItem",
+    "package": "models",
+    "fields": [
+      {
+        "name": "Magnets",
+        "jsonName": "",
+        "goType": "string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Destination",
+        "jsonName": "destination",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ErrorMessage",
+        "jsonName": "errorMessage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Attempts",
+        "jsonName": "attempts",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NextAttemptAt",
+        "jsonName": "nextAttemptAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StartedAt",
+        "jsonName": "startedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " TorrentAddQueueItem is a torrent the torrent client could not take because it was unreachable,",
+      " waiting to be added the moment it answers again.",
+      "",
+      " Adding a torrent used to be a request that failed with a timeout when the client was offline, and",
+      " the download was lost with it: the user pressed download, got \"try again later\", and had to be",
+      " there to press it again. Here the add is written down first and the server works through them on",
+      " its own clock — so an offline client is not a failed download, it is a queued one, and when the",
+      " client comes back the entries are imported as if it never went down.",
+      "",
+      " Retried for as long as it takes, at an interval that grows to a cap; nothing about that holds up",
+      " the rest of the app. In the database rather than in memory, because a client that is offline and",
+      " a server that was restarted in the meantime is the normal case, not the exception."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "ToWatchItem",
+    "formattedName": "Models_ToWatchItem",
+    "package": "models",
+    "fields": [
+      {
+        "name": "ProfileID",
+        "jsonName": "profileId",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeID",
+        "jsonName": "animeId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaType",
+        "jsonName": "mediaType",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Position",
+        "jsonName": "position",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Value",
+        "jsonName": "",
+        "goType": "string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " ToWatchItem is one entry in a profile's todo list, in the order they mean to watch or read it.",
+      "",
+      " The list is deliberately its own thing rather than a reading of the AniList planning list: a",
+      " plan is everything anybody ever marked, and this list is a running order — what is next.",
+      " It belongs to a profile (so one person's order is their own), it is stored here rather than in a",
+      " browser, because it is also what their public profile shows, and it is allowed to be as long as",
+      " its owner wants: a list of thousands is a list, not a mistake.",
+      "",
+      " Value holds a snapshot of the entry — title, cover, format, progress totals, description — taken when it",
+      " was added. A list of thousands rendered a row at a time must not ask AniList for each one, and a",
+      " list that shows what was added when it was added does not change under the user either."
     ],
     "embeddedStructNames": [
       "models.BaseModel"
@@ -40043,7 +40445,7 @@
         "required": true,
         "public": true,
         "comments": [
-          " new_episode, sequel_announced, related_airing, character_birthday, achievement_unlocked, manga_chapter"
+          " new_episode, related_anime_addition, related_manga_addition, related_airing, etc."
         ]
       },
       {
@@ -40085,6 +40487,15 @@
         ]
       },
       {
+        "name": "AnilistNotificationID",
+        "jsonName": "",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "IsRead",
         "jsonName": "isRead",
         "goType": "bool",
@@ -40107,6 +40518,30 @@
     ],
     "comments": [
       " Notification stores a notification per profile (stored in per-profile DB)."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "AnilistNotificationReceipt",
+    "formattedName": "Models_AnilistNotificationReceipt",
+    "package": "models",
+    "fields": [
+      {
+        "name": "NotificationID",
+        "jsonName": "",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " AnilistNotificationReceipt keeps imported notification IDs after a user deletes a notification."
     ],
     "embeddedStructNames": [
       "models.BaseModel"
@@ -40484,10 +40919,10 @@
       }
     ],
     "comments": [
-      " ClientPref is a per-profile arbitrary key/value blob used by the web client to persist",
+      " ClientPref is an arbitrary key/value blob used by the web client to persist",
       " settings that would otherwise live only in browser localStorage (UI customizer state,",
       " theme preferences, discovered easter eggs, reward progress, cursor pack, sound pack, etc.).",
-      " Stored in the per-profile database, so each profile gets its own values automatically.",
+      " It is stored in a profile database by default, but may also be stored globally.",
       " The Value column is opaque JSON-encoded text the client owns; the server never inspects it."
     ],
     "embeddedStructNames": [
@@ -47677,6 +48112,15 @@
         "comments": []
       },
       {
+        "name": "resumeOnStartup",
+        "jsonName": "resumeOnStartup",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "mangaSemaphore",
         "jsonName": "mangaSemaphore",
         "goType": "",
@@ -47740,6 +48184,15 @@
         "jsonName": "skipped_manga",
         "goType": "[]string",
         "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ResumeOnStartup",
+        "jsonName": "resume_on_startup",
+        "goType": "bool",
+        "typescriptType": "boolean",
         "required": false,
         "public": true,
         "comments": []
@@ -49366,6 +49819,17 @@
         "goType": "bool",
         "typescriptType": "boolean",
         "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "readyToasted",
+        "jsonName": "readyToasted",
+        "goType": "map[string]__STRUCT__",
+        "inlineStructType": "map[string]struct{\n}",
+        "typescriptType": "Record\u003cstring, { }\u003e",
+        "usedTypescriptType": "{ }",
+        "required": false,
         "public": false,
         "comments": []
       },
@@ -54385,6 +54849,135 @@
     "comments": []
   },
   {
+    "filepath": "../internal/handlers/anilist_overwrite.go",
+    "filename": "anilist_overwrite.go",
+    "name": "OverwriteChange",
+    "formattedName": "OverwriteChange",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Kind",
+        "jsonName": "kind",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Media",
+        "jsonName": "media",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " \"anime\" or \"manga\""
+        ]
+      },
+      {
+        "name": "MediaID",
+        "jsonName": "mediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Fields",
+        "jsonName": "fields",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "want",
+        "jsonName": "",
+        "goType": "overwriteEntry",
+        "typescriptType": "overwriteEntry",
+        "usedTypescriptType": "overwriteEntry",
+        "usedStructName": "handlers.overwriteEntry",
+        "required": true,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " OverwriteChange is one entry that differs between the library and AniList."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/anilist_overwrite.go",
+    "filename": "anilist_overwrite.go",
+    "name": "OverwritePreview",
+    "formattedName": "OverwritePreview",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Changes",
+        "jsonName": "changes",
+        "goType": "[]OverwriteChange",
+        "typescriptType": "Array\u003cOverwriteChange\u003e",
+        "usedTypescriptType": "OverwriteChange",
+        "usedStructName": "handlers.OverwriteChange",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Add",
+        "jsonName": "add",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Update",
+        "jsonName": "update",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Remove",
+        "jsonName": "remove",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Unchanged",
+        "jsonName": "unchanged",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " OverwritePreview is what an overwrite would change, without changing anything."
+    ]
+  },
+  {
     "filepath": "../internal/handlers/anilist_planning.go",
     "filename": "anilist_planning.go",
     "name": "AddToPlanningResponse",
@@ -58150,6 +58743,17 @@
         "required": false,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "UnmatchedMatchQueue",
+        "jsonName": "UnmatchedMatchQueue",
+        "goType": "unmatchedMatchQueue",
+        "typescriptType": "unmatchedMatchQueue",
+        "usedTypescriptType": "unmatchedMatchQueue",
+        "usedStructName": "handlers.unmatchedMatchQueue",
+        "required": false,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": []
@@ -59389,6 +59993,15 @@
         "required": false,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "Synonyms",
+        "jsonName": "synonyms",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [
@@ -59427,6 +60040,300 @@
     ],
     "comments": [
       " UnmatchedFamilyResult is a walked relation tree."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/unmatched_match_queue.go",
+    "filename": "unmatched_match_queue.go",
+    "name": "UnmatchedMatchQueueItem",
+    "formattedName": "UnmatchedMatchQueueItem",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TorrentName",
+        "jsonName": "torrentName",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeID",
+        "jsonName": "animeId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeTitle",
+        "jsonName": "animeTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CoverImage",
+        "jsonName": "coverImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FileCount",
+        "jsonName": "fileCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ErrorMessage",
+        "jsonName": "errorMessage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Attempts",
+        "jsonName": "attempts",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CreatedAt",
+        "jsonName": "createdAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StartedAt",
+        "jsonName": "startedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FinishedAt",
+        "jsonName": "finishedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NextAttemptAt",
+        "jsonName": "nextAttemptAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Conflict",
+        "jsonName": "conflict",
+        "goType": "unmatched.MatchConflict",
+        "typescriptType": "MatchConflict",
+        "usedTypescriptType": "MatchConflict",
+        "usedStructName": "unmatched.MatchConflict",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CountMismatch",
+        "jsonName": "countMismatch",
+        "goType": "unmatched.CountMismatch",
+        "typescriptType": "CountMismatch",
+        "usedTypescriptType": "CountMismatch",
+        "usedStructName": "unmatched.CountMismatch",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " UnmatchedMatchQueueItem is one queued match, as the screen sees it."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/unmatched_match_queue.go",
+    "filename": "unmatched_match_queue.go",
+    "name": "UnmatchedMatchQueueStatus",
+    "formattedName": "UnmatchedMatchQueueStatus",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Paused",
+        "jsonName": "paused",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Holding",
+        "jsonName": "holding",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "HoldReason",
+        "jsonName": "holdReason",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Current",
+        "jsonName": "current",
+        "goType": "UnmatchedMatchQueueItem",
+        "typescriptType": "UnmatchedMatchQueueItem",
+        "usedTypescriptType": "UnmatchedMatchQueueItem",
+        "usedStructName": "handlers.UnmatchedMatchQueueItem",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Total",
+        "jsonName": "total",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Pending",
+        "jsonName": "pending",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Matching",
+        "jsonName": "matching",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NeedsDecision",
+        "jsonName": "needsDecision",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Matched",
+        "jsonName": "matched",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastMatchedAt",
+        "jsonName": "lastMatchedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " UnmatchedMatchQueueStatus is what the queue is doing right now."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/unmatched_match_queue.go",
+    "filename": "unmatched_match_queue.go",
+    "name": "UnmatchedMatchQueueState",
+    "formattedName": "UnmatchedMatchQueueState",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Items",
+        "jsonName": "items",
+        "goType": "[]UnmatchedMatchQueueItem",
+        "typescriptType": "Array\u003cUnmatchedMatchQueueItem\u003e",
+        "usedTypescriptType": "UnmatchedMatchQueueItem",
+        "usedStructName": "handlers.UnmatchedMatchQueueItem",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "UnmatchedMatchQueueStatus",
+        "typescriptType": "UnmatchedMatchQueueStatus",
+        "usedTypescriptType": "UnmatchedMatchQueueStatus",
+        "usedStructName": "handlers.UnmatchedMatchQueueStatus",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " UnmatchedMatchQueueState is the whole queue, for the screen that shows it."
     ]
   },
   {
@@ -59547,6 +60454,86 @@
     ],
     "comments": [
       " UnmatchedSweepStatus is the progress of a running (or the last) sweep."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/update_notice.go",
+    "filename": "update_notice.go",
+    "name": "UpdateBackendResponse",
+    "formattedName": "UpdateBackendResponse",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Started",
+        "jsonName": "started",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Message",
+        "jsonName": "message",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Files",
+        "jsonName": "files",
+        "goType": "[]updater.FileChange",
+        "typescriptType": "Array\u003cUpdater_FileChange\u003e",
+        "usedTypescriptType": "Updater_FileChange",
+        "usedStructName": "updater.FileChange",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/update_notice.go",
+    "filename": "update_notice.go",
+    "name": "CheckBackendUpdateResponse",
+    "formattedName": "CheckBackendUpdateResponse",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Behind",
+        "jsonName": "behind",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Blocked",
+        "jsonName": "blocked",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Files",
+        "jsonName": "files",
+        "goType": "[]updater.FileChange",
+        "typescriptType": "Array\u003cUpdater_FileChange\u003e",
+        "usedTypescriptType": "Updater_FileChange",
+        "usedStructName": "updater.FileChange",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " CheckBackendUpdateResponse is what pulling would bring, without pulling it."
     ]
   },
   {
@@ -62895,6 +63882,17 @@
         "required": false,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "Rating",
+        "jsonName": "rating",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": [
+          " Episode rating out of 10, when the metadata source provides one"
+        ]
       }
     ],
     "comments": []
@@ -71621,6 +72619,61 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "Chapter",
+        "jsonName": "chapter",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ChapterID",
+        "jsonName": "chapterId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UpdatedAt",
+        "jsonName": "updatedAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CadenceDays",
+        "jsonName": "cadenceDays",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EstimatedNextAt",
+        "jsonName": "estimatedNextAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": []
@@ -72101,19 +73154,30 @@
         "comments": []
       },
       {
-        "name": "chapterDownloadedCh",
-        "jsonName": "chapterDownloadedCh",
-        "goType": "",
-        "typescriptType": "any",
+        "name": "mediaMapHydrateMu",
+        "jsonName": "mediaMapHydrateMu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "mediaMapReady",
+        "jsonName": "mediaMapReady",
+        "goType": "bool",
+        "typescriptType": "boolean",
         "required": true,
         "public": false,
         "comments": []
       },
       {
-        "name": "readingDownloadDir",
-        "jsonName": "readingDownloadDir",
-        "goType": "bool",
-        "typescriptType": "boolean",
+        "name": "chapterDownloadedCh",
+        "jsonName": "chapterDownloadedCh",
+        "goType": "",
+        "typescriptType": "any",
         "required": true,
         "public": false,
         "comments": []
@@ -74042,6 +75106,126 @@
     "comments": []
   },
   {
+    "filepath": "../internal/manga/mangabaka/mangabaka.go",
+    "filename": "mangabaka.go",
+    "name": "Record",
+    "formattedName": "Record",
+    "package": "mangabaka",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "ID",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AniListID",
+        "jsonName": "AniListID",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MalID",
+        "jsonName": "MalID",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Type",
+        "jsonName": "Type",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Title",
+        "jsonName": "Title",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Year",
+        "jsonName": "Year",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Cover",
+        "jsonName": "Cover",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Description",
+        "jsonName": "Description",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "Status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Genres",
+        "jsonName": "Genres",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Authors",
+        "jsonName": "Authors",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Chapters",
+        "jsonName": "Chapters",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Record is what the index knows about one series."
+    ]
+  },
+  {
     "filepath": "../internal/manga/providers/_template.go",
     "filename": "_template.go",
     "name": "Template",
@@ -74706,6 +75890,27 @@
         "comments": [
           " map[string]chan *PageContainer for deduplicating concurrent requests"
         ]
+      },
+      {
+        "name": "chapterUpdateCheckMu",
+        "jsonName": "chapterUpdateCheckMu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "chapterUpdateCheckTimes",
+        "jsonName": "chapterUpdateCheckTimes",
+        "goType": "map[string]time.Time",
+        "typescriptType": "Record\u003cstring, string\u003e",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": false,
+        "comments": []
       }
     ],
     "comments": []
@@ -86863,6 +88068,386 @@
       }
     ],
     "comments": []
+  },
+  {
+    "filepath": "../internal/onlinestream/providers/animegg.go",
+    "filename": "animegg.go",
+    "name": "AnimeGG",
+    "formattedName": "Onlinestream_AnimeGG",
+    "package": "onlinestream_providers",
+    "fields": [
+      {
+        "name": "Url",
+        "jsonName": "Url",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Client",
+        "jsonName": "Client",
+        "goType": "http.Client",
+        "typescriptType": "Client",
+        "usedTypescriptType": "Client",
+        "usedStructName": "http.Client",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UserAgent",
+        "jsonName": "UserAgent",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "logger",
+        "jsonName": "logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " AnimeGG is an onlinestream provider for animegg.org.",
+      "",
+      " Plain server-rendered HTML, no scripts needed:",
+      "",
+      "\tsearch    /search/?q=…                 → a.mse links to /series/{slug}",
+      "\tepisodes  /series/{slug}               → a.anm_det_pop links to /{slug}-episode-{n}",
+      "\tepisode   /{slug}-episode-{n}          → one iframe per version, \"subbed\" and \"dubbed\"",
+      "\tembed     /embed/{id}                  → a `videoSources` array of direct MP4s per quality",
+      "",
+      " Sub and dub are two versions of the same page, so the dub is chosen when the episode is fetched,",
+      " not when it is listed. The search result carries a \"/dub\" suffix when a dub was asked for."
+    ]
+  },
+  {
+    "filepath": "../internal/onlinestream/providers/animeheaven.go",
+    "filename": "animeheaven.go",
+    "name": "AnimeHeaven",
+    "formattedName": "Onlinestream_AnimeHeaven",
+    "package": "onlinestream_providers",
+    "fields": [
+      {
+        "name": "Url",
+        "jsonName": "Url",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Client",
+        "jsonName": "Client",
+        "goType": "http.Client",
+        "typescriptType": "Client",
+        "usedTypescriptType": "Client",
+        "usedStructName": "http.Client",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UserAgent",
+        "jsonName": "UserAgent",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "logger",
+        "jsonName": "logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " AnimeHeaven is an onlinestream provider for animeheaven.me.",
+      "",
+      "\tsearch    /fastsearch.php?xhr=1\u0026s=…   → a.ac links to /anime.php?{id}",
+      "\tepisodes  /anime.php?{id}             → one link per episode, each carrying a 32-hex key",
+      "\tepisode   /gate.php  + cookie key={k} → a \u003cvideo\u003e with direct MP4 \u003csource\u003e elements",
+      "",
+      " The site is a single English-subtitled catalogue; dubs are separate entries titled \"(Dub)\", so",
+      " the dub is picked at search time by the title rather than at episode time."
+    ]
+  },
+  {
+    "filepath": "../internal/onlinestream/providers/animepahe.go",
+    "filename": "animepahe.go",
+    "name": "AnimePahe",
+    "formattedName": "Onlinestream_AnimePahe",
+    "package": "onlinestream_providers",
+    "fields": [
+      {
+        "name": "Url",
+        "jsonName": "Url",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Client",
+        "jsonName": "Client",
+        "goType": "http.Client",
+        "typescriptType": "Client",
+        "usedTypescriptType": "Client",
+        "usedStructName": "http.Client",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UserAgent",
+        "jsonName": "UserAgent",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "logger",
+        "jsonName": "logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " AnimePahe is an onlinestream provider for animepahe.com.",
+      "",
+      " The site's own API answers three of the four things a provider needs, in plain JSON —",
+      "",
+      "\tsearch     /api?m=search\u0026q={query}          sessions and titles",
+      "\tepisodes   /api?m=release\u0026id={session}      per-episode sessions, paginated",
+      "\tplay page  /play/{anime}/{episode}          the kwik embed URL per quality",
+      "",
+      " The fourth is the kwik embed page itself, whose stream URL is packed inside obfuscated",
+      " JavaScript; the unpacking below is the known scheme for it. Cloudflare fronts the site and will",
+      " refuse some plain clients, so a request that comes back a challenge is an error like any other —",
+      " the queue treats it as a provider that found nothing this time rather than as a crash."
+    ]
+  },
+  {
+    "filepath": "../internal/onlinestream/providers/animetsu.go",
+    "filename": "animetsu.go",
+    "name": "Animetsu",
+    "formattedName": "Onlinestream_Animetsu",
+    "package": "onlinestream_providers",
+    "fields": [
+      {
+        "name": "Url",
+        "jsonName": "Url",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BlobDomain",
+        "jsonName": "BlobDomain",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Client",
+        "jsonName": "Client",
+        "goType": "http.Client",
+        "typescriptType": "Client",
+        "usedTypescriptType": "Client",
+        "usedStructName": "http.Client",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UserAgent",
+        "jsonName": "UserAgent",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "logger",
+        "jsonName": "logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Animetsu is an onlinestream provider for animetsu.net — the site the GojoWtf extension talks to.",
+      "",
+      " The API is plain JSON, and the four things a provider needs each have their own endpoint —",
+      "",
+      "\tsearch        /v2/api/anime/search?query=…\u0026page=1\u0026year=…",
+      "\tepisodes      /v2/api/anime/eps/{id}",
+      "\tservers       /v2/api/anime/servers/{id}/{episode}",
+      "\tsources       /v2/api/anime/oppai/{id}/{episode}?server={server}\u0026source_type=sub|dub",
+      "",
+      " Sources come back relative to the blob domain (swiftstream.top), prefixed with \"proxy/\" when the",
+      " source itself asks for one. Sub and dub are separate entries on the site, so the dub is the same",
+      " ID with /dub on the end, which is the convention the GojoWtf extension established."
+    ]
+  },
+  {
+    "filepath": "../internal/onlinestream/providers/anizone.go",
+    "filename": "anizone.go",
+    "name": "AniZone",
+    "formattedName": "Onlinestream_AniZone",
+    "package": "onlinestream_providers",
+    "fields": [
+      {
+        "name": "Url",
+        "jsonName": "Url",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Client",
+        "jsonName": "Client",
+        "goType": "http.Client",
+        "typescriptType": "Client",
+        "usedTypescriptType": "Client",
+        "usedStructName": "http.Client",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UserAgent",
+        "jsonName": "UserAgent",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "logger",
+        "jsonName": "logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " AniZone is an onlinestream provider for anizone.to.",
+      "",
+      " The site is server-rendered by Laravel Livewire, which is convenient here: the three things a",
+      " provider needs are each readable straight out of the HTML it already sends —",
+      "",
+      "\tsearch     /anime?search={query}   results embedded as a JSON array in the page's Alpine state",
+      "\tepisodes   /anime/{slug}           episode list embedded the same way",
+      "\tsources    /anime/{slug}/{number}  the player's props as JSON, with the m3u8 and subtitles in it",
+      "",
+      " Episode numbers double as the episode slugs the site's URLs use (/anime/{slug}/{number}), and the",
+      " player's props carry the stream and its subtitle tracks. The streams answer to a plain GET with no",
+      " referer, so nothing special is needed to play them."
+    ]
+  },
+  {
+    "filepath": "../internal/onlinestream/providers/kickassanime.go",
+    "filename": "kickassanime.go",
+    "name": "KickAssAnime",
+    "formattedName": "Onlinestream_KickAssAnime",
+    "package": "onlinestream_providers",
+    "fields": [
+      {
+        "name": "Url",
+        "jsonName": "Url",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Client",
+        "jsonName": "Client",
+        "goType": "http.Client",
+        "typescriptType": "Client",
+        "usedTypescriptType": "Client",
+        "usedStructName": "http.Client",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UserAgent",
+        "jsonName": "UserAgent",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "logger",
+        "jsonName": "logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " KickAssAnime is an onlinestream provider for kaa.lt.",
+      "",
+      "\tsearch    POST /api/fsearch {\"query\"}                    → result[] with slug, title, title_en",
+      "\tepisodes  GET  /api/show/{slug}/episodes?ep=\u0026lang=       → paged list of {slug, episode_number}",
+      "\tepisode   GET  /api/show/{slug}/episode/ep-{n}-{slug}    → servers[] of player page URLs",
+      "\tplayer    GET  the VidStreaming server URL               → manifest (HLS) and subtitles, inside",
+      "\t                                                           an Astro island's props attribute",
+      "",
+      " A dub is the same show under the en-US language, so it is chosen with the lang parameter. Only the",
+      " VidStreaming server is used: the other is DASH, which the player cannot play."
+    ]
   },
   {
     "filepath": "../internal/onlinestream/repository.go",
@@ -103568,6 +105153,64 @@
     "comments": []
   },
   {
+    "filepath": "../internal/torrent_clients/torrent_client/offline_queue.go",
+    "filename": "offline_queue.go",
+    "name": "TorrentAddQueueView",
+    "formattedName": "TorrentClient_TorrentAddQueueView",
+    "package": "torrent_client",
+    "fields": [
+      {
+        "name": "Waiting",
+        "jsonName": "waiting",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Adding",
+        "jsonName": "adding",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Total",
+        "jsonName": "total",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Oldest",
+        "jsonName": "oldest",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastError",
+        "jsonName": "lastError",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " TorrentAddQueueView is the queue as the screen sees it: what is waiting for the client, and",
+      " whether anything is being imported right now."
+    ]
+  },
+  {
     "filepath": "../internal/torrent_clients/torrent_client/repository.go",
     "filename": "repository.go",
     "name": "Repository",
@@ -103668,6 +105311,17 @@
         "required": false,
         "public": false,
         "comments": []
+      },
+      {
+        "name": "offlineQueue",
+        "jsonName": "offlineQueue",
+        "goType": "torrentAddQueue",
+        "typescriptType": "TorrentClient_torrentAddQueue",
+        "usedTypescriptType": "TorrentClient_torrentAddQueue",
+        "usedStructName": "torrent_client.torrentAddQueue",
+        "required": false,
+        "public": false,
+        "comments": []
       }
     ],
     "comments": []
@@ -103748,6 +105402,28 @@
         "jsonName": "MetadataProviderRef",
         "goType": "",
         "typescriptType": "any",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Database",
+        "jsonName": "Database",
+        "goType": "db.Database",
+        "typescriptType": "DB_Database",
+        "usedTypescriptType": "DB_Database",
+        "usedStructName": "db.Database",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "WSEventManager",
+        "jsonName": "WSEventManager",
+        "goType": "events.WSEventManagerInterface",
+        "typescriptType": "Events_WSEventManagerInterface",
+        "usedTypescriptType": "Events_WSEventManagerInterface",
+        "usedStructName": "events.WSEventManagerInterface",
         "required": false,
         "public": true,
         "comments": []
@@ -104707,69 +106383,6 @@
     ],
     "comments": [
       " FakeSearchProvider is a fake torrent provider for testing search functionality"
-    ]
-  },
-  {
-    "filepath": "../internal/torrents/providers/bakabt.go",
-    "filename": "bakabt.go",
-    "name": "BakaBT",
-    "formattedName": "BakaBT",
-    "package": "torrent_providers",
-    "fields": [
-      {
-        "name": "mu",
-        "jsonName": "mu",
-        "goType": "sync.Mutex",
-        "typescriptType": "Mutex",
-        "usedTypescriptType": "Mutex",
-        "usedStructName": "sync.Mutex",
-        "required": false,
-        "public": false,
-        "comments": []
-      },
-      {
-        "name": "client",
-        "jsonName": "client",
-        "goType": "http.Client",
-        "typescriptType": "Client",
-        "usedTypescriptType": "Client",
-        "usedStructName": "http.Client",
-        "required": false,
-        "public": false,
-        "comments": []
-      },
-      {
-        "name": "loggedIn",
-        "jsonName": "loggedIn",
-        "goType": "bool",
-        "typescriptType": "boolean",
-        "required": true,
-        "public": false,
-        "comments": []
-      },
-      {
-        "name": "username",
-        "jsonName": "username",
-        "goType": "string",
-        "typescriptType": "string",
-        "required": true,
-        "public": false,
-        "comments": []
-      },
-      {
-        "name": "password",
-        "jsonName": "password",
-        "goType": "string",
-        "typescriptType": "string",
-        "required": true,
-        "public": false,
-        "comments": []
-      }
-    ],
-    "comments": [
-      " BakaBT implements hibiketorrent.AnimeProvider for bakabt.me",
-      " This is a private tracker that requires authentication.",
-      " Users need to configure their credentials via the extension user config."
     ]
   },
   {
@@ -108216,6 +109829,15 @@
         "required": false,
         "public": false,
         "comments": []
+      },
+      {
+        "name": "onPendingMatchFinished",
+        "jsonName": "onPendingMatchFinished",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
       }
     ],
     "comments": []
@@ -108723,6 +110345,15 @@
         "jsonName": "confirmCountMismatch",
         "goType": "bool",
         "typescriptType": "boolean",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CoverImage",
+        "jsonName": "coverImage",
+        "goType": "string",
+        "typescriptType": "string",
         "required": false,
         "public": true,
         "comments": []
@@ -109872,6 +111503,181 @@
       }
     ],
     "comments": []
+  },
+  {
+    "filepath": "../internal/updater/gitupdate.go",
+    "filename": "gitupdate.go",
+    "name": "GitAutoUpdater",
+    "formattedName": "Updater_GitAutoUpdater",
+    "package": "updater",
+    "fields": [
+      {
+        "name": "logger",
+        "jsonName": "logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "wsEventManager",
+        "jsonName": "wsEventManager",
+        "goType": "events.WSEventManager",
+        "typescriptType": "Events_WSEventManager",
+        "usedTypescriptType": "Events_WSEventManager",
+        "usedStructName": "events.WSEventManager",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "repoDir",
+        "jsonName": "repoDir",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "appDataDir",
+        "jsonName": "appDataDir",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "updating",
+        "jsonName": "updating",
+        "goType": "atomic.Bool",
+        "typescriptType": "Bool",
+        "usedTypescriptType": "Bool",
+        "usedStructName": "atomic.Bool",
+        "required": false,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/updater/gitupdate.go",
+    "filename": "gitupdate.go",
+    "name": "UpdateNotice",
+    "formattedName": "Updater_UpdateNotice",
+    "package": "updater",
+    "fields": [
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Description",
+        "jsonName": "description",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Commit",
+        "jsonName": "commit",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UpdatedAt",
+        "jsonName": "updatedAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FilesChanged",
+        "jsonName": "filesChanged",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Insertions",
+        "jsonName": "insertions",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Deletions",
+        "jsonName": "deletions",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " UpdateNotice is what an update was, shown to the client after it signs in."
+    ]
+  },
+  {
+    "filepath": "../internal/updater/gitupdate.go",
+    "filename": "gitupdate.go",
+    "name": "FileChange",
+    "formattedName": "Updater_FileChange",
+    "package": "updater",
+    "fields": [
+      {
+        "name": "Path",
+        "jsonName": "path",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Insertions",
+        "jsonName": "insertions",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Deletions",
+        "jsonName": "deletions",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " FileChange is one file an update touches and how many lines it adds and removes."
+    ]
   },
   {
     "filepath": "../internal/updater/selfupdate.go",

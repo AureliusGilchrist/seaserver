@@ -54,7 +54,7 @@ func (r *Repository) MergeDownloadedChaptersWithProviderAndCollection(providerCo
 		Str("provider", providerContainer.Provider).
 		Int("providerChapterCount", len(providerContainer.Chapters)).
 		Msg("manga: Starting merge of downloaded chapters with provider chapters")
-	
+
 	if providerContainer == nil {
 		return nil, fmt.Errorf("provider container is nil")
 	}
@@ -71,7 +71,7 @@ func (r *Repository) MergeDownloadedChaptersWithProviderAndCollection(providerCo
 		r.logger.Debug().Int("mediaId", mediaId).Msg("No downloaded chapters found")
 		return providerContainer, nil
 	}
-	
+
 	r.logger.Debug().
 		Int("mediaId", mediaId).
 		Int("downloadedContainerCount", len(downloadedContainers)).
@@ -108,12 +108,12 @@ func (r *Repository) MergeDownloadedChaptersWithProviderAndCollection(providerCo
 
 	// Merge: prioritize downloaded chapters, fill gaps with provider chapters
 	mergedChapters := make([]*hibikemanga.ChapterDetails, 0, len(providerContainer.Chapters))
-	
+
 	downloadedCount := 0
 	for _, providerChapter := range providerContainer.Chapters {
 		// Normalize provider chapter number to match padded format
 		normalizedChapterNum := manga_providers.GetNormalizedChapter(providerChapter.Chapter)
-		
+
 		// Check if this chapter is downloaded
 		if downloadedChapter, exists := downloadedChapterMap[normalizedChapterNum]; exists {
 			// Use the downloaded version
@@ -126,7 +126,7 @@ func (r *Repository) MergeDownloadedChaptersWithProviderAndCollection(providerCo
 			mergedChapters = append(mergedChapters, &normalizedProviderChapter)
 		}
 	}
-	
+
 	r.logger.Debug().
 		Int("mediaId", mediaId).
 		Int("providerChapters", len(providerContainer.Chapters)).
@@ -183,14 +183,14 @@ func (r *Repository) GetMangaChapterContainer(opts *GetMangaChapterContainerOpti
 			break
 		}
 	}
-	
+
 	// Check if this AniList ID is mapped from a synthetic ID
 	// If so, we need to use the synthetic ID for cache and the original title for searching
 	cacheMediaId := mediaId
 	if mediaId > 0 && r.db != nil {
 		if syntheticID, found := r.db.GetReverseMangaIDMapping(mediaId); found {
 			cacheMediaId = syntheticID
-			
+
 			// Get the synthetic manga's original title for searching
 			if syntheticManga, foundSynthetic := r.db.GetSyntheticManga(syntheticID); foundSynthetic {
 				// Use the synthetic manga's title for searching
@@ -273,7 +273,7 @@ func (r *Repository) GetMangaChapterContainer(opts *GetMangaChapterContainerOpti
 	// Check if the container is in the cache
 	if found, _ := r.fileCacher.Get(containerBucket, chapterContainerKey, &container); found {
 		r.logger.Info().Str("bucket", containerBucket.Name()).Msg("manga: Chapter Container Cache HIT")
-		
+
 		// Normalize chapter numbers in cached container (handles legacy caches with unpadded numbers)
 		if container != nil {
 			providerTitles := make([]string, 0, len(container.Chapters))
@@ -287,7 +287,7 @@ func (r *Repository) GetMangaChapterContainer(opts *GetMangaChapterContainerOpti
 				chapter.Title = manga_providers.GetPreferredChapterTitle(dynamicPrefix, chapter.Title, chapter.Chapter)
 			}
 		}
-		
+
 		// If we used a synthetic ID for cache lookup but the request was for an AniList ID,
 		// update the container's MediaId to the AniList ID for presentation
 		if cacheMediaId != mediaId && container != nil {
@@ -469,6 +469,137 @@ func (r *Repository) GetMangaChapterContainer(opts *GetMangaChapterContainerOpti
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+const chapterUpdateCheckInterval = 6 * time.Hour
+const chapterUpdateRetryInterval = 30 * time.Minute
+
+// RefreshMangaChapterContainer refreshes one provider's chapter list without clearing other manga caches.
+func (r *Repository) RefreshMangaChapterContainer(opts *GetMangaChapterContainerOptions) (*ChapterContainer, error) {
+	if opts == nil || opts.Provider == "" {
+		return nil, errors.New("manga: provider is required to refresh chapter container")
+	}
+
+	cacheMediaId := opts.MediaId
+	if cacheMediaId > 0 && r.db != nil {
+		if syntheticID, found := r.db.GetReverseMangaIDMapping(cacheMediaId); found {
+			cacheMediaId = syntheticID
+		}
+	}
+
+	containerBucket := r.getFcProviderBucket(opts.Provider, cacheMediaId, bucketTypeChapter)
+	if err := r.fileCacher.Remove(containerBucket.Name()); err != nil {
+		return nil, fmt.Errorf("manga: failed to remove cached chapter container: %w", err)
+	}
+	mangaLatestChapterNumberMap.Delete(ChapterCountMapCacheKey)
+
+	return r.GetMangaChapterContainer(opts)
+}
+
+// CheckForMangaChapterUpdates refreshes active reading-list chapter containers in the background.
+func (r *Repository) CheckForMangaChapterUpdates(mangaCollection *anilist.MangaCollection, selectedProviderMap map[int]string) error {
+	if mangaCollection == nil {
+		return errors.New("manga: collection is required to check for chapter updates")
+	}
+
+	type refreshTask struct {
+		mediaId  int
+		provider string
+		titles   []*string
+		year     int
+		cacheKey string
+	}
+
+	now := time.Now()
+	tasks := make([]refreshTask, 0, len(selectedProviderMap))
+	r.chapterUpdateCheckMu.Lock()
+	if r.chapterUpdateNextCheckAt == nil {
+		r.chapterUpdateNextCheckAt = make(map[string]time.Time)
+	}
+	for key, nextCheckAt := range r.chapterUpdateNextCheckAt {
+		if nextCheckAt.Before(now.Add(-30 * 24 * time.Hour)) {
+			delete(r.chapterUpdateNextCheckAt, key)
+		}
+	}
+
+	for mediaId, providerId := range selectedProviderMap {
+		if providerId == "" {
+			continue
+		}
+
+		entry, found := mangaCollection.GetListEntryFromMangaId(mediaId)
+		if !found || entry.GetStatus() == nil {
+			continue
+		}
+		status := *entry.GetStatus()
+		if status != anilist.MediaListStatusCurrent && status != anilist.MediaListStatusRepeating {
+			continue
+		}
+
+		media := entry.GetMedia()
+		if media == nil {
+			continue
+		}
+
+		cacheKey := fmt.Sprintf("%s:%d", providerId, mediaId)
+		if nextCheckAt, ok := r.chapterUpdateNextCheckAt[cacheKey]; ok && now.Before(nextCheckAt) {
+			continue
+		}
+		r.chapterUpdateNextCheckAt[cacheKey] = now.Add(chapterUpdateCheckInterval)
+
+		tasks = append(tasks, refreshTask{
+			mediaId:  mediaId,
+			provider: providerId,
+			titles:   media.GetAllTitles(),
+			year:     media.GetStartYearSafe(),
+			cacheKey: cacheKey,
+		})
+	}
+	r.chapterUpdateCheckMu.Unlock()
+
+	if len(tasks) == 0 {
+		return nil
+	}
+
+	rateLimiters := make(map[string]*limiter.Limiter)
+	for _, task := range tasks {
+		if _, ok := rateLimiters[task.provider]; !ok {
+			rateLimiters[task.provider] = limiter.NewLimiter(time.Second, 2)
+		}
+	}
+
+	go func() {
+		var wg sync.WaitGroup
+		for _, task := range tasks {
+			wg.Add(1)
+			go func(task refreshTask) {
+				defer wg.Done()
+				rateLimiters[task.provider].Wait()
+
+				_, fetchErr := r.RefreshMangaChapterContainer(&GetMangaChapterContainerOptions{
+					Provider: task.provider,
+					MediaId:  task.mediaId,
+					Titles:   task.titles,
+					Year:     task.year,
+				})
+				if fetchErr != nil {
+					r.chapterUpdateCheckMu.Lock()
+					r.chapterUpdateNextCheckAt[task.cacheKey] = time.Now().Add(chapterUpdateRetryInterval)
+					r.chapterUpdateCheckMu.Unlock()
+					r.logger.Warn().Err(fetchErr).Str("provider", task.provider).Int("mediaId", task.mediaId).
+						Msg("manga: Failed to check for a new chapter")
+					return
+				}
+
+				r.logger.Debug().Str("provider", task.provider).Int("mediaId", task.mediaId).
+					Msg("manga: Checked for new chapters")
+			}(task)
+		}
+		wg.Wait()
+		mangaLatestChapterNumberMap.Delete(ChapterCountMapCacheKey)
+	}()
+
+	return nil
+}
+
 // RefreshChapterContainers deletes all cached chapter containers and refetches them based on the selected provider map.
 func (r *Repository) RefreshChapterContainers(mangaCollection *anilist.MangaCollection, selectedProviderMap map[int]string) (err error) {
 	defer util.HandlePanicInModuleWithError("manga/RefreshChapterContainers", &err)
@@ -493,7 +624,7 @@ func (r *Repository) RefreshChapterContainers(mangaCollection *anilist.MangaColl
 
 	wg.Add(len(selectedProviderMap))
 	for mediaId, selectedProviderId := range selectedProviderMap {
-		go func() {
+		go func(mediaId int, selectedProviderId string) {
 			defer wg.Done()
 			// Get the selected provider
 			provider, ok := r.extensionBankRef.Get().Get(selectedProviderId)
@@ -521,19 +652,19 @@ func (r *Repository) RefreshChapterContainers(mangaCollection *anilist.MangaColl
 			}
 
 			// Refetch the container
-			_, err = r.GetMangaChapterContainer(&GetMangaChapterContainerOptions{
+			_, fetchErr := r.GetMangaChapterContainer(&GetMangaChapterContainerOptions{
 				Provider: provider.GetID(),
 				MediaId:  mediaId,
 				Titles:   mangaEntry.GetMedia().GetAllTitles(),
 				Year:     mangaEntry.GetMedia().GetStartYearSafe(),
 			})
-			if err != nil {
-				r.logger.Warn().Err(err).Str("provider", provider.GetID()).Int("mediaId", mediaId).Msg("manga: Failed to fetch chapter container")
+			if fetchErr != nil {
+				r.logger.Warn().Err(fetchErr).Str("provider", provider.GetID()).Int("mediaId", mediaId).Msg("manga: Failed to fetch chapter container")
 				return
 			}
 
 			r.logger.Trace().Str("provider", provider.GetID()).Int("mediaId", mediaId).Msg("manga: Fetched chapter container")
-		}()
+		}(mediaId, selectedProviderId)
 	}
 	wg.Wait()
 
@@ -547,10 +678,16 @@ const ChapterCountMapCacheKey = 1
 var mangaLatestChapterNumberMap = result.NewMap[int, map[int][]MangaLatestChapterNumberItem]()
 
 type MangaLatestChapterNumberItem struct {
-	Provider  string `json:"provider"`
-	Scanlator string `json:"scanlator"`
-	Language  string `json:"language"`
-	Number    int    `json:"number"`
+	Provider        string     `json:"provider"`
+	Scanlator       string     `json:"scanlator"`
+	Language        string     `json:"language"`
+	Number          int        `json:"number"`
+	Chapter         string     `json:"chapter"`
+	ChapterID       string     `json:"chapterId"`
+	Title           string     `json:"title"`
+	UpdatedAt       string     `json:"updatedAt,omitempty"`
+	CadenceDays     float64    `json:"cadenceDays,omitempty"`
+	EstimatedNextAt *time.Time `json:"estimatedNextAt,omitempty"`
 }
 
 // GetMangaLatestChapterNumbersMap retrieves the latest chapter number for all manga entries.
@@ -609,16 +746,23 @@ func (r *Repository) GetMangaLatestChapterNumbersMap() (ret map[int][]MangaLates
 
 				chapterNumFloat, _ := strconv.ParseFloat(lastChapter.Chapter, 32)
 				chapterCount := int(math.Floor(chapterNumFloat))
+				cadenceDays, estimatedNextAt := estimateChapterReleaseCadence(chapters)
 
 				if _, ok := ret[mediaId]; !ok {
 					ret[mediaId] = []MangaLatestChapterNumberItem{}
 				}
 
 				ret[mediaId] = append(ret[mediaId], MangaLatestChapterNumberItem{
-					Provider:  provider,
-					Scanlator: scanlator,
-					Language:  language,
-					Number:    chapterCount,
+					Provider:        provider,
+					Scanlator:       scanlator,
+					Language:        language,
+					Number:          chapterCount,
+					Chapter:         lastChapter.Chapter,
+					ChapterID:       lastChapter.ID,
+					Title:           lastChapter.Title,
+					UpdatedAt:       lastChapter.UpdatedAt,
+					CadenceDays:     cadenceDays,
+					EstimatedNextAt: estimatedNextAt,
 				})
 			}
 		}

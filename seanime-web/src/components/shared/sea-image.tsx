@@ -43,9 +43,10 @@ export const SeaImage = forwardRef<HTMLImageElement, ImageProps & { isExternal?:
 
         const effectiveOverride = (blocked || hasError) ? "/no-cover.png" : props.overrideSrc
 
-        function handleError() {
+        function handleError(event: React.SyntheticEvent<HTMLImageElement>) {
             setHasError(true)
             console.warn(`Error loading image ${props.src}`)
+            props.onError?.(event)
         }
 
         return <Image

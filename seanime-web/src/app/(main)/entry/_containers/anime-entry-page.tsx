@@ -96,6 +96,9 @@ export function AnimeEntryPage() {
 
     const { currentView, isLibraryView, setView } = useAnimeEntryPageView()
     const switchedView = React.useRef(false)
+    const handleBackToEpisodes = React.useCallback(() => {
+        setView("library")
+    }, [setView])
 
     React.useLayoutEffect(() => {
         if (!animeEntry) return
@@ -425,7 +428,7 @@ export function AnimeEntryPage() {
                                 <OnlinestreamPage
                                     animeEntry={animeEntry}
                                     animeEntryLoading={animeEntryLoading}
-                                    hideBackButton
+                                    onBackToEpisodes={handleBackToEpisodes}
                                 />
                                 <PluginWebviewSlot slot="after-anime-entry-episode-list" />
                                 {/*<LegacyOnlinestreamPage*/}

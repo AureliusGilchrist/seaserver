@@ -81,7 +81,7 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
         <>
             <MediaPageHeader
                 backgroundImage={entry.media?.bannerImage}
-                coverImage={entry.media?.coverImage?.extraLarge}
+                coverImage={entry.media?.coverImage?.extraLarge || entry.media?.coverImage?.large}
             >
 
             <MediaPageHeaderDetailsContainer>

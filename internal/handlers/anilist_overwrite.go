@@ -151,7 +151,7 @@ type OverwriteChange struct {
 	Title   string   `json:"title"`
 	Fields  []string `json:"fields"`
 
-	want, have overwriteEntry
+	want, have overwriteEntry `json:"-"`
 }
 
 // OverwritePreview is what an overwrite would change, without changing anything.

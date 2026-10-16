@@ -8,14 +8,29 @@ export function useHandleEpisodeSection(props: { entry: Anime_Entry }) {
     const media = entry.media
 
     const { playMediaFile } = useHandlePlayMedia()
+    const [pendingNextEpisode, setPendingNextEpisode] = React.useState<Anime_Entry["nextEpisode"] | null>(null)
 
     usePlayNextVideoOnMount({
         onPlay: () => {
             if (entry.nextEpisode) {
-                playMediaFile({ path: entry.nextEpisode.localFile?.path ?? "", mediaId: entry.mediaId, episode: entry.nextEpisode })
+                setPendingNextEpisode(entry.nextEpisode)
             }
         },
     }, !!entry.nextEpisode)
+
+    const dismissPlayNextPrompt = React.useCallback(() => {
+        setPendingNextEpisode(null)
+    }, [])
+
+    const watchNextEpisode = React.useCallback(() => {
+        if (!pendingNextEpisode) return
+        setPendingNextEpisode(null)
+        playMediaFile({
+            path: pendingNextEpisode.localFile?.path ?? "",
+            mediaId: entry.mediaId,
+            episode: pendingNextEpisode,
+        })
+    }, [entry.mediaId, pendingNextEpisode, playMediaFile])
 
     const mainEpisodes = React.useMemo(() => {
         return entry.episodes?.filter(ep => ep.type === "main") ?? []
@@ -55,5 +70,8 @@ export function useHandleEpisodeSection(props: { entry: Anime_Entry }) {
         ncEpisodes,
         hasInvalidEpisodes,
         episodesToWatch,
+        pendingNextEpisode,
+        dismissPlayNextPrompt,
+        watchNextEpisode,
     }
 }

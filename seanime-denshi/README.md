@@ -1,5 +1,5 @@
 <p align="center">
-<img src="../docs/images/seanime-logo.png" alt="preview" width="70px"/>
+<img src="../seanime-web/public/deus-ex-aeternae-emblem.svg" alt="Deus ex Aeternae emblem" width="70px"/>
 </p>
 
 <h2 align="center"><b>Seanime Denshi</b></h2>

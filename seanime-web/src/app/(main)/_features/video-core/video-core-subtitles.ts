@@ -1629,21 +1629,29 @@ export function resolveOverrideTrackNumber(
     const ts = tracks ?? []
     if (!ts.length) return null
 
-    // 1. Match by label (most specific, e.g. "English (Honorifics)")
+    const normalizeLanguage = (language?: string, label?: string) => {
+        const baseLanguage = language?.trim().toLowerCase().replace(/_/g, "-").split("-")[0]
+        return detectTrackLanguage({ language: baseLanguage, label }) ?? baseLanguage ?? detectTrackLanguage({ label })
+    }
+    const wantedLang = override.subtitleLanguage
+        ? normalizeLanguage(override.subtitleLanguage, override.subtitleLabel)
+        : undefined
+
+    // 1. Match by label, but do not let a repeated generic label (e.g. "Default") override
+    // the saved language and silently switch the next episode to another language.
     if (override.subtitleLabel) {
         const wanted = override.subtitleLabel.trim().toLowerCase()
-        const byLabel = ts.find(t => t.label?.trim().toLowerCase() === wanted)
+        const labelMatches = ts.filter(t => t.label?.trim().toLowerCase() === wanted)
+        const byLabel = wantedLang
+            ? labelMatches.find(t => normalizeLanguage(t.languageIETF, t.label) === wantedLang
+                || normalizeLanguage(t.language, t.label) === wantedLang)
+            : labelMatches[0]
         if (byLabel) return byLabel.number
     }
 
     // 2. Match by normalized language (including ISO 639 aliases and BCP 47 tags),
     // preferring the same codec when one was recorded.
     if (override.subtitleLanguage) {
-        const normalizeLanguage = (language?: string, label?: string) => {
-            const baseLanguage = language?.trim().toLowerCase().replace(/_/g, "-").split("-")[0]
-            return detectTrackLanguage({ language: baseLanguage, label }) ?? baseLanguage ?? detectTrackLanguage({ label })
-        }
-        const wantedLang = normalizeLanguage(override.subtitleLanguage, override.subtitleLabel)
         const sameLang = wantedLang
             ? ts.filter(t => normalizeLanguage(t.languageIETF, t.label) === wantedLang
                 || normalizeLanguage(t.language, t.label) === wantedLang)
@@ -1685,9 +1693,11 @@ export function getDefaultSubtitleTrackNumber(
     for (const preferredLang of preferredLanguages) {
         let foundTracks = tracks?.filter?.(t => trackMatchesLanguage(t, preferredLang))
         if (foundTracks?.length) {
-            // Find default or forced track
-            const defaultIndex = foundTracks.findIndex(t => t.forced)
-            return foundTracks[defaultIndex >= 0 ? defaultIndex : 0].number
+            // Prefer a complete caption track over a forced-only track for the same language.
+            const preferredTrack = foundTracks.find(t => !t.forced && t.default)
+                ?? foundTracks.find(t => !t.forced)
+                ?? foundTracks[0]
+            return preferredTrack.number
         }
         if (preferredLang === "none") {
             return NO_TRACK_NUMBER

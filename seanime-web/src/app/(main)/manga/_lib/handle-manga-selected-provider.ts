@@ -26,13 +26,14 @@ export const __manga_entryFiltersAtom = atomWithStorage<Record<string, MangaEntr
 /**
  * Helper function to get the default provider from server status or available extensions
  */
-const getDefaultMangaProvider = (
+export const getDefaultMangaProvider = (
     serverStatus: Status | undefined,
     extensions: ExtensionRepo_MangaProviderExtensionItem[] | undefined,
 ): string | null => {
-    const firstExt = ((!!extensions?.length && extensions?.length > 1) ? extensions?.filter(n => n.id !== "local-manga")?.[0] : extensions?.[0])
+    const sortedExtensions = extensions?.toSorted((a, b) => a.name.localeCompare(b.name))
+    const firstExt = ((!!sortedExtensions?.length && sortedExtensions?.length > 1) ? sortedExtensions?.filter(n => n.id !== "local-manga")?.[0] : sortedExtensions?.[0])
     const defaultExt = !!serverStatus?.settings?.manga?.defaultMangaProvider
-        ? extensions?.find(n => n.id === serverStatus?.settings?.manga?.defaultMangaProvider)
+        ? sortedExtensions?.find(n => n.id === serverStatus?.settings?.manga?.defaultMangaProvider)
         : null
     return defaultExt?.id || firstExt?.id || null
 }
@@ -312,17 +313,11 @@ export function getMangaEntryLatestChapterNumber(
     // If no filters are set or no entry is found for the filters, get the highest chapter number
     if (!found) {
         // Get the highest chapter number from any
-        const highestChapterNumber = mangaLatestChapterNumbers?.reduce((max, item) => {
+        return mangaLatestChapterNumbers?.reduce((max, item) => {
             return Math.max(max, item.number)
         }, 0)
-        found = {
-            provider: provider,
-            language: "",
-            scanlator: "",
-            number: highestChapterNumber,
-        }
     }
 
-    return found?.number
+    return found.number
 
 }

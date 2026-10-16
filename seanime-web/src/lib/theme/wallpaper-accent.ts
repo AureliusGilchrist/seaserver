@@ -20,6 +20,8 @@
  *     hue is kept exactly and the vividness is raised to a floor.
  */
 
+import { getServerBaseUrl } from "@/api/client/server-url"
+
 const SAMPLE_SIZE = 64
 
 /** `rgb()` components to HSL, each of h in degrees and s/l in 0..1. */
@@ -52,11 +54,13 @@ function hslToHex(h: number, s: number, l: number): string {
 function loadImage(url: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
         const img = new Image()
-        // Same-origin wallpapers (everything the app serves) read back fine. A remote image that
-        // does not send CORS headers cannot be read at all, and is left to fail here rather than
-        // tainting a canvas that other code draws on.
-        if (!url.startsWith("/") && !url.startsWith(window.location.origin)) {
-            img.crossOrigin = "anonymous"
+        const imageOrigin = new URL(url, window.location.href).origin
+        if (imageOrigin !== window.location.origin) {
+            const serverOrigin = new URL(getServerBaseUrl(), window.location.href).origin
+            // Uploaded wallpapers are served by the app and require the credentialed CORS
+            // request when the web UI is hosted on a different origin (for example, Tauri).
+            // Public remote wallpapers remain anonymous so they do not receive app credentials.
+            img.crossOrigin = imageOrigin === serverOrigin ? "use-credentials" : "anonymous"
         }
         img.onload = () => resolve(img)
         img.onerror = () => reject(new Error("wallpaper could not be loaded"))

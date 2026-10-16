@@ -229,7 +229,7 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
     if (serverStatus?.updating) {
         return <div className="container max-w-3xl py-10">
             <div className="mb-4 flex justify-center w-full">
-                <img src="/seanime-logo.png" alt="logo" className="w-14 h-auto" />
+                <img src="/deus-ex-aeternae-emblem.svg" alt="Deus ex Aeternae" className="size-14" />
             </div>
             <p className="text-center text-lg">
                 Seanime is currently updating. Refresh the page once the update is complete and the connection has been reestablished.
@@ -304,7 +304,7 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
                 <AppLayoutStack>
                     <div className="text-center space-y-4">
                         <div className="mb-4 flex justify-center w-full">
-                            <img src="/seanime-logo.png" alt="logo" className="w-24 h-auto" />
+                            <img src="/deus-ex-aeternae-emblem.svg" alt="Deus ex Aeternae" className="size-20" />
                         </div>
                         <h3>Welcome!</h3>
                         <Button
@@ -335,7 +335,7 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
                 <AppLayoutStack>
                     <div className="text-center space-y-4">
                         <div className="mb-4 flex justify-center w-full">
-                            <img src="/seanime-logo.png" alt="logo" className="w-24 h-auto" />
+                            <img src="/deus-ex-aeternae-emblem.svg" alt="Deus ex Aeternae" className="size-20" />
                         </div>
                         <h3>Welcome!</h3>
                         <AnilistTokenButton leftIcon={<AnilistLogo />} intent="white" size="md" />
@@ -470,7 +470,7 @@ function ProfileAniListGate(props: {
             <AppLayoutStack>
                 <div className="text-center space-y-4">
                     <div className="mb-4 flex justify-center w-full">
-                        <img src="/seanime-logo.png" alt="logo" className="w-24 h-auto" />
+                        <img src="/deus-ex-aeternae-emblem.svg" alt="Deus ex Aeternae" className="size-20" />
                     </div>
                     <h3>Link AniList for {profileName}</h3>
                     {expiredNotice
@@ -529,7 +529,7 @@ function PlanningSlutSetupGate(props: { isAdmin: boolean, onConfigured: () => vo
             <AppLayoutStack>
                 <div className="text-center space-y-4">
                     <div className="mb-4 flex justify-center w-full">
-                        <img src="/seanime-logo.png" alt="logo" className="w-24 h-auto" />
+                        <img src="/deus-ex-aeternae-emblem.svg" alt="Deus ex Aeternae" className="size-20" />
                     </div>
                     <h3>Connect the shared AniList account</h3>
                     {expiredNotice
@@ -607,7 +607,7 @@ function CreateFirstProfileGate(props: { onCreated: () => void }) {
                 <AppLayoutStack>
                     <div className="text-center space-y-4">
                         <div className="mb-4 flex justify-center w-full">
-                            <img src="/seanime-logo.png" alt="logo" className="w-24 h-auto" />
+                            <img src="/deus-ex-aeternae-emblem.svg" alt="Deus ex Aeternae" className="size-20" />
                         </div>
                         <h3>Create your profile</h3>
                         <p className="text-[--muted] text-sm">Set up your first profile to get started. This will be an admin profile.</p>

@@ -51,7 +51,7 @@ func NewDownloader(opts *NewDownloaderOptions) *Downloader {
 		DownloadDir:    opts.DownloadDir,
 	})
 
-	go d.hydrateMediaMap()
+	go d.ensureMediaMapHydrated()
 
 	mangabaka.Configure(opts.Logger, filepath.Dir(opts.DownloadDir))
 
@@ -169,12 +169,12 @@ type (
 		OnMangaQueued func(mediaId int) // Called when a manga chapter is queued for download
 		filecacher    *filecache.Cacher
 
-		mediaMap      *MediaMap // Refreshed on start and after each download
-		mediaMapMu    sync.RWMutex
-		mediaMapReady bool
+		mediaMap          *MediaMap // Refreshed on start and after each download
+		mediaMapMu        sync.RWMutex
+		mediaMapHydrateMu sync.Mutex
+		mediaMapReady     bool
 
 		chapterDownloadedCh chan chapter_downloader.DownloadID
-		readingDownloadDir  bool
 		isOfflineRef        *util.Ref[bool]
 		anilistClientRef    *util.Ref[anilist.AnilistClient]
 
@@ -490,12 +490,7 @@ func (d *Downloader) GetMediaDownloads(mediaId int, cached bool) (ret MediaDownl
 	if !cached {
 		d.hydrateMediaMap()
 	} else {
-		d.mediaMapMu.RLock()
-		ready := d.mediaMapReady
-		d.mediaMapMu.RUnlock()
-		if !ready {
-			d.hydrateMediaMap()
-		}
+		d.ensureMediaMapHydrated()
 	}
 
 	d.mediaMapMu.RLock()
@@ -639,6 +634,7 @@ type (
 func (d *Downloader) NewDownloadList(opts *NewDownloadListOptions) (ret []*DownloadListItem, err error) {
 	defer util.HandlePanicInModuleWithError("manga/NewDownloadList", &err)
 
+	d.ensureMediaMapHydrated()
 	sources := d.mediaMapSnapshot()
 
 	// series is everything known about one series, gathered from every folder that belongs to it.
@@ -1051,18 +1047,25 @@ func (mm *MediaMap) getMediaDownload(mediaId int, db *db.Database) (MediaDownloa
 
 // hydrateMediaMap hydrates the MediaMap by reading the download directory.
 func (d *Downloader) hydrateMediaMap() {
+	d.mediaMapHydrateMu.Lock()
+	defer d.mediaMapHydrateMu.Unlock()
+	d.refreshMediaMapLocked()
+}
 
-	d.mediaMapMu.Lock()
-	defer d.mediaMapMu.Unlock()
+func (d *Downloader) ensureMediaMapHydrated() {
+	d.mediaMapHydrateMu.Lock()
+	defer d.mediaMapHydrateMu.Unlock()
 
-	if d.readingDownloadDir {
+	d.mediaMapMu.RLock()
+	ready := d.mediaMapReady
+	d.mediaMapMu.RUnlock()
+	if ready {
 		return
 	}
-	d.readingDownloadDir = true
-	defer func() {
-		d.readingDownloadDir = false
-	}()
+	d.refreshMediaMapLocked()
+}
 
+func (d *Downloader) refreshMediaMapLocked() {
 	d.logger.Debug().Msg("manga downloader: Reading download directory")
 
 	ret := make(MediaMap)
@@ -1164,8 +1167,10 @@ func (d *Downloader) hydrateMediaMap() {
 		ret = *ev.MediaMap
 	}
 
+	d.mediaMapMu.Lock()
 	d.mediaMap = &ret
 	d.mediaMapReady = true
+	d.mediaMapMu.Unlock()
 
 	// When done refreshing, send a message to the client to refetch the download data
 	d.wsEventManager.SendEvent(events.RefreshedMangaDownloadData, nil)

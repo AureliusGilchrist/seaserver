@@ -727,6 +727,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Manga.GET("/hydrate-all/status", h.HandleGetMangaHydrationStatus)
 	v1Manga.POST("/hydrate-all/cancel", h.HandleCancelMangaHydration)
 	v1Manga.GET("/latest-chapter-numbers", h.HandleGetMangaLatestChapterNumbersMap)
+	v1Manga.POST("/check-chapter-updates", h.HandleCheckMangaChapterUpdates)
 	v1Manga.POST("/refetch-chapter-containers", h.HandleRefetchMangaChapterContainers)
 	v1Manga.GET("/entry/:id", h.HandleGetMangaEntry)
 	v1Manga.GET("/entry/:id/details", h.HandleGetMangaEntryDetails)

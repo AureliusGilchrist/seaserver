@@ -154,7 +154,7 @@ export function useVideoCoreSetupEvents(id: string,
         subtitleManager.addEventListener("trackdeselected", handleTrackDeselected)
         return () => {
             subtitleManager.removeEventListener("trackselected", handleTrackSelected)
-            subtitleManager.addEventListener("trackdeselected", handleTrackDeselected)
+            subtitleManager.removeEventListener("trackdeselected", handleTrackDeselected)
         }
     }, [isActivePlayer, state, subtitleManager])
 
@@ -176,7 +176,7 @@ export function useVideoCoreSetupEvents(id: string,
         mediaCaptionsManager.addEventListener("trackdeselected", handleTrackDeselected)
         return () => {
             mediaCaptionsManager.removeEventListener("trackselected", handleTrackSelected)
-            mediaCaptionsManager.addEventListener("trackdeselected", handleTrackDeselected)
+            mediaCaptionsManager.removeEventListener("trackdeselected", handleTrackDeselected)
         }
     }, [isActivePlayer, state, mediaCaptionsManager])
 
@@ -815,4 +815,3 @@ export function useVideoCoreEvents() {
         sendEvent: sendEvent,
     }
 }
-

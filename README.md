@@ -1,6 +1,6 @@
 <p align="center">
 <a href="https://seanime.app/">
-<img src="docs/images/seanime-logo.png" alt="preview" width="70px"/>
+<img src="seanime-web/public/deus-ex-aeternae-emblem.svg" alt="Deus ex Aeternae emblem" width="70px"/>
 </a>
 </p>
 

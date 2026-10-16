@@ -11,6 +11,7 @@ import { PageWrapper } from "@/components/shared/page-wrapper"
 import { SeaImage } from "@/components/shared/sea-image"
 import { TextGenerateEffect } from "@/components/shared/text-generate-effect"
 import { Carousel, CarouselContent, CarouselDotButtons, CarouselItem } from "@/components/ui/carousel"
+import { cn } from "@/components/ui/core/styling"
 import { useDebounce } from "@/hooks/use-debounce"
 import { anilist_animeIsMovie } from "@/lib/helpers/media"
 import { useContinueWatchingSpoilers } from "@/lib/theme/anime-spoilers"
@@ -174,14 +175,23 @@ export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle 
                             key={episode?.localFile?.path || episode?.baseAnime?.id}
                             className={episodeCardCarouselItemClass(ts.smallerEpisodeCarouselSize)}
                         >
-                            <_EpisodeCard
-                                key={episode.localFile?.path || ""}
-                                episode={episode}
-                                mRef={episodeRefs[idx]}
-                                overrideLink={linkTemplate}
-                                spoilerActive={spoilerActive ?? false}
-                                watchHistory={watchHistory}
-                            />
+                            <div className="relative">
+                                <div className={cn(episode.baseAnime?.status === "FINISHED" && "grayscale opacity-75")}>
+                                    <_EpisodeCard
+                                        key={episode.localFile?.path || ""}
+                                        episode={episode}
+                                        mRef={episodeRefs[idx]}
+                                        overrideLink={linkTemplate}
+                                        spoilerActive={spoilerActive ?? false}
+                                        watchHistory={watchHistory}
+                                    />
+                                </div>
+                                {episode.baseAnime?.status === "FINISHED" && (
+                                    <span className="pointer-events-none absolute right-2 top-2 z-[2] rounded-full border border-white/20 bg-black/75 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-lg backdrop-blur-md">
+                                        Finished
+                                    </span>
+                                )}
+                            </div>
                         </CarouselItem>
                     ))}
                 </CarouselContent>
@@ -275,4 +285,3 @@ const _EpisodeCard = React.memo(({ episode, mRef, overrideLink, spoilerActive, w
         />
     )
 })
-

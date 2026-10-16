@@ -42,6 +42,13 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
     const { isMobile } = useIsMobile()
 
     const bannerImage = backgroundImage || coverImage
+    const [failedBannerImage, setFailedBannerImage] = React.useState<string | null>(null)
+    React.useEffect(() => {
+        setFailedBannerImage(null)
+    }, [backgroundImage, coverImage])
+    const visibleBannerImage = bannerImage === failedBannerImage
+        ? (coverImage && coverImage !== failedBannerImage ? coverImage : null)
+        : bannerImage
     const shouldHideBanner = (
         (ts.mediaPageBannerType === ThemeMediaPageBannerType.HideWhenUnavailable && !backgroundImage)
         || ts.mediaPageBannerType === ThemeMediaPageBannerType.Hide
@@ -131,14 +138,15 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
                     exit={{ scale: 1, y: 0 }}
                     transition={{ duration: 0.6, ease: "easeOut" }}
                 >
-                    {(!!bannerImage) && <MotionImage
+                    {!!visibleBannerImage && <MotionImage
                         data-media-page-header-banner-image
-                        src={getImageUrl(bannerImage || "")}
+                        src={getImageUrl(visibleBannerImage)}
                         alt="banner image"
                         fill
                         quality={100}
                         priority
                         sizes="100vw"
+                        onError={() => setFailedBannerImage(visibleBannerImage)}
                         className={cn(
                             "object-cover object-center scroll-locked-offset z-[1]",
                             shouldBlurBanner && "blur",

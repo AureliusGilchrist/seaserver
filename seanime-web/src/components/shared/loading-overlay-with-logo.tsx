@@ -9,8 +9,8 @@ import React from "react"
 export function LoadingOverlayWithLogo({ refetch, title }: { refetch?: () => void, title?: string }) {
     return <LoadingOverlay showSpinner={false}>
         <Image
-            src="/seanime-logo.png"
-            alt="Loading..."
+            src="/deus-ex-aeternae-emblem.svg"
+            alt="Deus ex Aeternae"
             priority
             width={100}
             height={100}

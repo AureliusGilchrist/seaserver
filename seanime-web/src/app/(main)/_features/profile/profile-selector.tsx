@@ -205,7 +205,7 @@ export function ProfileSelector({ profiles, onManageProfiles }: ProfileSelectorP
                 <div className="pointer-events-none absolute -right-24 bottom-0 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
                 <div className="relative z-10 flex w-full max-w-sm flex-col items-center rounded-3xl border border-white/10 bg-white/[0.045] p-8 shadow-[0_30px_100px_-35px_rgba(124,58,237,0.5)] backdrop-blur-2xl">
                     <div className="mb-8">
-                        <img src="/seanime-logo.png" alt="logo" className="w-14 h-auto drop-shadow-[0_0_18px_rgba(167,139,250,0.4)]" />
+                        <img src="/deus-ex-aeternae-emblem.svg" alt="Deus ex Aeternae" className="size-14 drop-shadow-[0_0_18px_rgba(167,139,250,0.4)]" />
                     </div>
                     <div className="flex flex-col items-center gap-6">
                     <Avatar
@@ -299,7 +299,7 @@ export function ProfileSelector({ profiles, onManageProfiles }: ProfileSelectorP
             <div className="pointer-events-none absolute -right-24 bottom-0 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
             <div className="relative z-10 flex w-full max-w-3xl flex-col items-center rounded-3xl border border-white/10 bg-white/[0.045] p-8 shadow-[0_30px_100px_-35px_rgba(124,58,237,0.5)] backdrop-blur-2xl sm:p-10">
             <div className="mb-7">
-                <img src="/seanime-logo.png" alt="logo" className="w-14 h-auto drop-shadow-[0_0_18px_rgba(167,139,250,0.4)]" />
+                <img src="/deus-ex-aeternae-emblem.svg" alt="Deus ex Aeternae" className="size-14 drop-shadow-[0_0_18px_rgba(167,139,250,0.4)]" />
             </div>
             <h1 className="mb-2 bg-gradient-to-r from-violet-200 via-white to-cyan-200 bg-clip-text text-3xl font-bold text-transparent">Who's watching?</h1>
             <p className="mb-8 text-sm text-white/50">Choose a profile to continue</p>

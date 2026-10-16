@@ -160,17 +160,17 @@ import { toast } from "sonner"
 
 const log = logger("VIDEO CORE")
 
-function exitVideoCoreFullscreen(fullscreenManager: VideoCoreFullscreenManager | null) {
+function exitVideoCoreFullscreen(fullscreenManager: VideoCoreFullscreenManager | null): Promise<void> {
     if (fullscreenManager) {
-        void fullscreenManager.exitFullscreen()
-        return
+        return fullscreenManager.exitFullscreen()
     }
 
     if (document.fullscreenElement && document.exitFullscreen) {
-        void document.exitFullscreen().catch(error => {
+        return document.exitFullscreen().catch(error => {
             log.error("Failed to exit fullscreen", error)
         })
     }
+    return Promise.resolve()
 }
 
 export const VIDEOCORE_DEBUG_ELEMENTS = false
@@ -315,6 +315,7 @@ interface PlayerContentProps {
     onTerminateStream: () => void
     onVideoSourceChange: ((source: VideoCore_VideoSource) => void) | undefined
     onHlsQualityChange: ((quality: string) => void) | undefined
+    onBackToContent?: () => void | Promise<void>
 }
 
 const PlayerContent = React.memo<PlayerContentProps>(({
@@ -346,6 +347,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
     onTerminateStream,
     onVideoSourceChange,
     onHlsQualityChange,
+    onBackToContent,
 }) => {
     const isMobile = useAtomValue(vc_isMobile)
     const isMiniPlayer = useAtomValue(vc_miniPlayer)
@@ -387,7 +389,9 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                             size="sm"
                             intent="gray-basic"
                             className="absolute right-4 top-4 z-[30]"
-                            onClick={() => exitVideoCoreFullscreen(fullscreenManager)}
+                            onClick={() => {
+                                void exitVideoCoreFullscreen(fullscreenManager)
+                            }}
                         >
                             Exit fullscreen
                         </Button>
@@ -420,6 +424,19 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                 onMouseEnter={handleContainerMouseEnter}
                 onMouseLeave={handleContainerMouseLeave}
             >
+                {inline && fullscreen && onBackToContent && (
+                    <Button
+                        type="button"
+                        size="sm"
+                        intent="gray-basic"
+                        className="absolute left-4 top-4 z-[100] rounded-full border border-white/15 bg-black/65 shadow-lg backdrop-blur-md"
+                        onClick={() => {
+                            void onBackToContent()
+                        }}
+                    >
+                        Back to episodes
+                    </Button>
+                )}
                 {(!!state.playbackInfo?.streamUrl && !state.loadingState) ? (
                     <>
                         <VideoCoreKeybindingController
@@ -674,7 +691,9 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                                 size="sm"
                                 intent="gray-basic"
                                 className="absolute right-4 top-4 z-[100]"
-                                onClick={() => exitVideoCoreFullscreen(fullscreenManager)}
+                                onClick={() => {
+                                    void exitVideoCoreFullscreen(fullscreenManager)
+                                }}
                             >
                                 Exit fullscreen
                             </Button>
@@ -730,6 +749,7 @@ export interface VideoCoreProps {
     onHlsMediaDetached?: () => void
     onHlsFatalError?: (error: ErrorData) => void
     onChangePlaybackType?: (type: VideoCore_VideoPlaybackInfo["streamType"]) => void
+    onBackToContent?: () => void | Promise<void>
     inline?: boolean
     mRef?: React.MutableRefObject<HTMLVideoElement | null>
 }
@@ -763,6 +783,7 @@ export function VideoCore(props: VideoCoreProps) {
         onHlsFatalError,
         onPlayEpisode,
         onChangePlaybackType,
+        onBackToContent,
         mRef,
     } = props
     const setPlaybackInfo = useSetAtom(vc_playbackInfo)
@@ -870,6 +891,13 @@ export function VideoCore(props: VideoCoreProps) {
     const fullscreen = useAtomValue(vc_isFullscreen)
     const showOverlayFeedback = useSetAtom(vc_showOverlayFeedback)
 
+    const handleBackToContent = React.useCallback(async () => {
+        if (fullscreen || fullscreenManager?.isFullscreen) {
+            await exitVideoCoreFullscreen(fullscreenManager)
+        }
+        await onBackToContent?.()
+    }, [fullscreen, fullscreenManager, onBackToContent])
+
     React.useEffect(() => {
         const hasPlaybackKeybindings = !!state.playbackInfo?.streamUrl && !state.loadingState
         if (!inline || !state.active || hasPlaybackKeybindings) return
@@ -880,7 +908,7 @@ export function VideoCore(props: VideoCoreProps) {
             if (isEditableKeyboardTarget(event.target) || isEditableKeyboardTarget(document.activeElement)) return
 
             event.preventDefault()
-            exitVideoCoreFullscreen(fullscreenManager)
+            void exitVideoCoreFullscreen(fullscreenManager)
         }
 
         document.addEventListener("keydown", handleEscape)
@@ -2057,6 +2085,7 @@ export function VideoCore(props: VideoCoreProps) {
                         onTerminateStream={onTerminateStream}
                         onVideoSourceChange={onVideoSourceChange}
                         onHlsQualityChange={onHlsQualityChange}
+                        onBackToContent={handleBackToContent}
                     />
                 </div>
             </ScopeProvider>
@@ -2152,6 +2181,7 @@ export function VideoCore(props: VideoCoreProps) {
                         onTerminateStream={onTerminateStream}
                         onVideoSourceChange={onVideoSourceChange}
                         onHlsQualityChange={onHlsQualityChange}
+                        onBackToContent={handleBackToContent}
                     />
                 </VideoCoreDrawer>
 

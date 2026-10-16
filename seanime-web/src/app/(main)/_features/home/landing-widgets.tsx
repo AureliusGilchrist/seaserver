@@ -42,8 +42,10 @@ export type LandingWidgetId =
     | "continue-watching"
     | "continue-reading"
     | "quick-links"
+    | "library-insights"
     | "anime-stats"
     | "manga-stats"
+    | "upcoming-manga"
     | "schedule"
     | "airing-today"
     | "updates"
@@ -61,9 +63,11 @@ export type LandingWidgetConfig = {
 export const DEFAULT_LANDING_WIDGETS: LandingWidgetConfig[] = [
     { id: "continue-watching", enabled: true },
     { id: "quick-links", enabled: true },
+    { id: "library-insights", enabled: true },
     { id: "airing-today", enabled: true },
     { id: "anime-stats", enabled: true },
     { id: "manga-stats", enabled: true },
+    { id: "upcoming-manga", enabled: true },
     { id: "schedule", enabled: true },
     { id: "updates", enabled: true },
     { id: "to-watch", enabled: true },
@@ -77,8 +81,10 @@ export const LANDING_WIDGET_META: Record<LandingWidgetId, { name: string, descri
     "continue-watching": { name: "Continue watching", description: "Whatever was being watched, first." },
     "continue-reading": { name: "Continue reading", description: "The manga you were reading, first." },
     "quick-links": { name: "App folders", description: "Your app destinations, organized into folders." },
+    "library-insights": { name: "Library analytics", description: "Detailed counts and progress across your library." },
     "anime-stats": { name: "Anime stats", description: "What your anime library holds, counted." },
     "manga-stats": { name: "Manga stats", description: "What your manga library holds, counted." },
+    "upcoming-manga": { name: "Upcoming manga", description: "The next likely chapter from manga you are reading." },
     "schedule": { name: "Schedule", description: "What airs next, and what you are behind on." },
     "airing-today": { name: "Airing today", description: "What is out today, from AniList's schedule." },
     "updates": { name: "Updates", description: "What the server was last updated to, and recent commits." },

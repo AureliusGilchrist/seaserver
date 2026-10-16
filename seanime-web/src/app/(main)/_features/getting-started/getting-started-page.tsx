@@ -126,7 +126,7 @@ function StepIndicator({ currentStep, totalSteps, onStepClick }: { currentStep: 
             <div className="flex items-center justify-center mb-6">
                 <div className="relative mx-auto size-16">
                     <motion.img
-                        src="/seanime-logo.png"
+                        src="/deus-ex-aeternae-emblem.svg"
                         alt="Seanime Logo"
                         className="w-full h-full object-contain"
                         initial={{ opacity: 0 }}

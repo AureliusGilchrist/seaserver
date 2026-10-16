@@ -14,8 +14,10 @@ import { useForcePlaybackMethod, useHandlePlayMedia } from "@/app/(main)/entry/_
 import { episodeCardCarouselItemClass } from "@/components/shared/classnames"
 import { Alert } from "@/components/ui/alert"
 import { AppLayoutStack } from "@/components/ui/app-layout"
+import { Button } from "@/components/ui/button"
 import { Carousel, CarouselContent, CarouselDotButtons, CarouselItem } from "@/components/ui/carousel"
 import { ContextMenuItem } from "@/components/ui/context-menu"
+import { Modal } from "@/components/ui/modal"
 import { displayTitle } from "@/lib/helpers/media"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import React from "react"
@@ -42,6 +44,9 @@ export function EpisodeSection({ entry, details, bottomSection, hideCarousel, ma
         mainEpisodes,
         specialEpisodes,
         ncEpisodes,
+        pendingNextEpisode,
+        dismissPlayNextPrompt,
+        watchNextEpisode,
     } = useHandleEpisodeSection({ entry })
 
     const { playMediaFile, isUsingNativePlayer } = useHandlePlayMedia()
@@ -295,6 +300,24 @@ export function EpisodeSection({ entry, details, bottomSection, hideCarousel, ma
 
                 </div>
             </AppLayoutStack>
+
+            <Modal
+                open={!!pendingNextEpisode}
+                title="What would you like to do?"
+                description="You arrived from Continue Watching. View the episode list or start the next episode now."
+                onOpenChange={open => {
+                    if (!open) dismissPlayNextPrompt()
+                }}
+            >
+                <div className="flex flex-wrap justify-center gap-2">
+                    <Button intent="gray-outline" onClick={dismissPlayNextPrompt}>
+                        View episode list
+                    </Button>
+                    <Button intent="primary" onClick={watchNextEpisode}>
+                        Watch next episode
+                    </Button>
+                </div>
+            </Modal>
         </>
     )
 

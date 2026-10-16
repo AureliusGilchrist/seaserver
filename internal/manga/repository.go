@@ -45,9 +45,11 @@ type (
 		db               *db.Database
 
 		settings *models.Settings
-		
+
 		// Request deduplication
-		inFlightRequests sync.Map // map[string]chan *PageContainer for deduplicating concurrent requests
+		inFlightRequests         sync.Map // map[string]chan *PageContainer for deduplicating concurrent requests
+		chapterUpdateCheckMu     sync.Mutex
+		chapterUpdateNextCheckAt map[string]time.Time
 	}
 
 	NewRepositoryOptions struct {

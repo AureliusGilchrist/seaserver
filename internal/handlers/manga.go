@@ -365,6 +365,32 @@ func (h *Handler) HandleGetMangaLatestChapterNumbersMap(c echo.Context) error {
 	return h.RespondWithData(c, ret)
 }
 
+// HandleCheckMangaChapterUpdates
+//
+//	@summary checks active manga reading-list entries for new chapters.
+//	@route /api/v1/manga/check-chapter-updates [POST]
+//	@returns bool
+func (h *Handler) HandleCheckMangaChapterUpdates(c echo.Context) error {
+	type body struct {
+		SelectedProviderMap map[int]string `json:"selectedProviderMap"`
+	}
+
+	var b body
+	if err := c.Bind(&b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	mangaCollection, err := h.App.GetMangaCollection(false)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	if err = h.App.MangaRepository.CheckForMangaChapterUpdates(mangaCollection, b.SelectedProviderMap); err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	return h.RespondWithData(c, true)
+}
+
 // HandleRefetchMangaChapterContainers
 //
 //	@summary refetches the chapter containers for all manga entries previously cached.
@@ -1123,6 +1149,9 @@ func (h *Handler) HandleGetUpcomingMangaChapters(c echo.Context) error {
 	// Get manga that are currently releasing
 	if mangaCollection.MediaListCollection != nil {
 		for _, list := range mangaCollection.MediaListCollection.Lists {
+			if list.Status == nil || (*list.Status != anilist.MediaListStatusCurrent && *list.Status != anilist.MediaListStatusRepeating) {
+				continue
+			}
 			for _, entry := range list.Entries {
 				if entry.Media != nil && entry.Media.Status != nil && *entry.Media.Status == anilist.MediaStatusReleasing {
 					upcomingManga = append(upcomingManga, entry.Media)

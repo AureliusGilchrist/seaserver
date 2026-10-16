@@ -1,6 +1,7 @@
 import { useServerMutation, useServerQuery } from "@/api/client/requests"
 import {
     AnilistListManga_Variables,
+    CheckMangaChapterUpdates_Variables,
     EmptyMangaEntryCache_Variables,
     GetAnilistMangaCollection_Variables,
     GetMangaEntryChapters_Variables,
@@ -29,6 +30,7 @@ import {
 } from "@/api/generated/types"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
+import React from "react"
 
 export type MangaHydrationDetail = {
     timestamp: string
@@ -158,7 +160,8 @@ export function useEmptyMangaEntryCache() {
 }
 
 export function useGetMangaEntryChapters(variables: Partial<GetMangaEntryChapters_Variables>) {
-    return useServerQuery<Manga_ChapterContainer, GetMangaEntryChapters_Variables>({
+    const queryClient = useQueryClient()
+    const query = useServerQuery<Manga_ChapterContainer, GetMangaEntryChapters_Variables>({
         endpoint: API_ENDPOINTS.MANGA.GetMangaEntryChapters.endpoint,
         method: API_ENDPOINTS.MANGA.GetMangaEntryChapters.methods[0],
         queryKey: [API_ENDPOINTS.MANGA.GetMangaEntryChapters.key, String(variables.mediaId), variables.provider],
@@ -166,6 +169,14 @@ export function useGetMangaEntryChapters(variables: Partial<GetMangaEntryChapter
         enabled: !!variables.mediaId && !!variables.provider,
         muteError: true,
     })
+    React.useEffect(() => {
+        if (query.data) {
+            void queryClient.invalidateQueries({
+                queryKey: [API_ENDPOINTS.MANGA.GetMangaLatestChapterNumbersMap.key],
+            })
+        }
+    }, [query.data, queryClient])
+    return query
 }
 
 export function useGetMangaEntryPages(variables: Partial<GetMangaEntryPages_Variables>) {
@@ -264,12 +275,14 @@ export function useGetMangaEntryDownloadedChapters(mId: Nullish<string | number>
     })
 }
 
-export function useGetMangaLatestChapterNumbersMap() {
+export function useGetMangaLatestChapterNumbersMap(pollForUpdates = false) {
     return useServerQuery<Record<number, Array<Manga_MangaLatestChapterNumberItem>>>({
         endpoint: API_ENDPOINTS.MANGA.GetMangaLatestChapterNumbersMap.endpoint,
         method: API_ENDPOINTS.MANGA.GetMangaLatestChapterNumbersMap.methods[0],
         queryKey: [API_ENDPOINTS.MANGA.GetMangaLatestChapterNumbersMap.key],
         enabled: true,
+        refetchInterval: pollForUpdates ? 5 * 60 * 1000 : false,
+        staleTime: pollForUpdates ? 0 : undefined,
     })
 }
 
@@ -286,6 +299,15 @@ export function useRefetchMangaChapterContainers() {
             await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA.GetMangaEntryPages.key] })
             toast.success("Sources refreshed")
         },
+    })
+}
+
+export function useCheckMangaChapterUpdates() {
+    return useServerMutation<boolean, CheckMangaChapterUpdates_Variables>({
+        endpoint: API_ENDPOINTS.MANGA.CheckMangaChapterUpdates.endpoint,
+        method: API_ENDPOINTS.MANGA.CheckMangaChapterUpdates.methods[0],
+        mutationKey: [API_ENDPOINTS.MANGA.CheckMangaChapterUpdates.key],
+        gcTime: 0,
     })
 }
 

@@ -292,6 +292,25 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/anilist/availability",
         },
     },
+    ANILIST_OVERWRITE: {
+        OverwriteAnilistPreview: {
+            key: "ANILIST-OVERWRITE-overwrite-anilist-preview",
+            methods: ["POST"],
+            endpoint: "/api/v1/anilist/overwrite/preview",
+        },
+        /**
+         *  @description
+         *  Route overwrites the AniList lists with the library as the app shows it.
+         *  Every entry's status, score, progress, repeats and dates are written to AniList, and entries
+         *  that are on AniList but not in the library are deleted. Runs in the background; the result
+         *  arrives as an "anilist-overwrite-completed" event.
+         */
+        OverwriteAnilist: {
+            key: "ANILIST-OVERWRITE-overwrite-anilist",
+            methods: ["POST"],
+            endpoint: "/api/v1/anilist/overwrite",
+        },
+    },
     ANILIST_PLANNING: {
         /**
          *  @description
@@ -734,6 +753,7 @@ export const API_ENDPOINTS = {
          *  @description
          *  Route returns all client preferences stored for the current profile.
          *  Returns a map of key -> JSON-encoded value strings. The value strings are opaque to the server.
+         *  Pass scope=global to read preferences shared across profiles.
          *  Used by the web client to hydrate UI state (UI customizer, easter eggs, theme settings, etc.) on bootstrap.
          */
         GetClientPrefs: {
@@ -745,6 +765,7 @@ export const API_ENDPOINTS = {
          *  @description
          *  Route creates or updates a client preference for the current profile.
          *  The value is an opaque JSON-encoded string owned by the web client.
+         *  Pass scope=global to write a preference shared across profiles.
          */
         UpsertClientPref: {
             key: "CLIENT-PREFS-upsert-client-pref",
@@ -1878,6 +1899,11 @@ export const API_ENDPOINTS = {
             key: "MANGA-get-manga-latest-chapter-numbers-map",
             methods: ["GET"],
             endpoint: "/api/v1/manga/latest-chapter-numbers",
+        },
+        CheckMangaChapterUpdates: {
+            key: "MANGA-check-manga-chapter-updates",
+            methods: ["POST"],
+            endpoint: "/api/v1/manga/check-chapter-updates",
         },
         RefetchMangaChapterContainers: {
             key: "MANGA-refetch-manga-chapter-containers",
@@ -3097,11 +3123,85 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/profile/user/{id}/stats",
         },
     },
+    PROFILE_TOWATCH: {
+        /**
+         *  @description
+         *  Route returns the authenticated profile's todo list.
+         *  Returns every entry in the list, in the order they arranged. Starts blank; entries are
+         *  added from an anime's own page.
+         */
+        GetToWatch: {
+            key: "PROFILE-TOWATCH-get-to-watch",
+            methods: ["GET"],
+            endpoint: "/api/v1/profile/to-watch",
+        },
+        /**
+         *  @description
+         *  Route returns a profile's todo list.
+         *  The same list, by profile — this is what a public profile shows, so whoever is looking can
+         *  see what that person means to watch next.
+         */
+        GetToWatchForUser: {
+            key: "PROFILE-TOWATCH-get-to-watch-for-user",
+            methods: ["GET"],
+            endpoint: "/api/v1/profile/to-watch/user/:profileId",
+        },
+        /**
+         *  @description
+         *  Route adds anime or manga to the end of the authenticated profile's todo list.
+         *  The entry is added with a snapshot of the media taken from the body, so the list renders
+         *  without asking AniList for every row. Adding the same media twice is refused — the list is
+         *  a running order, and the same anime twice in it is the same entry.
+         */
+        AddToWatch: {
+            key: "PROFILE-TOWATCH-add-to-watch",
+            methods: ["POST"],
+            endpoint: "/api/v1/profile/to-watch/add",
+        },
+        RemoveToWatch: {
+            key: "PROFILE-TOWATCH-remove-to-watch",
+            methods: ["POST"],
+            endpoint: "/api/v1/profile/to-watch/remove",
+        },
+        /**
+         *  @description
+         *  Route rewrites the order of the authenticated profile's todo list.
+         *  The body is the media IDs and types in their new order; positions are rewritten whole from it, so a
+         *  reorder is exactly the arrangement that was made.
+         */
+        ReorderToWatch: {
+            key: "PROFILE-TOWATCH-reorder-to-watch",
+            methods: ["POST"],
+            endpoint: "/api/v1/profile/to-watch/reorder",
+        },
+        ClearToWatch: {
+            key: "PROFILE-TOWATCH-clear-to-watch",
+            methods: ["POST"],
+            endpoint: "/api/v1/profile/to-watch/clear",
+        },
+    },
+    PROFILE_WALLPAPER: {
+        /**
+         *  @description
+         *  Route set the profile wallpaper image and its effect settings.
+         *  Stored globally so every viewer sees the wallpaper on this profile. An empty url clears it.
+         */
+        SetProfileWallpaper: {
+            key: "PROFILE-WALLPAPER-set-profile-wallpaper",
+            methods: ["PATCH"],
+            endpoint: "/api/v1/profile/wallpaper",
+        },
+        UploadProfileWallpaper: {
+            key: "PROFILE-WALLPAPER-upload-profile-wallpaper",
+            methods: ["POST"],
+            endpoint: "/api/v1/profile/wallpaper/upload",
+        },
+    },
     RELEASES: {
         /**
          *  @description
          *  Route installs the latest update.
-         *  This will install the latest update and launch the new version.
+         *  Git checkouts build and restart from the fork's repository; packaged installs download and launch the latest release.
          */
         InstallLatestUpdate: {
             key: "RELEASES-install-latest-update",
@@ -3122,7 +3222,9 @@ export const API_ENDPOINTS = {
         /**
          *  @description
          *  Route returns the latest update.
-         *  This will return the latest update.
+         *  When the server runs from its own git checkout, this is the commit the fork has that the
+         *  checkout does not — what gets pulled, not what is released. Releases are only asked when
+         *  there is no checkout to ask git about.
          *  If an error occurs, it will return an empty update.
          */
         GetLatestUpdate: {
@@ -3498,8 +3600,32 @@ export const API_ENDPOINTS = {
             methods: ["GET"],
             endpoint: "/api/v1/profile/timeline",
         },
+        /**
+         *  @description
+         *  Route records that an episode was watched, independent of AniList progress.
+         *  The in-app player calls this when an episode passes the watched threshold. Progress updates
+         *  are skipped when the episode is already at or behind the list progress (rewatches, resumed
+         *  episodes), and those used to leave no trace on the timeline. Deduped per media + episode.
+         */
+        RecordEpisodeWatched: {
+            key: "TIMELINE-record-episode-watched",
+            methods: ["POST"],
+            endpoint: "/api/v1/profile/timeline/episode-watched",
+        },
     },
     TORRENT_CLIENT: {
+        /**
+         *  @description
+         *  Route returns the queue of torrents waiting for an offline client.
+         *  Returns how many entries are queued and being imported. A torrent the client could not
+         *  take because it was offline is queued here and imported the moment the client answers
+         *  again — see internal/torrent_clients/torrent_client/offline_queue.go. Safe to poll.
+         */
+        GetTorrentAddQueue: {
+            key: "TORRENT-CLIENT-get-torrent-add-queue",
+            methods: ["GET"],
+            endpoint: "/api/v1/torrent-client/add-queue",
+        },
         /**
          *  @description
          *  Route returns all active torrents.
@@ -3945,6 +4071,91 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/unmatched/history/dismiss",
         },
     },
+    UNMATCHED_MATCH_QUEUE: {
+        /**
+         *  @description
+         *  Route returns the queue of matches waiting to be carried out.
+         *  This handler returns every queued match with its status, and what the queue is doing.
+         *  Safe to poll.
+         */
+        GetUnmatchedMatchQueue: {
+            key: "UNMATCHED-MATCH-QUEUE-get-unmatched-match-queue",
+            methods: ["GET"],
+            endpoint: "/api/v1/unmatched/queue",
+        },
+        /**
+         *  @description
+         *  Route queues a match decided on in the Unmatched screen.
+         *  This handler writes the match down and returns immediately — the server carries it out in
+         *  the order the decisions were made, so the screen is free to go straight on to the next
+         *  download. A second decision for the same download replaces the first.
+         */
+        EnqueueUnmatchedMatch: {
+            key: "UNMATCHED-MATCH-QUEUE-enqueue-unmatched-match",
+            methods: ["POST"],
+            endpoint: "/api/v1/unmatched/queue",
+        },
+        /**
+         *  @description
+         *  Route takes one match out of the queue.
+         *  This handler removes a queued match without carrying it out. Nothing on disk is touched.
+         */
+        RemoveUnmatchedMatchQueueItem: {
+            key: "UNMATCHED-MATCH-QUEUE-remove-unmatched-match-queue-item",
+            methods: ["POST"],
+            endpoint: "/api/v1/unmatched/queue/remove",
+        },
+        /**
+         *  @description
+         *  Route empties the match queue.
+         *  This handler removes every queued match. Downloads already matched by the queue stay
+         *  matched; nothing on disk is touched.
+         */
+        ClearUnmatchedMatchQueue: {
+            key: "UNMATCHED-MATCH-QUEUE-clear-unmatched-match-queue",
+            methods: ["POST"],
+            endpoint: "/api/v1/unmatched/queue/clear",
+        },
+        /**
+         *  @description
+         *  Route stops the queue from carrying out any more matches.
+         *  This handler pauses the queue after the match it is currently running. Queued matches are
+         *  kept, and resume where they left off.
+         */
+        PauseUnmatchedMatchQueue: {
+            key: "UNMATCHED-MATCH-QUEUE-pause-unmatched-match-queue",
+            methods: ["POST"],
+            endpoint: "/api/v1/unmatched/queue/pause",
+        },
+        ResumeUnmatchedMatchQueue: {
+            key: "UNMATCHED-MATCH-QUEUE-resume-unmatched-match-queue",
+            methods: ["POST"],
+            endpoint: "/api/v1/unmatched/queue/resume",
+        },
+        /**
+         *  @description
+         *  Route tries a queued match again now, clearing its backoff.
+         *  This handler puts an item that failed back at the front of the queue's attention, for when
+         *  whatever was wrong has been put right.
+         */
+        RetryUnmatchedMatchQueueItem: {
+            key: "UNMATCHED-MATCH-QUEUE-retry-unmatched-match-queue-item",
+            methods: ["POST"],
+            endpoint: "/api/v1/unmatched/queue/retry",
+        },
+        /**
+         *  @description
+         *  Route answers the question a queued match stopped on.
+         *  This handler records the user's answer on the stored request and puts the match back in
+         *  line — replacing what is already in the library, proceeding past an episode count that
+         *  does not match, or both.
+         */
+        ResolveUnmatchedMatchQueueItem: {
+            key: "UNMATCHED-MATCH-QUEUE-resolve-unmatched-match-queue-item",
+            methods: ["POST"],
+            endpoint: "/api/v1/unmatched/queue/resolve",
+        },
+    },
     UNMATCHED_SWEEP: {
         /**
          *  @description
@@ -3981,4 +4192,45 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/unmatched/match-all/stop",
         },
     },
+    UPDATE_NOTICE: {
+        /**
+         *  @description
+         *  Route updates the backend from the fork's repository.
+         *  Fetches origin and, when the checkout is behind, pulls, builds and restarts the server.
+         *  Used by remote clients (e.g. the desktop app connected to a NAS).
+         */
+        UpdateBackend: {
+            key: "UPDATE-NOTICE-update-backend",
+            methods: ["POST"],
+            endpoint: "/api/v1/update/backend",
+        },
+        CheckBackendUpdate: {
+            key: "UPDATE-NOTICE-check-backend-update",
+            methods: ["POST"],
+            endpoint: "/api/v1/update/backend/check",
+        },
+        /**
+         *  @description
+         *  Route returns the pending update notice, if there is one.
+         *  The message and description of the commit the server last updated to, kept until the
+         *  client dismisses it. Never shown before the client has signed in — this endpoint is what
+         *  the signed-in app polls.
+         */
+        GetUpdateNotice: {
+            key: "UPDATE-NOTICE-get-update-notice",
+            methods: ["GET"],
+            endpoint: "/api/v1/update/notice",
+        },
+        /**
+         *  @description
+         *  Route dismisses the update notice.
+         *  Removes it. Nothing else is touched.
+         */
+        DismissUpdateNotice: {
+            key: "UPDATE-NOTICE-dismiss-update-notice",
+            methods: ["POST"],
+            endpoint: "/api/v1/update/notice/dismiss",
+        },
+    },
 } satisfies ApiEndpoints
+

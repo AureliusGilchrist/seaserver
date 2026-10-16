@@ -224,8 +224,8 @@ export default function Page() {
 
             <div className="z-[1] flex flex-col items-center">
                 <Image
-                    src="/seanime-logo.png"
-                    alt="Seanime"
+                    src="/deus-ex-aeternae-emblem.svg"
+                    alt="Deus ex Aeternae"
                     priority
                     width={80}
                     height={80}

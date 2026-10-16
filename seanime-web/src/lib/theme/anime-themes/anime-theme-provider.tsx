@@ -744,6 +744,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
             return
         }
 
+        setWallpaperAccent(null)
         let cancelled = false
         extractWallpaperAccent(url).then(accent => {
             if (cancelled) return

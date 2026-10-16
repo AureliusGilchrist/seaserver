@@ -54,6 +54,7 @@ import { NakamaWatchPartyChat, NakamaWatchPartyChatProvider } from "../nakama/na
 import { NativePlayer } from "../native-player/native-player"
 import { TopIndefiniteLoader } from "../top-indefinite-loader"
 import { NewEpisodeNotifier } from "../new-episode-notifier"
+import { NewMangaChapterNotifier } from "@/app/(main)/_features/new-manga-chapter-notifier"
 import { GlobalRewardShopButton } from "../navigation/global-reward-shop-button"
 import { GlobalOstSearchButton } from "../navigation/global-ost-search-button"
 import { RewardParticlesLayer } from "@/lib/rewards/reward-particles"
@@ -119,6 +120,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
             <NakamaWatchPartyChat />
             <TopIndefiniteLoader />
             <NewEpisodeNotifier />
+            <NewMangaChapterNotifier />
             <AnilistStatusBanner />
             <Announcements />
             <AdminAnnouncementsBanner />

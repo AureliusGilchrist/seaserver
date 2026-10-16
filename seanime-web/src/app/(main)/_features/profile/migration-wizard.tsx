@@ -54,7 +54,7 @@ export function MigrationWizard({ onComplete }: MigrationWizardProps) {
         return (
             <div className="flex min-h-screen flex-col items-center justify-center bg-[--background]">
                 <div className="mb-8">
-                    <img src="/seanime-logo.png" alt="logo" className="w-14 h-auto" />
+                    <img src="/deus-ex-aeternae-emblem.svg" alt="Deus ex Aeternae" className="size-14" />
                 </div>
                 <Card className="max-w-lg w-full p-8">
                     <div className="flex flex-col items-center gap-6 text-center">
@@ -99,7 +99,7 @@ export function MigrationWizard({ onComplete }: MigrationWizardProps) {
         return (
             <div className="flex min-h-screen flex-col items-center justify-center bg-[--background]">
                 <div className="mb-8">
-                    <img src="/seanime-logo.png" alt="logo" className="w-14 h-auto" />
+                    <img src="/deus-ex-aeternae-emblem.svg" alt="Deus ex Aeternae" className="size-14" />
                 </div>
                 <Card className="max-w-lg w-full p-8">
                     <div className="flex flex-col gap-6">
@@ -168,7 +168,7 @@ export function MigrationWizard({ onComplete }: MigrationWizardProps) {
         return (
             <div className="flex min-h-screen flex-col items-center justify-center bg-[--background]">
                 <div className="mb-8">
-                    <img src="/seanime-logo.png" alt="logo" className="w-14 h-auto" />
+                    <img src="/deus-ex-aeternae-emblem.svg" alt="Deus ex Aeternae" className="size-14" />
                 </div>
                 <Card className="max-w-lg w-full p-8">
                     <div className="flex flex-col items-center gap-6">
@@ -186,7 +186,7 @@ export function MigrationWizard({ onComplete }: MigrationWizardProps) {
     return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-[--background]">
             <div className="mb-8">
-                <img src="/seanime-logo.png" alt="logo" className="w-14 h-auto" />
+                <img src="/deus-ex-aeternae-emblem.svg" alt="Deus ex Aeternae" className="size-14" />
             </div>
             <Card className="max-w-lg w-full p-8">
                 <div className="flex flex-col items-center gap-6 text-center">

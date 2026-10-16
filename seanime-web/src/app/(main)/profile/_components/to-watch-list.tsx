@@ -19,7 +19,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from "@dnd-kit/utilities"
 import capitalize from "lodash/capitalize"
 import React from "react"
-import { LuBookOpen, LuGripVertical, LuListVideo, LuPlay, LuTrash2, LuX } from "react-icons/lu"
+import { LuBookOpen, LuGripVertical, LuLayers, LuListVideo, LuPlay, LuTrash2, LuTv, LuX } from "react-icons/lu"
 
 /**
  * The todo list: anime and manga somebody means to watch or read, in the order they arranged.
@@ -43,6 +43,10 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
 
     const items = (isSelf ? ownList : otherList) ?? []
     const loading = isSelf ? ownLoading : otherLoading
+    const [filter, setFilter] = React.useState<"all" | "anime" | "manga">("all")
+    const animeItems = items.filter(entry => toWatchMediaType(entry) === "ANIME")
+    const mangaItems = items.filter(entry => toWatchMediaType(entry) === "MANGA")
+    const visibleItems = filter === "anime" ? animeItems : filter === "manga" ? mangaItems : items
 
     const { mutate: reorder } = useReorderToWatch()
     const { mutate: removeItem } = useRemoveFromToWatch()
@@ -63,7 +67,7 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
     )
     const [draggingId, setDraggingId] = React.useState<string | null>(null)
-    const dragging = items.find(e => toWatchKey(e) === draggingId) ?? null
+    const dragging = visibleItems.find(e => toWatchKey(e) === draggingId) ?? null
 
     const handleDragStart = React.useCallback((event: DragStartEvent) => {
         setDraggingId(String(event.active.id))
@@ -74,13 +78,23 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
         const { active, over } = event
         if (!over || active.id === over.id) return
 
-        const oldIndex = items.findIndex(e => toWatchKey(e) === active.id)
-        const newIndex = items.findIndex(e => toWatchKey(e) === over.id)
+        const oldIndex = visibleItems.findIndex(e => toWatchKey(e) === active.id)
+        const newIndex = visibleItems.findIndex(e => toWatchKey(e) === over.id)
         if (oldIndex < 0 || newIndex < 0) return
 
-        const next = arrayMove(items, oldIndex, newIndex)
-        reorder({ items: next.map(e => ({ mediaId: toWatchMediaId(e), mediaType: toWatchMediaType(e) })) })
-    }, [items, reorder])
+        const nextVisibleItems = arrayMove(visibleItems, oldIndex, newIndex)
+        const nextItems = [...items]
+        const visibleIndexes = items.reduce<number[]>((indexes, entry, index) => {
+            if (filter === "all" || (filter === "anime" && toWatchMediaType(entry) === "ANIME") || (filter === "manga" && toWatchMediaType(entry) === "MANGA")) {
+                indexes.push(index)
+            }
+            return indexes
+        }, [])
+        visibleIndexes.forEach((itemIndex, index) => {
+            nextItems[itemIndex] = nextVisibleItems[index]!
+        })
+        reorder({ items: nextItems.map(e => ({ mediaId: toWatchMediaId(e), mediaType: toWatchMediaType(e) })) })
+    }, [filter, items, reorder, visibleItems])
 
     if (loading) {
         return (
@@ -100,7 +114,7 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
                 <p className="relative text-lg font-semibold tracking-tight">Your next favorite starts here</p>
                 <p className="relative mt-2 max-w-md text-sm leading-relaxed text-[--muted]">
                     {isSelf
-                        ? "Add anime or manga from its page and build a personal queue. Drag items into the order you want to watch or read them."
+                        ? "Add anime or manga from its page and build a personal todo list. Drag items into the order you want to watch or read them."
                         : "This person hasn't added anything to their todo list yet."}
                 </p>
             </div>
@@ -109,6 +123,34 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
 
     return (
         <div className="space-y-4">
+            <div role="group" aria-label="Filter todo list by media type" className="flex flex-wrap gap-2">
+                {([
+                    { id: "all", label: "All", count: items.length, icon: LuLayers },
+                    { id: "anime", label: "Anime", count: animeItems.length, icon: LuTv },
+                    { id: "manga", label: "Manga", count: mangaItems.length, icon: LuBookOpen },
+                ] as const).map(({ id, label, count, icon: Icon }) => (
+                    <button
+                        key={id}
+                        type="button"
+                        aria-pressed={filter === id}
+                        onClick={() => setFilter(id)}
+                        className={cn(
+                            "inline-flex min-h-10 items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-semibold transition-colors",
+                            filter === id
+                                ? "border-brand-300/40 bg-brand-400/15 text-brand-100 shadow-sm shadow-brand-950/30"
+                                : "border-white/10 bg-white/[0.025] text-[--muted] hover:border-white/20 hover:bg-white/[0.06] hover:text-white",
+                        )}
+                    >
+                        <Icon className="size-4" />
+                        <span>{label}</span>
+                        <span className={cn(
+                            "rounded-full px-1.5 py-0.5 text-[11px] tabular-nums",
+                            filter === id ? "bg-brand-300/15 text-brand-100" : "bg-white/[0.07] text-white/60",
+                        )}>{formatNumber(count)}</span>
+                    </button>
+                ))}
+            </div>
+
             {isSelf && (
                 <div className="relative isolate overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-r from-brand-500/[0.12] via-black/30 to-black/40 p-4 shadow-lg shadow-black/20 backdrop-blur-xl sm:p-5">
                     <div className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-brand-400/10 blur-3xl" />
@@ -118,53 +160,61 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
                         </div>
                         <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                <span className="text-xs font-bold uppercase tracking-[0.16em] text-brand-200">Your queue</span>
+                                <span className="text-xs font-bold uppercase tracking-[0.16em] text-brand-200">Your todo list</span>
                                 <span className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-0.5 text-xs font-semibold tabular-nums text-white/80">
-                                    {formatNumber(items.length)} {items.length === 1 ? "item" : "items"}
+                                    {formatNumber(visibleItems.length)} {visibleItems.length === 1 ? "item" : "items"}
                                 </span>
                             </div>
-                            <p className="mt-1 truncate text-sm text-white/75">
-                                Up next: <span className="font-semibold text-white">{items[0]!.title}</span>
-                            </p>
+                            {visibleItems[0] && <p className="mt-1 truncate text-sm text-white/75">
+                                Up next: <span className="font-semibold text-white">{visibleItems[0].title}</span>
+                            </p>}
                             <p className="mt-0.5 text-xs text-[--muted]">Drag a handle to reorder. Your changes save automatically.</p>
                         </div>
                     <div className="flex-1" />
                     <Button intent="gray-outline" size="sm" leftIcon={<LuTrash2 />} onClick={clearConfirmation.open}>
-                        Clear
+                        Clear all
                     </Button>
                     </div>
                 </div>
             )}
 
-            <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                modifiers={[restrictToVerticalAxis]}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                onDragCancel={() => setDraggingId(null)}
-            >
-                <SortableContext items={items.map(toWatchKey)} strategy={verticalListSortingStrategy}>
-                    <div className="space-y-2.5">
-                        {items.map((entry, index) => (
-                            <ToWatchCard
-                                key={toWatchKey(entry)}
-                                entry={entry}
-                                position={index + 1}
-                                readOnly={!isSelf}
-                                onRemove={isSelf ? () => removeItem({ mediaId: toWatchMediaId(entry), mediaType: toWatchMediaType(entry) }) : undefined}
-                            />
-                        ))}
-                    </div>
-                </SortableContext>
+            {visibleItems.length === 0 ? (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.025] px-6 py-12 text-center">
+                    <p className="font-semibold">No {filter} on this todo list yet</p>
+                    <p className="mt-1 text-sm text-[--muted]">
+                        Add {filter === "anime" ? "anime" : "manga"} from its page, or choose another filter.
+                    </p>
+                </div>
+            ) : (
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    modifiers={[restrictToVerticalAxis]}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    onDragCancel={() => setDraggingId(null)}
+                >
+                    <SortableContext items={visibleItems.map(toWatchKey)} strategy={verticalListSortingStrategy}>
+                        <div className="space-y-2.5">
+                            {visibleItems.map((entry, index) => (
+                                <ToWatchCard
+                                    key={toWatchKey(entry)}
+                                    entry={entry}
+                                    position={index + 1}
+                                    readOnly={!isSelf}
+                                    onRemove={isSelf ? () => removeItem({ mediaId: toWatchMediaId(entry), mediaType: toWatchMediaType(entry) }) : undefined}
+                                />
+                            ))}
+                        </div>
+                    </SortableContext>
 
-                {/* The card being carried, above everything while it moves. */}
-                <DragOverlay dropAnimation={{ duration: 180, easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)" }}>
-                    {dragging && (
-                        <ToWatchCardPreview entry={dragging} position={items.findIndex(e => toWatchKey(e) === draggingId) + 1} />
-                    )}
-                </DragOverlay>
-            </DndContext>
+                    <DragOverlay dropAnimation={{ duration: 180, easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)" }}>
+                        {dragging && (
+                            <ToWatchCardPreview entry={dragging} position={visibleItems.findIndex(e => toWatchKey(e) === draggingId) + 1} />
+                        )}
+                    </DragOverlay>
+                </DndContext>
+            )}
 
             <ConfirmationDialog {...clearConfirmation} />
         </div>

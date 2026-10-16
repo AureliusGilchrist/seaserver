@@ -7,7 +7,10 @@ import { useHandleLibraryCollection } from "@/app/(main)/(library)/_lib/handle-l
 import { useLandingWidgets, type LandingWidgetId } from "@/app/(main)/_features/home/landing-widgets"
 import {
     LandingAchievementsWidget,
+    LandingAiringTodayWidget,
     LandingAnimeStatsWidget,
+    LandingContinueReadingWidget,
+    LandingLibraryInsightsWidget,
     LandingMangaStatsWidget,
     LandingQuickLinksWidget,
     LandingScheduleWidget,
@@ -17,6 +20,7 @@ import {
     LandingUpdatesWidget,
 } from "@/app/(main)/_features/home/landing-widget-views"
 import { __landingSettingsModalOpen, LandingSettingsModal } from "@/app/(main)/_features/home/landing-settings-modal"
+import { MangaUpcomingChapters } from "@/app/(main)/manga/_containers/manga-upcoming-chapters"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { CommunityHomeSection } from "@/app/(main)/_features/community/community-home-section"
 import { FiSearch } from "react-icons/fi"
@@ -67,7 +71,7 @@ export function LandingHub() {
 
     // The stat doors: compact number cards. Navigation folders and content sections use full width.
     const statIds: LandingWidgetId[] = [
-        "anime-stats", "manga-stats", "schedule", "to-watch", "unmatched", "torrents", "achievements",
+        "anime-stats", "manga-stats", "schedule", "airing-today", "to-watch", "unmatched", "torrents", "achievements",
     ]
     const stats = React.useMemo(() => ordered.filter(w => statIds.includes(w.id)), [ordered])
     const sections = React.useMemo(
@@ -143,7 +147,11 @@ export function LandingHub() {
                 {/* Sections, full width */}
                 {sections.filter(w => w.id !== (firstWidgetId === "continue-watching" ? "continue-watching" : null)).map(widget => (
                     <div key={widget.id} className="relative z-[1]">
-                        <LandingWidget id={widget.id} />
+                        <LandingWidget
+                            id={widget.id}
+                            continueWatchingList={continueWatchingList}
+                            isLibraryLoading={isLibraryLoading}
+                        />
                     </div>
                 ))}
 
@@ -164,16 +172,34 @@ function greeting() {
     return "Good evening"
 }
 
-function LandingWidget({ id }: { id: LandingWidgetId }) {
+function LandingWidget({ id, continueWatchingList = [], isLibraryLoading = false }: {
+    id: LandingWidgetId
+    continueWatchingList?: ReturnType<typeof useHandleLibraryCollection>["continueWatchingList"]
+    isLibraryLoading?: boolean
+}) {
     switch (id) {
         case "quick-links":
             return <LandingQuickLinksWidget />
+        case "library-insights":
+            return <LandingLibraryInsightsWidget />
         case "anime-stats":
             return <LandingAnimeStatsWidget />
         case "manga-stats":
             return <LandingMangaStatsWidget />
+        case "upcoming-manga":
+            return <MangaUpcomingChapters />
         case "schedule":
             return <LandingScheduleWidget />
+        case "airing-today":
+            return <LandingAiringTodayWidget />
+        case "continue-watching":
+            return (
+                <div className="relative z-[1] rounded-3xl border border-white/10 bg-black/20 p-4 shadow-xl shadow-black/20 backdrop-blur-md sm:p-5">
+                    <ContinueWatching episodes={continueWatchingList} isLoading={isLibraryLoading} withTitle />
+                </div>
+            )
+        case "continue-reading":
+            return <LandingContinueReadingWidget />
         case "to-watch":
             return <LandingToWatchWidget />
         case "unmatched":
@@ -184,10 +210,6 @@ function LandingWidget({ id }: { id: LandingWidgetId }) {
             return <LandingAchievementsWidget />
         case "updates":
             return <LandingUpdatesWidget />
-        case "continue-watching":
-        case "continue-reading":
-        case "airing-today":
-            return null
         default:
             return null
     }

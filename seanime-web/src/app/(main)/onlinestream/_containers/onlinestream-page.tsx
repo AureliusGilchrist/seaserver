@@ -70,6 +70,7 @@ type OnlinestreamPageProps = {
     animeEntry?: Anime_Entry
     animeEntryLoading?: boolean
     hideBackButton?: boolean
+    onBackToEpisodes?: () => void
 }
 
 const log = logger("ONLINESTREAM")
@@ -255,7 +256,7 @@ function OnlinestreamAudioTrackPreferenceSync(props: { mediaId?: number, playbac
     return null
 }
 
-export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton }: OnlinestreamPageProps) {
+export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton, onBackToEpisodes }: OnlinestreamPageProps) {
     const serverStatus = useAtomValue(serverStatusAtom)
     const { data: continuityWatchHistory } = useGetContinuityWatchHistory()
     const router = useRouter()
@@ -822,6 +823,7 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
                 currentEpisodeNumber={currentEpisodeNumber}
                 title={media?.title?.userPreferred}
                 hideBackButton={hideBackButton}
+                onBackButton={onBackToEpisodes}
                 episodes={episodes}
                 loadingEpisodeList={episodeListLoading}
                 leftHeaderActions={<>
@@ -937,6 +939,7 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
                                         const detail = err.reason || err.error?.message || "unknown HLS error"
                                         onFatalError(`HLS ${err.type}/${err.details}${responseCode}: ${detail}`)
                                     }}
+                                    onBackToContent={onBackToEpisodes}
                                     onTerminateStream={() => {
                                         setUrl(null)
                                         setPlaybackError("Stream terminated")

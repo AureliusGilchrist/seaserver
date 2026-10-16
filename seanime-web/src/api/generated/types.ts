@@ -2031,6 +2031,9 @@ export type Anime_EpisodeMetadata = {
      */
     hasImage?: boolean
     title?: string
+    /**
+     * Episode rating out of 10, when the metadata source provides one
+     */
     rating?: number
 }
 
@@ -2313,6 +2316,17 @@ export type ChapterDownloader_DownloadID = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
+ * - Filepath: internal/continuity/history.go
+ * - Filename: history.go
+ * - Package: continuity
+ */
+export type Continuity_EpisodeWatchPosition = {
+    currentTime: number
+    duration: number
+    timeUpdated?: string
+}
+
+/**
  * - Filepath: internal/continuity/manager.go
  * - Filename: manager.go
  * - Package: continuity
@@ -2354,7 +2368,7 @@ export type Continuity_WatchHistoryItem = {
     duration: number
     timeAdded?: string
     timeUpdated?: string
-    episodes?: Record<number, { currentTime: number, duration: number, timeUpdated?: string }>
+    episodes?: Record<number, Continuity_EpisodeWatchPosition>
 }
 
 /**
@@ -3359,6 +3373,19 @@ export type ApiDocsGroup = {
 }
 
 /**
+ * - Filepath: internal/handlers/update_notice.go
+ * - Filename: update_notice.go
+ * - Package: handlers
+ * @description
+ *  CheckBackendUpdateResponse is what pulling would bring, without pulling it.
+ */
+export type CheckBackendUpdateResponse = {
+    behind: boolean
+    blocked?: string
+    files?: Array<Updater_FileChange>
+}
+
+/**
  * - Filepath: internal/handlers/comment.go
  * - Filename: comment.go
  * - Package: handlers
@@ -3659,6 +3686,39 @@ export type NotificationsResponse = {
 }
 
 /**
+ * - Filepath: internal/handlers/anilist_overwrite.go
+ * - Filename: anilist_overwrite.go
+ * - Package: handlers
+ * @description
+ *  OverwriteChange is one entry that differs between the library and AniList.
+ */
+export type OverwriteChange = {
+    kind: string
+    /**
+     * "anime" or "manga"
+     */
+    media: string
+    mediaId: number
+    title: string
+    fields?: Array<string>
+}
+
+/**
+ * - Filepath: internal/handlers/anilist_overwrite.go
+ * - Filename: anilist_overwrite.go
+ * - Package: handlers
+ * @description
+ *  OverwritePreview is what an overwrite would change, without changing anything.
+ */
+export type OverwritePreview = {
+    changes?: Array<OverwriteChange>
+    add: number
+    update: number
+    remove: number
+    unchanged: number
+}
+
+/**
  * - Filepath: internal/handlers/anime_entries.go
  * - Filename: anime_entries.go
  * - Package: handlers
@@ -3793,6 +3853,17 @@ export type TorrentContents = {
 export type TorrentContentsRequestItem = {
     infoHash: string
     downloadUrl: string
+}
+
+/**
+ * - Filepath: internal/handlers/update_notice.go
+ * - Filename: update_notice.go
+ * - Package: handlers
+ */
+export type UpdateBackendResponse = {
+    started: boolean
+    message: string
+    files?: Array<Updater_FileChange>
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -4212,6 +4283,12 @@ export type Manga_MangaLatestChapterNumberItem = {
     scanlator: string
     language: string
     number: number
+    chapter: string
+    chapterId: string
+    title: string
+    updatedAt?: string
+    cadenceDays?: number
+    estimatedNextAt?: string
 }
 
 /**
@@ -4469,6 +4546,7 @@ export type Metadata_EpisodeMetadata = {
      * Indicates if the episode has a real image
      */
     hasImage: boolean
+    rating?: number
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -4964,10 +5042,10 @@ export type Models_ChapterDownloadQueueItem = {
  * - Filename: models.go
  * - Package: models
  * @description
- *  ClientPref is a per-profile arbitrary key/value blob used by the web client to persist
+ *  ClientPref is an arbitrary key/value blob used by the web client to persist
  *  settings that would otherwise live only in browser localStorage (UI customizer state,
  *  theme preferences, discovered easter eggs, reward progress, cursor pack, sound pack, etc.).
- *  Stored in the per-profile database, so each profile gets its own values automatically.
+ *  It is stored in a profile database by default, but may also be stored globally.
  *  The Value column is opaque JSON-encoded text the client owns; the server never inspects it.
  */
 export type Models_ClientPref = {
@@ -6407,6 +6485,22 @@ export type TorrentClient_Torrent = {
 }
 
 /**
+ * - Filepath: internal/torrent_clients/torrent_client/offline_queue.go
+ * - Filename: offline_queue.go
+ * - Package: torrent_client
+ * @description
+ *  TorrentAddQueueView is the queue as the screen sees it: what is waiting for the client, and
+ *  whether anything is being imported right now.
+ */
+export type TorrentClient_TorrentAddQueueView = {
+    waiting: number
+    adding: number
+    total: number
+    oldest?: string
+    lastError?: string
+}
+
+/**
  * - Filepath: internal/torrent_clients/torrent_client/torrent.go
  * - Filename: torrent.go
  * - Package: torrent_client
@@ -6870,6 +6964,19 @@ export type Updater_AnnouncementSeverity = "info" | "warning" | "error" | "criti
  * - Package: updater
  */
 export type Updater_AnnouncementType = "toast" | "dialog" | "banner"
+
+/**
+ * - Filepath: internal/updater/gitupdate.go
+ * - Filename: gitupdate.go
+ * - Package: updater
+ * @description
+ *  FileChange is one file an update touches and how many lines it adds and removes.
+ */
+export type Updater_FileChange = {
+    path: string
+    insertions: number
+    deletions: number
+}
 
 /**
  * - Filepath: internal/updater/check.go

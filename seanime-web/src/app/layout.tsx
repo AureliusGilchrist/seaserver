@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     title: "Seanime",
     description: "Self-hosted, user-friendly media server for anime and manga.",
     icons: {
-        icon: "/icons/favicon.ico",
+        icon: "/deus-ex-aeternae-emblem.svg",
         apple: "/icons/apple-icon.png",
     },
     appleWebApp: {
@@ -53,5 +53,4 @@ export default function RootLayout({ children }: {
         </html>
     )
 }
-
 
