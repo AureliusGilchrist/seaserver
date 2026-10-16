@@ -14,7 +14,7 @@ import { Switch } from "@/components/ui/switch"
 import { formatNumber } from "@/lib/helpers/number"
 
 export function MangaEnMassePage() {
-    const { data: status, isLoading } = useMangaEnMasseStatus()
+    const { data: status, isLoading, isError, error, isFetching, refetch } = useMangaEnMasseStatus()
     const { mutate: start, isPending: isStarting } = useMangaEnMasseStart()
     const { mutate: stop, isPending: isStopping } = useMangaEnMasseStop()
     const [resumeToggle, setResumeToggle] = useState<boolean>(false)
@@ -48,6 +48,28 @@ export function MangaEnMassePage() {
                 <div className="flex justify-center items-center h-64">
                     <LoadingSpinner />
                 </div>
+            </PageWrapper>
+        )
+    }
+
+    if (isError) {
+        return (
+            <PageWrapper className="p-4 sm:p-8 space-y-4">
+                <Card className="border-amber-500/30 bg-amber-950/20 p-6">
+                    <p className="font-semibold">Failed to load the manga en-masse downloader status.</p>
+                    <p className="my-3 text-sm text-[--muted]">
+                        {error?.response?.data?.error ?? error?.message ?? "Unknown error"}
+                    </p>
+                    <Button
+                        intent="primary"
+                        leftIcon={<LuRefreshCw className="text-xl" />}
+                        onClick={() => refetch()}
+                        loading={isFetching}
+                        disabled={isFetching}
+                    >
+                        Retry
+                    </Button>
+                </Card>
             </PageWrapper>
         )
     }

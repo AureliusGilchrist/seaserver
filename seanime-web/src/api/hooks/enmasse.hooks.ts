@@ -60,6 +60,7 @@ export function useEnMasseStatus(enabled: boolean = true, pollOnlyWhenRunning: b
         method: ENMASSE_ENDPOINTS.GetStatus.methods[0],
         queryKey: [ENMASSE_ENDPOINTS.GetStatus.key],
         refetchInterval: pollOnlyWhenRunning ? 2000 : undefined,
+        muteError: true,
         enabled,
     })
 }
@@ -157,6 +158,7 @@ export function useMangaEnMasseStatus(enabled: boolean = true) {
         method: MANGA_ENMASSE_ENDPOINTS.GetStatus.methods[0],
         queryKey: [MANGA_ENMASSE_ENDPOINTS.GetStatus.key],
         refetchInterval: 2000,
+        muteError: true,
         enabled,
     })
 }
@@ -190,4 +192,3 @@ export function useMangaEnMasseStop(onSuccess?: () => void) {
         },
     })
 }
-

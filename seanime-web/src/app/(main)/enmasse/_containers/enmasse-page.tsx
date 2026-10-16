@@ -18,7 +18,7 @@ import { formatNumber } from "@/lib/helpers/number"
 export function EnMassePage() {
     const router = useRouter()
     const [shouldPoll, setShouldPoll] = useState<boolean>(false)
-    const { data: status, isLoading } = useEnMasseStatus(true, shouldPoll)
+    const { data: status, isLoading, isError, error, isFetching, refetch } = useEnMasseStatus(true, shouldPoll)
     const { mutate: start, isPending: isStarting } = useEnMasseStart()
     const { mutate: stop, isPending: isStopping } = useEnMasseStop()
     const { addDownloadingAnime } = useDownloadingAnime()
@@ -68,6 +68,28 @@ export function EnMassePage() {
                 <div className="flex justify-center items-center h-64">
                     <LoadingSpinner />
                 </div>
+            </PageWrapper>
+        )
+    }
+
+    if (isError) {
+        return (
+            <PageWrapper className="p-4 sm:p-8 space-y-4">
+                <Card className="border-amber-500/30 bg-amber-950/20 p-6">
+                    <p className="font-semibold">Failed to load the anime en-masse downloader status.</p>
+                    <p className="my-3 text-sm text-[--muted]">
+                        {error?.response?.data?.error ?? error?.message ?? "Unknown error"}
+                    </p>
+                    <Button
+                        intent="primary"
+                        leftIcon={<LuRefreshCw className="text-xl" />}
+                        onClick={() => refetch()}
+                        loading={isFetching}
+                        disabled={isFetching}
+                    >
+                        Retry
+                    </Button>
+                </Card>
             </PageWrapper>
         )
     }

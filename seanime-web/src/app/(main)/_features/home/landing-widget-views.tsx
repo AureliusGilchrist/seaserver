@@ -365,30 +365,45 @@ function StatsDoor({ title, icon, stats, href }: {
     stats: { label: string, value: number }[]
     href: string
 }) {
+    const statsGridColumns = stats.length >= 6
+        ? "grid-cols-2 min-[480px]:grid-cols-3 2xl:grid-cols-4"
+        : stats.length === 3 || stats.length === 5
+            ? "grid-cols-2 min-[480px]:grid-cols-3"
+            : "grid-cols-2"
+
+    const statsValueSize = stats.length >= 6 ? "text-lg sm:text-xl 2xl:text-lg" : "text-2xl lg:text-3xl 2xl:text-2xl"
+
     return (
         <SeaLink href={href} className="group/door block h-full">
             <button
                 className={cn(
-                    "group relative z-[1] w-full h-full text-left rounded-2xl border border-white/10 bg-black/25 backdrop-blur-md shadow-lg shadow-black/20 p-4 lg:p-5 overflow-hidden",
-                    "transition-all duration-300 hover:-translate-y-1 hover:border-[--brand]/70 hover:bg-black/60 hover:shadow-xl hover:shadow-[--brand]/20",
+                    "group relative isolate z-[1] w-full h-full overflow-hidden rounded-2xl border border-white/10 bg-black/55 p-4 text-left shadow-lg shadow-black/30 ring-1 ring-white/[0.03] backdrop-blur-xl lg:p-5",
+                    "transition-all duration-300 hover:-translate-y-1 hover:border-[--brand]/60 hover:bg-black/70 hover:shadow-xl hover:shadow-[--brand]/20",
                 )}
             >
-                <div className="pointer-events-none absolute -right-8 -top-8 size-28 rounded-full bg-[--brand]/20 blur-2xl opacity-60 group-hover:opacity-100 transition-opacity" />
-                <div className="relative flex items-center justify-between gap-2.5">
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center size-10 rounded-xl bg-gradient-to-br from-brand-400/40 to-brand-600/30 text-white ring-1 ring-white/10">
+                <div className="pointer-events-none absolute -right-8 -top-8 size-32 rounded-full bg-[--brand]/20 opacity-40 blur-3xl transition-opacity group-hover:opacity-80" />
+                <div className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+                <div className="relative flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-400/40 to-brand-600/30 text-white shadow-inner ring-1 ring-white/10">
                             {icon}
                         </div>
-                        <p className="font-semibold text-white">{title}</p>
+                        <p className="truncate text-[15px] font-semibold tracking-tight text-white">{title}</p>
                     </div>
-                    <LuArrowRight className="w-4 h-4 text-white/40 -translate-x-1 opacity-0 group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-[--brand] transition-all" />
+                    <LuArrowRight className="size-4 shrink-0 -translate-x-1 text-white/40 opacity-0 transition-all group-hover:translate-x-0 group-hover:text-[--brand] group-hover:opacity-100" />
                 </div>
                 {!!stats.length && (
-                    <div className="relative mt-4 flex flex-wrap items-end gap-x-4 gap-y-3">
+                    <div className={cn("relative mt-4 grid gap-2", statsGridColumns)}>
                         {stats.map(stat => (
-                            <div key={stat.label} className="min-w-[4.5rem] max-w-[7rem] leading-tight">
-                                <p className="text-2xl lg:text-3xl font-extrabold text-white tabular-nums">{formatNumber(stat.value)}</p>
-                                <p className="text-[10px] uppercase tracking-wider text-white/80 mt-1.5 break-words">{stat.label}</p>
+                            <div
+                                key={stat.label}
+                                title={`${stat.label}: ${formatNumber(stat.value)}`}
+                                className="min-h-[4.25rem] min-w-0 rounded-xl border border-white/[0.08] bg-black/20 px-2.5 py-2.5 transition-colors group-hover:border-white/[0.12] group-hover:bg-white/[0.05]"
+                            >
+                                <p className={cn("whitespace-nowrap font-bold leading-none tracking-tight text-white tabular-nums", statsValueSize)}>
+                                    {formatNumber(stat.value)}
+                                </p>
+                                <p className="mt-1.5 text-[10px] font-medium leading-tight text-white/60 capitalize">{stat.label}</p>
                             </div>
                         ))}
                     </div>
