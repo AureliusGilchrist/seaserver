@@ -554,6 +554,7 @@ func (a *App) initModulesOnce() {
 	// +---------------------+
 
 	a.EnMasseDownloader = enmasse.NewDownloader(&enmasse.NewDownloaderOptions{
+		AppDataDir:                 a.Config.Data.AppDataDir,
 		Logger:                     a.Logger,
 		TorrentRepository:          a.TorrentRepository,
 		TorrentClientRepositoryRef: a.TorrentClientRepositoryRef,
@@ -567,6 +568,7 @@ func (a *App) initModulesOnce() {
 	// +---------------------------+
 
 	a.MangaEnMasseDownloader = enmasse.NewMangaDownloader(&enmasse.NewMangaDownloaderOptions{
+		AppDataDir:      a.Config.Data.AppDataDir,
 		Logger:          a.Logger,
 		MangaRepository: a.MangaRepository,
 		MangaDownloader: a.MangaDownloader,

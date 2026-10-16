@@ -97,12 +97,13 @@ const (
 
 type (
 	MangaDownloader struct {
-		logger          *zerolog.Logger
-		mangaRepository *manga.Repository
-		mangaDownloader *manga.Downloader
-		database        *database.Database
-		wsEventManager  events.WSEventManagerInterface
-		platformRef     *util.Ref[platform.Platform]
+		logger           *zerolog.Logger
+		mangaRepository  *manga.Repository
+		mangaDownloader  *manga.Downloader
+		database         *database.Database
+		wsEventManager   events.WSEventManagerInterface
+		platformRef      *util.Ref[platform.Platform]
+		progressFilePath string
 
 		mu              sync.Mutex
 		isRunning       bool
@@ -172,6 +173,7 @@ type (
 	}
 
 	NewMangaDownloaderOptions struct {
+		AppDataDir      string
 		Logger          *zerolog.Logger
 		MangaRepository *manga.Repository
 		MangaDownloader *manga.Downloader
@@ -219,15 +221,16 @@ func (d *MangaDownloader) searchAniListMangaAllFormats(ctx context.Context, sear
 
 func NewMangaDownloader(opts *NewMangaDownloaderOptions) *MangaDownloader {
 	return &MangaDownloader{
-		logger:          opts.Logger,
-		mangaRepository: opts.MangaRepository,
-		mangaDownloader: opts.MangaDownloader,
-		database:        opts.Database,
-		wsEventManager:  opts.WSEventManager,
-		platformRef:     opts.PlatformRef,
-		downloadedManga: make([]string, 0, MaxLogEntries),
-		failedManga:     make([]string, 0, MaxLogEntries),
-		skippedManga:    make([]string, 0, MaxLogEntries),
+		logger:           opts.Logger,
+		progressFilePath: resolveProgressFilePath(opts.AppDataDir, MangaProgressFilePath),
+		mangaRepository:  opts.MangaRepository,
+		mangaDownloader:  opts.MangaDownloader,
+		database:         opts.Database,
+		wsEventManager:   opts.WSEventManager,
+		platformRef:      opts.PlatformRef,
+		downloadedManga:  make([]string, 0, MaxLogEntries),
+		failedManga:      make([]string, 0, MaxLogEntries),
+		skippedManga:     make([]string, 0, MaxLogEntries),
 		details: MangaDownloadDetails{
 			Phase: "idle",
 			Step:  "idle",
@@ -294,7 +297,7 @@ func (d *MangaDownloader) updateDetails(updateFn func(*MangaDownloadDetails)) {
 }
 
 func (d *MangaDownloader) hasSavedProgress() bool {
-	_, err := os.Stat(MangaProgressFilePath)
+	_, err := os.Stat(d.progressFilePath)
 	return err == nil
 }
 
@@ -411,13 +414,13 @@ func (d *MangaDownloader) saveProgressFromState() {
 		return
 	}
 
-	dir := filepath.Dir(MangaProgressFilePath)
+	dir := filepath.Dir(d.progressFilePath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		d.logger.Warn().Err(err).Msg("enmasse-manga: Failed to create progress directory in Stop")
 		return
 	}
 
-	if err := util.WriteFileCrashSafe(MangaProgressFilePath, data, 0644); err != nil {
+	if err := util.WriteFileCrashSafe(d.progressFilePath, data, 0644); err != nil {
 		d.logger.Warn().Err(err).Msg("enmasse-manga: Failed to save progress in Stop")
 	}
 }
@@ -438,10 +441,10 @@ func (d *MangaDownloader) writeResumeOnStartupMarker(resume bool) error {
 	if err != nil {
 		return fmt.Errorf("marshal progress: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(MangaProgressFilePath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(d.progressFilePath), 0755); err != nil {
 		return fmt.Errorf("create progress directory: %w", err)
 	}
-	if err := util.WriteFileCrashSafe(MangaProgressFilePath, data, 0644); err != nil {
+	if err := util.WriteFileCrashSafe(d.progressFilePath, data, 0644); err != nil {
 		return fmt.Errorf("write progress file: %w", err)
 	}
 	return nil
@@ -660,7 +663,7 @@ func (d *MangaDownloader) loadMangaList() ([]*HakunekoMangaItem, error) {
 }
 
 func (d *MangaDownloader) loadProgress() *MangaDownloaderProgress {
-	data, err := os.ReadFile(MangaProgressFilePath)
+	data, err := os.ReadFile(d.progressFilePath)
 	if err != nil {
 		return nil
 	}
@@ -695,13 +698,13 @@ func (d *MangaDownloader) saveCurrentProgress(processedTitles map[string]bool) {
 		return
 	}
 
-	dir := filepath.Dir(MangaProgressFilePath)
+	dir := filepath.Dir(d.progressFilePath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		d.logger.Warn().Err(err).Msg("enmasse-manga: Failed to create progress directory")
 		return
 	}
 
-	if err := util.WriteFileCrashSafe(MangaProgressFilePath, data, 0644); err != nil {
+	if err := util.WriteFileCrashSafe(d.progressFilePath, data, 0644); err != nil {
 		d.logger.Warn().Err(err).Msg("enmasse-manga: Failed to save progress")
 	} else {
 		d.logger.Debug().Int("processed", len(processedTitles)).Msg("enmasse-manga: Progress saved")
@@ -709,11 +712,11 @@ func (d *MangaDownloader) saveCurrentProgress(processedTitles map[string]bool) {
 }
 
 func (d *MangaDownloader) clearProgress() {
-	os.Remove(MangaProgressFilePath)
+	os.Remove(d.progressFilePath)
 }
 
 func (d *MangaDownloader) clearProgressUnlocked() {
-	os.Remove(MangaProgressFilePath)
+	os.Remove(d.progressFilePath)
 }
 
 func shouldResumeOnStartup(progress *MangaDownloaderProgress) bool {

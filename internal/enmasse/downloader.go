@@ -4,19 +4,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-	"hash/fnv"
 
 	"seanime/internal/api/anilist"
 	"seanime/internal/events"
-	hibiketorrent "seanime/internal/extension/hibike/torrent"
 	"seanime/internal/extension"
+	hibiketorrent "seanime/internal/extension/hibike/torrent"
 	"seanime/internal/platforms/platform"
 	"seanime/internal/torrent_clients/torrent_client"
 	"seanime/internal/torrents/torrent"
@@ -29,11 +30,11 @@ import (
 
 // Progress helpers
 func (d *Downloader) clearProgress() {
-	os.Remove(AnimeProgressFilePath)
+	os.Remove(d.progressFilePath)
 }
 
 func (d *Downloader) clearProgressUnlocked() {
-	os.Remove(AnimeProgressFilePath)
+	os.Remove(d.progressFilePath)
 }
 
 func (d *Downloader) setStatus(status string) {
@@ -70,13 +71,18 @@ func (d *Downloader) saveCurrentProgress(lastIndex int) {
 		return
 	}
 
-	if err := util.WriteFileCrashSafe(AnimeProgressFilePath, data, 0644); err != nil {
+	if err := os.MkdirAll(filepath.Dir(d.progressFilePath), 0755); err != nil {
+		d.logger.Error().Err(err).Msg("enmasse-anime: Failed to create progress directory")
+		return
+	}
+
+	if err := util.WriteFileCrashSafe(d.progressFilePath, data, 0644); err != nil {
 		d.logger.Error().Err(err).Msg("enmasse-anime: Failed to save progress")
 	}
 }
 
 func (d *Downloader) loadProgress() *DownloaderProgress {
-	data, err := os.ReadFile(AnimeProgressFilePath)
+	data, err := os.ReadFile(d.progressFilePath)
 	if err != nil {
 		return nil
 	}
@@ -317,13 +323,13 @@ func (d *Downloader) searchProviderWithVariants(ctx context.Context, providerID 
 				Str("provider", providerID).
 				Int("current", len(allProviderTorrents)).
 				Msg("enmasse-anime: Smart search insufficient after variants, trying limited simple variant searches")
-			
+
 			maxVariants := 5 // Limit to 5 variants for speed
 			if len(searchVariants[1:]) < maxVariants {
 				maxVariants = len(searchVariants[1:])
 			}
-			
-			for i, variant := range searchVariants[1:maxVariants+1] {
+
+			for i, variant := range searchVariants[1 : maxVariants+1] {
 				if len(allProviderTorrents) >= 8 { // Reduced limit from 20 to 8
 					break
 				}
@@ -372,7 +378,7 @@ func (d *Downloader) searchProviderWithVariants(ctx context.Context, providerID 
 		if len(searchVariants) < maxVariants {
 			maxVariants = len(searchVariants)
 		}
-		
+
 		for i, variant := range searchVariants[:maxVariants] {
 			if len(allProviderTorrents) >= 10 { // Reduced limit per provider from 20 to 10 for speed
 				break
@@ -427,15 +433,15 @@ func (d *Downloader) searchProviderWithVariants(ctx context.Context, providerID 
 // performSmartSearch performs a smart search on a provider
 func (d *Downloader) performSmartSearch(ctx context.Context, providerID string, baseAnime *anilist.BaseAnime, query string) ([]*hibiketorrent.AnimeTorrent, error) {
 	opts := torrent.AnimeSearchOptions{
-		Provider:      providerID,
-		Type:          torrent.AnimeSearchTypeSmart,
-		Media:         baseAnime,
-		Query:         query,
-		Batch:         true,
-		EpisodeNumber: 0,
-		BestReleases:  true,
-		Resolution:    "1080",
-		SkipPreviews:  true,
+		Provider:                providerID,
+		Type:                    torrent.AnimeSearchTypeSmart,
+		Media:                   baseAnime,
+		Query:                   query,
+		Batch:                   true,
+		EpisodeNumber:           0,
+		BestReleases:            true,
+		Resolution:              "1080",
+		SkipPreviews:            true,
 		IncludeSpecialProviders: true,
 	}
 
@@ -459,12 +465,12 @@ func (d *Downloader) performSmartSearch(ctx context.Context, providerID string, 
 // performSimpleSearch performs a simple search on a provider
 func (d *Downloader) performSimpleSearch(ctx context.Context, providerID string, baseAnime *anilist.BaseAnime, query string) ([]*hibiketorrent.AnimeTorrent, error) {
 	opts := torrent.AnimeSearchOptions{
-		Provider:      providerID,
-		Type:          torrent.AnimeSearchTypeSimple,
-		Media:         baseAnime,
-		Query:         query,
-		Batch:         true,
-		Resolution:    "1080",
+		Provider:   providerID,
+		Type:       torrent.AnimeSearchTypeSimple,
+		Media:      baseAnime,
+		Query:      query,
+		Batch:      true,
+		Resolution: "1080",
 	}
 
 	res, err := d.torrentRepository.SearchAnime(ctx, opts)
@@ -530,13 +536,13 @@ func (d *Downloader) filterOutSeasonEpisodePattern(torrents []*hibiketorrent.Ani
 
 const (
 	GlobalAnimeOfflineDatabasePath = "/zroot/Soul/Otaku Media/Databases/anime-offline-database-minified.json"
-	AnimeProgressFilePath   = "/zroot/Soul/Otaku Media/Databases/enmasse-anime-progress.json"
-	MaxConcurrentSearches   = 6
-	DelayBetweenAnime       = 500 * time.Millisecond
-	DelayBetweenSearches    = 300 * time.Millisecond
-	TorrentClientRetryDelay = 5 * time.Second
-	MaxAnimeLogEntries      = 300
-	AniListRateLimitBackoff = 60 * time.Second
+	AnimeProgressFilePath          = "/zroot/Soul/Otaku Media/Databases/enmasse-anime-progress.json"
+	MaxConcurrentSearches          = 6
+	DelayBetweenAnime              = 500 * time.Millisecond
+	DelayBetweenSearches           = 300 * time.Millisecond
+	TorrentClientRetryDelay        = 5 * time.Second
+	MaxAnimeLogEntries             = 300
+	AniListRateLimitBackoff        = 60 * time.Second
 )
 
 type (
@@ -562,10 +568,12 @@ type (
 		status          string
 		details         AnimeDownloaderDetails
 		// Rate limiting semaphore
-		searchSemaphore chan struct{}
+		searchSemaphore  chan struct{}
+		progressFilePath string
 	}
 
 	NewDownloaderOptions struct {
+		AppDataDir                 string
 		Logger                     *zerolog.Logger
 		TorrentRepository          *torrent.Repository
 		TorrentClientRepositoryRef *util.Ref[*torrent_client.Repository]
@@ -575,37 +583,37 @@ type (
 	}
 
 	DownloaderStatus struct {
-		IsRunning        bool     `json:"isRunning"`
-		IsPaused         bool     `json:"isPaused"`
-		CurrentAnime     string   `json:"currentAnime"`
-		CurrentAnimeId   int      `json:"currentAnimeId"`
-		ProcessedCount   int      `json:"processedCount"`
-		TotalCount       int      `json:"totalCount"`
-		DownloadedAnime  []string `json:"downloadedAnime"`
-		FailedAnime      []string `json:"failedAnime"`
-		Status           string   `json:"status"`
+		IsRunning        bool                   `json:"isRunning"`
+		IsPaused         bool                   `json:"isPaused"`
+		CurrentAnime     string                 `json:"currentAnime"`
+		CurrentAnimeId   int                    `json:"currentAnimeId"`
+		ProcessedCount   int                    `json:"processedCount"`
+		TotalCount       int                    `json:"totalCount"`
+		DownloadedAnime  []string               `json:"downloadedAnime"`
+		FailedAnime      []string               `json:"failedAnime"`
+		Status           string                 `json:"status"`
 		Details          AnimeDownloaderDetails `json:"details"`
-		HasSavedProgress bool     `json:"hasSavedProgress"`
+		HasSavedProgress bool                   `json:"hasSavedProgress"`
 	}
 
 	AnimeDownloaderDetails struct {
-		Phase              string `json:"phase"`
-		Step               string `json:"step"`
-		CurrentAnimeIndex  int    `json:"currentAnimeIndex"`
-		CurrentAnimeTotal  int    `json:"currentAnimeTotal"`
-		CurrentProvider    string `json:"currentProvider"`
-		ProvidersDone      int    `json:"providersDone"`
-		ProvidersTotal     int    `json:"providersTotal"`
-		CurrentQuery       string `json:"currentQuery"`
-		VariantIndex       int    `json:"variantIndex"`
-		VariantsTotal      int    `json:"variantsTotal"`
-		TorrentsCollected  int    `json:"torrentsCollected"`
-		SelectedTorrent    string `json:"selectedTorrent"`
-		Destination        string `json:"destination"`
-		ExpectedEpisodes   int    `json:"expectedEpisodes"`
-		DownloadedCount    int    `json:"downloadedCount"`
-		FailedCount        int    `json:"failedCount"`
-		LastError          string `json:"lastError"`
+		Phase             string `json:"phase"`
+		Step              string `json:"step"`
+		CurrentAnimeIndex int    `json:"currentAnimeIndex"`
+		CurrentAnimeTotal int    `json:"currentAnimeTotal"`
+		CurrentProvider   string `json:"currentProvider"`
+		ProvidersDone     int    `json:"providersDone"`
+		ProvidersTotal    int    `json:"providersTotal"`
+		CurrentQuery      string `json:"currentQuery"`
+		VariantIndex      int    `json:"variantIndex"`
+		VariantsTotal     int    `json:"variantsTotal"`
+		TorrentsCollected int    `json:"torrentsCollected"`
+		SelectedTorrent   string `json:"selectedTorrent"`
+		Destination       string `json:"destination"`
+		ExpectedEpisodes  int    `json:"expectedEpisodes"`
+		DownloadedCount   int    `json:"downloadedCount"`
+		FailedCount       int    `json:"failedCount"`
+		LastError         string `json:"lastError"`
 	}
 
 	DownloaderProgress struct {
@@ -656,6 +664,7 @@ type (
 func NewDownloader(opts *NewDownloaderOptions) *Downloader {
 	return &Downloader{
 		logger:                     opts.Logger,
+		progressFilePath:           resolveProgressFilePath(opts.AppDataDir, AnimeProgressFilePath),
 		torrentRepository:          opts.TorrentRepository,
 		torrentClientRepositoryRef: opts.TorrentClientRepositoryRef,
 		wsEventManager:             opts.WSEventManager,
@@ -668,7 +677,7 @@ func NewDownloader(opts *NewDownloaderOptions) *Downloader {
 			Phase: "idle",
 			Step:  "idle",
 		},
-		searchSemaphore:            make(chan struct{}, MaxConcurrentSearches),
+		searchSemaphore: make(chan struct{}, MaxConcurrentSearches),
 	}
 }
 
@@ -687,15 +696,15 @@ func (d *Downloader) GetStatus() *DownloaderStatus {
 	}
 
 	return &DownloaderStatus{
-		IsRunning:        d.isRunning,
-		IsPaused:         d.isPaused,
-		CurrentAnime:     currentAnime,
-		CurrentAnimeId:   currentAnimeId,
-		ProcessedCount:   d.processedCount,
-		TotalCount:       d.totalCount,
-		DownloadedAnime:  d.downloadedAnime,
-		FailedAnime:      d.failedAnime,
-		Status:           d.status,
+		IsRunning:       d.isRunning,
+		IsPaused:        d.isPaused,
+		CurrentAnime:    currentAnime,
+		CurrentAnimeId:  currentAnimeId,
+		ProcessedCount:  d.processedCount,
+		TotalCount:      d.totalCount,
+		DownloadedAnime: d.downloadedAnime,
+		FailedAnime:     d.failedAnime,
+		Status:          d.status,
 		Details: AnimeDownloaderDetails{
 			Phase:             d.details.Phase,
 			Step:              d.details.Step,
@@ -729,7 +738,7 @@ func (d *Downloader) updateDetails(updateFn func(*AnimeDownloaderDetails)) {
 }
 
 func (d *Downloader) hasSavedProgress() bool {
-	_, err := os.Stat(AnimeProgressFilePath)
+	_, err := os.Stat(d.progressFilePath)
 	return err == nil
 }
 
@@ -1459,7 +1468,7 @@ func (d *Downloader) selectBestTorrent(torrents []*hibiketorrent.AnimeTorrent, a
 
 	// Rank torrents using the comprehensive scoring system
 	rankedTorrents := d.rankTorrents(torrents, animeItem)
-	
+
 	if len(rankedTorrents) == 0 {
 		return nil
 	}
@@ -1622,9 +1631,9 @@ func (d *Downloader) calculateCompletenessScore(t *hibiketorrent.AnimeTorrent, a
 	// Bonus for torrents that explicitly mention episode counts matching expected
 	if animeItem.Episodes > 0 {
 		epCountStr := strconv.Itoa(animeItem.Episodes)
-		if strings.Contains(nameLower, epCountStr+" episodes") || 
-		   strings.Contains(nameLower, epCountStr+" eps") ||
-		   strings.Contains(nameLower, "ep "+epCountStr) {
+		if strings.Contains(nameLower, epCountStr+" episodes") ||
+			strings.Contains(nameLower, epCountStr+" eps") ||
+			strings.Contains(nameLower, "ep "+epCountStr) {
 			score += 35
 		}
 	}
@@ -1712,12 +1721,12 @@ func (d *Downloader) calculateResolutionScore(t *hibiketorrent.AnimeTorrent) int
 // calculateSeederScore implements the seeder health priority
 func (d *Downloader) calculateSeederScore(t *hibiketorrent.AnimeTorrent) int {
 	seeders := t.Seeders
-	
+
 	// Minimum 1 seeder required
 	if seeders < 1 {
 		return 0
 	}
-	
+
 	// Diminishing returns for very high seeder counts
 	if seeders > 1000 {
 		return 100
@@ -1740,7 +1749,7 @@ func (d *Downloader) calculateSeederScore(t *hibiketorrent.AnimeTorrent) int {
 	} else if seeders >= 1 {
 		return 25 // Minimum 1 seeder gets base score
 	}
-	
+
 	return 0
 }
 
@@ -1801,7 +1810,7 @@ func (d *Downloader) calculateTitleRelevance(t *hibiketorrent.AnimeTorrent, anim
 	// Check for title matches
 	titles := []string{animeItem.Title}
 	titles = append(titles, animeItem.Synonyms...)
-	
+
 	for _, title := range titles {
 		titleLower := strings.ToLower(title)
 		if strings.Contains(nameLower, titleLower) {
@@ -1809,7 +1818,7 @@ func (d *Downloader) calculateTitleRelevance(t *hibiketorrent.AnimeTorrent, anim
 			break
 		}
 	}
-	
+
 	// If there's a + sign, skip season matching entirely - these are always acceptable
 	if hasPlusSign {
 		score += 20 // Bonus for multi-season torrents
@@ -1828,10 +1837,10 @@ func (d *Downloader) calculateTitleRelevance(t *hibiketorrent.AnimeTorrent, anim
 		// Only do season matching for non-multi-season torrents
 		// Extract season number from torrent name
 		torrentSeason := d.extractSeasonNumber(nameLower)
-		
+
 		// Determine the anime's likely season number based on available data
 		animeSeasonNum := d.determineAnimeSeasonNumber(animeItem, nameLower)
-		
+
 		// Debug logging for season matching
 		d.logger.Debug().
 			Str("torrent", t.Name).
@@ -1839,7 +1848,7 @@ func (d *Downloader) calculateTitleRelevance(t *hibiketorrent.AnimeTorrent, anim
 			Int("anime_season", animeSeasonNum).
 			Bool("complete_multi", isCompleteOrMulti).
 			Msg("enmasse-anime: Season matching analysis")
-		
+
 		if torrentSeason > 0 {
 			// Torrent explicitly specifies a season
 			if animeSeasonNum == 0 || torrentSeason == animeSeasonNum {
@@ -1894,10 +1903,10 @@ func (d *Downloader) determineAnimeSeasonNumber(animeItem *AnimeOfflineItem, tor
 	if animeItem == nil {
 		return 1
 	}
-	
+
 	// Regex pattern to extract any season number from anime titles/synonyms
 	seasonPattern := `\bseason\s*(\d+)\b|\bs(\d+)\b|\b(\d+)th\s*season\b|\b(\d+)(?:st|nd|rd|th)\s*season\b`
-	
+
 	// Check title for season indicators
 	titleLower := strings.ToLower(animeItem.Title)
 	if matches := regexp.MustCompile(seasonPattern).FindStringSubmatch(titleLower); len(matches) > 1 {
@@ -1909,7 +1918,7 @@ func (d *Downloader) determineAnimeSeasonNumber(animeItem *AnimeOfflineItem, tor
 			}
 		}
 	}
-	
+
 	// Check synonyms for season indicators
 	for _, synonym := range animeItem.Synonyms {
 		synLower := strings.ToLower(synonym)
@@ -1923,7 +1932,7 @@ func (d *Downloader) determineAnimeSeasonNumber(animeItem *AnimeOfflineItem, tor
 			}
 		}
 	}
-	
+
 	// If no clear season indicators, assume season 1
 	return 1
 }
@@ -1931,10 +1940,10 @@ func (d *Downloader) determineAnimeSeasonNumber(animeItem *AnimeOfflineItem, tor
 // extractSeasonNumber extracts season number from torrent name using regex (supports any season number)
 func (d *Downloader) extractSeasonNumber(name string) int {
 	name = strings.ToLower(name)
-	
+
 	// Regex pattern to extract any season number from torrent names
 	seasonPattern := `\bseason\s*(\d+)\b|\bs(\d+)\b|\b(\d+)th\s*season\b|\b(\d+)(?:st|nd|rd|th)\s*season\b`
-	
+
 	re := regexp.MustCompile(seasonPattern)
 	if matches := re.FindStringSubmatch(name); len(matches) > 1 {
 		// Find the first non-empty capture group that contains a valid number
@@ -1946,7 +1955,7 @@ func (d *Downloader) extractSeasonNumber(name string) int {
 			}
 		}
 	}
-	
+
 	return 0 // No season found
 }
 
@@ -2407,7 +2416,7 @@ func (d *Downloader) generateSearchVariants(animeItem *AnilistMinifiedItem) []st
 	if animeItem.TitleRomaji != "" && animeItem.TitleRomaji != animeItem.TitleEnglish {
 		titles = append(titles, animeItem.TitleRomaji)
 	}
-	
+
 	// Add only first 2 synonyms for speed (instead of all)
 	synCount := 0
 	for _, syn := range animeItem.Synonyms {
@@ -2444,7 +2453,7 @@ func (d *Downloader) generateSearchVariants(animeItem *AnilistMinifiedItem) []st
 // generateSeasonVariants creates season-specific search variants
 func (d *Downloader) generateSeasonVariants(title string) []string {
 	variants := []string{}
-	
+
 	// Common season patterns
 	seasonPatterns := []string{
 		" S01", " S1", " Season 1", " 1st Season", " First Season",
@@ -2452,21 +2461,21 @@ func (d *Downloader) generateSeasonVariants(title string) []string {
 		" S03", " S3", " Season 3", " 3rd Season", " Third Season",
 		" S04", " S4", " Season 4", " 4th Season", " Fourth Season",
 	}
-	
+
 	for _, pattern := range seasonPatterns {
 		variants = append(variants, title+pattern)
 	}
-	
+
 	return variants
 }
 
 // generateYearVariants creates year-specific search variants
 func (d *Downloader) generateYearVariants(title string) []string {
 	variants := []string{}
-	
+
 	// Common year patterns (recent years)
 	years := []string{"2024", "2023", "2022", "2021", "2020", "2019", "2018"}
-	
+
 	for _, year := range years {
 		variants = append(variants, title+" "+year)
 		variants = append(variants, title+" "+year+"-"+year[2:])
@@ -2476,7 +2485,7 @@ func (d *Downloader) generateYearVariants(title string) []string {
 			variants = append(variants, title+" "+prevYear+"-"+year[2:])
 		}
 	}
-	
+
 	return variants
 }
 
@@ -2488,17 +2497,17 @@ func (d *Downloader) removeSpecialCharacters(query string) string {
 		"*", "&", "^", "%", "$", "#", "@", "+", "=", "~", "`", "|",
 		"<", ">", ",", ";", ".", "_", "-",
 	}
-	
+
 	result := query
 	for _, char := range specialChars {
 		result = strings.ReplaceAll(result, char, " ")
 	}
-	
+
 	// Collapse multiple spaces
 	for strings.Contains(result, "  ") {
 		result = strings.ReplaceAll(result, "  ", " ")
 	}
-	
+
 	return strings.TrimSpace(result)
 }
 
