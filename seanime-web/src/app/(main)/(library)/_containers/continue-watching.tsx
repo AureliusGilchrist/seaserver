@@ -26,12 +26,11 @@ import { seaCommand_compareMediaTitles } from "../../_features/sea-command/utils
 
 export const __libraryHeaderEpisodeAtom = atom<Anime_Episode | null>(null)
 
-export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle, iconBadges }: {
+export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle }: {
     episodes: Anime_Episode[],
     isLoading: boolean
     linkTemplate?: string
     withTitle?: boolean
-    iconBadges?: boolean
 }) {
 
     const router = useRouter()
@@ -186,14 +185,9 @@ export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle,
                                         overrideLink={linkTemplate}
                                         spoilerActive={spoilerActive ?? false}
                                         watchHistory={watchHistory}
-                                        badge={iconBadges && episode.baseAnime?.status === "FINISHED" ? <FinishedEpisodeBadge /> : undefined}
+                                        badge={episode.baseAnime?.status === "FINISHED" ? <FinishedEpisodeBadge /> : undefined}
                                     />
                                 </div>
-                                {!iconBadges && episode.baseAnime?.status === "FINISHED" && (
-                                    <span className="pointer-events-none absolute right-2 top-2 z-[2] rounded-full border border-white/20 bg-black/75 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-lg backdrop-blur-md">
-                                        Finished
-                                    </span>
-                                )}
                             </div>
                         </CarouselItem>
                     ))}
