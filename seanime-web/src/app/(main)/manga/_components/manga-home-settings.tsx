@@ -83,22 +83,46 @@ export const DEFAULT_MANGA_HOME_ITEMS: Models_HomeItem[] = [
     },
 ]
 
+const REQUIRED_MANGA_HOME_ITEM_TYPES = new Set(["manga-continue-reading-header", "manga-continue-reading"])
+
+export function normalizeMangaHomeItems(items: Models_HomeItem[]): Models_HomeItem[] {
+    const supportedItems = items
+        .filter(item => !!HOME_ITEMS[item.type] && MANGA_HOME_ITEM_IDS.includes(item.type as any))
+        .map(item => ({
+            ...item,
+            schemaVersion: HOME_ITEMS[item.type].schemaVersion,
+        }))
+
+    const headerItem = supportedItems.find(item => item.type === "manga-continue-reading-header")
+        ?? { ...DEFAULT_MANGA_HOME_ITEMS.find(item => item.type === "manga-continue-reading-header")! }
+    const continueReadingItem = supportedItems.find(item => item.type === "manga-continue-reading")
+        ?? { ...DEFAULT_MANGA_HOME_ITEMS.find(item => item.type === "manga-continue-reading")! }
+    const otherItems = supportedItems.filter(item => !REQUIRED_MANGA_HOME_ITEM_TYPES.has(item.type))
+
+    return [headerItem, continueReadingItem, ...otherItems]
+}
+
+function isRequiredMangaHomeItem(item: Models_HomeItem): boolean {
+    return REQUIRED_MANGA_HOME_ITEM_TYPES.has(item.type)
+}
+
 interface MangaSortableItemProps {
     item: Models_HomeItem
     onRemove: (id: string) => void
     onEditOptions: (id: string) => void
     isUpdating: boolean
     index: number
+    isPinned: boolean
 }
 
-function MangaSortableItem({ item, onRemove, onEditOptions, isUpdating, index }: MangaSortableItemProps) {
+function MangaSortableItem({ item, onRemove, onEditOptions, isUpdating, index, isPinned }: MangaSortableItemProps) {
     const {
         attributes,
         listeners,
         setNodeRef,
         transform,
         transition,
-    } = useSortable({ id: item.id })
+    } = useSortable({ id: item.id, disabled: isPinned })
 
     const style = {
         transform: CSS.Transform.toString(transform ? { ...transform, scaleY: 1 } : null),
@@ -117,7 +141,8 @@ function MangaSortableItem({ item, onRemove, onEditOptions, isUpdating, index }:
             {...attributes}
             {...listeners}
             className={cn(
-                "flex items-center gap-3 p-3 bg-gray-800/50 rounded-xl border border-gray-700 hover:border-gray-600 transition-colors cursor-move",
+                "flex items-center gap-3 p-3 bg-gray-800/50 rounded-xl border border-gray-700 hover:border-gray-600 transition-colors",
+                isPinned ? "cursor-default border-brand-300/20" : "cursor-move",
                 homeItemConfig.kind.length === 1 && homeItemConfig.kind[0] === "header" && index !== 0 && "opacity-50",
             )}
         >
@@ -140,6 +165,11 @@ function MangaSortableItem({ item, onRemove, onEditOptions, isUpdating, index }:
             </div>
 
             <div className="flex items-center gap-1">
+                {isPinned && (
+                    <span className="rounded-full border border-brand-300/20 bg-brand-400/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-brand-100">
+                        Fixed
+                    </span>
+                )}
                 {homeItemConfig.options && (
                     <IconButton
                         intent="gray-subtle"
@@ -155,15 +185,17 @@ function MangaSortableItem({ item, onRemove, onEditOptions, isUpdating, index }:
                     />
                 )}
 
-                <IconButton
-                    intent="gray-subtle"
-                    size="sm"
-                    onClick={() => onRemove(item.id)}
-                    disabled={isUpdating}
-                    className="hover:bg-red-500/20 hover:text-red-400"
-                    icon={<BiTrash className="size-4" />}
-                    onPointerDown={(e) => e.stopPropagation()}
-                />
+                {!isPinned && (
+                    <IconButton
+                        intent="gray-subtle"
+                        size="sm"
+                        onClick={() => onRemove(item.id)}
+                        disabled={isUpdating}
+                        className="hover:bg-red-500/20 hover:text-red-400"
+                        icon={<BiTrash className="size-4" />}
+                        onPointerDown={(e) => e.stopPropagation()}
+                    />
+                )}
             </div>
         </div>
     )
@@ -415,7 +447,7 @@ export function MangaHomeSettingsModal() {
     const { data: _homeItems, isLoading: isLoadingHomeItems } = useGetMangaHomeItems()
     const { mutate: updateHomeItems, isPending: isUpdatingHomeItems } = useUpdateMangaHomeItems()
 
-    const [currentItems, setCurrentItems] = React.useState<Models_HomeItem[]>(_homeItems || DEFAULT_MANGA_HOME_ITEMS)
+    const [currentItems, setCurrentItems] = React.useState<Models_HomeItem[]>(() => normalizeMangaHomeItems(_homeItems ?? DEFAULT_MANGA_HOME_ITEMS))
     const availableItems = MANGA_HOME_ITEM_IDS.filter(type => {
         if (type === "manga-carousel" || type === "centered-title" || type === "my-lists") {
             return true
@@ -425,8 +457,9 @@ export function MangaHomeSettingsModal() {
 
     const checkTimeRef = React.useRef<NodeJS.Timeout | null>(null)
     React.useEffect(() => {
-        const homeItems = _homeItems || DEFAULT_MANGA_HOME_ITEMS
-        setCurrentItems(homeItems)
+        const homeItems = _homeItems ?? DEFAULT_MANGA_HOME_ITEMS
+        const normalizedHomeItems = normalizeMangaHomeItems(homeItems)
+        setCurrentItems(normalizedHomeItems)
 
         if (checkTimeRef.current) {
             clearTimeout(checkTimeRef.current)
@@ -435,11 +468,8 @@ export function MangaHomeSettingsModal() {
 
         // Check if an item doesn't exist anymore and remove it
         checkTimeRef.current = setTimeout(() => {
-            const newItems = normalizeHomeItems(homeItems)
-
-            if (newItems.length !== homeItems.length) {
-                setCurrentItems(newItems)
-                updateHomeItems({ items: newItems }, {
+            if (JSON.stringify(normalizedHomeItems) !== JSON.stringify(homeItems)) {
+                updateHomeItems({ items: normalizedHomeItems }, {
                     onSuccess: () => {
                         console.log("Manga home items updated")
                     },
@@ -453,7 +483,7 @@ export function MangaHomeSettingsModal() {
                 checkTimeRef.current = null
             }
         }
-    }, [_homeItems])
+    }, [_homeItems, updateHomeItems])
 
     const handleDragEnd = React.useCallback((event: DragEndEvent) => {
         const { active, over } = event
@@ -462,7 +492,7 @@ export function MangaHomeSettingsModal() {
             const oldIndex = currentItems.findIndex(item => item.id === active.id)
             const newIndex = currentItems.findIndex(item => item.id === over?.id)
 
-            const newItems = normalizeHomeItems(arrayMove(currentItems, oldIndex, newIndex))
+            const newItems = normalizeMangaHomeItems(arrayMove(currentItems, oldIndex, newIndex))
             setCurrentItems(newItems)
             updateHomeItems({ items: newItems }, {
                 onSuccess: () => {
@@ -472,15 +502,6 @@ export function MangaHomeSettingsModal() {
         }
     }, [currentItems, updateHomeItems])
 
-    function normalizeHomeItems(items: Models_HomeItem[]) {
-        let newItems = items.filter(item => !!HOME_ITEMS[item.type] && MANGA_HOME_ITEM_IDS.includes(item.type as any))
-        newItems = newItems.map(item => ({
-            ...item,
-            schemaVersion: HOME_ITEMS[item.type].schemaVersion,
-        }))
-        return newItems
-    }
-
     const handleAddItem = (type: string) => {
         const newItem: Models_HomeItem = {
             id: uuidv4(),
@@ -488,7 +509,7 @@ export function MangaHomeSettingsModal() {
             schemaVersion: HOME_ITEMS[type].schemaVersion,
         }
 
-        const newItems = normalizeHomeItems([...currentItems, newItem])
+        const newItems = normalizeMangaHomeItems([...currentItems, newItem])
         setCurrentItems(newItems)
         updateHomeItems({ items: newItems }, {
             onSuccess: () => {
@@ -498,7 +519,9 @@ export function MangaHomeSettingsModal() {
     }
 
     const handleRemoveItem = (id: string) => {
-        const newItems = normalizeHomeItems(currentItems.filter(item => item.id !== id))
+        const item = currentItems.find(item => item.id === id)
+        if (!item || isRequiredMangaHomeItem(item)) return
+        const newItems = normalizeMangaHomeItems(currentItems.filter(item => item.id !== id))
         setCurrentItems(newItems)
         updateHomeItems({ items: newItems }, {
             onSuccess: () => {
@@ -508,7 +531,7 @@ export function MangaHomeSettingsModal() {
     }
 
     const handleUpdateItemOptions = (id: string, options: any) => {
-        const newItems = normalizeHomeItems(currentItems.map(item =>
+        const newItems = normalizeMangaHomeItems(currentItems.map(item =>
             item.id === id
                 ? { ...item, options }
                 : item,
@@ -619,6 +642,7 @@ export function MangaHomeSettingsModal() {
                                                     key={item.id}
                                                     item={item}
                                                     index={index}
+                                                    isPinned={isRequiredMangaHomeItem(item)}
                                                     onRemove={handleRemoveItem}
                                                     onEditOptions={setOptionsModalOpen}
                                                     isUpdating={isUpdatingHomeItems}

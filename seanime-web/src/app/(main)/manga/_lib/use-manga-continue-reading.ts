@@ -59,10 +59,9 @@ export function useMangaContinueReadingList(): { entries: MangaContinueReadingEn
         for (const list of collection.lists ?? []) {
             if (list.type !== "CURRENT" && list.type !== "REPEATING") continue
             for (const entry of list.entries ?? []) {
-                if (!entry.media) continue
                 if (seen.has(entry.mediaId)) continue
                 const progress = entry.listData?.progress ?? 0
-                const total = entry.media.chapters ?? undefined
+                const total = entry.media?.chapters ?? undefined
                 // Fully read — nothing to continue, the way the anime home drops series with
                 // every episode watched.
                 if (!!total && progress >= total) continue
@@ -70,7 +69,7 @@ export function useMangaContinueReadingList(): { entries: MangaContinueReadingEn
                 const lastRead = historyByMediaId.get(entry.mediaId)
                 items.push({
                     mediaId: entry.mediaId,
-                    media: entry.media,
+                    media: entry.media ?? null,
                     chapterNumber: nextChapter(progress, lastRead),
                     chaptersTotal: total,
                     lastReadAt: lastRead?.lastReadAt,

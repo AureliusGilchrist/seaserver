@@ -13,7 +13,7 @@ import { useMangaFavorites } from "@/app/(main)/manga/_lib/use-manga-favorites"
 import { useGetMangaDownloadsList } from "@/api/hooks/manga_download.hooks"
 import { MangaLibraryView } from "@/app/(main)/manga/_screens/manga-library-view"
 import { MangaCarousel } from "@/app/(main)/(library)/_home/home-screen"
-import { MangaHomeSettingsModal, DEFAULT_MANGA_HOME_ITEMS } from "@/app/(main)/manga/_components/manga-home-settings"
+import { MangaHomeSettingsModal, DEFAULT_MANGA_HOME_ITEMS, normalizeMangaHomeItems } from "@/app/(main)/manga/_components/manga-home-settings"
 import { MangaContinueReading } from "@/app/(main)/manga/_containers/manga-continue-reading"
 import { MangaContinueReadingHeader } from "@/app/(main)/manga/_containers/manga-continue-reading-header"
 import { MangaDiscoverHeader } from "@/app/(main)/manga/_containers/manga-discover-header"
@@ -132,7 +132,7 @@ export default function Page() {
     }, [filteredDownloads])
 
     const homeItems = React.useMemo(() => {
-        let ret = !!mangaHomeItems?.length ? mangaHomeItems : DEFAULT_MANGA_HOME_ITEMS
+        let ret = normalizeMangaHomeItems(mangaHomeItems?.length ? mangaHomeItems : DEFAULT_MANGA_HOME_ITEMS)
         // Saved layouts that predate the stats row get it right above the library.
         if (!ret.some(n => n.type === "local-manga-library-stats")) {
             const libIdx = ret.findIndex(n => n.type === "manga-library")

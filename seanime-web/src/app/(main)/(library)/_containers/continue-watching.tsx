@@ -176,7 +176,7 @@ export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle 
                             className={episodeCardCarouselItemClass(ts.smallerEpisodeCarouselSize)}
                         >
                             <div className="relative">
-                                <div className={cn(episode.baseAnime?.status === "FINISHED" && "grayscale opacity-75")}>
+                                <div className={cn(episode.baseAnime?.status === "FINISHED" && "grayscale-[50%] opacity-75")}>
                                     <_EpisodeCard
                                         key={episode.localFile?.path || ""}
                                         episode={episode}
