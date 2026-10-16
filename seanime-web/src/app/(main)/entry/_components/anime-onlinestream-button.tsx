@@ -54,7 +54,7 @@ export function AnimeOnlinestreamButton(props: AnimeOnlinestreamButtonProps) {
             leftIcon={isOnlineStreamingView ? <AiOutlineArrowLeft className="text-xl" /> : <FiPlayCircle className="text-2xl" />}
             onClick={() => toggleOnlineStreamingView()}
         >
-            {isOnlineStreamingView ? "Close Online streaming" : "Online streaming"}
+            {isOnlineStreamingView ? "Close Online Players" : "Online Players"}
         </AnimeMetaActionButton>
     )
 }

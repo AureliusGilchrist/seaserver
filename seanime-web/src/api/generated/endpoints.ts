@@ -581,6 +581,18 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/anime-themes/{id}",
         },
     },
+    KITSU: {
+        /**
+         *  @description
+         *  Route returns supplementary metadata for an anime from Kitsu.
+         *  This queries the Kitsu API using the anime's MAL ID. Returns found=false when there is no match.
+         */
+        GetKitsuAnimeInfo: {
+            key: "KITSU-get-kitsu-anime-info",
+            methods: ["GET"],
+            endpoint: "/api/v1/kitsu/anime/{id}",
+        },
+    },
     AUTH: {
         /**
          *  @description

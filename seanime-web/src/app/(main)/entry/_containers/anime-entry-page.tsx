@@ -13,11 +13,13 @@ import { SyntheticAnimeEntryPage } from "@/app/(main)/entry/_containers/syntheti
 import { CommentSection } from "@/app/(main)/_features/comment/comment-section"
 import { RelationsRecommendationsSection } from "@/app/(main)/entry/_components/relations-recommendations-section"
 import { AnimeThemesSection } from "@/app/(main)/entry/_components/anime-themes-section"
+import { KitsuInfoSection } from "@/app/(main)/entry/_components/kitsu-info-section"
 import { DebridStreamPage } from "@/app/(main)/entry/_containers/debrid-stream/debrid-stream-page"
 import {
     AnimeEntryRefreshStatsButton,
 } from "@/app/(main)/entry/_containers/entry-actions/anime-entry-refresh-stats-button"
 import { EpisodeSection } from "@/app/(main)/entry/_containers/episode-list/episode-section"
+import { LocalPlayerPage } from "@/app/(main)/entry/_containers/local-player/local-player-page"
 import { __torrentSearch_selectionAtom, TorrentSearchDrawer } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-drawer"
 import { TorrentStreamPage } from "@/app/(main)/entry/_containers/torrent-stream/torrent-stream-page"
 import { OnlinestreamPage } from "@/app/(main)/onlinestream/_containers/onlinestream-page"
@@ -34,10 +36,11 @@ import React from "react"
 import { FiGlobe } from "react-icons/fi"
 import { HiOutlineServerStack } from "react-icons/hi2"
 import { IoLibraryOutline } from "react-icons/io5"
+import { LuMonitorPlay } from "react-icons/lu"
 import { PiMonitorPlayDuotone } from "react-icons/pi"
 import { useUnmount } from "react-use"
 
-export const __anime_entryPageViewAtom = atom<"library" | "torrentstream" | "debridstream" | "onlinestream">("library")
+export const __anime_entryPageViewAtom = atom<"library" | "torrentstream" | "debridstream" | "onlinestream" | "localplayer">("library")
 
 export function useAnimeEntryPageView() {
     const [currentView, setView] = useAtom(__anime_entryPageViewAtom)
@@ -46,6 +49,7 @@ export function useAnimeEntryPageView() {
     const isTorrentStreamingView = currentView === "torrentstream"
     const isDebridStreamingView = currentView === "debridstream"
     const isOnlineStreamingView = currentView === "onlinestream"
+    const isLocalPlayerView = currentView === "localplayer"
 
     function toggleTorrentStreamingView() {
         setView(p => p === "torrentstream" ? "library" : "torrentstream")
@@ -66,6 +70,7 @@ export function useAnimeEntryPageView() {
         isTorrentStreamingView,
         isDebridStreamingView,
         isOnlineStreamingView,
+        isLocalPlayerView,
         toggleTorrentStreamingView,
         toggleDebridStreamingView,
         toggleOnlineStreamingView,
@@ -148,6 +153,8 @@ export function AnimeEntryPage() {
                 setView("torrentstream")
             } else if (serverStatus?.settings?.library?.enableOnlinestream && tab === "onlinestream") {
                 setView("onlinestream")
+            } else if (tab === "localplayer") {
+                setView("localplayer")
             }
         }
 
@@ -256,9 +263,14 @@ export function AnimeEntryPage() {
             items: [
                 ...[{
                     id: "library",
-                    description: "Downloaded episodes",
+                    description: "Details",
                     show: currentView !== "library",
                 },
+                    {
+                        id: "localplayer",
+                        description: "Local Player",
+                        show: currentView !== "localplayer",
+                    },
                     {
                         id: "torrentstream",
                         description: "Torrent streaming",
@@ -271,7 +283,7 @@ export function AnimeEntryPage() {
                     },
                     {
                         id: "onlinestream",
-                        description: "Online streaming",
+                        description: "Online Players",
                         show: serverStatus?.settings?.library?.enableOnlinestream && currentView !== "onlinestream",
                     },
                 ].map(item => ({
@@ -325,14 +337,14 @@ export function AnimeEntryPage() {
                 data-anime-entry-page-content-container
                 className={cn(
                     "px-4 md:px-8 relative z-[8]",
-                    (currentView === "onlinestream" && vc_fullscreen) && "z-[100]",
+                    ((currentView === "onlinestream" || currentView === "localplayer") && vc_fullscreen) && "z-[100]",
                 )}
             >
                 <PageWrapper
                     data-anime-entry-page-content
                     className={cn(
                         "relative 2xl:order-first pb-10 lg:min-h-[calc(100vh-10rem)]",
-                        (currentView === "onlinestream" && vc_fullscreen) && "z-[100]",
+                        ((currentView === "onlinestream" || currentView === "localplayer") && vc_fullscreen) && "z-[100]",
                     )}
                     {...{
                         initial: { opacity: 0, y: 20 },
@@ -370,6 +382,7 @@ export function AnimeEntryPage() {
                                 bottomSection={<>
                                     <PluginWebviewSlot slot="after-anime-entry-episode-list" />
                                     <AnimeThemesSection malId={animeEntry.media?.idMal} />
+                                    <KitsuInfoSection malId={animeEntry.media?.idMal} />
                                     <MediaEntryCharactersSection details={animeDetails} />
                                     <RelationsRecommendationsSection entry={animeEntry} details={animeDetails} />
                                     <CommentSection mediaId={animeEntry.mediaId} mediaType="anime" />
@@ -443,6 +456,33 @@ export function AnimeEntryPage() {
                             </div>
                         </PageWrapper>}
 
+                        {currentView === "localplayer" && <PageWrapper
+                            data-anime-entry-page-local-player-view
+                            key="local-player"
+                            className={cn(
+                                "relative 2xl:order-first pb-10 lg:pt-0",
+                                vc_fullscreen && "z-[100]",
+                            )}
+                            {...{
+                                initial: { opacity: 0, y: 60 },
+                                animate: { opacity: 1, y: 0 },
+                                exit: { opacity: 0, scale: 0.99 },
+                                transition: {
+                                    duration: 0.35,
+                                },
+                            }}
+                        >
+                            <div className="h-10 lg:h-0" />
+                            <div className="space-y-4">
+                                <LocalPlayerPage entry={animeEntry} entryLoading={animeEntryLoading} />
+                                <PluginWebviewSlot slot="after-anime-entry-episode-list" />
+                                <AnimeThemesSection malId={animeEntry.media?.idMal} />
+                                <MediaEntryCharactersSection details={animeDetails} />
+                                <RelationsRecommendationsSection entry={animeEntry} details={animeDetails} />
+                                <CommentSection mediaId={animeEntry.mediaId} mediaType="anime" />
+                            </div>
+                        </PageWrapper>}
+
                     </AnimatePresence>
 
                     <PluginWebviewSlot slot="anime-screen-bottom" />
@@ -479,18 +519,12 @@ export function EntrySectionTabs(props: EntrySectionTabs) {
         isDebridStreamingView,
         toggleDebridStreamingView,
         isOnlineStreamingView,
-        toggleOnlineStreamingView,
+        isLocalPlayerView,
     } = useAnimeEntryPageView()
 
     if (
         !entry ||
         entry.media?.status === "NOT_YET_RELEASED") return null
-
-    if (
-        !serverStatus?.torrentstreamSettings?.enabled &&
-        !serverStatus?.debridSettings?.enabled &&
-        !serverStatus?.settings?.library?.enableOnlinestream
-    ) return null
 
     return (
         <>
@@ -503,7 +537,7 @@ export function EntrySectionTabs(props: EntrySectionTabs) {
                     triggerClass="px-4 py-1 text-[1.1rem] border border-transparent opacity-80 data-[current=true]:border-[--subtle] data-[current=true]:opacity-100 rounded-full data-[current=false]:scale-95 lg:scale-100 "
                     iconClass="size-5 hidden data-[current=true]:block"
                     items={[
-                        { name: "Local library", iconType: IoLibraryOutline, isCurrent: isLibraryView, onClick: () => setView("library") },
+                        { name: "Details", iconType: IoLibraryOutline, isCurrent: isLibraryView, onClick: () => setView("library") },
                         ...(serverStatus?.torrentstreamSettings?.enabled ? [{
                             name: "Torrent streaming",
                             iconType: PiMonitorPlayDuotone,
@@ -517,11 +551,12 @@ export function EntrySectionTabs(props: EntrySectionTabs) {
                             onClick: () => setView("debridstream"),
                         }] : []),
                         ...(serverStatus?.settings?.library?.enableOnlinestream ? [{
-                            name: "Online streaming",
+                            name: "Online Players",
                             iconType: FiGlobe,
                             isCurrent: isOnlineStreamingView,
                             onClick: () => setView("onlinestream"),
                         }] : []),
+                        { name: "Local Player", iconType: LuMonitorPlay, isCurrent: isLocalPlayerView, onClick: () => setView("localplayer") },
                     ]}
                 />
             </div>

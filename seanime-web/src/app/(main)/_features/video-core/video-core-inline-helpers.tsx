@@ -253,17 +253,7 @@ export function VideoCoreInlineLayout(props: VideoCoreInlineLayoutProps) {
         <div data-vc-element="inline-layout" className="space-y-4">
             <div data-vc-element="inline-layout-header" className="flex flex-col lg:flex-row w-full justify-between">
                 {!hideBackButton && <div data-vc-element="inline-layout-go-back" className="flex w-full gap-4 items-center relative">
-                    {onBackButton ? (
-                        <IconButton
-                            aria-label="Back to episodes"
-                            title="Back to episodes"
-                            onClick={onBackButton}
-                            icon={<AiOutlineArrowLeft />}
-                            rounded
-                            intent="gray-outline"
-                            size="sm"
-                        />
-                    ) : <SeaLink href={`/entry?id=${mediaId}`}>
+                    {!onBackButton && <SeaLink href={`/entry?id=${mediaId}`}>
                         <IconButton icon={<AiOutlineArrowLeft />} rounded intent="gray-outline" size="sm" />
                     </SeaLink>}
                     <h3 className="max-w-full lg:max-w-[50%] text-ellipsis truncate">{title}</h3>

@@ -304,6 +304,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.POST("/status/manga-home-items", h.HandleUpdateMangaHomeItems, h.RequireProfileAdmin)
 
 	v1.GET("/anime-themes/:id", h.HandleGetAnimeThemes)
+	v1.GET("/kitsu/anime/:id", h.HandleGetKitsuAnimeInfo)
 
 	v1.GET("/theme-backgrounds", h.HandleListThemeBackgrounds)
 	v1.POST("/theme-backgrounds/download", h.HandleDownloadThemeBackground)

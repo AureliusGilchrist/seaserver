@@ -19,12 +19,15 @@ import { logger } from "@/lib/helpers/debug"
 import { displayTitle } from "@/lib/helpers/media"
 import { __isElectronDesktop__, __isTauriDesktop__ } from "@/types/constants"
 import { useAtomValue, useSetAtom } from "jotai"
-import { useRouter } from "@/lib/navigation"
+import { useRouter, usePathname } from "@/lib/navigation"
+import { __anime_entryPageViewAtom } from "@/app/(main)/entry/_containers/anime-entry-page"
 import React from "react"
 import { toast } from "sonner"
 
 export function useHandlePlayMedia() {
     const router = useRouter()
+    const pathname = usePathname()
+    const setEntryPageView = useSetAtom(__anime_entryPageViewAtom)
     const serverStatus = useServerStatus()
     const clientId = useAtomValue(clientIdAtom)
 
@@ -137,6 +140,11 @@ export function useHandlePlayMedia() {
         // Handle media streaming (transcoding/direct play)
         if (serverStatus?.mediastreamSettings?.transcodeEnabled && mediastreamActiveOnDevice) {
             setMediastreamFilePath(path)
+            // From the anime page, play inline in the Local Player tab
+            if (pathname?.startsWith("/entry")) {
+                setEntryPageView("localplayer")
+                return
+            }
             React.startTransition(() => {
                 router.push(`/mediastream?id=${mediaId}`)
             })

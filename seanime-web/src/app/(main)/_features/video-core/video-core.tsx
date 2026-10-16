@@ -347,7 +347,6 @@ const PlayerContent = React.memo<PlayerContentProps>(({
     onTerminateStream,
     onVideoSourceChange,
     onHlsQualityChange,
-    onBackToContent,
 }) => {
     const isMobile = useAtomValue(vc_isMobile)
     const isMiniPlayer = useAtomValue(vc_miniPlayer)
@@ -424,19 +423,6 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                 onMouseEnter={handleContainerMouseEnter}
                 onMouseLeave={handleContainerMouseLeave}
             >
-                {inline && fullscreen && onBackToContent && (
-                    <Button
-                        type="button"
-                        size="sm"
-                        intent="gray-basic"
-                        className="absolute left-4 top-4 z-[100] rounded-full border border-white/15 bg-black/65 shadow-lg backdrop-blur-md"
-                        onClick={() => {
-                            void onBackToContent()
-                        }}
-                    >
-                        Back to episodes
-                    </Button>
-                )}
                 {(!!state.playbackInfo?.streamUrl && !state.loadingState) ? (
                     <>
                         <VideoCoreKeybindingController
