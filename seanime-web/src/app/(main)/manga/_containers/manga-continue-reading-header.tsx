@@ -59,6 +59,27 @@ export const __mangaHeader_setCurrentIndexAtom = atom(
 )
 
 const MotionImage = motion.create(SeaImage)
+const NO_FAILED_IMAGES = new Set<string>()
+
+function useFallbackImageSource(urls: Array<string | null | undefined>, resetKey: string) {
+    const candidates = [...new Set(urls.filter((url): url is string => !!url))]
+    const [failedImages, setFailedImages] = React.useState<{ resetKey: string, urls: Set<string> }>({
+        resetKey,
+        urls: new Set(),
+    })
+    const failures = failedImages.resetKey === resetKey ? failedImages.urls : NO_FAILED_IMAGES
+    const src = candidates.find(url => !failures.has(url))
+    const onError = React.useCallback(() => {
+        if (!src) return
+        setFailedImages(previous => {
+            const urls = new Set(previous.resetKey === resetKey ? previous.urls : [])
+            urls.add(src)
+            return { resetKey, urls }
+        })
+    }, [resetKey, src])
+
+    return { src, onError }
+}
 
 type HeaderCarouselDotsProps = {
     totalManga: number
@@ -103,6 +124,11 @@ type MediaMetadataProps = {
 function MediaMetadata({ manga, onHoverChange }: MediaMetadataProps) {
     const ts = useThemeSettings()
     const { setPreviewModalMediaId } = useMediaPreviewModal()
+    const { src: coverImage, onError: handleCoverError } = useFallbackImageSource([
+        manga.coverImage?.extraLarge,
+        manga.coverImage?.large,
+        manga.coverImage?.medium,
+    ], String(manga.id))
 
     return (
         <div
@@ -139,15 +165,16 @@ function MediaMetadata({ manga, onHoverChange }: MediaMetadataProps) {
                     transition={{ duration: 0.5 }}
                 >
                     <SeaLink href={`/manga/entry?id=${manga.id}`}>
-                        {manga.coverImage?.large && (
+                        {coverImage && (
                             <div className="w-[180px] h-[280px] relative rounded-[--radius-md] overflow-hidden bg-[--background] shadow-md">
                                 <SeaImage
-                                    src={manga.coverImage.large}
+                                    src={coverImage}
                                     alt="cover image"
                                     fill
                                     priority
                                     placeholder={imageShimmer(700, 475)}
                                     className="object-cover object-center transition-opacity duration-1000"
+                                    onError={handleCoverError}
                                 />
                             </div>
                         )}
@@ -328,9 +355,18 @@ type BannerImageProps = {
 
 function BannerImage({ manga, isTransitioning, shouldBlurBanner }: BannerImageProps) {
     const ts = useThemeSettings()
-    const bannerImage = (!!ts.libraryScreenCustomBannerImage
-        && ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Custom) ? getAssetUrl(ts.libraryScreenCustomBannerImage) :
-        manga?.bannerImage || manga?.coverImage?.extraLarge
+    const customBannerImage = !!ts.libraryScreenCustomBannerImage
+        && ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Custom
+        ? getAssetUrl(ts.libraryScreenCustomBannerImage)
+        : null
+    const { src: bannerImage, onError: handleBannerError } = useFallbackImageSource([
+        customBannerImage,
+        manga?.bannerImage,
+        manga?.coverImage?.extraLarge,
+        manga?.coverImage?.large,
+        manga?.coverImage?.medium,
+    ], `${manga?.id ?? "none"}:${customBannerImage ?? ""}`)
+    const isPrimaryBanner = !!bannerImage && (bannerImage === customBannerImage || bannerImage === manga?.bannerImage)
 
     const { y } = useWindowScroll()
 
@@ -375,9 +411,10 @@ function BannerImage({ manga, isTransitioning, shouldBlurBanner }: BannerImagePr
                                 "object-cover object-center z-[1] transition-all duration-1000",
                                 isTransitioning && "scale-[1.01] -translate-x-0.5",
                                 !isTransitioning && "scale-100 translate-x-0",
-                                !manga?.bannerImage && "opacity-35",
+                                !isPrimaryBanner && "opacity-35",
                                 { "opacity-5": dimmed },
                             )}
+                            onError={handleBannerError}
                         />
                     )}
                 </div>

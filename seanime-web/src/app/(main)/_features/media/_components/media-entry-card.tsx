@@ -451,7 +451,9 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
                 progress={listData?.progress}
                 progressTotal={progressTotal}
                 startDate={media.startDate}
-                bannerImage={media.coverImage?.extraLarge || ""}
+                bannerImage={type === "manga"
+                    ? media.coverImage?.extraLarge || media.coverImage?.large || media.coverImage?.medium || media.bannerImage || "/no-cover.png"
+                    : media.coverImage?.extraLarge || ""}
                 isAdult={media.isAdult}
                 showLibraryBadge={showLibraryBadge}
                 mediaId={!hideDownloadBadges ? media.id : undefined}
@@ -559,5 +561,4 @@ const MakoMark = React.memo(function MakoMark() {
         </div>
     )
 })
-
 
