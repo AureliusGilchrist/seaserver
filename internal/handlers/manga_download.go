@@ -242,9 +242,11 @@ func (h *Handler) HandleGetMangaDownloadsList(c echo.Context) error {
 
 	// The signed-in user's own collection, so the cards on this screen carry their status and their
 	// progress rather than the admin's — and so a series just added to a list shows as added.
-	mangaCollection, err := h.mangaCollectionForProfile(c)
-	if err != nil {
-		return h.RespondWithError(c, err)
+	mangaCollection, collectionErr := h.mangaCollectionForProfile(c)
+	if collectionErr != nil {
+		h.App.Logger.Warn().Err(collectionErr).Uint("profileID", h.GetProfileID(c)).
+			Msg("handlers: Could not load AniList collection for manga downloads; continuing with local download data")
+		mangaCollection = nil
 	}
 
 	res, err := h.App.MangaDownloader.NewDownloadList(&manga.NewDownloadListOptions{

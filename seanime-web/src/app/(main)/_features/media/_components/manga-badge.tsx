@@ -135,7 +135,7 @@ export function MangaBadge(props: MangaBadgeProps) {
                 data-synthetic={showSynthetic || undefined}
                 // Above the card's own layers — the bottom gradient sits at z-5 and the
                 // adult-content blur at z-3, so anything lower gets painted over.
-                className={cn("absolute z-[15] left-0 top-0 flex items-start pointer-events-none", className)}
+                className={cn("absolute z-[15] left-1.5 top-1.5 flex max-w-full flex-wrap items-start gap-1.5 pointer-events-none", className)}
             >
                 {presentation && Icon && (
                     <Badge
@@ -143,7 +143,7 @@ export function MangaBadge(props: MangaBadgeProps) {
                         intent="primary-solid"
                         title={presentation.label}
                         aria-label={presentation.label}
-                        className={cn("rounded-[--radius] rounded-bl-none rounded-tr-none", presentation.overlayClass)}
+                        className={cn("rounded-full", presentation.overlayClass)}
                     >
                         <Icon className="h-5 w-5" />
                     </Badge>
@@ -153,8 +153,7 @@ export function MangaBadge(props: MangaBadgeProps) {
                         data-manga-synthetic-tag
                         title="Synthetic — described locally rather than from AniList"
                         className={cn(
-                            "inline-flex h-8 items-center gap-1.5 border-l border-white/25 px-2.5 text-[10px] font-bold uppercase tracking-[0.12em]",
-                            presentation ? "rounded-br" : "rounded-bl-none rounded-br rounded-tr-none rounded-tl-[--radius]",
+                            "inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.12em]",
                             SYNTHETIC_CLASS,
                         )}
                     >

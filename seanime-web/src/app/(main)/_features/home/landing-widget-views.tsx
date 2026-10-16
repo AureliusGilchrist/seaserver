@@ -233,7 +233,7 @@ export function LandingScheduleWidget() {
         airingAt_greater: now,
         airingAt_lesser: now + 7 * 24 * 60 * 60,
         notYetAired: true,
-    })
+    }, true, true)
 
     return (
         <StatsDoor
@@ -261,7 +261,7 @@ export function LandingAiringTodayWidget() {
         airingAt_greater: now,
         airingAt_lesser: dayEnd,
         notYetAired: true,
-    })
+    }, true, true)
     const schedules = data?.Page?.airingSchedules ?? []
     const next = [...schedules].sort((a, b) => a.airingAt - b.airingAt)[0]
 

@@ -162,13 +162,18 @@ export function useAnilistListAnime(variables: AnilistListAnime_Variables, enabl
     })
 }
 
-export function useAnilistListRecentAiringAnime(variables: AnilistListRecentAiringAnime_Variables, enabled: boolean = true) {
+export function useAnilistListRecentAiringAnime(
+    variables: AnilistListRecentAiringAnime_Variables,
+    enabled: boolean = true,
+    muteCacheMiss: boolean = false,
+) {
     return useServerQuery<AL_ListRecentAnime, AnilistListRecentAiringAnime_Variables>({
         endpoint: API_ENDPOINTS.ANILIST.AnilistListRecentAiringAnime.endpoint,
         method: API_ENDPOINTS.ANILIST.AnilistListRecentAiringAnime.methods[0],
         queryKey: [API_ENDPOINTS.ANILIST.AnilistListRecentAiringAnime.key, JSON.stringify(variables)],
         data: variables,
         enabled: enabled,
+        muteCacheMiss,
     })
 }
 

@@ -262,6 +262,7 @@ type ServerQueryProps<R, V> = UseQueryOptions<R | undefined, SeaError, R | undef
     params?: V
     data?: V
     muteError?: boolean
+    muteCacheMiss?: boolean
 }
 
 /**
@@ -276,6 +277,7 @@ export function useServerQuery<R, V = any>(
         params,
         data,
         muteError,
+        muteCacheMiss,
         ...options
     }: ServerQueryProps<R | undefined, V>) {
 
@@ -313,6 +315,7 @@ export function useServerQuery<R, V = any>(
             if (props.error?.response?.status === 401) return
             const serverErrMsg = props.error?.response?.data?.error ?? ""
             if (serverErrMsg === "not authenticated" || serverErrMsg === "unauthorized") return
+            if (muteCacheMiss && typeof serverErrMsg === "string" && serverErrMsg.includes("no cached data available")) return
             console.log("Server error", props.error)
             // Use detailed error formatting for specific, actionable messages
             const { title, description } = formatErrorForToast(props.error, `${method} ${endpoint}`)
@@ -323,7 +326,7 @@ export function useServerQuery<R, V = any>(
                 toast.error(title, { description })
             }
         }
-    }, [props.error, props.isError, muteError, endpoint, method, setPassword, pathname])
+    }, [props.error, props.isError, muteError, muteCacheMiss, endpoint, method, setPassword, pathname])
 
     return props
 }
