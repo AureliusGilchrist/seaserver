@@ -14,7 +14,7 @@ import { ProgressBar } from "@/components/ui/progress-bar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ThemeLibraryScreenBannerType, ThemeMediaPageBannerSize, ThemeMediaPageBannerType, useThemeSettings } from "@/lib/theme/hooks"
 import { useRouter } from "@/lib/navigation"
-import { getAssetUrl } from "@/lib/server/assets"
+import { getAssetUrl, getImageUrl } from "@/lib/server/assets"
 import { __isDesktop__ } from "@/types/constants"
 import { atom, useAtomValue, useSetAtom } from "jotai"
 import { useAtom } from "jotai/react"
@@ -24,6 +24,7 @@ import { RiSignalTowerLine } from "react-icons/ri"
 import { LuBookMarked } from "react-icons/lu"
 import { useWindowScroll } from "react-use"
 import { MangaContinueReadingEntry } from "@/app/(main)/manga/_lib/use-manga-continue-reading"
+import { useMangaCoverProxy } from "@/app/(main)/manga/_lib/use-manga-cover-proxy"
 
 /**
  * The manga counterpart of the anime continue-watching header: the same banner, the same metadata
@@ -103,6 +104,12 @@ type MediaMetadataProps = {
 function MediaMetadata({ manga, onHoverChange }: MediaMetadataProps) {
     const ts = useThemeSettings()
     const { setPreviewModalMediaId } = useMediaPreviewModal()
+    const coverImages = [...new Set([
+        manga.coverImage?.large,
+        manga.coverImage?.extraLarge,
+        manga.coverImage?.medium,
+        manga.bannerImage,
+    ].filter((source): source is string => !!source))].map(getImageUrl)
 
     return (
         <div
@@ -139,10 +146,11 @@ function MediaMetadata({ manga, onHoverChange }: MediaMetadataProps) {
                     transition={{ duration: 0.5 }}
                 >
                     <SeaLink href={`/manga/entry?id=${manga.id}`}>
-                        {manga.coverImage?.large && (
+                        {!!coverImages.length && (
                             <div className="w-[180px] h-[280px] relative rounded-[--radius-md] overflow-hidden bg-[--background] shadow-md">
                                 <SeaImage
-                                    src={manga.coverImage.large}
+                                    src={coverImages[0]}
+                                    fallbackSrc={coverImages.slice(1)}
                                     alt="cover image"
                                     fill
                                     priority
@@ -328,9 +336,19 @@ type BannerImageProps = {
 
 function BannerImage({ manga, isTransitioning, shouldBlurBanner }: BannerImageProps) {
     const ts = useThemeSettings()
-    const bannerImage = (!!ts.libraryScreenCustomBannerImage
-        && ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Custom) ? getAssetUrl(ts.libraryScreenCustomBannerImage) :
-        manga?.bannerImage || manga?.coverImage?.extraLarge
+    const customBannerImage = !!ts.libraryScreenCustomBannerImage
+        && ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Custom
+        ? getAssetUrl(ts.libraryScreenCustomBannerImage)
+        : undefined
+    const bannerImages = customBannerImage
+        ? [customBannerImage]
+        : [...new Set([
+            manga?.bannerImage,
+            manga?.coverImage?.extraLarge,
+            manga?.coverImage?.large,
+            manga?.coverImage?.medium,
+        ].filter((source): source is string => !!source))]
+    const [bannerImage, ...fallbackImages] = bannerImages.map(getImageUrl)
 
     const { y } = useWindowScroll()
 
@@ -367,6 +385,7 @@ function BannerImage({ manga, isTransitioning, shouldBlurBanner }: BannerImagePr
                     {bannerImage && (
                         <MotionImage
                             src={bannerImage}
+                            fallbackSrc={fallbackImages}
                             alt="banner image"
                             fill
                             quality={100}
@@ -422,11 +441,15 @@ export function MangaContinueReadingHeader({ list, className }: { list: MangaCon
     const isTransitioning = useAtomValue(__mangaHeader_headerIsTransitioningAtom)
     const setCurrentIndex = useSetAtom(__mangaHeader_setCurrentIndexAtom)
     const [isHoveringHeader, setHoveringHeader] = useAtom(__mangaHeader_hoveringHeaderAtom)
+    const { withProxiedCover } = useMangaCoverProxy()
 
     const mediaList = React.useMemo(() => list.filter(item => !!item.media), [list])
     const visibleIndex = mediaList.length ? currentIndex % mediaList.length : 0
     const currentMangaItem = mediaList[visibleIndex] ?? null
-    const manga = currentMangaItem?.media ?? null
+    const manga = React.useMemo(
+        () => withProxiedCover(currentMangaItem?.media) ?? null,
+        [currentMangaItem?.media, withProxiedCover],
+    )
 
     const shouldBlurBanner = ts.mediaPageBannerType === ThemeMediaPageBannerType.BlurWhenUnavailable &&
         !manga?.bannerImage
