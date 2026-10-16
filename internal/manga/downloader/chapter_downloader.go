@@ -63,8 +63,8 @@ type (
 		MediaId       int    `json:"mediaId"`
 		ChapterId     string `json:"chapterId"`
 		ChapterNumber string `json:"chapterNumber"`
-		ChapterTitle  string `json:"chapterTitle"`  // Chapter title for folder naming
-		MediaTitle    string `json:"mediaTitle"`     // Romaji title for folder naming
+		ChapterTitle  string `json:"chapterTitle"` // Chapter title for folder naming
+		MediaTitle    string `json:"mediaTitle"`   // Romaji title for folder naming
 	}
 
 	//+-------------------------------------------------------------------------------------------------------------------+
@@ -204,6 +204,10 @@ func (cd *Downloader) DeleteChapter(id DownloadID) error {
 func (cd *Downloader) Run() {
 	cd.mu.Lock()
 	defer cd.mu.Unlock()
+
+	if cd.queue.IsActive() {
+		return
+	}
 
 	cd.logger.Debug().Msg("chapter downloader: Starting queue")
 
@@ -622,7 +626,7 @@ func (cd *Downloader) getSeriesDir(downloadId DownloadID) string {
 // This looks up the folder name from the registry for existing chapters
 func (cd *Downloader) getChapterDownloadDir(downloadId DownloadID) string {
 	seriesDir := cd.getSeriesDir(downloadId)
-	
+
 	// Try to find the chapter in the registry
 	registry, err := cd.registryManager.GetRegistry(seriesDir)
 	if err == nil {
@@ -630,7 +634,7 @@ func (cd *Downloader) getChapterDownloadDir(downloadId DownloadID) string {
 			return filepath.Join(seriesDir, entry.FolderName)
 		}
 	}
-	
+
 	// Fallback: generate a new folder name
 	folderName := SanitizeFolderName(downloadId.ChapterTitle)
 	if folderName == "" {
@@ -646,14 +650,14 @@ func (cd *Downloader) getChapterDownloadDirLegacy(downloadId DownloadID) string 
 	if mediaDir == "" {
 		mediaDir = fmt.Sprintf("%d", downloadId.MediaId)
 	}
-	
+
 	var chapterDirName string
 	if downloadId.ChapterTitle != "" {
 		chapterDirName = FormatChapterDirNameWithTitle(downloadId.Provider, downloadId.MediaId, downloadId.ChapterId, downloadId.ChapterTitle, downloadId.ChapterNumber)
 	} else {
 		chapterDirName = FormatChapterDirName(downloadId.Provider, downloadId.MediaId, downloadId.ChapterId, downloadId.ChapterNumber)
 	}
-	
+
 	return filepath.Join(cd.downloadDir, mediaDir, chapterDirName)
 }
 
@@ -676,24 +680,24 @@ func FormatChapterDirNameWithTitle(provider string, mediaId int, chapterId strin
 func SanitizeChapterTitle(title string) string {
 	// First escape underscores in the original title to prevent parsing conflicts
 	title = strings.ReplaceAll(title, "_", "$UNDERSCORE$")
-	
+
 	// Replace spaces with underscores
 	title = strings.ReplaceAll(title, " ", "_")
-	
+
 	// Replace "/" with "-" specifically (as requested)
 	title = strings.ReplaceAll(title, "/", "-")
-	
+
 	// Remove other invalid filesystem characters (excluding "/" which we already handled)
 	invalidChars := []string{"\\"}
 	for _, char := range invalidChars {
 		title = strings.ReplaceAll(title, char, "")
 	}
-	
+
 	// Limit length to avoid filesystem issues
 	if len(title) > 100 {
 		title = title[:100]
 	}
-	
+
 	return title
 }
 
@@ -708,12 +712,12 @@ func FormatChapterDirPrefix(provider string, mediaId int) string {
 // - Old buggy format: provider_mediaId_chapterId_title_parts_chapterNumber (where title had underscores)
 func ParseChapterDirName(dirName string) (id DownloadID, ok bool) {
 	parts := strings.Split(dirName, "_")
-	
+
 	// Need at least 4 parts for any valid format
 	if len(parts) < 4 {
 		return id, false
 	}
-	
+
 	// Extract provider and mediaId first (common to all formats)
 	id.Provider = parts[0]
 	var err error
@@ -721,36 +725,36 @@ func ParseChapterDirName(dirName string) (id DownloadID, ok bool) {
 	if err != nil {
 		return id, false
 	}
-	
+
 	// Try new format first (5+ parts with proper escaping)
 	if len(parts) >= 5 {
 		id.ChapterId = UnescapeChapterID(parts[2])
-		
+
 		// Chapter title is everything between chapterId and the last part (chapter number)
 		// Join all middle parts as the title
 		titleParts := parts[3 : len(parts)-1]
 		id.ChapterTitle = strings.Join(titleParts, "_")
-		
+
 		// Unescape the chapter title
 		id.ChapterTitle = strings.ReplaceAll(id.ChapterTitle, "$UNDERSCORE$", "_")
-		
+
 		// Last part is the chapter number
 		id.ChapterNumber = parts[len(parts)-1]
-		
+
 		ok = true
 		return
 	}
-	
+
 	// Legacy format (exactly 4 parts)
 	if len(parts) == 4 {
 		id.ChapterId = UnescapeChapterID(parts[2])
 		id.ChapterNumber = parts[3]
 		id.ChapterTitle = "" // No title in legacy format
-		
+
 		ok = true
 		return
 	}
-	
+
 	return id, false
 }
 

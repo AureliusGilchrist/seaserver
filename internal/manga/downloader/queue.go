@@ -26,16 +26,16 @@ type (
 	// Queue is used to manage the download queue.
 	// If feeds the downloader with the next item in the queue.
 	Queue struct {
-		logger            *zerolog.Logger
-		mu                sync.Mutex
-		db                *db.Database
-		current           *QueueInfo
-		runCh             chan *QueueInfo // Channel to tell downloader to run the next item
-		active            bool
-		ensureRunning     bool // Tracks if ensureProgress goroutine is running
-		wsEventManager    events.WSEventManagerInterface
-		downloadDir       string // Path to the download directory
-		skipChecked       map[string]map[int]bool // provider -> mediaID -> checked
+		logger         *zerolog.Logger
+		mu             sync.Mutex
+		db             *db.Database
+		current        *QueueInfo
+		runCh          chan *QueueInfo // Channel to tell downloader to run the next item
+		active         bool
+		ensureRunning  bool // Tracks if ensureProgress goroutine is running
+		wsEventManager events.WSEventManagerInterface
+		downloadDir    string                  // Path to the download directory
+		skipChecked    map[string]map[int]bool // provider -> mediaID -> checked
 	}
 
 	QueueStatus string
@@ -359,7 +359,7 @@ func (q *Queue) shouldSkipSeries(provider string, mediaID int) bool {
 	// Calculate the threshold (10% tolerance)
 	// If downloaded chapters are within 10% of queued chapters, skip the series
 	threshold := float64(queuedCount) * 0.9
-	
+
 	q.logger.Debug().
 		Int("mediaId", mediaID).
 		Str("provider", provider).
@@ -380,7 +380,7 @@ func (q *Queue) getDownloadedChapterCount(provider string, mediaID int) int {
 
 	// Read the download directory
 	mediaDir := filepath.Join(q.downloadDir, fmt.Sprintf("%d", mediaID))
-	
+
 	// Try new format: series-level registry.json
 	seriesRegistry, err := LoadSeriesRegistry(mediaDir, q.logger)
 	if err == nil && len(seriesRegistry.Chapters) > 0 {
@@ -395,7 +395,7 @@ func (q *Queue) getDownloadedChapterCount(provider string, mediaID int) int {
 			return count
 		}
 	}
-	
+
 	// Fallback: old format with per-chapter directories
 	entries, err := os.ReadDir(mediaDir)
 	if err != nil {
@@ -405,7 +405,7 @@ func (q *Queue) getDownloadedChapterCount(provider string, mediaID int) int {
 
 	count := 0
 	prefix := FormatChapterDirPrefix(provider, mediaID)
-	
+
 	for _, entry := range entries {
 		if entry.IsDir() && len(entry.Name()) > len(prefix) && entry.Name()[:len(prefix)] == prefix {
 			// Verify this is a valid chapter directory by checking for registry.json
@@ -432,7 +432,7 @@ func (q *Queue) dequeueAllChaptersForSeries(provider string, mediaID int) {
 			Int("mediaId", mediaID).
 			Str("provider", provider).
 			Msg("chapter downloader: Dequeued all chapters for series")
-		
+
 		q.wsEventManager.SendEvent(events.ChapterDownloadQueueUpdated, nil)
 	}
 }
@@ -448,4 +448,11 @@ func (q *Queue) GetCurrent() (qi *QueueInfo, ok bool) {
 	}
 
 	return q.current, true
+}
+
+func (q *Queue) IsActive() bool {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	return q.active
 }

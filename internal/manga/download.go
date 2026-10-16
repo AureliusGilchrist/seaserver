@@ -39,6 +39,7 @@ func NewDownloader(opts *NewDownloaderOptions) *Downloader {
 		downloadDir:      opts.DownloadDir,
 		repository:       opts.Repository,
 		mediaMap:         new(MediaMap),
+		mediaMapReadyCh:  make(chan struct{}),
 		filecacher:       filecacher,
 		isOfflineRef:     opts.IsOfflineRef,
 		anilistClientRef: opts.AnilistClientRef,
@@ -169,9 +170,10 @@ type (
 		OnMangaQueued func(mediaId int) // Called when a manga chapter is queued for download
 		filecacher    *filecache.Cacher
 
-		mediaMap      *MediaMap // Refreshed on start and after each download
-		mediaMapMu    sync.RWMutex
-		mediaMapReady bool
+		mediaMap        *MediaMap // Refreshed on start and after each download
+		mediaMapMu      sync.RWMutex
+		mediaMapReady   bool
+		mediaMapReadyCh chan struct{}
 
 		chapterDownloadedCh chan chapter_downloader.DownloadID
 		readingDownloadDir  bool
@@ -639,6 +641,13 @@ type (
 func (d *Downloader) NewDownloadList(opts *NewDownloadListOptions) (ret []*DownloadListItem, err error) {
 	defer util.HandlePanicInModuleWithError("manga/NewDownloadList", &err)
 
+	if opts == nil {
+		return nil, errors.New("manga: download list options are required")
+	}
+	if err := d.waitForMediaMapReady(opts.Ctx); err != nil {
+		return nil, fmt.Errorf("manga: waiting for download directory scan: %w", err)
+	}
+
 	sources := d.mediaMapSnapshot()
 
 	// series is everything known about one series, gathered from every folder that belongs to it.
@@ -713,6 +722,32 @@ func (d *Downloader) NewDownloadList(opts *NewDownloadListOptions) (ret []*Downl
 	}
 
 	return
+}
+
+func (d *Downloader) waitForMediaMapReady(ctx context.Context) error {
+	d.mediaMapMu.RLock()
+	ready := d.mediaMapReady
+	readyCh := d.mediaMapReadyCh
+	d.mediaMapMu.RUnlock()
+
+	if ready {
+		return nil
+	}
+	if readyCh == nil {
+		return errors.New("manga: download directory scan has not been started")
+	}
+
+	if ctx == nil {
+		<-readyCh
+		return nil
+	}
+
+	select {
+	case <-readyCh:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // listDataFor reads the user's own list entry for a series out of their collection.
@@ -1165,7 +1200,12 @@ func (d *Downloader) hydrateMediaMap() {
 	}
 
 	d.mediaMap = &ret
-	d.mediaMapReady = true
+	if !d.mediaMapReady {
+		d.mediaMapReady = true
+		if d.mediaMapReadyCh != nil {
+			close(d.mediaMapReadyCh)
+		}
+	}
 
 	// When done refreshing, send a message to the client to refetch the download data
 	d.wsEventManager.SendEvent(events.RefreshedMangaDownloadData, nil)

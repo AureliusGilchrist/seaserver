@@ -95,24 +95,32 @@ export function useHandleDownloadMangaChapter(mediaId: string | undefined | null
 
     return {
         downloadChapters: (chapters: HibikeManga_ChapterDetails[]) => {
-            if (selectedProvider) {
-                mutate({
-                    mediaId: Number(mediaId),
-                    provider: selectedProvider,
-                    chapterIds: chapters.map(ch => ch.id),
-                    startNow: false,
-                    mediaTitle: mediaTitle || "",
-                    coverImage: "",
-                }, {
-                    onSuccess: () => {
-                        // The server queues them one at a time in the background; rows flip to
-                        // "queued" as they land, and it keeps going once you navigate away.
-                        toast.success(chapters.length > 1
-                            ? `Queueing ${chapters.length} chapters in the background`
-                            : "Chapter added to download queue")
-                    },
-                })
+            const id = Number(mediaId)
+            if (!Number.isInteger(id) || id === 0) {
+                toast.error("Cannot download chapters without a valid manga ID")
+                return
             }
+
+            if (!selectedProvider) {
+                toast.error("No manga source is selected. Choose an available source and try again.")
+                return
+            }
+
+            mutate({
+                mediaId: id,
+                provider: selectedProvider,
+                chapterIds: chapters.map(ch => ch.id),
+                startNow: true,
+                mediaTitle: mediaTitle || "",
+                coverImage: "",
+            }, {
+                onSuccess: () => {
+                    // The server queues chapters in the background and starts the download queue.
+                    toast.success(chapters.length > 1
+                        ? `Starting ${chapters.length} chapters in the background`
+                        : "Starting chapter download in the background")
+                },
+            })
         },
         isSendingDownloadRequest: isPending,
     }

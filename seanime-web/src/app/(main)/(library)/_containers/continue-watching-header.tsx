@@ -15,7 +15,7 @@ import { TextGenerateEffect } from "@/components/shared/text-generate-effect"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { getAssetUrl } from "@/lib/server/assets"
+import { getAssetUrl, getImageUrl } from "@/lib/server/assets"
 import { useContinueWatchingSpoilers } from "@/lib/theme/anime-spoilers"
 import { ThemeLibraryScreenBannerType, ThemeMediaPageBannerSize, ThemeMediaPageBannerType, useThemeSettings } from "@/lib/theme/hooks"
 import { __isDesktop__ } from "@/types/constants"
@@ -105,6 +105,7 @@ function MediaMetadata({ episode, episodes, onHoverChange }: MediaMetadataProps)
         anime?.coverImage?.extraLarge,
         anime?.coverImage?.large,
         anime?.coverImage?.medium,
+        episode.episodeMetadata?.image,
     ].filter((source): source is string => !!source))]
     const coverImage = coverImages[0]
 
@@ -171,8 +172,8 @@ function MediaMetadata({ episode, episodes, onHoverChange }: MediaMetadataProps)
                         {coverImage && (
                             <div className="w-[180px] h-[280px] relative rounded-[--radius-md] overflow-hidden bg-[--background] shadow-md">
                                 <SeaImage
-                                    src={coverImage}
-                                    fallbackSrc={coverImages.slice(1)}
+                                    src={getImageUrl(coverImage)}
+                                    fallbackSrc={coverImages.slice(1).map(getImageUrl)}
                                     alt="cover image"
                                     fill
                                     priority
@@ -361,6 +362,7 @@ function BannerImage({ episode, isTransitioning, shouldBlurBanner }: BannerImage
             episode?.baseAnime?.coverImage?.extraLarge,
             episode?.baseAnime?.coverImage?.large,
             episode?.baseAnime?.coverImage?.medium,
+            episode?.episodeMetadata?.image,
         ].filter((source): source is string => !!source)
     const [bannerImage, ...fallbackImages] = [...new Set(bannerImages)]
 
@@ -398,8 +400,8 @@ function BannerImage({ episode, isTransitioning, shouldBlurBanner }: BannerImage
                 <div className="w-full h-full absolute z-[1] overflow-hidden scroll-locked-offset-width">
                     {bannerImage && (
                         <MotionImage
-                            src={bannerImage}
-                            fallbackSrc={fallbackImages}
+                            src={getImageUrl(bannerImage)}
+                            fallbackSrc={fallbackImages.map(getImageUrl)}
                             alt="banner image"
                             fill
                             quality={100}

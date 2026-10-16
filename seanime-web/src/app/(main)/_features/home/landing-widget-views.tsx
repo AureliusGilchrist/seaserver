@@ -4,8 +4,9 @@ import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
 import { useGetToWatch } from "@/api/hooks/towatch.hooks"
 import { useGetUnmatchedTorrents } from "@/api/hooks/unmatched.hooks"
 import { useGetAchievementSummary } from "@/api/hooks/achievement.hooks"
-import { useMissingEpisodeCount } from "@/app/(main)/_hooks/missing-episodes-loader"
-import { useGetMangaCollection } from "@/api/hooks/manga.hooks"
+import { useMissingEpisodes } from "@/app/(main)/_hooks/missing-episodes-loader"
+import { useGetMangaCollection, useGetMangaLatestChapterNumbersMap } from "@/api/hooks/manga.hooks"
+import { useGetActiveTorrentList, useGetTorrentAddQueue } from "@/api/hooks/torrent_client.hooks"
 import { LANDING_QUICK_LINKS, useLandingFolders } from "@/app/(main)/_features/home/landing-widgets"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { SeaLink } from "@/components/shared/sea-link"
@@ -166,24 +167,39 @@ function QuickLinkCard({ link }: { link: typeof LANDING_QUICK_LINKS[number] }) {
 export function LandingAnimeStatsWidget() {
     const { data: libraryCollection } = useGetLibraryCollection({ staleTime: 30_000 })
 
-    const count = React.useMemo(() => {
-        let total = 0
-        for (const list of libraryCollection?.lists ?? []) {
-            total += list.entries?.length ?? 0
-        }
-        return total
-    }, [libraryCollection])
+    const stats = React.useMemo(() => {
+        const lists = libraryCollection?.lists ?? []
+        const entries = lists.flatMap(list => list.entries ?? [])
+        const entriesFor = (status: string) => lists.find(list => list.type === status)?.entries ?? []
+        const episodesWatched = entries.reduce((total, entry) => total + (entry.listData?.progress ?? 0), 0)
+        const estimatedWatchMinutes = entries.reduce(
+            (total, entry) => total + (entry.listData?.progress ?? 0) * (entry.media?.duration ?? 0),
+            0,
+        )
+        const episodesLeft = entriesFor("CURRENT").reduce((total, entry) => {
+            const totalEpisodes = entry.media?.episodes
+            return typeof totalEpisodes === "number"
+                ? total + Math.max(0, totalEpisodes - (entry.listData?.progress ?? 0))
+                : total
+        }, 0)
 
-    const watching = libraryCollection?.lists?.find(l => l.type === "CURRENT")?.entries?.length ?? 0
+        return [
+            { label: "in your library", value: entries.length },
+            { label: "watching", value: entriesFor("CURRENT").length },
+            { label: "completed", value: entriesFor("COMPLETED").length },
+            { label: "planned", value: entriesFor("PLANNING").length },
+            { label: "episodes watched", value: episodesWatched },
+            { label: "estimated hours watched", value: Math.floor(estimatedWatchMinutes / 60) },
+            { label: "episodes left", value: episodesLeft },
+            { label: "local files", value: libraryCollection?.stats?.totalFiles ?? 0 },
+        ]
+    }, [libraryCollection])
 
     return (
         <StatsDoor
             title="Anime"
             icon={<LuMonitorPlay className="w-5 h-5" />}
-            stats={[
-                { label: "in your library", value: count },
-                { label: "watching", value: watching },
-            ]}
+            stats={stats}
             href="/anime"
         />
     )
@@ -191,39 +207,64 @@ export function LandingAnimeStatsWidget() {
 
 export function LandingMangaStatsWidget() {
     const { data: mangaCollection } = useGetMangaCollection()
+    const { data: latestChapterNumbers } = useGetMangaLatestChapterNumbersMap()
 
-    const count = React.useMemo(() => {
-        let total = 0
-        for (const list of mangaCollection?.lists ?? []) {
-            total += list.entries?.length ?? 0
-        }
-        return total
-    }, [mangaCollection])
+    const stats = React.useMemo(() => {
+        const lists = mangaCollection?.lists ?? []
+        const entries = lists.flatMap(list => list.entries ?? [])
+        const entriesFor = (status: string) => lists.find(list => list.type === status)?.entries ?? []
+        const readingEntries = lists
+            .filter(list => list.type === "CURRENT" || list.type === "REPEATING")
+            .flatMap(list => list.entries ?? [])
+        const chaptersRead = entries.reduce((total, entry) => total + (entry.listData?.progress ?? 0), 0)
+        const downloadedChapters = entries.reduce((total, entry) => total + entry.downloadedChapterCount, 0)
+        const chaptersAvailable = readingEntries.reduce((total, entry) => {
+            const latestNumber = (latestChapterNumbers?.[entry.mediaId] ?? [])
+                .reduce((latest, chapter) => Math.max(latest, chapter.number), 0)
+            return total + Math.max(0, latestNumber - (entry.listData?.progress ?? 0))
+        }, 0)
+        const knownChaptersLeft = entries
+            .filter(entry => entry.listData?.status !== "COMPLETED" && entry.listData?.status !== "DROPPED")
+            .reduce((total, entry) => {
+                const totalChapters = entry.media?.chapters
+                return typeof totalChapters === "number"
+                    ? total + Math.max(0, totalChapters - (entry.listData?.progress ?? 0))
+                    : total
+            }, 0)
 
-    const reading = mangaCollection?.lists?.find(l => l.type === "CURRENT")?.entries?.length ?? 0
+        return [
+            { label: "in your library", value: entries.length },
+            { label: "reading", value: readingEntries.length },
+            { label: "completed", value: entriesFor("COMPLETED").length },
+            { label: "planned", value: entriesFor("PLANNING").length },
+            { label: "chapters read", value: chaptersRead },
+            { label: "new chapters available", value: chaptersAvailable },
+            { label: "downloaded chapters", value: downloadedChapters },
+            { label: "known chapters left", value: knownChaptersLeft },
+        ]
+    }, [mangaCollection, latestChapterNumbers])
 
     return (
         <StatsDoor
             title="Manga"
             icon={<BiBook className="w-5 h-5" />}
-            stats={[
-                { label: "in your library", value: count },
-                { label: "reading", value: reading },
-            ]}
+            stats={stats}
             href="/manga"
         />
     )
 }
 
 export function LandingScheduleWidget() {
-    const missingEpisodes = useMissingEpisodeCount()
+    const missingEpisodes = useMissingEpisodes()
+    const animeBehind = new Set(missingEpisodes.map(episode => episode.baseAnime?.id).filter((id): id is number => typeof id === "number")).size
 
     return (
         <StatsDoor
             title="Schedule"
             icon={<LuCalendar className="w-5 h-5" />}
             stats={[
-                { label: "missing episodes", value: missingEpisodes },
+                { label: "missing episodes", value: missingEpisodes.length },
+                { label: "series behind", value: animeBehind },
             ]}
             href="/schedule"
         />
@@ -232,6 +273,8 @@ export function LandingScheduleWidget() {
 
 export function LandingToWatchWidget() {
     const { data: toWatch } = useGetToWatch()
+    const animeQueued = toWatch?.filter(item => item.mediaType === "ANIME") ?? []
+    const mangaQueued = toWatch?.filter(item => item.mediaType === "MANGA") ?? []
 
     return (
         <StatsDoor
@@ -239,6 +282,10 @@ export function LandingToWatchWidget() {
             icon={<LuListVideo className="w-5 h-5" />}
             stats={[
                 { label: "queued", value: toWatch?.length ?? 0 },
+                { label: "anime", value: animeQueued.length },
+                { label: "manga", value: mangaQueued.length },
+                { label: "known episodes", value: animeQueued.reduce((total, item) => total + (item.episodes ?? 0), 0) },
+                { label: "known chapters", value: mangaQueued.reduce((total, item) => total + (item.chapters ?? 0), 0) },
             ]}
             href="/to-watch"
         />
@@ -247,6 +294,8 @@ export function LandingToWatchWidget() {
 
 export function LandingUnmatchedWidget() {
     const { data: unmatched } = useGetUnmatchedTorrents({ staleTime: 60_000 })
+    const fileCount = unmatched?.reduce((total, item) => total + item.fileCount, 0) ?? 0
+    const conflictCount = unmatched?.filter(item => !!item.pendingConflict || !!item.pendingCountMismatch).length ?? 0
 
     return (
         <StatsDoor
@@ -254,6 +303,8 @@ export function LandingUnmatchedWidget() {
             icon={<LuFolderSearch className="w-5 h-5" />}
             stats={[
                 { label: "waiting", value: unmatched?.length ?? 0 },
+                { label: "files", value: fileCount },
+                { label: "with conflicts", value: conflictCount },
             ]}
             href="/unmatched"
         />
@@ -261,14 +312,19 @@ export function LandingUnmatchedWidget() {
 }
 
 export function LandingTorrentsWidget() {
-    const { data: unmatched } = useGetUnmatchedTorrents({ staleTime: 60_000 })
+    const { data: torrents } = useGetActiveTorrentList(true, "", "")
+    const { data: addQueue } = useGetTorrentAddQueue()
 
     return (
         <StatsDoor
             title="Torrent list"
             icon={<LuWand className="w-5 h-5" />}
             stats={[
-                { label: "waiting", value: unmatched?.length ?? 0 },
+                { label: "active", value: torrents?.length ?? 0 },
+                { label: "downloading", value: torrents?.filter(item => item.status === "downloading").length ?? 0 },
+                { label: "seeding", value: torrents?.filter(item => item.status === "seeding").length ?? 0 },
+                { label: "paused", value: torrents?.filter(item => item.status === "paused").length ?? 0 },
+                { label: "queued to add", value: addQueue?.total ?? 0 },
             ]}
             href="/torrent-list"
         />
@@ -277,13 +333,18 @@ export function LandingTorrentsWidget() {
 
 export function LandingAchievementsWidget() {
     const { data: achievements } = useGetAchievementSummary()
+    const unlocked = achievements?.unlockedCount ?? 0
+    const total = achievements?.totalCount ?? 0
 
     return (
         <StatsDoor
             title="Achievements"
             icon={<GiTrophyCup className="w-5 h-5" />}
             stats={[
-                { label: "unlocked", value: achievements?.unlockedCount ?? 0 },
+                { label: "unlocked", value: unlocked },
+                { label: "total", value: total },
+                { label: "remaining", value: Math.max(0, total - unlocked) },
+                { label: "complete %", value: total > 0 ? Math.round(unlocked / total * 100) : 0 },
             ]}
             href="/achievements"
         />
@@ -323,11 +384,11 @@ function StatsDoor({ title, icon, stats, href }: {
                     <LuArrowRight className="w-4 h-4 text-white/40 -translate-x-1 opacity-0 group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-[--brand] transition-all" />
                 </div>
                 {!!stats.length && (
-                    <div className="relative mt-4 flex flex-wrap items-end gap-x-5 gap-y-2">
+                    <div className="relative mt-4 flex flex-wrap items-end gap-x-4 gap-y-3">
                         {stats.map(stat => (
-                            <div key={stat.label} className="leading-none">
-                                <p className="text-3xl lg:text-4xl font-extrabold text-white tabular-nums">{formatNumber(stat.value)}</p>
-                                <p className="text-[11px] uppercase tracking-wider text-white/80 mt-1.5 whitespace-nowrap">{stat.label}</p>
+                            <div key={stat.label} className="min-w-[4.5rem] max-w-[7rem] leading-tight">
+                                <p className="text-2xl lg:text-3xl font-extrabold text-white tabular-nums">{formatNumber(stat.value)}</p>
+                                <p className="text-[10px] uppercase tracking-wider text-white/80 mt-1.5 break-words">{stat.label}</p>
                             </div>
                         ))}
                     </div>

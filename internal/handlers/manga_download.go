@@ -82,6 +82,12 @@ func (h *Handler) HandleDownloadMangaChapters(c echo.Context) error {
 
 	scheduled := h.queueChaptersInBackground(jobs)
 
+	if scheduled > 0 && b.StartNow {
+		if err := h.App.MangaDownloader.RunChapterDownloadQueue(); err != nil {
+			return h.RespondWithError(c, err)
+		}
+	}
+
 	if scheduled > 0 && !b.Silent {
 		h.App.WSEventManager.SendEvent(events.InfoToast, fmt.Sprintf(
 			"Queueing %d chapter(s), one every %d seconds — you can leave this page",
@@ -243,9 +249,10 @@ func (h *Handler) HandleGetMangaDownloadsList(c echo.Context) error {
 
 	// The signed-in user's own collection, so the cards on this screen carry their status and their
 	// progress rather than the admin's — and so a series just added to a list shows as added.
-	mangaCollection, err := h.mangaCollectionForProfile(c)
-	if err != nil {
-		return h.RespondWithError(c, err)
+	mangaCollection, collectionErr := h.mangaCollectionForProfile(c)
+	if collectionErr != nil {
+		h.App.Logger.Warn().Err(collectionErr).Uint("profileID", h.GetProfileID(c)).
+			Msg("handlers: Could not load AniList manga collection; continuing with local downloads only")
 	}
 
 	res, err := h.App.MangaDownloader.NewDownloadList(&manga.NewDownloadListOptions{
