@@ -21,15 +21,17 @@ import { atom } from "jotai/index"
 import { useAtom, useSetAtom } from "jotai/react"
 import { useRouter } from "@/lib/navigation"
 import React from "react"
+import { LuCheck } from "react-icons/lu"
 import { seaCommand_compareMediaTitles } from "../../_features/sea-command/utils"
 
 export const __libraryHeaderEpisodeAtom = atom<Anime_Episode | null>(null)
 
-export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle }: {
+export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle, iconBadges }: {
     episodes: Anime_Episode[],
     isLoading: boolean
     linkTemplate?: string
     withTitle?: boolean
+    iconBadges?: boolean
 }) {
 
     const router = useRouter()
@@ -184,9 +186,10 @@ export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle 
                                         overrideLink={linkTemplate}
                                         spoilerActive={spoilerActive ?? false}
                                         watchHistory={watchHistory}
+                                        badge={iconBadges && episode.baseAnime?.status === "FINISHED" ? <FinishedEpisodeBadge /> : undefined}
                                     />
                                 </div>
-                                {episode.baseAnime?.status === "FINISHED" && (
+                                {!iconBadges && episode.baseAnime?.status === "FINISHED" && (
                                     <span className="pointer-events-none absolute right-2 top-2 z-[2] rounded-full border border-white/20 bg-black/75 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-lg backdrop-blur-md">
                                         Finished
                                     </span>
@@ -201,12 +204,27 @@ export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle 
     return null
 }
 
-const _EpisodeCard = React.memo(({ episode, mRef, overrideLink, spoilerActive, watchHistory }: {
+function FinishedEpisodeBadge() {
+    return (
+        <span
+            data-continue-watching-finished-badge
+            role="img"
+            aria-label="Finished"
+            title="Finished"
+            className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-white/20 bg-black/75 text-white shadow-lg backdrop-blur-md"
+        >
+            <LuCheck className="size-4" aria-hidden="true" />
+        </span>
+    )
+}
+
+const _EpisodeCard = React.memo(({ episode, mRef, overrideLink, spoilerActive, watchHistory, badge }: {
     episode: Anime_Episode,
     mRef: React.RefObject<any>,
     overrideLink?: string
     spoilerActive: boolean
     watchHistory: Continuity_WatchHistory | undefined
+    badge?: React.ReactNode
 }) => {
     const serverStatus = useServerStatus()
     const router = useRouter()
@@ -235,6 +253,7 @@ const _EpisodeCard = React.memo(({ episode, mRef, overrideLink, spoilerActive, w
 
     return (
         <EpisodeCard
+            badge={badge}
             key={episode.localFile?.path || ""}
             episode={episode}
             image={episode.episodeMetadata?.image || episode.baseAnime?.bannerImage || episode.baseAnime?.coverImage?.extraLarge}

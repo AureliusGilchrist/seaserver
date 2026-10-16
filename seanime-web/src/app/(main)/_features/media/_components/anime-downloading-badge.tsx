@@ -161,6 +161,7 @@ export type AnimeDownloadingBadgeProps = {
      */
     variant?: "badge" | "compact" | "overlay"
     size?: "sm" | "lg"
+    iconOnly?: boolean
     className?: string
 }
 
@@ -169,7 +170,7 @@ export type AnimeDownloadingBadgeProps = {
  * of, so it can be dropped anywhere an anime is shown without the caller checking first.
  */
 export function AnimeDownloadingBadge(props: AnimeDownloadingBadgeProps) {
-    const { mediaId, variant = "badge", size = "sm", className } = props
+    const { mediaId, variant = "badge", size = "sm", iconOnly = false, className } = props
 
     const state = useAnimeDownloadState(mediaId)
     if (!state) return null
@@ -200,6 +201,24 @@ export function AnimeDownloadingBadge(props: AnimeDownloadingBadgeProps) {
     }
 
     if (variant === "compact") {
+        if (iconOnly) {
+            return (
+                <span
+                    data-anime-downloading-indicator
+                    data-download-state={state}
+                    title={label}
+                    aria-label={label}
+                    className={cn(
+                        "inline-flex size-7 items-center justify-center rounded-full border bg-black/60 backdrop-blur-sm",
+                        compactClass,
+                        className,
+                    )}
+                >
+                    <Icon className="size-4" aria-hidden="true" />
+                </span>
+            )
+        }
+
         return (
             <span
                 data-anime-downloading-indicator

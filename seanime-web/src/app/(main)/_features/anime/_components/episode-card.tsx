@@ -260,12 +260,22 @@ export function EpisodeCard(props: EpisodeCardProps) {
                             >Filler</span>
                         )}
 
-                        {/* Sits opposite the filler badge so the two never collide. */}
-                        <AnimeDownloadingBadge
-                            mediaId={anime?.id ?? episode?.baseAnime?.id}
-                            variant="compact"
-                            className="absolute top-2 right-2 z-[4]"
-                        />
+                        {badge ? (
+                            <div className="absolute top-2 right-2 z-[5] flex items-center gap-1.5 pointer-events-none">
+                                {badge}
+                                <AnimeDownloadingBadge
+                                    mediaId={anime?.id ?? episode?.baseAnime?.id}
+                                    variant="compact"
+                                    iconOnly
+                                />
+                            </div>
+                        ) : (
+                            <AnimeDownloadingBadge
+                                mediaId={anime?.id ?? episode?.baseAnime?.id}
+                                variant="compact"
+                                className="absolute top-2 right-2 z-[4]"
+                            />
+                        )}
 
                         {isSingleContainer && (
                             <div className="absolute bottom-0 left-0 w-full h-fit z-[3] p-3">
