@@ -11,10 +11,10 @@
  *
  *   - The image is drawn at a thumbnail size and read back, which is a few thousand pixels rather
  *     than a few million — a wallpaper is megabytes and this runs on every change.
- *   - Pixels are bucketed by hue and weighted by how vivid and mid-toned they are, because the
- *     question is what the picture's *highlight* is. The dominant color of most artwork is its
- *     shadows: averaging everything gives mud, and a near-black brand ramp reads as "nothing
- *     happened". Near-black and near-white pixels are dropped outright.
+ *   - Pixels are bucketed by hue and weighted toward vivid, bright colors, because the question is
+ *     what the picture's *highlight* is. The dominant color of most artwork is its shadows:
+ *     averaging everything gives mud, and a near-black brand ramp reads as "nothing happened".
+ *     Near-black and near-white pixels are dropped outright.
  *   - The winning color is nudged into a usable range of saturation and lightness. A wallpaper can
  *     legitimately be almost any color, but a primary color has to carry text and borders, so the
  *     hue is kept exactly and the vividness is raised to a floor.
@@ -101,10 +101,10 @@ export async function extractWallpaperAccent(url: string): Promise<string | null
             const [hue, sat, light] = rgbToHsl(r, g, b)
             // Shadows and paper: not a highlight, and averaging them in is what turns every
             // wallpaper's color into gray.
-            if (light < 0.14 || light > 0.93) continue
-            // Vivid, mid-toned pixels win; dull ones still count for a little, so a muted wallpaper
-            // can still answer with its own color.
-            const weight = Math.pow(sat, 1.4) * (1 - Math.min(1, Math.abs(light - 0.55) * 1.5))
+            if (light < 0.18 || light > 0.96) continue
+            // Prefer bright, vivid pixels over dark saturated colors so the accent follows the
+            // wallpaper's highlights rather than its deeper red/black midtones.
+            const weight = Math.pow(sat, 1.25) * Math.pow(light, 2)
             if (weight <= 0.001) continue
 
             const key = Math.round(hue / 15) % 24
@@ -128,7 +128,7 @@ export async function extractWallpaperAccent(url: string): Promise<string | null
         const [hue, sat, light] = rgbToHsl(r, g, b)
 
         // Keep the hue the wallpaper gave; make sure the color can carry text and borders.
-        return hslToHex(hue, Math.max(sat, 0.45), Math.min(Math.max(light, 0.45), 0.6))
+        return hslToHex(hue, Math.max(sat, 0.45), Math.min(Math.max(light, 0.48), 0.65))
     } catch {
         return null
     }

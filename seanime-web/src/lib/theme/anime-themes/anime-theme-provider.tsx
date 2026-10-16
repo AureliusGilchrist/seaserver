@@ -724,8 +724,8 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     // Read the wallpaper currently shown by the app: a Settings background takes priority, then a
     // Theme Manager wallpaper, then the active profile wallpaper. Profile pages keep their own
     // scoped colors and are deliberately excluded from the latter two fallback sources.
+    const isProfilePage = pathname.startsWith("/profile")
     React.useEffect(() => {
-        const isProfilePage = pathname.startsWith("/profile")
         const profileWallpaperUrl = currentProfile?.wallpaperUrl
             ? currentProfile.wallpaperUrl.startsWith("/")
                 ? `${getServerBaseUrl()}${currentProfile.wallpaperUrl}`
@@ -744,10 +744,11 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
             return
         }
 
-        setWallpaperAccent(null)
+        // Keep the last wallpaper-derived accent while the new image is sampled. Clearing it here
+        // exposes the theme's accent (often red) on every navigation and when image sampling fails.
         let cancelled = false
         extractWallpaperAccent(url).then(accent => {
-            if (cancelled) return
+            if (cancelled || !accent) return
             setWallpaperAccent(accent)
         })
 
@@ -756,7 +757,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         config.id,
         activeBackgroundUrl,
         currentProfile?.wallpaperUrl,
-        pathname,
+        isProfilePage,
         themeSettings.libraryScreenCustomBackgroundImage,
         setWallpaperAccent,
     ])
