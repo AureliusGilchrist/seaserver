@@ -143,6 +143,30 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
     const mediaEpisodes = (media as AL_BaseAnime)?.episodes
     const mediaChapters = (media as AL_BaseManga)?.chapters
     const mediaIsAdult = media?.isAdult
+    const mangaImageCandidates = React.useMemo(() => {
+        const candidates = type === "manga"
+            ? [media.coverImage?.extraLarge, media.coverImage?.large, media.coverImage?.medium, media.bannerImage]
+            : []
+        return [...new Set(candidates.filter((source): source is string => !!source))]
+    }, [type, media.coverImage?.extraLarge, media.coverImage?.large, media.coverImage?.medium, media.bannerImage])
+    const mangaImageKey = `${media.id}:${mangaImageCandidates.join("|")}`
+    const [failedMangaImages, setFailedMangaImages] = React.useState<{ key: string, urls: Set<string> }>({
+        key: "",
+        urls: new Set(),
+    })
+    const failedImageUrls = failedMangaImages.key === mangaImageKey ? failedMangaImages.urls : null
+    const bannerImage = type === "manga"
+        ? mangaImageCandidates.find(source => !failedImageUrls?.has(source)) || "/no-cover.png"
+        : media.coverImage?.extraLarge || ""
+    const handleBannerImageError = type === "manga" && bannerImage !== "/no-cover.png"
+        ? () => {
+            setFailedMangaImages(previous => {
+                const urls = new Set(previous.key === mangaImageKey ? previous.urls : [])
+                urls.add(bannerImage)
+                return { key: mangaImageKey, urls }
+            })
+        }
+        : undefined
 
     // Manga only. An anime's corner badge is decided entirely by its download state now — see
     // `AnimeDownloadingBadge` — because "matched" is a fact about the download and is the same on
@@ -451,9 +475,8 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
                 progress={listData?.progress}
                 progressTotal={progressTotal}
                 startDate={media.startDate}
-                bannerImage={type === "manga"
-                    ? media.coverImage?.extraLarge || media.coverImage?.large || media.coverImage?.medium || media.bannerImage || "/no-cover.png"
-                    : media.coverImage?.extraLarge || ""}
+                bannerImage={bannerImage}
+                onBannerImageError={handleBannerImageError}
                 isAdult={media.isAdult}
                 showLibraryBadge={showLibraryBadge}
                 mediaId={!hideDownloadBadges ? media.id : undefined}
@@ -561,4 +584,3 @@ const MakoMark = React.memo(function MakoMark() {
         </div>
     )
 })
-

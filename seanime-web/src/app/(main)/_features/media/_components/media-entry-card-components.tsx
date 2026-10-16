@@ -317,6 +317,7 @@ type MediaEntryCardBodyProps = {
     progressTotal?: number
     startDate?: { year?: number, month?: number, day?: number }
     bannerImage?: string
+    onBannerImageError?: React.ReactEventHandler<HTMLImageElement>
     isAdult?: boolean
     /** Manga only — the anime badges are decided from the download state under `mediaId`. */
     showLibraryBadge?: boolean
@@ -341,6 +342,7 @@ export function MediaEntryCardBody(props: MediaEntryCardBodyProps) {
         progressTotal,
         startDate,
         bannerImage,
+        onBannerImageError,
         isAdult,
         showLibraryBadge,
         mediaId,
@@ -434,6 +436,7 @@ export function MediaEntryCardBody(props: MediaEntryCardBodyProps) {
                         placeholder={imageShimmer(700, 475)}
                         quality={100}
                         sizes="20rem"
+                        onError={onBannerImageError}
                         className={cn(
                             "object-cover object-center transition-transform",
                             "group-hover/media-entry-card:scale-110",
