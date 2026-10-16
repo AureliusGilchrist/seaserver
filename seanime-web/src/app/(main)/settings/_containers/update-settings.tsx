@@ -5,9 +5,12 @@ import { WSEvents } from "@/lib/server/ws-events"
 import { SettingsCard } from "@/app/(main)/settings/_components/settings-card"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { profileSessionTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
+import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { websocketConnectedAtom } from "@/app/websocket-provider"
 import { useAtom, useAtomValue } from "jotai"
 import { atomWithStorage } from "jotai/utils"
+import { AxiosError } from "axios"
 import React from "react"
 import { toast } from "sonner"
 
@@ -36,6 +39,29 @@ function readProgress(lines: string[]) {
         }
     }
     return null
+}
+
+function getUpdateErrorMessage(error: unknown): string {
+    if (error instanceof AxiosError) {
+        const responseData = error.response?.data as { error?: unknown, message?: unknown } | string | undefined
+        const serverMessage = typeof responseData === "string"
+            ? responseData
+            : typeof responseData?.error === "string"
+                ? responseData.error
+                : typeof responseData?.message === "string"
+                    ? responseData.message
+                    : undefined
+
+        if (error.response?.status === 401 && serverMessage?.toLowerCase().includes("profile session")) {
+            return "Sign in to an admin profile before updating the remote backend."
+        }
+        if (error.response?.status === 403 && serverMessage?.toLowerCase().includes("admin")) {
+            return "Switch to an admin profile before updating the remote backend."
+        }
+        return serverMessage || error.message || "unknown error"
+    }
+
+    return error instanceof Error ? error.message : "unknown error"
 }
 
 const KIND_STYLE: Record<OverwriteChange["kind"], { label: string, badge: string }> = {
@@ -337,6 +363,7 @@ function StructuredLog({ lines, logRef }: { lines: string[], logRef: React.RefOb
 }
 
 function LiveUpdates() {
+    const liveUpdate = window.electron?.liveUpdate
     const [detectedRoot, setDetectedRoot] = React.useState<string | null>(null)
     const [detectedOrigin, setDetectedOrigin] = React.useState<string | null>(null)
     const [running, setRunning] = React.useState<Target | null>(null)
@@ -346,10 +373,28 @@ function LiveUpdates() {
     const currentProgressRef = React.useRef(initialProgress?.target === "backend" ? initialProgress.percent : 0)
     const currentFrontendProgressRef = React.useRef(initialProgress?.target === "frontend" ? initialProgress.percent : 0)
 
-    const [remote, setRemote] = React.useState(!window.electron?.liveUpdate)
+    const [remote, setRemote] = React.useState(!liveUpdate)
     const { mutateAsync: updateRemoteBackend } = useUpdateBackend()
     const { mutateAsync: checkRemoteBackend } = useCheckBackendUpdate()
     const [checking, setChecking] = React.useState<Target | null>(null)
+    const serverStatus = useServerStatus()
+    const profileSessionToken = useAtomValue(profileSessionTokenAtom)
+    const remoteBackend = remote || !liveUpdate
+    const profileAdminRequired = !!serverStatus?.profilesEnabled
+        && (!!serverStatus.currentProfile || !!serverStatus.profiles?.length)
+    const backendAccessMessage = !remoteBackend
+        ? null
+        : !serverStatus
+            ? "Checking server profile access..."
+            : !profileAdminRequired
+                ? null
+                : !serverStatus.currentProfile
+                    ? "Sign in to an admin profile before updating the remote backend."
+                    : !serverStatus.currentProfile.isAdmin
+                        ? "The selected profile is not an admin. Switch to an admin profile to update the remote backend."
+                        : !profileSessionToken
+                            ? "Your admin profile session is not active. Sign in again before updating the remote backend."
+                            : null
 
     const appendLines = React.useCallback((next: string[]) => {
         if (!next.length) return
@@ -400,8 +445,6 @@ function LiveUpdates() {
         }
     }, [isConnected, markSucceeded])
 
-    const liveUpdate = window.electron?.liveUpdate
-
     const refreshInfo = React.useCallback(() => {
         const localUpdater = window.electron?.liveUpdate
         if (!localUpdater) {
@@ -431,6 +474,10 @@ function LiveUpdates() {
     }, [lines])
 
     async function check(target: Target) {
+        if (target === "backend" && remoteBackend && backendAccessMessage) {
+            toast.error(backendAccessMessage)
+            return
+        }
         setChecking(target)
         const label = target === "backend" ? "Backend" : "Frontend"
         try {
@@ -460,9 +507,10 @@ function LiveUpdates() {
                 ...(files.length ? [stamp(`${files.length} file${files.length === 1 ? "" : "s"} (+${ins} -${del}):`), ...files.map(f => `    ${f.path}  +${f.insertions} -${f.deletions}`)] : []),
             ])
         }
-        catch (e: any) {
-            toast.error(`${label} check failed: ${e?.message ?? "unknown error"}`)
-            appendLines(["", stamp(`${label} check: Failed - ${e?.message ?? "unknown error"}`)])
+        catch (e: unknown) {
+            const message = getUpdateErrorMessage(e)
+            toast.error(`${label} check failed: ${message}`)
+            appendLines(["", stamp(`${label} check: Failed - ${message}`)])
         }
         finally {
             setChecking(null)
@@ -470,6 +518,10 @@ function LiveUpdates() {
     }
 
     async function run(target: Target) {
+        if (target === "backend" && remoteBackend && backendAccessMessage) {
+            toast.error(backendAccessMessage)
+            return
+        }
         const label = target === "backend" ? "Backend" : "Frontend"
         currentProgressRef.current = 0
         currentFrontendProgressRef.current = 0
@@ -504,11 +556,12 @@ function LiveUpdates() {
                     setLines([stamp(msg), stamp("Backend update: [100%] Already up to date")])
                 }
             }
-            catch (e: any) {
+            catch (e: unknown) {
+                const message = getUpdateErrorMessage(e)
                 pendingRef.current = false
                 failureReceivedRef.current = true
-                toast.error(`Backend update failed: ${e?.message ?? "unknown error"}`)
-                appendLines(["", stamp(`Backend update: [${String(currentProgressRef.current).padStart(2, "0")}%] Failed - ${e?.message ?? "unknown error"}`)])
+                toast.error(`Backend update failed: ${message}`)
+                appendLines(["", stamp(`Backend update: [${String(currentProgressRef.current).padStart(2, "0")}%] Failed - ${message}`)])
             }
             finally {
                 setRunning(null)
@@ -537,12 +590,13 @@ function LiveUpdates() {
                     : `Frontend update: [${String(currentFrontendProgressRef.current).padStart(2, "0")}%] Failed${changed}`)])
             }
         }
-        catch (e: any) {
+        catch (e: unknown) {
+            const message = getUpdateErrorMessage(e)
             if (target === "backend" && remote) pendingRef.current = false
-            toast.error(`Update failed: ${e?.message ?? "unknown error"}`)
+            toast.error(`Update failed: ${message}`)
             appendLines(["", stamp(target === "backend"
-                ? `Backend update: [${String(currentProgressRef.current).padStart(2, "0")}%] Failed - ${e?.message ?? "unknown error"}`
-                : `Frontend update: [${String(currentFrontendProgressRef.current).padStart(2, "0")}%] Failed - ${e?.message ?? "unknown error"}`)])
+                ? `Backend update: [${String(currentProgressRef.current).padStart(2, "0")}%] Failed - ${message}`
+                : `Frontend update: [${String(currentFrontendProgressRef.current).padStart(2, "0")}%] Failed - ${message}`)])
         }
         finally {
             setRunning(null)
@@ -557,6 +611,27 @@ function LiveUpdates() {
                         ? "Asks the remote server to pull the latest commit from its own repository (origin, the seaserver repo it was checked out from), build it, and restart. The server keeps running the old version if the build fails."
                         : "Pulls the latest changes, builds the server, and only if the build succeeds swaps in the new binary and restarts the backend. If the new backend fails to start, the previous one is restored."}
                 </p>
+                {backendAccessMessage && (
+                    <div className="space-y-2">
+                        <Alert
+                            intent="alert"
+                            title={serverStatus ? "Admin profile required" : "Checking profile access"}
+                            description={backendAccessMessage}
+                        />
+                        {serverStatus?.profilesEnabled
+                            && backendAccessMessage
+                            && (!serverStatus.currentProfile || !profileSessionToken)
+                            && (
+                                <Button
+                                    intent="gray-outline"
+                                    size="sm"
+                                    onClick={() => window.location.assign("/")}
+                                >
+                                    Select or sign in to a profile
+                                </Button>
+                            )}
+                    </div>
+                )}
                 {!remote && (
                     <p className="text-xs text-[--muted] break-all">
                         {detectedRoot
@@ -568,7 +643,7 @@ function LiveUpdates() {
                     <Button
                         intent="primary"
                         loading={running === "backend"}
-                        disabled={running !== null || checking !== null}
+                        disabled={running !== null || checking !== null || !!backendAccessMessage}
                         onClick={() => run("backend")}
                     >
                         Update backend
@@ -576,7 +651,7 @@ function LiveUpdates() {
                     <Button
                         intent="gray-outline"
                         loading={checking === "backend"}
-                        disabled={running !== null || checking !== null}
+                        disabled={running !== null || checking !== null || !!backendAccessMessage}
                         onClick={() => check("backend")}
                     >
                         Check for updates
