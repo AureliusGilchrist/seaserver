@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-// TestAniZoneLive exercises the provider against the real site: search, episodes, and one episode's
+// TestAniZoneLive exercises the provider against the real site: search, episodes, and two episodes'
 // sources. It is the only way to know the extraction still matches the markup — every one of these
 // steps reads a shape the site chooses, and a change there is invisible to any fixture.
 //
@@ -47,4 +47,17 @@ func TestAniZoneLive(t *testing.T) {
 	}
 	t.Logf("stream: %s (type %s), %d subtitles",
 		server.VideoSources[0].URL, server.VideoSources[0].Type, len(server.VideoSources[0].Subtitles))
+
+	if len(episodes) < 2 {
+		t.Fatal("fewer than two episodes found")
+	}
+	secondServer, err := provider.FindEpisodeServer(episodes[1], "default")
+	if err != nil {
+		t.Fatalf("find second episode server failed: %v", err)
+	}
+	if len(secondServer.VideoSources) == 0 || secondServer.VideoSources[0].URL == "" {
+		t.Fatal("no video sources returned for the second episode")
+	}
+	t.Logf("second episode stream: %s (type %s)",
+		secondServer.VideoSources[0].URL, secondServer.VideoSources[0].Type)
 }

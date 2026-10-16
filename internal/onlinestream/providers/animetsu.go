@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -114,16 +115,23 @@ func (p *Animetsu) fetch(url string) ([]byte, error) {
 
 func (p *Animetsu) GetSettings() hibikeonlinestream.Settings {
 	return hibikeonlinestream.Settings{
-		EpisodeServers: []string{"pahe", "zoro", "zaza"},
+		EpisodeServers: []string{"pahe", "zoro", "zaza", "bato", "megg"},
 		SupportsDub:    true,
 	}
 }
 
 type animetsuSearchResult struct {
-	ID       string `json:"id"`
-	Title    string `json:"title"`
-	Year     int    `json:"year"`
-	Episodes int    `json:"episodes"`
+	ID    string `json:"id"`
+	Title struct {
+		English string `json:"english"`
+		Romaji  string `json:"romaji"`
+		Native  string `json:"native"`
+	} `json:"title"`
+}
+
+type animetsuSearchResponse struct {
+	LastPage int                    `json:"last_page"`
+	Results  []animetsuSearchResult `json:"results"`
 }
 
 func (p *Animetsu) Search(opts hibikeonlinestream.SearchOptions) (ret []*hibikeonlinestream.SearchResult, err error) {
@@ -132,45 +140,74 @@ func (p *Animetsu) Search(opts hibikeonlinestream.SearchOptions) (ret []*hibikeo
 	// Versatile search, shared with the other providers: the query first, then the media's other
 	// names — english, romaji, synonyms — so a series the site knows by a different name is still
 	// found.
-	queries := azSearchQueries(opts)
+	queries := mediaSearchQueries(opts)
 
 	seen := make(map[string]struct{})
 	ret = make([]*hibikeonlinestream.SearchResult, 0)
+	var lastSearchError error
+	year := "any"
+	if opts.Year > 0 {
+		year = strconv.Itoa(opts.Year)
+	}
+	subOrDub := string(hibikeonlinestream.Sub)
+	if opts.Dub {
+		subOrDub = string(hibikeonlinestream.Dub)
+	}
 
 	for _, q := range queries {
 		if strings.TrimSpace(q) == "" {
 			continue
 		}
 
-		endpoint := fmt.Sprintf("%s/v2/api/anime/search?query=%s&page=1&year=%d", p.Url, url.QueryEscape(q), opts.Year)
+		for page := 1; ; page++ {
+			endpoint := fmt.Sprintf("%s/v2/api/anime/search?query=%s&page=%d&year=%s", p.Url, url.QueryEscape(q), page, year)
 
-		body, err := p.fetch(endpoint)
-		if err != nil {
-			continue
-		}
-
-		var res struct {
-			Data  []animetsuSearchResult `json:"data"`
-			Total int                    `json:"total"`
-		}
-		if err := json.Unmarshal(body, &res); err != nil {
-			continue
-		}
-
-		for _, item := range res.Data {
-			if _, ok := seen[item.ID]; ok {
-				continue
+			body, err := p.fetch(endpoint)
+			if err != nil {
+				lastSearchError = err
+				break
 			}
-			seen[item.ID] = struct{}{}
-			ret = append(ret, &hibikeonlinestream.SearchResult{
-				ID:    item.ID,
-				Title: item.Title,
-				URL:   fmt.Sprintf("%s/watch/%s", p.Url, item.ID),
-			})
+
+			var res animetsuSearchResponse
+			if err := json.Unmarshal(body, &res); err != nil {
+				lastSearchError = fmt.Errorf("animetsu: could not parse search results: %w", err)
+				break
+			}
+
+			for _, item := range res.Results {
+				if item.ID == "" {
+					continue
+				}
+				if _, ok := seen[item.ID]; ok {
+					continue
+				}
+				seen[item.ID] = struct{}{}
+
+				title := item.Title.English
+				if title == "" {
+					title = item.Title.Romaji
+				}
+				if title == "" {
+					title = item.Title.Native
+				}
+				ret = append(ret, &hibikeonlinestream.SearchResult{
+					ID:       item.ID + "/" + subOrDub,
+					Title:    title,
+					URL:      fmt.Sprintf("%s/anime/%s", p.Url, item.ID),
+					SubOrDub: hibikeonlinestream.SubOrDub(subOrDub),
+				})
+			}
+
+			if page >= res.LastPage || res.LastPage < 1 {
+				break
+			}
 		}
 	}
 
 	if len(ret) == 0 {
+		if lastSearchError != nil {
+			return nil, fmt.Errorf("animetsu: search failed: %w", lastSearchError)
+		}
 		return nil, fmt.Errorf("anime not found")
 	}
 
@@ -180,8 +217,11 @@ func (p *Animetsu) Search(opts hibikeonlinestream.SearchOptions) (ret []*hibikeo
 func (p *Animetsu) FindEpisodes(id string) (ret []*hibikeonlinestream.EpisodeDetails, err error) {
 	p.logger.Debug().Str("id", id).Msg("animetsu: Getting episode list")
 
-	baseId := strings.Split(id, "/dub")[0]
-	baseId = strings.Split(baseId, "/sub")[0]
+	baseId := strings.TrimSuffix(strings.TrimSuffix(id, "/dub"), "/sub")
+	subOrDub := "sub"
+	if strings.HasSuffix(id, "/dub") {
+		subOrDub = "dub"
+	}
 
 	endpoint := fmt.Sprintf("%s/v2/api/anime/eps/%s", p.Url, baseId)
 	body, err := p.fetch(endpoint)
@@ -205,7 +245,7 @@ func (p *Animetsu) FindEpisodes(id string) (ret []*hibikeonlinestream.EpisodeDet
 			number = i + 1
 		}
 		ret = append(ret, &hibikeonlinestream.EpisodeDetails{
-			ID:     fmt.Sprintf("animeid=%s&ep_id=%s", baseId, ep.ID),
+			ID:     fmt.Sprintf("animeid=%s&ep_id=%s/%s", baseId, ep.ID, subOrDub),
 			Number: number,
 			URL:    "",
 			Title:  ep.Name,
@@ -228,6 +268,7 @@ func (p *Animetsu) FindEpisodeServer(episode *hibikeonlinestream.EpisodeDetails,
 	if parts := strings.Split(episode.ID, "&"); len(parts) > 1 {
 		epId = strings.TrimPrefix(parts[1], "ep_id=")
 	}
+	epId = strings.TrimSuffix(strings.TrimSuffix(epId, "/dub"), "/sub")
 	if epId == "" {
 		return nil, fmt.Errorf("animetsu: episode id is malformed")
 	}

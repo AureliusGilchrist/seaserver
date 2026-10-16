@@ -9,6 +9,7 @@ import (
 	onlinestream_providers "seanime/internal/onlinestream/providers"
 	"seanime/internal/util/comparison"
 	"strings"
+	"time"
 )
 
 var (
@@ -16,6 +17,8 @@ var (
 	ErrNoEpisodes           = errors.New("no episodes found")
 	errNoEpisodeSourceFound = errors.New("no source found for episode")
 )
+
+const episodeServerRetryDelay = 500 * time.Millisecond
 
 type (
 	// episodeContainer contains results of fetching the episodes from the provider.
@@ -183,19 +186,36 @@ func (r *Repository) getProviderEpisodeServers(provider string, episodeDetails *
 		return nil, fmt.Errorf("provider extension '%s' not found", provider)
 	}
 
-	for _, episodeServer := range providerExtension.GetProvider().GetSettings().EpisodeServers {
-		res, err := providerExtension.GetProvider().FindEpisodeServer(episodeDetails, episodeServer)
-		if err == nil {
-			// Add the server to the list for the episode
-			providerServers = append(providerServers, res)
+	providerInstance := providerExtension.GetProvider()
+	var lastServerError error
+	for _, episodeServer := range providerInstance.GetSettings().EpisodeServers {
+		res, err := findEpisodeServerWithRetry(providerInstance, episodeDetails, episodeServer)
+		if err != nil {
+			lastServerError = err
+			continue
 		}
+		// Add the server to the list for the episode
+		providerServers = append(providerServers, res)
 	}
 
 	if len(providerServers) == 0 {
+		if lastServerError != nil {
+			return nil, fmt.Errorf("%w: %v", errNoEpisodeSourceFound, lastServerError)
+		}
 		return nil, errNoEpisodeSourceFound
 	}
 
 	return providerServers, nil
+}
+
+func findEpisodeServerWithRetry(provider hibikeonlinestream.Provider, episode *hibikeonlinestream.EpisodeDetails, server string) (*hibikeonlinestream.EpisodeServer, error) {
+	result, err := provider.FindEpisodeServer(episode, server)
+	if err == nil {
+		return result, nil
+	}
+
+	time.Sleep(episodeServerRetryDelay)
+	return provider.FindEpisodeServer(episode, server)
 }
 
 // getProviderEpisodeList gets all the hibikeonlinestream.EpisodeDetails from the provider based on the anime's titles.
@@ -236,6 +256,13 @@ func (r *Repository) getProviderEpisodeList(provider string, media *anilist.Base
 		// Get search results.
 		var searchResults []*hibikeonlinestream.SearchResult
 
+		synonyms := make([]string, 0, len(media.Synonyms))
+		for _, synonym := range media.Synonyms {
+			if synonym != nil {
+				synonyms = append(synonyms, *synonym)
+			}
+		}
+
 		queryMedia := hibikeonlinestream.Media{
 			ID:           media.ID,
 			IDMal:        media.GetIDMal(),
@@ -244,7 +271,7 @@ func (r *Repository) getProviderEpisodeList(provider string, media *anilist.Base
 			EnglishTitle: media.GetTitle().GetEnglish(),
 			RomajiTitle:  media.GetRomajiTitleSafe(),
 			EpisodeCount: media.GetTotalEpisodeCount(),
-			Synonyms:     media.GetSynonymsContainingSeason(),
+			Synonyms:     synonyms,
 			IsAdult:      *media.GetIsAdult(),
 			StartDate: &hibikeonlinestream.FuzzyDate{
 				Year:  *media.GetStartDate().GetYear(),
@@ -253,58 +280,54 @@ func (r *Repository) getProviderEpisodeList(provider string, media *anilist.Base
 			},
 		}
 
-		added := make(map[string]struct{})
-
-		if romajiTitle != "" {
-			// Search by romaji title
-			res, err := providerExtension.GetProvider().Search(hibikeonlinestream.SearchOptions{
-				Media: queryMedia,
-				Query: romajiTitle,
-				Dub:   dubbed,
-				Year:  year,
-			})
-			if err == nil && len(res) > 0 {
-				searchResults = append(searchResults, res...)
-				for _, r := range res {
-					added[r.ID] = struct{}{}
-				}
-			}
-			if err != nil {
-				r.logger.Error().Err(err).Msg("onlinestream: Failed to search for romaji title")
-			}
-			r.logger.Debug().
-				Int("romajiTitleResults", len(res)).
-				Msg("onlinestream: Found results for romaji title")
+		searchQueries := []string{romajiTitle}
+		if !providerSearchesMediaAliases(provider) {
+			searchQueries = append(searchQueries, englishTitle)
 		}
+		added := make(map[string]struct{})
+		for _, query := range searchQueries {
+			if strings.TrimSpace(query) == "" {
+				continue
+			}
 
-		if englishTitle != "" {
-			// Search by english title
 			res, err := providerExtension.GetProvider().Search(hibikeonlinestream.SearchOptions{
 				Media: queryMedia,
-				Query: englishTitle,
+				Query: query,
 				Dub:   dubbed,
 				Year:  year,
 			})
-			if err == nil && len(res) > 0 {
-				for _, r := range res {
-					if _, ok := added[r.ID]; !ok {
-						searchResults = append(searchResults, r)
+			if err != nil {
+				r.logger.Error().Err(err).Str("query", query).Msg("onlinestream: Failed to search provider")
+			} else {
+				for _, result := range res {
+					if _, ok := added[result.ID]; ok {
+						continue
 					}
+					searchResults = append(searchResults, result)
+					added[result.ID] = struct{}{}
 				}
 			}
-			if err != nil {
-				r.logger.Error().Err(err).Msg("onlinestream: Failed to search for english title")
-			}
 			r.logger.Debug().
-				Int("englishTitleResults", len(res)).
-				Msg("onlinestream: Found results for english title")
+				Str("query", query).
+				Int("results", len(res)).
+				Msg("onlinestream: Finished provider search")
 		}
 
 		if len(searchResults) == 0 {
 			return nil, fmt.Errorf("automatic matching returned no results")
 		}
 
-		bestResult, found := GetBestSearchResult(searchResults, media.GetAllTitles())
+		searchTitleValues := []string{romajiTitle, englishTitle}
+		searchTitles := make([]*string, 0, len(searchTitleValues)+len(synonyms))
+		for i := range searchTitleValues {
+			if strings.TrimSpace(searchTitleValues[i]) != "" {
+				searchTitles = append(searchTitles, &searchTitleValues[i])
+			}
+		}
+		for i := range synonyms {
+			searchTitles = append(searchTitles, &synonyms[i])
+		}
+		bestResult, found := GetBestSearchResult(searchResults, searchTitles)
 		if !found {
 			return nil, ErrNoAnimeFound
 		}
@@ -322,6 +345,20 @@ func (r *Repository) getProviderEpisodeList(provider string, media *anilist.Base
 	}
 
 	return ret, nil
+}
+
+func providerSearchesMediaAliases(provider string) bool {
+	switch provider {
+	case onlinestream_providers.AniZoneProvider,
+		onlinestream_providers.AnimeGGProvider,
+		onlinestream_providers.AnimeHeavenProvider,
+		onlinestream_providers.AnimePaheProvider,
+		onlinestream_providers.AnimetsuProvider,
+		onlinestream_providers.KickAssAnimeProvider:
+		return true
+	default:
+		return false
+	}
 }
 
 func GetBestSearchResult(searchResults []*hibikeonlinestream.SearchResult, titles []*string) (*hibikeonlinestream.SearchResult, bool) {

@@ -107,7 +107,7 @@ func (p *KickAssAnime) Search(opts hibikeonlinestream.SearchOptions) ([]*hibikeo
 	seen := make(map[string]struct{})
 	ret := make([]*hibikeonlinestream.SearchResult, 0)
 
-	for _, q := range azSearchQueries(opts) {
+	for _, q := range mediaSearchQueries(opts) {
 		payload, _ := json.Marshal(map[string]string{"query": q})
 		body, err := p.do("POST", p.Url+"/api/fsearch", payload, "")
 		if err != nil {

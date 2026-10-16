@@ -38,10 +38,11 @@ type AnimePahe struct {
 }
 
 const AnimePaheProvider string = "animepahe"
+const animePaheBaseURL = "https://animepahe.pw"
 
 func NewAnimePahe(logger *zerolog.Logger) hibikeonlinestream.Provider {
 	return &AnimePahe{
-		Url:       "https://animepahe.com",
+		Url:       animePaheBaseURL,
 		Client:    &http.Client{Timeout: time.Second * 20},
 		UserAgent: util.GetSharedUserAgent(),
 		logger:    logger,
@@ -141,6 +142,11 @@ func (p *AnimePahe) fetchPage(url string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusTooManyRequests {
+		animepaheNoteRateLimited()
+		return nil, fmt.Errorf("animepahe: rate limited (429)")
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("animepahe: unexpected status %s", resp.Status)
 	}
@@ -174,10 +180,11 @@ func (p *AnimePahe) Search(opts hibikeonlinestream.SearchOptions) (ret []*hibike
 	// Versatile search, shared with the other providers: the query first, then the media's other
 	// names — english, romaji, synonyms — so a series the site knows by a different name is still
 	// found.
-	queries := azSearchQueries(opts)
+	queries := mediaSearchQueries(opts)
 
 	seen := make(map[string]struct{})
 	ret = make([]*hibikeonlinestream.SearchResult, 0)
+	var lastSearchError error
 
 	for _, q := range queries {
 		if strings.TrimSpace(q) == "" {
@@ -188,6 +195,7 @@ func (p *AnimePahe) Search(opts hibikeonlinestream.SearchOptions) (ret []*hibike
 
 		var res animepaheSearchResponse
 		if err := p.fetchJson(endpoint, &res); err != nil {
+			lastSearchError = err
 			continue
 		}
 
@@ -205,6 +213,9 @@ func (p *AnimePahe) Search(opts hibikeonlinestream.SearchOptions) (ret []*hibike
 	}
 
 	if len(ret) == 0 {
+		if lastSearchError != nil {
+			return nil, fmt.Errorf("animepahe: search failed: %w", lastSearchError)
+		}
 		return nil, fmt.Errorf("anime not found")
 	}
 
@@ -335,6 +346,11 @@ func (p *AnimePahe) unpackKwik(kwikUrl string) (string, error) {
 		return "", err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusTooManyRequests {
+		animepaheNoteRateLimited()
+		return "", fmt.Errorf("animepahe: kwik rate limited (429)")
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("animepahe: kwik returned %s", resp.Status)

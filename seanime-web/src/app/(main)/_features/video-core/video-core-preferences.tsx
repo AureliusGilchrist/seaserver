@@ -62,7 +62,7 @@ const tabContentClass = cn(
     "space-y-4 animate-in fade-in-0 duration-300",
 )
 
-function isEditableKeyboardTarget(target: EventTarget | null) {
+export function isEditableKeyboardTarget(target: EventTarget | null) {
     if (!(target instanceof Element)) return false
     if (target instanceof HTMLElement && target.isContentEditable) return true
     return !!target.closest("input, textarea, select, [contenteditable='true'], [role='textbox']")

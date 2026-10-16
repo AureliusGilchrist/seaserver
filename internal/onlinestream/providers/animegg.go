@@ -94,7 +94,7 @@ func (p *AnimeGG) Search(opts hibikeonlinestream.SearchOptions) ([]*hibikeonline
 	seen := make(map[string]struct{})
 	ret := make([]*hibikeonlinestream.SearchResult, 0)
 
-	for _, q := range azSearchQueries(opts) {
+	for _, q := range mediaSearchQueries(opts) {
 		body, err := p.get(fmt.Sprintf("%s/search/?q=%s", p.Url, url.QueryEscape(q)), p.Url+"/")
 		if err != nil {
 			continue

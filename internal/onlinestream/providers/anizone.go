@@ -209,7 +209,7 @@ func (a *AniZone) Search(opts hibikeonlinestream.SearchOptions) (ret []*hibikeon
 	// Versatile search: the query first, then the media's other names — english, romaji, and the
 	// synonyms AniList keeps. A series is often known to the site by a name the caller did not
 	// send, and one of its other names is the difference between finding it and not.
-	queries := azSearchQueries(opts)
+	queries := mediaSearchQueries(opts)
 
 	seen := make(map[string]struct{})
 	ret = make([]*hibikeonlinestream.SearchResult, 0)
@@ -254,10 +254,10 @@ func (a *AniZone) Search(opts hibikeonlinestream.SearchOptions) (ret []*hibikeon
 	return ret, nil
 }
 
-// azSearchQueries builds the list of names a search is tried under: the query the caller sent
+// mediaSearchQueries builds the list of names a search is tried under: the query the caller sent
 // first, then the media's english title, romaji title, and synonyms — deduplicated, so a series
 // whose names overlap is not searched for twice.
-func azSearchQueries(opts hibikeonlinestream.SearchOptions) []string {
+func mediaSearchQueries(opts hibikeonlinestream.SearchOptions) []string {
 	queries := make([]string, 0, 2+len(opts.Media.Synonyms))
 	add := func(q string) {
 		q = strings.TrimSpace(q)

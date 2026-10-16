@@ -20,6 +20,8 @@ func TestMalsyncProvidersLive(t *testing.T) {
 	logger := testLogger()
 	cases := map[string]hibikeonlinestream.Provider{
 		"kickassanime": NewKickAssAnime(logger),
+		"animepahe":    NewAnimePahe(logger),
+		"gojowtf":      NewAnimetsu(logger),
 		"animeheaven":  NewAnimeHeaven(logger),
 		"animegg":      NewAnimeGG(logger),
 	}
@@ -62,13 +64,17 @@ func TestMalsyncProvidersLive(t *testing.T) {
 				t.Logf("checking %s subtitle", subtitle.Language)
 				checkSubtitlePlayable(t, subtitle.URL, server.Headers)
 			}
-			if name == "kickassanime" && len(episodes) > 1 {
+			if (name == "kickassanime" || name == "animepahe" || name == "gojowtf") && len(episodes) > 1 {
 				secondServer, err := provider.FindEpisodeServer(episodes[1], "default")
 				if err != nil {
 					t.Fatalf("second episode sources failed: %v", err)
 				}
 				if len(secondServer.VideoSources) == 0 {
 					t.Fatal("second episode has no video sources")
+				}
+				if name != "kickassanime" {
+					t.Logf("second episode has %d video sources", len(secondServer.VideoSources))
+					return
 				}
 				t.Logf("second episode has %d subtitles", len(secondServer.VideoSources[0].Subtitles))
 				var defaultSubtitle *hibikeonlinestream.VideoSubtitle

@@ -930,7 +930,13 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
                                     onVideoSourceChange={changeQuality}
                                     hlsPreferredQuality={quality}
                                     onHlsQualityChange={setQuality}
-                                    onHlsFatalError={(err) => onFatalError(`HLS error: ${err.error.message}`)}
+                                    onHlsFatalError={(err) => {
+                                        const responseCode = typeof err.response?.code === "number"
+                                            ? ` (response code ${err.response.code})`
+                                            : ""
+                                        const detail = err.reason || err.error?.message || "unknown HLS error"
+                                        onFatalError(`HLS ${err.type}/${err.details}${responseCode}: ${detail}`)
+                                    }}
                                     onTerminateStream={() => {
                                         setUrl(null)
                                         setPlaybackError("Stream terminated")

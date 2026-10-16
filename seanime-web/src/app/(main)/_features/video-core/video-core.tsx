@@ -90,7 +90,7 @@ import {
     vc_playlistState,
     VideoCorePlaylistControl,
 } from "@/app/(main)/_features/video-core/video-core-playlist"
-import { VideoCoreKeybindingController, VideoCorePreferencesModal } from "@/app/(main)/_features/video-core/video-core-preferences"
+import { isEditableKeyboardTarget, VideoCoreKeybindingController, VideoCorePreferencesModal } from "@/app/(main)/_features/video-core/video-core-preferences"
 import { VideoCorePreviewManager } from "@/app/(main)/_features/video-core/video-core-preview"
 import { VideoCoreResolutionMenu } from "@/app/(main)/_features/video-core/video-core-resolution-menu"
 import { VideoCoreSettingsMenu } from "@/app/(main)/_features/video-core/video-core-settings-menu"
@@ -159,6 +159,19 @@ import { useUnmount, useUpdateEffect, useWindowSize } from "react-use"
 import { toast } from "sonner"
 
 const log = logger("VIDEO CORE")
+
+function exitVideoCoreFullscreen(fullscreenManager: VideoCoreFullscreenManager | null) {
+    if (fullscreenManager) {
+        void fullscreenManager.exitFullscreen()
+        return
+    }
+
+    if (document.fullscreenElement && document.exitFullscreen) {
+        void document.exitFullscreen().catch(error => {
+            log.error("Failed to exit fullscreen", error)
+        })
+    }
+}
 
 export const VIDEOCORE_DEBUG_ELEMENTS = false
 
@@ -350,6 +363,8 @@ const PlayerContent = React.memo<PlayerContentProps>(({
     const [muted] = useAtom(vc_storedMutedAtom)
     const showStats = useAtomValue(vc_showStatsForNerdsAtom)
     const isCastingActive = useAtomValue(vc_isCasting)
+    const fullscreenManager = useAtomValue(vc_fullscreenManager)
+    const fullscreen = useAtomValue(vc_isFullscreen)
 
     // Relay subtitles to Chromecast when casting
     useCastSubtitleRelay()
@@ -366,6 +381,17 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                     data-vc-element="playback-error-container"
                     className="h-full w-full bg-black/100 flex items-center justify-center z-[20] absolute p-4"
                 >
+                    {inline && fullscreen && (
+                        <Button
+                            type="button"
+                            size="sm"
+                            intent="gray-basic"
+                            className="absolute right-4 top-4 z-[30]"
+                            onClick={() => exitVideoCoreFullscreen(fullscreenManager)}
+                        >
+                            Exit fullscreen
+                        </Button>
+                    )}
                     <div className="text-white text-center" data-vc-element="playback-error-content">
                         {!isMiniPlayer ? (
                             <LuffyError title="Playback Error" imageContainerClass="size-[3.5rem] lg:size-[8rem]" />
@@ -642,6 +668,17 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                         className="w-full h-full absolute flex justify-center items-center flex-col space-y-4 bg-black rounded-md"
                     >
                         {!inline && <FloatingButtons part="loading" onTerminateStream={onTerminateStream} />}
+                        {inline && fullscreen && !state.playbackError && (
+                            <Button
+                                type="button"
+                                size="sm"
+                                intent="gray-basic"
+                                className="absolute right-4 top-4 z-[100]"
+                                onClick={() => exitVideoCoreFullscreen(fullscreenManager)}
+                            >
+                                Exit fullscreen
+                            </Button>
+                        )}
                         {state.loadingState && (
                             <LoadingSpinner
                                 title={state.loadingState || "Loading..."}
@@ -832,6 +869,23 @@ export function VideoCore(props: VideoCoreProps) {
     const duration = useAtomValue(vc_duration)
     const fullscreen = useAtomValue(vc_isFullscreen)
     const showOverlayFeedback = useSetAtom(vc_showOverlayFeedback)
+
+    React.useEffect(() => {
+        const hasPlaybackKeybindings = !!state.playbackInfo?.streamUrl && !state.loadingState
+        if (!inline || !state.active || hasPlaybackKeybindings) return
+
+        const handleEscape = (event: KeyboardEvent) => {
+            if ((event.key !== "Escape" && event.code !== "Escape") || event.defaultPrevented) return
+            if (!fullscreen && !fullscreenManager?.isFullscreen) return
+            if (isEditableKeyboardTarget(event.target) || isEditableKeyboardTarget(document.activeElement)) return
+
+            event.preventDefault()
+            exitVideoCoreFullscreen(fullscreenManager)
+        }
+
+        document.addEventListener("keydown", handleEscape)
+        return () => document.removeEventListener("keydown", handleEscape)
+    }, [fullscreen, fullscreenManager, inline, state.active, state.loadingState, state.playbackInfo?.streamUrl])
 
     // Lets CSS freeze the decorative animations of the page hidden behind the fullscreen video.
     React.useEffect(() => {

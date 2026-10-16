@@ -103,7 +103,7 @@ func (p *AnimeHeaven) Search(opts hibikeonlinestream.SearchOptions) ([]*hibikeon
 	seen := make(map[string]struct{})
 	ret := make([]*hibikeonlinestream.SearchResult, 0)
 
-	for _, q := range azSearchQueries(opts) {
+	for _, q := range mediaSearchQueries(opts) {
 		body, err := p.get(fmt.Sprintf("%s/fastsearch.php?xhr=1&s=%s", p.Url, url.QueryEscape(q)), "")
 		if err != nil {
 			continue
