@@ -1565,8 +1565,15 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         if (fileTrack.info.type === "ass") {
             try {
                 if (fileTrack.info.src) subtitleLog.info("Fetching subtitle content", fileTrack.info.src)
-                // fetch subtitle file content
-                const content = fileTrack.info.src ? await fetch(fileTrack.info.src).then(res => res.text()) : (fileTrack.info.content || "")
+                // fetch subtitle file content — check the response before using it: a failed
+                // request (500 from the stream not being registered, SPA fallback HTML) must
+                // not be cached as the track's content
+                let content = fileTrack.info.content || ""
+                if (fileTrack.info.src) {
+                    const res = await fetch(fileTrack.info.src)
+                    if (!res.ok) throw new Error(`Subtitle track unavailable (HTTP ${res.status})`)
+                    content = await res.text()
+                }
                 if (this.isDestroyed) return
                 this.fileTracks[trackNumber].content = content // cache it
                 await this._replaceLibassTrack(content)
@@ -1582,7 +1589,19 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         } else {
             try {
                 subtitleLog.info("Converting subtitle to ASS format")
-                const assContent = await this.fetchAndConvertToASS(fileTrack.info.src, fileTrack.info.content, fileTrack.info.headers)
+                let url = fileTrack.info.src
+                let content = fileTrack.info.content
+                // Local mediastream tracks: fetch the content in the browser first. Handing the
+                // URL to the server's convert-subs makes the server fetch itself, which goes
+                // through the video proxy transport and fails in confusing ways — surfacing as
+                // "failed to detect subtitle format from content".
+                if (url && url.includes("/api/v1/mediastream/subs/")) {
+                    const res = await fetch(url)
+                    if (!res.ok) throw new Error(`Subtitle track unavailable (HTTP ${res.status})`)
+                    content = await res.text()
+                    url = undefined
+                }
+                const assContent = await this.fetchAndConvertToASS(url, content, fileTrack.info.headers)
                 if (!assContent || this.isDestroyed) return
 
                 // Cache the converted content

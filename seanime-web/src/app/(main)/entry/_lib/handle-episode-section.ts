@@ -1,6 +1,9 @@
 import { Anime_Entry } from "@/api/generated/types"
+import { __anime_entryPageViewAtom } from "@/app/(main)/entry/_containers/anime-entry-page"
 import { useHandlePlayMedia } from "@/app/(main)/entry/_lib/handle-play-media"
 import { usePlayNextVideoOnMount } from "@/app/(main)/entry/_lib/handle-play-on-mount"
+import { __onlinestream_selectedEpisodeNumberAtom } from "@/app/(main)/onlinestream/_lib/onlinestream.atoms"
+import { useSetAtom } from "jotai"
 import React from "react"
 
 export function useHandleEpisodeSection(props: { entry: Anime_Entry }) {
@@ -8,6 +11,8 @@ export function useHandleEpisodeSection(props: { entry: Anime_Entry }) {
     const media = entry.media
 
     const { playMediaFile } = useHandlePlayMedia()
+    const setEntryPageView = useSetAtom(__anime_entryPageViewAtom)
+    const setSelectedOnlineEpisodeNumber = useSetAtom(__onlinestream_selectedEpisodeNumberAtom)
     const [pendingNextEpisode, setPendingNextEpisode] = React.useState<Anime_Entry["nextEpisode"] | null>(null)
 
     usePlayNextVideoOnMount({
@@ -25,12 +30,23 @@ export function useHandleEpisodeSection(props: { entry: Anime_Entry }) {
     const watchNextEpisode = React.useCallback(() => {
         if (!pendingNextEpisode) return
         setPendingNextEpisode(null)
+
+        // nextEpisode always comes from the library, so a local file is normally present.
+        // If it somehow isn't, fall back to the Online Player for that episode instead of
+        // handing playMediaFile an empty path.
+        const path = pendingNextEpisode.localFile?.path ?? ""
+        if (!path) {
+            setEntryPageView("onlinestream")
+            setSelectedOnlineEpisodeNumber(pendingNextEpisode.progressNumber ?? pendingNextEpisode.episodeNumber)
+            return
+        }
+
         playMediaFile({
-            path: pendingNextEpisode.localFile?.path ?? "",
+            path,
             mediaId: entry.mediaId,
             episode: pendingNextEpisode,
         })
-    }, [entry.mediaId, pendingNextEpisode, playMediaFile])
+    }, [entry.mediaId, pendingNextEpisode, playMediaFile, setEntryPageView, setSelectedOnlineEpisodeNumber])
 
     const mainEpisodes = React.useMemo(() => {
         return entry.episodes?.filter(ep => ep.type === "main") ?? []

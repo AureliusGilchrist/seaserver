@@ -38,6 +38,8 @@ import {
     __onlinestream_selectedServerAtom,
     OnlinestreamAudioTrackPreference,
 } from "@/app/(main)/onlinestream/_lib/onlinestream.atoms"
+import { __anime_entryPageViewAtom } from "@/app/(main)/entry/_containers/anime-entry-page"
+import { useMediastreamActiveOnDevice, useMediastreamCurrentFile } from "@/app/(main)/mediastream/_lib/mediastream.atoms"
 import { useOnlinestreamAutoProviderCycler } from "@/app/(main)/onlinestream/_lib/use-onlinestream-auto-provider-cycler"
 import { LuffyError } from "@/components/shared/luffy-error"
 import { Button, IconButton } from "@/components/ui/button"
@@ -49,7 +51,7 @@ import { logger, useLatestFunction } from "@/lib/helpers/debug"
 import { getPendingProgressFor } from "@/lib/offline-progress/offline-progress"
 import { useWindowSize } from "@uidotdev/usehooks"
 import { AxiosError } from "axios"
-import { useAtom, useAtomValue } from "jotai/react"
+import { useAtom, useAtomValue, useSetAtom } from "jotai/react"
 import { atomWithStorage } from "jotai/utils"
 import { uniq, uniqBy } from "lodash"
 import { AnimatePresence, motion } from "motion/react"
@@ -273,6 +275,15 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
     const playerRef = React.useRef<HTMLVideoElement | null>(null)
 
     const [currentEpisodeNumber, setSelectedEpisodeNumber] = useAtom(__onlinestream_selectedEpisodeNumberAtom)
+
+    // Prefer the Local Player when the episode exists in the library: selecting an episode
+    // (list, grid, next/previous) checks the local files first and hands playback to the
+    // Local Player tab instead of streaming from the provider. The initial episode selection
+    // on mount is deliberately not intercepted — opening the Online Player tab should not
+    // yank the user to another view.
+    const setEntryPageView = useSetAtom(__anime_entryPageViewAtom)
+    const { activeOnDevice: mediastreamActiveOnDevice } = useMediastreamActiveOnDevice()
+    const { setFilePath: setMediastreamFilePath } = useMediastreamCurrentFile()
     const [server, setServer] = useAtom(__onlinestream_selectedServerAtom)
     const [quality, setQuality] = useAtom(__onlinestream_qualityAtom)
     const [dubbedPreferenceByMedia, setDubbedPreferenceByMedia] = useAtom(__onlinestream_dubbedPreferenceByMediaAtom)
@@ -366,6 +377,23 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
 
     const episodes = episodeListResponse?.episodes
     const currentEpisode = episodes?.find(e => e.number === currentEpisodeNumber)
+
+    // If the episode has been downloaded, play it from the library instead of the provider.
+    const selectEpisodeNumberPreferLocal = useLatestFunction((episodeNumber: number) => {
+        if (serverStatus?.mediastreamSettings?.transcodeEnabled && mediastreamActiveOnDevice && !!animeEntry?.episodes?.length) {
+            const downloaded = animeEntry.episodes.filter(ep => !!ep.localFile?.path)
+            const localEpisode =
+                downloaded.find(ep => ep.type === "main" && (ep.progressNumber ?? ep.episodeNumber) === episodeNumber) ??
+                downloaded.find(ep => (ep.progressNumber ?? ep.episodeNumber) === episodeNumber)
+            if (localEpisode?.localFile?.path) {
+                log.info(`Episode ${episodeNumber} is in the library — switching to the Local Player`)
+                setMediastreamFilePath(localEpisode.localFile.path)
+                setEntryPageView("localplayer")
+                return
+            }
+        }
+        setSelectedEpisodeNumber(episodeNumber)
+    })
 
     // AniSkip
     const { data: aniSkipDataRaw } = useSkipData(media.idMal, currentEpisode?.number)
@@ -680,7 +708,7 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
         }
         // check if the episode exists
         if (episodes?.find(e => e.number === currentEpisodeNumber + 1)) {
-            setSelectedEpisodeNumber(currentEpisodeNumber + 1)
+            selectEpisodeNumberPreferLocal(currentEpisodeNumber + 1)
         }
     })
 
@@ -693,7 +721,7 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
         if (currentEpisodeNumber > 1) {
             // check if the episode exists
             if (episodes?.find(e => e.number === currentEpisodeNumber - 1)) {
-                setSelectedEpisodeNumber(currentEpisodeNumber - 1)
+                selectEpisodeNumberPreferLocal(currentEpisodeNumber - 1)
             }
         }
     })
@@ -965,7 +993,7 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
                                         <EpisodeGridItem
                                             key={idx + (episode.title || "") + episode.number}
                                             id={`episode-${String(episode.number)}`}
-                                            onClick={() => setSelectedEpisodeNumber(episode.number)}
+                                            onClick={() => selectEpisodeNumberPreferLocal(episode.number)}
                                             title={media.format === "MOVIE" ? "Complete movie" : `Episode ${episode.number}`}
                                             episodeTitle={episode.title}
                                             description={episode.description ?? undefined}
@@ -1004,7 +1032,7 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
                                     isFiller: ep.isFiller,
                                 })) || []}
                                 currentEpisodeNumber={currentEpisodeNumber}
-                                onEpisodeSelect={setSelectedEpisodeNumber}
+                                onEpisodeSelect={selectEpisodeNumberPreferLocal}
                                 progress={progress}
                                 disabled={episodeLoading}
                                 getEpisodeId={(ep) => `episode-${ep.number}`}

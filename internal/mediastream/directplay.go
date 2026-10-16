@@ -63,7 +63,11 @@ func (r *Repository) ServeEchoDirectPlay(c echo.Context, clientId string) error 
 	// Get current media for this client
 	mediaContainer, found := r.playbackManager.GetActiveStream(clientId)
 	if !found {
-		r.wsEventManager.SendEvent(events.MediastreamShutdownStream, "no file has been loaded")
+		// A per-client miss (stale video element retrying an old URL, a request from before the
+		// stream was registered) is between the server and that one client — the 500 response
+		// is the signal. This used to broadcast a MediastreamShutdownStream event with the
+		// message, which toasted "no file has been loaded" in every connected window, including
+		// ones playing happily on a different client id.
 		return errors.New("no file has been loaded for this client")
 	}
 

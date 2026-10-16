@@ -15,6 +15,45 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// isSelfHostedSubtitleURL reports whether the subtitle URL points at this server itself —
+// the mediastream extracted-subtitle endpoint the frontend hands back to convert-subs.
+// Matched by loopback hostnames and by the exact Host header the request arrived with, so
+// LAN-IP deployments are covered too.
+func isSelfHostedSubtitleURL(u *url.URL, requestHost string) bool {
+	host := strings.ToLower(u.Hostname())
+	switch host {
+	case "localhost", "127.0.0.1", "::1", "[::1]", "":
+		return true
+	}
+	if requestHost == "" {
+		return false
+	}
+	reqHost := strings.ToLower(requestHost)
+	if i := strings.LastIndex(reqHost, ":"); i != -1 && !strings.Contains(reqHost, "]") {
+		reqHost = reqHost[:i]
+	}
+	return host == reqHost
+}
+
+// fetchSelfHostedSubtitle fetches a subtitle from this server with a plain client — no proxy
+// transport, no referer games.
+func fetchSelfHostedSubtitle(subtitleURL string) (*http.Response, error) {
+	req, reqErr := http.NewRequest(http.MethodGet, subtitleURL, nil)
+	if reqErr != nil {
+		return nil, reqErr
+	}
+	req.Header.Set("Accept", "*/*")
+	return (&http.Client{
+		Timeout: 30 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return fmt.Errorf("too many redirects")
+			}
+			return nil
+		},
+	}).Do(req)
+}
+
 func directstreamSubtitleRefererCandidates(headers map[string]string, subtitleURL string) []string {
 	candidates := make([]string, 0, 8)
 	seen := make(map[string]struct{})
@@ -249,6 +288,33 @@ func (h *Handler) HandleDirectstreamConvertSubs(c echo.Context) error {
 	}
 
 	refererCandidates := directstreamSubtitleRefererCandidates(b.Headers, subtitleURL)
+
+	// A subtitle URL pointing at this very server (the mediastream extracted-subtitle endpoint)
+	// must not go through the video proxy transport: the proxy sits in front of outbound CDN
+	// traffic and has no business resolving the server's own address, and a privacy transport
+	// that can't reach loopback turned the self-fetch into garbage that then failed subtitle
+	// detection ("failed to detect subtitle format from content"). Serve those with a plain
+	// client in a single pass — hotlink referers are meaningless for our own endpoint.
+	if parsed, parseErr := url.Parse(subtitleURL); parseErr == nil && isSelfHostedSubtitleURL(parsed, c.Request().Host) {
+		resp, fetchErr := fetchSelfHostedSubtitle(subtitleURL)
+		if fetchErr != nil {
+			return h.RespondWithError(c, fmt.Errorf("could not fetch the subtitle file from %s: %w", subtitleURL, fetchErr))
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return h.RespondWithError(c, fmt.Errorf("subtitle URL returned HTTP %d", resp.StatusCode))
+		}
+		bodyBytes, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			return h.RespondWithError(c, fmt.Errorf("failed to read subtitle response: %w", readErr))
+		}
+		converted, convErr := h.App.VideoCore.ConvertSubsTo(strings.TrimSpace(string(bodyBytes)), mkvparser.SubtitleTypeUnknown, to)
+		if convErr != nil {
+			return h.RespondWithError(c, fmt.Errorf("subtitle response could not be converted: %w", convErr))
+		}
+		return h.RespondWithData(c, converted)
+	}
+
 	var converted string
 	var lastStatus int
 	var lastErr error
