@@ -63,7 +63,7 @@ export function EnqueueFuturePage() {
     const { mutate: rewalk, isPending: isRewalking } = useRewalkEnqueueFutureFamilies()
 
     // Advisory: which of the anime shown above have a "downloading" badge with nothing live behind
-    // it in the torrent client, because the torrent was removed outside Seanime entirely. Polled
+    // it in the torrent client, because the torrent was removed outside Deus Ex Aeternae entirely. Polled
     // slowly since the server itself only recomputes this every few minutes.
     const { data: stuckIds } = useGetStuckDownloadingMediaIds()
     const { mutate: clearAllStuck, isPending: isClearingStuck } = useClearAllStuckDownloadingMediaState(stuckIds ?? [])

@@ -80,6 +80,13 @@ fi
 # nothing behind. WEB_FORCE_BUILD=1 forces it.
 
 WEB_FORCE_BUILD="${WEB_FORCE_BUILD:-0}"
+
+# Auto-increment the seaserver build version (versions.json) so every build is
+# newer than the last; the prebuild hooks then propagate it to both packages.
+step "0.5" "Bump build version"
+node "$SCRIPT_DIR/sync-versions.js" --bump || { fail "Version bump failed"; exit 1; }
+success "Version bumped"
+
 WEB_CHANGED=1
 if [[ "$WEB_FORCE_BUILD" != "1" && -d "$SCRIPT_DIR/web" ]]; then
   LAST_BUILD_TS="$SCRIPT_DIR/web/.last-build-ts"

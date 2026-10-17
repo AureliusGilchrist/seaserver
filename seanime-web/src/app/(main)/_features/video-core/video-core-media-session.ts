@@ -123,7 +123,7 @@ export class VideoCoreMediaSessionManager {
         const episode = this.playbackInfo.episode
         const anime = episode?.baseAnime
 
-        const title = episode?.displayTitle || "Seanime"
+        const title = episode?.displayTitle || "Deus Ex Aeternae"
         const artist = anime?.title?.userPreferred || anime?.title?.romaji || anime?.title?.english || "Video Player"
 
         const artwork: MediaImage[] = []

@@ -22,7 +22,7 @@ func (n *Notifier) Notify(id Notification, message string) {
 		}
 
 		err := beeep.Notify(
-			fmt.Sprintf("Seanime: %s", id),
+			fmt.Sprintf("Deus Ex Aeternae: %s", id),
 			message,
 			n.logoPath,
 		)

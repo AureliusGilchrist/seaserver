@@ -36,7 +36,7 @@ export function SyntheticAnimeEntryPage({ syntheticAnime }: SyntheticAnimeEntryP
     React.useLayoutEffect(() => {
         try {
             if (syntheticAnime?.title) {
-                document.title = `${syntheticAnime.title} | Seanime`
+                document.title = `${syntheticAnime.title} | Deus Ex Aeternae`
             }
         } catch {}
     }, [syntheticAnime])

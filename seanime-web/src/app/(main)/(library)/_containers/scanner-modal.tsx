@@ -138,7 +138,7 @@ export function ScannerModal() {
                             <Switch
                                 side="right"
                                 label="Use my AniList lists only"
-                                moreHelp="Disabling this will cause Seanime to send more API requests which may lead to rate limits and slower scanning"
+                                moreHelp="Disabling this will cause Deus Ex Aeternae to send more API requests which may lead to rate limits and slower scanning"
                                 // label="Enhanced scanning"
                                 value={anilistDataOnly.active}
                                 onValueChange={v => anilistDataOnly.set(v as boolean)}

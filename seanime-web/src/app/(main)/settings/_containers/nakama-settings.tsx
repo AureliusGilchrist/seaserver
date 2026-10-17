@@ -53,7 +53,7 @@ export function NakamaSettings(props: Props) {
 
             <SettingsPageHeader
                 title="Nakama"
-                description="Communicate with other Seanime instances"
+                description="Communicate with other Deus Ex Aeternae instances"
                 icon={MdOutlineConnectWithoutContact}
             />
 
@@ -98,7 +98,7 @@ export function NakamaSettings(props: Props) {
                     <SettingsCard className="!bg-gray-900 text-sm">
                         <div>
                             <p>
-                                Host mode is intended for Seanime servers that are accessible over the internet.
+                                Host mode is intended for Deus Ex Aeternae servers that are accessible over the internet.
                             </p>
                             <p>
                                 However, you can use <strong>Cloud Rooms</strong> to host watch parties without exposing your server to the internet.

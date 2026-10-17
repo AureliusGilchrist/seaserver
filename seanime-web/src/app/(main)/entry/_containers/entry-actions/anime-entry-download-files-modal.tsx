@@ -59,7 +59,7 @@ function Content({ entry }: { entry: Anime_Entry }) {
         <div className="space-y-2 mt-2">
 
             <p className="text-[--muted]">
-                Seanime will open a new tab for each file you download. Make sure your browser allows popups.
+                Deus Ex Aeternae will open a new tab for each file you download. Make sure your browser allows popups.
             </p>
 
             <Separator />

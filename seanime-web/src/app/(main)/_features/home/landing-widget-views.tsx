@@ -87,7 +87,7 @@ export function LandingQuickLinksWidget({ visibleLinks }: { visibleLinks?: strin
             <div className="flex flex-wrap items-end justify-between gap-3 px-1">
                 <div>
                     <h2 className="text-2xl font-bold tracking-tight">Your folders</h2>
-                    <p className="mt-1 text-sm text-[--muted]">A tidy place for every part of Seanime.</p>
+                    <p className="mt-1 text-sm text-[--muted]">A tidy place for every part of Deus Ex Aeternae.</p>
                 </div>
                 {selectedFolder && (
                     <button

@@ -125,7 +125,7 @@ export const LANDING_QUICK_LINKS: LandingQuickLink[] = [
     { id: "extensions", name: "Extensions", description: "Manage extensions and plugins.", href: "/extensions" },
     { id: "sync", name: "Offline Sync", description: "Manage offline media and synchronization.", href: "/sync" },
     { id: "theme-manager", name: "Themes", description: "Choose and customize app themes.", href: "/theme-manager" },
-    { id: "settings", name: "Settings", description: "Configure Seanime.", href: "/settings" },
+    { id: "settings", name: "Settings", description: "Configure Deus Ex Aeternae.", href: "/settings" },
 ]
 
 export type LandingFolderConfig = {

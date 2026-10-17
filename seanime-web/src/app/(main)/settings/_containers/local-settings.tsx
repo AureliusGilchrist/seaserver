@@ -29,7 +29,7 @@ export function LocalSettings(props: Props) {
 
     const confirmDialog = useConfirmationDialog({
         title: "Upload to AniList",
-        description: "This will upload your local Seanime collection to your AniList account. Are you sure you want to proceed?",
+        description: "This will upload your local Deus Ex Aeternae collection to your AniList account. Are you sure you want to proceed?",
         actionText: "Upload",
         actionIntent: "primary",
         onConfirm: async () => {
@@ -42,13 +42,13 @@ export function LocalSettings(props: Props) {
 
             <SettingsPageHeader
                 title="Local Account"
-                description="Local anime and manga list managed by Seanime"
+                description="Local anime and manga list managed by Deus Ex Aeternae"
                 icon={LuUserCog}
             />
 
             <SettingsCard
                 title="AniList"
-                // description="You can upload your local Seanime collection to your AniList account."
+                // description="You can upload your local Deus Ex Aeternae collection to your AniList account."
             >
                 <div className={cn(serverStatus?.user?.isSimulated && "opacity-50 pointer-events-none")}>
                     <Field.Switch

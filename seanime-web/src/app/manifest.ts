@@ -4,8 +4,8 @@ export const dynamic = "force-static"
 
 export default function manifest(): MetadataRoute.Manifest {
     return {
-        name: "Seanime",
-        short_name: "Seanime",
+        name: "Deus Ex Aeternae",
+        short_name: "Deus Ex Aeternae",
         description:
             "Self-hosted, user-friendly media server for anime and manga.",
         start_url: "/",

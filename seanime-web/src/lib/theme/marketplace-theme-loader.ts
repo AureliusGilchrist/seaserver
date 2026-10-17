@@ -59,7 +59,7 @@ export async function fetchMarketplaceThemeMeta(themeId: string, opts?: { market
             // Themes installed from the marketplace are copied to the shared themes directory, which
             // is always served; the marketplace directory only exists when `marketplace.dir` is
             // configured. Without this fallback an installed theme resolved to nothing and the app
-            // quietly stayed on Seanime.
+            // quietly stayed on Deus Ex Aeternae.
             const base = getServerBaseUrl()
             const id = encodeURIComponent(themeId)
             const urls = [`${base}/shared-themes/${id}/theme.json`, `${base}/marketplace/themes/${id}/theme.json`]

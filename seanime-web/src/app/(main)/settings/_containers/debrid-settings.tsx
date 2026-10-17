@@ -145,7 +145,7 @@ export function DebridSettings(props: DebridSettingsProps) {
                                 side="right"
                                 name="streamAutoSelect"
                                 label="Enable"
-                                help="Let Seanime find the best torrent automatically, based on cache and resolution."
+                                help="Let Deus Ex Aeternae find the best torrent automatically, based on cache and resolution."
                             />
 
                             {/*{f.watch("streamAutoSelect") && f.watch("provider") === "torbox" && (*/}
@@ -161,7 +161,7 @@ export function DebridSettings(props: DebridSettingsProps) {
                             <Field.Select
                                 name="streamPreferredResolution"
                                 label="Preferred resolution"
-                                help="If auto-select is enabled, Seanime will try to find torrents with this resolution."
+                                help="If auto-select is enabled, Deus Ex Aeternae will try to find torrents with this resolution."
                                 options={[
                                     { label: "Highest", value: "-" },
                                     { label: "480p", value: "480" },

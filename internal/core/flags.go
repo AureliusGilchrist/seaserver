@@ -34,7 +34,7 @@ func GetSeanimeFlags() SeanimeFlags {
 			fmt.Printf("Usage: seanime [flags]\n\n")
 		}
 		fmt.Printf("Flags:\n")
-		fmt.Printf("  --datadir string              directory that contains all Seanime data\n")
+		fmt.Printf("  --datadir string              directory that contains all Deus Ex Aeternae data\n")
 		fmt.Printf("  --host string                 host address to bind to (default: 127.0.0.1)\n")
 		fmt.Printf("  --port int                    port to bind to (default: 43211)\n")
 		fmt.Printf("  --update                      update the application\n")
@@ -47,7 +47,7 @@ func GetSeanimeFlags() SeanimeFlags {
 		fmt.Printf("  -h                           show this help message\n")
 	}
 
-	flag.StringVar(&flags.DataDir, "datadir", "", "Directory that contains all Seanime data")
+	flag.StringVar(&flags.DataDir, "datadir", "", "Directory that contains all Deus Ex Aeternae data")
 	flag.StringVar(&flags.Host, "host", "", "Host address to bind to")
 	flag.IntVar(&flags.Port, "port", 0, "Port to bind to")
 	flag.BoolVar(&flags.Update, "update", false, "Update the application")

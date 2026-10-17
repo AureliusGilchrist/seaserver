@@ -283,7 +283,7 @@ export function AutoDownloaderPage() {
                                         {/*    side="right"*/}
                                         {/*    label="Use smart search queries"*/}
                                         {/*    name="enableEnhancedQueries"*/}
-                                        {/*    help="Seanime will use smart search queries for more targeted results, if the extension allows it."*/}
+                                        {/*    help="Deus Ex Aeternae will use smart search queries for more targeted results, if the extension allows it."*/}
                                         {/*/>*/}
                                         <Field.Switch
                                             side="right"

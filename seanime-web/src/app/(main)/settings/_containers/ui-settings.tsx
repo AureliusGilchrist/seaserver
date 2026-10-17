@@ -218,7 +218,7 @@ export function UISettings() {
             mRef={formRef}
             onSubmit={data => {
                 if (colord(data.backgroundColor).isLight()) {
-                    toast.error("Seanime does not support light themes")
+                    toast.error("Deus Ex Aeternae does not support light themes")
                     return
                 }
 
@@ -830,7 +830,7 @@ export function UISettings() {
                         {/*            side="right"*/}
                         {/*            label="Fix border rendering artifacts (client-specific)"*/}
                         {/*            name="enableMediaCardStyleFix"*/}
-                        {/*            help="Seanime will try to fix border rendering artifacts. This setting only affects this client/browser."*/}
+                        {/*            help="Deus Ex Aeternae will try to fix border rendering artifacts. This setting only affects this client/browser."*/}
                         {/*            value={fixBorderRenderingArtifacts}*/}
                         {/*            onValueChange={(v) => {*/}
                         {/*                setFixBorerRenderingArtifacts(v)*/}

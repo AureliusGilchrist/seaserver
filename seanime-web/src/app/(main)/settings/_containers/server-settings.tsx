@@ -42,7 +42,7 @@ export function ServerSettings(props: ServerSettingsProps) {
 
     const confirmDialog = useConfirmationDialog({
         title: "Upload to AniList",
-        description: "This will upload your local Seanime collection to your AniList account. Are you sure you want to proceed?",
+        description: "This will upload your local Deus Ex Aeternae collection to your AniList account. Are you sure you want to proceed?",
         actionText: "Upload",
         actionIntent: "primary",
         onConfirm: async () => {
@@ -84,7 +84,7 @@ export function ServerSettings(props: ServerSettingsProps) {
                     side="right"
                     name="enableWatchContinuity"
                     label="Enable watch history"
-                    help="If enabled, Seanime will remember your watch progress and resume from where you left off."
+                    help="If enabled, Deus Ex Aeternae will remember your watch progress and resume from where you left off."
                     moreHelp="Only applies to desktop and integrated players."
                 />
 
@@ -165,7 +165,7 @@ export function ServerSettings(props: ServerSettingsProps) {
                     side="right"
                     name="autoSaveCurrentMediaOffline"
                     label="Save all currently watched/read media for offline use"
-                    help="If enabled, Seanime will automatically save all media you're currently watching/reading for offline use."
+                    help="If enabled, Deus Ex Aeternae will automatically save all media you're currently watching/reading for offline use."
                 />
 
             </SettingsCard>
@@ -269,14 +269,14 @@ export function ServerSettings(props: ServerSettingsProps) {
                     side="right"
                     name="disableNotifications"
                     label="Disable system notifications"
-                    moreHelp="Notifications shown by the OS when Seanime runs the auto-downloader or auto-scanner."
+                    moreHelp="Notifications shown by the OS when Deus Ex Aeternae runs the auto-downloader or auto-scanner."
                 />
                 <Field.Switch
                     side="right"
                     name="disableCacheLayer"
                     label="Disable AniList caching"
-                    help="If enabled, Seanime will stop caching AniList requests to disk."
-                    moreHelp="By default, all requests made to AniList are cached. This allows Seanime to keep being usable when AniList goes down. The cache directory is modifiable in the config file."
+                    help="If enabled, Deus Ex Aeternae will stop caching AniList requests to disk."
+                    moreHelp="By default, all requests made to AniList are cached. This allows Deus Ex Aeternae to keep being usable when AniList goes down. The cache directory is modifiable in the config file."
                 />
                 {!f.watch("disableCacheLayer") && (
                     <div>
@@ -285,7 +285,7 @@ export function ServerSettings(props: ServerSettingsProps) {
                             onValueChange={v => toggleCacheLayer()}
                             disabled={isTogglingCacheLayer}
                             label="Use cache-only mode"
-                            moreHelp="Seanime will use cached data instead of making API requests."
+                            moreHelp="Deus Ex Aeternae will use cached data instead of making API requests."
                         />
                     </div>
                 )}
@@ -293,7 +293,7 @@ export function ServerSettings(props: ServerSettingsProps) {
                     side="right"
                     name="useFallbackMetadataProvider"
                     label="Use fallback metadata provider"
-                    help="If enabled, Seanime will use an alternative source to fetch episode metadata."
+                    help="If enabled, Deus Ex Aeternae will use an alternative source to fetch episode metadata."
                 />
                 {/*<Separator />*/}
                 {/*<Field.Switch*/}
@@ -312,7 +312,7 @@ export function ServerSettings(props: ServerSettingsProps) {
                     side="right"
                     name="disableUpdateCheck"
                     label="Do not check for updates"
-                    help="If enabled, Seanime will not check for new releases."
+                    help="If enabled, Deus Ex Aeternae will not check for new releases."
                 />
                 <Field.Select
                     label="Update Channel (Experimental)"
@@ -320,17 +320,17 @@ export function ServerSettings(props: ServerSettingsProps) {
                     help="Select the backend update channel."
                     options={[
                         { label: "GitHub (Default)", value: "github" },
-                        { label: "Seanime", value: "seanime" },
-                        { label: "Seanime (Canary)", value: "seanime_nightly" },
+                        { label: "Deus Ex Aeternae", value: "seanime" },
+                        { label: "Deus Ex Aeternae (Canary)", value: "seanime_nightly" },
                     ]}
                 />
                 {serverStatus?.settings?.library?.updateChannel === "seanime" && (
-                    <Alert intent="info" description="You are currently using a release channel hosted on Seanime." />
+                    <Alert intent="info" description="You are currently using a release channel hosted on Deus Ex Aeternae." />
                 )}
                 {serverStatus?.settings?.library?.updateChannel === "seanime_nightly" && (
                     <Alert
                         intent="warning"
-                        description="You are currently using the canary release channel hosted on Seanime. This channel may receive unstable updates without much testing."
+                        description="You are currently using the canary release channel hosted on Deus Ex Aeternae. This channel may receive unstable updates without much testing."
                     />
                 )}
             </SettingsCard>
@@ -474,7 +474,7 @@ function DesktopServerConnectionCard() {
     }
 
     return (
-        <SettingsCard title="Server Connection" description="Configure how Seanime Desktop connects.">
+        <SettingsCard title="Server Connection" description="Configure how Deus Ex Aeternae Desktop connects.">
             {!editing ? (
                 <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3 text-sm">

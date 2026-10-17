@@ -13,7 +13,7 @@ export function ServerAuth() {
     return (<>
         <Modal
             title="Password required"
-            description="This Seanime server requires authentication."
+            description="This Deus Ex Aeternae server requires authentication."
             open={true}
             onOpenChange={(v) => {}}
             overlayClass="bg-opacity-100 bg-gray-900"

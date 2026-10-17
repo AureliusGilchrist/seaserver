@@ -66,7 +66,7 @@ export default function Page() {
     React.useEffect(() => {
         try {
             if (displayTitle(mangaEntry?.media?.title)) {
-                document.title = `${displayTitle(mangaEntry?.media?.title)} | Seanime`
+                document.title = `${displayTitle(mangaEntry?.media?.title)} | Deus Ex Aeternae`
             }
         }
         catch {

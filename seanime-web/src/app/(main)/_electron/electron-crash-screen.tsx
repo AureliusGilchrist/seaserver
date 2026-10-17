@@ -27,7 +27,7 @@ export function ElectronCrashScreenError() {
 
             <Alert
                 intent="warning"
-                description="Make sure another instance of Seanime is not running."
+                description="Make sure another instance of Deus Ex Aeternae is not running."
             />
         </div>
     )

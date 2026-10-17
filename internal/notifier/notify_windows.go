@@ -21,7 +21,7 @@ func (n *Notifier) Notify(id Notification, message string) {
 		}
 
 		notification := toast.Notification{
-			AppID:   "Seanime",
+			AppID:   "Deus Ex Aeternae",
 			Title:   string(id),
 			Message: message,
 			Icon:    n.logoPath,

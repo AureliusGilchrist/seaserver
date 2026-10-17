@@ -735,7 +735,7 @@ export default function ThemeManagerPage() {
                 {activeMarketplaceTab === "installed" && (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
 
-                        {/* Seanime (built-in) */}
+                        {/* Deus Ex Aeternae (built-in) */}
                         <button
                             onClick={() => setThemeId("seanime")}
                             className={cn(
@@ -760,7 +760,7 @@ export default function ThemeManagerPage() {
                                 {themeId === "seanime" && <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[--color-brand-400] shadow-lg" />}
                                 {/* Title overlay */}
                                 <div className="absolute inset-x-0 bottom-0 p-2.5">
-                                    <p className="text-xs font-semibold truncate text-white drop-shadow-md">Seanime</p>
+                                    <p className="text-xs font-semibold truncate text-white drop-shadow-md">Deus Ex Aeternae</p>
                                 </div>
                             </div>
                         </button>

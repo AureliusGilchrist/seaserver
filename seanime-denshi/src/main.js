@@ -782,7 +782,7 @@ function createTray() {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Seanime server
+// Deus Ex Aeternae server
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 async function launchSeanimeServer(isRestart) {
@@ -1010,7 +1010,7 @@ async function launchSeanimeServer(isRestart) {
                 // show crash screen
                 if (crashScreen && !crashScreen.isDestroyed()) {
                     crashScreen.show()
-                    crashScreen.webContents.send("crash", `Seanime server process terminated with status: ${code}. Closing in 10 seconds.`)
+                    crashScreen.webContents.send("crash", `Deus Ex Aeternae server process terminated with status: ${code}. Closing in 10 seconds.`)
 
                     setTimeout(() => {
                         app.exit(1)

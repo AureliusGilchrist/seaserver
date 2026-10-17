@@ -643,7 +643,7 @@ export function ExtensionPlayground(props: ExtensionPlaygroundProps) {
                                                         {selectedFunction === Functions.MangaProviderSearch && (
                                                             <>
                                                                 <Alert intent="info">
-                                                                    Seanime will automatically select the best match based on the manga titles.
+                                                                    Deus Ex Aeternae will automatically select the best match based on the manga titles.
                                                                 </Alert>
                                                             </>
                                                         )}
@@ -719,7 +719,7 @@ export function ExtensionPlayground(props: ExtensionPlaygroundProps) {
                                                         {selectedFunction === Functions.OnlinestreamSearch && (
                                                             <>
                                                                 <Alert intent="info" className="text-sm">
-                                                                    Seanime will automatically select the best match based on the anime titles.
+                                                                    Deus Ex Aeternae will automatically select the best match based on the anime titles.
                                                                 </Alert>
 
                                                                 <Switch

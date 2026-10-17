@@ -89,7 +89,7 @@ export function UnknownMediaManager(props: UnknownMediaManagerProps) {
             <AppLayoutStack className="mt-4">
 
                 <p className="">
-                    Seanime matched {unknownGroups.length} group{unknownGroups.length === 1 ? "" : "s"} to {unknownGroups.length === 1 ? "a " : ""}series
+                    Deus Ex Aeternae matched {unknownGroups.length} group{unknownGroups.length === 1 ? "" : "s"} to {unknownGroups.length === 1 ? "a " : ""}series
                     that {unknownGroups.length === 1
                     ? "is"
                     : "are"} absent from your

@@ -50,7 +50,7 @@ func PrintHeader() {
 		// Background(secondary).
 		Padding(0, 1).
 		Bold(true).
-		Render("Seanime")
+		Render("Deus Ex Aeternae")
 
 	versionBox := lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder()).

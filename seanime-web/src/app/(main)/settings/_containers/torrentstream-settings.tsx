@@ -127,13 +127,13 @@ export function TorrentstreamSettings(props: TorrentstreamSettingsProps) {
                                 side="right"
                                 name="autoSelect"
                                 label="Enable"
-                                help="Let Seanime find the best torrent automatically."
+                                help="Let Deus Ex Aeternae find the best torrent automatically."
                             />
 
                             <Field.Select
                                 name="preferredResolution"
                                 label="Preferred resolution"
-                                help="If auto-select is enabled, Seanime will try to find torrents with this resolution."
+                                help="If auto-select is enabled, Deus Ex Aeternae will try to find torrents with this resolution."
                                 options={[
                                     { label: "Highest", value: "-" },
                                     { label: "480p", value: "480" },
@@ -155,7 +155,7 @@ export function TorrentstreamSettings(props: TorrentstreamSettingsProps) {
                         {/*    help="Keep completely downloaded files in corresponding library entries."*/}
                         {/*/>*/}
 
-                        {/* <SettingsCard title="Torrent Client" description="Seanime uses a built-in torrent client to download torrents.">
+                        {/* <SettingsCard title="Torrent Client" description="Deus Ex Aeternae uses a built-in torrent client to download torrents.">
 
                          </SettingsCard> */}
 

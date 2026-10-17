@@ -9,9 +9,14 @@
  *   • internal/constants/constants.go ← versions["seaserver"].version + codename
  *                                        versions["rooms"].version
  *
- * Run:  node sync-versions.js
+ * Run:  node sync-versions.js [--bump]
  * The script is also wired into the "predev" / "prebuild" hooks of each
  * package.json so it runs automatically before any dev or build command.
+ *
+ * --bump  Before propagating, auto-increment the trailing build number of the
+ *         seaserver version ("5.0.0-0" → "5.0.0-1") in versions.json itself, so
+ *         every build reports a version newer than the last. Build scripts pass
+ *         this flag; dev runs must not, to keep the tree clean.
  */
 
 import { readFileSync, writeFileSync } from "fs"
@@ -21,8 +26,39 @@ import { fileURLToPath } from "url"
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = __dirname
 
+// Serialize preserving the file's dominant line ending, so rewrites don't churn
+// every line of a CRLF file into LF (or vice versa) in git diffs.
+function serialize(obj, indent, absPath) {
+    const original = readFileSync(absPath, "utf8")
+    const eol = (original.match(/\r\n/g)?.length ?? 0) > (original.match(/(?<!\r)\n/g)?.length ?? 0) ? "\r\n" : "\n"
+    return JSON.stringify(obj, null, indent).replace(/\n/g, eol) + eol
+}
+
 // ── 1. Load the manifest ────────────────────────────────────────────────────
 const manifest = JSON.parse(readFileSync(resolve(root, "versions.json"), "utf8"))
+
+const BUMP = process.argv.includes("--bump")
+
+// --bump: increment the trailing build number of the seaserver version
+// ("5.0.0-0" → "5.0.0-1") and write the manifest back before propagating.
+// Only the seaserver (server binary) version bumps — the web and denshi
+// packages keep their own versions.
+if (BUMP) {
+    const seaserver = manifest["seaserver"]
+    if (seaserver?.version) {
+        const m = seaserver.version.match(/^(.*?)-(\d+)$/)
+        if (m) {
+            const old = seaserver.version
+            seaserver.version = `${m[1]}-${Number(m[2]) + 1}`
+            manifest["lastUpdated"] = new Date().toISOString().slice(0, 10)
+            writeFileSync(resolve(root, "versions.json"),
+                serialize(manifest, 4, resolve(root, "versions.json")))
+            console.log(`  [bump]  seaserver version: ${old} → ${seaserver.version}`)
+        } else {
+            console.log(`  [bump]  seaserver version "${seaserver.version}" has no -N suffix; leaving it untouched`)
+        }
+    }
+}
 
 const webVersion    = manifest["seanime-web"]?.version
 const denshiVersion = manifest["seanime-denshi"]?.version
@@ -40,9 +76,9 @@ function patchPackageJson(relPath, newVersion) {
     }
     const old = pkg.version
     pkg.version = newVersion
-    // Preserve trailing newline and 2-space indent used in each file
+    // Preserve trailing newline, indentation and line endings used in each file
     const indent = relPath.includes("seanime-web") ? 4 : 2
-    writeFileSync(absPath, JSON.stringify(pkg, null, indent) + "\n")
+    writeFileSync(absPath, serialize(pkg, indent, absPath))
     console.log(`  [patch] ${relPath}: ${old} → ${newVersion}`)
 }
 

@@ -234,6 +234,14 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
 
 # -- 1. Frontend -------------------------------------------
 
+# Auto-increment the seaserver build version (versions.json) so every build is
+# newer than the last; the prebuild hooks then propagate it to both packages.
+Invoke-BuildStep '0.4' 'Bump build version' {
+    SubStep 'node sync-versions.js --bump'
+    node (Join-Path $ScriptDir 'sync-versions.js') --bump
+    if ($LASTEXITCODE -ne 0) { throw 'version bump failed' }
+}
+
 Invoke-BuildStep '1.1' 'Frontend dependencies (seanime-web)' -Dir $WebDir {
     Install-NpmDependencies
 }

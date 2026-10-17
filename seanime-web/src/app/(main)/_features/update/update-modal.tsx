@@ -102,7 +102,7 @@ export function UpdateModal(props: UpdateModalProps) {
 
                     {serverStatus?.isDesktopSidecar && <Alert
                         intent="info"
-                        description="Update Seanime from the desktop application."
+                        description="Update Deus Ex Aeternae from the desktop application."
                     />}
 
                     <UpdateChangelogBody updateData={updateData} />
@@ -113,11 +113,11 @@ export function UpdateModal(props: UpdateModalProps) {
                                 Update now
                             </Button>}
                             contentClass="max-w-xl"
-                            title={<span>Update Seanime</span>}
+                            title={<span>Update Deus Ex Aeternae</span>}
                         >
                             <div className="space-y-4">
                                 <p>
-                                    Seanime will perform an update by downloading and replacing existing files.
+                                    Deus Ex Aeternae will perform an update by downloading and replacing existing files.
                                     Refer to the documentation for more information.
                                 </p>
                                 <Button className="w-full" onClick={handleInstallUpdate} disabled={isPending}>

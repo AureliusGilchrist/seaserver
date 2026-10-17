@@ -16,7 +16,7 @@ import { toast } from "sonner"
 
 // export const __debridstream_stateAtom = atom<DebridClient_StreamState | null>({
 //     status: "downloading",
-//     torrentName: "[Seanime] Some Anime - S01E03.mkv",
+//     torrentName: "[Deus Ex Aeternae] Some Anime - S01E03.mkv",
 //     message: "Downloading torrent...",
 // })
 

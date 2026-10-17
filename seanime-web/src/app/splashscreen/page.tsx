@@ -233,7 +233,7 @@ export default function Page() {
                 />
                 <TextGenerateEffect className="text-lg text-[--muted] mb-8" words="S e a n i m e" />
 
-                <p className="text-sm text-gray-400 mb-6">How would you like to run Seanime?</p>
+                <p className="text-sm text-gray-400 mb-6">How would you like to run Deus Ex Aeternae?</p>
 
                 <div className="flex gap-4 mb-6">
                     {/* Local Server Card */}
@@ -257,7 +257,7 @@ export default function Page() {
                         <LuGlobe className="text-3xl text-gray-300 group-hover:text-white transition-colors" />
                         <span className="font-semibold text-sm">Remote Server <span className="text-sky-300">(Default)</span></span>
                         <span className="text-xs text-gray-500 text-center leading-relaxed">
-                            Connect to a Seanime server on your network
+                            Connect to a Deus Ex Aeternae server on your network
                         </span>
                     </button>
                 </div>

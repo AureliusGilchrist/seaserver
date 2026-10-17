@@ -652,7 +652,7 @@ export function VideoCoreSettingsMenu() {
                                 onClick={() => {
                                     openInExplorer({ path: upath.normalize(`${serverStatus?.dataDir}/assets`) })
                                 }}
-                            >Seanime assets directory</span>. The file name must match
+                            >Deus Ex Aeternae assets directory</span>. The file name must match
                                 the font name exactly.
                             </p>
                             <div className="space-y-2">

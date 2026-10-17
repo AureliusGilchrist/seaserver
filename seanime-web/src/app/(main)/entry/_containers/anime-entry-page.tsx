@@ -109,7 +109,7 @@ export function AnimeEntryPage() {
         if (!animeEntry) return
         try {
             if (displayTitle(animeEntry?.media?.title)) {
-                document.title = `${displayTitle(animeEntry?.media?.title)} | Seanime`
+                document.title = `${displayTitle(animeEntry?.media?.title)} | Deus Ex Aeternae`
             }
             // switchedView.current = false
         }

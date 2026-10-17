@@ -48,7 +48,7 @@ export function DiscordRichPresenceSettings(props: DiscordRichPresenceSettingsPr
                 <Field.Switch
                     side="right"
                     name="richPresenceHideSeanimeRepositoryButton"
-                    label="Hide Seanime Repository Button"
+                    label="Hide Deus Ex Aeternae Repository Button"
                 />
 
                 {/*<Field.Switch*/}
@@ -70,7 +70,7 @@ export function DiscordRichPresenceSettings(props: DiscordRichPresenceSettingsPr
                 {/*    name="richPresenceUseMediaTitleStatus"*/}
                 {/*    label={<span className="flex gap-2 items-center">Use Media Title as Status <LuTriangleAlert className="text-[--orange]" /></span>}*/}
                 {/*    moreHelp="Does not work with the default Discord Desktop Client."*/}
-                {/*    help="Replace 'Seanime' with the media title in the activity status. Only works if you use a discord client that utilizes arRPC."*/}
+                {/*    help="Replace 'Deus Ex Aeternae' with the media title in the activity status. Only works if you use a discord client that utilizes arRPC."*/}
                 {/*/>*/}
             </SettingsCard>
         </>

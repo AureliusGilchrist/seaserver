@@ -154,7 +154,7 @@ export default function Page() {
                                 <div className="space-y-4 rounded-[--radius] ">
                                     <div>
                                         <p className="text-[--muted]">
-                                            Seanime successfully scanned {selectedSummary.groups?.length} media
+                                            Deus Ex Aeternae successfully scanned {selectedSummary.groups?.length} media
                                             {debouncedSearchQuery.trim() && (
                                                 <span className="ml-2 text-sm">({filteredGroups.length} matching)</span>
                                             )}

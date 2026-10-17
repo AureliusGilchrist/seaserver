@@ -12,7 +12,7 @@ export const dynamic = "force-static"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-    title: "Seanime",
+    title: "Deus Ex Aeternae",
     description: "Self-hosted, user-friendly media server for anime and manga.",
     icons: {
         icon: "/deus-ex-aeternae-emblem.svg",
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     appleWebApp: {
         capable: true,
         statusBarStyle: "black-translucent",
-        title: "Seanime",
+        title: "Deus Ex Aeternae",
     },
     formatDetection: {
         telephone: false,
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
         "mobile-web-app-capable": "yes",
         "apple-mobile-web-app-capable": "yes",
         "apple-mobile-web-app-status-bar-style": "black-translucent",
-        "apple-mobile-web-app-title": "Seanime",
+        "apple-mobile-web-app-title": "Deus Ex Aeternae",
     },
 }
 

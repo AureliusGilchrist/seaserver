@@ -232,7 +232,7 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
                 <img src="/deus-ex-aeternae-emblem.svg" alt="Deus ex Aeternae" className="size-14" />
             </div>
             <p className="text-center text-lg">
-                Seanime is currently updating. Refresh the page once the update is complete and the connection has been reestablished.
+                Deus Ex Aeternae is currently updating. Refresh the page once the update is complete and the connection has been reestablished.
             </p>
         </div>
     }
@@ -477,7 +477,7 @@ function ProfileAniListGate(props: {
                         ? <p className="text-[--warning] font-medium">{expiredNotice}</p>
                         : <>
                             <p className="text-[--muted]">
-                                This profile needs its own AniList account linked before it can continue using Seanime.
+                                This profile needs its own AniList account linked before it can continue using Deus Ex Aeternae.
                             </p>
                             <p className="text-xs text-[--muted]">Your AniList account is personal to this profile and won't be shared with others.</p>
                         </>
