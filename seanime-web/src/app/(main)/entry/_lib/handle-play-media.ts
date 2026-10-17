@@ -108,13 +108,8 @@ export function useHandlePlayMedia() {
 
         logger("PLAY MEDIA").info("Playing media file", path)
 
-        //
-        // Electron native player
-        //
-        if (__isElectronDesktop__ && (
-            (!forcePlaybackMethod && electronPlaybackMethod === ElectronPlaybackMethod.NativePlayer) ||
-            (forcePlaybackMethod && forcePlaybackMethod === "nativeplayer")
-        )) {
+        // Forced native player (explicit per-play choice) always wins
+        if (__isElectronDesktop__ && forcePlaybackMethod && forcePlaybackMethod === "nativeplayer") {
             directstreamPlayLocalFile({ path, clientId: clientId ?? "" })
             return
         }
@@ -137,7 +132,8 @@ export function useHandlePlayMedia() {
             return
         }
 
-        // Handle media streaming (transcoding/direct play)
+        // Handle media streaming (transcoding/direct play) — the local player is the default
+        // for local files, ahead of the Electron native player.
         if (serverStatus?.mediastreamSettings?.transcodeEnabled && mediastreamActiveOnDevice) {
             setMediastreamFilePath(path)
             // From the anime page, play inline in the Local Player tab
@@ -148,6 +144,12 @@ export function useHandlePlayMedia() {
             React.startTransition(() => {
                 router.push(`/mediastream?id=${mediaId}`)
             })
+            return
+        }
+
+        // Electron native player (when the local player is unavailable)
+        if (__isElectronDesktop__ && (!forcePlaybackMethod && electronPlaybackMethod === ElectronPlaybackMethod.NativePlayer)) {
+            directstreamPlayLocalFile({ path, clientId: clientId ?? "" })
             return
         }
 

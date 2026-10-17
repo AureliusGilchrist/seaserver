@@ -1,5 +1,5 @@
 import { getServerBaseUrl } from "@/api/client/server-url"
-import { Anime_Episode, Mediastream_StreamType, MKVParser_ChapterInfo, MKVParser_Metadata, MKVParser_TrackInfo, Nullish } from "@/api/generated/types"
+import { Anime_Episode, Mediastream_StreamType, MKVParser_AttachmentInfo, MKVParser_ChapterInfo, MKVParser_Metadata, MKVParser_TrackInfo, Nullish } from "@/api/generated/types"
 import { useHandleCurrentMediaContinuity } from "@/api/hooks/continuity.hooks"
 import { useGetMediastreamSettings, useMediastreamShutdownTranscodeStream, useRequestMediastreamMediaContainer } from "@/api/hooks/mediastream.hooks"
 import { usePlaylistManager } from "@/app/(main)/_features/playlists/_containers/global-playlist-manager"
@@ -247,12 +247,6 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
         })) || []
     }, [mediaContainer?.mediaInfo?.chapters])
 
-    // Pre-resolve font URLs for the subtitle manager
-    const fontUrls = React.useMemo<string[]>(() => {
-        if (!mediaContainer?.mediaInfo?.fonts?.length) return []
-        return mediaContainer.mediaInfo.fonts.map(name => `${getServerBaseUrl()}/api/v1/mediastream/att/${mediastreamSessionId}/${name}`)
-    }, [mediaContainer?.mediaInfo?.fonts, mediastreamSessionId])
-
     // Determine VideoCore stream type
     const vcStreamType = React.useMemo<string>(() => {
         if (!url) return "unknown"
@@ -260,12 +254,31 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
         return "native"
     }, [url, mediaContainer?.streamType])
 
+    // Map mediastream fonts → MKV attachment infos so the subtitle manager loads them the
+    // same way it does for native MKV playback (fetch + validate + feed libass). The fetch
+    // URL rides along as `_srcUrl`: the subtitle manager defaults to the directstream
+    // attachment endpoint, which doesn't serve mediastream fonts.
+    // Without these, embedded fonts never reached the renderer and ASS tracks referencing
+    // them rendered with the default font (or not at all).
+    const fontAttachments = React.useMemo<MKVParser_AttachmentInfo[]>(() => {
+        if (!mediaContainer?.mediaInfo?.fonts?.length) return []
+        return mediaContainer.mediaInfo.fonts.map((name, i) => ({
+            uid: i,
+            filename: name,
+            mimetype: "",
+            size: 0,
+            type: "font" as const,
+            ...(name ? { _srcUrl: `${getServerBaseUrl()}/api/v1/mediastream/att/${mediastreamSessionId}/${name}` } : {}),
+        } as MKVParser_AttachmentInfo & { _srcUrl?: string }))
+    }, [mediaContainer?.mediaInfo?.fonts, mediastreamSessionId])
+
     // Synthesize MKV metadata from mediastream MediaInfo for AudioManager
     const mkvMetadata = React.useMemo<MKVParser_Metadata | undefined>(() => {
         const audios = mediaContainer?.mediaInfo?.audios
         const chapterList = mediaContainer?.mediaInfo?.chapters
+        const fonts = fontAttachments
 
-        if (!audios?.length && !chapterList?.length) return undefined
+        if (!audios?.length && !chapterList?.length && !fonts.length) return undefined
 
         const audioTracks: MKVParser_TrackInfo[] = (audios ?? []).map((audio) => ({
             number: audio.index,
@@ -291,8 +304,9 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
             timecodeScale: 1000000,
             audioTracks: audioTracks,
             chapters: chapters.length > 0 ? chapters : undefined,
+            attachments: fonts.length > 0 ? fonts : undefined,
         }
-    }, [mediaContainer?.mediaInfo?.audios, mediaContainer?.mediaInfo?.duration, mediaContainer?.mediaInfo?.chapters])
+    }, [mediaContainer?.mediaInfo?.audios, mediaContainer?.mediaInfo?.duration, mediaContainer?.mediaInfo?.chapters, fontAttachments])
 
     // Build the VideoCore playback info
     const playbackInfo = React.useMemo<VideoCore_VideoPlaybackInfo | null>(() => {
@@ -310,11 +324,8 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
             streamType: vcStreamType,
         }
 
-        // Attach pre-resolved font URLs for subtitle manager
-        ;(info as any)._mediastreamFontUrls = fontUrls
-
         return info
-    }, [url, episode, mediaId, filePath, subtitleTracks, vcStreamType, fontUrls, mkvMetadata, mediaContainer?.streamType])
+    }, [url, episode, mediaId, filePath, subtitleTracks, vcStreamType, mkvMetadata, mediaContainer?.streamType])
 
     // Build the lifecycle state
     const lifecycleState = React.useMemo<VideoCoreLifecycleState>(() => ({

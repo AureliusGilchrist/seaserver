@@ -5,10 +5,12 @@ import { SeaMediaPlayerProvider } from "@/app/(main)/_features/sea-media-player/
 import { VideoCoreInlineLayout } from "@/app/(main)/_features/video-core/video-core-inline-helpers"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { MediastreamVideoCore } from "@/app/(main)/mediastream/_lib/mediastream-videocore"
+import { MediastreamPlaybackInfo } from "@/app/(main)/mediastream/_lib/mediastream-playback-info"
 import { useMediastreamActiveOnDevice, useMediastreamCurrentFile } from "@/app/(main)/mediastream/_lib/mediastream.atoms"
 import { useMediastreamVideoCore } from "@/app/(main)/mediastream/_lib/use-mediastream-videocore"
 import { Alert } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PluginEpisodeGridItemMenuItems } from "@/app/(main)/_features/plugin/actions/plugin-actions"
 import React from "react"
 
 type LocalEpisodes = NonNullable<Anime_Entry["episodes"]>
@@ -87,6 +89,8 @@ function LocalPlayerActive({ entry, episodes }: { entry: Anime_Entry, episodes: 
         handleTerminateStream,
         handleChangeStreamType,
         mediaContainer,
+        isCodecSupported,
+        disabledAutoSwitchToDirectPlay,
     } = useMediastreamVideoCore({ episodes, mediaId: entry.mediaId })
 
     // progressNumber is the AniList-facing number (may differ from episodeNumber for specials/batches)
@@ -107,6 +111,14 @@ function LocalPlayerActive({ entry, episodes }: { entry: Anime_Entry, episodes: 
                 hideBackButton
                 currentEpisodeNumber={currentEpisode?.episodeNumber ?? null}
                 episodes={episodes}
+                rightHeaderActions={
+                    <MediastreamPlaybackInfo
+                        mediaContainer={mediaContainer}
+                        isCodecSupported={isCodecSupported}
+                        handleChangeStreamType={handleChangeStreamType}
+                        disabledAutoSwitchToDirectPlay={disabledAutoSwitchToDirectPlay}
+                    />
+                }
                 mediaPlayer={
                     <MediastreamVideoCore
                         lifecycleState={lifecycleState}
@@ -158,7 +170,7 @@ function LocalEpisodeList({ entry, episodes, selectedPath, onPlay }: LocalEpisod
                 episodeNumber={episode.episodeNumber}
                 watchedProgress={progress}
                 progressNumber={episode.progressNumber}
-                action={
+                action={<>
                     <MediaEpisodeInfoModal
                         title={episode.displayTitle}
                         image={episode.episodeMetadata?.image}
@@ -169,7 +181,9 @@ function LocalEpisodeList({ entry, episodes, selectedPath, onPlay }: LocalEpisod
                         isInvalid={episode.isInvalid}
                         filename={episode.localFile?.parsedInfo?.original}
                     />
-                }
+
+                    <PluginEpisodeGridItemMenuItems isDropdownMenu={true} type="mediastream" episode={episode} />
+                </>}
             />
         ))}
     </>

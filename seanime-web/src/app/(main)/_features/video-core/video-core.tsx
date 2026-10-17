@@ -1326,7 +1326,13 @@ export function VideoCore(props: VideoCoreProps) {
         if (subtitleManagerPlaybackKeyRef.current !== subtitlePlaybackKey) {
             subtitleManagerPlaybackKeyRef.current = subtitlePlaybackKey
             const nonLibassSubtitleTracks = state.playbackInfo.subtitleTracks?.filter(t => !t.useLibassRenderer)
-            if (nonLibassSubtitleTracks && nonLibassSubtitleTracks.length > 0) {
+            const hasLibassSubtitleTracks = state.playbackInfo.subtitleTracks?.some(t => t.useLibassRenderer)
+            // The subtitle manager handles every track type — ASS/SSA through libass and the rest
+            // (srt/vtt) through the server's convert-to-ASS flow — so it must be used whenever ANY
+            // libass track exists. Picking MediaCaptionsManager for a mixed ASS+SRT source used to
+            // silently drop every ASS track, and the subtitle manager's own constructor used to
+            // drop the text tracks, leaving half the file's captions unavailable either way.
+            if (nonLibassSubtitleTracks && nonLibassSubtitleTracks.length > 0 && !hasLibassSubtitleTracks) {
                 subtitleManager?.destroy()
                 setSubtitleManager(null)
                 mediaCaptionsManager?.destroy()

@@ -5,20 +5,14 @@ import { MediaEntryPageSmallBanner } from "@/app/(main)/_features/media/_compone
 import { MediaEpisodeInfoModal } from "@/app/(main)/_features/media/_components/media-episode-info-modal"
 import { SeaMediaPlayerLayout } from "@/app/(main)/_features/sea-media-player/sea-media-player-layout"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
-import { useMediastreamCurrentFile, useMediastreamJassubOffscreenRender } from "@/app/(main)/mediastream/_lib/mediastream.atoms"
+import { useMediastreamCurrentFile } from "@/app/(main)/mediastream/_lib/mediastream.atoms"
 import { useMediastreamVideoCore } from "@/app/(main)/mediastream/_lib/use-mediastream-videocore"
 import { MediastreamVideoCore } from "@/app/(main)/mediastream/_lib/mediastream-videocore"
-import { Alert } from "@/components/ui/alert"
+import { MediastreamPlaybackInfo } from "@/app/(main)/mediastream/_lib/mediastream-playback-info"
 import { AppLayoutStack } from "@/components/ui/app-layout"
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Modal } from "@/components/ui/modal"
-import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
-import { uniq } from "lodash"
 import { useRouter, useSearchParams } from "@/lib/navigation"
 import React from "react"
-import { BiInfoCircle } from "react-icons/bi"
 import { PluginEpisodeGridItemMenuItems } from "../_features/plugin/actions/plugin-actions"
 import { SeaMediaPlayerProvider } from "../_features/sea-media-player/sea-media-player-provider"
 
@@ -66,8 +60,6 @@ export default function Page() {
         handleChangeStreamType,
         disabledAutoSwitchToDirectPlay,
     } = useMediastreamVideoCore({ episodes, mediaId })
-
-    const { jassubOffscreenRender, setJassubOffscreenRender } = useMediastreamJassubOffscreenRender()
 
     const episodeNumber = React.useMemo(() => {
         return episodes.find(ep => !!ep.localFile?.path && ep.localFile?.path === filePath)?.episodeNumber || -1
@@ -123,87 +115,12 @@ export default function Page() {
                     title={animeEntry?.media?.title?.userPreferred}
                     episodes={episodes}
                     rightHeaderActions={<>
-                        <div className="">
-                            <Modal
-                                title="Playback"
-                                trigger={
-                                    <Button leftIcon={<BiInfoCircle />} className="rounded-full" intent="gray-basic" size="sm">
-                                        Playback info
-                                    </Button>
-                                }
-                                contentClass="sm:rounded-3xl"
-                            >
-                                <div className="space-y-2">
-                                    <p className="tracking-wide text-sm text-[--muted] break-all">
-                                        {mediaContainer?.mediaInfo?.path}
-                                    </p>
-                                    {isCodecSupported(mediaContainer?.mediaInfo?.mimeCodec || "") ? <Alert
-                                        intent="success"
-                                        description="File video and audio codecs are compatible with this client. Direct play is recommended."
-                                    /> : <Alert
-                                        intent="warning"
-                                        description="File video and audio codecs are not compatible with this client. Transcoding is needed."
-                                    />}
-
-                                    <p>
-                                        <span className="font-bold">Video codec: </span>
-                                        <span>{mediaContainer?.mediaInfo?.video?.mimeCodec}</span>
-                                    </p>
-                                    <p>
-                                        <span className="font-bold">Audio codec: </span>
-                                        <span>{uniq(mediaContainer?.mediaInfo?.audios?.map(n => n.mimeCodec)).join(", ")}</span>
-                                    </p>
-
-                                    <Modal
-                                        title="Playback"
-                                        trigger={
-                                            <Button size="sm" className="rounded-full" intent="gray-outline">
-                                                More data
-                                            </Button>
-                                        }
-                                        contentClass="max-w-3xl"
-                                    >
-                                        <pre className="overflow-x-auto overflow-y-auto max-h-[calc(100dvh-300px)] whitespace-pre-wrap p-2 rounded-[--radius-md] bg-gray-900">
-                                            {JSON.stringify(mediaContainer, null, 2)}
-                                        </pre>
-                                    </Modal>
-
-                                    <Separator />
-
-                                    <p className="font-semibold text-lg">
-                                        Jassub
-                                    </p>
-
-                                    <Checkbox
-                                        label="Offscreen rendering"
-                                        value={jassubOffscreenRender}
-                                        onValueChange={v => setJassubOffscreenRender(v as boolean)}
-                                        help="Enable this if you are experiencing performance issues"
-                                    />
-
-                                    <Separator />
-
-                                    {(mediaContainer?.streamType === "direct") &&
-                                        <div className="space-y-2">
-                                            <Button
-                                                intent="primary-subtle"
-                                                onClick={() => handleChangeStreamType("transcode")}
-                                                disabled={!disabledAutoSwitchToDirectPlay}
-                                            >
-                                                Switch to transcoding
-                                            </Button>
-                                            {!disabledAutoSwitchToDirectPlay && <p className="text-[--muted] text-sm italic opacity-50">
-                                                Enable 'prefer transcoding' in the media streaming settings if you want to switch to transcoding
-                                            </p>}
-                                        </div>}
-
-                                    {(mediaContainer?.streamType === "transcode" && isCodecSupported(mediaContainer?.mediaInfo?.mimeCodec || "")) &&
-                                        <Button intent="success-subtle" onClick={() => handleChangeStreamType("direct")}>
-                                            Switch to direct play
-                                        </Button>}
-                                </div>
-                            </Modal>
-                        </div>
+                        <MediastreamPlaybackInfo
+                            mediaContainer={mediaContainer}
+                            isCodecSupported={isCodecSupported}
+                            handleChangeStreamType={handleChangeStreamType}
+                            disabledAutoSwitchToDirectPlay={disabledAutoSwitchToDirectPlay}
+                        />
                     </>}
                     mediaPlayer={
                         <MediastreamVideoCore

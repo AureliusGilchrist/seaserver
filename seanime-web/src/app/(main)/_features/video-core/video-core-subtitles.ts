@@ -1,5 +1,5 @@
 import { getServerBaseUrl } from "@/api/client/server-url"
-import { MKVParser_SubtitleEvent, MKVParser_TrackInfo } from "@/api/generated/types"
+import { MKVParser_AttachmentInfo, MKVParser_SubtitleEvent, MKVParser_TrackInfo } from "@/api/generated/types"
 import { VideoCorePgsRenderer } from "@/app/(main)/_features/video-core/video-core-pgs-renderer"
 import { vc_getSubtitleStyle } from "@/app/(main)/_features/video-core/video-core-settings-menu"
 import { PerMediaTrackOverride, VideoCore_VideoPlaybackInfo, VideoCore_VideoSubtitleTrack, VideoCoreSettings } from "@/app/(main)/_features/video-core/video-core.atoms"
@@ -249,20 +249,22 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
 
         /*
          * File Tracks
+         *
+         * Every track is registered, not just the libass ones: a source mixing ASS and SRT
+         * tracks used to lose whichever half the other manager didn't take. Non-ASS tracks
+         * are fetched and converted to ASS on selection (_handleFileTrack), same as before.
          */
         if (this.playbackInfo?.subtitleTracks) {
             let trackNumber = 1000
             for (const track of this.playbackInfo.subtitleTracks) {
-                if (track.useLibassRenderer) {
-                    this.fileTracks[trackNumber] = {
-                        info: {
-                            ...track,
-                            index: trackNumber,
-                        },
-                        content: null,
-                    }
-                    trackNumber++
+                this.fileTracks[trackNumber] = {
+                    info: {
+                        ...track,
+                        index: trackNumber,
+                    },
+                    content: null,
                 }
+                trackNumber++
             }
         }
 
@@ -435,15 +437,18 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
 
                 // Keyed by attachment filename (stable across episodes of a series, while
                 // the URL changes per stream) so fonts already in the shared renderer are
-                // neither refetched nor re-added.
+                // neither refetched nor re-added. An attachment may carry its own `_srcUrl`
+                // (mediastream synthesized metadata points at its att endpoint; the
+                // directstream default below wouldn't serve those fonts).
                 const fontEntries = [
                     { key: defaultFontUrl, url: defaultFontUrl },
                     ...(this.playbackInfo.mkvMetadata?.attachments?.filter(a => a.type === "font")
                         ?.map(a => ({
                             key: `att:${a.filename}`,
-                            url: `${getServerBaseUrl()}/api/v1/directstream/att/${a.filename}?id=${this.playbackInfo.id}${this.hmacToken.replace(
-                                /^\?/,
-                                "&")}`,
+                            url: (a as MKVParser_AttachmentInfo & { _srcUrl?: string })._srcUrl
+                                || `${getServerBaseUrl()}/api/v1/directstream/att/${a.filename}?id=${this.playbackInfo.id}${this.hmacToken.replace(
+                                    /^\?/,
+                                    "&")}`,
                         })) || []),
                 ]
 
