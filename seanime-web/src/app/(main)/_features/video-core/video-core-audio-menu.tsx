@@ -10,12 +10,14 @@ import { VideoCoreControlButtonIcon } from "@/app/(main)/_features/video-core/vi
 import { HlsAudioTrack, vc_hlsAudioTracks, vc_hlsCurrentAudioTrack } from "@/app/(main)/_features/video-core/video-core-hls"
 import { VideoCoreMenu, VideoCoreMenuBody, VideoCoreMenuTitle, VideoCoreSettingSelect } from "@/app/(main)/_features/video-core/video-core-menu"
 import { vc_dispatchAction } from "@/app/(main)/_features/video-core/video-core.utils"
+import { vc_saveTrackOverride } from "@/app/(main)/_features/video-core/video-core.atoms"
+import { saveLocalTrackOverride } from "@/app/(main)/_features/video-core/video-core-track-preferences"
 import { useAtomValue } from "jotai"
 import { useSetAtom } from "jotai/react"
 import React from "react"
 import { LuHeadphones } from "react-icons/lu"
 
-export function VideoCoreAudioMenu() {
+export function VideoCoreAudioMenu({ mediaId }: { mediaId?: number }) {
     const action = useSetAtom(vc_dispatchAction)
     const isMiniPlayer = useAtomValue(vc_miniPlayer)
     const state = useAtomValue(nativePlayer_stateAtom)
@@ -23,6 +25,9 @@ export function VideoCoreAudioMenu() {
     const videoElement = useAtomValue(vc_videoElement)
     const isFullscreen = useAtomValue(vc_isFullscreen)
     const containerElement = useAtomValue(vc_containerElement)
+    // Per-series audio preference: mirrors the subtitle menu's persist pattern (local +
+    // server write-through) so a manually chosen audio track carries across episodes.
+    const saveTrackOverride = useAtomValue(vc_saveTrackOverride)
     const [selectedTrack, setSelectedTrack] = React.useState<number | null>(null)
 
     // Get MKV audio tracks
@@ -103,6 +108,30 @@ export function VideoCoreAudioMenu() {
                     onValueChange={(value: number) => {
                         audioManager?.selectTrack(value)
                         action({ type: "seek", payload: { time: -1 } })
+
+                        // Persist the choice per-series so it is re-applied on every other episode
+                        // of the same media.
+                        const persist = (override: Parameters<NonNullable<typeof saveTrackOverride>>[1]) => {
+                            if (mediaId == null) {
+                                console.error("[VideoCore] Cannot persist audio choice without a media ID")
+                                return
+                            }
+                            saveLocalTrackOverride(mediaId, override)
+                            if (saveTrackOverride) saveTrackOverride(String(mediaId), override)
+                            else console.warn("[VideoCore] Server track-preference sync is not ready; saved locally")
+                        }
+
+                        const track = audioTracks?.find(t => isHls
+                            ? (t as HlsAudioTrack).id === value
+                            : (t as MKVParser_TrackInfo).number === value)
+                        if (track) {
+                            persist(isHls
+                                ? { audioLanguage: (track as HlsAudioTrack).language }
+                                : {
+                                    audioLanguage: (track as MKVParser_TrackInfo).language || (track as MKVParser_TrackInfo).languageIETF,
+                                    audioCodecID: (track as MKVParser_TrackInfo).codecID,
+                                })
+                        }
                     }}
                     value={selectedTrack || 0}
                 />

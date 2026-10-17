@@ -1,6 +1,7 @@
 import { HlsAudioTrack } from "@/app/(main)/_features/video-core/video-core-hls"
-import { VideoCore_VideoPlaybackInfo, VideoCoreSettings } from "@/app/(main)/_features/video-core/video-core.atoms"
+import { VideoCore_VideoPlaybackInfo, VideoCoreSettings, PerMediaTrackOverride } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { logger } from "@/lib/helpers/debug"
+import { trackMatchesLanguage } from "@/lib/helpers/language"
 
 const audioLog = logger("AUDIO")
 
@@ -23,6 +24,8 @@ export class VideoCoreAudioManager extends EventTarget {
     private readonly hlsSetAudioTrack: ((trackId: number) => void) | null = null
     private readonly hlsAudioTracks: HlsAudioTrack[] = []
     private hlsCurrentAudioTrack: number = -1
+    // Per-media (per-series) audio preference
+    private readonly preferredTrackOverride?: PerMediaTrackOverride
 
     constructor({
         videoElement,
@@ -32,6 +35,7 @@ export class VideoCoreAudioManager extends EventTarget {
         hlsSetAudioTrack,
         hlsAudioTracks,
         hlsCurrentAudioTrack,
+        preferredTrackOverride,
     }: {
         videoElement: HTMLVideoElement
         settings: VideoCoreSettings
@@ -40,6 +44,7 @@ export class VideoCoreAudioManager extends EventTarget {
         hlsSetAudioTrack?: ((trackId: number) => void) | null
         hlsAudioTracks?: HlsAudioTrack[]
         hlsCurrentAudioTrack?: number
+        preferredTrackOverride?: PerMediaTrackOverride
     }) {
         super()
         this.videoElement = videoElement
@@ -48,6 +53,7 @@ export class VideoCoreAudioManager extends EventTarget {
         this.hlsSetAudioTrack = hlsSetAudioTrack || null
         this.hlsAudioTracks = hlsAudioTracks || []
         this.hlsCurrentAudioTrack = hlsCurrentAudioTrack ?? -1
+        this.preferredTrackOverride = preferredTrackOverride
 
         // Check if we're dealing with HLS audio tracks
         const isHls = this.hlsSetAudioTrack !== null && this.hlsAudioTracks.length > 0
@@ -127,27 +133,40 @@ export class VideoCoreAudioManager extends EventTarget {
 
     __selectDefaultEventTrack() {
         // Event based track selection
-        // Split preferred languages by comma and trim whitespace
+
+        // 1. Try per-media override first
+        if (this.preferredTrackOverride?.audioLanguage) {
+            const overrideLang = this.preferredTrackOverride.audioLanguage
+            const foundTracks = this.playbackInfo.mkvMetadata?.audioTracks?.filter?.(t => trackMatchesLanguage({ language: t.language || t.languageIETF, label: t.name }, overrideLang))
+            if (foundTracks?.length) {
+                // Prioritize codec match if specified in override
+                const codecMatch = this.preferredTrackOverride.audioCodecID
+                    ? foundTracks.find(t => t.codecID === this.preferredTrackOverride?.audioCodecID)
+                    : undefined
+                const track = codecMatch || foundTracks[0]
+                this.selectTrack(track.number)
+                return
+            }
+        }
+
+        // 2. Try global preferred languages
         const preferredLanguages = this.settings.preferredAudioLanguage
             .split(",")
             .map(lang => lang.trim())
             .filter(lang => lang.length > 0)
 
-        // Try each preferred language in order
         for (const preferredLang of preferredLanguages) {
-            const foundTracks = this.playbackInfo.mkvMetadata?.audioTracks?.filter?.(t => (t.language || "eng") === preferredLang)
+            const foundTracks = this.playbackInfo.mkvMetadata?.audioTracks?.filter?.(t => trackMatchesLanguage({ language: t.language || t.languageIETF, label: t.name }, preferredLang))
             if (foundTracks?.length) {
-                // Find default track
                 const defaultIndex = foundTracks.findIndex(t => t.default)
                 this.selectTrack(foundTracks[defaultIndex >= 0 ? defaultIndex : 0].number)
                 return
             }
         }
 
-        // No preferred tracks found, look for default or forced tracks
+        // 3. No preferred tracks found, look for default or forced tracks
         const defaultOrForcedTracks = this.playbackInfo.mkvMetadata?.audioTracks?.filter?.(t => t.default || t.forced)
         if (defaultOrForcedTracks?.length) {
-            // Prioritize default tracks over forced tracks
             const defaultIndex = defaultOrForcedTracks.findIndex(t => t.default)
             this.selectTrack(defaultOrForcedTracks[defaultIndex >= 0 ? defaultIndex : 0].number)
             return
@@ -206,15 +225,25 @@ export class VideoCoreAudioManager extends EventTarget {
     __selectDefaultHlsTrack() {
         if (!this.hlsSetAudioTrack || !this.isHlsStream()) return
 
-        // Split preferred languages by comma and trim whitespace
+        // 1. Try per-media override first
+        if (this.preferredTrackOverride?.audioLanguage) {
+            const overrideLang = this.preferredTrackOverride.audioLanguage
+            const foundTrack = this.hlsAudioTracks.find(t => trackMatchesLanguage({ language: t.language, label: t.name }, overrideLang))
+            if (foundTrack) {
+                audioLog.info("Selecting preferred HLS audio track (override)", foundTrack)
+                this.hlsSetAudioTrack(foundTrack.id)
+                return
+            }
+        }
+
+        // 2. Try global preferred languages
         const preferredLanguages = this.settings.preferredAudioLanguage
             .split(",")
             .map(lang => lang.trim())
             .filter(lang => lang.length > 0)
 
-        // Try each preferred language in order
         for (const preferredLang of preferredLanguages) {
-            const foundTrack = this.hlsAudioTracks.find(t => (t.language || "eng") === preferredLang)
+            const foundTrack = this.hlsAudioTracks.find(t => trackMatchesLanguage({ language: t.language, label: t.name }, preferredLang))
             if (foundTrack) {
                 audioLog.info("Selecting preferred HLS audio track", foundTrack)
                 this.hlsSetAudioTrack(foundTrack.id)
@@ -222,7 +251,7 @@ export class VideoCoreAudioManager extends EventTarget {
             }
         }
 
-        // No preferred track found, look for default track
+        // 3. No preferred track found, look for default track
         const defaultTrack = this.hlsAudioTracks.find(t => t.default)
         if (defaultTrack) {
             audioLog.info("Selecting default HLS audio track", defaultTrack)

@@ -635,7 +635,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                                 onHlsQualityChange={onHlsQualityChange}
                             />
                             <VideoCoreSubtitleMenu inline={inline} mediaId={state.playbackInfo?.media?.id} />
-                            <VideoCoreAudioMenu />
+                            <VideoCoreAudioMenu mediaId={state.playbackInfo?.media?.id} />
                             <VideoCoreCastButton />
                             <VideoCorePipButton />
                             <VideoCoreFullscreenButton />
@@ -652,7 +652,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                                     onHlsQualityChange={onHlsQualityChange}
                                 />
                                 <VideoCoreSubtitleMenu inline={inline} mediaId={state.playbackInfo?.media?.id} />
-                                <VideoCoreAudioMenu />
+                                <VideoCoreAudioMenu mediaId={state.playbackInfo?.media?.id} />
                                 <VideoCoreCastButton />
                                 <VideoCorePipButton />
                                 <VideoCoreVolumeButton />
@@ -1400,6 +1400,10 @@ export function VideoCore(props: VideoCoreProps) {
         }
 
         // Initialize audio manager for HLS streams
+        const preferredTrackOverride = state.playbackInfo?.media?.id != null
+            ? getLocalTrackOverride(state.playbackInfo.media.id) ?? perMediaTrackOverrides[String(state.playbackInfo.media.id)]
+            : undefined
+
         if (hlsAudioTracks.length > 0 && hlsSetAudioTrack) {
             setAudioManager(new VideoCoreAudioManager({
                 videoElement: v!,
@@ -1412,6 +1416,7 @@ export function VideoCore(props: VideoCoreProps) {
                 hlsSetAudioTrack: hlsSetAudioTrack,
                 hlsAudioTracks: hlsAudioTracks,
                 hlsCurrentAudioTrack: hlsCurrentAudioTrack,
+                preferredTrackOverride,
             }))
         } else if (!!state.playbackInfo?.mkvMetadata) {
             setAudioManager(new VideoCoreAudioManager({
@@ -1422,6 +1427,7 @@ export function VideoCore(props: VideoCoreProps) {
                     log.error("Audio manager error", error)
                     onError?.(error)
                 },
+                preferredTrackOverride,
             }))
         }
 
