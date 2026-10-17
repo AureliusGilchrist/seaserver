@@ -51,6 +51,43 @@ async function fetchFontData(url: string, cacheKey: string = url): Promise<Uint8
     return data
 }
 
+// Subtitle files are extracted in the background on the server right after a stream starts
+// (mediastream caches the media container immediately so playback can begin, and extracts
+// attachments afterwards). A track auto-selected during that window — e.g. the saved
+// per-series caption being re-applied on the next episode — can hit a 404/500 (or an empty
+// file) before extraction finishes; re-selecting the same track seconds later works, which
+// is why the auto-applied selection used to silently leave the episode without subtitles.
+// Retry with backoff so auto-applied selections survive the extraction window. External URLs
+// (hotlink-protected CDNs) are fetched once: their failures are permanent, not a race.
+async function fetchSubtitleTextWithRetry(
+    url: string,
+    isCancelled: () => boolean,
+): Promise<string> {
+    const maxAttempts = url.includes("/api/v1/") ? 8 : 1
+    let lastStatus: number | string = "network error"
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        if (isCancelled()) throw new Error("Track selection changed")
+        if (attempt > 0) {
+            await new Promise(resolve => setTimeout(resolve, Math.min(500 * attempt, 2000)))
+        }
+        try {
+            const res = await fetch(url)
+            if (res.ok) {
+                const text = await res.text()
+                if (text.trim().length > 0) return text
+                lastStatus = "empty response"
+            }
+            else {
+                lastStatus = `HTTP ${res.status}`
+            }
+        }
+        catch {
+            lastStatus = "network error"
+        }
+    }
+    throw new Error(`Subtitle track unavailable (${lastStatus})`)
+}
+
 // One JASSUB instance (worker + WASM + loaded fonts) shared across subtitle managers.
 //
 // The manager is destroyed and recreated on every episode transition, and a fresh JASSUB
@@ -731,7 +768,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         // If it is, fetch/convert the content and add it to the libass renderer
         const fileTrack = this.fileTracks[trackNumber]
         if (fileTrack) {
-            this._handleFileTrack(trackNumber, fileTrack)
+            await this._handleFileTrack(trackNumber, fileTrack)
             return
         }
 
@@ -1555,11 +1592,17 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             return
         }
 
+        // A track load can take a while (retries while the server extracts subtitle files in
+        // the background); if the user picked another track in the meantime, or the manager was
+        // torn down on an episode transition, this load must not clobber the newer selection.
+        const isStale = () => this.isDestroyed || this.currentTrackNumber !== trackNumber
+
         // If content is already loaded, use it
         if (!!fileTrack.content) {
+            if (isStale()) return
             subtitleLog.info("Using cached converted content for track", trackNumber)
             await this._replaceLibassTrack(fileTrack.content)
-            if (this.isDestroyed) return
+            if (isStale()) return
             await this._applySubtitleCustomization()
             await this.libassRenderer?.resize?.()?.catch?.(e => subtitleLog.warn("Failed to resize libass renderer", e))
             this.pgsRenderer?.resize()
@@ -1575,19 +1618,18 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 // not be cached as the track's content
                 let content = fileTrack.info.content || ""
                 if (fileTrack.info.src) {
-                    const res = await fetch(fileTrack.info.src)
-                    if (!res.ok) throw new Error(`Subtitle track unavailable (HTTP ${res.status})`)
-                    content = await res.text()
+                    content = await fetchSubtitleTextWithRetry(fileTrack.info.src, isStale)
                 }
-                if (this.isDestroyed) return
+                if (isStale()) return
                 this.fileTracks[trackNumber].content = content // cache it
                 await this._replaceLibassTrack(content)
-                if (this.isDestroyed) return
+                if (isStale()) return
                 await this._applySubtitleCustomization()
                 await this.libassRenderer?.resize?.()
                 this.pgsRenderer?.resize()
             }
             catch (error) {
+                if (this.isDestroyed || this.currentTrackNumber !== trackNumber) return
                 subtitleLog.error("Error fetching subtitle content", error)
                 toast.error("Failed to load subtitle track")
             }
@@ -1601,28 +1643,40 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 // through the video proxy transport and fails in confusing ways — surfacing as
                 // "failed to detect subtitle format from content".
                 if (url && url.includes("/api/v1/mediastream/subs/")) {
-                    const res = await fetch(url)
-                    if (!res.ok) throw new Error(`Subtitle track unavailable (HTTP ${res.status})`)
-                    content = await res.text()
+                    content = await fetchSubtitleTextWithRetry(url, isStale)
                     url = undefined
                 }
-                const assContent = await this.fetchAndConvertToASS(url, content, fileTrack.info.headers)
-                if (!assContent || this.isDestroyed) return
+                let assContent = await this.fetchAndConvertToASS(url, content, fileTrack.info.headers)
+                if (!assContent && !isStale()) {
+                    // The conversion endpoint can transiently fail while the stream is warming
+                    // up; give it one more shot before surfacing the error.
+                    subtitleLog.warning("Subtitle conversion returned nothing, retrying once")
+                    await new Promise(resolve => setTimeout(resolve, 1500))
+                    if (isStale()) return
+                    const retried = await this.fetchAndConvertToASS(url, content, fileTrack.info.headers)
+                    if (retried) {
+                        assContent = retried
+                    }
+                }
+                if (!assContent || isStale()) throw new Error("Subtitle conversion failed")
 
                 // Cache the converted content
                 this.fileTracks[trackNumber].content = assContent
                 subtitleLog.info("Loading converted ASS content")
                 await this._replaceLibassTrack(assContent)
-                if (this.isDestroyed) return
+                if (isStale()) return
                 await this._applySubtitleCustomization()
                 await this.libassRenderer?.resize?.()
                 this.pgsRenderer?.resize()
             }
             catch (error) {
+                if (this.isDestroyed || this.currentTrackNumber !== trackNumber) return
                 subtitleLog.error("Error loading track", error)
                 toast.error("Failed to load subtitle track: " + error)
             }
         }
+
+        if (isStale()) return
 
         const selectedEvent: SubtitleManagerTrackSelectedEvent = new CustomEvent("trackselected", { detail: { trackNumber, kind: "file" } })
         this.dispatchEvent(selectedEvent)

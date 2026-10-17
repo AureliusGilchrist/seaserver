@@ -261,12 +261,26 @@ export class MediaCaptionsManager extends EventTarget {
         if (this.renderer) {
             if (!track.loaded) {
                 log.info("Loading track", index)
-                const res = await track.loadFn()
+                // The server extracts subtitle files in the background right after a stream
+                // starts; a track auto-selected during that window (e.g. the saved per-series
+                // caption being re-applied on the next episode) can fail before extraction
+                // finishes. Retry before giving up, and don't cache the failure — re-selecting
+                // the track must refetch rather than keep showing an empty track.
+                let res: ParsedCaptionsResult | null = null
+                for (let attempt = 0; attempt < 3 && !res; attempt++) {
+                    if (attempt > 0) await new Promise(resolve => setTimeout(resolve, 1500))
+                    try {
+                        res = (await track.loadFn()) ?? null
+                    }
+                    catch {
+                        res = null
+                    }
+                }
                 if (res) {
                     track.cues = res.cues
                     track.regions = res.regions
+                    track.loaded = true
                 }
-                track.loaded = true
             }
             this.renderer.changeTrack({
                 cues: track.cues,

@@ -37,9 +37,9 @@ export function VideoCoreAudioMenu({ mediaId }: { mediaId?: number }) {
     const hlsAudioTracks = useAtomValue(vc_hlsAudioTracks)
     const hlsCurrentAudioTrack = useAtomValue(vc_hlsCurrentAudioTrack)
 
-    // Determine which audio tracks to use
-    const audioTracks = mkvAudioTracks || (hlsAudioTracks.length > 0 ? hlsAudioTracks : null)
-    const isHls = !mkvAudioTracks && hlsAudioTracks.length > 0
+    // Determine which audio tracks to use based on whether the manager is HLS-backed
+    const isHls = audioManager?.isHLS ?? false
+    const audioTracks = isHls ? hlsAudioTracks : mkvAudioTracks
 
     function onAudioChange() {
         setSelectedTrack(audioManager?.getSelectedTrackNumberOrNull?.() ?? null)
