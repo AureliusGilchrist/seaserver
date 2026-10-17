@@ -1949,7 +1949,8 @@ export function VideoCore(props: VideoCoreProps) {
         const { x, y } = e.nativeEvent
         const dx = x - lastPointerPosition.current.x
         const dy = y - lastPointerPosition.current.y
-        if (Math.abs(dx) < 15 && Math.abs(dy) < 15) return
+        // Any movement at all brings the cursor back; only complete stillness lets it vanish.
+        if (dx === 0 && dy === 0) return
         if (setNotBusyTimeout.current) {
             clearTimeout(setNotBusyTimeout.current)
         }

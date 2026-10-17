@@ -30981,6 +30981,17 @@
         "required": false,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "ImdbId",
+        "jsonName": "imdbId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": [
+          " IMDb id of the series the episode belongs to"
+        ]
       }
     ],
     "comments": []
@@ -57406,6 +57417,234 @@
     "comments": []
   },
   {
+    "filepath": "../internal/handlers/kitsu.go",
+    "filename": "kitsu.go",
+    "name": "KitsuAnimeInfo",
+    "formattedName": "KitsuAnimeInfo",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Found",
+        "jsonName": "found",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Slug",
+        "jsonName": "slug",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "URL",
+        "jsonName": "url",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CanonicalTitle",
+        "jsonName": "canonicalTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Titles",
+        "jsonName": "titles",
+        "goType": "map[string]string",
+        "typescriptType": "Record\u003cstring, string\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Synopsis",
+        "jsonName": "synopsis",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Subtype",
+        "jsonName": "subtype",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AgeRating",
+        "jsonName": "ageRating",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AgeRatingGuide",
+        "jsonName": "ageRatingGuide",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AverageRating",
+        "jsonName": "averageRating",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UserCount",
+        "jsonName": "userCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FavoritesCount",
+        "jsonName": "favoritesCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PopularityRank",
+        "jsonName": "popularityRank",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RatingRank",
+        "jsonName": "ratingRank",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StartDate",
+        "jsonName": "startDate",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EndDate",
+        "jsonName": "endDate",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EpisodeCount",
+        "jsonName": "episodeCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EpisodeLength",
+        "jsonName": "episodeLength",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalLength",
+        "jsonName": "totalLength",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "YoutubeVideoID",
+        "jsonName": "youtubeVideoId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PosterImage",
+        "jsonName": "posterImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CoverImage",
+        "jsonName": "coverImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " KitsuAnimeInfo is supplementary metadata for an anime pulled from Kitsu."
+    ]
+  },
+  {
     "filepath": "../internal/handlers/mal.go",
     "filename": "mal.go",
     "name": "MalAuthResponse",
@@ -63892,6 +64131,17 @@
         "public": true,
         "comments": [
           " Episode rating out of 10, when the metadata source provides one"
+        ]
+      },
+      {
+        "name": "ImdbId",
+        "jsonName": "imdbId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": [
+          " IMDb id of the series the episode belongs to"
         ]
       }
     ],
@@ -75903,8 +76153,8 @@
         "comments": []
       },
       {
-        "name": "chapterUpdateCheckTimes",
-        "jsonName": "chapterUpdateCheckTimes",
+        "name": "chapterUpdateNextCheckAt",
+        "jsonName": "chapterUpdateNextCheckAt",
         "goType": "map[string]time.Time",
         "typescriptType": "Record\u003cstring, string\u003e",
         "usedStructName": "time.Time",

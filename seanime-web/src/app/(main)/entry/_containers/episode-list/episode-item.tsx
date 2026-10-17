@@ -3,6 +3,7 @@ import { AL_BaseAnime, Anime_Episode, Anime_LocalFileType } from "@/api/generate
 import { useUpdateLocalFileData } from "@/api/hooks/localfiles.hooks"
 import { useExternalPlayerLink } from "@/app/(main)/_atoms/playback.atoms"
 import { EpisodeGridItem } from "@/app/(main)/_features/anime/_components/episode-grid-item"
+import { EpisodeRatingStars } from "@/app/(main)/_features/anime/_components/episode-rating-stars"
 import { PluginEpisodeGridItemMenuItems } from "@/app/(main)/_features/plugin/actions/plugin-actions"
 import { useServerHMACAuth } from "@/app/(main)/_hooks/use-server-status"
 import { SeaImage } from "@/components/shared/sea-image"
@@ -306,10 +307,21 @@ export function EpisodeItemInfoModalButton({ episode }: { episode: Anime_Episode
                 {episode.episodeTitle?.replaceAll("`", "'")}
                 {episode.isInvalid && <AiFillWarning />}
             </p>
-            <p className="text-[--muted]">
-                {episode.episodeMetadata?.airDate || "Unknown airing date"} - {episode.episodeMetadata?.length || "N/A"} minutes
-                {!!episode.episodeMetadata?.rating && ` - ★ ${episode.episodeMetadata.rating.toFixed(1)} rating`}
-            </p>
+            {!!episode.episodeMetadata?.rating && episode.episodeMetadata.rating > 0 && (
+                <div className="flex items-center gap-2" data-episode-details-rating>
+                    <EpisodeRatingStars rating={episode.episodeMetadata.rating} />
+                    <span className="text-sm text-amber-300/90 font-medium">{episode.episodeMetadata.rating.toFixed(1)}/10</span>
+                </div>
+            )}
+            <div className="space-y-1 text-[--muted] text-sm" data-episode-details-metadata>
+                <p>
+                    <span className="opacity-75">Aired:</span> {episode.episodeMetadata?.airDate || "Unknown"}
+                </p>
+                <p>
+                    <span className="opacity-75">Duration:</span> {episode.episodeMetadata?.length ? `${episode.episodeMetadata.length} minutes` : "N/A"}
+                </p>
+                {!!episode.episodeMetadata?.isFiller && <p className="text-orange-300/80">Filler episode</p>}
+            </div>
             <p className="text-gray-300">
                 {(episode.episodeMetadata?.summary || episode.episodeMetadata?.overview)?.replaceAll("`", "'")
                     ?.replace(/source:.*/gi, "") || "No summary"}
@@ -319,15 +331,23 @@ export function EpisodeItemInfoModalButton({ episode }: { episode: Anime_Episode
                 {episode.localFile?.parsedInfo?.original}
             </p>
             {
-                (!!episode.episodeMetadata?.anidbId) && <>
-                    <div className="w-full flex gap-2">
-                        <p>AniDB Episode: {episode.fileMetadata?.aniDBEpisode}</p>
-                        <a
-                            href={"https://anidb.net/episode/" + episode.episodeMetadata?.anidbId + "#layout-footer"}
+                (!!episode.episodeMetadata?.anidbId || !!episode.episodeMetadata?.imdbId) && <>
+                    <div className="w-full flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                        {!!episode.episodeMetadata?.anidbId && <>
+                            <p>AniDB Episode: {episode.fileMetadata?.aniDBEpisode}</p>
+                            <a
+                                href={"https://anidb.net/episode/" + episode.episodeMetadata?.anidbId + "#layout-footer"}
+                                target="_blank"
+                                className="hover:underline text-[--muted]"
+                            >Open on AniDB
+                            </a>
+                        </>}
+                        {!!episode.episodeMetadata?.imdbId && <a
+                            href={"https://www.imdb.com/title/" + episode.episodeMetadata.imdbId}
                             target="_blank"
                             className="hover:underline text-[--muted]"
-                        >Open on AniDB
-                        </a>
+                        >Open on IMDb
+                        </a>}
                     </div>
                 </>
             }

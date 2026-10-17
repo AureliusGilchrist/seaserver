@@ -71,6 +71,12 @@ func GetCacheKey(from string, id int) string {
 
 // FetchAniZipMedia fetches anizip.Media from the AniZip API.
 func FetchAniZipMedia(from string, id int) (*Media, error) {
+	return FetchAniZipMediaWithClient(from, id, http.DefaultClient)
+}
+
+// FetchAniZipMediaWithClient is FetchAniZipMedia with a caller-supplied HTTP client,
+// so callers can enforce their own timeout.
+func FetchAniZipMediaWithClient(from string, id int, client *http.Client) (*Media, error) {
 
 	// Event
 	reqEvent := &AnizipMediaRequestedEvent{
@@ -94,7 +100,7 @@ func FetchAniZipMedia(from string, id int) (*Media, error) {
 	apiUrl := "https://api.ani.zip/v1/episodes?" + from + "_id=" + strconv.Itoa(id)
 
 	// Send an HTTP GET request
-	response, err := http.Get(apiUrl)
+	response, err := client.Get(apiUrl)
 	if err != nil {
 		return nil, err
 	}

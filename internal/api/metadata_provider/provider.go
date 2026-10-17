@@ -15,6 +15,7 @@ import (
 	"seanime/internal/util"
 	"seanime/internal/util/filecache"
 	"seanime/internal/util/result"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -323,6 +324,11 @@ func (p *ProviderImpl) fetchAnimeMetadata(platform metadata.Platform, mId int) (
 			}
 			ret.Episodes[key] = em
 		}
+
+		// Animap doesn't carry per-episode ratings or the IMDb id, so pull them from
+		// AniZip when they're missing. Best-effort: a failed fetch leaves the animap
+		// data untouched.
+		p.enrichRatingsFromAnizip(platform, mId, ret)
 	}
 
 	// Event
@@ -467,6 +473,7 @@ func (p *ProviderImpl) AnizipFallback(platform metadata.Platform, mId int) (ret 
 			AnidbEid:              ep.AnidbEid,
 			HasImage:              ep.Image != "",
 			Rating:                parseEpisodeRating(ep.Rating),
+			ImdbId:                anizipMedia.Mappings.ImdbID,
 		}
 		if em.Length == 0 && ep.Length > 0 {
 			em.Length = ep.Length
@@ -534,4 +541,62 @@ func parseEpisodeRating(s string) float64 {
 		return 0
 	}
 	return v
+}
+
+// anizipEnrichClient is a dedicated client with a hard timeout so a slow AniZip
+// response never stalls metadata fetching.
+var anizipEnrichClient = &http.Client{Timeout: 8 * time.Second}
+
+// enrichRatingsFromAnizip fills in per-episode ratings (and the series' IMDb id)
+// from AniZip when the primary metadata source didn't provide them. AniZip is the
+// only source in the provider that carries both, and the animap path never does.
+// Failures are logged at debug level and ignored — the enriched fields are a bonus,
+// not a prerequisite, for the animap metadata to be usable.
+func (p *ProviderImpl) enrichRatingsFromAnizip(platform metadata.Platform, mId int, m *metadata.AnimeMetadata) {
+	if m == nil || len(m.Episodes) == 0 {
+		return
+	}
+
+	// Skip the fetch when the source already provided ratings for every episode.
+	needsRating := false
+	for _, ep := range m.Episodes {
+		if ep != nil && ep.Rating <= 0 {
+			needsRating = true
+			break
+		}
+	}
+	if !needsRating && m.Mappings != nil && m.Mappings.ImdbId != "" {
+		return
+	}
+
+	anizipMedia, err := anizip.FetchAniZipMediaWithClient(string(platform), mId, anizipEnrichClient)
+	if err != nil || anizipMedia == nil {
+		p.logger.Debug().Err(err).Int("mediaId", mId).Msg("metadata_provider: Failed to enrich ratings from AniZip")
+		return
+	}
+
+	if m.Mappings != nil && m.Mappings.ImdbId == "" && anizipMedia.Mappings != nil {
+		m.Mappings.ImdbId = anizipMedia.Mappings.ImdbID
+	}
+
+	// Stamp the series-level IMDb id onto each episode so it reaches the client
+	// through the per-episode metadata.
+	if m.Mappings != nil && m.Mappings.ImdbId != "" {
+		for _, ep := range m.Episodes {
+			if ep != nil && ep.ImdbId == "" {
+				ep.ImdbId = m.Mappings.ImdbId
+			}
+		}
+	}
+
+	for key, ep := range m.Episodes {
+		if ep == nil || ep.Rating > 0 {
+			continue
+		}
+		anizipEp, found := anizipMedia.Episodes[key]
+		if !found {
+			continue
+		}
+		ep.Rating = parseEpisodeRating(anizipEp.Rating)
+	}
 }

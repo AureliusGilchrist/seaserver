@@ -42,6 +42,7 @@ type (
 		HasImage bool    `json:"hasImage,omitempty"` // Indicates if the episode has a real image
 		Title    string  `json:"title,omitempty"`
 		Rating   float64 `json:"rating,omitempty"` // Episode rating out of 10, when the metadata source provides one
+		ImdbId   string  `json:"imdbId,omitempty"` // IMDb id of the series the episode belongs to
 	}
 )
 
@@ -281,6 +282,7 @@ func NewEpisodeMetadata(
 	md.HasImage = epMetadata.HasImage
 	md.Title = epMetadata.Title
 	md.Rating = epMetadata.Rating // Default to false
+	md.ImdbId = epMetadata.ImdbId
 
 	return md
 }

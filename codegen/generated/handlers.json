@@ -4570,6 +4570,52 @@
     }
   },
   {
+    "name": "isSelfHostedSubtitleURL",
+    "trimmedName": "isSelfHostedSubtitleURL",
+    "comments": [
+      "isSelfHostedSubtitleURL reports whether the subtitle URL points at this server itself —",
+      "the mediastream extracted-subtitle endpoint the frontend hands back to convert-subs.",
+      "Matched by loopback hostnames and by the exact Host header the request arrived with, so",
+      "LAN-IP deployments are covered too.",
+      ""
+    ],
+    "filepath": "internal/handlers/directstream.go",
+    "filename": "directstream.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "fetchSelfHostedSubtitle",
+    "trimmedName": "fetchSelfHostedSubtitle",
+    "comments": [
+      "fetchSelfHostedSubtitle fetches a subtitle from this server with a plain client — no proxy",
+      "transport, no referer games.",
+      ""
+    ],
+    "filepath": "internal/handlers/directstream.go",
+    "filename": "directstream.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleDirectstreamPlayLocalFile",
     "trimmedName": "DirectstreamPlayLocalFile",
     "comments": [
@@ -7255,6 +7301,49 @@
       "returns": "bool",
       "returnGoType": "bool",
       "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetKitsuAnimeInfo",
+    "trimmedName": "GetKitsuAnimeInfo",
+    "comments": [
+      "HandleGetKitsuAnimeInfo",
+      "",
+      "\t@summary returns supplementary metadata for an anime from Kitsu.",
+      "\t@desc This queries the Kitsu API using the anime's MAL ID. Returns found=false when there is no match.",
+      "\t@param id - int - true - \"The MyAnimeList ID\"",
+      "\t@returns handlers.KitsuAnimeInfo",
+      "\t@route /api/v1/kitsu/anime/{id} [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu.go",
+    "filename": "kitsu.go",
+    "api": {
+      "summary": "returns supplementary metadata for an anime from Kitsu.",
+      "descriptions": [
+        "This queries the Kitsu API using the anime's MAL ID. Returns found=false when there is no match."
+      ],
+      "endpoint": "/api/v1/kitsu/anime/{id}",
+      "methods": [
+        "GET"
+      ],
+      "params": [
+        {
+          "name": "id",
+          "jsonName": "id",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": [
+            "The MyAnimeList ID"
+          ]
+        }
+      ],
+      "bodyFields": [],
+      "returns": "handlers.KitsuAnimeInfo",
+      "returnGoType": "handlers.KitsuAnimeInfo",
+      "returnTypescriptType": "KitsuAnimeInfo"
     }
   },
   {

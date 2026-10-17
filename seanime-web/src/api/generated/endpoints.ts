@@ -581,18 +581,6 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/anime-themes/{id}",
         },
     },
-    KITSU: {
-        /**
-         *  @description
-         *  Route returns supplementary metadata for an anime from Kitsu.
-         *  This queries the Kitsu API using the anime's MAL ID. Returns found=false when there is no match.
-         */
-        GetKitsuAnimeInfo: {
-            key: "KITSU-get-kitsu-anime-info",
-            methods: ["GET"],
-            endpoint: "/api/v1/kitsu/anime/{id}",
-        },
-    },
     AUTH: {
         /**
          *  @description
@@ -1559,6 +1547,18 @@ export const API_ENDPOINTS = {
             key: "FILECACHE-clear-file-cache-mediastream-video-files",
             methods: ["DELETE"],
             endpoint: "/api/v1/filecache/mediastream/videofiles",
+        },
+    },
+    KITSU: {
+        /**
+         *  @description
+         *  Route returns supplementary metadata for an anime from Kitsu.
+         *  This queries the Kitsu API using the anime's MAL ID. Returns found=false when there is no match.
+         */
+        GetKitsuAnimeInfo: {
+            key: "KITSU-get-kitsu-anime-info",
+            methods: ["GET"],
+            endpoint: "/api/v1/kitsu/anime/{id}",
         },
     },
     KITSU_COLLECTION: {

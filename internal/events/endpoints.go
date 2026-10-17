@@ -160,6 +160,7 @@ const (
 	GetHomeItemsEndpoint                               = "STATUS-get-home-items"
 	GetKitsuAnimeEndpoint                              = "KITSU-COLLECTION-get-kitsu-anime"
 	GetKitsuAnimeCollectionEndpoint                    = "KITSU-COLLECTION-get-kitsu-anime-collection"
+	GetKitsuAnimeInfoEndpoint                          = "KITSU-get-kitsu-anime-info"
 	GetKitsuPlanningSlutInfoEndpoint                   = "KITSU-PLANNING-SLUT-get-kitsu-planning-slut-info"
 	GetLatestLogContentEndpoint                        = "STATUS-get-latest-log-content"
 	GetLatestUpdateEndpoint                            = "RELEASES-get-latest-update"

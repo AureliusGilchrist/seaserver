@@ -220,7 +220,10 @@ export function EpisodeSection({ entry, details, bottomSection, hideCarousel, ma
                 )}
 
 
-                <div className="space-y-10" data-episode-list-stack>
+                <div
+                    className="space-y-10 rounded-xl p-4 bg-[--background]/50 backdrop-blur-md"
+                    data-episode-list-stack
+                >
                     <EpisodeListPaginatedGrid
                         maxCol={maxCol}
                         length={mainEpisodes.length}

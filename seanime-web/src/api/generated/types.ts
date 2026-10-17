@@ -2035,6 +2035,10 @@ export type Anime_EpisodeMetadata = {
      * Episode rating out of 10, when the metadata source provides one
      */
     rating?: number
+    /**
+     * IMDb id of the series the episode belongs to
+     */
+    imdbId?: string
 }
 
 /**
@@ -3474,6 +3478,40 @@ export type DownloadingMediaStatus = {
 }
 
 /**
+ * - Filepath: internal/handlers/kitsu.go
+ * - Filename: kitsu.go
+ * - Package: handlers
+ * @description
+ *  KitsuAnimeInfo is supplementary metadata for an anime pulled from Kitsu.
+ */
+export type KitsuAnimeInfo = {
+    found: boolean
+    id: string
+    slug: string
+    url: string
+    canonicalTitle: string
+    titles?: Record<string, string>
+    synopsis: string
+    subtype: string
+    status: string
+    ageRating: string
+    ageRatingGuide: string
+    averageRating: string
+    userCount: number
+    favoritesCount: number
+    popularityRank: number
+    ratingRank: number
+    startDate: string
+    endDate: string
+    episodeCount: number
+    episodeLength: number
+    totalLength: number
+    youtubeVideoId: string
+    posterImage: string
+    coverImage: string
+}
+
+/**
  * - Filepath: internal/handlers/mal.go
  * - Filename: mal.go
  * - Package: handlers
@@ -4547,6 +4585,10 @@ export type Metadata_EpisodeMetadata = {
      */
     hasImage: boolean
     rating?: number
+    /**
+     * IMDb id of the series the episode belongs to
+     */
+    imdbId?: string
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

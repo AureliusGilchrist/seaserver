@@ -58,6 +58,7 @@ type (
 		AnidbEid              int     `json:"anidbEid"`
 		HasImage              bool    `json:"hasImage"` // Indicates if the episode has a real image
 		Rating                float64 `json:"rating,omitempty"`
+		ImdbId                string  `json:"imdbId,omitempty"` // IMDb id of the series the episode belongs to
 	}
 )
 

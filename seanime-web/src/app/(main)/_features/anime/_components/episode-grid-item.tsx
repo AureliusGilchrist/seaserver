@@ -1,3 +1,4 @@
+import { EpisodeRatingStars } from "@/app/(main)/_features/anime/_components/episode-rating-stars"
 import { AL_BaseAnime } from "@/api/generated/types"
 import { formatProgressText } from "@/api/hooks/continuity.hooks"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
@@ -211,9 +212,12 @@ export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.C
                             {title?.replaceAll("`", "'")}</span>{(!!episodeTitle && !!length) &&
                                 <span className="ml-4">{length}m</span>}
                     {!!rating && rating > 0 &&
-                        <span data-episode-grid-item-rating className="ml-3 text-sm text-amber-300/90 font-medium">
-                            ★ {rating.toFixed(1)} rating
-                        </span>}
+                        <EpisodeRatingStars
+                            data-episode-grid-item-rating
+                            rating={rating}
+                            className="ml-3"
+                            iconClassName="text-sm"
+                        />}
                     </p>
 
                     {!!episodeTitle &&
