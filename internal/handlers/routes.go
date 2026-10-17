@@ -397,9 +397,12 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.DELETE("/kitsu/oauth/account", h.HandleDeleteKitsuAccount, h.RequireProfileSession)
 
 	// Kitsu read endpoints — collection, viewer, stats, library CRUD.
+	// NOTE: /kitsu/anime/:id is registered once, above, as HandleGetKitsuAnimeInfo. Echo serves
+	// the last registration for a duplicated method+path, so re-registering it here with a second
+	// handler silently shadowed the public info lookup and 500'd ("Kitsu client not initialized")
+	// for anyone without a linked Kitsu account.
 	v1.GET("/kitsu/anime-collection", h.HandleGetKitsuAnimeCollection, h.RequireProfileSession)
 	v1.GET("/kitsu/manga-collection", h.HandleGetKitsuMangaCollection, h.RequireProfileSession)
-	v1.GET("/kitsu/anime/:id", h.HandleGetKitsuAnime)
 	v1.GET("/kitsu/manga/:id", h.HandleGetKitsuManga)
 	v1.GET("/kitsu/anime/search", h.HandleSearchKitsuAnime)
 	v1.GET("/kitsu/viewer", h.HandleGetKitsuViewer, h.RequireProfileSession)

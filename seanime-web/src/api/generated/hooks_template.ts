@@ -1913,15 +1913,6 @@
 //     })
 // }
 
-// export function useGetKitsuAnime() {
-//     return useServerQuery<KitsuPlatform>({
-//         endpoint: API_ENDPOINTS.KITSU_COLLECTION.GetKitsuAnime.endpoint,
-//         method: API_ENDPOINTS.KITSU_COLLECTION.GetKitsuAnime.methods[0],
-//         queryKey: [API_ENDPOINTS.KITSU_COLLECTION.GetKitsuAnime.key],
-//         enabled: true,
-//     })
-// }
-
 // export function useSearchKitsuAnime() {
 //     return useServerQuery<Array<KitsuPlatform>>({
 //         endpoint: API_ENDPOINTS.KITSU_COLLECTION.SearchKitsuAnime.endpoint,

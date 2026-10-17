@@ -158,7 +158,6 @@ const (
 	GetFileCacheTotalSizeEndpoint                      = "FILECACHE-get-file-cache-total-size"
 	GetGoRoutineProfileEndpoint                        = "STATUS-get-go-routine-profile"
 	GetHomeItemsEndpoint                               = "STATUS-get-home-items"
-	GetKitsuAnimeEndpoint                              = "KITSU-COLLECTION-get-kitsu-anime"
 	GetKitsuAnimeCollectionEndpoint                    = "KITSU-COLLECTION-get-kitsu-anime-collection"
 	GetKitsuAnimeInfoEndpoint                          = "KITSU-get-kitsu-anime-info"
 	GetKitsuPlanningSlutInfoEndpoint                   = "KITSU-PLANNING-SLUT-get-kitsu-planning-slut-info"

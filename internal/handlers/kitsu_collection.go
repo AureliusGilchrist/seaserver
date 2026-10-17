@@ -61,30 +61,19 @@ func (h *Handler) HandleGetKitsuMangaCollection(c echo.Context) error {
 	return h.RespondWithData(c, entries)
 }
 
-// HandleGetKitsuAnime
-//
-//	@summary returns one Kitsu anime's full details by id.
-//	@route /api/v1/kitsu/anime/{id} [GET]
-//	@returns platforms.KitsuPlatform.AnimeDetails
-func (h *Handler) HandleGetKitsuAnime(c echo.Context) error {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		return h.RespondWithError(c, errors.New("invalid anime id"))
+// resolvePublicKitsuPlatform returns the platform to use for public (no-auth) Kitsu reads: the
+// shared planning-slut account when one is linked, otherwise a fresh unauthenticated client.
+// Kitsu's catalog routes (anime/manga lookup, search) work without a token, so these endpoints
+// must not fail just because no account is linked — that used to surface as a 500
+// "Kitsu client not initialized" on the entry page's Kitsu info section.
+func (h *Handler) resolvePublicKitsuPlatform() *kitsu_platform.KitsuPlatform {
+	if p := h.resolveProfilePlatform(0); p != nil {
+		return p
 	}
-
-	p := h.resolveProfilePlatform(0) // no profile required for public data
-	if p == nil {
-		return h.RespondWithError(c, errors.New("Kitsu client not initialized"))
-	}
-	out, err := p.GetAnime(c.Request().Context(), id)
-	if err != nil {
-		return h.RespondWithError(c, err)
-	}
-	return h.RespondWithData(c, out)
+	return kitsu_platform.NewKitsuPlatform(kitsu_platform.KitsuPlatformOptions{})
 }
 
-// HandleGetKitsuManga is the manga counterpart of HandleGetKitsuAnime.
+// HandleGetKitsuManga is the manga counterpart of the public anime info lookup.
 func (h *Handler) HandleGetKitsuManga(c echo.Context) error {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -92,10 +81,7 @@ func (h *Handler) HandleGetKitsuManga(c echo.Context) error {
 		return h.RespondWithError(c, errors.New("invalid manga id"))
 	}
 
-	p := h.resolveProfilePlatform(0)
-	if p == nil {
-		return h.RespondWithError(c, errors.New("Kitsu client not initialized"))
-	}
+	p := h.resolvePublicKitsuPlatform()
 	out, err := p.GetManga(c.Request().Context(), id)
 	if err != nil {
 		return h.RespondWithError(c, err)
@@ -114,10 +100,7 @@ func (h *Handler) HandleSearchKitsuAnime(c echo.Context) error {
 	limit := atoiDefault(c.QueryParam("limit"), 20)
 	offset := (page - 1) * limit
 
-	p := h.resolveProfilePlatform(0)
-	if p == nil {
-		return h.RespondWithError(c, errors.New("Kitsu client not initialized"))
-	}
+	p := h.resolvePublicKitsuPlatform()
 	out, err := p.SearchAnime(c.Request().Context(), q, limit, offset)
 	if err != nil {
 		return h.RespondWithError(c, err)
@@ -238,20 +221,26 @@ func (h *Handler) HandleGetKitsuUserLibrary(c echo.Context) error {
 
 	p := h.resolveProfilePlatform(0)
 	if p == nil {
-		return h.RespondWithError(c, errors.New("Kitsu client not initialized"))
+		// No linked Kitsu account. The user's library is still a public read: serve it with an
+		// unauthenticated client scoped to the requested user id (the platform's library fetch
+		// reads its own UserID, which is normally the linked account's).
+		p = kitsu_platform.NewKitsuPlatform(kitsu_platform.KitsuPlatformOptions{UserID: idStr})
 	}
 
-	authed := *p
-	authed.Client.SetToken("") // public profile endpoint is unauthenticated
+	// The library is a public read: fetch it with an unauthenticated client scoped to the
+	// *requested* user id. (The platform's library fetch reads its own UserID, which on a linked
+	// platform is that account's — using it directly here used to return the linked account's
+	// library regardless of the path param, and copying the struct to blank its token copied a
+	// sync.Mutex along with it.)
 	bypass := c.QueryParam("refresh") == "1"
-	rows, err := authed.GetUserLibrary(c.Request().Context(), bypass)
-	if err != nil {
-		// Fall back to the actual platform if explicit unauthenticated call fails — the data is
-		// gated by the supplied user id, and the Kitsu endpoint usually allows public reads.
+	public := kitsu_platform.NewKitsuPlatform(kitsu_platform.KitsuPlatformOptions{UserID: idStr})
+	rows, err := public.GetUserLibrary(c.Request().Context(), bypass)
+	if err != nil && p != nil {
+		// Fall back to the linked platform if the unauthenticated call fails.
 		rows, err = p.GetUserLibrary(c.Request().Context(), bypass)
-		if err != nil {
-			return h.RespondWithError(c, err)
-		}
+	}
+	if err != nil {
+		return h.RespondWithError(c, err)
 	}
 	return h.RespondWithData(c, rows)
 }

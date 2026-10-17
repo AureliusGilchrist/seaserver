@@ -1567,11 +1567,6 @@ export const API_ENDPOINTS = {
             methods: ["GET"],
             endpoint: "/api/v1/kitsu/anime-collection",
         },
-        GetKitsuAnime: {
-            key: "KITSU-COLLECTION-get-kitsu-anime",
-            methods: ["GET"],
-            endpoint: "/api/v1/kitsu/anime/{id}",
-        },
         SearchKitsuAnime: {
             key: "KITSU-COLLECTION-search-kitsu-anime",
             methods: ["GET"],

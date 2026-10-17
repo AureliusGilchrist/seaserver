@@ -7488,37 +7488,35 @@
     }
   },
   {
-    "name": "HandleGetKitsuAnime",
-    "trimmedName": "GetKitsuAnime",
+    "name": "resolvePublicKitsuPlatform",
+    "trimmedName": "resolvePublicKitsuPlatform",
     "comments": [
-      "HandleGetKitsuAnime",
-      "",
-      "\t@summary returns one Kitsu anime's full details by id.",
-      "\t@route /api/v1/kitsu/anime/{id} [GET]",
-      "\t@returns platforms.KitsuPlatform.AnimeDetails",
+      "resolvePublicKitsuPlatform returns the platform to use for public (no-auth) Kitsu reads: the",
+      "shared planning-slut account when one is linked, otherwise a fresh unauthenticated client.",
+      "Kitsu's catalog routes (anime/manga lookup, search) work without a token, so these endpoints",
+      "must not fail just because no account is linked — that used to surface as a 500",
+      "\"Kitsu client not initialized\" on the entry page's Kitsu info section.",
       ""
     ],
     "filepath": "internal/handlers/kitsu_collection.go",
     "filename": "kitsu_collection.go",
     "api": {
-      "summary": "returns one Kitsu anime's full details by id.",
+      "summary": "",
       "descriptions": [],
-      "endpoint": "/api/v1/kitsu/anime/{id}",
-      "methods": [
-        "GET"
-      ],
+      "endpoint": "",
+      "methods": null,
       "params": [],
       "bodyFields": [],
-      "returns": "platforms.KitsuPlatform.AnimeDetails",
-      "returnGoType": "platforms.KitsuPlatform.AnimeDetails",
-      "returnTypescriptType": "KitsuPlatform"
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
     }
   },
   {
     "name": "HandleGetKitsuManga",
     "trimmedName": "GetKitsuManga",
     "comments": [
-      "HandleGetKitsuManga is the manga counterpart of HandleGetKitsuAnime.",
+      "HandleGetKitsuManga is the manga counterpart of the public anime info lookup.",
       ""
     ],
     "filepath": "internal/handlers/kitsu_collection.go",

@@ -221,7 +221,10 @@ export function EpisodeSection({ entry, details, bottomSection, hideCarousel, ma
 
 
                 <div
-                    className="space-y-10 rounded-xl p-4 bg-[--background]/50 backdrop-blur-md"
+                    // transform-gpu promotes the blurred container to its own compositing layer.
+                    // Without it, Chromium re-rasterizes the backdrop-filter region on every
+                    // scroll frame and the blur visibly flickers as the page moves.
+                    className="space-y-10 rounded-xl p-4 bg-[--background]/50 backdrop-blur-md transform-gpu"
                     data-episode-list-stack
                 >
                     <EpisodeListPaginatedGrid
@@ -241,9 +244,9 @@ export function EpisodeSection({ entry, details, bottomSection, hideCarousel, ma
                                         mediaId,
                                         episode: mainEpisodes[index],
                                     }))}
-                                percentageComplete={getEpisodePercentageComplete(watchHistory, entry.mediaId, mainEpisodes[index].episodeNumber)}
-                                secondsRemaining={getEpisodeSecondsRemaining(watchHistory, entry.mediaId, mainEpisodes[index].episodeNumber)}
-                                totalSeconds={getEpisodeTotalSeconds(watchHistory, entry.mediaId, mainEpisodes[index].episodeNumber)}
+                                // No percentageComplete/secondsRemaining here on purpose — the
+                                // watch-progress bar and "time left" readout belong to the big
+                                // episode cards (the carousel above), not these list rows.
                             />
                         )}
                     />
