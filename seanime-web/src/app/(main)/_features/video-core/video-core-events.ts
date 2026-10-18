@@ -82,7 +82,7 @@ export type VideoCoreLoadedPayload = {
 }
 
 type VideoCoreClientEvent = VideoCore_ClientEventType | "video-skip-data"
-type VideoCoreServerEvent = VideoCore_ServerEvent | "set-skip-data" | "get-skip-data"
+type VideoCoreServerEvent = VideoCore_ServerEvent | "set-skip-data" | "get-skip-data" | "subtitle-event"
 
 const log = logger("VideoCoreEvents")
 
