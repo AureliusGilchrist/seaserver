@@ -116,27 +116,30 @@ func (s *LocalFileStream) LoadPlaybackInfo() (ret *nativeplayer.PlaybackInfo, er
 			FilePath:          s.localFile.Path,
 		}
 
-		// Always attempt to create an EBML metadata parser for the file.
-		// If successful, we can use it for subtitle tracks and other metadata.
+		// If the content type is an EBML content type, we can create a metadata parser.
+		// .mkv files are served as video/mp4 for browser compatibility, so also fall back
+		// to extension-based detection.
+		if isEbmlContent(s.LoadContentType()) || isEbmlExtension(s.localFile.Path) {
 
-		parserKey := util.Base64EncodeStr(s.localFile.Path)
+			parserKey := util.Base64EncodeStr(s.localFile.Path)
 
-		parser, ok := s.manager.parserCache.Get(parserKey)
-		if !ok {
-			parser = mkvparser.NewMetadataParser(fr, s.logger)
-			s.manager.parserCache.SetT(parserKey, parser, 2*time.Hour)
+			parser, ok := s.manager.parserCache.Get(parserKey)
+			if !ok {
+				parser = mkvparser.NewMetadataParser(fr, s.logger)
+				s.manager.parserCache.SetT(parserKey, parser, 2*time.Hour)
+			}
+
+			metadata := parser.GetMetadata(context.Background())
+			if metadata.Error != nil {
+				s.logger.Error().Err(metadata.Error).Msg("directstream(torrent): Failed to get metadata")
+				//s.manager.preStreamError(s, fmt.Errorf("failed to get metadata: %w", metadata.Error))
+				s.playbackInfoErr = fmt.Errorf("failed to get metadata: %w", metadata.Error)
+				return
+			}
+
+			playbackInfo.MkvMetadata = metadata
+			playbackInfo.MkvMetadataParser = mo.Some(parser)
 		}
-
-		metadata := parser.GetMetadata(context.Background())
-		if metadata.Error != nil {
-			s.logger.Error().Err(metadata.Error).Msg("directstream(localfile): Failed to get metadata")
-			//s.manager.preStreamError(s, fmt.Errorf("failed to get metadata: %w", metadata.Error))
-			s.playbackInfoErr = fmt.Errorf("failed to get metadata: %w", metadata.Error)
-			return
-		}
-
-		playbackInfo.MkvMetadata = metadata
-		playbackInfo.MkvMetadataParser = mo.Some(parser)
 
 		s.playbackInfo = &playbackInfo
 	})
