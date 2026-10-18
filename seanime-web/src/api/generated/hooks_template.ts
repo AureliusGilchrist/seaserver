@@ -844,6 +844,152 @@
 // }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// chat
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// export function useGetChatState() {
+//     return useServerQuery<Chat_State>({
+//         endpoint: API_ENDPOINTS.CHAT.GetChatState.endpoint,
+//         method: API_ENDPOINTS.CHAT.GetChatState.methods[0],
+//         queryKey: [API_ENDPOINTS.CHAT.GetChatState.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useSetupChatPin() {
+//     return useServerMutation<Chat_State, SetupChatPin_Variables>({
+//         endpoint: API_ENDPOINTS.CHAT.SetupChatPin.endpoint,
+//         method: API_ENDPOINTS.CHAT.SetupChatPin.methods[0],
+//         mutationKey: [API_ENDPOINTS.CHAT.SetupChatPin.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useGetChatPeerKey() {
+//     return useServerQuery<Chat_PeerKey>({
+//         endpoint: API_ENDPOINTS.CHAT.GetChatPeerKey.endpoint,
+//         method: API_ENDPOINTS.CHAT.GetChatPeerKey.methods[0],
+//         queryKey: [API_ENDPOINTS.CHAT.GetChatPeerKey.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useGetChatConversations() {
+//     return useServerQuery<Chat_Conversations>({
+//         endpoint: API_ENDPOINTS.CHAT.GetChatConversations.endpoint,
+//         method: API_ENDPOINTS.CHAT.GetChatConversations.methods[0],
+//         queryKey: [API_ENDPOINTS.CHAT.GetChatConversations.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useGetChatMessages() {
+//     return useServerQuery<Chat_Messages>({
+//         endpoint: API_ENDPOINTS.CHAT.GetChatMessages.endpoint,
+//         method: API_ENDPOINTS.CHAT.GetChatMessages.methods[0],
+//         queryKey: [API_ENDPOINTS.CHAT.GetChatMessages.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useSendChatMessage() {
+//     return useServerMutation<Chat_Message, SendChatMessage_Variables>({
+//         endpoint: API_ENDPOINTS.CHAT.SendChatMessage.endpoint,
+//         method: API_ENDPOINTS.CHAT.SendChatMessage.methods[0],
+//         mutationKey: [API_ENDPOINTS.CHAT.SendChatMessage.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useEditChatMessage() {
+//     return useServerMutation<Chat_Message, EditChatMessage_Variables>({
+//         endpoint: API_ENDPOINTS.CHAT.EditChatMessage.endpoint,
+//         method: API_ENDPOINTS.CHAT.EditChatMessage.methods[0],
+//         mutationKey: [API_ENDPOINTS.CHAT.EditChatMessage.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useDeleteChatMessage() {
+//     return useServerMutation<Chat_Message, DeleteChatMessage_Variables>({
+//         endpoint: API_ENDPOINTS.CHAT.DeleteChatMessage.endpoint,
+//         method: API_ENDPOINTS.CHAT.DeleteChatMessage.methods[0],
+//         mutationKey: [API_ENDPOINTS.CHAT.DeleteChatMessage.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useReactChatMessage() {
+//     return useServerMutation<Chat_Message, ReactChatMessage_Variables>({
+//         endpoint: API_ENDPOINTS.CHAT.ReactChatMessage.endpoint,
+//         method: API_ENDPOINTS.CHAT.ReactChatMessage.methods[0],
+//         mutationKey: [API_ENDPOINTS.CHAT.ReactChatMessage.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useMarkChatRead() {
+//     return useServerMutation<boolean, MarkChatRead_Variables>({
+//         endpoint: API_ENDPOINTS.CHAT.MarkChatRead.endpoint,
+//         method: API_ENDPOINTS.CHAT.MarkChatRead.methods[0],
+//         mutationKey: [API_ENDPOINTS.CHAT.MarkChatRead.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useChatTyping() {
+//     return useServerMutation<boolean, ChatTyping_Variables>({
+//         endpoint: API_ENDPOINTS.CHAT.ChatTyping.endpoint,
+//         method: API_ENDPOINTS.CHAT.ChatTyping.methods[0],
+//         mutationKey: [API_ENDPOINTS.CHAT.ChatTyping.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useUploadChatImage() {
+//     return useServerMutation<Chat_ImageUpload, UploadChatImage_Variables>({
+//         endpoint: API_ENDPOINTS.CHAT.UploadChatImage.endpoint,
+//         method: API_ENDPOINTS.CHAT.UploadChatImage.methods[0],
+//         mutationKey: [API_ENDPOINTS.CHAT.UploadChatImage.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useServeChatImage() {
+//     return useServerQuery<string>({
+//         endpoint: API_ENDPOINTS.CHAT.ServeChatImage.endpoint,
+//         method: API_ENDPOINTS.CHAT.ServeChatImage.methods[0],
+//         queryKey: [API_ENDPOINTS.CHAT.ServeChatImage.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useGetProfileComments() {
+//     return useServerQuery<ProfileCommentsResponse>({
+//         endpoint: API_ENDPOINTS.CHAT.GetProfileComments.endpoint,
+//         method: API_ENDPOINTS.CHAT.GetProfileComments.methods[0],
+//         queryKey: [API_ENDPOINTS.CHAT.GetProfileComments.key],
+//         enabled: true,
+//     })
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // client_prefs
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

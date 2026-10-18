@@ -113,6 +113,7 @@ var typePrefixesByPackage = map[string]string{
 	"local":              "Local_",
 	"debrid":             "Debrid_",
 	"debrid_client":      "DebridClient_",
+	"chat":               "Chat_",
 	"report":             "Report_",
 	"habari":             "Habari_",
 	"vendor_habari":      "Habari_",

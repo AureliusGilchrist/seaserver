@@ -80,6 +80,7 @@ export const enum WSEvents {
     NAKAMA_ONLINE_STREAM_EVENT = "nakama-online-stream-event",
     NAKAMA_ONLINE_STREAM_CLIENT_EVENT = "nakama-online-stream-client-event",
     WATCH_PARTY_STATE = "watch-party-state",
+    CHAT = "chat",
     PLAYLIST = "playlist",
     NOTIFICATION_CREATED = "notification-created",
     ACHIEVEMENT_UNLOCKED = "achievement-unlocked",

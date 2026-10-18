@@ -62,13 +62,16 @@ export function ChapterReaderDrawer(props: ChapterDrawerProps) {
     // Discord rich presence
     useDiscordMangaPresence(entry)
 
+    const currentChapter = useCurrentChapter()
+    const setCurrentChapter = useSetCurrentChapter()
+
     // Profile activity: report to the server that this profile is reading (presence list).
     const { mutate: setProfileActivity } = useSetProfileActivity()
     React.useEffect(() => {
         if (currentChapter?.chapterId) {
             setProfileActivity({
                 mediaTitle: displayTitle(entry.media?.title) || "",
-                chapterNumber: currentChapter.chapterNumber ?? 0,
+                chapterNumber: Number(currentChapter.chapterNumber) || 0,
                 progressPercent: 0,
             })
         }
@@ -78,9 +81,6 @@ export function ChapterReaderDrawer(props: ChapterDrawerProps) {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentChapter?.chapterId])
-
-    const currentChapter = useCurrentChapter()
-    const setCurrentChapter = useSetCurrentChapter()
 
     const setCurrentPageIndex = useSetAtom(__manga_currentPageIndexAtom)
     const currentPageIndex = useAtomValue(__manga_currentPageIndexAtom)

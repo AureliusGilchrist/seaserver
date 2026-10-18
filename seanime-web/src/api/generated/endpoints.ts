@@ -748,6 +748,164 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/anilist/character-details/{id}",
         },
     },
+    CHAT: {
+        /**
+         *  @description
+         *  Route returns this profile's chat identity state.
+         *  Returns whether a PIN is set up, and if so the salt, verifier, public key and
+         *  sealed private key the client needs to derive keys locally. Nothing here can
+         *  decrypt anything without the profile's PIN.
+         */
+        GetChatState: {
+            key: "CHAT-get-chat-state",
+            methods: ["GET"],
+            endpoint: "/api/v1/chat/state",
+        },
+        /**
+         *  @description
+         *  Route creates or resets this profile's chat identity.
+         *  The client derives everything locally: a PBKDF2 salt, a verifier (encryption of a
+         *  constant under the PIN key), an ECDH keypair whose private half is sealed under
+         *  the PIN key. The server stores only opaque strings. Resetting invalidates old
+         *  messages (they can no longer be decrypted by this profile).
+         */
+        SetupChatPin: {
+            key: "CHAT-setup-chat-pin",
+            methods: ["POST"],
+            endpoint: "/api/v1/chat/setup-pin",
+        },
+        /**
+         *  @description
+         *  Route returns a peer profile's public chat key.
+         *  The client needs the peer's ECDH public key to derive the conversation key.
+         */
+        GetChatPeerKey: {
+            key: "CHAT-get-chat-peer-key",
+            methods: ["GET"],
+            endpoint: "/api/v1/chat/peer-key",
+        },
+        /**
+         *  @description
+         *  Route lists this profile's chat conversations.
+         *  One entry per profile this profile has exchanged messages with. Last messages are
+         *  still encrypted; the client decrypts previews locally. Unread counts are computed
+         *  from read receipts (metadata, not content).
+         */
+        GetChatConversations: {
+            key: "CHAT-get-chat-conversations",
+            methods: ["GET"],
+            endpoint: "/api/v1/chat/conversations",
+        },
+        /**
+         *  @description
+         *  Route returns the messages between this profile and a peer.
+         *  Oldest first, paginated with `beforeId` (the message ID to page back from).
+         */
+        GetChatMessages: {
+            key: "CHAT-get-chat-messages",
+            methods: ["GET"],
+            endpoint: "/api/v1/chat/messages",
+        },
+        /**
+         *  @description
+         *  Route sends an encrypted message to a peer profile.
+         *  The payload is the {iv, ciphertext} pair the client encrypted with the
+         *  conversation key. The server relays it over websocket to the recipient's
+         *  devices and echoes to the sender's other devices.
+         */
+        SendChatMessage: {
+            key: "CHAT-send-chat-message",
+            methods: ["POST"],
+            endpoint: "/api/v1/chat/send",
+        },
+        /**
+         *  @description
+         *  Route edits an encrypted message.
+         *  Only the sender can edit. The client re-encrypts the new text; the server just
+         *  swaps the ciphertext and marks the edit.
+         */
+        EditChatMessage: {
+            key: "CHAT-edit-chat-message",
+            methods: ["POST"],
+            endpoint: "/api/v1/chat/edit",
+        },
+        /**
+         *  @description
+         *  Route deletes a message for both participants.
+         *  The sender or the recipient can delete. The server clears the ciphertext (so the
+         *  content is gone even from storage) and notifies both sides.
+         */
+        DeleteChatMessage: {
+            key: "CHAT-delete-chat-message",
+            methods: ["POST"],
+            endpoint: "/api/v1/chat/delete",
+        },
+        /**
+         *  @description
+         *  Route sets or clears this profile's encrypted reaction on a message.
+         *  An empty ciphertext removes the reaction. Reactions are encrypted with the
+         *  conversation key, so the server stores only opaque blobs.
+         */
+        ReactChatMessage: {
+            key: "CHAT-react-chat-message",
+            methods: ["POST"],
+            endpoint: "/api/v1/chat/react",
+        },
+        /**
+         *  @description
+         *  Route marks all messages from a peer as read.
+         *  Read receipts are timing metadata (the server already sees delivery timing). The
+         *  peer is notified so their UI can show "read".
+         */
+        MarkChatRead: {
+            key: "CHAT-mark-chat-read",
+            methods: ["POST"],
+            endpoint: "/api/v1/chat/mark-read",
+        },
+        /**
+         *  @description
+         *  Route relays a typing indicator to a peer.
+         *  Fire-and-forget: the server forwards the ping if the peer is online. No storage.
+         */
+        ChatTyping: {
+            key: "CHAT-chat-typing",
+            methods: ["POST"],
+            endpoint: "/api/v1/chat/typing",
+        },
+        /**
+         *  @description
+         *  Route uploads an encrypted image blob for a chat message.
+         *  The client encrypts the image bytes with the conversation key before upload. The
+         *  returned imageId goes into the message. Only the two participants can fetch it.
+         */
+        UploadChatImage: {
+            key: "CHAT-upload-chat-image",
+            methods: ["POST"],
+            endpoint: "/api/v1/chat/image",
+        },
+        /**
+         *  @description
+         *  Route serves an encrypted chat image blob.
+         *  Only the two conversation participants can fetch. The bytes are still encrypted;
+         *  the client decrypts with the conversation key before rendering.
+         */
+        ServeChatImage: {
+            key: "CHAT-serve-chat-image",
+            methods: ["GET"],
+            endpoint: "/api/v1/chat/image/:id",
+        },
+        /**
+         *  @description
+         *  Route returns the comments a profile has made, newest first.
+         *  Used by the profile page's Comments tab: every comment the profile left on any
+         *  show or manga, with the media reference and timestamp.
+         */
+        GetProfileComments: {
+            key: "CHAT-get-profile-comments",
+            methods: ["GET"],
+            endpoint: "/api/v1/profile/comments",
+        },
+    },
     CLIENT_PREFS: {
         /**
          *  @description

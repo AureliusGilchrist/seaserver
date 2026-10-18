@@ -969,6 +969,25 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.POST("/profiles/activity", h.HandleSetProfileActivity)
 
 	//
+	// Encrypted chat (server is an untrusted relay — see internal/chat)
+	//
+	v1Chat := v1.Group("/chat")
+	v1Chat.GET("/state", h.HandleGetChatState)
+	v1Chat.POST("/setup-pin", h.HandleSetupChatPin)
+	v1Chat.GET("/peer-key", h.HandleGetChatPeerKey)
+	v1Chat.GET("/conversations", h.HandleGetChatConversations)
+	v1Chat.GET("/messages", h.HandleGetChatMessages)
+	v1Chat.POST("/send", h.HandleSendChatMessage)
+	v1Chat.POST("/edit", h.HandleEditChatMessage)
+	v1Chat.POST("/delete", h.HandleDeleteChatMessage)
+	v1Chat.POST("/react", h.HandleReactChatMessage)
+	v1Chat.POST("/mark-read", h.HandleMarkChatRead)
+	v1Chat.POST("/typing", h.HandleChatTyping)
+	v1Chat.POST("/image", h.HandleUploadChatImage)
+	v1Chat.GET("/image/:id", h.HandleServeChatImage)
+	v1.GET("/profile/comments", h.HandleGetProfileComments)
+
+	//
 	// Custom Source
 	//
 	v1CustomSource := v1.Group("/custom-source")

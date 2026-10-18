@@ -51,6 +51,7 @@ import { SoundProvider } from "@/lib/sounds/sound-provider"
 import { EasterEggEngine } from "@/lib/easter-eggs/easter-egg-engine"
 import { NakamaManager } from "../nakama/nakama-manager"
 import { WatchPartyManager } from "../watch-party/watch-party-manager"
+import { ChatManager } from "../chat/chat-manager"
 import { NakamaWatchPartyChat, NakamaWatchPartyChatProvider } from "../nakama/nakama-watch-party-chat"
 import { NativePlayer } from "../native-player/native-player"
 import { TopIndefiniteLoader } from "../top-indefinite-loader"
@@ -118,6 +119,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
             </VideoCoreProvider>}
             <NakamaManager />
             <WatchPartyManager />
+            <ChatManager />
             <NakamaWatchPartyChatProvider />
             <NakamaWatchPartyChat />
             <TopIndefiniteLoader />

@@ -127,3 +127,12 @@ func (db *Database) GetCommentCountByMedia(mediaID int, mediaType string) (int64
 	err := db.gormdb.Model(&models.Comment{}).Where("media_id = ? AND media_type = ?", mediaID, mediaType).Count(&count).Error
 	return count, err
 }
+
+// GetCommentsByProfile returns all comments made by a profile, newest first.
+func (db *Database) GetCommentsByProfile(profileID int) ([]*models.Comment, error) {
+	var comments []*models.Comment
+	if err := db.gormdb.Where("profile_id = ?", profileID).Order("created_at DESC").Find(&comments).Error; err != nil {
+		return nil, err
+	}
+	return comments, nil
+}

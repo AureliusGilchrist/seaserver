@@ -31431,6 +31431,764 @@
     ]
   },
   {
+    "filepath": "../internal/chat/chat.go",
+    "filename": "chat.go",
+    "name": "PinState",
+    "formattedName": "Chat_PinState",
+    "package": "chat",
+    "fields": [
+      {
+        "name": "Salt",
+        "jsonName": "salt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Verifier",
+        "jsonName": "verifier",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PublicKey",
+        "jsonName": "publicKey",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EncPrivKey",
+        "jsonName": "encPrivKey",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SetupAt",
+        "jsonName": "setupAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " PinState holds one profile's chat identity, all of it opaque to the server:",
+      "   - Salt:        PBKDF2 salt the client used for the PIN key",
+      "   - Verifier:    AES-GCM encryption of a known constant under the PIN key —",
+      "                  proves a PIN is correct without the server ever seeing it",
+      "   - PublicKey:   ECDH public key (JWK), shared with chat partners",
+      "   - EncPrivKey:  the ECDH private key sealed under the PIN key"
+    ]
+  },
+  {
+    "filepath": "../internal/chat/chat.go",
+    "filename": "chat.go",
+    "name": "Message",
+    "formattedName": "Chat_Message",
+    "package": "chat",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "From",
+        "jsonName": "from",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "To",
+        "jsonName": "to",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IV",
+        "jsonName": "iv",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Ciphertext",
+        "jsonName": "ciphertext",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CreatedAt",
+        "jsonName": "createdAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EditedAt",
+        "jsonName": "editedAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DeletedAt",
+        "jsonName": "deletedAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ReadAt",
+        "jsonName": "readAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ReplyToID",
+        "jsonName": "replyToId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ImageID",
+        "jsonName": "imageId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ImageIV",
+        "jsonName": "imageIv",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ImageMime",
+        "jsonName": "imageMime",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Reactions",
+        "jsonName": "reactions",
+        "goType": "map[uint]Reaction",
+        "typescriptType": "Record\u003cnumber, Chat_Reaction\u003e",
+        "usedTypescriptType": "Chat_Reaction",
+        "usedStructName": "chat.Reaction",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Message is one encrypted chat message. Ciphertext is encrypted with the",
+      " conversation key shared by From and To."
+    ]
+  },
+  {
+    "filepath": "../internal/chat/chat.go",
+    "filename": "chat.go",
+    "name": "Reaction",
+    "formattedName": "Chat_Reaction",
+    "package": "chat",
+    "fields": [
+      {
+        "name": "IV",
+        "jsonName": "iv",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Ciphertext",
+        "jsonName": "ciphertext",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Reaction is a profile's (possibly multiple) emoji reaction on a message,",
+      " stored encrypted with the conversation key."
+    ]
+  },
+  {
+    "filepath": "../internal/chat/chat.go",
+    "filename": "chat.go",
+    "name": "ImageMeta",
+    "formattedName": "Chat_ImageMeta",
+    "package": "chat",
+    "fields": [
+      {
+        "name": "From",
+        "jsonName": "from",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "To",
+        "jsonName": "to",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Size",
+        "jsonName": "size",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CreatedAt",
+        "jsonName": "createdAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " ImageMeta describes one encrypted image blob on disk."
+    ]
+  },
+  {
+    "filepath": "../internal/chat/chat.go",
+    "filename": "chat.go",
+    "name": "EventPayload",
+    "formattedName": "Chat_EventPayload",
+    "package": "chat",
+    "fields": [
+      {
+        "name": "Type",
+        "jsonName": "type",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " \"message\" | \"typing\" | \"read\" | \"pin-setup\""
+        ]
+      },
+      {
+        "name": "Message",
+        "jsonName": "message",
+        "goType": "Message",
+        "typescriptType": "Chat_Message",
+        "usedTypescriptType": "Chat_Message",
+        "usedStructName": "chat.Message",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FromID",
+        "jsonName": "fromId",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsTyping",
+        "jsonName": "isTyping",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "At",
+        "jsonName": "at",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " EventPayload is the WS event pushed to profiles. One event type (\"chat\"),",
+      " discriminated by Type."
+    ]
+  },
+  {
+    "filepath": "../internal/chat/chat.go",
+    "filename": "chat.go",
+    "name": "State",
+    "formattedName": "Chat_State",
+    "package": "chat",
+    "fields": [
+      {
+        "name": "HasPin",
+        "jsonName": "hasPin",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Salt",
+        "jsonName": "salt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Verifier",
+        "jsonName": "verifier",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PublicKey",
+        "jsonName": "publicKey",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EncryptedPrivateKey",
+        "jsonName": "encryptedPrivateKey",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UnreadCount",
+        "jsonName": "unreadCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " State is the payload of the chat state endpoint: this profile's chat identity."
+    ]
+  },
+  {
+    "filepath": "../internal/chat/chat.go",
+    "filename": "chat.go",
+    "name": "PeerKey",
+    "formattedName": "Chat_PeerKey",
+    "package": "chat",
+    "fields": [
+      {
+        "name": "HasPin",
+        "jsonName": "hasPin",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PublicKey",
+        "jsonName": "publicKey",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " PeerKey is a peer profile's public chat key."
+    ]
+  },
+  {
+    "filepath": "../internal/chat/chat.go",
+    "filename": "chat.go",
+    "name": "Conversation",
+    "formattedName": "Chat_Conversation",
+    "package": "chat",
+    "fields": [
+      {
+        "name": "PeerID",
+        "jsonName": "peerId",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PeerName",
+        "jsonName": "peerName",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastMessage",
+        "jsonName": "lastMessage",
+        "goType": "Message",
+        "typescriptType": "Chat_Message",
+        "usedTypescriptType": "Chat_Message",
+        "usedStructName": "chat.Message",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastActivity",
+        "jsonName": "lastActivity",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UnreadCount",
+        "jsonName": "unreadCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsPeerTyping",
+        "jsonName": "isPeerTyping",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Conversation is one peer conversation as seen by the requesting profile."
+    ]
+  },
+  {
+    "filepath": "../internal/chat/chat.go",
+    "filename": "chat.go",
+    "name": "Conversations",
+    "formattedName": "Chat_Conversations",
+    "package": "chat",
+    "fields": [
+      {
+        "name": "Conversations",
+        "jsonName": "conversations",
+        "goType": "[]Conversation",
+        "typescriptType": "Array\u003cChat_Conversation\u003e",
+        "usedTypescriptType": "Chat_Conversation",
+        "usedStructName": "chat.Conversation",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Conversations is the payload of the conversations endpoint."
+    ]
+  },
+  {
+    "filepath": "../internal/chat/chat.go",
+    "filename": "chat.go",
+    "name": "Messages",
+    "formattedName": "Chat_Messages",
+    "package": "chat",
+    "fields": [
+      {
+        "name": "Messages",
+        "jsonName": "messages",
+        "goType": "[]Message",
+        "typescriptType": "Array\u003cChat_Message\u003e",
+        "usedTypescriptType": "Chat_Message",
+        "usedStructName": "chat.Message",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Messages is the payload of the messages endpoint."
+    ]
+  },
+  {
+    "filepath": "../internal/chat/chat.go",
+    "filename": "chat.go",
+    "name": "ImageUpload",
+    "formattedName": "Chat_ImageUpload",
+    "package": "chat",
+    "fields": [
+      {
+        "name": "ImageID",
+        "jsonName": "imageId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " ImageUpload is the response of the image upload endpoint."
+    ]
+  },
+  {
+    "filepath": "../internal/chat/chat.go",
+    "filename": "chat.go",
+    "name": "Manager",
+    "formattedName": "Chat_Manager",
+    "package": "chat",
+    "fields": [
+      {
+        "name": "mu",
+        "jsonName": "mu",
+        "goType": "sync.RWMutex",
+        "typescriptType": "RWMutex",
+        "usedTypescriptType": "RWMutex",
+        "usedStructName": "sync.RWMutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "filePath",
+        "jsonName": "filePath",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "imagesDir",
+        "jsonName": "imagesDir",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "logger",
+        "jsonName": "logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "pinStates",
+        "jsonName": "pinStates",
+        "goType": "map[uint]PinState",
+        "typescriptType": "Record\u003cnumber, Chat_PinState\u003e",
+        "usedTypescriptType": "Chat_PinState",
+        "usedStructName": "chat.PinState",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "messages",
+        "jsonName": "messages",
+        "goType": "[]Message",
+        "typescriptType": "Array\u003cChat_Message\u003e",
+        "usedTypescriptType": "Chat_Message",
+        "usedStructName": "chat.Message",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "images",
+        "jsonName": "images",
+        "goType": "map[string]ImageMeta",
+        "typescriptType": "Record\u003cstring, Chat_ImageMeta\u003e",
+        "usedTypescriptType": "Chat_ImageMeta",
+        "usedStructName": "chat.ImageMeta",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "typing",
+        "jsonName": "typing",
+        "goType": "map[uint]time.Time",
+        "typescriptType": "Record\u003cnumber, string\u003e",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "dirty",
+        "jsonName": "dirty",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "stopOnce",
+        "jsonName": "stopOnce",
+        "goType": "sync.Once",
+        "typescriptType": "Once",
+        "usedTypescriptType": "Once",
+        "usedStructName": "sync.Once",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "stopCh",
+        "jsonName": "stopCh",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Manager is the chat store."
+    ]
+  },
+  {
+    "filepath": "../internal/chat/chat.go",
+    "filename": "chat.go",
+    "name": "ConversationSummary",
+    "formattedName": "Chat_ConversationSummary",
+    "package": "chat",
+    "fields": [
+      {
+        "name": "PeerID",
+        "jsonName": "peerId",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastMessage",
+        "jsonName": "lastMessage",
+        "goType": "Message",
+        "typescriptType": "Chat_Message",
+        "usedTypescriptType": "Chat_Message",
+        "usedStructName": "chat.Message",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastActivity",
+        "jsonName": "lastActivity",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UnreadCount",
+        "jsonName": "unreadCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsPeerTyping",
+        "jsonName": "isPeerTyping",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " ConversationSummary is what the conversations endpoint reports per peer."
+    ]
+  },
+  {
     "filepath": "../internal/constants/constants.go",
     "filename": "constants.go",
     "name": "VersionsManifest",
@@ -33065,6 +33823,17 @@
         "typescriptType": "ProfileActivity_Manager",
         "usedTypescriptType": "ProfileActivity_Manager",
         "usedStructName": "profileactivity.Manager",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ChatManager",
+        "jsonName": "ChatManager",
+        "goType": "chat.Manager",
+        "typescriptType": "Chat_Manager",
+        "usedTypescriptType": "Chat_Manager",
+        "usedStructName": "chat.Manager",
         "required": false,
         "public": true,
         "comments": []
@@ -56146,6 +56915,163 @@
       }
     ],
     "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/chat.go",
+    "filename": "chat.go",
+    "name": "ChatProfileRef",
+    "formattedName": "ChatProfileRef",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " ChatProfileOk is a minimal profile reference used by the chat endpoints."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/chat.go",
+    "filename": "chat.go",
+    "name": "ProfileCommentItem",
+    "formattedName": "ProfileCommentItem",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaID",
+        "jsonName": "mediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaType",
+        "jsonName": "mediaType",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaTitle",
+        "jsonName": "mediaTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Content",
+        "jsonName": "content",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsEdited",
+        "jsonName": "isEdited",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsSpoiler",
+        "jsonName": "isSpoiler",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CreatedAt",
+        "jsonName": "createdAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UpdatedAt",
+        "jsonName": "updatedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " ProfileCommentItem is one comment in a profile's Comments tab."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/chat.go",
+    "filename": "chat.go",
+    "name": "ProfileCommentsResponse",
+    "formattedName": "ProfileCommentsResponse",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Comments",
+        "jsonName": "comments",
+        "goType": "[]ProfileCommentItem",
+        "typescriptType": "Array\u003cProfileCommentItem\u003e",
+        "usedTypescriptType": "ProfileCommentItem",
+        "usedStructName": "handlers.ProfileCommentItem",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalCount",
+        "jsonName": "totalCount",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " ProfileCommentsResponse is the response of the profile comments endpoint."
+    ]
   },
   {
     "filepath": "../internal/handlers/comment.go",

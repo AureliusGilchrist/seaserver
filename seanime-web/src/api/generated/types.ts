@@ -2316,6 +2316,125 @@ export type ChapterDownloader_DownloadID = {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Chat
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - Filepath: internal/chat/chat.go
+ * - Filename: chat.go
+ * - Package: chat
+ * @description
+ *  Conversation is one peer conversation as seen by the requesting profile.
+ */
+export type Chat_Conversation = {
+    peerId: number
+    peerName?: string
+    lastMessage?: Chat_Message
+    lastActivity?: string
+    unreadCount: number
+    isPeerTyping: boolean
+}
+
+/**
+ * - Filepath: internal/chat/chat.go
+ * - Filename: chat.go
+ * - Package: chat
+ * @description
+ *  Conversations is the payload of the conversations endpoint.
+ */
+export type Chat_Conversations = {
+    conversations?: Array<Chat_Conversation>
+}
+
+/**
+ * - Filepath: internal/chat/chat.go
+ * - Filename: chat.go
+ * - Package: chat
+ * @description
+ *  ImageUpload is the response of the image upload endpoint.
+ */
+export type Chat_ImageUpload = {
+    imageId: string
+}
+
+/**
+ * - Filepath: internal/chat/chat.go
+ * - Filename: chat.go
+ * - Package: chat
+ * @description
+ *  Message is one encrypted chat message. Ciphertext is encrypted with the
+ *  conversation key shared by From and To.
+ */
+export type Chat_Message = {
+    id: string
+    from: number
+    to: number
+    iv: string
+    ciphertext: string
+    createdAt: string
+    editedAt?: string
+    deletedAt?: string
+    readAt?: string
+    replyToId?: string
+    imageId?: string
+    imageIv?: string
+    imageMime?: string
+    reactions?: Record<number, Chat_Reaction>
+}
+
+/**
+ * - Filepath: internal/chat/chat.go
+ * - Filename: chat.go
+ * - Package: chat
+ * @description
+ *  Messages is the payload of the messages endpoint.
+ */
+export type Chat_Messages = {
+    messages?: Array<Chat_Message>
+}
+
+/**
+ * - Filepath: internal/chat/chat.go
+ * - Filename: chat.go
+ * - Package: chat
+ * @description
+ *  PeerKey is a peer profile's public chat key.
+ */
+export type Chat_PeerKey = {
+    hasPin: boolean
+    publicKey?: string
+}
+
+/**
+ * - Filepath: internal/chat/chat.go
+ * - Filename: chat.go
+ * - Package: chat
+ * @description
+ *  Reaction is a profile's (possibly multiple) emoji reaction on a message,
+ *  stored encrypted with the conversation key.
+ */
+export type Chat_Reaction = {
+    iv: string
+    ciphertext: string
+}
+
+/**
+ * - Filepath: internal/chat/chat.go
+ * - Filename: chat.go
+ * - Package: chat
+ * @description
+ *  State is the payload of the chat state endpoint: this profile's chat identity.
+ */
+export type Chat_State = {
+    hasPin: boolean
+    salt?: string
+    verifier?: string
+    publicKey?: string
+    encryptedPrivateKey?: string
+    unreadCount: number
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Continuity
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -3765,6 +3884,37 @@ export type OverwritePreview = {
  */
 export type PendingProgressSyncResponse = {
     count: number
+}
+
+/**
+ * - Filepath: internal/handlers/chat.go
+ * - Filename: chat.go
+ * - Package: handlers
+ * @description
+ *  ProfileCommentItem is one comment in a profile's Comments tab.
+ */
+export type ProfileCommentItem = {
+    id: number
+    mediaId: number
+    mediaType: string
+    mediaTitle: string
+    content: string
+    isEdited: boolean
+    isSpoiler: boolean
+    createdAt?: string
+    updatedAt?: string
+}
+
+/**
+ * - Filepath: internal/handlers/chat.go
+ * - Filename: chat.go
+ * - Package: handlers
+ * @description
+ *  ProfileCommentsResponse is the response of the profile comments endpoint.
+ */
+export type ProfileCommentsResponse = {
+    comments?: Array<ProfileCommentItem>
+    totalCount: number
 }
 
 /**

@@ -3303,6 +3303,698 @@
     }
   },
   {
+    "name": "HandleGetChatState",
+    "trimmedName": "GetChatState",
+    "comments": [
+      "HandleGetChatState",
+      "",
+      "\t@summary returns this profile's chat identity state.",
+      "\t@desc Returns whether a PIN is set up, and if so the salt, verifier, public key and",
+      "\t@desc sealed private key the client needs to derive keys locally. Nothing here can",
+      "\t@desc decrypt anything without the profile's PIN.",
+      "\t@returns chat.State",
+      "\t@route /api/v1/chat/state [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/chat.go",
+    "filename": "chat.go",
+    "api": {
+      "summary": "returns this profile's chat identity state.",
+      "descriptions": [
+        "Returns whether a PIN is set up, and if so the salt, verifier, public key and",
+        "sealed private key the client needs to derive keys locally. Nothing here can",
+        "decrypt anything without the profile's PIN."
+      ],
+      "endpoint": "/api/v1/chat/state",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "chat.State",
+      "returnGoType": "chat.State",
+      "returnTypescriptType": "Chat_State"
+    }
+  },
+  {
+    "name": "HandleSetupChatPin",
+    "trimmedName": "SetupChatPin",
+    "comments": [
+      "HandleSetupChatPin",
+      "",
+      "\t@summary creates or resets this profile's chat identity.",
+      "\t@desc The client derives everything locally: a PBKDF2 salt, a verifier (encryption of a",
+      "\t@desc constant under the PIN key), an ECDH keypair whose private half is sealed under",
+      "\t@desc the PIN key. The server stores only opaque strings. Resetting invalidates old",
+      "\t@desc messages (they can no longer be decrypted by this profile).",
+      "\t@returns chat.State",
+      "\t@route /api/v1/chat/setup-pin [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/chat.go",
+    "filename": "chat.go",
+    "api": {
+      "summary": "creates or resets this profile's chat identity.",
+      "descriptions": [
+        "The client derives everything locally: a PBKDF2 salt, a verifier (encryption of a",
+        "constant under the PIN key), an ECDH keypair whose private half is sealed under",
+        "the PIN key. The server stores only opaque strings. Resetting invalidates old",
+        "messages (they can no longer be decrypted by this profile)."
+      ],
+      "endpoint": "/api/v1/chat/setup-pin",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "Salt",
+          "jsonName": "salt",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "Verifier",
+          "jsonName": "verifier",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "PublicKey",
+          "jsonName": "publicKey",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "EncryptedPrivateKey",
+          "jsonName": "encryptedPrivateKey",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "chat.State",
+      "returnGoType": "chat.State",
+      "returnTypescriptType": "Chat_State"
+    }
+  },
+  {
+    "name": "HandleGetChatPeerKey",
+    "trimmedName": "GetChatPeerKey",
+    "comments": [
+      "HandleGetChatPeerKey",
+      "",
+      "\t@summary returns a peer profile's public chat key.",
+      "\t@desc The client needs the peer's ECDH public key to derive the conversation key.",
+      "\t@returns chat.PeerKey",
+      "\t@route /api/v1/chat/peer-key [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/chat.go",
+    "filename": "chat.go",
+    "api": {
+      "summary": "returns a peer profile's public chat key.",
+      "descriptions": [
+        "The client needs the peer's ECDH public key to derive the conversation key."
+      ],
+      "endpoint": "/api/v1/chat/peer-key",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "chat.PeerKey",
+      "returnGoType": "chat.PeerKey",
+      "returnTypescriptType": "Chat_PeerKey"
+    }
+  },
+  {
+    "name": "HandleGetChatConversations",
+    "trimmedName": "GetChatConversations",
+    "comments": [
+      "HandleGetChatConversations",
+      "",
+      "\t@summary lists this profile's chat conversations.",
+      "\t@desc One entry per profile this profile has exchanged messages with. Last messages are",
+      "\t@desc still encrypted; the client decrypts previews locally. Unread counts are computed",
+      "\t@desc from read receipts (metadata, not content).",
+      "\t@returns chat.Conversations",
+      "\t@route /api/v1/chat/conversations [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/chat.go",
+    "filename": "chat.go",
+    "api": {
+      "summary": "lists this profile's chat conversations.",
+      "descriptions": [
+        "One entry per profile this profile has exchanged messages with. Last messages are",
+        "still encrypted; the client decrypts previews locally. Unread counts are computed",
+        "from read receipts (metadata, not content)."
+      ],
+      "endpoint": "/api/v1/chat/conversations",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "chat.Conversations",
+      "returnGoType": "chat.Conversations",
+      "returnTypescriptType": "Chat_Conversations"
+    }
+  },
+  {
+    "name": "HandleGetChatMessages",
+    "trimmedName": "GetChatMessages",
+    "comments": [
+      "HandleGetChatMessages",
+      "",
+      "\t@summary returns the messages between this profile and a peer.",
+      "\t@desc Oldest first, paginated with `beforeId` (the message ID to page back from).",
+      "\t@returns chat.Messages",
+      "\t@route /api/v1/chat/messages [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/chat.go",
+    "filename": "chat.go",
+    "api": {
+      "summary": "returns the messages between this profile and a peer.",
+      "descriptions": [
+        "Oldest first, paginated with `beforeId` (the message ID to page back from)."
+      ],
+      "endpoint": "/api/v1/chat/messages",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "chat.Messages",
+      "returnGoType": "chat.Messages",
+      "returnTypescriptType": "Chat_Messages"
+    }
+  },
+  {
+    "name": "HandleSendChatMessage",
+    "trimmedName": "SendChatMessage",
+    "comments": [
+      "HandleSendChatMessage",
+      "",
+      "\t@summary sends an encrypted message to a peer profile.",
+      "\t@desc The payload is the {iv, ciphertext} pair the client encrypted with the",
+      "\t@desc conversation key. The server relays it over websocket to the recipient's",
+      "\t@desc devices and echoes to the sender's other devices.",
+      "\t@returns chat.Message",
+      "\t@route /api/v1/chat/send [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/chat.go",
+    "filename": "chat.go",
+    "api": {
+      "summary": "sends an encrypted message to a peer profile.",
+      "descriptions": [
+        "The payload is the {iv, ciphertext} pair the client encrypted with the",
+        "conversation key. The server relays it over websocket to the recipient's",
+        "devices and echoes to the sender's other devices."
+      ],
+      "endpoint": "/api/v1/chat/send",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "ToProfileID",
+          "jsonName": "toProfileId",
+          "goType": "uint",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "IV",
+          "jsonName": "iv",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "Ciphertext",
+          "jsonName": "ciphertext",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "ReplyToID",
+          "jsonName": "replyToId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "ImageID",
+          "jsonName": "imageId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "ImageIV",
+          "jsonName": "imageIv",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "chat.Message",
+      "returnGoType": "chat.Message",
+      "returnTypescriptType": "Chat_Message"
+    }
+  },
+  {
+    "name": "HandleEditChatMessage",
+    "trimmedName": "EditChatMessage",
+    "comments": [
+      "HandleEditChatMessage",
+      "",
+      "\t@summary edits an encrypted message.",
+      "\t@desc Only the sender can edit. The client re-encrypts the new text; the server just",
+      "\t@desc swaps the ciphertext and marks the edit.",
+      "\t@returns chat.Message",
+      "\t@route /api/v1/chat/edit [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/chat.go",
+    "filename": "chat.go",
+    "api": {
+      "summary": "edits an encrypted message.",
+      "descriptions": [
+        "Only the sender can edit. The client re-encrypts the new text; the server just",
+        "swaps the ciphertext and marks the edit."
+      ],
+      "endpoint": "/api/v1/chat/edit",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "MessageID",
+          "jsonName": "messageId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "IV",
+          "jsonName": "iv",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "Ciphertext",
+          "jsonName": "ciphertext",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "chat.Message",
+      "returnGoType": "chat.Message",
+      "returnTypescriptType": "Chat_Message"
+    }
+  },
+  {
+    "name": "HandleDeleteChatMessage",
+    "trimmedName": "DeleteChatMessage",
+    "comments": [
+      "HandleDeleteChatMessage",
+      "",
+      "\t@summary deletes a message for both participants.",
+      "\t@desc The sender or the recipient can delete. The server clears the ciphertext (so the",
+      "\t@desc content is gone even from storage) and notifies both sides.",
+      "\t@returns chat.Message",
+      "\t@route /api/v1/chat/delete [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/chat.go",
+    "filename": "chat.go",
+    "api": {
+      "summary": "deletes a message for both participants.",
+      "descriptions": [
+        "The sender or the recipient can delete. The server clears the ciphertext (so the",
+        "content is gone even from storage) and notifies both sides."
+      ],
+      "endpoint": "/api/v1/chat/delete",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "MessageID",
+          "jsonName": "messageId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "chat.Message",
+      "returnGoType": "chat.Message",
+      "returnTypescriptType": "Chat_Message"
+    }
+  },
+  {
+    "name": "HandleReactChatMessage",
+    "trimmedName": "ReactChatMessage",
+    "comments": [
+      "HandleReactChatMessage",
+      "",
+      "\t@summary sets or clears this profile's encrypted reaction on a message.",
+      "\t@desc An empty ciphertext removes the reaction. Reactions are encrypted with the",
+      "\t@desc conversation key, so the server stores only opaque blobs.",
+      "\t@returns chat.Message",
+      "\t@route /api/v1/chat/react [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/chat.go",
+    "filename": "chat.go",
+    "api": {
+      "summary": "sets or clears this profile's encrypted reaction on a message.",
+      "descriptions": [
+        "An empty ciphertext removes the reaction. Reactions are encrypted with the",
+        "conversation key, so the server stores only opaque blobs."
+      ],
+      "endpoint": "/api/v1/chat/react",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "MessageID",
+          "jsonName": "messageId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "IV",
+          "jsonName": "iv",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "Ciphertext",
+          "jsonName": "ciphertext",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "chat.Message",
+      "returnGoType": "chat.Message",
+      "returnTypescriptType": "Chat_Message"
+    }
+  },
+  {
+    "name": "HandleMarkChatRead",
+    "trimmedName": "MarkChatRead",
+    "comments": [
+      "HandleMarkChatRead",
+      "",
+      "\t@summary marks all messages from a peer as read.",
+      "\t@desc Read receipts are timing metadata (the server already sees delivery timing). The",
+      "\t@desc peer is notified so their UI can show \"read\".",
+      "\t@returns bool",
+      "\t@route /api/v1/chat/mark-read [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/chat.go",
+    "filename": "chat.go",
+    "api": {
+      "summary": "marks all messages from a peer as read.",
+      "descriptions": [
+        "Read receipts are timing metadata (the server already sees delivery timing). The",
+        "peer is notified so their UI can show \"read\"."
+      ],
+      "endpoint": "/api/v1/chat/mark-read",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "WithProfileID",
+          "jsonName": "withProfileId",
+          "goType": "uint",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleChatTyping",
+    "trimmedName": "ChatTyping",
+    "comments": [
+      "HandleChatTyping",
+      "",
+      "\t@summary relays a typing indicator to a peer.",
+      "\t@desc Fire-and-forget: the server forwards the ping if the peer is online. No storage.",
+      "\t@returns bool",
+      "\t@route /api/v1/chat/typing [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/chat.go",
+    "filename": "chat.go",
+    "api": {
+      "summary": "relays a typing indicator to a peer.",
+      "descriptions": [
+        "Fire-and-forget: the server forwards the ping if the peer is online. No storage."
+      ],
+      "endpoint": "/api/v1/chat/typing",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "ToProfileID",
+          "jsonName": "toProfileId",
+          "goType": "uint",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "IsTyping",
+          "jsonName": "isTyping",
+          "goType": "bool",
+          "usedStructType": "",
+          "typescriptType": "boolean",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleUploadChatImage",
+    "trimmedName": "UploadChatImage",
+    "comments": [
+      "HandleUploadChatImage",
+      "",
+      "\t@summary uploads an encrypted image blob for a chat message.",
+      "\t@desc The client encrypts the image bytes with the conversation key before upload. The",
+      "\t@desc returned imageId goes into the message. Only the two participants can fetch it.",
+      "\t@returns chat.ImageUpload",
+      "\t@route /api/v1/chat/image [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/chat.go",
+    "filename": "chat.go",
+    "api": {
+      "summary": "uploads an encrypted image blob for a chat message.",
+      "descriptions": [
+        "The client encrypts the image bytes with the conversation key before upload. The",
+        "returned imageId goes into the message. Only the two participants can fetch it."
+      ],
+      "endpoint": "/api/v1/chat/image",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "ToProfileID",
+          "jsonName": "toProfileId",
+          "goType": "uint",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "IV",
+          "jsonName": "iv",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "Ciphertext",
+          "jsonName": "ciphertext",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "chat.ImageUpload",
+      "returnGoType": "chat.ImageUpload",
+      "returnTypescriptType": "Chat_ImageUpload"
+    }
+  },
+  {
+    "name": "HandleServeChatImage",
+    "trimmedName": "ServeChatImage",
+    "comments": [
+      "HandleServeChatImage",
+      "",
+      "\t@summary serves an encrypted chat image blob.",
+      "\t@desc Only the two conversation participants can fetch. The bytes are still encrypted;",
+      "\t@desc the client decrypts with the conversation key before rendering.",
+      "\t@returns string",
+      "\t@route /api/v1/chat/image/:id [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/chat.go",
+    "filename": "chat.go",
+    "api": {
+      "summary": "serves an encrypted chat image blob.",
+      "descriptions": [
+        "Only the two conversation participants can fetch. The bytes are still encrypted;",
+        "the client decrypts with the conversation key before rendering."
+      ],
+      "endpoint": "/api/v1/chat/image/:id",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "string",
+      "returnGoType": "string",
+      "returnTypescriptType": "string"
+    }
+  },
+  {
+    "name": "HandleGetProfileComments",
+    "trimmedName": "GetProfileComments",
+    "comments": [
+      "HandleGetProfileComments",
+      "",
+      "\t@summary returns the comments a profile has made, newest first.",
+      "\t@desc Used by the profile page's Comments tab: every comment the profile left on any",
+      "\t@desc show or manga, with the media reference and timestamp.",
+      "\t@returns handlers.ProfileCommentsResponse",
+      "\t@route /api/v1/profile/comments [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/chat.go",
+    "filename": "chat.go",
+    "api": {
+      "summary": "returns the comments a profile has made, newest first.",
+      "descriptions": [
+        "Used by the profile page's Comments tab: every comment the profile left on any",
+        "show or manga, with the media reference and timestamp."
+      ],
+      "endpoint": "/api/v1/profile/comments",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "handlers.ProfileCommentsResponse",
+      "returnGoType": "handlers.ProfileCommentsResponse",
+      "returnTypescriptType": "ProfileCommentsResponse"
+    }
+  },
+  {
+    "name": "resolveCommentTitles",
+    "trimmedName": "resolveCommentTitles",
+    "comments": [
+      "resolveCommentTitles fills in the media title of each comment from the comment",
+      "author's cached AniList collection (memory or disk copy — never blocks on a",
+      "fresh fetch). Comments are left from a media page, so the author's collection",
+      "almost always contains the media. Unresolved titles stay empty and the client",
+      "falls back to the media id.",
+      ""
+    ],
+    "filepath": "internal/handlers/chat.go",
+    "filename": "chat.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleGetClientPrefs",
     "trimmedName": "GetClientPrefs",
     "comments": [
