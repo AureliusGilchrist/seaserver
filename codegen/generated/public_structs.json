@@ -33059,6 +33059,17 @@
         "comments": []
       },
       {
+        "name": "ProfileActivityManager",
+        "jsonName": "ProfileActivityManager",
+        "goType": "profileactivity.Manager",
+        "typescriptType": "ProfileActivity_Manager",
+        "usedTypescriptType": "ProfileActivity_Manager",
+        "usedStructName": "profileactivity.Manager",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "UnmatchedRepository",
         "jsonName": "UnmatchedRepository",
         "goType": "unmatched.Repository",
@@ -99669,6 +99680,151 @@
     ]
   },
   {
+    "filepath": "../internal/profileactivity/profile_activity.go",
+    "filename": "profile_activity.go",
+    "name": "Item",
+    "formattedName": "ProfileActivity_Item",
+    "package": "profileactivity",
+    "fields": [
+      {
+        "name": "ProfileID",
+        "jsonName": "profileId",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Username",
+        "jsonName": "username",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsOnline",
+        "jsonName": "isOnline",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Kind",
+        "jsonName": "kind",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " \"watching\" | \"reading\" | \"idle\""
+        ]
+      },
+      {
+        "name": "MediaTitle",
+        "jsonName": "mediaTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EpisodeNumber",
+        "jsonName": "episodeNumber",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ChapterNumber",
+        "jsonName": "chapterNumber",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ProgressPercent",
+        "jsonName": "progressPercent",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Item is what a profile is doing right now, as seen by other profiles on the server."
+    ]
+  },
+  {
+    "filepath": "../internal/profileactivity/profile_activity.go",
+    "filename": "profile_activity.go",
+    "name": "List",
+    "formattedName": "ProfileActivity_List",
+    "package": "profileactivity",
+    "fields": [
+      {
+        "name": "Items",
+        "jsonName": "items",
+        "goType": "[]Item",
+        "typescriptType": "Array\u003cProfileActivity_Item\u003e",
+        "usedTypescriptType": "ProfileActivity_Item",
+        "usedStructName": "profileactivity.Item",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " List is the payload of the activity endpoint."
+    ]
+  },
+  {
+    "filepath": "../internal/profileactivity/profile_activity.go",
+    "filename": "profile_activity.go",
+    "name": "Manager",
+    "formattedName": "ProfileActivity_Manager",
+    "package": "profileactivity",
+    "fields": [
+      {
+        "name": "mu",
+        "jsonName": "mu",
+        "goType": "sync.RWMutex",
+        "typescriptType": "RWMutex",
+        "usedTypescriptType": "RWMutex",
+        "usedStructName": "sync.RWMutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "mangaByProfile",
+        "jsonName": "mangaByProfile",
+        "goType": "map[uint]Item",
+        "typescriptType": "Record\u003cnumber, ProfileActivity_Item\u003e",
+        "usedTypescriptType": "ProfileActivity_Item",
+        "usedStructName": "profileactivity.Item",
+        "required": false,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Manager holds activity reported by clients themselves (manga reading has no",
+      " server-side playback state to derive it from). Watching activity is derived",
+      " from VideoCore at request time and does not live here."
+    ]
+  },
+  {
     "filepath": "../internal/profilestats/types.go",
     "filename": "types.go",
     "name": "ProfileStats",
@@ -116827,6 +116983,50 @@
       }
     ],
     "comments": []
+  },
+  {
+    "filepath": "../internal/videocore/videocore.go",
+    "filename": "videocore.go",
+    "name": "PlaybackStateSnapshot",
+    "formattedName": "VideoCore_PlaybackStateSnapshot",
+    "package": "videocore",
+    "fields": [
+      {
+        "name": "ClientId",
+        "jsonName": "ClientId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PlaybackInfo",
+        "jsonName": "PlaybackInfo",
+        "goType": "VideoPlaybackInfo",
+        "typescriptType": "VideoCore_VideoPlaybackInfo",
+        "usedTypescriptType": "VideoCore_VideoPlaybackInfo",
+        "usedStructName": "videocore.VideoPlaybackInfo",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "Status",
+        "goType": "PlaybackStatus",
+        "typescriptType": "VideoCore_PlaybackStatus",
+        "usedTypescriptType": "VideoCore_PlaybackStatus",
+        "usedStructName": "videocore.PlaybackStatus",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " PlaybackStateSnapshot is a copy of one client's current playback, for modules that",
+      " need to enumerate what every client is doing (e.g. profile activity)."
+    ]
   },
   {
     "filepath": "../internal/watchparty/watch_party.go",

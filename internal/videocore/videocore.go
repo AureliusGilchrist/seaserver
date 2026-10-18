@@ -404,6 +404,33 @@ func (vc *VideoCore) GetPlaybackStateFor(clientId string) (*PlaybackState, bool)
 	return vc.getPlaybackStateFor(clientId)
 }
 
+// PlaybackStateSnapshot is a copy of one client's current playback, for modules that
+// need to enumerate what every client is doing (e.g. profile activity).
+type PlaybackStateSnapshot struct {
+	ClientId     string
+	PlaybackInfo *VideoPlaybackInfo
+	Status       *PlaybackStatus
+}
+
+// GetPlaybackStateSnapshots returns a copy of every client's current playback state
+// and status, keyed by nothing — each item carries its clientId.
+func (vc *VideoCore) GetPlaybackStateSnapshots() []PlaybackStateSnapshot {
+	vc.playbackMu.RLock()
+	defer vc.playbackMu.RUnlock()
+	out := make([]PlaybackStateSnapshot, 0, len(vc.playbackStates))
+	for clientId, state := range vc.playbackStates {
+		if state == nil || state.PlaybackInfo == nil || state.PlaybackInfo.Episode == nil {
+			continue
+		}
+		out = append(out, PlaybackStateSnapshot{
+			ClientId:     clientId,
+			PlaybackInfo: state.PlaybackInfo,
+			Status:       vc.playbackStatuses[clientId],
+		})
+	}
+	return out
+}
+
 // GetPlaybackState returns the last-active client's playback state.
 func (vc *VideoCore) GetPlaybackState() (*PlaybackState, bool) {
 	return vc.getPlaybackStateFor(vc.currentClientId())

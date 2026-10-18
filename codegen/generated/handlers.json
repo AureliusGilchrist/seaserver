@@ -15010,6 +15010,102 @@
     }
   },
   {
+    "name": "HandleGetProfilesActivity",
+    "trimmedName": "GetProfilesActivity",
+    "comments": [
+      "HandleGetProfilesActivity",
+      "",
+      "\t@summary returns what every profile on this server is doing right now.",
+      "\t@desc Online is derived from live websocket connections. Watching activity comes from",
+      "\t@desc VideoCore's per-client playback states (mapped back to profiles through the",
+      "\t@desc websocket registry). Reading activity is what manga clients reported.",
+      "\t@returns profileactivity.List",
+      "\t@route /api/v1/profiles/activity [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_activity.go",
+    "filename": "profile_activity.go",
+    "api": {
+      "summary": "returns what every profile on this server is doing right now.",
+      "descriptions": [
+        "Online is derived from live websocket connections. Watching activity comes from",
+        "VideoCore's per-client playback states (mapped back to profiles through the",
+        "websocket registry). Reading activity is what manga clients reported."
+      ],
+      "endpoint": "/api/v1/profiles/activity",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "profileactivity.List",
+      "returnGoType": "profileactivity.List",
+      "returnTypescriptType": "ProfileActivity_List"
+    }
+  },
+  {
+    "name": "HandleSetProfileActivity",
+    "trimmedName": "SetProfileActivity",
+    "comments": [
+      "HandleSetProfileActivity",
+      "",
+      "\t@summary reports this profile's client-side activity (manga reading).",
+      "\t@desc The manga reader calls this when a chapter is opened and with an empty title",
+      "\t@desc when reading stops. Only reading activity is client-reported; watching is",
+      "\t@desc derived from VideoCore server-side.",
+      "\t@returns bool",
+      "\t@route /api/v1/profiles/activity [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_activity.go",
+    "filename": "profile_activity.go",
+    "api": {
+      "summary": "reports this profile's client-side activity (manga reading).",
+      "descriptions": [
+        "The manga reader calls this when a chapter is opened and with an empty title",
+        "when reading stops. Only reading activity is client-reported; watching is",
+        "derived from VideoCore server-side."
+      ],
+      "endpoint": "/api/v1/profiles/activity",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "MediaTitle",
+          "jsonName": "mediaTitle",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "ChapterNumber",
+          "jsonName": "chapterNumber",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "ProgressPercent",
+          "jsonName": "progressPercent",
+          "goType": "float64",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "GetProfileDatabase",
     "trimmedName": "GetProfileDatabase",
     "comments": [

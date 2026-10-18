@@ -41,6 +41,7 @@ import (
 	"seanime/internal/mediastream"
 	"seanime/internal/milestone"
 	"seanime/internal/nakama"
+	"seanime/internal/profileactivity"
 	"seanime/internal/nativeplayer"
 	"seanime/internal/onlinestream"
 	"seanime/internal/platforms/anilist_platform"
@@ -187,6 +188,7 @@ type (
 		LibraryExplorer *library_explorer.LibraryExplorer
 		NakamaManager   *nakama.Manager
 		WatchPartyManager *watchparty.Manager
+		ProfileActivityManager *profileactivity.Manager
 
 		// Unmatched torrent management
 		UnmatchedRepository  *unmatched.Repository
@@ -534,6 +536,7 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 		VideoCore:                     nil,                                          // Initialized in App.initModulesOnce
 		NakamaManager:                 nil,                                          // Initialized in App.initModulesOnce
 		WatchPartyManager:             nil,                                          // Initialized in App.initModulesOnce
+		ProfileActivityManager:        profileactivity.NewManager(),
 		LibraryExplorer:               nil,                                          // Initialized in App.initModulesOnce
 		TorrentClientRepository:       nil,                                          // Initialized in App.InitOrRefreshModules
 		TorrentClientRepositoryRef:    util.NewRef[*torrent_client.Repository](nil), // Ref for late binding

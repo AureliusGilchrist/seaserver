@@ -3029,6 +3029,32 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/profiles/{id}/anilist-token",
         },
     },
+    PROFILE_ACTIVITY: {
+        /**
+         *  @description
+         *  Route returns what every profile on this server is doing right now.
+         *  Online is derived from live websocket connections. Watching activity comes from
+         *  VideoCore's per-client playback states (mapped back to profiles through the
+         *  websocket registry). Reading activity is what manga clients reported.
+         */
+        GetProfilesActivity: {
+            key: "PROFILE-ACTIVITY-get-profiles-activity",
+            methods: ["GET"],
+            endpoint: "/api/v1/profiles/activity",
+        },
+        /**
+         *  @description
+         *  Route reports this profile's client-side activity (manga reading).
+         *  The manga reader calls this when a chapter is opened and with an empty title
+         *  when reading stops. Only reading activity is client-reported; watching is
+         *  derived from VideoCore server-side.
+         */
+        SetProfileActivity: {
+            key: "PROFILE-ACTIVITY-set-profile-activity",
+            methods: ["POST"],
+            endpoint: "/api/v1/profiles/activity",
+        },
+    },
     PROFILE_PAGE: {
         /**
          *  @description

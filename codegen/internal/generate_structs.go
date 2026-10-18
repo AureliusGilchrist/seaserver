@@ -129,6 +129,7 @@ var typePrefixesByPackage = map[string]string{
 	"profilestats":       "ProfileStats_",
 	"enqueuefuture":      "EnqueueFuture_",
 	"watchparty":         "WatchParty_",
+	"profileactivity":    "ProfileActivity_",
 }
 
 func getTypePrefix(packageName string) string {

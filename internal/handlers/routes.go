@@ -963,6 +963,12 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1WatchParty.POST("/stop", h.HandleWatchPartyStop)
 
 	//
+	// Profile activity (presence)
+	//
+	v1.GET("/profiles/activity", h.HandleGetProfilesActivity)
+	v1.POST("/profiles/activity", h.HandleSetProfileActivity)
+
+	//
 	// Custom Source
 	//
 	v1CustomSource := v1.Group("/custom-source")

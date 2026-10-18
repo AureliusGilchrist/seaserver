@@ -20,6 +20,8 @@ import React from "react"
 import { MdOutlineConnectWithoutContact } from "react-icons/md"
 import { toast } from "sonner"
 import { useDirectstreamPlayLocalFile } from "@/api/hooks/directstream.hooks"
+import { useGetProfilesActivity } from "@/api/hooks/profile-activity.hooks"
+import { ProfileActivity_Item } from "@/api/generated/types"
 
 const log = logger("WatchTogether")
 
@@ -141,6 +143,8 @@ function WatchPartyModal() {
             overlayClass="bg-black/80"
         >
             <div className="flex flex-col gap-4 p-2">
+                <ActivitySection enabled={isModalOpen} />
+
                 {!session && (
                     <>
                         <p className="text-[--muted] text-sm">
@@ -219,6 +223,41 @@ function WatchPartyModal() {
                 )}
             </div>
         </Modal>
+    )
+}
+
+function ActivitySection({ enabled }: { enabled: boolean }) {
+    const { data } = useGetProfilesActivity(enabled)
+    const items = data?.items ?? []
+    const others = items.filter(i => i.isOnline || i.kind === "watching" || i.kind === "reading")
+
+    if (others.length === 0) return null
+
+    return (
+        <div className="flex flex-col gap-1">
+            <p className="text-xs uppercase tracking-wider text-[--muted]">On this server</p>
+            <div className="flex flex-col gap-1 rounded-md border border-[--border] p-2">
+                {others.map(item => <ActivityRow key={item.profileId} item={item} />)}
+            </div>
+        </div>
+    )
+}
+
+function ActivityRow({ item }: { item: ProfileActivity_Item }) {
+    const dot = item.isOnline ? "bg-green-500" : "bg-gray-500"
+    const doing = item.kind === "watching"
+        ? `Watching ${item.mediaTitle}${item.episodeNumber ? ` — Ep ${item.episodeNumber}` : ""}`
+        : item.kind === "reading"
+            ? `Reading ${item.mediaTitle}${item.chapterNumber ? ` — Ch ${item.chapterNumber}` : ""}`
+            : "Idle"
+    return (
+        <div className="flex items-center justify-between px-2 py-1 rounded-md hover:bg-[--secondary]">
+            <div className="flex items-center gap-2">
+                <span className={`size-2 rounded-full ${dot}`} />
+                <span className="text-sm">{item.username}</span>
+            </div>
+            <span className="text-xs text-[--muted]">{doing}</span>
+        </div>
     )
 }
 

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"seanime/internal/events"
 	"seanime/internal/mediastream/videofile"
+	"os"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -37,6 +39,20 @@ func (r *Repository) ServeEchoExtractedSubtitles(c echo.Context, clientId string
 		return errors.New("could not find subtitles")
 	}
 
+	// Wait for extraction to complete (files should appear within a few seconds).
+	const maxWait = 10 * time.Second
+	start := time.Now()
+	for {
+		fullPath := filepath.Join(retPath, subFilePath)
+		if _, err := os.Stat(fullPath); err == nil {
+			break
+		}
+		if time.Since(start) > maxWait {
+			return errors.New("subtitles not ready")
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+
 	r.logger.Trace().Msgf("mediastream: Serving subtitles from %s", retPath)
 
 	return c.File(filepath.Join(retPath, subFilePath))
@@ -65,7 +81,21 @@ func (r *Repository) ServeEchoExtractedAttachments(c echo.Context, clientId stri
 	retPath := videofile.GetFileAttCacheDir(r.cacheDir, mediaContainer.Hash)
 
 	if retPath == "" {
-		return errors.New("could not find subtitles")
+		return errors.New("could not find attachments")
+	}
+
+	// Wait for extraction to complete (attachments should appear within a few seconds).
+	const maxWait = 10 * time.Second
+	start := time.Now()
+	for {
+		fullPath := filepath.Join(retPath, subFilePath)
+		if _, err := os.Stat(fullPath); err == nil {
+			break
+		}
+		if time.Since(start) > maxWait {
+			return errors.New("attachments not ready")
+		}
+		time.Sleep(200 * time.Millisecond)
 	}
 
 	subFilePath, _ = url.PathUnescape(subFilePath)

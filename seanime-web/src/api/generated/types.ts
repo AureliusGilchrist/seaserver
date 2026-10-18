@@ -6126,6 +6126,42 @@ export type Settings = {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Profileactivity
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - Filepath: internal/profileactivity/profile_activity.go
+ * - Filename: profile_activity.go
+ * - Package: profileactivity
+ * @description
+ *  Item is what a profile is doing right now, as seen by other profiles on the server.
+ */
+export type ProfileActivity_Item = {
+    profileId: number
+    username: string
+    isOnline: boolean
+    /**
+     * "watching" | "reading" | "idle"
+     */
+    kind: string
+    mediaTitle?: string
+    episodeNumber?: number
+    chapterNumber?: number
+    progressPercent?: number
+}
+
+/**
+ * - Filepath: internal/profileactivity/profile_activity.go
+ * - Filename: profile_activity.go
+ * - Package: profileactivity
+ * @description
+ *  List is the payload of the activity endpoint.
+ */
+export type ProfileActivity_List = {
+    items?: Array<ProfileActivity_Item>
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Profilestats
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -273,6 +273,31 @@ func SetStreamOwner(eventType string, clientID string) {
 	streamOwners.Store(eventType, clientID)
 }
 
+// ProfileIdsOnline returns the set of profile ids that have at least one live connection.
+func (m *WSEventManager) ProfileIdsOnline() map[uint]struct{} {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make(map[uint]struct{})
+	for _, c := range m.Conns {
+		if c.ProfileID != 0 {
+			out[c.ProfileID] = struct{}{}
+		}
+	}
+	return out
+}
+
+// ProfileIdForClient returns the profile id that owns the given client (ws) id.
+func (m *WSEventManager) ProfileIdForClient(clientId string) (uint, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, c := range m.Conns {
+		if c.ID == clientId && c.ProfileID != 0 {
+			return c.ProfileID, true
+		}
+	}
+	return 0, false
+}
+
 // SendEvent sends a websocket event to all clients, or only to the owning client for session-scoped events.
 func (m *WSEventManager) SendEvent(t string, payload interface{}) {
 	if t != PlaybackManagerProgressPlaybackState && t != ChapterDownloadQueueUpdated && payload == nil {

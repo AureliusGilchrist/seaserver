@@ -171,7 +171,7 @@ func FfprobeGetInfo(ffprobePath, path, hash string) (*MediaInfo, error) {
 		ffprobe.SetFFProbeBinPath(ffprobePath)
 	}
 
-	ffprobeCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ffprobeCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	data, err := ffprobe.ProbeURL(ffprobeCtx, path)

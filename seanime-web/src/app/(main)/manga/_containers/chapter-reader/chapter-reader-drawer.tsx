@@ -34,6 +34,8 @@ import { Drawer } from "@/components/ui/drawer"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { __isDesktop__ } from "@/types/constants"
 import { useAtom, useAtomValue, useSetAtom } from "jotai/react"
+import { useSetProfileActivity } from "@/api/hooks/profile-activity.hooks"
+import { displayTitle } from "@/lib/helpers/media"
 import mousetrap from "mousetrap"
 import React from "react"
 import { TbLayoutBottombarExpandFilled } from "react-icons/tb"
@@ -59,6 +61,23 @@ export function ChapterReaderDrawer(props: ChapterDrawerProps) {
 
     // Discord rich presence
     useDiscordMangaPresence(entry)
+
+    // Profile activity: report to the server that this profile is reading (presence list).
+    const { mutate: setProfileActivity } = useSetProfileActivity()
+    React.useEffect(() => {
+        if (currentChapter?.chapterId) {
+            setProfileActivity({
+                mediaTitle: displayTitle(entry.media?.title) || "",
+                chapterNumber: currentChapter.chapterNumber ?? 0,
+                progressPercent: 0,
+            })
+        }
+        return () => {
+            // Clear on unmount (cleanup also fires on chapter change; the set above re-reports)
+            setProfileActivity({ mediaTitle: "", chapterNumber: 0, progressPercent: 0 })
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentChapter?.chapterId])
 
     const currentChapter = useCurrentChapter()
     const setCurrentChapter = useSetCurrentChapter()
