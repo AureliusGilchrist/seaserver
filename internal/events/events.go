@@ -122,6 +122,10 @@ const (
 
 	NakamaOnlineStreamEvent = "nakama-online-stream-event"
 
+	// Same-server watch party ("Watch Together"): participants follow one device's
+	// playback. The payload is a watchparty.StatePayload.
+	WatchPartyState = "watch-party-state"
+
 	// Nakama Watch Party events
 	NakamaWatchPartyState                                 = "nakama-watch-party-state"
 	NakamaWatchPartyEnableRelayMode                       = "nakama-watch-party-enable-relay-mode"

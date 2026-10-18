@@ -952,6 +952,17 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Nakama.POST("/watch-party/chat", h.HandleNakamaSendChatMessage)
 
 	//
+	// Watch Together (same-server watch party)
+	//
+
+	v1WatchParty := v1.Group("/watchparty")
+	v1WatchParty.GET("/status", h.HandleWatchPartyStatus)
+	v1WatchParty.POST("/create", h.HandleWatchPartyCreate)
+	v1WatchParty.POST("/join", h.HandleWatchPartyJoin)
+	v1WatchParty.POST("/leave", h.HandleWatchPartyLeave)
+	v1WatchParty.POST("/stop", h.HandleWatchPartyStop)
+
+	//
 	// Custom Source
 	//
 	v1CustomSource := v1.Group("/custom-source")

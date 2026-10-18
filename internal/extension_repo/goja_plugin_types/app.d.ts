@@ -3378,6 +3378,10 @@ declare namespace $app {
          * Episode rating out of 10, when the metadata source provides one
          */
         rating?: number;
+        /**
+         * IMDb id of the series the episode belongs to
+         */
+        imdbId?: string;
     }
 
     /**
@@ -3975,6 +3979,10 @@ declare namespace $app {
          */
         hasImage: boolean;
         rating?: number;
+        /**
+         * IMDb id of the series the episode belongs to
+         */
+        imdbId?: string;
     }
 
     /**

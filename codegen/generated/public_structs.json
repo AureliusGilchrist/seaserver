@@ -33048,6 +33048,17 @@
         "comments": []
       },
       {
+        "name": "WatchPartyManager",
+        "jsonName": "WatchPartyManager",
+        "goType": "watchparty.Manager",
+        "typescriptType": "WatchParty_Manager",
+        "usedTypescriptType": "WatchParty_Manager",
+        "usedStructName": "watchparty.Manager",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "UnmatchedRepository",
         "jsonName": "UnmatchedRepository",
         "goType": "unmatched.Repository",
@@ -116813,6 +116824,511 @@
         "required": false,
         "public": true,
         "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/watchparty/watch_party.go",
+    "filename": "watch_party.go",
+    "name": "Settings",
+    "formattedName": "WatchParty_Settings",
+    "package": "watchparty",
+    "fields": [
+      {
+        "name": "SyncThreshold",
+        "jsonName": "syncThreshold",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/watchparty/watch_party.go",
+    "filename": "watch_party.go",
+    "name": "MediaInfo",
+    "formattedName": "WatchParty_MediaInfo",
+    "package": "watchparty",
+    "fields": [
+      {
+        "name": "MediaId",
+        "jsonName": "mediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaTitle",
+        "jsonName": "mediaTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EpisodeNumber",
+        "jsonName": "episodeNumber",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EpisodeTitle",
+        "jsonName": "episodeTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AniDBEpisode",
+        "jsonName": "aniDbEpisode",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StreamType",
+        "jsonName": "streamType",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " \"localfile\" | \"torrent\" | \"debrid\" | \"onlinestream\" | \"nakama\" | \"unknown\""
+        ]
+      },
+      {
+        "name": "PlaybackType",
+        "jsonName": "playbackType",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LocalFilePath",
+        "jsonName": "localFilePath",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "OnlinestreamParams",
+        "jsonName": "onlinestreamParams",
+        "goType": "videocore.OnlinestreamParams",
+        "typescriptType": "VideoCore_OnlinestreamParams",
+        "usedTypescriptType": "VideoCore_OnlinestreamParams",
+        "usedStructName": "videocore.OnlinestreamParams",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/watchparty/watch_party.go",
+    "filename": "watch_party.go",
+    "name": "Participant",
+    "formattedName": "WatchParty_Participant",
+    "package": "watchparty",
+    "fields": [
+      {
+        "name": "ClientId",
+        "jsonName": "clientId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ProfileID",
+        "jsonName": "profileId",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Username",
+        "jsonName": "username",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsSource",
+        "jsonName": "isSource",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "JoinedAt",
+        "jsonName": "joinedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastSeen",
+        "jsonName": "lastSeen",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Epoch",
+        "jsonName": "epoch",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PlaybackStatus",
+        "jsonName": "playbackStatus",
+        "goType": "PlaybackStatusInfo",
+        "typescriptType": "WatchParty_PlaybackStatusInfo",
+        "usedTypescriptType": "WatchParty_PlaybackStatusInfo",
+        "usedStructName": "watchparty.PlaybackStatusInfo",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PlaybackId",
+        "jsonName": "",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/watchparty/watch_party.go",
+    "filename": "watch_party.go",
+    "name": "PlaybackStatusInfo",
+    "formattedName": "WatchParty_PlaybackStatusInfo",
+    "package": "watchparty",
+    "fields": [
+      {
+        "name": "Paused",
+        "jsonName": "paused",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CurrentTime",
+        "jsonName": "currentTime",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " in seconds"
+        ]
+      },
+      {
+        "name": "Duration",
+        "jsonName": "duration",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " in seconds"
+        ]
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/watchparty/watch_party.go",
+    "filename": "watch_party.go",
+    "name": "Session",
+    "formattedName": "WatchParty_Session",
+    "package": "watchparty",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Participants",
+        "jsonName": "participants",
+        "goType": "[]Participant",
+        "typescriptType": "Array\u003cWatchParty_Participant\u003e",
+        "usedTypescriptType": "WatchParty_Participant",
+        "usedStructName": "watchparty.Participant",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaInfo",
+        "jsonName": "mediaInfo",
+        "goType": "MediaInfo",
+        "typescriptType": "WatchParty_MediaInfo",
+        "usedTypescriptType": "WatchParty_MediaInfo",
+        "usedStructName": "watchparty.MediaInfo",
+        "required": false,
+        "public": true,
+        "comments": [
+          " nil while the source plays nothing"
+        ]
+      },
+      {
+        "name": "Settings",
+        "jsonName": "settings",
+        "goType": "Settings",
+        "typescriptType": "WatchParty_Settings",
+        "usedTypescriptType": "WatchParty_Settings",
+        "usedStructName": "watchparty.Settings",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CreatedAt",
+        "jsonName": "createdAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Epoch",
+        "jsonName": "epoch",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/watchparty/watch_party.go",
+    "filename": "watch_party.go",
+    "name": "NewManagerOptions",
+    "formattedName": "WatchParty_NewManagerOptions",
+    "package": "watchparty",
+    "fields": [
+      {
+        "name": "Logger",
+        "jsonName": "Logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "WsEventManager",
+        "jsonName": "WsEventManager",
+        "goType": "events.WSEventManagerInterface",
+        "typescriptType": "Events_WSEventManagerInterface",
+        "usedTypescriptType": "Events_WSEventManagerInterface",
+        "usedStructName": "events.WSEventManagerInterface",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "VideoCore",
+        "jsonName": "VideoCore",
+        "goType": "videocore.VideoCore",
+        "typescriptType": "VideoCore_VideoCore",
+        "usedTypescriptType": "VideoCore_VideoCore",
+        "usedStructName": "videocore.VideoCore",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "GetProfileNameFunc",
+        "jsonName": "GetProfileNameFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/watchparty/watch_party.go",
+    "filename": "watch_party.go",
+    "name": "Manager",
+    "formattedName": "WatchParty_Manager",
+    "package": "watchparty",
+    "fields": [
+      {
+        "name": "logger",
+        "jsonName": "logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "wsEventManager",
+        "jsonName": "wsEventManager",
+        "goType": "events.WSEventManagerInterface",
+        "typescriptType": "Events_WSEventManagerInterface",
+        "usedTypescriptType": "Events_WSEventManagerInterface",
+        "usedStructName": "events.WSEventManagerInterface",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "videoCore",
+        "jsonName": "videoCore",
+        "goType": "videocore.VideoCore",
+        "typescriptType": "VideoCore_VideoCore",
+        "usedTypescriptType": "VideoCore_VideoCore",
+        "usedStructName": "videocore.VideoCore",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "getProfileName",
+        "jsonName": "getProfileName",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "mu",
+        "jsonName": "mu",
+        "goType": "sync.RWMutex",
+        "typescriptType": "RWMutex",
+        "usedTypescriptType": "RWMutex",
+        "usedStructName": "sync.RWMutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "session",
+        "jsonName": "session",
+        "goType": "Session",
+        "typescriptType": "WatchParty_Session",
+        "usedTypescriptType": "WatchParty_Session",
+        "usedStructName": "watchparty.Session",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "syncMu",
+        "jsonName": "syncMu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "peerSyncs",
+        "jsonName": "peerSyncs",
+        "goType": "map[string]peerSync",
+        "typescriptType": "Record\u003cstring, WatchParty_peerSync\u003e",
+        "usedTypescriptType": "WatchParty_peerSync",
+        "usedStructName": "watchparty.peerSync",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "sub",
+        "jsonName": "sub",
+        "goType": "videocore.Subscriber",
+        "typescriptType": "VideoCore_Subscriber",
+        "usedTypescriptType": "VideoCore_Subscriber",
+        "usedStructName": "videocore.Subscriber",
+        "required": false,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/watchparty/watch_party.go",
+    "filename": "watch_party.go",
+    "name": "StatePayload",
+    "formattedName": "WatchParty_StatePayload",
+    "package": "watchparty",
+    "fields": [
+      {
+        "name": "Session",
+        "jsonName": "session",
+        "goType": "Session",
+        "typescriptType": "WatchParty_Session",
+        "usedTypescriptType": "WatchParty_Session",
+        "usedStructName": "watchparty.Session",
+        "required": false,
+        "public": true,
+        "comments": [
+          " nil when no session is active"
+        ]
       }
     ],
     "comments": []

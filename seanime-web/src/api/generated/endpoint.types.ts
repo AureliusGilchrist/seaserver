@@ -45,6 +45,7 @@ import type {
     Settings,
     TorrentContentsRequestItem,
     Torrentstream_PlaybackType,
+    WatchParty_Settings,
 } from "@/api/generated/types.ts"
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3318,6 +3319,55 @@ export type ResolveUnmatchedMatchQueueItem_Variables = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // update_notice
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// watchparty
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - Filepath: internal/handlers/watchparty.go
+ * - Filename: watchparty.go
+ * - Endpoint: /api/v1/watchparty/create
+ * @description
+ * Route creates a same-server watch party.
+ */
+export type WatchPartyCreate_Variables = {
+    clientId: string
+    settings?: WatchParty_Settings
+}
+
+/**
+ * - Filepath: internal/handlers/watchparty.go
+ * - Filename: watchparty.go
+ * - Endpoint: /api/v1/watchparty/join
+ * @description
+ * Route joins the active same-server watch party.
+ */
+export type WatchPartyJoin_Variables = {
+    clientId: string
+}
+
+/**
+ * - Filepath: internal/handlers/watchparty.go
+ * - Filename: watchparty.go
+ * - Endpoint: /api/v1/watchparty/leave
+ * @description
+ * Route leaves the watch party.
+ */
+export type WatchPartyLeave_Variables = {
+    clientId: string
+}
+
+/**
+ * - Filepath: internal/handlers/watchparty.go
+ * - Filename: watchparty.go
+ * - Endpoint: /api/v1/watchparty/stop
+ * @description
+ * Route stops the watch party for everyone.
+ */
+export type WatchPartyStop_Variables = {
+    clientId: string
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // websocket

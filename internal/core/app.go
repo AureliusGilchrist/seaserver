@@ -47,6 +47,7 @@ import (
 	kitsuplatform "seanime/internal/platforms/kitsu_platform"
 	"seanime/internal/platforms/offline_platform"
 	"seanime/internal/platforms/platform"
+	"seanime/internal/watchparty"
 	"seanime/internal/platforms/simulated_platform"
 	"seanime/internal/playlist"
 	"seanime/internal/plugin"
@@ -185,6 +186,7 @@ type (
 		PlaylistManager *playlist.Manager
 		LibraryExplorer *library_explorer.LibraryExplorer
 		NakamaManager   *nakama.Manager
+		WatchPartyManager *watchparty.Manager
 
 		// Unmatched torrent management
 		UnmatchedRepository  *unmatched.Repository
@@ -531,6 +533,7 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 		NativePlayer:                  nil,                                          // Initialized in App.initModulesOnce
 		VideoCore:                     nil,                                          // Initialized in App.initModulesOnce
 		NakamaManager:                 nil,                                          // Initialized in App.initModulesOnce
+		WatchPartyManager:             nil,                                          // Initialized in App.initModulesOnce
 		LibraryExplorer:               nil,                                          // Initialized in App.initModulesOnce
 		TorrentClientRepository:       nil,                                          // Initialized in App.InitOrRefreshModules
 		TorrentClientRepositoryRef:    util.NewRef[*torrent_client.Repository](nil), // Ref for late binding

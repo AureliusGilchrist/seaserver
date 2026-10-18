@@ -22442,6 +22442,213 @@
     }
   },
   {
+    "name": "HandleWatchPartyStatus",
+    "trimmedName": "WatchPartyStatus",
+    "comments": [
+      "HandleWatchPartyStatus",
+      "",
+      "\t@summary returns the active same-server watch party session.",
+      "\t@desc Returns the current watch party session, or null if none is active.",
+      "\t@desc Any device connected to this server can read this to discover and join a session.",
+      "\t@route /api/v1/watchparty/status [GET]",
+      "\t@returns watchparty.Session",
+      ""
+    ],
+    "filepath": "internal/handlers/watchparty.go",
+    "filename": "watchparty.go",
+    "api": {
+      "summary": "returns the active same-server watch party session.",
+      "descriptions": [
+        "Returns the current watch party session, or null if none is active.",
+        "Any device connected to this server can read this to discover and join a session."
+      ],
+      "endpoint": "/api/v1/watchparty/status",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "watchparty.Session",
+      "returnGoType": "watchparty.Session",
+      "returnTypescriptType": "WatchParty_Session"
+    }
+  },
+  {
+    "name": "HandleWatchPartyCreate",
+    "trimmedName": "WatchPartyCreate",
+    "comments": [
+      "HandleWatchPartyCreate",
+      "",
+      "\t@summary creates a same-server watch party.",
+      "\t@desc Starts a new watch party session with this device as the source.",
+      "\t@desc Other devices connected to this server (under their own profiles) can then join it.",
+      "\t@route /api/v1/watchparty/create [POST]",
+      "\t@returns watchparty.Session",
+      ""
+    ],
+    "filepath": "internal/handlers/watchparty.go",
+    "filename": "watchparty.go",
+    "api": {
+      "summary": "creates a same-server watch party.",
+      "descriptions": [
+        "Starts a new watch party session with this device as the source.",
+        "Other devices connected to this server (under their own profiles) can then join it."
+      ],
+      "endpoint": "/api/v1/watchparty/create",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "ClientId",
+          "jsonName": "clientId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "Settings",
+          "jsonName": "settings",
+          "goType": "watchparty.Settings",
+          "usedStructType": "watchparty.Settings",
+          "typescriptType": "WatchParty_Settings",
+          "required": false,
+          "descriptions": []
+        }
+      ],
+      "returns": "watchparty.Session",
+      "returnGoType": "watchparty.Session",
+      "returnTypescriptType": "WatchParty_Session"
+    }
+  },
+  {
+    "name": "HandleWatchPartyJoin",
+    "trimmedName": "WatchPartyJoin",
+    "comments": [
+      "HandleWatchPartyJoin",
+      "",
+      "\t@summary joins the active same-server watch party.",
+      "\t@desc Adds this device to the active watch party session.",
+      "\t@desc If the source is playing something, the client starts the same episode and follows it.",
+      "\t@route /api/v1/watchparty/join [POST]",
+      "\t@returns watchparty.Session",
+      ""
+    ],
+    "filepath": "internal/handlers/watchparty.go",
+    "filename": "watchparty.go",
+    "api": {
+      "summary": "joins the active same-server watch party.",
+      "descriptions": [
+        "Adds this device to the active watch party session.",
+        "If the source is playing something, the client starts the same episode and follows it."
+      ],
+      "endpoint": "/api/v1/watchparty/join",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "ClientId",
+          "jsonName": "clientId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "watchparty.Session",
+      "returnGoType": "watchparty.Session",
+      "returnTypescriptType": "WatchParty_Session"
+    }
+  },
+  {
+    "name": "HandleWatchPartyLeave",
+    "trimmedName": "WatchPartyLeave",
+    "comments": [
+      "HandleWatchPartyLeave",
+      "",
+      "\t@summary leaves the watch party.",
+      "\t@desc Removes this device from the active watch party session.",
+      "\t@desc If the source leaves, the first remaining participant becomes the source.",
+      "\t@route /api/v1/watchparty/leave [POST]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/watchparty.go",
+    "filename": "watchparty.go",
+    "api": {
+      "summary": "leaves the watch party.",
+      "descriptions": [
+        "Removes this device from the active watch party session.",
+        "If the source leaves, the first remaining participant becomes the source."
+      ],
+      "endpoint": "/api/v1/watchparty/leave",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "ClientId",
+          "jsonName": "clientId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleWatchPartyStop",
+    "trimmedName": "WatchPartyStop",
+    "comments": [
+      "HandleWatchPartyStop",
+      "",
+      "\t@summary stops the watch party for everyone.",
+      "\t@desc Ends the active watch party session. Only the source can stop it.",
+      "\t@route /api/v1/watchparty/stop [POST]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/watchparty.go",
+    "filename": "watchparty.go",
+    "api": {
+      "summary": "stops the watch party for everyone.",
+      "descriptions": [
+        "Ends the active watch party session. Only the source can stop it."
+      ],
+      "endpoint": "/api/v1/watchparty/stop",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "ClientId",
+          "jsonName": "clientId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "webSocketEventHandler",
     "trimmedName": "webSocketEventHandler",
     "comments": [

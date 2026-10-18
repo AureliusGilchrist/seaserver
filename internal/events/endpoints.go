@@ -457,4 +457,9 @@ const (
 	UpsertClientPrefEndpoint                           = "CLIENT-PREFS-upsert-client-pref"
 	UpsertTrackPreferenceEndpoint                      = "TRACK-PREFERENCES-upsert-track-preference"
 	VoteCommentEndpoint                                = "COMMENT-vote-comment"
+	WatchPartyCreateEndpoint                           = "WATCHPARTY-watch-party-create"
+	WatchPartyJoinEndpoint                             = "WATCHPARTY-watch-party-join"
+	WatchPartyLeaveEndpoint                            = "WATCHPARTY-watch-party-leave"
+	WatchPartyStatusEndpoint                           = "WATCHPARTY-watch-party-status"
+	WatchPartyStopEndpoint                             = "WATCHPARTY-watch-party-stop"
 )

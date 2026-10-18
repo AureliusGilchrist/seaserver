@@ -5083,3 +5083,60 @@
 //     })
 // }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// watchparty
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// export function useWatchPartyStatus() {
+//     return useServerQuery<WatchParty_Session>({
+//         endpoint: API_ENDPOINTS.WATCHPARTY.WatchPartyStatus.endpoint,
+//         method: API_ENDPOINTS.WATCHPARTY.WatchPartyStatus.methods[0],
+//         queryKey: [API_ENDPOINTS.WATCHPARTY.WatchPartyStatus.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useWatchPartyCreate() {
+//     return useServerMutation<WatchParty_Session, WatchPartyCreate_Variables>({
+//         endpoint: API_ENDPOINTS.WATCHPARTY.WatchPartyCreate.endpoint,
+//         method: API_ENDPOINTS.WATCHPARTY.WatchPartyCreate.methods[0],
+//         mutationKey: [API_ENDPOINTS.WATCHPARTY.WatchPartyCreate.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useWatchPartyJoin() {
+//     return useServerMutation<WatchParty_Session, WatchPartyJoin_Variables>({
+//         endpoint: API_ENDPOINTS.WATCHPARTY.WatchPartyJoin.endpoint,
+//         method: API_ENDPOINTS.WATCHPARTY.WatchPartyJoin.methods[0],
+//         mutationKey: [API_ENDPOINTS.WATCHPARTY.WatchPartyJoin.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useWatchPartyLeave() {
+//     return useServerMutation<boolean, WatchPartyLeave_Variables>({
+//         endpoint: API_ENDPOINTS.WATCHPARTY.WatchPartyLeave.endpoint,
+//         method: API_ENDPOINTS.WATCHPARTY.WatchPartyLeave.methods[0],
+//         mutationKey: [API_ENDPOINTS.WATCHPARTY.WatchPartyLeave.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useWatchPartyStop() {
+//     return useServerMutation<boolean, WatchPartyStop_Variables>({
+//         endpoint: API_ENDPOINTS.WATCHPARTY.WatchPartyStop.endpoint,
+//         method: API_ENDPOINTS.WATCHPARTY.WatchPartyStop.methods[0],
+//         mutationKey: [API_ENDPOINTS.WATCHPARTY.WatchPartyStop.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+

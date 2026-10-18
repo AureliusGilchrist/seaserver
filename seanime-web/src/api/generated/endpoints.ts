@@ -4239,5 +4239,61 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/update/notice/dismiss",
         },
     },
+    WATCHPARTY: {
+        /**
+         *  @description
+         *  Route returns the active same-server watch party session.
+         *  Returns the current watch party session, or null if none is active.
+         *  Any device connected to this server can read this to discover and join a session.
+         */
+        WatchPartyStatus: {
+            key: "WATCHPARTY-watch-party-status",
+            methods: ["GET"],
+            endpoint: "/api/v1/watchparty/status",
+        },
+        /**
+         *  @description
+         *  Route creates a same-server watch party.
+         *  Starts a new watch party session with this device as the source.
+         *  Other devices connected to this server (under their own profiles) can then join it.
+         */
+        WatchPartyCreate: {
+            key: "WATCHPARTY-watch-party-create",
+            methods: ["POST"],
+            endpoint: "/api/v1/watchparty/create",
+        },
+        /**
+         *  @description
+         *  Route joins the active same-server watch party.
+         *  Adds this device to the active watch party session.
+         *  If the source is playing something, the client starts the same episode and follows it.
+         */
+        WatchPartyJoin: {
+            key: "WATCHPARTY-watch-party-join",
+            methods: ["POST"],
+            endpoint: "/api/v1/watchparty/join",
+        },
+        /**
+         *  @description
+         *  Route leaves the watch party.
+         *  Removes this device from the active watch party session.
+         *  If the source leaves, the first remaining participant becomes the source.
+         */
+        WatchPartyLeave: {
+            key: "WATCHPARTY-watch-party-leave",
+            methods: ["POST"],
+            endpoint: "/api/v1/watchparty/leave",
+        },
+        /**
+         *  @description
+         *  Route stops the watch party for everyone.
+         *  Ends the active watch party session. Only the source can stop it.
+         */
+        WatchPartyStop: {
+            key: "WATCHPARTY-watch-party-stop",
+            methods: ["POST"],
+            endpoint: "/api/v1/watchparty/stop",
+        },
+    },
 } satisfies ApiEndpoints
 

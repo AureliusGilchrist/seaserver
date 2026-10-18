@@ -7476,3 +7476,86 @@ export type Video = {
     bitrate: number
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Watchparty
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - Filepath: internal/watchparty/watch_party.go
+ * - Filename: watch_party.go
+ * - Package: watchparty
+ */
+export type WatchParty_MediaInfo = {
+    mediaId: number
+    mediaTitle?: string
+    episodeNumber: number
+    episodeTitle?: string
+    aniDbEpisode?: string
+    /**
+     * "localfile" | "torrent" | "debrid" | "onlinestream" | "nakama" | "unknown"
+     */
+    streamType: string
+    playbackType?: string
+    localFilePath?: string
+    onlinestreamParams?: VideoCore_OnlinestreamParams
+}
+
+/**
+ * - Filepath: internal/watchparty/watch_party.go
+ * - Filename: watch_party.go
+ * - Package: watchparty
+ */
+export type WatchParty_Participant = {
+    clientId: string
+    profileId: number
+    username: string
+    isSource: boolean
+    joinedAt?: string
+    lastSeen?: string
+    epoch: number
+    playbackStatus?: WatchParty_PlaybackStatusInfo
+}
+
+/**
+ * - Filepath: internal/watchparty/watch_party.go
+ * - Filename: watch_party.go
+ * - Package: watchparty
+ */
+export type WatchParty_PlaybackStatusInfo = {
+    paused: boolean
+    /**
+     * in seconds
+     */
+    currentTime: number
+    /**
+     * in seconds
+     */
+    duration: number
+}
+
+/**
+ * - Filepath: internal/watchparty/watch_party.go
+ * - Filename: watch_party.go
+ * - Package: watchparty
+ */
+export type WatchParty_Session = {
+    id: string
+    participants?: Array<WatchParty_Participant>
+    /**
+     * nil while the source plays nothing
+     */
+    mediaInfo?: WatchParty_MediaInfo
+    settings: WatchParty_Settings
+    createdAt?: string
+    epoch: number
+}
+
+/**
+ * - Filepath: internal/watchparty/watch_party.go
+ * - Filename: watch_party.go
+ * - Package: watchparty
+ */
+export type WatchParty_Settings = {
+    syncThreshold: number
+}
+

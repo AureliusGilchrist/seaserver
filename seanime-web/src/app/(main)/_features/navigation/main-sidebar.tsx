@@ -43,7 +43,7 @@ import { useThemeSettings } from "@/lib/theme/hooks"
 import { useAnimeThemeOrNull, useThemeMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { ANIME_THEMES } from "@/lib/theme/anime-themes"
 import { __isDesktop__, __isTauriDesktop__ } from "@/types/constants"
-import { useAtom, useSetAtom } from "jotai"
+import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import { SeaLink as Link } from "@/components/shared/sea-link"
 import { usePathname, useRouter, useSearchParams } from "@/lib/navigation"
 import React from "react"
@@ -60,6 +60,7 @@ import { RiListCheck3 } from "react-icons/ri"
 import { SiQbittorrent, SiTransmission } from "react-icons/si"
 import { TbReportSearch } from "react-icons/tb"
 import { nakamaModalOpenAtom, useNakamaStatus } from "../nakama/nakama-manager"
+import { watchPartyModalOpenAtom, watchPartySessionAtom } from "../watch-party/watch-party.atoms"
 import { PluginSidebarTray } from "../plugin/tray/plugin-sidebar-tray"
 
 export function MainSidebar() {
@@ -613,6 +614,10 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
     const [nakamaModalOpen, setNakamaModalOpen] = useAtom(nakamaModalOpenAtom)
     const nakamaStatus = useNakamaStatus()
 
+    // Watch together
+    const [watchPartyModalOpen, setWatchPartyModalOpen] = useAtom(watchPartyModalOpenAtom)
+    const watchPartySession = useAtomValue(watchPartySessionAtom)
+
     // Sign out
     const confirmSignOut = useConfirmationDialog({
         title: "Sign out",
@@ -671,6 +676,21 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
                             ></div>}
                         </>,
                     }] : [],
+                    {
+                        id: "watch-together",
+                        iconType: LuUsers,
+                        iconClass: "size-6",
+                        name: "Watch together",
+                        isCurrent: watchPartyModalOpen,
+                        onClick: () => {
+                            ctx.setOpen(false)
+                            setWatchPartyModalOpen(true)
+                        },
+                        addon: !!watchPartySession?.participants?.length && <Badge
+                            className="absolute right-0 top-0" size="sm"
+                            intent="info"
+                        >{watchPartySession?.participants?.length}</Badge>,
+                    },
                     {
                         id: "theme-manager",
                         iconType: GiPalette,

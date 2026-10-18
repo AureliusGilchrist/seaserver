@@ -47,6 +47,7 @@ import (
 	"seanime/internal/user"
 	"seanime/internal/util"
 	"seanime/internal/videocore"
+	"seanime/internal/watchparty"
 
 	"github.com/cli/browser"
 	"github.com/rs/zerolog"
@@ -216,6 +217,29 @@ func (a *App) initModulesOnce() {
 		},
 		IsOfflineRef: a.IsOfflineRef(),
 	})
+
+	// +---------------------+
+	// |    Watch Together   |
+	// +---------------------+
+
+	// Same-server watch parties: mirrors the source device's playback onto the other
+	// devices connected to this server, each under its own profile.
+	a.WatchPartyManager = watchparty.New(watchparty.NewManagerOptions{
+		Logger:         a.Logger,
+		WsEventManager: a.WSEventManager,
+		VideoCore:      a.VideoCore,
+		GetProfileNameFunc: func(profileID uint) string {
+			if a.ProfileManager == nil {
+				return ""
+			}
+			p, err := a.ProfileManager.GetProfile(profileID)
+			if err != nil {
+				return ""
+			}
+			return p.Name
+		},
+	})
+	a.AddCleanupFunction(a.WatchPartyManager.Shutdown)
 
 	// +---------------------+
 	// |    Native Player    |

@@ -389,8 +389,19 @@ func (vc *VideoCore) clearPlaybackFor(clientId string) {
 
 // ---- Legacy (last-active client) accessors ----
 
+// GetPlaybackStatus returns the last-active client's playback status.
 func (vc *VideoCore) GetPlaybackStatus() (*PlaybackStatus, bool) {
 	return vc.getPlaybackStatusFor(vc.currentClientId())
+}
+
+// GetPlaybackStatusFor returns a specific client's playback status.
+func (vc *VideoCore) GetPlaybackStatusFor(clientId string) (*PlaybackStatus, bool) {
+	return vc.getPlaybackStatusFor(clientId)
+}
+
+// GetPlaybackStateFor returns a specific client's playback state.
+func (vc *VideoCore) GetPlaybackStateFor(clientId string) (*PlaybackState, bool) {
+	return vc.getPlaybackStateFor(clientId)
 }
 
 // GetPlaybackState returns the last-active client's playback state.

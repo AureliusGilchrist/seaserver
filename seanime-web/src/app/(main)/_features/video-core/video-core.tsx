@@ -5,6 +5,7 @@ import { useDirectstreamConvertSubs } from "@/api/hooks/directstream.hooks"
 import { useCancelDiscordActivity } from "@/api/hooks/discord.hooks"
 import { clientIdAtom } from "@/app/websocket-provider"
 import { useNakamaWatchParty } from "@/app/(main)/_features/nakama/nakama-manager"
+import { useIsWatchTogetherFollower } from "@/app/(main)/_features/watch-party/watch-party.atoms"
 import { nativePlayer_initialState, nativePlayer_stateAtom } from "@/app/(main)/_features/native-player/native-player.atoms"
 import { type NormalizedSkipData } from "@/app/(main)/_features/video-core/_lib/aniskip.utils"
 import { vc_anime4kOption, VideoCoreAnime4K } from "@/app/(main)/_features/video-core/video-core-anime-4k"
@@ -833,7 +834,10 @@ export function VideoCore(props: VideoCoreProps) {
     }, [])
     const { onEpisodeEnded, onVideoEnded } = useVideoCoreWatchingChecks(state, pausePlayback)
 
-    const { isParticipant: isWatchPartyParticipant } = useNakamaWatchParty()
+    const { isParticipant: isNakamaWatchPartyParticipant } = useNakamaWatchParty()
+    // Same-server watch party: a non-source participant is driven by the source.
+    const isWatchTogetherFollower = useIsWatchTogetherFollower()
+    const isWatchPartyParticipant = isNakamaWatchPartyParticipant || isWatchTogetherFollower
 
     // Fork: current mediastream file path — the popout handoff URL needs it when the
     // playback info doesn't carry the local file (mediastream inline flow).
