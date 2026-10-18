@@ -1,5 +1,5 @@
 import { VideoCore_InSightData } from "@/api/generated/types"
-import { MKVParser_TrackInfo, VideoCore_ClientEventType, VideoCore_PlaybackState, VideoCore_ServerEvent } from "@/api/generated/types"
+import { MKVParser_SubtitleEvent, MKVParser_TrackInfo, VideoCore_ClientEventType, VideoCore_PlaybackState, VideoCore_ServerEvent } from "@/api/generated/types"
 import { normalizeAniSkipData, type NormalizedSkipData } from "@/app/(main)/_features/video-core/_lib/aniskip.utils"
 import { vc_subtitleManager } from "@/app/(main)/_features/video-core/video-core"
 import { vc_mediaCaptionsManager } from "@/app/(main)/_features/video-core/video-core"
@@ -622,6 +622,12 @@ export function useVideoCoreSetupEvents(id: string,
                         }
                     }
                     break
+                case "subtitle-event":
+                    log.info("Subtitle event received", payload)
+                    if (subtitleManager) {
+                        subtitleManager.onSubtitleEvents(payload as MKVParser_SubtitleEvent[])
+                    }
+                    break;
                 case "add-subtitle-track": // not used
                     log.info("Add subtitle track event received", payload)
                     const subtitleTrack = payload as MKVParser_TrackInfo
