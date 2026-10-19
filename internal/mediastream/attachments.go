@@ -2,6 +2,7 @@ package mediastream
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"path/filepath"
 	"seanime/internal/events"
@@ -37,6 +38,14 @@ func (r *Repository) ServeEchoExtractedSubtitles(c echo.Context, clientId string
 
 	if retPath == "" {
 		return errors.New("could not find subtitles")
+	}
+
+	// If the background extraction already failed, fail fast instead of making the
+	// client wait for files that will never appear.
+	if status, ok := r.playbackManager.GetExtractionStatus(mediaContainer.Hash); ok {
+		if extractionErr, failed := status.Failure(); failed {
+			return fmt.Errorf("subtitle extraction failed: %w", extractionErr)
+		}
 	}
 
 	// Wait for extraction to complete (files should appear within a few seconds).
@@ -82,6 +91,14 @@ func (r *Repository) ServeEchoExtractedAttachments(c echo.Context, clientId stri
 
 	if retPath == "" {
 		return errors.New("could not find attachments")
+	}
+
+	// If the background extraction already failed, fail fast instead of making the
+	// client wait for files that will never appear.
+	if status, ok := r.playbackManager.GetExtractionStatus(mediaContainer.Hash); ok {
+		if extractionErr, failed := status.Failure(); failed {
+			return fmt.Errorf("attachment extraction failed: %w", extractionErr)
+		}
 	}
 
 	// Wait for extraction to complete (attachments should appear within a few seconds).

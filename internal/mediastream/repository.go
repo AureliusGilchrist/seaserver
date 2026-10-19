@@ -122,6 +122,10 @@ func (r *Repository) warmUp(settings *models.MediastreamSettings) {
 		ffprobePath = "ffprobe"
 	}
 
+	// Log the ffmpeg version so extraction/streaming issues can be matched against the
+	// binary actually in use (distro builds vary wildly in supported options and codecs).
+	videofile.LogFfmpegVersion(ffmpegPath, r.logger)
+
 	// Memoize `ffmpeg -filters` so hardware-accel probing is instant on first stream.
 	transcoder.WarmUpHardwareAccel(ffmpegPath)
 

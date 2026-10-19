@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"seanime/internal/mediastream/videofile"
 	"seanime/internal/util/result"
+	"sync"
 
 	"github.com/rs/zerolog"
 )
@@ -22,6 +23,17 @@ type (
 		activeStreams   *result.Map[string, *MediaContainer] // Per-client active streams, keyed by clientId.
 		repository      *Repository
 		mediaContainers *result.Map[string, *MediaContainer] // Temporary cache for the media containers, keyed by hash.
+		// extractionStatuses tracks the outcome of the background attachment extraction
+		// per file hash so that the /subs/ and /att/ endpoints can fail fast instead of
+		// making the client wait when extraction has already failed.
+		extractionStatuses *result.Map[string, *ExtractionStatus]
+	}
+
+	ExtractionStatus struct {
+		mu     sync.Mutex
+		done   bool
+		failed bool
+		err    error
 	}
 
 	PlaybackState struct {
@@ -41,11 +53,43 @@ type (
 
 func NewPlaybackManager(repository *Repository) *PlaybackManager {
 	return &PlaybackManager{
-		logger:          repository.logger,
-		repository:      repository,
-		activeStreams:   result.NewMap[string, *MediaContainer](),
-		mediaContainers: result.NewMap[string, *MediaContainer](),
+		logger:             repository.logger,
+		repository:         repository,
+		activeStreams:      result.NewMap[string, *MediaContainer](),
+		mediaContainers:    result.NewMap[string, *MediaContainer](),
+		extractionStatuses: result.NewMap[string, *ExtractionStatus](),
 	}
+}
+
+// GetExtractionStatus returns the background extraction status for a file hash.
+// The second return value is false when no extraction has been started for it.
+func (p *PlaybackManager) GetExtractionStatus(hash string) (*ExtractionStatus, bool) {
+	return p.extractionStatuses.Get(hash)
+}
+
+// CompleteExtraction records the outcome of a background attachment extraction.
+func (p *PlaybackManager) CompleteExtraction(hash string, err error) {
+	status := &ExtractionStatus{}
+	if existing, ok := p.extractionStatuses.Get(hash); ok {
+		status = existing
+	}
+	status.mu.Lock()
+	status.done = true
+	status.failed = err != nil
+	status.err = err
+	status.mu.Unlock()
+	p.extractionStatuses.Set(hash, status)
+}
+
+// WaitOrFailure returns the recorded extraction error, if any. It blocks while the
+// extraction is still running (up to maxWait), then returns whether it failed.
+func (s *ExtractionStatus) Failure() (error, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.failed {
+		return s.err, true
+	}
+	return nil, false
 }
 
 func (p *PlaybackManager) KillPlayback(clientId string) {
@@ -169,6 +213,7 @@ func (p *PlaybackManager) newMediaContainer(filepath string, streamType StreamTy
 
 	go func() {
 		err := videofile.ExtractAttachment(p.repository.settings.MustGet().FfmpegPath, filepath, hash, ret.MediaInfo, p.repository.cacheDir, p.logger)
+		p.CompleteExtraction(hash, err)
 		if err != nil {
 			p.logger.Error().Err(err).Msg("mediastream: Background attachment extraction failed")
 		} else {

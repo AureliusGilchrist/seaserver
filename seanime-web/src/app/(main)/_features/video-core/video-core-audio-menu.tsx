@@ -1,6 +1,7 @@
 import { MKVParser_TrackInfo } from "@/api/generated/types"
 import { nativePlayer_stateAtom } from "@/app/(main)/_features/native-player/native-player.atoms"
 import { vc_audioManager } from "@/app/(main)/_features/video-core/video-core"
+import { vc_requestTranscodeForAudio } from "@/app/(main)/_features/video-core/video-core-atoms"
 
 import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_miniPlayer } from "@/app/(main)/_features/video-core/video-core-atoms"
@@ -28,6 +29,10 @@ export function VideoCoreAudioMenu({ mediaId }: { mediaId?: number }) {
     // Per-series audio preference: mirrors the subtitle menu's persist pattern (local +
     // server write-through) so a manually chosen audio track carries across episodes.
     const saveTrackOverride = useAtomValue(vc_saveTrackOverride)
+    // Direct-play fallback: set by the mediastream adapter when the stream is direct
+    // play. Chromium browsers don't expose the audioTracks API, so embedded audio
+    // switching goes through a server-side FFmpeg extraction + hidden <audio> element.
+    const requestTranscodeForAudio = useAtomValue(vc_requestTranscodeForAudio)
     const [selectedTrack, setSelectedTrack] = React.useState<number | null>(null)
 
     // Get MKV audio tracks
@@ -106,8 +111,27 @@ export function VideoCoreAudioMenu({ mediaId }: { mediaId?: number }) {
                         }
                     })}
                     onValueChange={(value: number) => {
-                        audioManager?.selectTrack(value)
-                        action({ type: "seek", payload: { time: -1 } })
+                        // Native audioTracks switching only works when the browser exposes
+                        // the API and the element actually has tracks (Safari, some edge
+                        // cases). Otherwise, fall back to the mediastream adapter's
+                        // FFmpeg extraction (direct play) — without it, selecting a track
+                        // in Chromium is a silent no-op.
+                        const canSelectNatively = !!videoElement?.audioTracks && videoElement.audioTracks.length > 0
+
+                        if ((isHls || canSelectNatively) && audioManager) {
+                            audioManager.selectTrack(value)
+                            action({ type: "seek", payload: { time: -1 } })
+                        } else if (requestTranscodeForAudio) {
+                            // Direct play: extract the audio track server-side and sync it
+                            // with a hidden <audio> element. No seek — the adapter aligns
+                            // the extracted audio to the current video position itself.
+                            const audioStreamIndex = audioTracks?.findIndex(t => (t as MKVParser_TrackInfo).number === value) ?? -1
+                            setSelectedTrack(value)
+                            requestTranscodeForAudio(audioStreamIndex >= 0 ? audioStreamIndex : 0)
+                        } else {
+                            audioManager?.selectTrack(value)
+                            action({ type: "seek", payload: { time: -1 } })
+                        }
 
                         // Persist the choice per-series so it is re-applied on every other episode
                         // of the same media.

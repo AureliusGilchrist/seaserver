@@ -59,12 +59,17 @@ async function fetchFontData(url: string, cacheKey: string = url): Promise<Uint8
 // is why the auto-applied selection used to silently leave the episode without subtitles.
 // Retry with backoff so auto-applied selections survive the extraction window. External URLs
 // (hotlink-protected CDNs) are fetched once: their failures are permanent, not a race.
+// A definitive server-side failure (e.g. "subtitle extraction failed") is not retried:
+// the outcome is the same every time, so retrying only delays the error toast.
+const EXTRACTION_FAILED_MARKERS = ["extraction failed", "subtitles not ready", "attachments not ready"]
+
 async function fetchSubtitleTextWithRetry(
     url: string,
     isCancelled: () => boolean,
 ): Promise<string> {
     const maxAttempts = url.includes("/api/v1/") ? 8 : 1
     let lastStatus: number | string = "network error"
+    let definitiveError: string | null = null
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
         if (isCancelled()) throw new Error("Track selection changed")
         if (attempt > 0) {
@@ -79,12 +84,23 @@ async function fetchSubtitleTextWithRetry(
             }
             else {
                 lastStatus = `HTTP ${res.status}`
+                // A definitive failure won't change on retry — capture the server's
+                // reason and stop looping.
+                try {
+                    const body = await res.text()
+                    if (EXTRACTION_FAILED_MARKERS.some(marker => body.toLowerCase().includes(marker))) {
+                        definitiveError = body.trim().slice(0, 160)
+                    }
+                }
+                catch { /* body unreadable, keep retrying */ }
             }
         }
         catch {
             lastStatus = "network error"
         }
+        if (definitiveError) break
     }
+    if (definitiveError) throw new Error(`Subtitle track unavailable (${definitiveError})`)
     throw new Error(`Subtitle track unavailable (${lastStatus})`)
 }
 
