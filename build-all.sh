@@ -70,6 +70,18 @@ if [[ ! -d "$SCRIPT_DIR/seanime-web" ]]; then
   exit 1
 fi
 
+# When this build runs as root, anything an earlier non-root run or the auto-updater left in the
+# build outputs is about to be mixed with root-owned files. Take the checkout's outputs back
+# first, so the whole tree ends this build owned by one user instead of stranding the next one.
+if [[ $EUID -eq 0 ]]; then
+  OWNER_UID=$(stat -c %u "$SCRIPT_DIR")
+  if [[ "$OWNER_UID" != "0" ]]; then
+    warn "Build is running as root — taking the build outputs back for uid $OWNER_UID first"
+    chown -R "$OWNER_UID" web seanime_exe build-all-stats.json versions.json \
+      seanime-web/node_modules seanime-web/out seanime-web/public 2>/dev/null || true
+  fi
+fi
+
 # ── 1. Frontend ──────────────────────────────────────────
 #
 # Skipped when the web's source is unchanged since the last build.
@@ -181,6 +193,19 @@ step "3.1" "Go backend build"
 substep "Running go build -trimpath -ldflags=\"-s -w\" -o seanime_exe ."
 go build -trimpath -ldflags="-s -w" -o seanime_exe .
 [[ -x seanime_exe ]] && success "Backend built: ./seanime_exe"
+
+# A build run with sudo leaves its outputs owned by root, and the next auto-update — run as the
+# checkout's owner — cannot replace them, which is what once stranded the updater mid-reset.
+# Hand ownership back before finishing, so a sudo build leaves nothing behind for the next one.
+if [[ $EUID -eq 0 ]]; then
+  OWNER_UID=$(stat -c %u "$SCRIPT_DIR")
+  if [[ "$OWNER_UID" != "0" ]]; then
+    step "3.2" "Returning build outputs to the checkout's owner (uid $OWNER_UID)"
+    chown -R "$OWNER_UID" web seanime_exe build-all-stats.json versions.json \
+      seanime-web/node_modules seanime-web/out seanime-web/public 2>/dev/null || true
+    success "Ownership restored"
+  fi
+fi
 
 # ── Done ─────────────────────────────────────────────────
 

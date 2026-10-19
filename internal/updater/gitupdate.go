@@ -310,6 +310,23 @@ func (u *GitAutoUpdater) localWork(remoteRef string) string {
 	return "this checkout has " + strings.Join(notes, " and ") + "; they will be saved to a backup ref and replaced by the fork's version"
 }
 
+// resetBlockRe matches the paths git names when it cannot replace a tracked file, e.g.
+// "error: unable to unlink old 'seanime-web/public/jassub/jassub-worker.js': Permission denied".
+var resetBlockRe = regexp.MustCompile(`(?:unable to unlink old|unable to create file) '([^']+)'`)
+
+// resetBlocked reports whether a failed reset was blocked by files this process cannot replace —
+// leftovers owned by another user, almost always root's from a build that was run with sudo.
+func resetBlocked(err error) bool {
+	if err == nil || runtime.GOOS == "windows" {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "unable to unlink old") ||
+		strings.Contains(msg, "unable to create file") ||
+		strings.Contains(msg, "Operation not permitted") ||
+		strings.Contains(msg, "Permission denied")
+}
+
 // shelve saves whatever local work the checkout has under refs/seanime-backup/ (so nothing is
 // lost) and then moves the checkout onto the fork's latest commit, whatever state it was in.
 func (u *GitAutoUpdater) shelve(remoteRef string) error {
@@ -322,22 +339,77 @@ func (u *GitAutoUpdater) shelve(remoteRef string) error {
 		_, _ = u.git("update-ref", "refs/seanime-backup/"+stamp+"-changes", strings.TrimSpace(snap))
 	}
 	out, err := u.git("reset", "--hard", remoteRef)
-	if err != nil && runtime.GOOS != "windows" && strings.Contains(err.Error(), "Permission denied") {
-		// A build run as root leaves root-owned directories behind that this process cannot write to.
-		// Take them back with passwordless sudo when it exists, then retry once.
-		chown := exec.Command("sudo", "-n", "chown", "-R", fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid()), ".")
-		chown.Dir = u.repoDir
-		if cOut, cErr := chown.CombinedOutput(); cErr == nil {
-			out, err = u.git("reset", "--hard", remoteRef)
-		} else {
-			return fmt.Errorf("%w (files in the checkout are owned by another user, probably root from a sudo build; fix once with: sudo chown -R %d:%d %s -- automatic repair failed: %s)",
-				err, os.Getuid(), os.Getgid(), u.repoDir, strings.TrimSpace(string(cOut)))
+	// A build run with sudo leaves root-owned files behind that this process cannot overwrite, and
+	// the reset fails on them. Repair what git named — take the files back with passwordless sudo
+	// when it exists, move them aside when it does not, which needs only write access to their
+	// parent directory — and retry a few times, since each pass can surface another blocked path.
+	for attempt := 0; err != nil && attempt < 4 && resetBlocked(err); attempt++ {
+		u.logger.Warn().Msg("selfupdate: The checkout holds files owned by another user (root's, from a sudo build) — attempting automatic repair")
+		if !u.repairBlockedPaths(err.Error(), stamp) {
+			return fmt.Errorf("%w (files in the checkout are owned by another user, probably root from a sudo build; fix once with: sudo chown -R %d:%d %s)",
+				err, os.Getuid(), os.Getgid(), u.repoDir)
 		}
+		out, err = u.git("reset", "--hard", remoteRef)
 	}
 	if err != nil {
 		return fmt.Errorf("%s %w", strings.TrimSpace(out), err)
 	}
 	return nil
+}
+
+// repairBlockedPaths frees the paths a failed reset named, so the retry can replace them. When
+// passwordless sudo works, ownership is taken back with it — the clean repair. When it does not,
+// the blocked path's nearest movable ancestor is renamed aside instead: git recreates the whole
+// path, and the rename only needs write access to the parent directory, which this process has
+// where the root-owned file inside does not. Reports whether anything was freed.
+func (u *GitAutoUpdater) repairBlockedPaths(gitOutput, stamp string) bool {
+	var paths []string
+	seen := map[string]bool{}
+	for _, m := range resetBlockRe.FindAllStringSubmatch(gitOutput, -1) {
+		rel := filepath.Clean(m[1])
+		if rel == "." || strings.HasPrefix(rel, "..") || strings.HasPrefix(rel, ".git") || seen[rel] {
+			continue
+		}
+		seen[rel] = true
+		paths = append(paths, rel)
+	}
+
+	if len(paths) == 0 {
+		// The blocked paths were not named; the only automatic repair left is a blanket chown.
+		return u.sudoChown(u.repoDir)
+	}
+
+	if u.sudoChown(paths...) {
+		return true
+	}
+
+	repaired := false
+	for _, rel := range paths {
+		abs := filepath.Join(u.repoDir, rel)
+		for abs != u.repoDir {
+			if os.Rename(abs, abs+".stale-"+stamp) == nil {
+				u.logger.Info().Str("path", rel).Msg("selfupdate: Moved a blocked path aside; git will recreate it")
+				repaired = true
+				break
+			}
+			// The path itself cannot be renamed — its parent is the root-owned one. Walk up.
+			abs = filepath.Dir(abs)
+		}
+	}
+	return repaired
+}
+
+// sudoChown takes ownership of the given paths with passwordless sudo, which works only when the
+// server's user has been granted NOPASSWD sudo. Reports whether the chown ran.
+func (u *GitAutoUpdater) sudoChown(paths ...string) bool {
+	args := append([]string{"-n", "chown", "-R", fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid())}, paths...)
+	chown := exec.Command("sudo", args...)
+	chown.Dir = u.repoDir
+	if err := chown.Run(); err != nil {
+		return false
+	}
+	u.logger.Info().Strs("paths", paths).Msg("selfupdate: Took ownership of the blocked paths with sudo")
+	return true
 }
 
 // CheckForUpdate is the exported form, for the API's update check. An update here is a commit on
