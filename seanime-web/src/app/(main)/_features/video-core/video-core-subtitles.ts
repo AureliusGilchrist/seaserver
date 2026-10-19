@@ -120,6 +120,10 @@ let sharedRendererOwner: VideoCoreSubtitleManager | null = null
 // Stable keys of fonts already loaded into the shared renderer's libass instance, so the
 // same fonts aren't re-added (and re-buffered) on every episode of a series.
 const sharedRendererLoadedFontKeys = new Set<string>()
+// Font attachments are loaded in the background (they can be hundreds of files and block
+// for a long time on a fresh stream); these dedupe concurrent loads per renderer instance.
+let sharedFontLoadRenderer: JASSUB | null = null
+let sharedFontLoadPromise: Promise<void> | null = null
 
 function hexToASSColor(hex: string, alpha: number = 0): number {
     hex = hex.replace(/^#/, "")
@@ -488,43 +492,15 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 this.videoElement.addEventListener("seeked", this.libassHealthListener)
                 document.addEventListener("visibilitychange", this.libassHealthListener)
 
-                // Keyed by attachment filename (stable across episodes of a series, while
-                // the URL changes per stream) so fonts already in the shared renderer are
-                // neither refetched nor re-added. An attachment may carry its own `_srcUrl`
-                // (mediastream synthesized metadata points at its att endpoint; the
-                // directstream default below wouldn't serve those fonts).
-                const fontEntries = [
-                    { key: defaultFontUrl, url: defaultFontUrl },
-                    ...(this.playbackInfo.mkvMetadata?.attachments?.filter(a => a.type === "font")
-                        ?.map(a => ({
-                            key: `att:${a.filename}`,
-                            url: (a as MKVParser_AttachmentInfo & { _srcUrl?: string })._srcUrl
-                                || `${getServerBaseUrl()}/api/v1/directstream/att/${a.filename}?id=${this.playbackInfo.id}${this.hmacToken.replace(
-                                    /^\?/,
-                                    "&")}`,
-                        })) || []),
-                ]
-
-                this.fonts = [...new Set(fontEntries.map(f => f.url))]
-
-                const newEntries = fontEntries.filter(f => !sharedRendererLoadedFontKeys.has(f.key))
-
-                // Fetch each font on the main thread and validate it, so a failed request
-                // (expired token, missing file, SPA HTML fallback) never reaches libass.
-                const fontBuffers: Uint8Array[] = []
-                await Promise.all(newEntries.map(async f => {
-                    const data = await fetchFontData(f.url, f.key)
-                    if (data) {
-                        fontBuffers.push(data)
-                        sharedRendererLoadedFontKeys.add(f.key)
-                    }
-                }))
-
-                if (this.isDestroyed || !this.libassRenderer) return
-                if (fontBuffers.length > 0) {
-                    subtitleLog.info(`Adding ${fontBuffers.length}/${newEntries.length} new fonts to libass renderer`)
-                    await this.libassRenderer.renderer.addFonts(fontBuffers)
-                }
+                // Load the fonts in the background instead of awaiting them here: a file can
+                // carry hundreds of font attachments, and awaiting every fetch inside
+                // _initOnce blocked all track selection on first use — the pick looked dead
+                // (menu not updating, nothing rendered) until the fonts finished arriving,
+                // which is why subtitles only "worked" after leaving and reopening the
+                // player. libass flushes its font cache when fonts are added (the worker's
+                // reloadFonts), so tracks already loaded pick them up on the next frame; the
+                // background load forces a repaint once done.
+                this._startBackgroundFontLoad()
             }
             catch (e) {
                 if (this.isDestroyed) return
@@ -538,6 +514,77 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 videoElement: this.videoElement,
                 // debug: process.env.NODE_ENV === "development",
             })
+        }
+    }
+
+    /**
+     * Kicks off the font load for this playback's attachments without blocking renderer
+     * readiness (and therefore track selection). Deduplicated per renderer instance so a
+     * manager transition can't start a second concurrent load into the same renderer.
+     */
+    private _startBackgroundFontLoad() {
+        const renderer = this.libassRenderer
+        if (!renderer) return
+        if (sharedFontLoadPromise && sharedFontLoadRenderer === renderer) return
+
+        sharedFontLoadRenderer = renderer
+        sharedFontLoadPromise = this._loadFontsIntoRenderer(renderer).finally(() => {
+            if (sharedFontLoadRenderer === renderer) {
+                sharedFontLoadRenderer = null
+                sharedFontLoadPromise = null
+            }
+        })
+    }
+
+    private async _loadFontsIntoRenderer(renderer: JASSUB) {
+        try {
+            const defaultFontUrl = "/fonts/Roboto-Medium.ttf"
+            // Keyed by attachment filename (stable across episodes of a series, while
+            // the URL changes per stream) so fonts already in the shared renderer are
+            // neither refetched nor re-added. An attachment may carry its own `_srcUrl`
+            // (mediastream synthesized metadata points at its att endpoint; the
+            // directstream default below wouldn't serve those fonts).
+            const fontEntries = [
+                { key: defaultFontUrl, url: defaultFontUrl },
+                ...(this.playbackInfo.mkvMetadata?.attachments?.filter(a => a.type === "font")
+                    ?.map(a => ({
+                        key: `att:${a.filename}`,
+                        url: (a as MKVParser_AttachmentInfo & { _srcUrl?: string })._srcUrl
+                            || `${getServerBaseUrl()}/api/v1/directstream/att/${a.filename}?id=${this.playbackInfo.id}${this.hmacToken.replace(
+                                /^\?/,
+                                "&")}`,
+                    })) || []),
+            ]
+
+            const newEntries = fontEntries.filter(f => !sharedRendererLoadedFontKeys.has(f.key))
+            if (newEntries.length === 0) return
+
+            this.fonts = [...new Set(fontEntries.map(f => f.url))]
+
+            // Fetch each font on the main thread and validate it, so a failed request
+            // (expired token, missing file, SPA HTML fallback) never reaches libass.
+            const fontBuffers: Uint8Array[] = []
+            await Promise.all(newEntries.map(async f => {
+                const data = await fetchFontData(f.url, f.key)
+                if (data) {
+                    fontBuffers.push(data)
+                    sharedRendererLoadedFontKeys.add(f.key)
+                }
+            }))
+
+            // The renderer may have been replaced or destroyed while the fonts were in
+            // flight; never feed a stale or dead instance.
+            if (renderer !== sharedRenderer || fontBuffers.length === 0) return
+
+            subtitleLog.info(`Adding ${fontBuffers.length}/${newEntries.length} fonts to libass renderer`)
+            await renderer.renderer.addFonts(fontBuffers)
+            // Adding fonts flushes libass's font cache but doesn't redraw by itself; force
+            // a repaint so a track selected while the fonts were loading (or a paused
+            // video) re-renders with the real fonts instead of the fallback.
+            await renderer.resize(true)?.catch?.(e => subtitleLog.warn("Failed to repaint after font load", e))
+        }
+        catch (e) {
+            subtitleLog.warning("Background font load failed", e)
         }
     }
 
@@ -744,8 +791,6 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     async selectTrack(trackNumber: number) {
         subtitleLog.info("Track selection requested", trackNumber)
         if (this.isDestroyed) return
-        await this._init()
-        if (this.isDestroyed) return
 
         this.shouldTranslate = this.translationTargetLang
 
@@ -771,10 +816,16 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             return
         }
 
-        // Dispatch the selected track change event
+        // Record the selection and notify the menu BEFORE initialising the renderer:
+        // renderer init (or the shared-renderer handover) can take a while on first use,
+        // and the menu must reflect the pick immediately instead of appearing dead until
+        // init finishes. _handleFileTrack's staleness guards keep an older in-flight load
+        // from clobbering this selection.
         this._onSelectedTrackChanged?.(trackNumber)
-
         this.currentTrackNumber = track.number // update the current track number
+
+        await this._init()
+        if (this.isDestroyed) return
 
         /*
          * File track
