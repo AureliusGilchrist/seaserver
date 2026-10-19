@@ -333,6 +333,36 @@ export function ServerSettings(props: ServerSettingsProps) {
                         description="You are currently using the canary release channel hosted on Deus Ex Aeternae. This channel may receive unstable updates without much testing."
                     />
                 )}
+                <Separator />
+                <Field.Number
+                    name="autoPauseStaleWatchingDays"
+                    label="Auto-pause series after"
+                    help="Sets a 'watching' series on AniList to 'paused' after this many days without watch activity. Set to 0 to disable."
+                    min={0}
+                    max={365}
+                />
+                <Field.Switch
+                    side="right"
+                    name="stillWatchingChecksEnabled"
+                    label="Ask “Are you still watching?”"
+                    help="While binge-watching, the player pauses and asks if you're still watching."
+                />
+                {f.watch("stillWatchingChecksEnabled") && (
+                    <Field.Number
+                        name="stillWatchingEpisodes"
+                        label="Episodes between checks"
+                        help="How many consecutive episodes to play before the player asks if you're still watching."
+                        min={1}
+                        max={20}
+                    />
+                )}
+                <Field.Textarea
+                    name="newsFeeds"
+                    label="News feed URLs"
+                    placeholder="Leave empty for the default anime/manga news feeds"
+                    help="RSS feeds shown in the home News widget — one URL per line."
+                    rows={4}
+                />
             </SettingsCard>
 
             {/*<Accordion*/}

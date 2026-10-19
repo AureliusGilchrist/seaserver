@@ -656,6 +656,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 
 	v1.GET("/latest-update", h.HandleGetLatestUpdate)
 	v1.GET("/changelog", h.HandleGetChangelog)
+	v1.GET("/news", h.HandleGetNewsFeed)
 	v1.POST("/install-update", h.HandleInstallLatestUpdate)
 	v1.POST("/download-release", h.HandleDownloadRelease)
 	v1.POST("/check-for-updates", h.HandleCheckForUpdates)

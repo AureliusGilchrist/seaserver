@@ -3973,6 +3973,32 @@ export type RouteHandlerParam = {
 }
 
 /**
+ * - Filepath: internal/handlers/rss.go
+ * - Filename: rss.go
+ * - Package: handlers
+ */
+export type RssFeedResponse = {
+    items?: Array<RssItem>
+    feeds?: Array<string>
+    errors?: Array<string>
+    updatedAt: number
+}
+
+/**
+ * - Filepath: internal/handlers/rss.go
+ * - Filename: rss.go
+ * - Package: handlers
+ */
+export type RssItem = {
+    title: string
+    link: string
+    description: string
+    image: string
+    publishedAt: number
+    feedTitle: string
+}
+
+/**
  * - Filepath: internal/handlers/status.go
  * - Filename: status.go
  * - Package: handlers
@@ -5152,6 +5178,7 @@ export type Models_AnilistSettings = {
     enableAdultContent: boolean
     blurAdultContent: boolean
     disableCacheLayer: boolean
+    autoPauseStaleWatchingDays: number
 }
 
 /**
@@ -5351,6 +5378,7 @@ export type Models_LibrarySettings = {
      */
     updateChannel: string
     planningSlutToken: string
+    newsFeeds: string
 }
 
 /**
@@ -5420,6 +5448,8 @@ export type Models_MediaPlayerSettings = {
     mpvAutoSkipOpening: boolean
     mpvAutoSkipEnding: boolean
     mpvAutoSkipFiller: boolean
+    stillWatchingChecksEnabled: boolean
+    stillWatchingEpisodes: number
 }
 
 /**

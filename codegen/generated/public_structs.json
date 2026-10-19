@@ -36558,6 +36558,15 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "AutoPauseStaleWatchingDays",
+        "jsonName": "autoPauseStaleWatchingDays",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": []
@@ -36810,6 +36819,15 @@
       {
         "name": "PlanningSlutToken",
         "jsonName": "planningSlutToken",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NewsFeeds",
+        "jsonName": "newsFeeds",
         "goType": "string",
         "typescriptType": "string",
         "required": true,
@@ -37198,6 +37216,24 @@
         "jsonName": "mpvAutoSkipFiller",
         "goType": "bool",
         "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StillWatchingChecksEnabled",
+        "jsonName": "stillWatchingChecksEnabled",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StillWatchingEpisodes",
+        "jsonName": "stillWatchingEpisodes",
+        "goType": "int",
+        "typescriptType": "number",
         "required": true,
         "public": true,
         "comments": []
@@ -59946,6 +59982,118 @@
     "comments": []
   },
   {
+    "filepath": "../internal/handlers/rss.go",
+    "filename": "rss.go",
+    "name": "RssItem",
+    "formattedName": "RssItem",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Link",
+        "jsonName": "link",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Description",
+        "jsonName": "description",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Image",
+        "jsonName": "image",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PublishedAt",
+        "jsonName": "publishedAt",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FeedTitle",
+        "jsonName": "feedTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/rss.go",
+    "filename": "rss.go",
+    "name": "RssFeedResponse",
+    "formattedName": "RssFeedResponse",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Items",
+        "jsonName": "items",
+        "goType": "[]RssItem",
+        "typescriptType": "Array\u003cRssItem\u003e",
+        "usedTypescriptType": "RssItem",
+        "usedStructName": "handlers.RssItem",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Feeds",
+        "jsonName": "feeds",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Errors",
+        "jsonName": "errors",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UpdatedAt",
+        "jsonName": "updatedAt",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
     "filepath": "../internal/handlers/security_middleware.go",
     "filename": "security_middleware.go",
     "name": "RateLimiter",
@@ -81910,6 +82058,65 @@
         "comments": [
           " Temporary cache for the media containers, keyed by hash."
         ]
+      },
+      {
+        "name": "extractionStatuses",
+        "jsonName": "extractionStatuses",
+        "goType": "",
+        "typescriptType": "any",
+        "required": false,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/mediastream/playback.go",
+    "filename": "playback.go",
+    "name": "ExtractionStatus",
+    "formattedName": "Mediastream_ExtractionStatus",
+    "package": "mediastream",
+    "fields": [
+      {
+        "name": "mu",
+        "jsonName": "mu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "done",
+        "jsonName": "done",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "failed",
+        "jsonName": "failed",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "err",
+        "jsonName": "err",
+        "goType": "error",
+        "typescriptType": "Mediastream_error",
+        "usedTypescriptType": "Mediastream_error",
+        "usedStructName": "mediastream.error",
+        "required": true,
+        "public": false,
+        "comments": []
       }
     ],
     "comments": []

@@ -362,6 +362,11 @@ export default function Page() {
                         <Form
                             schema={settingsSchema}
                             mRef={formRef}
+                            onError={errors => {
+                                // A failed save must never be a silent no-op: say which field refused.
+                                const first = Object.entries(errors).find(([, e]) => !!e?.message)
+                                toast.error(first ? `Settings not saved: "${first[0]}" is invalid` : "Settings not saved: invalid values")
+                            }}
                             onSubmit={data => {
                                 mutate({
                                     library: {
@@ -392,6 +397,7 @@ export default function Page() {
                                         scannerUseLegacyMatching: data.scannerUseLegacyMatching ?? false,
                                         scannerConfig: data.scannerConfig ?? "",
                                         updateChannel: data.updateChannel || "github",
+                                        newsFeeds: data.newsFeeds ?? "",
                                     },
                                     nakama: {
                                         enabled: data.nakamaEnabled ?? false,
@@ -434,6 +440,8 @@ export default function Page() {
                                         mpvAutoSkipOpening: data.mpvAutoSkipOpening ?? false,
                                         mpvAutoSkipEnding: data.mpvAutoSkipEnding ?? false,
                                         mpvAutoSkipFiller: data.mpvAutoSkipFiller ?? false,
+                                        stillWatchingChecksEnabled: data.stillWatchingChecksEnabled ?? true,
+                                        stillWatchingEpisodes: data.stillWatchingEpisodes ?? 3,
                                     },
                                     torrent: {
                                         defaultTorrentClient: data.defaultTorrentClient,
@@ -467,6 +475,7 @@ export default function Page() {
                                         enableAdultContent: data.enableAdultContent,
                                         blurAdultContent: data.blurAdultContent,
                                         disableCacheLayer: data.disableCacheLayer,
+                                        autoPauseStaleWatchingDays: data.autoPauseStaleWatchingDays ?? 7,
                                     },
                                     notifications: {
                                         disableNotifications: data?.disableNotifications ?? false,
@@ -569,6 +578,10 @@ export default function Page() {
                                 mpvAutoSkipOpening: status?.settings?.mediaPlayer?.mpvAutoSkipOpening ?? false,
                                 mpvAutoSkipEnding: status?.settings?.mediaPlayer?.mpvAutoSkipEnding ?? false,
                                 mpvAutoSkipFiller: status?.settings?.mediaPlayer?.mpvAutoSkipFiller ?? false,
+                                stillWatchingChecksEnabled: status?.settings?.mediaPlayer?.stillWatchingChecksEnabled ?? true,
+                                stillWatchingEpisodes: status?.settings?.mediaPlayer?.stillWatchingEpisodes ?? 3,
+                                autoPauseStaleWatchingDays: status?.settings?.anilist?.autoPauseStaleWatchingDays ?? 7,
+                                newsFeeds: status?.settings?.library?.newsFeeds ?? "",
                                 scannerUseLegacyMatching: status?.settings?.library?.scannerUseLegacyMatching ?? false,
                                 scannerConfig: status?.settings?.library?.scannerConfig ?? "",
                                 updateChannel: status?.settings?.library?.updateChannel || "github",

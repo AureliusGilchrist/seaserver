@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/helpers/number"
 import { AL_BaseAnime, AL_BaseManga } from "@/api/generated/types"
 import { SyntheticManga } from "@/api/hooks/manga.hooks"
 import { AnimeDownloadingBadge } from "@/app/(main)/_features/media/_components/anime-downloading-badge"
@@ -70,7 +71,7 @@ export function CommandItemSyntheticManga({ manga }: { manga: SyntheticManga }) 
             </div>
             <div className="flex-1"></div>
             <span className="text-xs text-[--muted] flex-shrink-0">
-                {manga.chapters > 0 ? `${manga.chapters} ch` : ""}
+                {manga.chapters > 0 ? `${formatNumber(manga.chapters)} ch` : ""}
             </span>
         </div>
     )

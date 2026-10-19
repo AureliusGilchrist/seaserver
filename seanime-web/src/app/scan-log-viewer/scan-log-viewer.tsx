@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/helpers/number"
 "use client"
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
@@ -154,7 +155,7 @@ function Line({ line, index, onFileSelect }: LineProps) {
                                             </p>
                                         ) : data.titleVariations ? (
                                             <p className="text-xs tracking-wide break-words text-left">
-                                                {data.titleVariations.length} title variations
+                                                {formatNumber(data.titleVariations.length)} title variations
                                             </p>
                                         ) : data.match && (
                                             <p className="text-sm tracking-wide flex gap-1 items-center ">

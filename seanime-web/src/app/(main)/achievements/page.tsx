@@ -93,7 +93,7 @@ export default function Page() {
                     <div>
                         <h1 className="text-2xl font-bold">Achievements</h1>
                         <p className="text-[--muted]">
-                            {unlockedCount} / {totalCount} unlocked
+                            {formatNumber(unlockedCount)} / {formatNumber(totalCount)} unlocked
                         </p>
                     </div>
                     <div className="ml-auto">

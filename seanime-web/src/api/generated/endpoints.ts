@@ -3465,6 +3465,19 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/library/reset-matches",
         },
     },
+    RSS: {
+        /**
+         *  @description
+         *  Route returns merged, sorted items from the configured RSS feeds.
+         *  Fetches each feed configured in Settings -> App (defaults to anime/manga news feeds),
+         *  merges the items newest-first and caches the result for 15 minutes.
+         */
+        GetNewsFeed: {
+            key: "RSS-get-news-feed",
+            methods: ["GET"],
+            endpoint: "/api/v1/news",
+        },
+    },
     SCAN: {
         /**
          *  @description

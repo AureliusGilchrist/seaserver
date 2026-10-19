@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/helpers/number"
 import { OverwriteChange, OverwritePreview, useOverwriteAnilist, useOverwriteAnilistPreview } from "@/api/hooks/update-notice.hooks"
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
 import { SettingsCard } from "@/app/(main)/settings/_components/settings-card"
@@ -79,7 +80,7 @@ export function AnilistOverwriteCard() {
                     <div className="flex w-full justify-end gap-2">
                         <Button intent="gray-outline" onClick={() => setPreview(null)}>Cancel</Button>
                         <Button intent="alert" disabled={total === 0 || isPending} loading={isPending} onClick={apply}>
-                            {total === 0 ? "Nothing to change" : `Apply ${total} change${total === 1 ? "" : "s"}`}
+                            {total === 0 ? "Nothing to change" : `Apply ${formatNumber(total)} change${total === 1 ? "" : "s"}`}
                         </Button>
                     </div>
                 )}

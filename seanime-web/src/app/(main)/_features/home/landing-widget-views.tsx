@@ -1,6 +1,7 @@
 "use client"
 
 import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
+import { useGetNewsFeed } from "@/api/hooks/news.hooks"
 import { useGetToWatch } from "@/api/hooks/towatch.hooks"
 import { useGetUnmatchedTorrents } from "@/api/hooks/unmatched.hooks"
 import { useGetAchievementSummary } from "@/api/hooks/achievement.hooks"
@@ -496,3 +497,83 @@ export function LandingUpdatesWidget() {
         </div>
     )
 }
+
+/**
+ * News — anime and manga headlines from the RSS feeds configured in Settings -> App, merged
+ * newest-first by the server. Headlines open the source in a new tab; the description, when a
+ * feed supplies one, is clamped to two lines so the list stays scannable.
+ */
+export function LandingNewsWidget() {
+    const { data, isLoading, isError, refetch, isRefetching } = useGetNewsFeed()
+
+    const items = React.useMemo(() => data?.items ?? [], [data?.items])
+
+    return (
+        <div className="relative z-[1] rounded-xl border border-brand-500/20 bg-black/25 backdrop-blur-md shadow-lg shadow-black/20 p-5">
+            <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-brand-500/15">
+                    <LuRss className="w-4 h-4 text-[--brand]" />
+                </div>
+                <div>
+                    <p className="font-semibold">News</p>
+                    <p className="text-xs text-[--muted]">Anime and manga headlines from your feeds.</p>
+                </div>
+                <button
+                    onClick={() => refetch()}
+                    className="ml-auto text-[--muted] hover:text-[--foreground] transition-colors"
+                    title="Refresh"
+                >
+                    <LuRefreshCw className={cn("w-4 h-4", isRefetching && "animate-spin")} />
+                </button>
+            </div>
+            <div className="mt-4 space-y-2">
+                {isLoading && (
+                    <div className="space-y-2">
+                        {[0, 1, 2].map(i => (
+                            <div key={i} className="h-12 rounded-lg bg-white/5 animate-pulse" />
+                        ))}
+                    </div>
+                )}
+                {!isLoading && isError && (
+                    <p className="text-xs text-[--muted]">Could not load the news feeds. Check your connection and try again.</p>
+                )}
+                {!isLoading && !isError && items.length === 0 && (
+                    <p className="text-xs text-[--muted]">No items yet — feeds refresh every 15 minutes.</p>
+                )}
+                {!isLoading && !isError && items.map((item, idx) => (
+                    <a
+                        key={`${item.link}-${idx}`}
+                        href={item.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex gap-3 rounded-lg px-3 py-2 -mx-1 hover:bg-white/5 transition-colors"
+                    >
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium line-clamp-2 leading-snug">{item.title}</p>
+                            <div className="flex items-center gap-2 text-xs text-[--muted] mt-0.5">
+                                {!!item.feedTitle && <span className="truncate">{item.feedTitle}</span>}
+                                {!!item.publishedAt && (
+                                    <span className="flex-none">{formatNewsDate(item.publishedAt)}</span>
+                                )}
+                            </div>
+                            {!!item.description && (
+                                <p className="text-xs text-[--muted] line-clamp-2 mt-1">{item.description}</p>
+                            )}
+                        </div>
+                    </a>
+                ))}
+            </div>
+        </div>
+    )
+}
+
+/** Compact relative time for a feed item: "3h ago", "2d ago", or the date. */
+function formatNewsDate(unix: number): string {
+    const diff = Date.now() / 1000 - unix
+    if (diff < 0) return "just now"
+    if (diff < 3600) return `${Math.max(1, Math.floor(diff / 60))}m ago`
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+    if (diff < 7 * 86400) return `${Math.floor(diff / 86400)}d ago`
+    return new Date(unix * 1000).toLocaleDateString()
+}
+

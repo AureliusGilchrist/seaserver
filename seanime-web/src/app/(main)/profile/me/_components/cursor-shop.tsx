@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/helpers/number"
 "use client"
 
 import { CURSOR_DEFINITIONS } from "@/lib/cursors/cursor-definitions"
@@ -36,7 +37,7 @@ export function CursorShop({ currentLevel }: Props) {
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm text-[--muted]">
                     <LuMousePointer2 />
-                    <span>{unlocked}/{total} unlocked</span>
+                    <span>{formatNumber(unlocked)}/{formatNumber(total)} unlocked</span>
                 </div>
                 <div className="flex gap-2 flex-wrap justify-end">
                     {categories.map(cat => (

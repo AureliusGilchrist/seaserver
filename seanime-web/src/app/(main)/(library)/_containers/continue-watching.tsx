@@ -21,7 +21,7 @@ import { atom } from "jotai/index"
 import { useAtom, useSetAtom } from "jotai/react"
 import { useRouter } from "@/lib/navigation"
 import React from "react"
-import { LuCheck } from "react-icons/lu"
+import { LuCheck, LuPlay } from "react-icons/lu"
 import { seaCommand_compareMediaTitles } from "../../_features/sea-command/utils"
 
 export const __libraryHeaderEpisodeAtom = atom<Anime_Episode | null>(null)
@@ -177,7 +177,7 @@ export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle 
                             className={episodeCardCarouselItemClass(ts.smallerEpisodeCarouselSize)}
                         >
                             <div className="relative">
-                                <div className={cn(episode.baseAnime?.status === "FINISHED" && "grayscale-[50%] opacity-75")}>
+                                <div>
                                     <_EpisodeCard
                                         key={episode.localFile?.path || ""}
                                         episode={episode}
@@ -185,7 +185,7 @@ export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle 
                                         overrideLink={linkTemplate}
                                         spoilerActive={spoilerActive ?? false}
                                         watchHistory={watchHistory}
-                                        badge={episode.baseAnime?.status === "FINISHED" ? <FinishedEpisodeBadge /> : undefined}
+                                        badge={episode.baseAnime?.status === "RELEASING" ? <OngoingEpisodeBadge /> : episode.baseAnime?.status === "FINISHED" ? <FinishedEpisodeBadge /> : undefined}
                                     />
                                 </div>
                             </div>
@@ -208,6 +208,20 @@ function FinishedEpisodeBadge() {
             className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-white/20 bg-black/75 text-white shadow-lg backdrop-blur-md"
         >
             <LuCheck className="size-4" aria-hidden="true" />
+        </span>
+    )
+}
+
+function OngoingEpisodeBadge() {
+    return (
+        <span
+            data-continue-watching-ongoing-badge
+            role="img"
+            aria-label="Still airing"
+            title="Still airing"
+            className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-[--brand]/40 bg-black/75 text-[--brand] shadow-lg backdrop-blur-md"
+        >
+            <LuPlay className="size-4" aria-hidden="true" />
         </span>
     )
 }

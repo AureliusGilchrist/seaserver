@@ -64,6 +64,9 @@ type AnilistSettings struct {
 	EnableAdultContent bool `gorm:"column:enable_adult_content" json:"enableAdultContent"`
 	BlurAdultContent   bool `gorm:"column:blur_adult_content" json:"blurAdultContent"`
 	DisableCacheLayer  bool `gorm:"column:disable_cache_layer" json:"disableCacheLayer"`
+	// v3.7+
+	// Days of AniList inactivity before a "watching" entry is auto-paused. 0 disables the job.
+	AutoPauseStaleWatchingDays int `gorm:"column:auto_pause_stale_watching_days;default:7" json:"autoPauseStaleWatchingDays"`
 }
 
 type LibrarySettings struct {
@@ -103,6 +106,8 @@ type LibrarySettings struct {
 	UpdateChannel string `gorm:"column:update_channel" json:"updateChannel"` // "github", "seanime", "seanime_nightly"
 	// Planning Slut: shared AniList account token for the global library
 	PlanningSlutToken string `gorm:"column:planning_slut_token" json:"planningSlutToken"`
+	// News widget: RSS feed URLs, one per line (empty = built-in anime/manga defaults)
+	NewsFeeds string `gorm:"column:news_feeds" json:"newsFeeds"`
 }
 
 func (o *LibrarySettings) GetLibraryPaths() (ret []string) {
@@ -206,6 +211,10 @@ type MediaPlayerSettings struct {
 	MpvAutoSkipOpening bool `gorm:"column:mpv_auto_skip_opening;default:false" json:"mpvAutoSkipOpening"`
 	MpvAutoSkipEnding  bool `gorm:"column:mpv_auto_skip_ending;default:false" json:"mpvAutoSkipEnding"`
 	MpvAutoSkipFiller  bool `gorm:"column:mpv_auto_skip_filler;default:false" json:"mpvAutoSkipFiller"`
+	// "Are you still watching?" prompt in the video player. Enabled by default; the prompt
+	// appears after StillWatchingEpisodes consecutive episodes.
+	StillWatchingChecksEnabled bool `gorm:"column:still_watching_checks_enabled;default:true" json:"stillWatchingChecksEnabled"`
+	StillWatchingEpisodes      int  `gorm:"column:still_watching_episodes;default:3" json:"stillWatchingEpisodes"`
 }
 
 type TorrentSettings struct {

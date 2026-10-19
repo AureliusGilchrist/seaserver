@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/helpers/number"
 import { Anime_LibraryCollection, Anime_LibraryCollectionList } from "@/api/generated/types"
 import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
 import { useGetPlaylists } from "@/api/hooks/playlist.hooks"
@@ -212,7 +213,7 @@ function PlaylistLists({ libraryCollection }: { libraryCollection: Anime_Library
                                     <div className="space-y-0 pb-3 items-center">
                                         <p className="text-md font-bold text-white max-w-lg truncate text-center">{p.name}</p>
                                         {p.episodes &&
-                                            <p className="text-sm text-[--muted] font-normal line-clamp-1 text-center">{p.episodes.length} episode{p.episodes.length > 1
+                                            <p className="text-sm text-[--muted] font-normal line-clamp-1 text-center">{formatNumber(p.episodes.length)} episode{p.episodes.length > 1
                                                 ? `s`
                                                 : ""}</p>}
                                     </div>

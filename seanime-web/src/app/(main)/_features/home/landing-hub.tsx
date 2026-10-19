@@ -12,6 +12,7 @@ import {
     LandingContinueReadingWidget,
     LandingLibraryInsightsWidget,
     LandingMangaStatsWidget,
+    LandingNewsWidget,
     LandingQuickLinksWidget,
     LandingScheduleWidget,
     LandingToWatchWidget,
@@ -210,6 +211,8 @@ function LandingWidget({ id, continueWatchingList = [], isLibraryLoading = false
             return <LandingAchievementsWidget />
         case "updates":
             return <LandingUpdatesWidget />
+        case "news-feed":
+            return <LandingNewsWidget />
         default:
             return null
     }

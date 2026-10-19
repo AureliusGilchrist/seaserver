@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/helpers/number"
 import { EnqueueFuture_Item } from "@/api/generated/types"
 import { ENQUEUE_FUTURE_STATUS } from "@/api/hooks/enqueue_future.hooks"
 import { EnqueueFutureItemActions } from "@/app/(main)/enqueue-future/_components/enqueue-future-item-actions"
@@ -62,7 +63,7 @@ export function EnqueueFutureHeader({
                 <div className="flex-1 min-w-0 space-y-1">
                     <div className="flex items-center gap-2">
                         <span className="text-sm text-[--muted] tabular-nums flex-none">
-                            {total > 0 ? `${index + 1} / ${total}` : "0 / 0"}
+                            {total > 0 ? `${formatNumber(index + 1)} / ${formatNumber(total)}` : "0 / 0"}
                         </span>
                         <h4 className="truncate">{item?.title || "Nothing queued"}</h4>
                         {item?.status === ENQUEUE_FUTURE_STATUS.NO_RESULTS && (

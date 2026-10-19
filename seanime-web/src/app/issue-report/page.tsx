@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/helpers/number"
 import { Report_ClickLog, Report_ConsoleLog, Report_IssueReport, Report_NetworkLog } from "@/api/generated/types"
 
 import { useDecompressIssueReport } from "@/api/hooks/report.hooks"
@@ -1271,7 +1272,7 @@ function ConsolePanel({ logs, searchQuery, setSearchQuery }: {
                         </button>
                     ))}
                 </div>
-                <span className="text-sm text-gray-500 self-center flex-none">{filtered.length} entries</span>
+                <span className="text-sm text-gray-500 self-center flex-none">{formatNumber(filtered.length)} entries</span>
             </div>
 
             <Virtuoso

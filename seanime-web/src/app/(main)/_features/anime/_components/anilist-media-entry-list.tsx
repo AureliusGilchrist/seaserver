@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/helpers/number"
 import { AL_AnimeCollection_MediaListCollection_Lists, AL_AnimeCollection_MediaListCollection_Lists_Entries } from "@/api/generated/types"
 import { MediaCardLazyGrid } from "@/app/(main)/_features/media/_components/media-card-grid"
 import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-entry-card"
@@ -110,7 +111,7 @@ export function AnilistAnimeEntryList(props: AnilistAnimeEntryListProps) {
                         rightIcon={expanded ? <LuChevronUp /> : <LuChevronDown />}
                         onClick={() => setExpanded(p => !p)}
                     >
-                        {expanded ? "Show less" : `Show ${entries.length - COLLAPSED_ITEM_COUNT} more`}
+                        {expanded ? "Show less" : `Show ${formatNumber(entries.length - COLLAPSED_ITEM_COUNT)} more`}
                     </Button>
                 </div>
             )}

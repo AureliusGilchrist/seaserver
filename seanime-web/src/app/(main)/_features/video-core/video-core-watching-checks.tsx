@@ -23,8 +23,9 @@ import { LuArrowRight, LuPlay } from "react-icons/lu"
  *    watched or unwatched either way — the check is about the room, not about the list.
  */
 
-/** How many episodes play before the player checks that somebody is watching. */
-const EPISODES_BETWEEN_CHECKS = 3
+/** How many episodes play before the player checks that somebody is watching, when the
+ * player settings don't override it (Settings -> App). */
+export const DEFAULT_EPISODES_BETWEEN_CHECKS = 3
 
 /**
  * The hours the check applies in: from 7 pm to 10 am — the night, which is when a session runs long
@@ -52,6 +53,12 @@ export type VideoCoreStillWatchingState = {
     episodesWatched: number
 }
 
+/** Settings -> App: whether the still-watching check runs, and how many episodes between checks. */
+export type VideoCoreStillWatchingConfig = {
+    enabled: boolean
+    episodes: number
+}
+
 // Module-level, like the progress prompt: there is one in-app player at a time.
 export const vc_sequelPrompt = atom<VideoCoreSequelPromptState | null>(null)
 export const vc_stillWatchingPrompt = atom<VideoCoreStillWatchingState | null>(null)
@@ -71,7 +78,11 @@ function findSequel(relations?: { relationType?: string; node?: any }[]): any | 
  * Returns a callback the player calls when an episode reaches its end — the same place auto-progress
  * is triggered from — plus the state the prompts read.
  */
-export function useVideoCoreWatchingChecks(state: VideoCoreLifecycleState, onPausePlayback?: () => void) {
+export function useVideoCoreWatchingChecks(
+    state: VideoCoreLifecycleState,
+    onPausePlayback?: () => void,
+    stillWatchingConfig?: VideoCoreStillWatchingConfig,
+) {
     const mediaId = state.playbackInfo?.media?.id
     const episodeNumber = state.playbackInfo?.episode?.progressNumber ?? 0
     const totalEpisodes = state.playbackInfo?.media?.episodes ?? 0
@@ -99,14 +110,14 @@ export function useVideoCoreWatchingChecks(state: VideoCoreLifecycleState, onPau
         handledEndRef.current = null
     }, [mediaId])
 
-    const latestRef = React.useRef({ details, state, mediaId, episodeNumber, totalEpisodes, setSequelPrompt, setStillWatching })
-    latestRef.current = { details, state, mediaId, episodeNumber, totalEpisodes, setSequelPrompt, setStillWatching }
+    const latestRef = React.useRef({ details, state, mediaId, episodeNumber, totalEpisodes, setSequelPrompt, setStillWatching, stillWatchingConfig })
+    latestRef.current = { details, state, mediaId, episodeNumber, totalEpisodes, setSequelPrompt, setStillWatching, stillWatchingConfig }
 
     /**
      * Called when an episode finishes. Decides which of the two prompts, if either, is due.
      */
     const onEpisodeEnded = React.useCallback(() => {
-        const { details, state, mediaId, episodeNumber, totalEpisodes, setSequelPrompt, setStillWatching } = latestRef.current
+        const { details, state, mediaId, episodeNumber, totalEpisodes, setSequelPrompt, setStillWatching, stillWatchingConfig } = latestRef.current
         if (!mediaId || !episodeNumber) return
 
         const key = `${mediaId}:${episodeNumber}`
@@ -117,13 +128,15 @@ export function useVideoCoreWatchingChecks(state: VideoCoreLifecycleState, onPau
 
         const isLastEpisode = totalEpisodes > 0 && episodeNumber >= totalEpisodes
 
-        // Every third episode, check that somebody is still there — but only at night. The count
-        // keeps running either way, so a session that crosses into the night hours asks at its next
-        // episode rather than never.
-        if (!isLastEpisode && playedRef.current >= EPISODES_BETWEEN_CHECKS) {
+        // The check can be turned off entirely (Settings -> App), and the interval between
+        // checks is configurable. Every N episodes, check that somebody is still there — but
+        // only at night. The count keeps running either way, so a session that crosses into
+        // the night hours asks at its next episode rather than never.
+        const checkInterval = Math.max(1, stillWatchingConfig?.episodes ?? DEFAULT_EPISODES_BETWEEN_CHECKS)
+        if (!isLastEpisode && (stillWatchingConfig?.enabled ?? true) && playedRef.current >= checkInterval) {
             playedRef.current = 0
             if (isNightHours()) {
-                setStillWatching({ episodesWatched: EPISODES_BETWEEN_CHECKS })
+                setStillWatching({ episodesWatched: checkInterval })
             }
         }
     }, [])

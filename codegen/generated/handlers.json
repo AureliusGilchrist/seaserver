@@ -17493,6 +17493,81 @@
     }
   },
   {
+    "name": "HandleGetNewsFeed",
+    "trimmedName": "GetNewsFeed",
+    "comments": [
+      "HandleGetNewsFeed",
+      "",
+      "\t@summary returns merged, sorted items from the configured RSS feeds.",
+      "\t@desc Fetches each feed configured in Settings -\u003e App (defaults to anime/manga news feeds),",
+      "\t@desc merges the items newest-first and caches the result for 15 minutes.",
+      "\t@route /api/v1/news [GET]",
+      "\t@returns handlers.RssFeedResponse",
+      ""
+    ],
+    "filepath": "internal/handlers/rss.go",
+    "filename": "rss.go",
+    "api": {
+      "summary": "returns merged, sorted items from the configured RSS feeds.",
+      "descriptions": [
+        "Fetches each feed configured in Settings -\u003e App (defaults to anime/manga news feeds),",
+        "merges the items newest-first and caches the result for 15 minutes."
+      ],
+      "endpoint": "/api/v1/news",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "handlers.RssFeedResponse",
+      "returnGoType": "handlers.RssFeedResponse",
+      "returnTypescriptType": "RssFeedResponse"
+    }
+  },
+  {
+    "name": "getRssFeedUrls",
+    "trimmedName": "getRssFeedUrls",
+    "comments": [
+      "getRssFeedUrls returns the user's configured feeds, falling back to the defaults.",
+      "Feeds are stored in Settings -\u003e App as one URL per line (or comma-separated).",
+      ""
+    ],
+    "filepath": "internal/handlers/rss.go",
+    "filename": "rss.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "stripRssHtml",
+    "trimmedName": "stripRssHtml",
+    "comments": [
+      "stripRssHtml removes HTML tags and collapses whitespace in feed descriptions.",
+      ""
+    ],
+    "filepath": "internal/handlers/rss.go",
+    "filename": "rss.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleScanLocalFiles",
     "trimmedName": "ScanLocalFiles",
     "comments": [

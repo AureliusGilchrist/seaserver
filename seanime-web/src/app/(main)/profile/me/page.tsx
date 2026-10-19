@@ -441,7 +441,7 @@ function EasterEggSecrets() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-white">Secret Discoveries</h3>
-                <span className="text-sm text-gray-400">{found.length} / {total} found</span>
+                <span className="text-sm text-gray-400">{formatNumber(found.length)} / {formatNumber(total)} found</span>
             </div>
             {/* Progress bar */}
             <div className="h-2 w-full overflow-hidden rounded-full bg-gray-800">
@@ -658,7 +658,7 @@ function AchievementsTabContent({ editable, isAdmin }: { editable?: boolean; isA
                 <LuTrophy className="size-8 text-yellow-500" />
                 <div>
                     <h2 className="text-xl font-bold">Achievements</h2>
-                    <p className="text-[--muted]">{unlockedCount} / {totalCount} unlocked</p>
+                    <p className="text-[--muted]">{formatNumber(unlockedCount)} / {formatNumber(totalCount)} unlocked</p>
                 </div>
                 <div className="ml-auto flex items-center gap-3">
                     {editable && isAdmin && (

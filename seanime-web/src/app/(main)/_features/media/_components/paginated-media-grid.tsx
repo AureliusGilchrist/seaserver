@@ -1,5 +1,6 @@
 import { MediaCardLazyGrid } from "@/app/(main)/_features/media/_components/media-card-grid"
 import { Pagination, PaginationEllipsis, PaginationItem, PaginationTrigger } from "@/components/ui/pagination"
+import { formatNumber } from "@/lib/helpers/number"
 import React from "react"
 
 /** Series shown per page in the local anime and manga libraries. */
@@ -126,7 +127,7 @@ export function PaginatedMediaGrid<T>({ items, renderItem, pageSize = LIBRARY_PA
                         />
                     </Pagination>
                     <p className="text-[--muted] text-sm">
-                        Page {page} of {pageCount} — {total} series
+                        Page {formatNumber(page)} of {formatNumber(pageCount)} — {formatNumber(total)} series
                     </p>
                 </div>
             )}

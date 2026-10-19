@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/helpers/number"
 "use client"
 import { AL_BaseAnime, AL_BaseManga, Local_QueueState } from "@/api/generated/types"
 import {
@@ -231,9 +232,9 @@ export default function Page() {
                         <div className="space-y-2">
                             <p>
                                 <span>You have not saved {!!unsavedAnime?.length
-                                    ? `${unsavedAnime?.length} anime`
+                                    ? `${formatNumber(unsavedAnime?.length)} anime`
                                     : ""}{(!!unsavedAnime?.length && !!unsavedManga?.length) ? " and " : ""}{!!unsavedManga?.length
-                                    ? `${unsavedManga?.length} manga`
+                                    ? `${formatNumber(unsavedManga?.length)} manga`
                                     : ""} that you're currently {!!unsavedAnime?.length
                                     ? "watching"
                                     : ""}{(!!unsavedAnime.length && !!unsavedManga.length) ? " and " : ""}{!!unsavedManga?.length

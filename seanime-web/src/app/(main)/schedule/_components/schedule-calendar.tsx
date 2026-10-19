@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/helpers/number"
 import { AL_MediaListStatus, Anime_ScheduleItem } from "@/api/generated/types"
 import { useGetAnimeCollectionSchedule } from "@/api/hooks/anime_collection.hooks"
 import { SeaImage } from "@/components/shared/sea-image"
@@ -366,7 +367,7 @@ function MobileDayItem({ day, calendarParams }: MobileDayItemProps) {
                         className="text-xs text-[--muted] bg-gray-800 px-2 py-1 rounded-full"
                         data-schedule-calendar-mobile-list-day-item-event-count
                     >
-                        {day.events.length} episode{day.events.length !== 1 ? "s" : ""}
+                        {formatNumber(day.events.length)} episode{day.events.length !== 1 ? "s" : ""}
                     </div>
                 )}
             </div>

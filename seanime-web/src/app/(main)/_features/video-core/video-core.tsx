@@ -825,14 +825,19 @@ export function VideoCore(props: VideoCoreProps) {
     // Client-side AniList progress at 80% (reliable REST path) for both online + local players
     const { onReachedThreshold: onReachedProgressThreshold } = useVideoCoreAutoProgress(state)
 
-    // The sequel offer and the every-third-episode check. Both are raised from the same place the
-    // episode's end is noticed, and the check pauses the video so the question is asked to somebody
-    // who is actually there. Stable on purpose: a fresh callback on every render would re-run the
-    // hook's effect every render, and while the check is up that is a pause per render.
+    // The sequel offer and the every-N-episodes check (Settings -> App). Both are raised from the
+    // same place the episode's end is noticed, and the check pauses the video so the question is
+    // asked to somebody who is actually there. Stable on purpose: a fresh callback on every render
+    // would re-run the hook's effect every render, and while the check is up that is a pause per
+    // render.
     const pausePlayback = React.useCallback(() => {
         videoRef.current?.pause()
     }, [])
-    const { onEpisodeEnded, onVideoEnded } = useVideoCoreWatchingChecks(state, pausePlayback)
+    const stillWatchingConfig = React.useMemo(() => ({
+        enabled: serverStatus?.settings?.mediaPlayer?.stillWatchingChecksEnabled ?? true,
+        episodes: serverStatus?.settings?.mediaPlayer?.stillWatchingEpisodes ?? 3,
+    }), [serverStatus?.settings?.mediaPlayer?.stillWatchingChecksEnabled, serverStatus?.settings?.mediaPlayer?.stillWatchingEpisodes])
+    const { onEpisodeEnded, onVideoEnded } = useVideoCoreWatchingChecks(state, pausePlayback, stillWatchingConfig)
 
     const { isParticipant: isNakamaWatchPartyParticipant } = useNakamaWatchParty()
     // Same-server watch party: a non-source participant is driven by the source.

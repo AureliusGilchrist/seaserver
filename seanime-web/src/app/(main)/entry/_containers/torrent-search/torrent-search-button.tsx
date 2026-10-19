@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/helpers/number"
 import { Anime_Entry } from "@/api/generated/types"
 import { AnimeMetaActionButton } from "@/app/(main)/entry/_components/meta-section"
 import { useAnimeEntryPageView } from "@/app/(main)/entry/_containers/anime-entry-page"
@@ -31,7 +32,7 @@ export function TorrentSearchButton({ entry, onClick }: { entry: Anime_Entry, on
                 data-torrent-search-button
             >
                 {(!entry.downloadInfo?.hasInaccurateSchedule && !!count) ? <>
-                    {(!isMovie) && `Download ${entry.downloadInfo?.batchAll ? "batch /" : "next"} ${count > 1 ? `${count} episodes` : "episode"}`}
+                    {(!isMovie) && `Download ${entry.downloadInfo?.batchAll ? "batch /" : "next"} ${count > 1 ? `${formatNumber(count)} episodes` : "episode"}`}
                     {(isMovie) && `Download movie`}
                 </> : <>
                     Download

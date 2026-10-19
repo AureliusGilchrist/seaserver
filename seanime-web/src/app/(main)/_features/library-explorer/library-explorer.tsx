@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/helpers/number"
 import { useGetLibraryExplorerFileTree, useRefreshLibraryExplorerFileTree } from "@/api/generated/library_explorer.hooks"
 import { AL_BaseAnime, Anime_LocalFile, Anime_LocalFileType, LibraryExplorer_FileTreeNodeJSON } from "@/api/generated/types"
 import { useOpenInExplorer } from "@/api/hooks/explorer.hooks"
@@ -1199,7 +1200,7 @@ const VirtualizedTreeNode = memo(({
                                         !allFileScanned && "bg-red-500/20 text-[--red]",
                                     )}
                                 >
-                                    {matchedFileCount} / {fileCount}
+                                    {formatNumber(matchedFileCount)} / {formatNumber(fileCount)}
                                 </span>}
                             >
                                 Matched files
@@ -1407,7 +1408,7 @@ function LibraryInfoPanel({}: { localFiles: Record<string, Anime_LocalFile> | un
                             Associated Media
                         </dt>
                         <dd className="text-gray-200">
-                            {selectedNode.mediaIds.length} anime series
+                            {formatNumber(selectedNode.mediaIds.length)} anime series
                         </dd>
                         {selectedNode.mediaIds.length > 1 && selectedNode.mediaIds.length <= 5 && associatedMedia?.map(media => (
                             <dd
@@ -1444,8 +1445,8 @@ function LibraryInfoPanel({}: { localFiles: Record<string, Anime_LocalFile> | un
                     <div>
                         <dt className="text-gray-400 text-sm uppercase tracking-wide mb-1">Contents</dt>
                         <dd className="text-gray-200">
-                            {directoryCount} folder{directoryCount != 1 ? "s" : ""}, {" "}
-                            {fileCount} file{fileCount != 1 ? "s" : ""}
+                            {formatNumber(directoryCount)} folder{directoryCount != 1 ? "s" : ""}, {" "}
+                            {formatNumber(fileCount)} file{fileCount != 1 ? "s" : ""}
                         </dd>
                     </div>
                 )}

@@ -52,6 +52,7 @@ export type LandingWidgetId =
     | "to-watch"
     | "unmatched"
     | "torrents"
+    | "news-feed"
     | "achievements"
 
 export type LandingWidgetConfig = {
@@ -73,6 +74,7 @@ export const DEFAULT_LANDING_WIDGETS: LandingWidgetConfig[] = [
     { id: "to-watch", enabled: true },
     { id: "unmatched", enabled: true },
     { id: "torrents", enabled: false },
+    { id: "news-feed", enabled: true },
     { id: "achievements", enabled: false },
     { id: "continue-reading", enabled: false },
 ]
@@ -91,6 +93,7 @@ export const LANDING_WIDGET_META: Record<LandingWidgetId, { name: string, descri
     "to-watch": { name: "Todo List", description: "Anime and manga you plan to watch or read." },
     "unmatched": { name: "Unmatched downloads", description: "Finished downloads waiting to be matched." },
     "torrents": { name: "Torrent list", description: "What is downloading, and what is seeding." },
+    "news-feed": { name: "News", description: "Anime and manga news and recommendations, from RSS." },
     "achievements": { name: "Achievements", description: "Everything you have unlocked so far." },
 }
 

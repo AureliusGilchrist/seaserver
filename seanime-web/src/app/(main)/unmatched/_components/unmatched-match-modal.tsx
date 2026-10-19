@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/helpers/number"
 "use client"
 
 import {
@@ -1236,7 +1237,7 @@ function MatchPlanConfirmation({
         <div className="space-y-4 py-2">
             {/* What happens, in one line */}
             <p className="text-sm">
-                <span className="font-semibold">{count}</span> file{count === 1 ? "" : "s"} will be{" "}
+                <span className="font-semibold">{formatNumber(count)}</span> file{count === 1 ? "" : "s"} will be{" "}
                 <span className="font-semibold">moved</span> out of the Unmatched folder into your library under{" "}
                 <span className="font-semibold text-brand-200">{destinationFolder}</span>, renamed, and matched to{" "}
                 <span className="font-semibold text-brand-200">{animeTitle}</span>
@@ -1340,7 +1341,7 @@ function MatchPlanConfirmation({
                     loading={isMatching}
                     leftIcon={<BiCheck />}
                 >
-                    Queue match — {count} file{count === 1 ? "" : "s"}
+                    Queue match — {formatNumber(count)} file{count === 1 ? "" : "s"}
                 </Button>
             </div>
         </div>
@@ -1467,7 +1468,7 @@ function TreeNodeItem({
                         )}
                         <span className="text-sm text-gray-200" onClick={() => toggleFolder(node.path)}>{node.name}</span>
                         <span className="text-xs text-[--muted] ml-auto flex-shrink-0">
-                            {fileCount} {fileCount === 1 ? "episode" : "episodes"}
+                            {formatNumber(fileCount)} {fileCount === 1 ? "episode" : "episodes"}
                         </span>
                     </div>
                 </div>

@@ -123,6 +123,12 @@ export const settingsSchema = z.object({
     mpvAutoSkipOpening: z.boolean().optional().default(false),
     mpvAutoSkipEnding: z.boolean().optional().default(false),
     mpvAutoSkipFiller: z.boolean().optional().default(false),
+    stillWatchingChecksEnabled: z.boolean().optional().default(true),
+    // Number inputs emit NaN when cleared; coerce to undefined so the default applies instead of
+    // failing the whole form silently.
+    stillWatchingEpisodes: z.preprocess(v => (typeof v === "number" && !Number.isNaN(v) ? v : undefined), z.number().optional().default(3)),
+    autoPauseStaleWatchingDays: z.preprocess(v => (typeof v === "number" && !Number.isNaN(v) ? v : undefined), z.number().optional().default(7)),
+    newsFeeds: z.string().optional().default(""),
     scannerUseLegacyMatching: z.boolean().optional().default(false),
     scannerConfig: z.string().optional().default(""),
     updateChannel: z.string().optional().default("github"),
@@ -159,6 +165,7 @@ export const getDefaultSettings = (data: z.infer<typeof gettingStartedSchema>): 
         scannerUseLegacyMatching: false,
         scannerConfig: "",
         updateChannel: "github",
+        newsFeeds: "",
     },
     nakama: {
         enabled: false,
@@ -201,6 +208,8 @@ export const getDefaultSettings = (data: z.infer<typeof gettingStartedSchema>): 
         mpvAutoSkipOpening: false,
         mpvAutoSkipEnding: false,
         mpvAutoSkipFiller: false,
+        stillWatchingChecksEnabled: true,
+        stillWatchingEpisodes: 3,
     },
     discord: {
         enableRichPresence: data.enableRichPresence,
@@ -234,6 +243,7 @@ export const getDefaultSettings = (data: z.infer<typeof gettingStartedSchema>): 
         enableAdultContent: data.enableAdultContent,
         blurAdultContent: false,
         disableCacheLayer: false,
+        autoPauseStaleWatchingDays: 7,
     },
     enableTorrentStreaming: data.enableTorrentStreaming,
     enableTranscode: data.enableTranscode,

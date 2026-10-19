@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/helpers/number"
 import { EnqueueFuture_Item, EnqueueFuture_Snapshot } from "@/api/generated/types"
 import { __torrentSearch_selectedTorrentsAtom } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-container"
 import { Badge } from "@/components/ui/badge"
@@ -36,7 +37,7 @@ export function EnqueueFutureCurrentShow({ item, snapshot, onEditSearch }: {
     const facts = [
         media?.format,
         media?.seasonYear ? `${media.season ? `${media.season} ` : ""}${media.seasonYear}` : undefined,
-        media?.episodes ? `${media.episodes} episode${media.episodes > 1 ? "s" : ""}` : undefined,
+        media?.episodes ? `${formatNumber(media.episodes)} episode${media.episodes > 1 ? "s" : ""}` : undefined,
         media?.status,
     ].filter(Boolean) as string[]
 

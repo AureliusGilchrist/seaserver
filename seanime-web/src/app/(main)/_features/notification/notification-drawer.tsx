@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/helpers/number"
 "use client"
 import { useDeleteNotification, useGetNotifications, useMarkAllNotificationsRead, useMarkNotificationRead } from "@/api/hooks/notifications.hooks"
 
@@ -95,7 +96,7 @@ export function NotificationDrawer({ open, onOpenChange }: NotificationDrawerPro
         >
             <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-[--muted]">
-                    {totalCount > 0 ? `${totalCount} notification${totalCount !== 1 ? "s" : ""}` : ""}
+                    {totalCount > 0 ? `${formatNumber(totalCount)} notification${totalCount !== 1 ? "s" : ""}` : ""}
                 </p>
                 {(data?.unreadCount ?? 0) > 0 && (
                     <Button

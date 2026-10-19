@@ -412,7 +412,7 @@ function UserAchievementsTabContent({ userId }: { userId: number }) {    const {
                 <LuTrophy className="size-8 text-yellow-500" />
                 <div>
                     <h2 className="text-xl font-bold">Achievements</h2>
-                    <p className="text-[--muted]">{unlockedCount} / {totalCount} unlocked</p>
+                    <p className="text-[--muted]">{formatNumber(unlockedCount)} / {formatNumber(totalCount)} unlocked</p>
                 </div>
                 <div className="ml-auto">
                     <ProgressRing value={totalCount > 0 ? (unlockedCount / totalCount) * 100 : 0} />

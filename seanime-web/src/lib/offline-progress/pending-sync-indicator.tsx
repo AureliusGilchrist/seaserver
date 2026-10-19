@@ -1,5 +1,7 @@
 "use client"
 
+import { formatNumber } from "@/lib/helpers/number"
+
 import { buildSeaQuery } from "@/api/client/requests"
 import { profileSessionTokenAtom, serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { cn } from "@/components/ui/core/styling"
@@ -76,7 +78,7 @@ export function PendingSyncIndicator() {
                 >
                     <LuRefreshCw className="size-3.5 animate-spin text-brand-400" style={{ animationDuration: "2.5s" }} />
                     <span>
-                        <span className="font-semibold text-[--foreground]">{count}</span>{" "}
+                        <span className="font-semibold text-[--foreground]">{formatNumber(count)}</span>{" "}
                         episode{count > 1 ? "s" : ""} queued — will sync when AniList is back
                     </span>
                 </motion.div>

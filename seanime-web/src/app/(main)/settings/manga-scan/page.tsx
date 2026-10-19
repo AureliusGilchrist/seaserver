@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/helpers/number"
 "use client"
 
 import {
@@ -603,7 +604,7 @@ function AniListSearchModal({ isOpen, onClose, folderName, onLinked }: AniListSe
                                 </p>
                                 <p className="text-xs text-[--muted]">
                                     {manga.format} · {manga.status}
-                                    {manga.chapters ? ` · ${manga.chapters} ch` : ""}
+                                    {manga.chapters ? ` · ${formatNumber(manga.chapters)} ch` : ""}
                                 </p>
                             </div>
                             <Button

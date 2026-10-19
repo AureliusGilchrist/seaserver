@@ -371,7 +371,8 @@ func (sr *ServiceRunner) RunFindMangaLibrarySorting() (map[int]interface{}, erro
 }
 
 // RunAutoPauseStaleWatching scans the user's CURRENT (watching) AniList entries and
-// transitions any entry whose AniList list-entry `updatedAt` is older than 7 days to PAUSED.
+// transitions any entry whose AniList list-entry `updatedAt` is older than the configured
+// inactivity window (Settings -> App, default 7 days) to PAUSED.
 // This runs without external scheduler dependencies.
 //
 // Each profile is processed with its OWN AniList client and its OWN collection. The
@@ -394,7 +395,19 @@ func (sr *ServiceRunner) RunAutoPauseStaleWatching() error {
 		return nil
 	}
 
-	threshold := time.Now().Unix() - 7*24*3600
+	// The inactivity window is configurable (Settings -> App); 0 (or less) disables the job.
+	days := 7
+	if sr.app.Database != nil {
+		if settings, err := sr.app.Database.GetSettings(); err == nil && settings != nil && settings.Anilist != nil {
+			days = settings.Anilist.AutoPauseStaleWatchingDays
+		}
+	}
+	if days <= 0 {
+		sr.logger.Debug().Msg("services: auto-pause stale watching: disabled in settings, skipping")
+		return nil
+	}
+
+	threshold := time.Now().Unix() - int64(days)*24*3600
 	totalPaused := 0
 	handled := 0
 

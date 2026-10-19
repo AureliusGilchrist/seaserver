@@ -208,6 +208,7 @@ const (
 	GetNakamaAnimeLibraryEndpoint                      = "NAKAMA-get-nakama-anime-library"
 	GetNakamaAnimeLibraryFilesEndpoint                 = "NAKAMA-get-nakama-anime-library-files"
 	GetNakamaAnimeLibrarySharedEndpoint                = "NAKAMA-get-nakama-anime-library-shared"
+	GetNewsFeedEndpoint                                = "RSS-get-news-feed"
 	GetNotificationsEndpoint                           = "NOTIFICATION-get-notifications"
 	GetOnlineStreamEpisodeListEndpoint                 = "ONLINESTREAM-get-online-stream-episode-list"
 	GetOnlineStreamEpisodeSourceEndpoint               = "ONLINESTREAM-get-online-stream-episode-source"
