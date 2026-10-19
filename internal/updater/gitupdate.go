@@ -354,6 +354,18 @@ func (u *GitAutoUpdater) shelve(remoteRef string) error {
 	if err != nil {
 		return fmt.Errorf("%s %w", strings.TrimSpace(out), err)
 	}
+	// The paths this repair moved aside are untracked, so they no longer bother git — but they
+	// are still on disk. Remove the ones this update created, best-effort.
+	_ = filepath.WalkDir(u.repoDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if strings.HasSuffix(d.Name(), ".stale-"+stamp) {
+			_ = os.RemoveAll(path)
+			return filepath.SkipDir
+		}
+		return nil
+	})
 	return nil
 }
 
