@@ -2,9 +2,41 @@ package handlers
 
 import (
 	discordrpc_presence "seanime/internal/discordrpc/presence"
+	"seanime/internal/database/models"
 
 	"github.com/labstack/echo/v4"
 )
+
+// effectiveDiscordSettings merges the requesting profile's Personal overrides (client-prefs)
+// over the server-wide Discord settings, so each profile's rich presence choices apply to
+// their own presence. Returns nil when there are no server-wide settings.
+func (h *Handler) effectiveDiscordSettings(c echo.Context) *models.DiscordSettings {
+	settings, err := h.App.Database.GetSettings()
+	if err != nil || settings == nil || settings.Discord == nil {
+		return nil
+	}
+	ds := *settings.Discord
+	if pdb := h.GetProfileDatabase(c); pdb != nil {
+		if ovr, err := pdb.GetClientSettingsOverrides(); err == nil && ovr != nil {
+			if ovr.EnableRichPresence != nil {
+				ds.EnableRichPresence = *ovr.EnableRichPresence
+			}
+			if ovr.EnableAnimeRichPresence != nil {
+				ds.EnableAnimeRichPresence = *ovr.EnableAnimeRichPresence
+			}
+			if ovr.EnableMangaRichPresence != nil {
+				ds.EnableMangaRichPresence = *ovr.EnableMangaRichPresence
+			}
+			if ovr.RichPresenceHideSeanimeRepositoryButton != nil {
+				ds.RichPresenceHideSeanimeRepositoryButton = *ovr.RichPresenceHideSeanimeRepositoryButton
+			}
+			if ovr.RichPresenceShowAniListProfileButton != nil {
+				ds.RichPresenceShowAniListProfileButton = *ovr.RichPresenceShowAniListProfileButton
+			}
+		}
+	}
+	return &ds
+}
 
 // HandleSetDiscordMangaActivity
 //
@@ -26,12 +58,12 @@ func (h *Handler) HandleSetDiscordMangaActivity(c echo.Context) error {
 		return h.RespondWithData(c, false)
 	}
 
-	h.App.DiscordPresence.SetMangaActivity(&discordrpc_presence.MangaActivity{
+	h.App.DiscordPresence.SetMangaActivityWithSettings(&discordrpc_presence.MangaActivity{
 		ID:      b.MediaId,
 		Title:   b.Title,
 		Image:   b.Image,
 		Chapter: b.Chapter,
-	})
+	}, h.effectiveDiscordSettings(c))
 
 	return h.RespondWithData(c, true)
 }
@@ -57,13 +89,13 @@ func (h *Handler) HandleSetDiscordLegacyAnimeActivity(c echo.Context) error {
 		return h.RespondWithData(c, false)
 	}
 
-	h.App.DiscordPresence.LegacySetAnimeActivity(&discordrpc_presence.LegacyAnimeActivity{
+	h.App.DiscordPresence.LegacySetAnimeActivityWithSettings(&discordrpc_presence.LegacyAnimeActivity{
 		ID:            b.MediaId,
 		Title:         b.Title,
 		Image:         b.Image,
 		IsMovie:       b.IsMovie,
 		EpisodeNumber: b.EpisodeNumber,
-	})
+	}, h.effectiveDiscordSettings(c))
 
 	return h.RespondWithData(c, true)
 }
@@ -95,6 +127,9 @@ func (h *Handler) HandleSetDiscordAnimeActivityWithProgress(c echo.Context) erro
 		return h.RespondWithData(c, false)
 	}
 
+	// Apply the requesting profile's Personal Discord settings for this client's presence,
+	// so enable/disable and buttons follow the profile.
+	h.App.DiscordPresence.SetSettingsFor(b.ClientId, h.effectiveDiscordSettings(c))
 	h.App.DiscordPresence.SetAnimeActivityFor(b.ClientId, &discordrpc_presence.AnimeActivity{
 		ID:                  b.MediaId,
 		Title:               b.Title,
@@ -131,6 +166,8 @@ func (h *Handler) HandleUpdateDiscordAnimeActivityWithProgress(c echo.Context) e
 		return h.RespondWithData(c, false)
 	}
 
+	// Keep the client's per-profile settings current so pause/unpause gating follows the profile.
+	h.App.DiscordPresence.SetSettingsFor(b.ClientId, h.effectiveDiscordSettings(c))
 	h.App.DiscordPresence.UpdateAnimeActivityFor(b.ClientId, b.Progress, b.Duration, b.Paused)
 	return h.RespondWithData(c, true)
 }

@@ -11,7 +11,6 @@ import { __issueReport_overlayOpenAtom } from "@/app/(main)/_features/issue-repo
 import { updateModalOpenAtom as webUpdateModalOpenAtom } from "@/app/(main)/_features/update/update-modal"
 import { useServerDisabledFeatures, useServerStatus, useSetServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { ExternalPlayerLinkSettings, MediaplayerSettings } from "@/app/(main)/settings/_components/mediaplayer-settings"
-import { PlaybackSettings } from "@/app/(main)/settings/_components/playback-settings"
 import { __settings_tabAtom } from "@/app/(main)/settings/_components/settings-page.atoms"
 import { SettingsIsDirty, SettingsSubmitButton } from "@/app/(main)/settings/_components/settings-submit-button"
 import { AnimeLibrarySettings } from "@/app/(main)/settings/_containers/anime-library-settings"
@@ -45,13 +44,11 @@ import React from "react"
 import { UseFormReturn } from "react-hook-form"
 import { BiDonateHeart } from "react-icons/bi"
 import { CgMediaPodcast } from "react-icons/cg"
-import { FaDiscord } from "react-icons/fa"
 import { HiOutlineServerStack } from "react-icons/hi2"
 import {
     LuBookKey,
     LuBookOpen,
     LuCircleArrowOutUpRight,
-    LuCirclePlay,
     LuFileSearch,
     LuLibrary,
     LuMonitorPlay,
@@ -70,7 +67,6 @@ import { TbDatabaseExclamation } from "react-icons/tb"
 import { VscDebugAlt } from "react-icons/vsc"
 import { toast } from "sonner"
 import { SettingsCard, SettingsNavCard, SettingsPageHeader } from "./_components/settings-card"
-import { DiscordRichPresenceSettings } from "./_containers/discord-rich-presence-settings"
 import { LocalSettings } from "./_containers/local-settings"
 import { NakamaSettings } from "./_containers/nakama-settings"
 import { PrivacySettings } from "./_containers/privacy-settings"
@@ -266,10 +262,7 @@ export default function Page() {
                                         value="library"
                                         className="group"
                                     ><LuLibrary className="text-xl mr-3 transition-transform duration-200" /> Local Anime Library</TabsTrigger>
-                                    <TabsTrigger
-                                        value="playback"
-                                        className="group"
-                                    ><LuCirclePlay className="text-xl mr-3 transition-transform duration-200" /> Video Playback</TabsTrigger>
+                                    {/* Video Playback moved to the per-profile "Personal" tab. */}
                                 </Card>
 
                                 {/*<div className="text-xs lg:text-[--muted] text-center py-1.5 uppercase px-3 border-gray-800 tracking-wide font-medium">*/}
@@ -335,10 +328,6 @@ export default function Page() {
                                         value="nakama"
                                         className="group relative"
                                     ><MdOutlineConnectWithoutContact className="text-xl mr-3 transition-transform duration-200" /> Nakama</TabsTrigger>
-                                    <TabsTrigger
-                                        value="discord"
-                                        className="group"
-                                    ><FaDiscord className="text-xl mr-3 transition-transform duration-200" /> Discord</TabsTrigger>
                                     <TabsTrigger
                                         value="privacy"
                                         className="group"
@@ -473,9 +462,9 @@ export default function Page() {
                                         vcTranslateTargetLanguage: data.vcTranslateTargetLanguage || "",
                                         vcTranslateBaseUrl: data.vcTranslateBaseUrl || "",
                                         vcTranslateModel: data.vcTranslateModel || "",
-                                        mpvAutoSkipOpening: data.mpvAutoSkipOpening ?? false,
-                                        mpvAutoSkipEnding: data.mpvAutoSkipEnding ?? false,
-                                        mpvAutoSkipFiller: data.mpvAutoSkipFiller ?? false,
+                                        mpvAutoSkipOpening: status?.settings?.mediaPlayer?.mpvAutoSkipOpening ?? false,
+                                        mpvAutoSkipEnding: status?.settings?.mediaPlayer?.mpvAutoSkipEnding ?? false,
+                                        mpvAutoSkipFiller: status?.settings?.mediaPlayer?.mpvAutoSkipFiller ?? false,
                                         stillWatchingChecksEnabled: status?.settings?.mediaPlayer?.stillWatchingChecksEnabled ?? true,
                                         stillWatchingEpisodes: status?.settings?.mediaPlayer?.stillWatchingEpisodes ?? 3,
                                     },
@@ -498,20 +487,20 @@ export default function Page() {
                                         builtinDownloadDir: data.builtinDownloadDir ?? "",
                                     },
                                     discord: {
-                                        enableRichPresence: data?.enableRichPresence ?? false,
-                                        enableAnimeRichPresence: data?.enableAnimeRichPresence ?? false,
-                                        enableMangaRichPresence: data?.enableMangaRichPresence ?? false,
-                                        richPresenceHideSeanimeRepositoryButton: data?.richPresenceHideSeanimeRepositoryButton ?? false,
-                                        richPresenceShowAniListMediaButton: data?.richPresenceShowAniListMediaButton ?? false,
-                                        richPresenceShowAniListProfileButton: data?.richPresenceShowAniListProfileButton ?? false,
-                                        richPresenceUseMediaTitleStatus: data?.richPresenceUseMediaTitleStatus ?? false,
+                                        enableRichPresence: status?.settings?.discord?.enableRichPresence ?? false,
+                                        enableAnimeRichPresence: status?.settings?.discord?.enableAnimeRichPresence ?? false,
+                                        enableMangaRichPresence: status?.settings?.discord?.enableMangaRichPresence ?? false,
+                                        richPresenceHideSeanimeRepositoryButton: status?.settings?.discord?.richPresenceHideSeanimeRepositoryButton ?? false,
+                                        richPresenceShowAniListMediaButton: status?.settings?.discord?.richPresenceShowAniListMediaButton ?? false,
+                                        richPresenceShowAniListProfileButton: status?.settings?.discord?.richPresenceShowAniListProfileButton ?? false,
+                                        richPresenceUseMediaTitleStatus: status?.settings?.discord?.richPresenceUseMediaTitleStatus ?? false,
                                     },
                                     anilist: {
                                         hideAudienceScore: status?.settings?.anilist?.hideAudienceScore ?? false,
                                         enableAdultContent: data.enableAdultContent,
                                         blurAdultContent: status?.settings?.anilist?.blurAdultContent ?? false,
                                         disableCacheLayer: data.disableCacheLayer,
-                                        autoPauseStaleWatchingDays: data.autoPauseStaleWatchingDays ?? 7,
+                                        autoPauseStaleWatchingDays: status?.settings?.anilist?.autoPauseStaleWatchingDays ?? 7,
                                     },
                                     notifications: {
                                         disableNotifications: data?.disableNotifications ?? false,
@@ -745,20 +734,6 @@ export default function Page() {
 
                                     </TabsContent>
 
-                                    <TabsContent value="discord" className={tabContentClass}>
-
-                                        <SettingsPageHeader
-                                            title="Discord"
-                                            description="Configure Discord rich presence settings"
-                                            icon={FaDiscord}
-                                        />
-
-                                        <DiscordRichPresenceSettings />
-
-                                        <SettingsSubmitButton isPending={isPending} />
-
-                                    </TabsContent>
-
                                     <TabsContent value="privacy" className={tabContentClass}>
                                         <PrivacySettings />
                                     </TabsContent>
@@ -821,9 +796,7 @@ export default function Page() {
                                         <ExternalPlayerLinkSettings />
                                     </TabsContent>
 
-                                    <TabsContent value="playback" className={tabContentClass}>
-                                        <PlaybackSettings />
-                                    </TabsContent>
+                                    {/* Video Playback moved to the per-profile "Personal" tab. */}
 
                                     <TabsContent value="torrent-client" className={tabContentClass}>
 

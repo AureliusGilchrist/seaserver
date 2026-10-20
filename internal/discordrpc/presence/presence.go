@@ -25,6 +25,11 @@ type Presence struct {
 	username string
 	mu       sync.RWMutex
 
+	// Per-client Discord settings, resolved from each client's profile Personal settings
+	// (keyed by VideoCore clientId). When present, these override p.settings for that
+	// client's activity so per-profile enable/disable and buttons work.
+	clientSettings map[string]*models.DiscordSettings
+
 	animeActivity               *AnimeActivity
 	lastAnimeActivityUpdateSent time.Time
 
@@ -73,6 +78,7 @@ func New(settings *models.DiscordSettings, logger *zerolog.Logger) *Presence {
 		clientActivities:            make(map[string]*AnimeActivity),
 		clientLastUpdate:            make(map[string]time.Time),
 		clientBroadcastSigs:         make(map[string]string),
+		clientSettings:              make(map[string]*models.DiscordSettings),
 	}
 
 	if settings != nil && settings.EnableRichPresence {
@@ -173,6 +179,38 @@ func (p *Presence) SetUsername(username string) {
 	p.username = username
 }
 
+// SetSettingsFor applies per-profile Discord settings for a single client's presence
+// (keyed by VideoCore clientId). The client's activity requests then use these settings
+// instead of the server-wide ones, so each profile's enable/disable and button choices
+// apply to their own presence. Passing nil clears the override.
+func (p *Presence) SetSettingsFor(clientId string, settings *models.DiscordSettings) {
+	if clientId == "" {
+		return
+	}
+	defer util.HandlePanicInModuleThen("discordrpc/presence/SetSettingsFor", func() {})
+
+	p.mu.Lock()
+	if settings == nil {
+		delete(p.clientSettings, clientId)
+		p.mu.Unlock()
+		return
+	}
+	settings.RichPresenceUseMediaTitleStatus = false    // Devnote: Not used anymore, disable
+	settings.RichPresenceShowAniListMediaButton = false // Devnote: Not used anymore, disable
+	p.clientSettings[clientId] = settings
+	enabled := settings.EnableRichPresence
+	p.mu.Unlock()
+
+	// Rich presence was turned off for this client — clear its current activity.
+	if !enabled {
+		p.mu.Lock()
+		delete(p.clientActivities, clientId)
+		delete(p.clientLastUpdate, clientId)
+		p.mu.Unlock()
+		p.broadcastClearTo(clientId)
+	}
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func (p *Presence) setClient() {
@@ -194,8 +232,9 @@ func (p *Presence) setClient() {
 var isChecking bool
 
 // check executes multiple checks to determine if the presence should be set.
-// It returns true if the presence should be set.
-func (p *Presence) check() (proceed bool) {
+// It returns true if the presence should be set. The settings decide whether rich presence
+// is enabled — per-client overrides pass their own resolved settings here.
+func (p *Presence) check(settings *models.DiscordSettings) (proceed bool) {
 	defer util.HandlePanicInModuleThen("discordrpc/presence/check", func() {
 		proceed = false
 	})
@@ -208,13 +247,13 @@ func (p *Presence) check() (proceed bool) {
 		isChecking = false
 	}()
 
-	// If the client is nil, return false
-	if p.settings == nil {
+	// If the settings are nil, return false
+	if settings == nil {
 		return false
 	}
 
 	// If rich presence is disabled, return false
-	if !p.settings.EnableRichPresence {
+	if !settings.EnableRichPresence {
 		return false
 	}
 
@@ -297,11 +336,20 @@ func (p *Presence) setAnimeActivityImpl(clientId string, a *AnimeActivity) {
 
 	defer util.HandlePanicInModuleThen("discordrpc/presence/SetAnimeActivity", func() {})
 
-	if !p.check() {
+	// Resolve the settings that govern this client's presence: the profile's Personal
+	// override when one was applied, otherwise the server-wide settings.
+	settings := p.settings
+	if clientId != "" {
+		if cs, ok := p.clientSettings[clientId]; ok && cs != nil {
+			settings = cs
+		}
+	}
+
+	if !p.check(settings) {
 		return
 	}
 
-	if !p.settings.EnableAnimeRichPresence {
+	if !settings.EnableAnimeRichPresence {
 		return
 	}
 
@@ -365,7 +413,7 @@ func (p *Presence) setAnimeActivityImpl(clientId string, a *AnimeActivity) {
 
 	activity.Buttons = make([]*discordrpc_client.Button, 0)
 
-	if p.settings.RichPresenceShowAniListProfileButton {
+	if settings.RichPresenceShowAniListProfileButton {
 		activity.Buttons = append(activity.Buttons, &discordrpc_client.Button{
 			Label: "View Profile",
 			Url:   fmt.Sprintf("https://anilist.co/user/%s", p.username),
@@ -497,6 +545,7 @@ func (p *Presence) CloseFor(clientId string) {
 	p.mu.Lock()
 	delete(p.clientActivities, clientId)
 	delete(p.clientLastUpdate, clientId)
+	delete(p.clientSettings, clientId)
 	p.mu.Unlock()
 	p.broadcastClearTo(clientId)
 }
@@ -571,18 +620,28 @@ type LegacyAnimeActivity struct {
 	EpisodeNumber int    `json:"episodeNumber"`
 }
 
-// LegacySetAnimeActivity sets the presence to watching anime.
+// LegacySetAnimeActivity sets the presence to watching anime using the server-wide settings.
 func (p *Presence) LegacySetAnimeActivity(a *LegacyAnimeActivity) {
+	p.LegacySetAnimeActivityWithSettings(a, nil)
+}
+
+// LegacySetAnimeActivityWithSettings sets the presence to watching anime, governed by the
+// given settings (falls back to the server-wide settings when nil).
+func (p *Presence) LegacySetAnimeActivityWithSettings(a *LegacyAnimeActivity, settings *models.DiscordSettings) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	defer util.HandlePanicInModuleThen("discordrpc/presence/SetAnimeActivity", func() {})
 
-	if !p.check() {
+	if settings == nil {
+		settings = p.settings
+	}
+
+	if !p.check(settings) {
 		return
 	}
 
-	if !p.settings.EnableAnimeRichPresence {
+	if !settings.EnableAnimeRichPresence {
 		return
 	}
 
@@ -605,7 +664,7 @@ func (p *Presence) LegacySetAnimeActivity(a *LegacyAnimeActivity) {
 	activity.Timestamps.End = nil
 	activity.Buttons = make([]*discordrpc_client.Button, 0)
 
-	if p.settings.RichPresenceShowAniListProfileButton {
+	if settings.RichPresenceShowAniListProfileButton {
 		activity.Buttons = append(activity.Buttons, &discordrpc_client.Button{
 			Label: "View Profile",
 			Url:   fmt.Sprintf("https://anilist.co/user/%s", p.username),
@@ -631,18 +690,28 @@ type MangaActivity struct {
 	Chapter string `json:"chapter"`
 }
 
-// SetMangaActivity sets the presence to watching anime.
+// SetMangaActivity sets the presence to watching manga using the server-wide settings.
 func (p *Presence) SetMangaActivity(a *MangaActivity) {
+	p.SetMangaActivityWithSettings(a, nil)
+}
+
+// SetMangaActivityWithSettings sets the presence to watching manga, governed by the given
+// settings (falls back to the server-wide settings when nil).
+func (p *Presence) SetMangaActivityWithSettings(a *MangaActivity, settings *models.DiscordSettings) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	defer util.HandlePanicInModuleThen("discordrpc/presence/SetMangaActivity", func() {})
 
-	if !p.check() {
+	if settings == nil {
+		settings = p.settings
+	}
+
+	if !p.check(settings) {
 		return
 	}
 
-	if !p.settings.EnableMangaRichPresence {
+	if !settings.EnableMangaRichPresence {
 		return
 	}
 
@@ -668,7 +737,7 @@ func (p *Presence) SetMangaActivity(a *MangaActivity) {
 	event.EndTimestamp = nil
 	activity.Buttons = make([]*discordrpc_client.Button, 0)
 
-	if p.settings.RichPresenceShowAniListProfileButton && p.username != "" {
+	if settings.RichPresenceShowAniListProfileButton && p.username != "" {
 		activity.Buttons = append(activity.Buttons, &discordrpc_client.Button{
 			Label: "View Profile",
 			Url:   fmt.Sprintf("https://anilist.co/user/%s", p.username),

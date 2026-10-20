@@ -13,6 +13,7 @@ import (
 	"seanime/internal/events"
 	"seanime/internal/library/anime"
 	"seanime/internal/mediaplayers/mediaplayer"
+	"seanime/internal/database/models"
 	"seanime/internal/platforms/shared_platform"
 	"seanime/internal/util"
 	"strconv"
@@ -35,6 +36,69 @@ var (
 	ErrProgressUpdateAnilist = errors.New("playback manager: Failed to update progress on AniList")
 	ErrProgressUpdateMAL     = errors.New("playback manager: Failed to update progress on MyAnimeList")
 )
+
+// mpvAutoSkipSettings returns the effective MPV/IINA auto-skip toggles for the profile that
+// initiated the current playback session: the profile's Personal override when set, otherwise
+// the server-wide setting.
+func (pm *PlaybackManager) mpvAutoSkipSettings() (skipOP bool, skipED bool, skipFiller bool) {
+	dbSettings, _ := pm.Database.GetSettings()
+	if dbSettings != nil && dbSettings.MediaPlayer != nil {
+		skipOP = dbSettings.MediaPlayer.MpvAutoSkipOpening
+		skipED = dbSettings.MediaPlayer.MpvAutoSkipEnding
+		skipFiller = dbSettings.MediaPlayer.MpvAutoSkipFiller
+	}
+	pm.activeProfileIDMu.RLock()
+	profileID := pm.activeProfileID
+	pm.activeProfileIDMu.RUnlock()
+	if profileID > 0 && pm.getClientSettingsOverridesFunc != nil {
+		if ovr := pm.getClientSettingsOverridesFunc(profileID); ovr != nil {
+			if ovr.MpvAutoSkipOpening != nil {
+				skipOP = *ovr.MpvAutoSkipOpening
+			}
+			if ovr.MpvAutoSkipEnding != nil {
+				skipED = *ovr.MpvAutoSkipEnding
+			}
+			if ovr.MpvAutoSkipFiller != nil {
+				skipFiller = *ovr.MpvAutoSkipFiller
+			}
+		}
+	}
+	return
+}
+
+// discordSettingsForCurrentProfile merges the server-wide Discord settings with the Personal
+// overrides of the profile that initiated the current playback session. Returns nil when there
+// are no server-wide settings to merge into.
+func (pm *PlaybackManager) discordSettingsForCurrentProfile() *models.DiscordSettings {
+	dbSettings, _ := pm.Database.GetSettings()
+	if dbSettings == nil || dbSettings.Discord == nil {
+		return nil
+	}
+	ds := *dbSettings.Discord
+	pm.activeProfileIDMu.RLock()
+	profileID := pm.activeProfileID
+	pm.activeProfileIDMu.RUnlock()
+	if profileID > 0 && pm.getClientSettingsOverridesFunc != nil {
+		if ovr := pm.getClientSettingsOverridesFunc(profileID); ovr != nil {
+			if ovr.EnableRichPresence != nil {
+				ds.EnableRichPresence = *ovr.EnableRichPresence
+			}
+			if ovr.EnableAnimeRichPresence != nil {
+				ds.EnableAnimeRichPresence = *ovr.EnableAnimeRichPresence
+			}
+			if ovr.EnableMangaRichPresence != nil {
+				ds.EnableMangaRichPresence = *ovr.EnableMangaRichPresence
+			}
+			if ovr.RichPresenceHideSeanimeRepositoryButton != nil {
+				ds.RichPresenceHideSeanimeRepositoryButton = *ovr.RichPresenceHideSeanimeRepositoryButton
+			}
+			if ovr.RichPresenceShowAniListProfileButton != nil {
+				ds.RichPresenceShowAniListProfileButton = *ovr.RichPresenceShowAniListProfileButton
+			}
+		}
+	}
+	return &ds
+}
 
 func (pm *PlaybackManager) listenToMediaPlayerEvents(ctx context.Context) {
 	// Listen for media player events
@@ -152,13 +216,8 @@ func (pm *PlaybackManager) handleTrackingStarted(status *mediaplayer.PlaybackSta
 	pm.currentAniSkipData = nil
 	pm.aniSkipSkippedOP = false
 	pm.aniSkipSkippedED = false
-	dbSettings, _ := pm.Database.GetSettings()
-	var mpvAutoSkipOpening, mpvAutoSkipEnding bool
-	if dbSettings != nil && dbSettings.MediaPlayer != nil {
-		mpvAutoSkipOpening = dbSettings.MediaPlayer.MpvAutoSkipOpening
-		mpvAutoSkipEnding = dbSettings.MediaPlayer.MpvAutoSkipEnding
-	}
-	if mpvAutoSkipOpening || mpvAutoSkipEnding {
+	skipOP, skipED, skipFiller := pm.mpvAutoSkipSettings()
+	if skipOP || skipED {
 		malIdPtr := currentMediaListEntry.GetMedia().GetIDMal()
 		episodeNumber := currentLocalFileWrapperEntry.GetProgressNumber(currentLocalFile)
 		if malIdPtr != nil && *malIdPtr > 0 && episodeNumber > 0 {
@@ -192,11 +251,7 @@ func (pm *PlaybackManager) handleTrackingStarted(status *mediaplayer.PlaybackSta
 
 	// ------- Filler skip (mpv/IINA) ------- //
 	pm.currentFillerEpisodes = nil
-	var mpvAutoSkipFiller bool
-	if dbSettings != nil && dbSettings.MediaPlayer != nil {
-		mpvAutoSkipFiller = dbSettings.MediaPlayer.MpvAutoSkipFiller
-	}
-	if mpvAutoSkipFiller {
+	if skipFiller {
 		media := currentMediaListEntry.GetMedia()
 		titles := []string{media.GetRomajiTitleSafe(), media.GetEnglishTitleSafe()}
 		episodeNumber := currentLocalFileWrapperEntry.GetProgressNumber(currentLocalFile)
@@ -251,6 +306,11 @@ func (pm *PlaybackManager) handleTrackingStarted(status *mediaplayer.PlaybackSta
 	// ------- Discord ------- //
 	if pm.discordPresence != nil && !pm.isOfflineRef.Get() {
 		clientID := pm.GetCurrentClientID()
+		// Apply the profile's Personal Discord settings for this client's presence before
+		// setting the activity, so enable/disable and buttons follow the profile.
+		if ds := pm.discordSettingsForCurrentProfile(); ds != nil {
+			pm.discordPresence.SetSettingsFor(clientID, ds)
+		}
 		go pm.discordPresence.SetAnimeActivityFor(clientID, &discordrpc_presence.AnimeActivity{
 			ID:                  pm.currentMediaListEntry.MustGet().GetMedia().GetID(),
 			Title:               pm.currentMediaListEntry.MustGet().GetMedia().GetPreferredTitle(),
@@ -365,9 +425,7 @@ func (pm *PlaybackManager) handlePlaybackStatus(status *mediaplayer.PlaybackStat
 	if pm.currentAniSkipData != nil && status.Playing {
 		t := status.CurrentTimeInSeconds
 		sd := pm.currentAniSkipData
-		dbSettings, _ := pm.Database.GetSettings()
-		skipOP := dbSettings != nil && dbSettings.MediaPlayer != nil && dbSettings.MediaPlayer.MpvAutoSkipOpening
-		skipED := dbSettings != nil && dbSettings.MediaPlayer != nil && dbSettings.MediaPlayer.MpvAutoSkipEnding
+		skipOP, skipED, _ := pm.mpvAutoSkipSettings()
 		if skipOP && sd.hasOP && !pm.aniSkipSkippedOP && t >= sd.opStart && t < sd.opEnd {
 			pm.aniSkipSkippedOP = true
 			go func(seekTo float64) {
@@ -486,6 +544,11 @@ func (pm *PlaybackManager) handleStreamingTrackingStarted(status *mediaplayer.Pl
 	// ------- Discord ------- //
 	if pm.discordPresence != nil && !pm.isOfflineRef.Get() {
 		clientID := pm.GetCurrentClientID()
+		// Apply the profile's Personal Discord settings for this client's presence before
+		// setting the activity, so enable/disable and buttons follow the profile.
+		if ds := pm.discordSettingsForCurrentProfile(); ds != nil {
+			pm.discordPresence.SetSettingsFor(clientID, ds)
+		}
 		go pm.discordPresence.SetAnimeActivityFor(clientID, &discordrpc_presence.AnimeActivity{
 			ID:                  pm.currentStreamMedia.MustGet().GetID(),
 			Title:               pm.currentStreamMedia.MustGet().GetPreferredTitle(),

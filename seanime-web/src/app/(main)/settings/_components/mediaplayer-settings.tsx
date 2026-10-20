@@ -197,25 +197,8 @@ export function MediaplayerSettings(props: MediaplayerSettingsProps) {
 
             <SettingsCard>
                 <p className="text-[--muted] text-sm">
-                    Auto-skip uses <a href="https://aniskip.com" target="_blank" rel="noreferrer" className="underline">AniSkip</a> data to
-                    automatically seek past openings and endings in MPV and IINA.
-                    Requires the anime to be in your library and matched to a MAL entry.
+                    Auto-skip preferences were moved to the Personal tab.
                 </p>
-                <Field.Switch
-                    name="mpvAutoSkipOpening"
-                    label="Auto-skip opening (external player)"
-                    help="Automatically seek past the opening when playing local files in MPV or IINA."
-                />
-                <Field.Switch
-                    name="mpvAutoSkipEnding"
-                    label="Auto-skip ending (external player)"
-                    help="Automatically seek past the ending when playing local files in MPV or IINA."
-                />
-                <Field.Switch
-                    name="mpvAutoSkipFiller"
-                    label="Auto-skip filler episodes (external player)"
-                    help="Automatically skip to the next non-filler episode when a filler starts in MPV or IINA. Uses AnimeFillerList data."
-                />
             </SettingsCard>
 
             <SettingsSubmitButton isPending={isPending} />

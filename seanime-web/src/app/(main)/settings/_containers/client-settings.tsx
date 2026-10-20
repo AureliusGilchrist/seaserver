@@ -1,5 +1,8 @@
 import { SettingsCard, SettingsPageHeader } from "@/app/(main)/settings/_components/settings-card"
+import { AnilistOverwriteCard } from "@/app/(main)/settings/_containers/anilist-overwrite-settings"
+import { PlaybackSettings } from "@/app/(main)/settings/_components/playback-settings"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/components/ui/core/styling"
 import { NumberInput } from "@/components/ui/number-input"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
@@ -112,6 +115,88 @@ export function ClientSettings(props: ClientSettingsProps) {
                     help="If enabled, reading a chapter to the end marks it as read on your list."
                 />
             </SettingsCard>
+
+            <SettingsCard
+                title="AniList"
+                description="Automatic list maintenance for your account."
+            >
+                <NumberInput
+                    className="max-w-[240px]"
+                    label="Auto-pause series after"
+                    help="Sets a 'watching' series on your AniList to 'paused' after this many days without watch activity. Set to 0 to disable."
+                    min={0}
+                    max={365}
+                    value={personal.autoPauseStaleWatchingDays}
+                    onValueChange={v => {
+                        if (!Number.isNaN(v)) {
+                            handleSet("autoPauseStaleWatchingDays", v)
+                        }
+                    }}
+                />
+            </SettingsCard>
+
+            <AnilistOverwriteCard />
+
+            <SettingsCard
+                title="Desktop player auto-skip"
+                description="Applies to local files played through MPV or IINA."
+            >
+                <Switch
+                    value={personal.mpvAutoSkipOpening}
+                    onValueChange={v => handleSet("mpvAutoSkipOpening", v)}
+                    label="Auto-skip opening"
+                    help="Automatically seek past the opening when playing local files in MPV or IINA."
+                />
+                <Switch
+                    value={personal.mpvAutoSkipEnding}
+                    onValueChange={v => handleSet("mpvAutoSkipEnding", v)}
+                    label="Auto-skip ending"
+                    help="Automatically seek past the ending when playing local files in MPV or IINA."
+                />
+                <Switch
+                    value={personal.mpvAutoSkipFiller}
+                    onValueChange={v => handleSet("mpvAutoSkipFiller", v)}
+                    label="Auto-skip filler episodes"
+                    help="Automatically skip to the next non-filler episode when a filler starts in MPV or IINA. Uses AnimeFillerList data."
+                />
+            </SettingsCard>
+
+            <SettingsCard
+                title="Discord"
+                description="Show what you are watching or reading in Discord."
+            >
+                <Switch
+                    value={personal.enableRichPresence}
+                    onValueChange={v => handleSet("enableRichPresence", v)}
+                    label="Enable rich presence"
+                />
+                <div className={cn("flex gap-4 items-center flex-col md:flex-row", personal.enableRichPresence ? "opacity-100" : "opacity-50 pointer-events-none")}>
+                    <Switch
+                        value={personal.enableAnimeRichPresence}
+                        onValueChange={v => handleSet("enableAnimeRichPresence", v)}
+                        label="Anime"
+                    />
+                    <Switch
+                        value={personal.enableMangaRichPresence}
+                        onValueChange={v => handleSet("enableMangaRichPresence", v)}
+                        label="Manga"
+                    />
+                </div>
+                <Separator />
+                <Switch
+                    value={personal.richPresenceHideSeanimeRepositoryButton}
+                    onValueChange={v => handleSet("richPresenceHideSeanimeRepositoryButton", v)}
+                    label="Hide Deus Ex Aeternae Repository Button"
+                />
+                <Switch
+                    value={personal.richPresenceShowAniListProfileButton}
+                    onValueChange={v => handleSet("richPresenceShowAniListProfileButton", v)}
+                    label="Show AniList Profile Button"
+                    help="Show a button to open your profile page on AniList."
+                />
+            </SettingsCard>
+
+            <PlaybackSettings />
 
             <SettingsCard
                 title="Server defaults"

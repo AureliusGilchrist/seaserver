@@ -395,16 +395,49 @@ func (sr *ServiceRunner) RunAutoPauseStaleWatching() error {
 		return nil
 	}
 
-	// The inactivity window is configurable (Settings -> App); 0 (or less) disables the job.
+	// The inactivity window is configurable; 0 (or less) disables the job. Per-profile
+	// Personal overrides (client settings) replace the server-wide value for that profile.
 	days := 7
 	if sr.app.Database != nil {
 		if settings, err := sr.app.Database.GetSettings(); err == nil && settings != nil && settings.Anilist != nil {
 			days = settings.Anilist.AutoPauseStaleWatchingDays
 		}
 	}
+
+	// profileDays resolves the inactivity window for one profile: its Personal override when
+	// set, otherwise the server-wide value.
+	profileDays := func(profileID uint) int {
+		if sr.app.ProfileDatabaseManager == nil || profileID == 0 {
+			return days
+		}
+		pdb, err := sr.app.ProfileDatabaseManager.GetDatabase(profileID)
+		if err != nil {
+			return days
+		}
+		ovr, err := pdb.GetClientSettingsOverrides()
+		if err != nil || ovr == nil || ovr.AutoPauseStaleWatchingDays == nil {
+			return days
+		}
+		return *ovr.AutoPauseStaleWatchingDays
+	}
+
 	if days <= 0 {
-		sr.logger.Debug().Msg("services: auto-pause stale watching: disabled in settings, skipping")
-		return nil
+		// The server-wide value disables the job, but a profile override can still opt in.
+		anyEnabled := false
+		if sr.app.ProfileManager != nil {
+			if profiles, err := sr.app.ProfileManager.GetAllProfiles(); err == nil {
+				for _, p := range profiles {
+					if p != nil && profileDays(p.ID) > 0 {
+						anyEnabled = true
+						break
+					}
+				}
+			}
+		}
+		if !anyEnabled {
+			sr.logger.Debug().Msg("services: auto-pause stale watching: disabled in settings, skipping")
+			return nil
+		}
 	}
 
 	threshold := time.Now().Unix() - int64(days)*24*3600
@@ -421,6 +454,12 @@ func (sr *ServiceRunner) RunAutoPauseStaleWatching() error {
 			if p == nil {
 				continue
 			}
+			pDays := profileDays(p.ID)
+			if pDays <= 0 {
+				sr.logger.Debug().Uint("profileID", p.ID).Msg("services: auto-pause stale watching: disabled for profile, skipping")
+				continue
+			}
+			pThreshold := time.Now().Unix() - int64(pDays)*24*3600
 			client := sr.app.AnilistClientManager.GetClient(p.ID)
 			if client == nil || !client.IsAuthenticated() {
 				sr.logger.Debug().Uint("profileID", p.ID).Msg("services: auto-pause stale watching: profile not linked to AniList, skipping")
@@ -432,7 +471,7 @@ func (sr *ServiceRunner) RunAutoPauseStaleWatching() error {
 				continue
 			}
 			handled++
-			paused := sr.autoPauseCollection(ac, threshold, func(e *anilist.AnimeListEntry) error {
+			paused := sr.autoPauseCollection(ac, pThreshold, func(e *anilist.AnimeListEntry) error {
 				return pauseEntry(context.Background(), client, e)
 			})
 			if paused > 0 {

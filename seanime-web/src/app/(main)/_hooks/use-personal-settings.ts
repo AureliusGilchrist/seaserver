@@ -12,6 +12,15 @@ export type PersonalSettings = {
     blurAdultContent: boolean
     disableAnimeCardTrailers: boolean
     mangaAutoUpdateProgress: boolean
+    autoPauseStaleWatchingDays: number
+    mpvAutoSkipOpening: boolean
+    mpvAutoSkipEnding: boolean
+    mpvAutoSkipFiller: boolean
+    enableRichPresence: boolean
+    enableAnimeRichPresence: boolean
+    enableMangaRichPresence: boolean
+    richPresenceHideSeanimeRepositoryButton: boolean
+    richPresenceShowAniListProfileButton: boolean
 }
 
 /**
@@ -35,6 +44,15 @@ export function usePersonalSettings(): PersonalSettings {
         blurAdultContent: clientSettings.blurAdultContent ?? serverStatus?.settings?.anilist?.blurAdultContent ?? false,
         disableAnimeCardTrailers: clientSettings.disableAnimeCardTrailers ?? serverStatus?.settings?.library?.disableAnimeCardTrailers ?? false,
         mangaAutoUpdateProgress: clientSettings.mangaAutoUpdateProgress ?? serverStatus?.settings?.manga?.mangaAutoUpdateProgress ?? false,
+        autoPauseStaleWatchingDays: clientSettings.autoPauseStaleWatchingDays ?? serverStatus?.settings?.anilist?.autoPauseStaleWatchingDays ?? 7,
+        mpvAutoSkipOpening: clientSettings.mpvAutoSkipOpening ?? serverStatus?.settings?.mediaPlayer?.mpvAutoSkipOpening ?? false,
+        mpvAutoSkipEnding: clientSettings.mpvAutoSkipEnding ?? serverStatus?.settings?.mediaPlayer?.mpvAutoSkipEnding ?? false,
+        mpvAutoSkipFiller: clientSettings.mpvAutoSkipFiller ?? serverStatus?.settings?.mediaPlayer?.mpvAutoSkipFiller ?? false,
+        enableRichPresence: clientSettings.enableRichPresence ?? serverStatus?.settings?.discord?.enableRichPresence ?? false,
+        enableAnimeRichPresence: clientSettings.enableAnimeRichPresence ?? serverStatus?.settings?.discord?.enableAnimeRichPresence ?? false,
+        enableMangaRichPresence: clientSettings.enableMangaRichPresence ?? serverStatus?.settings?.discord?.enableMangaRichPresence ?? false,
+        richPresenceHideSeanimeRepositoryButton: clientSettings.richPresenceHideSeanimeRepositoryButton ?? serverStatus?.settings?.discord?.richPresenceHideSeanimeRepositoryButton ?? false,
+        richPresenceShowAniListProfileButton: clientSettings.richPresenceShowAniListProfileButton ?? serverStatus?.settings?.discord?.richPresenceShowAniListProfileButton ?? false,
     }), [
         clientSettings,
         serverStatus?.settings?.library?.autoUpdateProgress,
@@ -46,5 +64,14 @@ export function usePersonalSettings(): PersonalSettings {
         serverStatus?.settings?.anilist?.hideAudienceScore,
         serverStatus?.settings?.anilist?.blurAdultContent,
         serverStatus?.settings?.manga?.mangaAutoUpdateProgress,
+        serverStatus?.settings?.anilist?.autoPauseStaleWatchingDays,
+        serverStatus?.settings?.mediaPlayer?.mpvAutoSkipOpening,
+        serverStatus?.settings?.mediaPlayer?.mpvAutoSkipEnding,
+        serverStatus?.settings?.mediaPlayer?.mpvAutoSkipFiller,
+        serverStatus?.settings?.discord?.enableRichPresence,
+        serverStatus?.settings?.discord?.enableAnimeRichPresence,
+        serverStatus?.settings?.discord?.enableMangaRichPresence,
+        serverStatus?.settings?.discord?.richPresenceHideSeanimeRepositoryButton,
+        serverStatus?.settings?.discord?.richPresenceShowAniListProfileButton,
     ])
 }

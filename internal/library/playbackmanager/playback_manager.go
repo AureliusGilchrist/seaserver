@@ -63,6 +63,10 @@ type (
 		// rather than the shared admin/global one, even when the playback request carried no
 		// profile session.
 		getProfileAnilistClientFunc func(profileID uint) (anilist.AnilistClient, uint)
+	// getClientSettingsOverridesFunc returns the profile's per-profile Personal settings
+	// overrides (client-prefs), or nil when the profile has none. Used to apply per-profile
+	// values for server-side decisions (MPV auto-skip, Discord presence) during playback.
+	getClientSettingsOverridesFunc func(profileID uint) *db.ClientSettingsOverrides
 		// invalidateProfileAnimeCollectionFunc invalidates the profile's cached anime collection
 		// after a successful progress update so the next fetch returns fresh data.
 		invalidateProfileAnimeCollectionFunc func(profileID uint)
@@ -243,7 +247,8 @@ type (
 		DiscordPresence             *discordrpc_presence.Presence
 		IsOfflineRef                *util.Ref[bool]
 		ContinuityManager           *continuity.Manager
-		GetProfileAnilistClientFunc func(profileID uint) (anilist.AnilistClient, uint)
+		GetProfileAnilistClientFunc          func(profileID uint) (anilist.AnilistClient, uint)
+		GetClientSettingsOverridesFunc       func(profileID uint) *db.ClientSettingsOverrides
 		InvalidateProfileAnimeCollectionFunc func(profileID uint)
 		GetProfileAnimeCollectionFunc        func(profileID uint) *anilist.AnimeCollection
 		EnqueueProfilePendingProgressFunc    func(profileID uint, mediaID int, progress int, status *anilist.MediaListStatus, startedAt *anilist.FuzzyDateInput, completedAt *anilist.FuzzyDateInput)
@@ -292,7 +297,8 @@ func New(opts *NewPlaybackManagerOptions) *PlaybackManager {
 		platformRef:                  opts.PlatformRef,
 		metadataProviderRef:          opts.MetadataProviderRef,
 		refreshAnimeCollectionFunc:   opts.RefreshAnimeCollectionFunc,
-		getProfileAnilistClientFunc:  opts.GetProfileAnilistClientFunc,
+		getProfileAnilistClientFunc:          opts.GetProfileAnilistClientFunc,
+		getClientSettingsOverridesFunc:       opts.GetClientSettingsOverridesFunc,
 		invalidateProfileAnimeCollectionFunc: opts.InvalidateProfileAnimeCollectionFunc,
 		getProfileAnimeCollectionFunc:        opts.GetProfileAnimeCollectionFunc,
 		enqueueProfilePendingProgressFunc:    opts.EnqueueProfilePendingProgressFunc,

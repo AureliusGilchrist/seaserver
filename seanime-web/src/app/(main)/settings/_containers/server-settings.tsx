@@ -293,13 +293,7 @@ export function ServerSettings(props: ServerSettingsProps) {
                     />
                 )}
                 <Separator />
-                <Field.Number
-                    name="autoPauseStaleWatchingDays"
-                    label="Auto-pause series after"
-                    help="Sets a 'watching' series on AniList to 'paused' after this many days without watch activity. Set to 0 to disable."
-                    min={0}
-                    max={365}
-                />
+                {/* Auto-pause series after moved to the per-profile "Personal" tab. */}
                 <Field.Textarea
                     name="newsFeeds"
                     label="News feed URLs"

@@ -131,6 +131,20 @@ func (a *App) initModulesOnce() {
 			}
 			return a.AnilistClientManager.ResolveClientForWrites(profileID)
 		},
+		GetClientSettingsOverridesFunc: func(profileID uint) *db.ClientSettingsOverrides {
+			if a.ProfileDatabaseManager == nil || profileID == 0 {
+				return nil
+			}
+			pdb, err := a.ProfileDatabaseManager.GetDatabase(profileID)
+			if err != nil {
+				return nil
+			}
+			ovr, err := pdb.GetClientSettingsOverrides()
+			if err != nil {
+				return nil
+			}
+			return ovr
+		},
 		InvalidateProfileAnimeCollectionFunc: func(profileID uint) {
 			if a.AnilistClientManager != nil {
 				a.AnilistClientManager.InvalidateAnimeCollection(profileID)

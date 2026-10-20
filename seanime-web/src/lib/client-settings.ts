@@ -30,6 +30,18 @@ export const clientSettingsSchema = z.object({
     disableAnimeCardTrailers: z.boolean().optional(),
     // Manga
     mangaAutoUpdateProgress: z.boolean().optional(),
+    // AniList
+    autoPauseStaleWatchingDays: z.number().optional(),
+    // Desktop player (MPV/IINA auto-skip)
+    mpvAutoSkipOpening: z.boolean().optional(),
+    mpvAutoSkipEnding: z.boolean().optional(),
+    mpvAutoSkipFiller: z.boolean().optional(),
+    // Discord rich presence
+    enableRichPresence: z.boolean().optional(),
+    enableAnimeRichPresence: z.boolean().optional(),
+    enableMangaRichPresence: z.boolean().optional(),
+    richPresenceHideSeanimeRepositoryButton: z.boolean().optional(),
+    richPresenceShowAniListProfileButton: z.boolean().optional(),
 })
 
 export type ClientSettings = z.infer<typeof clientSettingsSchema>
