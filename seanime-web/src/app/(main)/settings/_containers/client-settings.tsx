@@ -68,7 +68,7 @@ export function ClientSettings(props: ClientSettingsProps) {
                     value={personal.stillWatchingChecksEnabled}
                     onValueChange={v => handleSet("stillWatchingChecksEnabled", v)}
                     label="Ask “Are you still watching?”"
-                    help="While binge-watching, the player pauses and asks if you're still watching."
+                    help="After a few episodes in a row, the player asks before starting the next one."
                 />
                 {personal.stillWatchingChecksEnabled && (
                     <NumberInput

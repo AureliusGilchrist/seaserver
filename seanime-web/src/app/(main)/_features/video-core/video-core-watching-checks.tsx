@@ -19,8 +19,16 @@ import { LuArrowRight, LuPlay } from "react-icons/lu"
  *
  *  - **Whether anyone is still there.** Binge sessions run for hours, and a player that keeps
  *    fetching, decoding and reporting progress for an empty room is doing all of it for nobody.
- *    Every third episode, playback pauses and asks. Continuing is one press; nothing is marked
- *    watched or unwatched either way — the check is about the room, not about the list.
+ *    Every third episode, before the next one starts, the player asks. Continuing is one press;
+ *    nothing is marked watched or unwatched either way — the check is about the room, not about
+ *    the list.
+ *
+ *    The question is asked *between* episodes, never mid-episode: an earlier version paused
+ *    playback at the 85% mark, which stranded the episode before its `ended` event — auto-next
+ *    never fired while nobody answered, the stream session sat open in a paused state, and a
+ *    prompt raised during a fullscreen episode survived the between-episode reload, where the
+ *    fullscreen manager is briefly destroyed and Escape had no fallback — a stuck player only
+ *    a restart could fix.
  */
 
 /** How many episodes play before the player checks that somebody is watching, when the
@@ -57,11 +65,23 @@ export type VideoCoreStillWatchingState = {
 export type VideoCoreStillWatchingConfig = {
     enabled: boolean
     episodes: number
+    /** Whether the player is allowed to advance on its own (auto-next on, not a watch party).
+     * The check only intercepts an advance the player was about to make by itself — with
+     * auto-next off the user picks each episode, so there is nothing to ask about. */
+    canAutoAdvance?: boolean
 }
 
 // Module-level, like the progress prompt: there is one in-app player at a time.
 export const vc_sequelPrompt = atom<VideoCoreSequelPromptState | null>(null)
 export const vc_stillWatchingPrompt = atom<VideoCoreStillWatchingState | null>(null)
+
+/**
+ * Set at the 85% mark of an episode that has earned a check; consumed when the episode
+ * actually ends, where it becomes the prompt instead of an automatic next episode. A flag
+ * rather than the prompt itself so the question lands at the episode boundary — never in
+ * the middle of one.
+ */
+export const vc_stillWatchingHold = atom(false)
 
 /** The sequel of a series, if AniList lists one. */
 function findSequel(relations?: { relationType?: string; node?: any }[]): any | null {
@@ -80,7 +100,6 @@ function findSequel(relations?: { relationType?: string; node?: any }[]): any | 
  */
 export function useVideoCoreWatchingChecks(
     state: VideoCoreLifecycleState,
-    onPausePlayback?: () => void,
     stillWatchingConfig?: VideoCoreStillWatchingConfig,
 ) {
     const mediaId = state.playbackInfo?.media?.id
@@ -95,7 +114,7 @@ export function useVideoCoreWatchingChecks(
 
     const setSequelPrompt = useSetAtom(vc_sequelPrompt)
     const setStillWatching = useSetAtom(vc_stillWatchingPrompt)
-    const stillWatching = useAtomValue(vc_stillWatchingPrompt)
+    const setStillWatchingHold = useSetAtom(vc_stillWatchingHold)
 
     // Episodes played since the last check, kept per playback session. A ref, not state: nothing
     // renders from the count, and a re-render per episode would be work for no visible difference.
@@ -105,40 +124,69 @@ export function useVideoCoreWatchingChecks(
     // back and forward again) does not count twice.
     const handledEndRef = React.useRef<string | null>(null)
 
+    const stillWatchingHold = useAtomValue(vc_stillWatchingHold)
+
+    // A new stream starting renders every raised prompt stale — the question was about the
+    // episode that just finished, and letting it survive the transition would either sit over
+    // the new episode or (in the old pause-based design) pause a fresh one at 0:00.
+    React.useEffect(() => {
+        setStillWatching(null)
+        setStillWatchingHold(false)
+    }, [state.playbackInfo?.id, setStillWatching, setStillWatchingHold])
+
     React.useEffect(() => {
         playedRef.current = 0
         handledEndRef.current = null
     }, [mediaId])
 
-    const latestRef = React.useRef({ details, state, mediaId, episodeNumber, totalEpisodes, setSequelPrompt, setStillWatching, stillWatchingConfig })
-    latestRef.current = { details, state, mediaId, episodeNumber, totalEpisodes, setSequelPrompt, setStillWatching, stillWatchingConfig }
+    const latestRef = React.useRef({ details, state, mediaId, episodeNumber, totalEpisodes, setSequelPrompt, setStillWatching, setStillWatchingHold, stillWatchingConfig, stillWatchingHold })
+    latestRef.current = { details, state, mediaId, episodeNumber, totalEpisodes, setSequelPrompt, setStillWatching, setStillWatchingHold, stillWatchingConfig, stillWatchingHold }
 
     /**
-     * Called when an episode finishes. Decides which of the two prompts, if either, is due.
+     * Called when an episode reaches the completion threshold. Counts the episode and arms the
+     * check when the interval is due — the question itself waits for the episode to end.
      */
     const onEpisodeEnded = React.useCallback(() => {
-        const { details, state, mediaId, episodeNumber, totalEpisodes, setSequelPrompt, setStillWatching, stillWatchingConfig } = latestRef.current
+        const { mediaId, episodeNumber, setStillWatchingHold, stillWatchingConfig } = latestRef.current
         if (!mediaId || !episodeNumber) return
 
         const key = `${mediaId}:${episodeNumber}`
         if (handledEndRef.current === key) return
         handledEndRef.current = key
 
-        playedRef.current += 1
+        // The check intercepts only advances the player would make on its own.
+        if (stillWatchingConfig?.canAutoAdvance === false) return
 
-        const isLastEpisode = totalEpisodes > 0 && episodeNumber >= totalEpisodes
-
-        // The check can be turned off entirely (Settings -> App), and the interval between
-        // checks is configurable. Every N episodes, check that somebody is still there — but
-        // only at night. The count keeps running either way, so a session that crosses into
-        // the night hours asks at its next episode rather than never.
         const checkInterval = Math.max(1, stillWatchingConfig?.episodes ?? DEFAULT_EPISODES_BETWEEN_CHECKS)
-        if (!isLastEpisode && (stillWatchingConfig?.enabled ?? true) && playedRef.current >= checkInterval) {
+        if (playedRef.current + 1 >= checkInterval) {
             playedRef.current = 0
-            if (isNightHours()) {
-                setStillWatching({ episodesWatched: checkInterval })
-            }
+            setStillWatchingHold(true)
+        } else {
+            playedRef.current += 1
         }
+    }, [])
+
+    /**
+     * Called by the player instead of an automatic next episode. Returns true when the advance
+     * must be withheld — the check was armed and now becomes the prompt (night hours only);
+     * false means "go ahead".
+     */
+    const beforeAutoNext = React.useCallback(() => {
+        const { setStillWatching, setStillWatchingHold, stillWatchingConfig, stillWatchingHold } = latestRef.current
+
+        // A still-watching prompt raised for a previous episode has no claim on this one.
+        setStillWatching(null)
+
+        if (!stillWatchingConfig?.canAutoAdvance) return false
+        if (!stillWatchingHold) return false
+
+        setStillWatchingHold(false)
+
+        if (!isNightHours()) return false
+
+        const checkInterval = Math.max(1, stillWatchingConfig?.episodes ?? DEFAULT_EPISODES_BETWEEN_CHECKS)
+        setStillWatching({ episodesWatched: checkInterval })
+        return true
     }, [])
 
     /**
@@ -160,15 +208,7 @@ export function useVideoCoreWatchingChecks(
         }
     }, [])
 
-    // Pausing is the point of the still-watching check: a prompt over a playing video is one the
-    // video talks over. The callback is optional so the hook is usable without a player to pause.
-    React.useEffect(() => {
-        if (stillWatching) {
-            onPausePlayback?.()
-        }
-    }, [stillWatching, onPausePlayback])
-
-    return { onEpisodeEnded, onVideoEnded }
+    return { onEpisodeEnded, onVideoEnded, beforeAutoNext }
 }
 
 /**
@@ -218,9 +258,10 @@ export function VideoCoreSequelPrompt() {
 }
 
 /**
- * "Are you still watching?" — every third episode, with playback paused behind it.
+ * "Are you still watching?" — every few episodes, between one episode ending and the next
+ * starting. The next episode waits until answered.
  */
-export function VideoCoreStillWatchingPrompt({ onResume }: { onResume?: () => void }) {
+export function VideoCoreStillWatchingPrompt({ onContinue }: { onContinue?: () => void }) {
     const [prompt, setPrompt] = useAtom(vc_stillWatchingPrompt)
 
     if (!prompt) return null
@@ -235,7 +276,7 @@ export function VideoCoreStillWatchingPrompt({ onResume }: { onResume?: () => vo
             <div className="bg-gray-950/80 backdrop-blur-md rounded-xl p-6 text-center shadow-2xl border border-[--border] max-w-sm">
                 <p className="text-white text-lg font-medium mb-1">Still watching?</p>
                 <p className="text-gray-300 text-sm mb-5">
-                    That's {prompt.episodesWatched} episodes in a row. Playback is paused until you say so.
+                    That's {prompt.episodesWatched} episodes in a row. The next one starts when you say so.
                 </p>
                 <div className="flex gap-3 justify-center">
                     <Button
@@ -244,7 +285,7 @@ export function VideoCoreStillWatchingPrompt({ onResume }: { onResume?: () => vo
                         leftIcon={<LuArrowRight />}
                         onClick={() => {
                             setPrompt(null)
-                            onResume?.()
+                            onContinue?.()
                         }}
                     >
                         Keep watching

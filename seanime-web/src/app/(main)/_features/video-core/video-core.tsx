@@ -318,6 +318,8 @@ interface PlayerContentProps {
     onVideoSourceChange: ((source: VideoCore_VideoSource) => void) | undefined
     onHlsQualityChange: ((quality: string) => void) | undefined
     onBackToContent?: () => void | Promise<void>
+    /** Continues the advance the still-watching check withheld ("Keep watching" on the prompt). */
+    onContinueAfterStillWatching?: () => void
 }
 
 const PlayerContent = React.memo<PlayerContentProps>(({
@@ -349,6 +351,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
     onTerminateStream,
     onVideoSourceChange,
     onHlsQualityChange,
+    onContinueAfterStillWatching,
 }) => {
     const isMobile = useAtomValue(vc_isMobile)
     const isMiniPlayer = useAtomValue(vc_miniPlayer)
@@ -448,7 +451,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
 
                         <VideoCoreProgressPrompt />
                         <VideoCoreSequelPrompt />
-                        <VideoCoreStillWatchingPrompt onResume={() => videoRef.current?.play().catch(() => {})} />
+                        <VideoCoreStillWatchingPrompt onContinue={onContinueAfterStillWatching} />
 
                         {buffering && (
                             <div
@@ -826,25 +829,23 @@ export function VideoCore(props: VideoCoreProps) {
     // Client-side AniList progress at 80% (reliable REST path) for both online + local players
     const { onReachedThreshold: onReachedProgressThreshold } = useVideoCoreAutoProgress(state)
 
-    // The sequel offer and the every-N-episodes check (Settings -> App). Both are raised from the
-    // same place the episode's end is noticed, and the check pauses the video so the question is
-    // asked to somebody who is actually there. Stable on purpose: a fresh callback on every render
-    // would re-run the hook's effect every render, and while the check is up that is a pause per
-    // render.
-    const pausePlayback = React.useCallback(() => {
-        videoRef.current?.pause()
-    }, [])
-    const personal = usePersonalSettings()
-    const stillWatchingConfig = React.useMemo(() => ({
-        enabled: personal.stillWatchingChecksEnabled,
-        episodes: personal.stillWatchingEpisodes,
-    }), [personal.stillWatchingChecksEnabled, personal.stillWatchingEpisodes])
-    const { onEpisodeEnded, onVideoEnded } = useVideoCoreWatchingChecks(state, pausePlayback, stillWatchingConfig)
-
+    // The sequel offer and the every-N-episodes check (Personal settings). Both are raised from
+    // the same place the episode's end is noticed; the check withholds auto-next at the episode
+    // boundary rather than pausing mid-episode. Stable on purpose: a fresh callback on every
+    // render would re-run the hook's effects every render.
     const { isParticipant: isNakamaWatchPartyParticipant } = useNakamaWatchParty()
     // Same-server watch party: a non-source participant is driven by the source.
     const isWatchTogetherFollower = useIsWatchTogetherFollower()
     const isWatchPartyParticipant = isNakamaWatchPartyParticipant || isWatchTogetherFollower
+
+    const personal = usePersonalSettings()
+    const [autoNext] = useAtom(vc_autoNextAtom)
+    const stillWatchingConfig = React.useMemo(() => ({
+        enabled: personal.stillWatchingChecksEnabled,
+        episodes: personal.stillWatchingEpisodes,
+        canAutoAdvance: autoNext && !isWatchPartyParticipant,
+    }), [personal.stillWatchingChecksEnabled, personal.stillWatchingEpisodes, autoNext, isWatchPartyParticipant])
+    const { onEpisodeEnded, onVideoEnded, beforeAutoNext } = useVideoCoreWatchingChecks(state, stillWatchingConfig)
 
     // Fork: current mediastream file path — the popout handoff URL needs it when the
     // playback info doesn't carry the local file (mediastream inline flow).
@@ -897,7 +898,10 @@ export function VideoCore(props: VideoCoreProps) {
 
     React.useEffect(() => {
         const hasPlaybackKeybindings = !!state.playbackInfo?.streamUrl && !state.loadingState
-        if (!inline || !state.active || hasPlaybackKeybindings) return
+        // Not restricted to inline players: the native-player drawer shows the same loading
+        // overlay between episodes, and its keybinding controller is unmounted there — Escape
+        // must still be able to leave a fullscreen that outlived the fullscreen manager.
+        if (!state.active || hasPlaybackKeybindings) return
 
         const handleEscape = (event: KeyboardEvent) => {
             if ((event.key !== "Escape" && event.code !== "Escape") || event.defaultPrevented) return
@@ -910,7 +914,7 @@ export function VideoCore(props: VideoCoreProps) {
 
         document.addEventListener("keydown", handleEscape)
         return () => document.removeEventListener("keydown", handleEscape)
-    }, [fullscreen, fullscreenManager, inline, state.active, state.loadingState, state.playbackInfo?.streamUrl])
+    }, [fullscreen, fullscreenManager, state.active, state.loadingState, state.playbackInfo?.streamUrl])
 
     // Lets CSS freeze the decorative animations of the page hidden behind the fullscreen video.
     React.useEffect(() => {
@@ -923,7 +927,6 @@ export function VideoCore(props: VideoCoreProps) {
     const [skipOpeningTime, setSkipOpeningTime] = useAtom(vc_skipOpeningTime)
     const [skipEndingTime, setSkipEndingTime] = useAtom(vc_skipEndingTime)
 
-    const [autoNext] = useAtom(vc_autoNextAtom)
     const [autoPlay] = useAtom(vc_autoPlayVideoAtom)
     const [volume] = useAtom(vc_storedVolumeAtom)
     const [muted] = useAtom(vc_storedMutedAtom)
@@ -1616,6 +1619,14 @@ export function VideoCore(props: VideoCoreProps) {
     }
 
     const { playEpisode, isGlobalPlaylistActive } = useVideoCorePlaylist()
+
+    // "Keep watching" on the still-watching prompt picks up the advance the check withheld —
+    // same guard as handleEnded, since the prompt can outlive the episode it belongs to.
+    const onContinueAfterStillWatching = React.useCallback(() => {
+        if (props.id === "native-player" && isGlobalPlaylistActive) return
+        playEpisode("next")
+    }, [props.id, isGlobalPlaylistActive, playEpisode])
+
     const handleEnded = (e: React.SyntheticEvent<HTMLVideoElement>) => {
         log.info("Video ended")
         subtitleManager?.pgsRenderer?.stop()
@@ -1626,6 +1637,9 @@ export function VideoCore(props: VideoCoreProps) {
                 log.info("Skipping frontend auto next for native global playlist")
                 return
             }
+            // The still-watching check withholds the automatic advance — the prompt's
+            // "Keep watching" continues through onContinueAfterStillWatching.
+            if (beforeAutoNext()) return
             // videoRef?.current?.pause()
             playEpisode("next")
         }
@@ -2096,6 +2110,7 @@ export function VideoCore(props: VideoCoreProps) {
                         onVideoSourceChange={onVideoSourceChange}
                         onHlsQualityChange={onHlsQualityChange}
                         onBackToContent={handleBackToContent}
+                        onContinueAfterStillWatching={onContinueAfterStillWatching}
                     />
                 </div>
             </ScopeProvider>
@@ -2192,6 +2207,7 @@ export function VideoCore(props: VideoCoreProps) {
                         onVideoSourceChange={onVideoSourceChange}
                         onHlsQualityChange={onHlsQualityChange}
                         onBackToContent={handleBackToContent}
+                        onContinueAfterStillWatching={onContinueAfterStillWatching}
                     />
                 </VideoCoreDrawer>
 

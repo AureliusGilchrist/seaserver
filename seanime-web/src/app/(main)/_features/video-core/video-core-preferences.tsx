@@ -981,7 +981,13 @@ export function VideoCoreKeybindingController(props: {
             // Escape - Exit fullscreen
             if (e.code === "Escape" && fullscreen) {
                 e.preventDefault()
-                fullscreenManager?.exitFullscreen()
+                // The manager is destroyed and recreated across episode transitions; while the
+                // gap is open this direct exit is the only way out of a browser fullscreen.
+                if (fullscreenManager) {
+                    fullscreenManager.exitFullscreen()
+                } else if (document.fullscreenElement && document.exitFullscreen) {
+                    document.exitFullscreen().catch(() => {})
+                }
                 return
             }
 
