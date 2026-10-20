@@ -40,10 +40,12 @@ func (r *Repository) ServeEchoExtractedSubtitles(c echo.Context, clientId string
 		return errors.New("could not find subtitles")
 	}
 
-	// If the background extraction already failed, fail fast instead of making the
-	// client wait for files that will never appear.
+	// If the background subtitle extraction already failed, fail fast instead of making
+	// the client wait for files that will never appear. An attachment (font) failure is
+	// deliberately not consulted here — the two are extracted independently, and a
+	// missing font degrades styling rather than removing the subtitles.
 	if status, ok := r.playbackManager.GetExtractionStatus(mediaContainer.Hash); ok {
-		if extractionErr, failed := status.Failure(); failed {
+		if extractionErr, failed := status.SubsFailure(); failed {
 			return fmt.Errorf("subtitle extraction failed: %w", extractionErr)
 		}
 	}

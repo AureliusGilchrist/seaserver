@@ -34,6 +34,13 @@ type (
 		done   bool
 		failed bool
 		err    error
+		// subsFailed is tracked separately: the subtitle files and the font attachments
+		// are extracted by two independent ffmpeg invocations, and one failing must not
+		// fail-fast the other's endpoint. A missing font degrades rendering (libass falls
+		// back); a missing subtitle file removes it entirely — so an attachment-only
+		// failure (ffmpeg refusing an unsafe embedded filename, say) must never block
+		// the /subs/ endpoint.
+		subsFailed bool
 	}
 
 	PlaybackState struct {
@@ -68,15 +75,20 @@ func (p *PlaybackManager) GetExtractionStatus(hash string) (*ExtractionStatus, b
 }
 
 // CompleteExtraction records the outcome of a background attachment extraction.
-func (p *PlaybackManager) CompleteExtraction(hash string, err error) {
+// subsErr and attErr are the outcomes of the two independent ffmpeg invocations.
+func (p *PlaybackManager) CompleteExtraction(hash string, subsErr error, attErr error) {
 	status := &ExtractionStatus{}
 	if existing, ok := p.extractionStatuses.Get(hash); ok {
 		status = existing
 	}
 	status.mu.Lock()
 	status.done = true
-	status.failed = err != nil
-	status.err = err
+	status.failed = subsErr != nil || attErr != nil
+	status.err = attErr
+	if status.err == nil {
+		status.err = subsErr
+	}
+	status.subsFailed = subsErr != nil
 	status.mu.Unlock()
 	p.extractionStatuses.Set(hash, status)
 }
@@ -87,6 +99,17 @@ func (s *ExtractionStatus) Failure() (error, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.failed {
+		return s.err, true
+	}
+	return nil, false
+}
+
+// SubsFailure returns the recorded subtitle-extraction error, if any. Attachment
+// failures are not reported here — see the note on ExtractionStatus.
+func (s *ExtractionStatus) SubsFailure() (error, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.subsFailed {
 		return s.err, true
 	}
 	return nil, false
@@ -212,11 +235,15 @@ func (p *PlaybackManager) newMediaContainer(filepath string, streamType StreamTy
 	p.mediaContainers.Set(hash, ret)
 
 	go func() {
-		err := videofile.ExtractAttachment(p.repository.settings.MustGet().FfmpegPath, filepath, hash, ret.MediaInfo, p.repository.cacheDir, p.logger)
-		p.CompleteExtraction(hash, err)
-		if err != nil {
-			p.logger.Error().Err(err).Msg("mediastream: Background attachment extraction failed")
-		} else {
+		subsErr, attErr := videofile.ExtractAttachment(p.repository.settings.MustGet().FfmpegPath, filepath, hash, ret.MediaInfo, p.repository.cacheDir, p.logger)
+		p.CompleteExtraction(hash, subsErr, attErr)
+		if attErr != nil {
+			p.logger.Error().Err(attErr).Msg("mediastream: Background attachment extraction failed")
+		}
+		if subsErr != nil {
+			p.logger.Error().Err(subsErr).Msg("mediastream: Background subtitle extraction failed")
+		}
+		if subsErr == nil && attErr == nil {
 			p.logger.Debug().Msg("mediastream: Background attachment extraction complete")
 		}
 	}()

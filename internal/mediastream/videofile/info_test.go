@@ -34,9 +34,9 @@ func TestExtractAttachment(t *testing.T) {
 
 	util.Spew(mi)
 
-	err = ExtractAttachment("", testFilePath, "1", mi, testDir, util.NewLogger())
-	if err != nil {
-		t.Fatalf("Error extracting attachment: %v", err)
+	subsErr, attErr := ExtractAttachment("", testFilePath, "1", mi, testDir, util.NewLogger())
+	if subsErr != nil || attErr != nil {
+		t.Fatalf("Error extracting attachment: subs=%v att=%v", subsErr, attErr)
 	}
 
 	entries, err := os.ReadDir(filepath.Join(testDir, "videofiles", "1", "att"))
