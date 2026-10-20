@@ -1,5 +1,6 @@
 import { AL_AnimeDetailsById_Media_Rankings, AL_MangaDetailsById_Media_Rankings } from "@/api/generated/types"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
+import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { SeaLink } from "@/components/shared/sea-link"
 import { Badge } from "@/components/ui/badge"
 import { IconButton } from "@/components/ui/button"
@@ -84,9 +85,8 @@ export function MediaEntryAudienceScore(props: MediaEntryAudienceScoreProps) {
         ...rest
     } = props
 
-    const status = useServerStatus()
-    const hideAudienceScore = React.useMemo(() => status?.settings?.anilist?.hideAudienceScore ?? false,
-        [status?.settings?.anilist?.hideAudienceScore])
+    const personal = usePersonalSettings()
+    const hideAudienceScore = personal.hideAudienceScore
 
     if (!meanScore) return null
 

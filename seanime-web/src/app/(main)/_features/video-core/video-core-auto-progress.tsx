@@ -1,7 +1,7 @@
 import { useRecordEpisodeWatched } from "@/api/hooks/update-notice.hooks"
 import { useGetAnimeEntry, useUpdateAnimeEntryProgress } from "@/api/hooks/anime_entries.hooks"
 import { VideoCoreLifecycleState } from "@/app/(main)/_features/video-core/video-core.atoms"
-import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
+import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { Button } from "@/components/ui/button"
 import { atom, useAtomValue, useSetAtom } from "jotai"
 import { useAtom } from "jotai/react"
@@ -37,8 +37,8 @@ export type VideoCoreProgressPromptState = {
 export const vc_progressPrompt = atom<VideoCoreProgressPromptState | null>(null)
 
 export function useVideoCoreAutoProgress(state: VideoCoreLifecycleState) {
-    const serverStatus = useServerStatus()
-    const autoUpdate = !!serverStatus?.settings?.library?.autoUpdateProgress
+    const personal = usePersonalSettings()
+    const autoUpdate = personal.autoUpdateProgress
 
     const mediaId = state.playbackInfo?.media?.id
     const episodeNumber = state.playbackInfo?.episode?.progressNumber ?? 0

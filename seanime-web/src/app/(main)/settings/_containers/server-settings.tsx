@@ -68,56 +68,15 @@ export function ServerSettings(props: ServerSettingsProps) {
             )}
 
             <SettingsCard>
-                {/*<p className="text-[--muted]">*/}
-                {/*    Only applies to desktop and integrated players.*/}
-                {/*</p>*/}
-
-                <Field.Switch
-                    side="right"
-                    name="autoUpdateProgress"
-                    label="Automatically update progress"
-                    help="If enabled, your progress will be automatically updated when you watch 80% of an episode."
-                    moreHelp="Only applies to desktop and integrated players."
-                />
-                {/*<Separator />*/}
-                <Field.Switch
-                    side="right"
-                    name="enableWatchContinuity"
-                    label="Enable watch history"
-                    help="If enabled, Deus Ex Aeternae will remember your watch progress and resume from where you left off."
-                    moreHelp="Only applies to desktop and integrated players."
-                />
-
-                <Field.Switch
-                    side="right"
-                    name="disableAnimeCardTrailers"
-                    label="Disable anime card trailers"
-                    help=""
-                />
-
-                <Separator />
-
-                <Field.Switch
-                    side="right"
-                    name="hideAudienceScore"
-                    label="Hide audience score"
-                    help="If enabled, the audience score will be hidden until you decide to view it."
-                />
+                {/* Personal playback and display preferences (auto progress, watch history, trailers,
+                    audience score, adult-content blur) moved to the per-profile "Personal" tab — each
+                    profile overrides them there without touching other profiles. */}
 
                 <Field.Switch
                     side="right"
                     name="enableAdultContent"
                     label="Enable adult content"
                     help="If disabled, adult content will be hidden from search results and your library."
-                />
-                <Field.Switch
-                    side="right"
-                    name="blurAdultContent"
-                    label="Blur adult content"
-                    help="If enabled, adult content will be blurred."
-                    fieldClass={cn(
-                        !f.watch("enableAdultContent") && "opacity-50",
-                    )}
                 />
 
             </SettingsCard>
@@ -341,21 +300,6 @@ export function ServerSettings(props: ServerSettingsProps) {
                     min={0}
                     max={365}
                 />
-                <Field.Switch
-                    side="right"
-                    name="stillWatchingChecksEnabled"
-                    label="Ask “Are you still watching?”"
-                    help="While binge-watching, the player pauses and asks if you're still watching."
-                />
-                {f.watch("stillWatchingChecksEnabled") && (
-                    <Field.Number
-                        name="stillWatchingEpisodes"
-                        label="Episodes between checks"
-                        help="How many consecutive episodes to play before the player asks if you're still watching."
-                        min={1}
-                        max={20}
-                    />
-                )}
                 <Field.Textarea
                     name="newsFeeds"
                     label="News feed URLs"

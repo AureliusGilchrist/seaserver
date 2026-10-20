@@ -15,6 +15,7 @@ import { PlaybackSettings } from "@/app/(main)/settings/_components/playback-set
 import { __settings_tabAtom } from "@/app/(main)/settings/_components/settings-page.atoms"
 import { SettingsIsDirty, SettingsSubmitButton } from "@/app/(main)/settings/_components/settings-submit-button"
 import { AnimeLibrarySettings } from "@/app/(main)/settings/_containers/anime-library-settings"
+import { ClientSettings } from "@/app/(main)/settings/_containers/client-settings"
 import { DebridSettings } from "@/app/(main)/settings/_containers/debrid-settings"
 import { FilecacheSettings } from "@/app/(main)/settings/_containers/filecache-settings"
 import { LogsSettings } from "@/app/(main)/settings/_containers/logs-settings"
@@ -57,6 +58,7 @@ import {
     LuPalette,
     LuShieldCheck,
     LuTabletSmartphone,
+    LuUserCog,
     LuUsers,
     LuWandSparkles,
 } from "react-icons/lu"
@@ -156,14 +158,42 @@ export default function Page() {
         )
     }
 
+    // Non-admin profiles get the settings page too, but with only the Personal (per-profile)
+    // tab — server-wide settings remain admin-only.
     if (profileCount > 0 && !currentProfile?.isAdmin) {
         return (
-            <PageWrapper className="p-4 sm:p-8">
-                <div className="mx-auto max-w-lg rounded-2xl border border-red-400/20 bg-[--paper]/80 p-8 text-center shadow-xl backdrop-blur-md">
-                    <LuShieldCheck className="mx-auto mb-3 text-3xl text-red-300" />
-                    <h1 className="text-xl font-semibold">Admin access required</h1>
-                    <p className="mt-2 text-sm text-[--muted]">Only an admin profile can open or change server settings. Switch to an admin profile and try again.</p>
-                </div>
+            <PageWrapper className="p-4 sm:p-8 space-y-4">
+                <CustomLibraryBanner discrete />
+                <Tabs
+                    value="personal"
+                    className={cn("w-full grid grid-cols-1 lg:grid lg:grid-cols-[300px,1fr] gap-4")}
+                    triggerClass="text-base px-6 rounded-[--radius-md] w-fit lg:w-full rounded-lg border-0 data-[state=active]:bg-[--subtle] data-[state=active]:text-white dark:hover:text-white h-9 lg:justify-start px-3 transition-all duration-200 hover:bg-[--subtle]/50"
+                    listClass="w-full flex flex-wrap lg:flex-nowrap h-fit lg:block p-2 lg:p-0"
+                >
+                    <TabsList className="flex-wrap max-w-full lg:sticky lg:top-10">
+                        <SettingsNavCard>
+                            <div className="overflow-x-hidden overflow-y-auto rounded-[--radius-md] space-y-1 lg:h-[calc(100dvh-5rem)] flex justify-center flex-wrap lg:block">
+                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 lg:backdrop-blur-md">
+                                    <div className="space-y-2 p-4 w-full">
+                                        <h4 className="text-center text-xl font-bold">Settings</h4>
+                                        <div className="space-y-1">
+                                            <p className="text-[--muted] text-sm text-center w-full">Personal</p>
+                                        </div>
+                                    </div>
+                                </Card>
+                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 lg:backdrop-blur-md">
+                                    <TabsTrigger value="personal" className="group">
+                                        <LuUserCog className="text-xl mr-3 transition-transform duration-200" /> Personal
+                                    </TabsTrigger>
+                                </Card>
+                            </div>
+                        </SettingsNavCard>
+                    </TabsList>
+
+                    <TabsContent value="personal" className={tabContentClass}>
+                        <ClientSettings />
+                    </TabsContent>
+                </Tabs>
             </PageWrapper>
         )
     }
@@ -216,6 +246,9 @@ export default function Page() {
                                     </div>
                                 </Card>
                                 <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 lg:backdrop-blur-md">
+                                    <TabsTrigger value="personal" className="group">
+                                        <LuUserCog className="text-xl mr-3 transition-transform duration-200" /> Personal
+                                    </TabsTrigger>
                                     <TabsTrigger value="updates" className="group">
                                         <LuRefreshCw className="mr-3 text-xl text-[--brand]" /> Updates
                                     </TabsTrigger>
@@ -368,25 +401,28 @@ export default function Page() {
                                 toast.error(first ? `Settings not saved: "${first[0]}" is invalid` : "Settings not saved: invalid values")
                             }}
                             onSubmit={data => {
+                                // Fields that moved to the per-profile Personal tab are no longer editable here;
+                                // they're still sent so the server-wide values persist unchanged for the
+                                // server-side consumers (desktop/external players).
                                 mutate({
                                     library: {
                                         libraryPath: data.libraryPath,
-                                        autoUpdateProgress: data.autoUpdateProgress,
+                                        autoUpdateProgress: status?.settings?.library?.autoUpdateProgress ?? false,
                                         disableUpdateCheck: data.disableUpdateCheck,
                                         torrentProvider: data.torrentProvider,
                                         autoSelectTorrentProvider: data.autoSelectTorrentProvider,
                                         autoScan: data.autoScan,
                                         enableOnlinestream: data.enableOnlinestream,
                                         includeOnlineStreamingInLibrary: data.includeOnlineStreamingInLibrary ?? false,
-                                        disableAnimeCardTrailers: data.disableAnimeCardTrailers,
+                                        disableAnimeCardTrailers: status?.settings?.library?.disableAnimeCardTrailers ?? false,
                                         planningSlutToken: status?.settings?.library?.planningSlutToken ?? "",
                                         enableManga: data.enableManga,
                                         dohProvider: data.dohProvider === "-" ? "" : data.dohProvider,
                                         openTorrentClientOnStart: data.openTorrentClientOnStart,
                                         openWebURLOnStart: data.openWebURLOnStart,
                                         refreshLibraryOnStart: data.refreshLibraryOnStart,
-                                        autoPlayNextEpisode: data.autoPlayNextEpisode ?? false,
-                                        enableWatchContinuity: data.enableWatchContinuity ?? false,
+                                        autoPlayNextEpisode: status?.settings?.library?.autoPlayNextEpisode ?? false,
+                                        enableWatchContinuity: status?.settings?.library?.enableWatchContinuity ?? false,
                                         libraryPaths: data.libraryPaths ?? [],
                                         autoSyncOfflineLocalData: data.autoSyncOfflineLocalData ?? false,
                                         scannerMatchingThreshold: data.scannerMatchingThreshold,
@@ -413,7 +449,7 @@ export default function Page() {
                                     },
                                     manga: {
                                         defaultMangaProvider: data.defaultMangaProvider === "-" ? "" : data.defaultMangaProvider,
-                                        mangaAutoUpdateProgress: data.mangaAutoUpdateProgress ?? false,
+                                        mangaAutoUpdateProgress: status?.settings?.manga?.mangaAutoUpdateProgress ?? false,
                                         mangaLocalSourceDirectory: data.mangaLocalSourceDirectory || "",
                                     },
                                     mediaPlayer: {
@@ -440,8 +476,8 @@ export default function Page() {
                                         mpvAutoSkipOpening: data.mpvAutoSkipOpening ?? false,
                                         mpvAutoSkipEnding: data.mpvAutoSkipEnding ?? false,
                                         mpvAutoSkipFiller: data.mpvAutoSkipFiller ?? false,
-                                        stillWatchingChecksEnabled: data.stillWatchingChecksEnabled ?? true,
-                                        stillWatchingEpisodes: data.stillWatchingEpisodes ?? 3,
+                                        stillWatchingChecksEnabled: status?.settings?.mediaPlayer?.stillWatchingChecksEnabled ?? true,
+                                        stillWatchingEpisodes: status?.settings?.mediaPlayer?.stillWatchingEpisodes ?? 3,
                                     },
                                     torrent: {
                                         defaultTorrentClient: data.defaultTorrentClient,
@@ -471,9 +507,9 @@ export default function Page() {
                                         richPresenceUseMediaTitleStatus: data?.richPresenceUseMediaTitleStatus ?? false,
                                     },
                                     anilist: {
-                                        hideAudienceScore: data.hideAudienceScore,
+                                        hideAudienceScore: status?.settings?.anilist?.hideAudienceScore ?? false,
                                         enableAdultContent: data.enableAdultContent,
-                                        blurAdultContent: data.blurAdultContent,
+                                        blurAdultContent: status?.settings?.anilist?.blurAdultContent ?? false,
                                         disableCacheLayer: data.disableCacheLayer,
                                         autoPauseStaleWatchingDays: data.autoPauseStaleWatchingDays ?? 7,
                                     },
@@ -961,6 +997,12 @@ export default function Page() {
                         <TabsContent value="mediastream" className={tabContentClass}>
 
                             <MediastreamSettings />
+
+                        </TabsContent>
+
+                        <TabsContent value="personal" className={tabContentClass}>
+
+                            <ClientSettings />
 
                         </TabsContent>
 

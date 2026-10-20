@@ -2,6 +2,7 @@ import { AL_BaseManga, Manga_ChapterContainer, Manga_EntryListData } from "@/api
 import { useGetMangaEntryPages, useUpdateMangaProgress } from "@/api/hooks/manga.hooks"
 import { useAchievementActivityHeartbeat } from "@/api/hooks/achievement.hooks"
 import { useSeaCommandInject } from "@/app/(main)/_features/sea-command/use-inject"
+import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { MangaHorizontalReader } from "@/app/(main)/manga/_containers/chapter-reader/_components/chapter-horizontal-reader"
 import { MangaVerticalReader } from "@/app/(main)/manga/_containers/chapter-reader/_components/chapter-vertical-reader"
@@ -58,6 +59,7 @@ export function ChapterReaderDrawer(props: ChapterDrawerProps) {
     } = props
 
     const serverStatus = useServerStatus()
+    const personal = usePersonalSettings()
 
     // Discord rich presence
     useDiscordMangaPresence(entry)
@@ -202,7 +204,7 @@ export function ChapterReaderDrawer(props: ChapterDrawerProps) {
     const lastUpdatedChapterRef = React.useRef<string | null>(null)
     React.useEffect(() => {
         if (
-            serverStatus?.settings?.manga?.mangaAutoUpdateProgress
+            personal.mangaAutoUpdateProgress
             && currentChapter?.chapterId
             && shouldUpdateProgress
             && !pageContainerLoading
@@ -214,7 +216,7 @@ export function ChapterReaderDrawer(props: ChapterDrawerProps) {
                 lastUpdatedChapterRef.current = currentChapter?.chapterId
             }
         }
-    }, [currentChapter, serverStatus?.settings?.manga?.mangaAutoUpdateProgress, shouldUpdateProgress, isLastPage, pageContainerError, pageContainerLoading])
+    }, [currentChapter, personal.mangaAutoUpdateProgress, shouldUpdateProgress, isLastPage, pageContainerError, pageContainerLoading])
 
     /**
      * Reset the current page index when the pageContainer or chapterContainer changes

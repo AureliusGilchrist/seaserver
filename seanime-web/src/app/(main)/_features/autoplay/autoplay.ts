@@ -1,7 +1,7 @@
 import { Anime_Entry, Anime_Episode, HibikeTorrent_AnimeTorrent, HibikeTorrent_BatchEpisodeFiles } from "@/api/generated/types"
 import { useGetAnimeEntry } from "@/api/hooks/anime_entries.hooks"
 import { PlaybackManager_PlaybackState } from "@/app/(main)/_features/progress-tracking/_lib/playback-manager.types"
-import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
+import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { useHandleStartDebridStream } from "@/app/(main)/entry/_containers/debrid-stream/_lib/handle-debrid-stream"
 import { useHandleStartTorrentStream } from "@/app/(main)/entry/_containers/torrent-stream/_lib/handle-torrent-stream"
 import { useHandlePlayMedia } from "@/app/(main)/entry/_lib/handle-play-media"
@@ -270,7 +270,7 @@ export function useDebridstreamAutoplay() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 export function useAutoplay() {
-    const serverStatus = useServerStatus()
+    const personal = usePersonalSettings()
 
     // Autoplay state
     const [isActive, setIsActive] = useState(false)
@@ -324,7 +324,7 @@ export function useAutoplay() {
         nextEp?: Anime_Episode,
         type: "local" | "torrent" | "debrid" = "local",
     ) => {
-        if (!serverStatus?.settings?.library?.autoPlayNextEpisode) {
+        if (!personal.autoPlayNextEpisode) {
             logger("Autoplay").info("Autoplay disabled in settings")
             return
         }

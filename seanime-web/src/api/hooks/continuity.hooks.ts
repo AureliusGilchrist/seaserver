@@ -2,7 +2,7 @@ import { useServerMutation, useServerQuery } from "@/api/client/requests"
 import { GetContinuityWatchHistoryItem_Variables, UpdateContinuityWatchHistoryItem_Variables } from "@/api/generated/endpoint.types"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { Continuity_WatchHistory, Continuity_WatchHistoryItemResponse, Nullish } from "@/api/generated/types"
-import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
+import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { vc_exactResumeAtom } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { useAtomValue } from "jotai"
 import { logger } from "@/lib/helpers/debug"
@@ -115,9 +115,9 @@ export function useHandleContinuityWithMediaPlayer(playerRef: React.RefObject<Me
     mediaId: Nullish<number | string>,
     playerOverride?: "inherit" | "on" | "off",
 ) {
-    const serverStatus = useServerStatus()
+    const personal = usePersonalSettings()
     const qc = useQueryClient()
-    const enabled = resolveContinuityEnabled(serverStatus?.settings?.library?.enableWatchContinuity, playerOverride)
+    const enabled = resolveContinuityEnabled(personal.enableWatchContinuity, playerOverride)
 
     React.useEffect(() => {
         (async () => {
@@ -208,8 +208,8 @@ export function useHandleContinuityWithMediaPlayer(playerRef: React.RefObject<Me
 
 
 export function useHandleCurrentMediaContinuity(mediaId: Nullish<number | string>, playerOverride?: "inherit" | "on" | "off", episodeNumber?: Nullish<number>) {
-    const serverStatus = useServerStatus()
-    const enabled = resolveContinuityEnabled(serverStatus?.settings?.library?.enableWatchContinuity, playerOverride)
+    const personal = usePersonalSettings()
+    const enabled = resolveContinuityEnabled(personal.enableWatchContinuity, playerOverride)
 
     const { data: watchHistory, isLoading: watchHistoryLoading } = useGetContinuityWatchHistoryItem(mediaId, enabled, playerOverride === "on", episodeNumber)
 

@@ -2,6 +2,7 @@ import { Anime_LibraryCollectionEntry, Anime_LibraryCollectionList } from "@/api
 import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
 import { useGetContinuityWatchHistory } from "@/api/hooks/continuity.hooks"
 import { useGetAnimeGojuuonMap } from "@/api/hooks/services.hooks"
+import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { useDebounce } from "@/hooks/use-debounce"
 import { CollectionParams, DEFAULT_ANIME_COLLECTION_PARAMS, filterAnimeCollectionEntries, filterEntriesByTitle } from "@/lib/helpers/filtering"
@@ -25,6 +26,7 @@ export const __library_debouncedSearchInputAtom = atomWithImmer<string>("")
 
 export function useHandleDetailedLibraryCollection({ enabled = true }: { enabled?: boolean } = { enabled: true }) {
     const serverStatus = useServerStatus()
+    const personal = usePersonalSettings()
 
     const { animeLibraryCollectionDefaultSorting } = useThemeSettings()
 
@@ -109,7 +111,7 @@ export function useHandleDetailedLibraryCollection({ enabled = true }: { enabled
     const continueWatchingList = React.useMemo(() => {
         if (!data?.continueWatchingList) return []
 
-        if (!serverStatus?.settings?.anilist?.enableAdultContent || serverStatus?.settings?.anilist?.blurAdultContent) {
+        if (!serverStatus?.settings?.anilist?.enableAdultContent || personal.blurAdultContent) {
             return data.continueWatchingList.filter(entry => entry.baseAnime?.isAdult === false)
         }
 
@@ -117,7 +119,7 @@ export function useHandleDetailedLibraryCollection({ enabled = true }: { enabled
     }, [
         data?.continueWatchingList,
         serverStatus?.settings?.anilist?.enableAdultContent,
-        serverStatus?.settings?.anilist?.blurAdultContent,
+        personal.blurAdultContent,
     ])
 
     const libraryGenres = React.useMemo(() => {

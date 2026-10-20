@@ -11,6 +11,7 @@ import { usePlaylistManager } from "@/app/(main)/_features/playlists/_containers
 import { AutoplayCountdownModal } from "@/app/(main)/_features/progress-tracking/_components/autoplay-countdown-modal"
 import { PlaybackManager_PlaybackState, PlaybackManager_PlaylistState } from "@/app/(main)/_features/progress-tracking/_lib/playback-manager.types"
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
+import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { imageShimmer } from "@/components/shared/image-helpers"
@@ -82,6 +83,7 @@ export function PlaybackManagerProgressTrackingButton({ asSidebarButton }: Props
 
 export function PlaybackManagerProgressTracking() {
     const serverStatus = useServerStatus()
+    const personal = usePersonalSettings()
     const qc = useQueryClient()
 
     const [showModal, setShowModal] = useAtom(__pt_showModalAtom)
@@ -403,7 +405,7 @@ export function PlaybackManagerProgressTracking() {
                             <span className="text-[--muted]">{" / "}{state?.mediaTotalEpisodes || "-"}</span>
                         </p>
                     </div>
-                    {(serverStatus?.settings?.library?.autoUpdateProgress && !state?.progressUpdated) && (
+                    {(personal.autoUpdateProgress && !state?.progressUpdated) && (
                         <p data-progress-tracking-auto-update-progress className="text-[--muted] text-center text-sm">
                             Your progress will be automatically updated
                         </p>

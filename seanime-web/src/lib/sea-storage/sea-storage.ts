@@ -23,6 +23,8 @@ import { buildSeaQuery } from "@/api/client/requests"
 // Anything matching is mirrored to the server. Order does not matter.
 // Patterns may end with `*` to match any suffix.
 const SYNCED_KEY_PATTERNS: readonly string[] = [
+    // Per-profile app preferences (playback, display, manga progress)
+    "sea-client-settings",
     // UI customizer presets
     "sea-ui-customize-*",
     // Easter-egg / discovered secrets

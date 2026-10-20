@@ -127,6 +127,7 @@ import {
     vc_createChaptersFromAniSkip,
     vc_logGeneralInfo,
 } from "@/app/(main)/_features/video-core/video-core.utils"
+import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { useServerHMACAuth, useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { useMediastreamCurrentFile } from "@/app/(main)/mediastream/_lib/mediastream.atoms"
 import { __torrentSearch_selectedTorrentsAtom } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-container"
@@ -833,10 +834,11 @@ export function VideoCore(props: VideoCoreProps) {
     const pausePlayback = React.useCallback(() => {
         videoRef.current?.pause()
     }, [])
+    const personal = usePersonalSettings()
     const stillWatchingConfig = React.useMemo(() => ({
-        enabled: serverStatus?.settings?.mediaPlayer?.stillWatchingChecksEnabled ?? true,
-        episodes: serverStatus?.settings?.mediaPlayer?.stillWatchingEpisodes ?? 3,
-    }), [serverStatus?.settings?.mediaPlayer?.stillWatchingChecksEnabled, serverStatus?.settings?.mediaPlayer?.stillWatchingEpisodes])
+        enabled: personal.stillWatchingChecksEnabled,
+        episodes: personal.stillWatchingEpisodes,
+    }), [personal.stillWatchingChecksEnabled, personal.stillWatchingEpisodes])
     const { onEpisodeEnded, onVideoEnded } = useVideoCoreWatchingChecks(state, pausePlayback, stillWatchingConfig)
 
     const { isParticipant: isNakamaWatchPartyParticipant } = useNakamaWatchParty()

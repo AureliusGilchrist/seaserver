@@ -1,6 +1,6 @@
 import { AL_BaseAnime } from "@/api/generated/types"
 import { useUpdateAnimeEntryProgress } from "@/api/hooks/anime_entries.hooks"
-import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
+import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { SeaLink } from "@/components/shared/sea-link"
 import { Button, IconButton } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
@@ -32,7 +32,7 @@ export function VideoCoreInlineHelpers({
     currentProgress,
     url,
 }: VideoCoreInlineHelpers) {
-    const serverStatus = useServerStatus()
+    const personal = usePersonalSettings()
 
     // Track progress update state
     const [hasUpdatedProgress, setHasUpdateProgress] = useAtom(vc_inlineHelper_hasUpdatedProgress)
@@ -59,7 +59,7 @@ export function VideoCoreInlineHelpers({
 
         const checkProgress = () => {
             const player = playerRef.current
-            if (!player || serverStatus?.settings?.library?.autoUpdateProgress) return
+            if (!player || personal.autoUpdateProgress) return
 
             // Skip if already updated or currently updating
             if (hasUpdatedProgress) return
@@ -96,7 +96,7 @@ export function VideoCoreInlineHelpers({
         media,
         playerRef,
         hasUpdatedProgress,
-        serverStatus?.settings?.library?.autoUpdateProgress,
+        personal.autoUpdateProgress,
         currentProgress,
         progressUpdateData,
         url,

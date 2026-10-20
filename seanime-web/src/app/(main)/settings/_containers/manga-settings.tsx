@@ -106,12 +106,7 @@ export function MangaSettings(props: MangaSettingsProps) {
                         )}
                     </div>
                 )}
-                <Field.Switch
-                    side="right"
-                    name="mangaAutoUpdateProgress"
-                    label="Automatically update progress"
-                    help="If enabled, your progress will be automatically updated when you reach the end of a chapter."
-                />
+                {/* Manga progress auto-update moved to the per-profile "Personal" tab. */}
             </SettingsCard>
 
             <SettingsCard title="Local Provider" description="Read manga series from your local directory.">

@@ -26,6 +26,7 @@ import {
     __seaMediaPlayer_volumeAtom,
     __seaMediaPlayer_watchContinuityAtom,
 } from "@/app/(main)/_features/sea-media-player/sea-media-player.atoms"
+import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { clientIdAtom } from "@/app/websocket-provider"
 import { LuffyError } from "@/components/shared/luffy-error"
@@ -114,6 +115,7 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
     } = props
 
     const serverStatus = useServerStatus()
+    const personal = usePersonalSettings()
     // Empty string rather than undefined: the server reads a missing clientId as "" anyway
     // and treats it as the global presence, so this is the same request with a type that
     // matches what the endpoint actually accepts.
@@ -309,7 +311,7 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
             // episode number greater than progress
             progress.currentEpisodeNumber > (currentProgress ?? 0)
         ) {
-            if (serverStatus?.settings?.library?.autoUpdateProgress) {
+            if (personal.autoUpdateProgress) {
                 if (!isUpdatingProgress) {
                     updateProgress({
                         episodeNumber: progress.currentEpisodeNumber,

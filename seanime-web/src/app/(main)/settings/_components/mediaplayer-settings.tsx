@@ -60,13 +60,10 @@ export function MediaplayerSettings(props: MediaplayerSettingsProps) {
             </SettingsCard>
 
             <SettingsCard title="Playback">
-                <Field.Switch
-                    side="right"
-                    name="autoPlayNextEpisode"
-                    label="Automatically play next episode"
-                    help="If enabled, Deus Ex Aeternae will play the next episode after a delay when the current episode is completed."
-                />
+                {/* Auto play next episode moved to the per-profile "Personal" tab. */}
+                <p className="text-sm text-[--muted]">Auto play next episode is set in the Personal tab.</p>
             </SettingsCard>
+
 
             <SettingsCard title="Configuration">
 

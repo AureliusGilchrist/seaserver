@@ -36,6 +36,7 @@ import { usePlaylistEditorManager } from "@/app/(main)/_features/playlists/lib/p
 import { useAnilistUserAnimeListData } from "@/app/(main)/_hooks/anilist-collection-loader"
 import { useMissingEpisodes } from "@/app/(main)/_hooks/missing-episodes-loader"
 import { useHasTorrentOrDebridInclusion, useServerStatus } from "@/app/(main)/_hooks/use-server-status"
+import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { MangaEntryCardUnreadBadge } from "@/app/(main)/manga/_containers/manga-entry-card-unread-badge"
 import { SeaLink } from "@/components/shared/sea-link"
 import { Badge } from "@/components/ui/badge"
@@ -121,6 +122,7 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
 
     const router = useRouter()
     const serverStatus = useServerStatus()
+    const personal = usePersonalSettings()
     const { hasStreamingEnabled } = useHasTorrentOrDebridInclusion()
     const missingEpisodes = useMissingEpisodes()
     const { isDownloading } = useDownloadingAnime()
@@ -365,10 +367,10 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
                                 progress={listData?.progress}
                                 progressTotal={progressTotal}
                                 showTrailer={showTrailer}
-                                disableAnimeCardTrailers={serverStatus?.settings?.library?.disableAnimeCardTrailers}
+                                disableAnimeCardTrailers={personal.disableAnimeCardTrailers}
                                 bannerImage={media.bannerImage || media.coverImage?.extraLarge}
                                 isAdult={media.isAdult}
-                                blurAdultContent={serverStatus?.settings?.anilist?.blurAdultContent}
+                                blurAdultContent={personal.blurAdultContent}
                                 link={link}
                                 listStatus={listData?.status}
                                 status={media.status}
@@ -480,7 +482,7 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
                 isAdult={media.isAdult}
                 showLibraryBadge={showLibraryBadge}
                 mediaId={!hideDownloadBadges ? media.id : undefined}
-                blurAdultContent={serverStatus?.settings?.anilist?.blurAdultContent}
+                blurAdultContent={personal.blurAdultContent}
                 onClick={onClick}
                 hideReleasingBadge={hideReleasingBadge}
             >

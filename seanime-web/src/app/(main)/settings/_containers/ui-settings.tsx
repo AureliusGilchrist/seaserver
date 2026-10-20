@@ -28,6 +28,7 @@ import { atomWithStorage } from "jotai/utils"
 import React, { useState } from "react"
 import { useFormContext, UseFormReturn, useWatch } from "react-hook-form"
 import { toast } from "sonner"
+import { usePersonalSettings } from "../../_hooks/use-personal-settings"
 import { useServerStatus } from "../../_hooks/use-server-status"
 import { SettingsCard } from "../_components/settings-card"
 import { SettingsIsDirty } from "../_components/settings-submit-button"
@@ -102,6 +103,7 @@ const tabContentClass = cn(
 export function UISettings() {
     const themeSettings = useThemeSettings()
     const serverStatus = useServerStatus()
+    const personal = usePersonalSettings()
 
     const { mutate, isPending } = useUpdateTheme()
     const [fixBorderRenderingArtifacts, setFixBorerRenderingArtifacts] = useAtom(__ui_fixBorderRenderingArtifacts)
@@ -620,7 +622,7 @@ export function UISettings() {
 
                             <SettingsCard title="Screens">
 
-                                {!serverStatus?.settings?.library?.enableWatchContinuity && (
+                                {!personal.enableWatchContinuity && (
                                     f.watch("continueWatchingDefaultSorting").includes("LAST_WATCHED") ||
                                     f.watch("animeLibraryCollectionDefaultSorting").includes("LAST_WATCHED")
                                 ) && (

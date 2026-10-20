@@ -3,6 +3,7 @@ import { useGetLibraryCollection, useGetLightLibraryCollection } from "@/api/hoo
 import { useGetContinuityWatchHistory } from "@/api/hooks/continuity.hooks"
 import { useGetAnimeGojuuonMap } from "@/api/hooks/services.hooks"
 import { animeLibraryCollectionAtom } from "@/app/(main)/_atoms/anime-library-collection.atoms"
+import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import {
     CollectionParams,
@@ -27,6 +28,7 @@ export const __mainLibrary_paramsInputAtom = atomWithImmer<CollectionParams<"ani
 
 export function useHandleLibraryCollection() {
     const serverStatus = useServerStatus()
+    const personal = usePersonalSettings()
 
     const atom_setLibraryCollection = useSetAtom(animeLibraryCollectionAtom)
 
@@ -347,7 +349,7 @@ export function useHandleLibraryCollection() {
 
         list = sortContinueWatchingEntries(list, continueWatchingDefaultSorting as any, entries, watchHistory)
 
-        if (!serverStatus?.settings?.anilist?.enableAdultContent || serverStatus?.settings?.anilist?.blurAdultContent) {
+        if (!serverStatus?.settings?.anilist?.enableAdultContent || personal.blurAdultContent) {
             return list.filter(entry => entry.baseAnime?.isAdult === false)
         }
 
@@ -358,7 +360,7 @@ export function useHandleLibraryCollection() {
         data?.continueWatchingList,
         continueWatchingDefaultSorting,
         serverStatus?.settings?.anilist?.enableAdultContent,
-        serverStatus?.settings?.anilist?.blurAdultContent,
+        personal.blurAdultContent,
         watchHistory,
     ])
 
