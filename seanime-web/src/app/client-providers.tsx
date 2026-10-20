@@ -49,7 +49,13 @@ const asyncStoragePersister = createAsyncStoragePersister({
         }
         : undefined,
     key: "seanime-rq-v1",
-    throttleTime: 2000,
+    // Every cache change (websocket invalidations included) schedules a full
+    // dehydrate + JSON.stringify of the persisted cache on the main thread.
+    // At 2s that pass runs nearly continuously during event storms and its
+    // debris promotes into old space faster than major GC can reclaim it —
+    // the renderer wedges with a bloated heap. A long throttle keeps writes
+    // rare; losing the last few seconds of cache on a crash is harmless.
+    throttleTime: 30_000,
 })
 
 // Re-exported for existing importers (e.g. main.tsx). The instance lives in
@@ -73,6 +79,11 @@ const NON_PERSISTED_QUERY_KEYS = new Set<string>([
     API_ENDPOINTS.MANGA.GetMangaEntryDetails.key,
     // A media container contains a per-client live stream URL and must never survive that session.
     API_ENDPOINTS.MEDIASTREAM.RequestMediastreamMediaContainer.key,
+    // Ephemeral queue state: the download queue can emit events every couple of
+    // seconds for hours (bulk queue waiting for space), and persisting the list
+    // means every one of those cycles re-serializes the whole cache.
+    API_ENDPOINTS.MANGA_DOWNLOAD.GetMangaDownloadsList.key,
+    API_ENDPOINTS.MANGA_DOWNLOAD.GetMangaDownloadQueue.key,
 ])
 
 export const ClientProviders: React.FC<ClientProvidersProps> = ({ children }) => {
