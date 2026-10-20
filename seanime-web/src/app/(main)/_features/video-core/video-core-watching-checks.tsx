@@ -35,16 +35,25 @@ import { LuArrowRight, LuPlay } from "react-icons/lu"
  * player settings don't override it (Settings -> App). */
 export const DEFAULT_EPISODES_BETWEEN_CHECKS = 3
 
+/** The default hours the check applies in: from 7 pm to 10 am. */
+export const DEFAULT_CHECK_START_HOUR = 19
+export const DEFAULT_CHECK_END_HOUR = 10
+
 /**
- * The hours the check applies in: from 7 pm to 10 am — the night, which is when a session runs long
- * enough for the question to be worth asking and when an empty room is most likely. Midday viewing
- * is short and deliberate, so it is never interrupted.
+ * The hours the check applies in, configurable in Personal settings: "from startHour to endHour" —
+ * by default the night, from 7 pm to 10 am, which is when a session runs long enough for the
+ * question to be worth asking and when an empty room is most likely. Midday viewing is short and
+ * deliberate, so it is never interrupted.
  *
- * The window spans midnight, so it is "past 7 pm or before 10 am", not a between-two check.
+ * The window may span midnight: 19 → 10 is "past 7 pm or before 10 am", not a between-two check.
+ * A window whose ends meet (startHour === endHour) is the whole day.
  */
-function isNightHours(): boolean {
-    const hour = new Date().getHours()
-    return hour >= 19 || hour < 10
+export function isInCheckWindow(hour: number, startHour: number, endHour: number): boolean {
+    const start = Math.min(23, Math.max(0, Math.round(startHour)))
+    const end = Math.min(23, Math.max(0, Math.round(endHour)))
+    if (start === end) return true
+    if (start < end) return hour >= start && hour < end
+    return hour >= start || hour < end
 }
 
 export type VideoCoreSequelPromptState = {
@@ -69,6 +78,11 @@ export type VideoCoreStillWatchingConfig = {
      * The check only intercepts an advance the player was about to make by itself — with
      * auto-next off the user picks each episode, so there is nothing to ask about. */
     canAutoAdvance?: boolean
+    /** Hours of day (0–23) the check applies in, "from startHour to endHour" — the default
+     * window is 19 → 10, 7 pm to 10 am. The window may span midnight; equal ends mean the
+     * whole day. */
+    startHour?: number
+    endHour?: number
 }
 
 // Module-level, like the progress prompt: there is one in-app player at a time.
@@ -182,7 +196,8 @@ export function useVideoCoreWatchingChecks(
 
         setStillWatchingHold(false)
 
-        if (!isNightHours()) return false
+        const hour = new Date().getHours()
+        if (!isInCheckWindow(hour, stillWatchingConfig.startHour ?? DEFAULT_CHECK_START_HOUR, stillWatchingConfig.endHour ?? DEFAULT_CHECK_END_HOUR)) return false
 
         const checkInterval = Math.max(1, stillWatchingConfig?.episodes ?? DEFAULT_EPISODES_BETWEEN_CHECKS)
         setStillWatching({ episodesWatched: checkInterval })

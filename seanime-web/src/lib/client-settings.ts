@@ -24,6 +24,9 @@ export const clientSettingsSchema = z.object({
     autoPlayNextEpisode: z.boolean().optional(),
     stillWatchingChecksEnabled: z.boolean().optional(),
     stillWatchingEpisodes: z.number().optional(),
+    // Hours of day (0–23) the still-watching check applies in; the window may cross midnight.
+    stillWatchingStartHour: z.number().optional(),
+    stillWatchingEndHour: z.number().optional(),
     // Display
     hideAudienceScore: z.boolean().optional(),
     blurAdultContent: z.boolean().optional(),

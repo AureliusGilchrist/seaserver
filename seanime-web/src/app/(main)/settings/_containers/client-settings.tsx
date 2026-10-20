@@ -71,19 +71,47 @@ export function ClientSettings(props: ClientSettingsProps) {
                     help="After a few episodes in a row, the player asks before starting the next one."
                 />
                 {personal.stillWatchingChecksEnabled && (
-                    <NumberInput
-                        className="max-w-[240px]"
-                        label="Episodes between checks"
-                        help="How many consecutive episodes to play before the player asks if you're still watching."
-                        min={1}
-                        max={20}
-                        value={personal.stillWatchingEpisodes}
-                        onValueChange={v => {
-                            if (!Number.isNaN(v)) {
-                                handleSet("stillWatchingEpisodes", v)
-                            }
-                        }}
-                    />
+                    <>
+                        <NumberInput
+                            className="max-w-[240px]"
+                            label="Episodes between checks"
+                            help="How many consecutive episodes to play before the player asks if you're still watching."
+                            min={1}
+                            max={20}
+                            value={personal.stillWatchingEpisodes}
+                            onValueChange={v => {
+                                if (!Number.isNaN(v)) {
+                                    handleSet("stillWatchingEpisodes", v)
+                                }
+                            }}
+                        />
+                        <NumberInput
+                            className="max-w-[240px]"
+                            label="Ask between (from hour)"
+                            help="The hour of day the check applies from — 19 is 7 pm. Hours are 24-hour, 0–23."
+                            min={0}
+                            max={23}
+                            value={personal.stillWatchingStartHour}
+                            onValueChange={v => {
+                                if (!Number.isNaN(v)) {
+                                    handleSet("stillWatchingStartHour", v)
+                                }
+                            }}
+                        />
+                        <NumberInput
+                            className="max-w-[240px]"
+                            label="Ask between (until hour)"
+                            help="The hour of day the check applies until — 10 is 10 am. The window can cross midnight: from 19 until 10 means 7 pm to 10 am."
+                            min={0}
+                            max={23}
+                            value={personal.stillWatchingEndHour}
+                            onValueChange={v => {
+                                if (!Number.isNaN(v)) {
+                                    handleSet("stillWatchingEndHour", v)
+                                }
+                            }}
+                        />
+                    </>
                 )}
             </SettingsCard>
 

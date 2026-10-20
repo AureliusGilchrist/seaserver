@@ -8,6 +8,9 @@ export type PersonalSettings = {
     autoPlayNextEpisode: boolean
     stillWatchingChecksEnabled: boolean
     stillWatchingEpisodes: number
+    /** Hours of day (0–23) the still-watching check applies in; the window may cross midnight. */
+    stillWatchingStartHour: number
+    stillWatchingEndHour: number
     hideAudienceScore: boolean
     blurAdultContent: boolean
     disableAnimeCardTrailers: boolean
@@ -40,6 +43,8 @@ export function usePersonalSettings(): PersonalSettings {
         autoPlayNextEpisode: clientSettings.autoPlayNextEpisode ?? serverStatus?.settings?.library?.autoPlayNextEpisode ?? false,
         stillWatchingChecksEnabled: clientSettings.stillWatchingChecksEnabled ?? serverStatus?.settings?.mediaPlayer?.stillWatchingChecksEnabled ?? true,
         stillWatchingEpisodes: clientSettings.stillWatchingEpisodes ?? serverStatus?.settings?.mediaPlayer?.stillWatchingEpisodes ?? 3,
+        stillWatchingStartHour: clientSettings.stillWatchingStartHour ?? 19,
+        stillWatchingEndHour: clientSettings.stillWatchingEndHour ?? 10,
         hideAudienceScore: clientSettings.hideAudienceScore ?? serverStatus?.settings?.anilist?.hideAudienceScore ?? false,
         blurAdultContent: clientSettings.blurAdultContent ?? serverStatus?.settings?.anilist?.blurAdultContent ?? false,
         disableAnimeCardTrailers: clientSettings.disableAnimeCardTrailers ?? serverStatus?.settings?.library?.disableAnimeCardTrailers ?? false,
