@@ -19,6 +19,8 @@ func (h *Handler) OptionalAuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc
 		// Allow the following paths to be accessed by anyone
 		if path == "/api/v1/status" || // public but restricted
 			path == "/events" || // for server events (auth handled by websocket handler)
+			path == "/api/v1/mobile-frontend/manifest" || // the Android client checks for frontend updates before it has a session; both endpoints serve the same public web build the server already serves at /
+			strings.HasPrefix(path, "/api/v1/mobile-frontend/bundle") ||
 			strings.HasPrefix(path, "/api/v1/mediastream/transcode/") { // HLS segments (TODO: secure later)
 
 			if path == "/api/v1/status" {

@@ -285,6 +285,10 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.POST("/auth/login", h.HandleLogin)
 	v1.POST("/auth/logout", h.HandleLogout)
 
+	// Mobile client frontend bundle (publish requires auth; the two GETs are whitelisted
+	// in OptionalAuthMiddleware so the client can check before it has a session)
+	v1.POST("/mobile-frontend/publish", h.HandlePublishMobileFrontend)
+
 	imageProxy := &util.ImageProxy{}
 	v1.GET("/image-proxy", imageProxy.ProxyImage)
 
