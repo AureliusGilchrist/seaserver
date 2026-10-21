@@ -138,6 +138,5 @@ jobs:
               --repo "$GITHUB_REPOSITORY" \
               --title "Seanime Denshi Mobile $RELEASE_VERSION" \
               --notes "$NOTES" \
-              --prerelease \
               --target "$GITHUB_SHA"
           fi

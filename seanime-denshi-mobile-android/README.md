@@ -45,8 +45,9 @@ thing — a one-tap installer hand-off:
    update is download → installer → one confirmation tap.
 
 Older or equal builds are ignored, and a version you dismissed (`Later`) stays dismissed in
-localStorage (`sea-apk-shell-dismissed`). Releases here are prereleases — the updater matches
-the `v<version>-android` tags only, never the desktop Denshi releases.
+localStorage (`sea-apk-shell-dismissed`). The updater matches the `v<version>-android` tags
+only — never the desktop Denshi releases — and CI builds carry the full release version in
+their `versionName`, so the app's version in Android settings always says which build it is.
 
 ## Build
 
@@ -70,7 +71,7 @@ already in devDependencies at time of writing — re-run only after changing the
 
 `.github/workflows/android-release.yml` builds the release APK on every push to `main` that
 touches the client or the mobile frontend: it builds `out-mobile`, assembles `www/`, runs
-`assembleRelease`, verifies the signature, and attaches the APK to a prerelease
+`assembleRelease`, verifies the signature, and attaches the APK to a release
 (`v<version>-android`) plus a workflow artifact. The version string flows from `versions.json`
 through `sync-versions.js` into `package.json` and the gradle build; `versionCode` is the CI run
 number, so every build outranks the last.
