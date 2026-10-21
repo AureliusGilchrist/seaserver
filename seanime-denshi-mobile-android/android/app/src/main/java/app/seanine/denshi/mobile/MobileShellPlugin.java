@@ -1,7 +1,13 @@
 package app.seanine.denshi.mobile;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
+import android.provider.Settings;
+import androidx.core.content.FileProvider;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -19,9 +25,9 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * Native side of the Denshi Mobile shell: installs downloaded frontend bundles into app storage
- * and reports which one is live, plus persists the server URL for synchronous access at cold
- * start (see ShellConfigInterface).
+ * Native side of the Denshi Mobile shell: installs downloaded frontend bundles into app storage,
+ * hands downloaded APK updates to the system installer, and reports which frontend is live,
+ * plus persists the server URL for synchronous access at cold start (see ShellConfigInterface).
  *
  * The frontend update flow: the shell script downloads a bundle.zip, this plugin unzips it into
  * files/frontend/<version>/ and validates it, then the shell points Capacitor's WebView plugin at
@@ -99,7 +105,7 @@ public class MobileShellPlugin extends Plugin {
         }
 
         Context context = getContext();
-        File zipFile = resolveZipFile(zipPath);
+        File zipFile = resolveAppFile(zipPath);
         if (!zipFile.exists()) {
             call.reject("bundle not found at " + zipPath);
             return;
@@ -184,11 +190,69 @@ public class MobileShellPlugin extends Plugin {
         }
     }
 
+    /**
+     * Hands a downloaded APK to the system package installer. Android does not let an app
+     * silently reinstall itself, so this is the maximum autonomy available: one confirmation
+     * tap on the installer dialog. If the "install unknown apps" grant has not been given yet,
+     * we send the user to that settings screen and report needsPermission — the shell explains
+     * the two-step flow, and the next tap after granting gets through.
+     */
+    @PluginMethod
+    public void installApk(PluginCall call) {
+        String apkPath = call.getString("path");
+        if (apkPath == null || apkPath.isEmpty()) {
+            call.reject("path is required");
+            return;
+        }
+
+        Context context = getContext();
+        File apk = resolveAppFile(apkPath);
+        if (!apk.exists()) {
+            call.reject("APK not found at " + apkPath);
+            return;
+        }
+
+        PackageManager pm = context.getPackageManager();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !pm.canRequestPackageInstalls()) {
+            // Some ROMs don't resolve this settings action; an error beats a crash.
+            try {
+                Intent intent = new Intent(
+                        Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        Uri.parse("package:" + context.getPackageName()));
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(intent);
+            } catch (Exception e) {
+                call.reject("could not open install-permission settings: " + e.getMessage(), e);
+                return;
+            }
+
+            JSObject ret = new JSObject();
+            ret.put("needsPermission", true);
+            call.resolve(ret);
+            return;
+        }
+
+        try {
+            Uri uri = FileProvider.getUriForFile(context, context.getPackageName() + ".fileprovider", apk);
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(uri, "application/vnd.android.package-archive");
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(intent);
+        } catch (Exception e) {
+            call.reject("could not open the installer: " + e.getMessage(), e);
+            return;
+        }
+
+        JSObject ret = new JSObject();
+        ret.put("launched", true);
+        call.resolve(ret);
+    }
+
     /** Accepts a path relative to filesDir (Filesystem's DATA directory) or an absolute one. */
-    private File resolveZipFile(String zipPath) {
-        File f = new File(zipPath);
+    private File resolveAppFile(String appPath) {
+        File f = new File(appPath);
         if (f.isAbsolute()) return f;
-        return new File(getContext().getFilesDir(), zipPath);
+        return new File(getContext().getFilesDir(), appPath);
     }
 
     private static void copyStream(InputStream in, OutputStream out) throws IOException {

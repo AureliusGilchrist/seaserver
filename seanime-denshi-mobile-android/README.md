@@ -29,6 +29,25 @@ stops answering) it shows a setup overlay to pick the server, seeded synchronous
 preferences via a small `JavascriptInterface` (`DenshiShellConfig`) so the app's first status
 fetch already points at the right place.
 
+## How the APK updates itself
+
+Android does not let an app silently replace its own binary, so the shell does the next best
+thing — a one-tap installer hand-off:
+
+1. On launch (20s in), every 24h, and on app resume, the shell asks GitHub for the repo's
+   `*-android` prereleases and compares the newest one's workflow run number against the
+   running build's `versionCode` (which CI sets to the same run number).
+2. When a newer build exists, a small pill appears: **Update** downloads the APK from the
+   release, writes it into app storage (`MobileShellPlugin.installApk`), and hands it to the
+   system package installer through the FileProvider.
+3. The first time, Android asks to allow "install unknown apps" for Denshi Mobile — a one-time
+   grant. The shell sends you to the right settings screen and explains; from then on every
+   update is download → installer → one confirmation tap.
+
+Older or equal builds are ignored, and a version you dismissed (`Later`) stays dismissed in
+localStorage (`sea-apk-shell-dismissed`). Releases here are prereleases — the updater matches
+the `v<version>-android` tags only, never the desktop Denshi releases.
+
 ## Build
 
 Requirements: JDK 21, Android SDK (platform 35), Node.

@@ -2,4 +2,7 @@
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <external-path name="my_images" path="." />
     <cache-path name="my_cache_images" path="." />
+    <!-- The shell's downloaded update APKs (files-dir root) are handed to the system installer
+         through the FileProvider, which needs an explicit files-path grant. -->
+    <files-path name="shell_updates" path="." />
 </paths>

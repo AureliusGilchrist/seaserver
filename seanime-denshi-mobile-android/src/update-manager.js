@@ -13,6 +13,11 @@
  *     (setServerBasePath + persistServerBasePath, restored automatically on cold start), and the
  *     app reloads into it. The shell updates along with the app: every bundle carries this file.
  *
+ *  3. Self-update. The APK cannot be hot-swapped — Android does not let an app silently replace
+ *     its own binary — so this layer also watches the repo's GitHub "*-android" releases and,
+ *     when one outranks the running build, offers a small pill that downloads the APK and hands
+ *     it to the system installer: one confirmation tap, then Android takes over.
+ *
  * Every failure is silent by design — the frontend already on screen is always good enough to
  * keep running, and the next check happens soon enough.
  */
@@ -434,6 +439,209 @@
     }
 
     // -----------------------------------------------------------------------------------------
+    // Shell updates — the APK itself, straight from GitHub releases
+    // -----------------------------------------------------------------------------------------
+    //
+    // The frontend can hot-swap itself, but the APK cannot: Android does not let an app replace
+    // its own binary without the user passing through the system installer. The maximum autonomy
+    // available, and what this section does: watch the repo's "…-android" releases, and when one
+    // outranks the running build, offer a pill that downloads the APK and hands it to the
+    // installer — one confirmation tap.
+
+    var GITHUB_REPO = "AureliusGilchrist/seaserver"
+    var SHELL_LAST_CHECK_KEY = "sea-apk-shell-last-check"
+    var SHELL_DISMISS_KEY = "sea-apk-shell-dismissed"
+    var APK_FILE = "denshi-mobile-update.apk"
+
+    var SHELL_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000
+    var SHELL_FIRST_CHECK_DELAY_MS = 20 * 1000
+    var SHELL_MIN_RETRY_MS = 60 * 60 * 1000
+
+    var shellChecking = false
+
+    function currentRunNumber() {
+        var app = plugin("App")
+        if (!app || !app.getInfo) return Promise.resolve(0)
+        return app.getInfo().then(function (info) {
+            // versionCode, which gradle sets to the CI run number (1 for local builds).
+            return info && info.build ? Number(info.build) : 0
+        }).catch(function () { return 0 })
+    }
+
+    // CI release versions look like "5.0.6-1.auto.79.1" — the first number after ".auto." is
+    // the GitHub workflow run number, which only ever increases, so it is a safe ordering.
+    function apkRunNumber(version) {
+        var m = /\.auto\.(\d+)\.(\d+)$/.exec(String(version || ""))
+        return m ? Number(m[1]) : 0
+    }
+
+    function fetchLatestAndroidRelease() {
+        // Through the patched window.fetch like any JSON endpoint — api.github.com allows
+        // unauthenticated reads, and a handful of checks a day is nowhere near the rate limit.
+        var url = "https://api.github.com/repos/" + GITHUB_REPO + "/releases?per_page=20"
+        return fetch(url, { method: "GET", disableCache: true }).then(function (res) {
+            if (!res.ok) throw new Error("releases fetch " + res.status)
+            return res.json()
+        }).then(function (releases) {
+            if (!Array.isArray(releases)) return null
+            for (var i = 0; i < releases.length; i++) {
+                var rel = releases[i]
+                var m = /^v(.+)-android$/.exec(String(rel.tag_name || ""))
+                if (!m || !Array.isArray(rel.assets)) continue
+                for (var j = 0; j < rel.assets.length; j++) {
+                    var asset = rel.assets[j]
+                    if (/\.apk$/i.test(String(asset.name || ""))) {
+                        return {
+                            version: m[1],
+                            name: String(asset.name),
+                            downloadUrl: String(asset.browser_download_url || ""),
+                        }
+                    }
+                }
+            }
+            return null
+        })
+    }
+
+    function showUpdatePill(info) {
+        if (document.getElementById("denshi-shell-update")) return
+        var pill = document.createElement("div")
+        pill.id = "denshi-shell-update"
+        // Same look as the unreachable pill, one slot above it (and allowed to sit over the
+        // setup overlay: same z-index, appended later wins — an update offer matters there too).
+        pill.setAttribute("style", [
+            "position:fixed", "left:16px", "right:16px", "bottom:150px", "z-index:2147483647",
+            "display:flex", "align-items:center", "justify-content:space-between", "gap:12px",
+            "padding:12px 16px", "border-radius:14px", "box-sizing:border-box",
+            "background:rgba(10,15,25,.92)", "border:1px solid #1e293b",
+            "backdrop-filter:blur(8px)", "-webkit-backdrop-filter:blur(8px)",
+            "font-family:-apple-system,'Segoe UI',Roboto,sans-serif", "font-size:13px", "color:#cbd5e1",
+            "box-shadow:0 8px 30px rgba(0,0,0,.5)", "transform:translateY(16px)", "opacity:0",
+            "transition:all .3s ease",
+        ].join(";"))
+        pill.innerHTML = [
+            '<span id="denshi-shell-update-msg" style="flex:1"></span>',
+            '<span id="denshi-shell-update-later" style="color:#6b7280;font-weight:600;cursor:pointer;padding-left:12px">Later</span>',
+            '<span id="denshi-shell-update-go" style="color:#38bdf8;font-weight:600;cursor:pointer;padding-left:12px">Update</span>',
+        ].join("")
+        document.body.appendChild(pill)
+
+        // The version string comes from a release tag — set as text, never as markup.
+        pill.querySelector("#denshi-shell-update-msg").textContent =
+            "Denshi Mobile " + info.version + " is available"
+
+        window.setTimeout(function () {
+            pill.style.transform = "translateY(0)"
+            pill.style.opacity = "1"
+        }, 30)
+
+        var busy = false
+        pill.querySelector("#denshi-shell-update-later").addEventListener("click", function () {
+            lsSet(SHELL_DISMISS_KEY, info.version)
+            removePill()
+        })
+        pill.querySelector("#denshi-shell-update-go").addEventListener("click", function () {
+            if (busy) return
+            busy = true
+            var msg = pill.querySelector("#denshi-shell-update-msg")
+            var go = pill.querySelector("#denshi-shell-update-go")
+            msg.textContent = "Downloading " + info.version + "…"
+            go.style.color = "#6b7280"
+
+            installApkUpdate(info).then(function (result) {
+                if (result && result.needsPermission) {
+                    // The settings screen for unknown sources is now up; the grant is one-time.
+                    busy = false
+                    go.style.color = "#38bdf8"
+                    msg.textContent = "Allow installs for Denshi Mobile, then tap Update again."
+                } else if (result && result.launched) {
+                    msg.textContent = "Handed to the installer…"
+                    window.setTimeout(removePill, 4000)
+                } else {
+                    busy = false
+                    go.style.color = "#38bdf8"
+                    msg.textContent = "Unexpected result — try again."
+                }
+            }).catch(function (err) {
+                busy = false
+                go.style.color = "#38bdf8"
+                msg.textContent = "Update failed: " + (err && err.message ? err.message : "unknown error")
+            })
+        })
+
+        function removePill() {
+            var p = document.getElementById("denshi-shell-update")
+            if (p && p.parentNode) p.parentNode.removeChild(p)
+        }
+    }
+
+    function installApkUpdate(info) {
+        var http = plugin("CapacitorHttp")
+        if (!http || !http.get) return Promise.reject(new Error("CapacitorHttp plugin unavailable"))
+        return http
+            .get({ url: info.downloadUrl, responseType: "arraybuffer" })
+            .then(function (res) {
+                if (res.status < 200 || res.status >= 300) throw new Error("APK download " + res.status)
+                var FS = plugin("Filesystem")
+                if (!FS || !FS.writeFile) throw new Error("Filesystem plugin unavailable")
+                // res.data is already base64 (native arraybuffer → base64) and Filesystem
+                // writes base64 byte-exact, so it passes straight through — no decode.
+                return FS.writeFile({ path: APK_FILE, data: res.data, directory: "DATA", recursive: true })
+            })
+            .then(function () {
+                var shell = plugin("MobileShell")
+                if (!shell || !shell.installApk) throw new Error("MobileShell plugin unavailable")
+                return shell.installApk({ path: APK_FILE })
+            })
+    }
+
+    function checkForShellUpdate(trigger) {
+        if (shellChecking) return
+        shellChecking = true
+        lsSet(SHELL_LAST_CHECK_KEY, String(Date.now()))
+
+        currentRunNumber()
+            .then(function (current) {
+                return fetchLatestAndroidRelease().then(function (release) {
+                    if (!release) {
+                        log("no android release found (" + trigger + ")")
+                        return
+                    }
+                    var latest = apkRunNumber(release.version)
+                    if (latest <= current) {
+                        log("shell up to date (" + release.version + ")")
+                        return
+                    }
+                    if (lsGet(SHELL_DISMISS_KEY) === release.version) {
+                        log("shell update " + release.version + " was dismissed")
+                        return
+                    }
+                    log("new shell version " + release.version + " (running run " + current + ", " + trigger + ")")
+                    showUpdatePill(release)
+                })
+            })
+            .catch(function (err) {
+                log("shell update check skipped:", err && err.message ? err.message : err)
+            })
+            .then(function () {
+                shellChecking = false
+            })
+    }
+
+    function scheduleShellUpdateLoop() {
+        window.setTimeout(function () { checkForShellUpdate("startup") }, SHELL_FIRST_CHECK_DELAY_MS)
+        window.setInterval(function () { checkForShellUpdate("interval") }, SHELL_CHECK_INTERVAL_MS)
+
+        document.addEventListener("visibilitychange", function () {
+            if (document.visibilityState === "visible") {
+                var last = 0
+                try { last = Number(lsGet(SHELL_LAST_CHECK_KEY) || 0) } catch (e) {}
+                if (Date.now() - last > SHELL_MIN_RETRY_MS) checkForShellUpdate("resume")
+            }
+        })
+    }
+
+    // -----------------------------------------------------------------------------------------
     // Boot
     // -----------------------------------------------------------------------------------------
 
@@ -449,6 +657,10 @@
             // First run: let the app paint its loading state underneath, then present setup.
             window.setTimeout(maybeShowSetup, 600)
         }
+
+        // The shell's own update channel is independent of the server — it is how the APK gets
+        // better at all — so it runs from the very first launch on.
+        scheduleShellUpdateLoop()
     }
 
     if (document.readyState === "loading") {
