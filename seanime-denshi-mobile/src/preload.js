@@ -1,0 +1,206 @@
+const { contextBridge, ipcRenderer } = require("electron")
+
+// Expose protected methods that allow the renderer process to use
+// the ipcRenderer without exposing the entire object
+contextBridge.exposeInMainWorld(
+    'electron', {
+        // Window Controls
+        window: {
+            minimize: () => ipcRenderer.send("window:minimize"),
+            maximize: () => ipcRenderer.send("window:maximize"),
+            close: () => ipcRenderer.send("window:close"),
+            isMaximized: () => ipcRenderer.invoke("window:isMaximized"),
+            isMinimizable: () => ipcRenderer.invoke("window:isMinimizable"),
+            isMaximizable: () => ipcRenderer.invoke("window:isMaximizable"),
+            isClosable: () => ipcRenderer.invoke("window:isClosable"),
+            isFullscreen: () => ipcRenderer.invoke("window:isFullscreen"),
+            setFullscreen: (fullscreen) => ipcRenderer.send("window:setFullscreen", fullscreen),
+            toggleMaximize: () => ipcRenderer.send("window:toggleMaximize"),
+            hide: () => ipcRenderer.send("window:hide"),
+            show: () => ipcRenderer.send("window:show"),
+            isVisible: () => ipcRenderer.invoke("window:isVisible"),
+            setTitleBarStyle: (style) => ipcRenderer.send("window:setTitleBarStyle", style),
+            getCurrentWindow: () => ipcRenderer.invoke("window:getCurrentWindow"),
+            isMainWindow: () => ipcRenderer.send("window:isMainWindow"),
+            // Fork: open (or reuse) the always-on-top popout player window with the given
+            // same-origin app URL; playback is handed off to that window.
+            openPlayerPopout: (url) => ipcRenderer.invoke("window:open-player-popout", url),
+            // Fork: lock the popout player window's width/height to the video's aspect ratio, so
+            // the window is always exactly the shape of the picture and no bars are ever drawn.
+            setPopoutAspectRatio: (ratio) => ipcRenderer.invoke("window:set-player-popout-aspect-ratio", ratio),
+            // Fork: drag the frameless popout window from anywhere on the page.
+            popoutDragStart: () => ipcRenderer.send("window:popout-drag-start"),
+            popoutDragMove: (dx, dy) => ipcRenderer.send("window:popout-drag-move", dx, dy),
+            popoutDragEnd: () => ipcRenderer.send("window:popout-drag-end"),
+            // Fork: hand playback (file + position) back to the main window and close the popout.
+            returnPlayerFromPopout: (state) => ipcRenderer.invoke("window:return-player-from-popout", state),
+        },
+
+        localServer: {
+            getPort: () => ipcRenderer.invoke("get-local-server-port")
+        },
+
+        startup: {
+            ready: () => ipcRenderer.send("startup:renderer-ready")
+        },
+
+        // Identifies this run of the app. Read synchronously and exposed as a value rather than as a
+        // call, because the web app has to consult it at module load — before the stored profile
+        // session is read — to decide whether that session belongs to this launch or a previous one.
+        //
+        // Guarded, because a synchronous channel is the one kind that can take the whole app down:
+        // sendSync blocks the renderer until the main process answers, so anything that stops it
+        // answering — a handler registered too late, an older build of main.js, a window created
+        // before setup — leaves the preload unfinished and the window blank, with nothing logged.
+        // Failing to a null id costs one extra sign-in; hanging costs the entire app.
+        session: {
+            launchId: (() => {
+                try {
+                    return ipcRenderer.sendSync("session:getLaunchId") ?? null
+                }
+                catch {
+                    return null
+                }
+            })(),
+        },
+
+        // Server connection (connect-only: always remote)
+        serverConfig: {
+            get: () => ipcRenderer.invoke("server-config:get"),
+            save: (cfg) => ipcRenderer.invoke("server-config:save", cfg),
+            validate: (url) => ipcRenderer.invoke("server-config:validate", url),
+            remoteReadyAck: () => ipcRenderer.send("server-config:remote-ready-ack"),
+        },
+
+        // Event listeners
+        on: (channel, callback) => {
+            // Whitelist channels
+            const validChannels = [
+                "message",
+                "crash",
+                "window:minimized",
+                "window:hidden",
+                "window:maximized",
+                "window:unmaximized",
+                "window:currentWindow",
+                "window:isMainWindow",
+                "cast:deviceFound",
+                "cast:sessionUpdate",
+                "cast:mediaStatus",
+                "cast:receiverReady",
+                "cast:error",
+                "show-setup",
+                "remote-ready",
+                "live-update:progress",
+                "player:return-from-popout",
+                // Boot channels: the splash screen follows the frontend build's progress and
+                // result before the web app exists.
+                "build-progress",
+                "build-failed",
+                "build:reset",
+                // Sent when the client is hidden away without unloading the page, which is the
+                // one "close" the launch id alone cannot catch.
+                "session:end",
+            ]
+            if (validChannels.includes(channel)) {
+                // Remove the event listener to avoid memory leaks
+                ipcRenderer.removeAllListeners(channel)
+                // Add the event listener
+                ipcRenderer.on(channel, (_, ...args) => callback(...args))
+
+                // Return a function to remove the listener
+                return () => {
+                    ipcRenderer.removeAllListeners(channel)
+                }
+            }
+        },
+
+        // Send events
+        emit: (channel, data) => {
+            // Whitelist channels
+            const validChannels = [
+                "restart-server",
+                "macos-activation-policy-accessory",
+                "macos-activation-policy-regular"
+            ]
+            if (validChannels.includes(channel)) {
+                ipcRenderer.send(channel, data)
+            }
+        },
+
+        // General send method for any whitelisted channel
+        send: (channel, ...args) => {
+            // Whitelist channels
+            const validChannels = [
+                "restart-app",
+                "quit-app",
+                // Splash screen: rebuild after a failed boot, or continue with the last good
+                // frontend when the failure is recoverable.
+                "build:retry",
+                "build:continue",
+            ]
+            if (validChannels.includes(channel)) {
+                ipcRenderer.send(channel, ...args)
+            }
+        },
+
+        // Platform
+        platform: process.platform,
+
+        // Clipboard
+        clipboard: {
+            writeText: (text) => ipcRenderer.invoke("clipboard:writeText", text)
+        },
+
+        // Denshi Settings
+        denshiSettings: {
+            get: () => ipcRenderer.invoke("denshi:getSettings"),
+            set: (settings) => ipcRenderer.invoke("denshi:setSettings", settings),
+        },
+
+        // Live updates. The frontend half is the same build pipeline the launch runs; the
+        // backend half has nothing to do here — the backend runs on the server.
+        liveUpdate: {
+            updateBackend: () => ipcRenderer.invoke("live-update:backend"),
+            updateFrontend: () => ipcRenderer.invoke("live-update:frontend"),
+            checkBackend: () => ipcRenderer.invoke("live-update:check-backend"),
+            checkFrontend: () => ipcRenderer.invoke("live-update:check-frontend"),
+            getInfo: () => ipcRenderer.invoke("live-update:info"),
+        },
+
+        // Discord Rich Presence (used when server runs on a different machine
+        // than this Electron instance; renderer forwards server-broadcast
+        // activities to the LOCAL Discord client via these handlers).
+        discord: {
+            setActivity: (payload) => ipcRenderer.invoke("discord:setActivity", payload),
+            clearActivity: () => ipcRenderer.invoke("discord:clearActivity"),
+        },
+
+        // Chromecast
+        cast: {
+            discover: () => ipcRenderer.invoke("cast:discover"),
+            stopDiscovery: () => ipcRenderer.invoke("cast:stopDiscovery"),
+            getDevices: () => ipcRenderer.invoke("cast:getDevices"),
+            connect: (deviceId) => ipcRenderer.invoke("cast:connect", deviceId),
+            disconnect: () => ipcRenderer.invoke("cast:disconnect"),
+            getStatus: () => ipcRenderer.invoke("cast:getStatus"),
+            loadMedia: (opts) => ipcRenderer.invoke("cast:loadMedia", opts),
+            play: () => ipcRenderer.invoke("cast:play"),
+            pause: () => ipcRenderer.invoke("cast:pause"),
+            seek: (time) => ipcRenderer.invoke("cast:seek", time),
+            stop: () => ipcRenderer.invoke("cast:stop"),
+            setVolume: (level) => ipcRenderer.invoke("cast:setVolume", level),
+            setMuted: (muted) => ipcRenderer.invoke("cast:setMuted", muted),
+            sendSubtitleEvents: (events) => ipcRenderer.invoke("cast:sendSubtitleEvents", events),
+            sendSubtitleTracks: (tracks) => ipcRenderer.invoke("cast:sendSubtitleTracks", tracks),
+            switchSubtitleTrack: (trackNumber) => ipcRenderer.invoke("cast:switchSubtitleTrack", trackNumber),
+            sendFonts: (fontUrls, serverPort) => ipcRenderer.invoke("cast:sendFonts", fontUrls, serverPort),
+            sendSubtitleHeader: (header) => ipcRenderer.invoke("cast:sendSubtitleHeader", header),
+            disableSubtitles: () => ipcRenderer.invoke("cast:disableSubtitles"),
+            getLanIP: () => ipcRenderer.invoke("cast:getLanIP"),
+        },
+    }
+);
+
+// Set __isElectronDesktop__ global variable
+contextBridge.exposeInMainWorld('__isElectronDesktop__', true);

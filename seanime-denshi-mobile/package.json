@@ -1,0 +1,118 @@
+{
+  "name": "seanime-denshi-mobile",
+  "version": "5.0.6-1",
+  "description": "Mobile-shaped, connect-only Electron client for Seaserver",
+  "main": "src/main.js",
+  "author": "5rahim <talkwithrahim@gmail.com>",
+  "scripts": {
+    "sync-versions": "node ../sync-versions.js",
+    "predev": "node ../sync-versions.js",
+    "prebuild": "node ../sync-versions.js",
+    "dev": "cross-env NODE_ENV=development electron .",
+    "start": "electron .",
+    "build": "electron-builder build",
+    "build:win": "electron-builder build --win --x64"
+  },
+  "dependencies": {
+    "@xhayper/discord-rpc": "^1.3.0",
+    "castv2": "^0.1.10",
+    "electron-log": "^5.4.3",
+    "mdns-js": "^1.0.3",
+    "mime-types": "^2.1.35",
+    "strip-ansi": "^7.1.0"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "electron": "39.2.7",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "electronDownload": {
+      "mirror": "https://seanime.app/assets/electron/",
+      "customDir": "v39.2.7"
+    },
+    "appId": "app.seanine.denshi.mobile",
+    "productName": "Seaserver Denshi Mobile",
+    "asar": true,
+    "extraResources": [
+      {
+        "from": "web-mobile",
+        "to": "web-mobile"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "seanime-denshi-mobile-${version}_Windows_${arch}.${ext}",
+      "verifyUpdateCodeSignature": false
+    },
+    "mac": {
+      "category": "public.app-category.entertainment",
+      "target": [
+        {
+          "target": "default",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "darkModeSupport": true,
+      "notarize": false,
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "assets/entitlements.mac.plist",
+      "entitlementsInherit": "assets/entitlements.mac.plist",
+      "artifactName": "seanime-denshi-mobile-${version}_MacOS_${arch}.${ext}",
+      "identity": "-"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Entertainment",
+      "artifactName": "seanime-denshi-mobile-${version}_Linux_${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "deleteAppDataOnUninstall": false,
+      "shortcutName": "Seaserver Denshi Mobile",
+      "artifactName": "seanime-denshi-mobile-${version}_Windows_${arch}.${ext}"
+    },
+    "directories": {
+      "buildResources": "assets",
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "web-mobile/**/*",
+      "assets/**/*",
+      "package.json",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/node_modules/*.d.ts",
+      "!**/node_modules/.bin",
+      "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
+      "!.editorconfig",
+      "!**/._*",
+      "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
+      "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
+      "!**/{appveyor.yml,.travis.yml,circle.yml}",
+      "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
+    ]
+  },
+  "private": true
+}

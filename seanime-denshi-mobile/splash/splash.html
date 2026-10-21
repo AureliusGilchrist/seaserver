@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; img-src 'self' data:; style-src 'self' 'unsafe-inline'">
+<title>Denshi Mobile</title>
+<style>
+    :root {
+        --bg: #0b0d12;
+        --bg-2: #10131c;
+        --card: rgba(255, 255, 255, 0.04);
+        --card-border: rgba(255, 255, 255, 0.09);
+        --text: #e7eaf2;
+        --muted: #8b93a7;
+        --faint: #5b6275;
+        --brand-a: #fb7185;
+        --brand-b: #9333ea;
+        --brand-c: #38bdf8;
+        --accent: #c4b5fd;
+        --spark: #f0abfc;
+        --danger: #fb7185;
+        --ok: #4ade80;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+        height: 100%;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Segoe UI Variable", "Segoe UI", Inter, system-ui, -apple-system, sans-serif;
+        -webkit-user-select: none;
+        user-select: none;
+        cursor: default;
+    }
+
+    /* ── backdrop ─────────────────────────────────────────────────────────────── */
+
+    .backdrop {
+        position: fixed; inset: 0;
+        background:
+            radial-gradient(ellipse 120% 60% at 50% -10%, rgba(147, 51, 234, 0.16), transparent 60%),
+            radial-gradient(ellipse 90% 50% at 85% 110%, rgba(56, 189, 248, 0.10), transparent 65%),
+            radial-gradient(ellipse 80% 45% at 10% 100%, rgba(251, 113, 133, 0.08), transparent 60%),
+            linear-gradient(180deg, var(--bg-2), var(--bg));
+    }
+
+    .stars { position: fixed; inset: 0; opacity: 0.55; }
+
+    .grain {
+        position: fixed; inset: 0; pointer-events: none; opacity: 0.35; mix-blend-mode: overlay;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    /* ── title strip (frameless drag + window buttons) ────────────────────────── */
+
+    .titlebar {
+        position: fixed; top: 0; left: 0; right: 0; height: 40px;
+        display: flex; align-items: center; justify-content: space-between;
+        padding-left: 16px;
+        -webkit-app-region: drag;
+        z-index: 50;
+    }
+    .titlebar .app-name {
+        font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
+        text-transform: uppercase; color: var(--faint);
+    }
+    .titlebar .win-buttons {
+        display: flex; -webkit-app-region: no-drag;
+    }
+    .titlebar button {
+        width: 44px; height: 40px; border: none; background: transparent; color: var(--muted);
+        display: grid; place-items: center; cursor: pointer; outline: none;
+        transition: background 0.15s ease, color 0.15s ease;
+    }
+    .titlebar button:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+    .titlebar button.close:hover { background: #e81123; color: #fff; }
+
+    /* ── layout ───────────────────────────────────────────────────────────────── */
+
+    .stage {
+        position: fixed; inset: 40px 0 0 0;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        padding: 0 34px 30px;
+        gap: 0;
+    }
+
+    /* ── emblem ───────────────────────────────────────────────────────────────── */
+
+    .emblem-wrap { position: relative; width: 108px; height: 108px; margin-bottom: 22px; }
+    .emblem-wrap svg.emblem { width: 100%; height: 100%; display: block; }
+    .emblem-halo {
+        position: absolute; inset: -34%;
+        background: radial-gradient(circle, rgba(147, 51, 234, 0.28), rgba(56, 189, 248, 0.10) 45%, transparent 70%);
+        filter: blur(6px);
+        animation: halo 4.5s ease-in-out infinite;
+        pointer-events: none;
+    }
+    @keyframes halo {
+        0%, 100% { opacity: 0.55; transform: scale(0.96); }
+        50% { opacity: 1; transform: scale(1.04); }
+    }
+    .booting .emblem-wrap { animation: breathe 2.2s ease-in-out infinite; }
+    @keyframes breathe {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.045); }
+    }
+    .spark-star { transform-origin: 100px 22px; animation: twinkle 2.6s ease-in-out infinite; }
+    @keyframes twinkle {
+        0%, 100% { opacity: 0.75; transform: scale(0.92) rotate(-4deg); }
+        50% { opacity: 1; transform: scale(1.1) rotate(5deg); }
+    }
+
+    /* ── titles ───────────────────────────────────────────────────────────────── */
+
+    .title {
+        font-size: 21px; font-weight: 800; letter-spacing: -0.01em;
+        background: linear-gradient(92deg, #fff 10%, var(--accent) 55%, var(--brand-c) 95%);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+        margin-bottom: 6px; text-align: center;
+    }
+    .subtitle { font-size: 12.5px; color: var(--muted); text-align: center; line-height: 1.55; max-width: 300px; }
+
+    /* ── panels ───────────────────────────────────────────────────────────────── */
+
+    .panel { width: 100%; max-width: 330px; display: none; }
+    .panel.visible { display: block; animation: rise 0.45s cubic-bezier(0.2, 0.8, 0.25, 1) both; }
+    @keyframes rise {
+        from { opacity: 0; transform: translateY(14px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* build progress */
+    .progress-card {
+        margin-top: 26px;
+        background: var(--card);
+        border: 1px solid var(--card-border);
+        border-radius: 16px;
+        padding: 18px 18px 14px;
+        backdrop-filter: blur(14px);
+    }
+    .progress-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+    .progress-label { font-size: 13px; font-weight: 600; color: var(--text); }
+    .progress-percent {
+        font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums;
+        background: linear-gradient(90deg, var(--brand-a), var(--brand-b), var(--brand-c));
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .progress-track {
+        height: 6px; border-radius: 999px; overflow: hidden;
+        background: rgba(255,255,255,0.07);
+        position: relative;
+    }
+    .progress-bar {
+        height: 100%; width: 0%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--brand-a), var(--brand-b) 55%, var(--brand-c));
+        box-shadow: 0 0 16px rgba(147, 51, 234, 0.55);
+        transition: width 0.35s cubic-bezier(0.25, 0.8, 0.3, 1);
+        position: relative;
+    }
+    .progress-bar.indeterminate {
+        width: 38%;
+        animation: sweep 1.4s ease-in-out infinite;
+    }
+    @keyframes sweep {
+        0% { margin-left: -38%; }
+        100% { margin-left: 100%; }
+    }
+    .log-tail {
+        margin-top: 12px;
+        font-family: "Cascadia Code", Consolas, monospace;
+        font-size: 10.5px; line-height: 1.6;
+        color: var(--faint);
+        height: 58px; overflow: hidden;
+        display: flex; flex-direction: column; justify-content: flex-end;
+        border-top: 1px solid rgba(255,255,255,0.05);
+        padding-top: 8px;
+    }
+    .log-tail .line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .log-tail .line.latest { color: var(--accent); }
+
+    /* spinner (connecting) */
+    .spinner-row { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 28px; }
+    .spinner {
+        width: 22px; height: 22px; border-radius: 50%;
+        border: 2.5px solid rgba(255,255,255,0.12);
+        border-top-color: var(--accent);
+        animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* setup form */
+    .setup-card {
+        margin-top: 26px;
+        background: var(--card);
+        border: 1px solid var(--card-border);
+        border-radius: 16px;
+        padding: 20px;
+        backdrop-filter: blur(14px);
+    }
+    .setup-card h2 { font-size: 14.5px; font-weight: 700; margin-bottom: 4px; }
+    .setup-card p.hint { font-size: 11.5px; color: var(--muted); line-height: 1.55; margin-bottom: 14px; }
+    .field-label {
+        display: block; font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em;
+        text-transform: uppercase; color: var(--faint); margin-bottom: 6px;
+    }
+    .url-row { display: flex; gap: 8px; }
+    input[type="text"] {
+        flex: 1; min-width: 0;
+        background: rgba(0, 0, 0, 0.35);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 10px;
+        color: var(--text);
+        font-size: 13px;
+        padding: 10px 12px;
+        outline: none;
+        font-family: "Cascadia Code", Consolas, monospace;
+        -webkit-user-select: text; user-select: text;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    input[type="text"]:focus {
+        border-color: rgba(196, 181, 253, 0.55);
+        box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.18);
+    }
+    input[type="text"]::placeholder { color: var(--faint); }
+    .btn {
+        border: none; border-radius: 10px; cursor: pointer; outline: none;
+        font-size: 13px; font-weight: 700;
+        padding: 10px 16px;
+        transition: transform 0.12s ease, box-shadow 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+    }
+    .btn:active { transform: scale(0.96); }
+    .btn-primary {
+        color: #fff;
+        background: linear-gradient(92deg, var(--brand-a), var(--brand-b));
+        box-shadow: 0 6px 20px -6px rgba(147, 51, 234, 0.6);
+    }
+    .btn-primary:hover { box-shadow: 0 8px 26px -6px rgba(147, 51, 234, 0.85); }
+    .btn-primary:disabled { opacity: 0.55; cursor: default; transform: none; }
+    .btn-ghost {
+        color: var(--text);
+        background: rgba(255,255,255,0.07);
+        border: 1px solid rgba(255,255,255,0.12);
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,0.12); }
+    .setup-actions { display: flex; gap: 8px; margin-top: 14px; }
+    .setup-actions .btn { flex: 1; }
+    .setup-error {
+        display: none;
+        margin-top: 12px;
+        font-size: 12px; line-height: 1.5; color: var(--danger);
+        background: rgba(251, 113, 133, 0.08);
+        border: 1px solid rgba(251, 113, 133, 0.25);
+        border-radius: 10px;
+        padding: 9px 12px;
+    }
+    .setup-error.visible { display: block; animation: shake 0.4s ease; }
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-4px); }
+        75% { transform: translateX(4px); }
+    }
+
+    /* failure */
+    .fail-card {
+        margin-top: 26px;
+        background: rgba(251, 113, 133, 0.05);
+        border: 1px solid rgba(251, 113, 133, 0.28);
+        border-radius: 16px;
+        padding: 18px;
+        backdrop-filter: blur(14px);
+    }
+    .fail-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+    .fail-title .dot {
+        width: 8px; height: 8px; border-radius: 50%; background: var(--danger);
+        box-shadow: 0 0 10px var(--danger);
+    }
+    .fail-message {
+        font-family: "Cascadia Code", Consolas, monospace;
+        font-size: 11px; line-height: 1.6; color: var(--muted);
+        max-height: 108px; overflow-y: auto; overflow-wrap: anywhere;
+        -webkit-user-select: text; user-select: text;
+        white-space: pre-wrap;
+    }
+    .fail-actions { display: flex; gap: 8px; margin-top: 14px; }
+    .fail-actions .btn { flex: 1; }
+
+    /* footer note */
+    .footnote {
+        position: fixed; bottom: 14px; left: 0; right: 0;
+        text-align: center; font-size: 10px; letter-spacing: 0.1em;
+        text-transform: uppercase; color: var(--faint);
+        opacity: 0.8;
+    }
+
+    .hidden { display: none !important; }
+</style>
+</head>
+<body class="booting">
+
+<div class="backdrop"></div>
+<canvas class="stars" id="stars"></canvas>
+<div class="grain"></div>
+
+<div class="titlebar">
+    <span class="app-name">Denshi Mobile</span>
+    <div class="win-buttons">
+        <button id="btn-minimize" title="Minimize" aria-label="Minimize">
+            <svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" stroke-width="1.2"/></svg>
+        </button>
+        <button id="btn-close" class="close" title="Close" aria-label="Close">
+            <svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1.2"/></svg>
+        </button>
+    </div>
+</div>
+
+<div class="stage">
+
+    <div class="emblem-wrap">
+        <div class="emblem-halo"></div>
+        <svg class="emblem" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <linearGradient id="page-left" x1="24" y1="30" x2="63" y2="103" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#fb7185"/>
+                    <stop offset="1" stop-color="#9333ea"/>
+                </linearGradient>
+                <linearGradient id="page-right" x1="68" y1="31" x2="105" y2="101" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#c4b5fd"/>
+                    <stop offset="1" stop-color="#38bdf8"/>
+                </linearGradient>
+                <linearGradient id="spark" x1="91" y1="11" x2="108" y2="34" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#fff7c2"/>
+                    <stop offset="1" stop-color="#f0abfc"/>
+                </linearGradient>
+                <filter id="glow" x="81" y="1" width="39" height="39" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+                    <feGaussianBlur stdDeviation="4"/>
+                </filter>
+            </defs>
+            <path d="M15.5 66.5C21.1 31.2 42.3 12 64 12s42.9 19.2 48.5 54.5" stroke="#c4b5fd" stroke-opacity=".34" stroke-width="2"/>
+            <path d="M20 77.5c11.6 22 27.5 33 44 33s32.4-11 44-33" stroke="#a78bfa" stroke-opacity=".27" stroke-width="2"/>
+            <g class="spark-star">
+            <path d="M100 6c1.4 10.5 5.5 14.6 16 16-10.5 1.4-14.6 5.5-16 16-1.4-10.5-5.5-14.6-16-16 10.5-1.4 14.6-5.5 16-16Z" fill="#f0abfc" filter="url(#glow)"/>
+            <path d="M100 6c1.4 10.5 5.5 14.6 16 16-10.5 1.4-14.6 5.5-16 16-1.4-10.5-5.5-14.6-16-16 10.5-1.4 14.6-5.5 16-16Z" fill="url(#spark)"/>
+            </g>
+            <path d="m22 39.5 22-14 18 9.2v69.8l-20-9.1-20 10.1V39.5Z" fill="url(#page-left)" stroke="#fff" stroke-opacity=".75" stroke-width="2.5" stroke-linejoin="round"/>
+            <path d="m66 34.7 18-9.2 22 14v66l-20-10.1-20 9.1V34.7Z" fill="url(#page-right)" stroke="#fff" stroke-opacity=".75" stroke-width="2.5" stroke-linejoin="round"/>
+            <path d="m30 44.5 25-11v20L30 65V44.5Z" fill="#1b1030" fill-opacity=".68"/>
+            <path d="m30 70 25-10v26L30 75.5V70Z" fill="#1b1030" fill-opacity=".48"/>
+            <path d="m73 34 25 11v20L73 54V34Z" fill="#1b1030" fill-opacity=".47"/>
+            <path d="m73 60 25 10v5.5L73 86V60Z" fill="#1b1030" fill-opacity=".62"/>
+            <path d="m38 47 10-4M38 72l10 2M81 40l10 4M81 73l10-4" stroke="#fff" stroke-opacity=".88" stroke-width="2" stroke-linecap="round"/>
+            <path d="M64 36v67" stroke="#fff" stroke-opacity=".9" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M13 34c.6 4.7 2.3 6.4 7 7-4.7.6-6.4 2.3-7 7-.6-4.7-2.3-6.4-7-7 4.7-.6 6.4-2.3 7-7Z" fill="#fff" fill-opacity=".85"/>
+            <circle cx="113" cy="57" r="2" fill="#fff" fill-opacity=".9"/>
+        </svg>
+    </div>
+
+    <div class="title">Denshi Mobile</div>
+    <div class="subtitle" id="subtitle">Preparing your library…</div>
+
+    <!-- ── build progress ───────────────────────────────────────────────── -->
+    <div class="panel" id="panel-build">
+        <div class="progress-card">
+            <div class="progress-head">
+                <span class="progress-label" id="build-label">Preparing</span>
+                <span class="progress-percent" id="build-percent">0%</span>
+            </div>
+            <div class="progress-track">
+                <div class="progress-bar indeterminate" id="build-bar"></div>
+            </div>
+            <div class="log-tail" id="build-log"></div>
+        </div>
+    </div>
+
+    <!-- ── connecting ───────────────────────────────────────────────────── -->
+    <div class="panel" id="panel-connecting">
+        <div class="spinner-row">
+            <div class="spinner"></div>
+            <span id="connecting-text" style="font-size: 12.5px; color: var(--muted);">Connecting…</span>
+        </div>
+    </div>
+
+    <!-- ── setup (connect to server) ────────────────────────────────────── -->
+    <div class="panel" id="panel-setup">
+        <div class="setup-card">
+            <h2>Connect to your server</h2>
+            <p class="hint">Denshi Mobile is a client — it connects to the machine running Seaserver and never hosts anything itself.</p>
+            <label class="field-label" for="server-url">Server address</label>
+            <div class="url-row">
+                <input type="text" id="server-url" placeholder="http://192.168.1.10:43211" spellcheck="false" autocomplete="off">
+            </div>
+            <div class="setup-error" id="setup-error"></div>
+            <div class="setup-actions">
+                <button class="btn btn-primary" id="btn-connect">Connect</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── build failure ────────────────────────────────────────────────── -->
+    <div class="panel" id="panel-failed">
+        <div class="fail-card">
+            <div class="fail-title"><span class="dot"></span>The frontend couldn't build</div>
+            <div class="fail-message" id="fail-message"></div>
+            <div class="fail-actions">
+                <button class="btn btn-primary" id="btn-retry">Try again</button>
+                <button class="btn btn-ghost hidden" id="btn-continue">Continue anyway</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="footnote">connects to seaserver &middot; hosts nothing</div>
+
+<script>
+(function () {
+    "use strict"
+
+    const $ = (id) => document.getElementById(id)
+    const panelBuild = $("panel-build")
+    const panelConnecting = $("panel-connecting")
+    const panelSetup = $("panel-setup")
+    const panelFailed = $("panel-failed")
+    const subtitle = $("subtitle")
+
+    const DEFAULT_SERVER_URL = "http://169.254.119.91:43211"
+
+    // ── panel switching ────────────────────────────────────────────────────
+
+    function showPanel(which) {
+        for (const p of [panelBuild, panelConnecting, panelSetup, panelFailed]) {
+            p.classList.toggle("visible", p === which)
+        }
+    }
+
+    function setSubtitle(text) { subtitle.textContent = text }
+
+    // ── window buttons ─────────────────────────────────────────────────────
+
+    $("btn-minimize").addEventListener("click", () => { try { window.electron.window.minimize() } catch {} })
+    $("btn-close").addEventListener("click", () => { try { window.electron.window.close() } catch {} })
+
+    // ── starfield ──────────────────────────────────────────────────────────
+
+    const canvas = $("stars")
+    const ctx = canvas.getContext("2d")
+    let stars = []
+    function resizeCanvas() {
+        canvas.width = window.innerWidth
+        canvas.height = window.innerHeight
+        const count = Math.floor((canvas.width * canvas.height) / 9000)
+        stars = Array.from({ length: count }, () => ({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            r: Math.random() * 1.1 + 0.2,
+            a: Math.random() * 0.5 + 0.15,
+            drift: Math.random() * 0.02 + 0.004,
+            phase: Math.random() * Math.PI * 2,
+        }))
+    }
+    resizeCanvas()
+    window.addEventListener("resize", resizeCanvas)
+    let starRAF
+    function drawStars(t) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        for (const s of stars) {
+            const tw = s.a * (0.6 + 0.4 * Math.sin(t / 900 + s.phase))
+            ctx.beginPath()
+            ctx.arc(s.x, (s.y + t * s.drift * 0.02) % canvas.height, s.r, 0, Math.PI * 2)
+            ctx.fillStyle = `rgba(226, 232, 255, ${tw})`
+            ctx.fill()
+        }
+        starRAF = requestAnimationFrame(drawStars)
+    }
+    starRAF = requestAnimationFrame(drawStars)
+
+    // ── build progress ─────────────────────────────────────────────────────
+
+    const buildBar = $("build-bar")
+    const buildPercent = $("build-percent")
+    const buildLabel = $("build-label")
+    const buildLog = $("build-log")
+
+    function enterBuildState(labelText) {
+        document.body.classList.add("booting")
+        setSubtitle("Building the app from source — first launch takes a minute.")
+        buildLabel.textContent = labelText || "Preparing"
+        showPanel(panelBuild)
+    }
+
+    function onBuildProgress(p) {
+        if (!p || typeof p !== "object") return
+        enterBuildState(p.label)
+        const percent = Math.max(0, Math.min(100, Number(p.percent) || 0))
+        if (percent >= 100) {
+            buildBar.classList.remove("indeterminate")
+            buildBar.style.width = "100%"
+            buildPercent.textContent = "100%"
+        } else if (percent > 0) {
+            buildBar.classList.remove("indeterminate")
+            buildBar.style.width = `${percent}%`
+            buildPercent.textContent = `${Math.floor(percent)}%`
+        } else {
+            buildBar.classList.add("indeterminate")
+            buildPercent.textContent = "…"
+        }
+        if (p.line) {
+            const line = document.createElement("div")
+            line.className = "line latest"
+            line.textContent = String(p.line)
+            const prev = buildLog.querySelector(".line.latest")
+            if (prev) prev.classList.remove("latest")
+            buildLog.appendChild(line)
+            while (buildLog.children.length > 4) buildLog.removeChild(buildLog.firstChild)
+        }
+    }
+
+    // ── failure ────────────────────────────────────────────────────────────
+
+    function onBuildFailed(payload) {
+        document.body.classList.remove("booting")
+        setSubtitle("Something went wrong on the way up.")
+        $("fail-message").textContent = (payload && payload.message) ? String(payload.message) : "Unknown error"
+        $("btn-continue").classList.toggle("hidden", !(payload && payload.canContinue))
+        showPanel(panelFailed)
+    }
+
+    $("btn-retry").addEventListener("click", () => {
+        buildLog.innerHTML = ""
+        try { window.electron.send("build:retry") } catch {}
+    })
+    $("btn-continue").addEventListener("click", () => {
+        try { window.electron.send("build:continue") } catch {}
+    })
+
+    // ── setup ──────────────────────────────────────────────────────────────
+
+    const urlInput = $("server-url")
+    const setupError = $("setup-error")
+    const btnConnect = $("btn-connect")
+
+    function onShowSetup() {
+        document.body.classList.remove("booting")
+        setSubtitle("One-time setup — point the app at your server.")
+        try {
+            const stored = JSON.parse(localStorage.getItem("sea-remote-server-url") || "null")
+            urlInput.value = (typeof stored === "string" && stored) ? stored : DEFAULT_SERVER_URL
+        } catch {
+            urlInput.value = DEFAULT_SERVER_URL
+        }
+        setupError.classList.remove("visible")
+        showPanel(panelSetup)
+        setTimeout(() => urlInput.focus(), 60)
+    }
+
+    function setBusy(busy) {
+        btnConnect.disabled = !!busy
+        btnConnect.textContent = busy ? "Checking…" : "Connect"
+        if (busy) showPanel(panelConnecting)
+    }
+
+    async function connect() {
+        const url = urlInput.value.trim().replace(/\/+$/, "")
+        if (!url) {
+            setupError.textContent = "Enter the address of your server."
+            setupError.classList.add("visible")
+            return
+        }
+        if (!/^https?:\/\//i.test(url)) {
+            setupError.textContent = "The address must start with http:// or https://"
+            setupError.classList.add("visible")
+            return
+        }
+        setupError.classList.remove("visible")
+        setBusy(true)
+        $("connecting-text").textContent = "Reaching the server…"
+
+        try {
+            const result = await window.electron.serverConfig.validate(url)
+            if (!result || !result.ok) {
+                setupError.textContent = (result && result.error) ? result.error : "Could not reach the server."
+                setupError.classList.add("visible")
+                showPanel(panelSetup)
+                setBusy(false)
+                return
+            }
+            $("connecting-text").textContent = "Saving…"
+            await window.electron.serverConfig.save({ mode: "remote", remote_url: url })
+            // The web app reads its server URL from localStorage on the app:// origin; the
+            // splash shares that origin, so it plants the values here. Connection mode is
+            // remote, always — this client hosts nothing.
+            localStorage.setItem("sea-remote-server-url", JSON.stringify(url))
+            localStorage.setItem("sea-server-connection-mode", JSON.stringify("remote"))
+            setBusy(false)
+            window.electron.serverConfig.remoteReadyAck()
+        } catch (err) {
+            setupError.textContent = (err && err.message) ? err.message : String(err)
+            setupError.classList.add("visible")
+            showPanel(panelSetup)
+            setBusy(false)
+        }
+    }
+
+    btnConnect.addEventListener("click", connect)
+    urlInput.addEventListener("keydown", (e) => { if (e.key === "Enter") connect() })
+
+    // ── remote ready ───────────────────────────────────────────────────────
+
+    function onRemoteReady(payload) {
+        document.body.classList.remove("booting")
+        const url = payload && payload.remote_url ? String(payload.remote_url) : null
+        try {
+            if (url) localStorage.setItem("sea-remote-server-url", JSON.stringify(url))
+            localStorage.setItem("sea-server-connection-mode", JSON.stringify("remote"))
+        } catch {}
+        setSubtitle("Connecting to your server…")
+        showPanel(panelConnecting)
+        $("connecting-text").textContent = "Opening your library…"
+        try { window.electron.serverConfig.remoteReadyAck() } catch {}
+    }
+
+    // ── wire up the main-process channels ──────────────────────────────────
+
+    if (window.electron) {
+        window.electron.on("build-progress", onBuildProgress)
+        window.electron.on("build-failed", onBuildFailed)
+        window.electron.on("show-setup", onShowSetup)
+        window.electron.on("remote-ready", onRemoteReady)
+        window.electron.on("build:reset", () => {
+            buildLog.innerHTML = ""
+            onBuildProgress({ percent: 0, label: "Preparing" })
+        })
+    } else {
+        // Preload missing (raw browser open, dev without preload): show something honest.
+        setSubtitle("Preload unavailable — open the app through the shell.")
+        showPanel(panelSetup)
+    }
+
+    // Initial state: the boot machine starts the build; the first progress event will shape
+    // the panel.
+    setSubtitle("Building the app from source — first launch takes a minute.")
+    showPanel(panelBuild)
+    buildBar.classList.add("indeterminate")
+})()
+</script>
+</body>
+</html>
