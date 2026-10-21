@@ -10,7 +10,7 @@ import (
 // at startup via SetVersionsFromJSON. Defaults below are used as fallback if the
 // manifest is missing or malformed.
 var (
-	Version             = "5.0.0-0"
+	Version             = "5.0.0-1"
 	VersionName         = "Deus Ex Aeternae"
 	SeanimeRoomsVersion = "5.0.0-0"
 )
