@@ -23,7 +23,7 @@ import { useRouter } from "@/lib/navigation"
 import { formatDistanceToNow } from "date-fns"
 import React from "react"
 import { BiCheck, BiCheckDouble, BiTrash } from "react-icons/bi"
-import { LuBell, LuBookOpen, LuCalendar, LuCrown, LuPlay, LuPlus, LuStar, LuTv, LuUsers } from "react-icons/lu"
+import { LuBell, LuBookOpen, LuCalendar, LuCrown, LuExternalLink, LuPlay, LuPlus, LuRss, LuStar, LuTv, LuUsers } from "react-icons/lu"
 
 type NotificationDrawerProps = {
     open: boolean
@@ -40,6 +40,7 @@ const NOTIFICATION_TYPE_CONFIG: Record<string, { icon: React.ElementType; label:
     character_birthday: { icon: LuCrown, label: "Character Birthday", mediaRoute: "/entry" },
     achievement_unlocked: { icon: LuStar, label: "Achievement", mediaRoute: "" },
     manga_chapter: { icon: LuBookOpen, label: "New Chapter", mediaRoute: "/manga/entry" },
+    news: { icon: LuRss, label: "News", mediaRoute: "" },
 }
 
 function getNotificationConfig(type: string) {
@@ -59,9 +60,27 @@ export function NotificationDrawer({ open, onOpenChange }: NotificationDrawerPro
     const totalCount = data?.totalCount || 0
     const hasMore = notifications.length < totalCount && page * 20 < totalCount
 
+    // News notifications carry their article link in metadata and open it directly — they point
+    // off-site, so there is no route to push.
+    const parseNewsLink = React.useCallback((notification: Notification): string | null => {
+        if (notification.type !== "news" || !notification.metadata) return null
+        try {
+            const meta = JSON.parse(notification.metadata) as { link?: string } | null
+            return typeof meta?.link === "string" && meta.link ? meta.link : null
+        } catch {
+            return null
+        }
+    }, [])
+
     const handleNotificationClick = React.useCallback((notification: Notification) => {
         if (!notification.isRead) {
             markRead({ notificationId: notification.id })
+        }
+
+        const newsLink = parseNewsLink(notification)
+        if (newsLink) {
+            window.open(newsLink, "_blank", "noopener,noreferrer")
+            return
         }
 
         const config = getNotificationConfig(notification.type)
@@ -69,7 +88,7 @@ export function NotificationDrawer({ open, onOpenChange }: NotificationDrawerPro
             onOpenChange(false)
             router.push(`${config.mediaRoute}?id=${notification.mediaId}`)
         }
-    }, [markRead, onOpenChange, router])
+    }, [markRead, onOpenChange, parseNewsLink, router])
 
     const handleDelete = React.useCallback((e: React.MouseEvent, notificationId: number) => {
         e.stopPropagation()
@@ -146,7 +165,8 @@ type NotificationItemProps = {
 function NotificationItem({ notification, onClick, onDelete }: NotificationItemProps) {
     const config = getNotificationConfig(notification.type)
     const Icon = config.icon
-    const isClickable = config.mediaRoute && notification.mediaId > 0
+    const isNews = notification.type === "news"
+    const isClickable = isNews || (config.mediaRoute && notification.mediaId > 0)
 
     const timeAgo = React.useMemo(() => {
         try {
@@ -198,6 +218,7 @@ function NotificationItem({ notification, onClick, onDelete }: NotificationItemP
                 <div className="flex items-center gap-2 mt-1">
                     <span className="text-xs text-[--muted] opacity-70">{timeAgo}</span>
                     <span className="text-xs text-[--muted] opacity-50">{config.label}</span>
+                    {isNews && <LuExternalLink className="text-xs text-[--muted] opacity-50" />}
                 </div>
 
                 {/* Interactive actions for first-episode-aired notifications. */}

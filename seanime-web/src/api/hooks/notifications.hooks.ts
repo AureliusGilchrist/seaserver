@@ -17,6 +17,8 @@ export type NotificationCreatedEvent = {
     body: string
     imageUrl: string
     mediaId: number
+    /** JSON string; for `news` notifications it carries { link, feedTitle, publishedAt }. */
+    metadata?: string
 }
 
 export function useGetNotifications(page: number, limit: number = 20, enabled?: boolean) {

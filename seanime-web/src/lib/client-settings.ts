@@ -27,6 +27,13 @@ export const clientSettingsSchema = z.object({
     // Hours of day (0–23) the still-watching check applies in; the window may cross midnight.
     stillWatchingStartHour: z.number().optional(),
     stillWatchingEndHour: z.number().optional(),
+    // When the check applies: "night" (default 7 pm–10 am window), "always", or "custom" hours.
+    stillWatchingTimingMode: z.enum(["night", "always", "custom"]).optional(),
+    // News
+    /** How many entries the full News page shows (the widget's "Show more" tab). */
+    newsFeedShowMoreCount: z.number().optional(),
+    /** Whether a new RSS entry raises a live notification + drawer entry for this profile. */
+    newsNotifyNewEntries: z.boolean().optional(),
     // Display
     hideAudienceScore: z.boolean().optional(),
     blurAdultContent: z.boolean().optional(),

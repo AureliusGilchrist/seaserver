@@ -52,7 +52,7 @@ import { GiTrophyCup, GiPalette } from "react-icons/gi"
 import { FiLogIn, FiSearch } from "react-icons/fi"
 import { HiOutlineServerStack } from "react-icons/hi2"
 import { IoCloudOfflineOutline, IoHomeOutline } from "react-icons/io5"
-import { LuBook, LuBookOpen, LuBell, LuCalendar, LuCirclePlay, LuClipboardCheck, LuCompass, LuDownload, LuFlag, LuFolderSearch, LuGlobe, LuGitFork, LuHardDriveDownload, LuLayers, LuListVideo, LuLayoutDashboard, LuMessagesSquare, LuMonitorPlay, LuRefreshCw, LuRss, LuSettings, LuShieldCheck, LuTv, LuUsers, LuWrench } from "react-icons/lu"
+import { LuBook, LuBookOpen, LuBell, LuCalendar, LuCirclePlay, LuClipboardCheck, LuCompass, LuDownload, LuFlag, LuFolderSearch, LuGlobe, LuGitFork, LuHardDriveDownload, LuLayers, LuListVideo, LuLayoutDashboard, LuMessagesSquare, LuMonitorPlay, LuNewspaper, LuRefreshCw, LuRss, LuSettings, LuShieldCheck, LuTv, LuUserRound, LuUsers } from "react-icons/lu"
 import { SiAnilist } from "react-icons/si"
 import { MdBackspace, MdOutlineConnectWithoutContact } from "react-icons/md"
 import { PiArrowCircleLeftDuotone, PiArrowCircleRightDuotone } from "react-icons/pi"
@@ -207,42 +207,137 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
         [enqueueFutureQueue])
     const achievementUnlockedCount = achievementSummary?.unlockedCount ?? 0
 
-    // Items
-    const enmasseDownloaders = [
-        {
-            id: "enmasse-anime",
-            iconType: LuTv,
-            name: "Anime En Masse",
-            href: "/enmasse-anime",
-            isCurrent: pathname === "/enmasse-anime",
-        },
-        {
-            id: "enmasse-manga",
-            iconType: LuBook,
-            name: "Manga En Masse",
-            href: "/enmasse-manga",
-            isCurrent: pathname === "/enmasse-manga",
-        },
-    ]
-
     // The sidebar, grouped.
     //
-    // Above the groups, the landing page itself — the map of the app, and the one place that is
-    // somebody's own: its widgets are arranged from there. It is an entry, not a group, so it sits
-    // alone at the top where a home button belongs.
+    // Above the groups, the launchers — the landing page, search, and the notification tray: the
+    // three things reached from wherever you happen to be. They sit outside every group so no fold
+    // can put them away, and the unread badge shows without opening anything.
     //
     // Every entry then sits under a heading that says what it is for, so the column reads as a few
     // short lists rather than one long one: what you watch, what AniList knows about you, what is
     // downloading, and who else is here. The headings are marked with an icon — the watch group's
     // is a play button, the AniList group's is the AniList logo — and they fold: pressing one puts
     // its entries away, in both modes, and the folds are remembered.
-    const items = React.useMemo(() => [
+    //
+    // Within the groups, the occasional pages fold into one submenu row of their own — Planning,
+    // Download tools, You — so a group is two or three rows however many pages it holds. The
+    // per-page badges ride on the submenu parent as their sum.
+    const items = React.useMemo(() => {
+        const planningItems = [
+            {
+                id: "missed-sequels",
+                iconType: LuGitFork,
+                name: "Missed sequels",
+                href: "/missed-sequels",
+                isCurrent: pathname === "/missed-sequels",
+            },
+            {
+                id: "to-watch",
+                iconType: LuListVideo,
+                name: "Todo List",
+                href: "/to-watch",
+                isCurrent: pathname === "/to-watch",
+            },
+        ]
+
+        const downloadToolItems = [
+            {
+                id: "enqueue-future",
+                iconType: LuLayers,
+                name: "Enqueue Future",
+                href: "/enqueue-future",
+                isCurrent: pathname === "/enqueue-future",
+            },
+            {
+                id: "enmasse-anime",
+                iconType: LuTv,
+                name: "Anime En Masse",
+                href: "/enmasse-anime",
+                isCurrent: pathname === "/enmasse-anime",
+            },
+            {
+                id: "enmasse-manga",
+                iconType: LuBook,
+                name: "Manga En Masse",
+                href: "/enmasse-manga",
+                isCurrent: pathname === "/enmasse-manga",
+            },
+            ...(serverStatus?.settings?.library?.torrentProvider !== TORRENT_PROVIDER.NONE && !!serverStatus?.settings?.library?.libraryPath) ? [{
+                id: "auto-downloader",
+                iconType: LuRss,
+                name: "Auto Downloader",
+                href: "/auto-downloader",
+                isCurrent: pathname === "/auto-downloader",
+            }] : [],
+            ...(serverStatus?.debridSettings?.enabled && !!serverStatus?.debridSettings?.provider) ? [{
+                id: "debrid",
+                iconType: HiOutlineServerStack,
+                name: "Debrid",
+                href: "/debrid",
+                isCurrent: pathname === "/debrid",
+            }] : [],
+            ...(!!serverStatus?.settings?.library?.libraryPath) ? [{
+                id: "scan-summaries",
+                iconType: TbReportSearch,
+                name: "Scan summaries",
+                href: "/scan-summaries",
+                isCurrent: pathname === "/scan-summaries",
+            }] : [],
+        ]
+
+        const youItems = [
+            {
+                id: "my-profile",
+                iconType: LuUsers,
+                name: "Profile",
+                href: myProfileHref,
+                isCurrent: pathname.startsWith("/profile/user") && (!myProfileId || searchParams.get("id") === String(myProfileId)),
+            },
+            {
+                id: "achievements",
+                iconType: GiTrophyCup,
+                name: "Achievements",
+                href: "/achievements",
+                isCurrent: pathname === "/achievements",
+            },
+            {
+                id: "milestones",
+                iconType: LuFlag,
+                name: "Milestones",
+                href: "/milestones",
+                isCurrent: pathname === "/milestones",
+            },
+        ]
+
+        return [
         {
             id: "landing",
             iconType: LuLayoutDashboard,
             name: "Home",
             href: "/",
             isCurrent: pathname === "/",
+        },
+        {
+            id: "search",
+            iconType: FiSearch,
+            name: "Search",
+            onClick: () => {
+                ctx.setOpen(false)
+                setSeaCommandOpen(true)
+            },
+        },
+        {
+            id: "notifications",
+            iconType: LuBell,
+            name: "Notifications",
+            onClick: () => {
+                ctx.setOpen(false)
+                setNotificationDrawerOpen(true)
+            },
+            addon: (unreadCount ?? 0) > 0 ? <Badge
+                className="absolute right-0 top-0" size="sm"
+                intent="alert-solid"
+            >{unreadCount}</Badge> : undefined,
         },
 
         // ── Watch ────────────────────────────────────────────────────────
@@ -272,18 +367,19 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
             >{missingEpisodeCount}</Badge> : undefined,
         },
         {
-            id: "missed-sequels",
-            iconType: LuGitFork,
-            name: "Missed sequels",
-            href: "/missed-sequels",
-            isCurrent: pathname === "/missed-sequels",
+            id: "news",
+            iconType: LuNewspaper,
+            name: "News",
+            href: "/news",
+            isCurrent: pathname === "/news",
         },
         {
-            id: "to-watch",
-            iconType: LuListVideo,
-            name: "Todo List",
-            href: "/to-watch",
-            isCurrent: pathname === "/to-watch",
+            id: "planning",
+            iconType: LuClipboardCheck,
+            name: "Planning",
+            isCurrent: planningItems.some(item => item.isCurrent),
+            subContentOpen: planningItems.some(item => item.isCurrent),
+            subContent: <SidebarSubMenu items={planningItems} collapsed={isCollapsed} />,
         },
 
         // ── AniList ──────────────────────────────────────────────────────
@@ -341,48 +437,18 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
                     >{activeTorrentCount.downloading + activeTorrentCount.paused}</Badge>
                     : undefined,
             }] : [],
-        ...(serverStatus?.debridSettings?.enabled && !!serverStatus?.debridSettings?.provider) ? [{
-            id: "debrid",
-            iconType: HiOutlineServerStack,
-            name: "Debrid",
-            href: "/debrid",
-            isCurrent: pathname === "/debrid",
-        }] : [],
         {
-            id: "enqueue-future",
-            iconType: LuLayers,
-            name: "Enqueue Future",
-            href: "/enqueue-future",
-            isCurrent: pathname === "/enqueue-future",
-            addon: enqueueFutureCount > 0
-                ? <Badge className="absolute right-0 top-0" size="sm" intent="alert-solid">{enqueueFutureCount}</Badge>
-                : undefined,
-        },
-        {
-            id: "enmasse",
+            id: "download-tools",
             iconType: LuDownload,
-            name: "En Masse Downloaders",
-            isCurrent: pathname.startsWith("/enmasse"),
-            subContent: <SidebarSubMenu items={enmasseDownloaders} collapsed={isCollapsed} />,
-        },
-        ...(serverStatus?.settings?.library?.torrentProvider !== TORRENT_PROVIDER.NONE && !!serverStatus?.settings?.library?.libraryPath) ? [{
-            id: "auto-downloader",
-            iconType: LuRss,
-            name: "Auto Downloader",
-            href: "/auto-downloader",
-            isCurrent: pathname === "/auto-downloader",
-            addon: autoDownloaderQueueCount > 0 ? <Badge
+            name: "Download tools",
+            isCurrent: downloadToolItems.some(item => item.isCurrent),
+            subContentOpen: downloadToolItems.some(item => item.isCurrent),
+            addon: (enqueueFutureCount + autoDownloaderQueueCount) > 0 ? <Badge
                 className="absolute right-0 top-0" size="sm"
                 intent="alert-solid"
-            >{autoDownloaderQueueCount}</Badge> : undefined,
-        }] : [],
-        ...(!!serverStatus?.settings?.library?.libraryPath) ? [{
-            id: "scan-summaries",
-            iconType: TbReportSearch,
-            name: "Scan summaries",
-            href: "/scan-summaries",
-            isCurrent: pathname === "/scan-summaries",
-        }] : [],
+            >{enqueueFutureCount + autoDownloaderQueueCount}</Badge> : undefined,
+            subContent: <SidebarSubMenu items={downloadToolItems} collapsed={isCollapsed} />,
+        },
 
         // ── Community ────────────────────────────────────────────────────
         {
@@ -392,13 +458,6 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
             isGroupHeading: true,
         },
         {
-            id: "my-profile",
-            iconType: LuUsers,
-            name: "Profile",
-            href: myProfileHref,
-            isCurrent: pathname.startsWith("/profile/user") && (!myProfileId || searchParams.get("id") === String(myProfileId)),
-        },
-        {
             id: "community",
             iconType: LuGlobe,
             name: "Community",
@@ -406,51 +465,15 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
             isCurrent: pathname.includes("/community"),
         },
         {
-            id: "achievements",
-            iconType: GiTrophyCup,
-            name: "Achievements",
-            href: "/achievements",
-            isCurrent: pathname === "/achievements",
+            id: "you",
+            iconType: LuUserRound,
+            name: "You",
+            isCurrent: youItems.some(item => item.isCurrent),
+            subContentOpen: youItems.some(item => item.isCurrent),
             addon: achievementUnlockedCount > 0 ? <Badge className="absolute right-0 top-0 bg-amber-500" size="sm" intent="alert-solid">{achievementUnlockedCount}</Badge> : undefined,
+            subContent: <SidebarSubMenu items={youItems} collapsed={isCollapsed} />,
         },
-        {
-            id: "milestones",
-            iconType: LuFlag,
-            name: "Milestones",
-            href: "/milestones",
-            isCurrent: pathname === "/milestones",
-        },
-
-        // ── Tools ────────────────────────────────────────────────────────
-        {
-            id: "group-tools",
-            name: "Tools",
-            iconType: LuWrench,
-            isGroupHeading: true,
-        },
-        {
-            id: "search",
-            iconType: FiSearch,
-            name: "Search",
-            onClick: () => {
-                ctx.setOpen(false)
-                setSeaCommandOpen(true)
-            },
-        },
-        {
-            id: "notifications",
-            iconType: LuBell,
-            name: "Notifications",
-            onClick: () => {
-                ctx.setOpen(false)
-                setNotificationDrawerOpen(true)
-            },
-            addon: (unreadCount ?? 0) > 0 ? <Badge
-                className="absolute right-0 top-0" size="sm"
-                intent="alert-solid"
-            >{unreadCount}</Badge> : undefined,
-        },
-    ], [
+        ]}, [
         pathname,
         missingEpisodeCount,
         serverStatus?.settings?.library?.enableManga,
@@ -464,9 +487,12 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
         activeTorrentCount.downloading,
         activeTorrentCount.paused,
         autoDownloaderQueueCount,
+        enqueueFutureCount,
         unreadCount,
         unmatchedCount,
         achievementUnlockedCount,
+        isCollapsed,
+        myProfileId,
     ])
 
     // Plugins
@@ -513,7 +539,7 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
                 collapsed={isCollapsed}
                 itemClass="relative transition-all duration-300 ease-out"
                 itemContentClass="gap-3"
-                itemChevronClass="hidden"
+                itemChevronClass={isCollapsed ? "hidden" : undefined}
                 itemIconClass="transition-transform duration-300"
                 items={[
                     ...visibleItems.map(applyAnimeOverride),

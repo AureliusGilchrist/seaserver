@@ -26,6 +26,12 @@ func RunJobs(app *core.App) func() {
 	// banner changed on AniList used to do nothing until the next sign-in, which for a server that
 	// stays signed in is never.
 	refreshViewerTicker := time.NewTicker(1 * time.Hour)
+	// New RSS entries → notifications. The feed cache is shared with the /news handler, so this
+	// costs nothing when the handler fetched moments ago; the first run only marks the feed's
+	// current entries as seen, so the ticker cadence is what a new headline waits at most.
+	newsTicker := time.NewTicker(15 * time.Minute)
+	// One early check so an item published just after boot is not held for a full interval.
+	newsStartupCheck := time.NewTimer(3 * time.Minute)
 	stopCh := make(chan struct{})
 	var stopOnce sync.Once
 	var wg sync.WaitGroup
@@ -39,6 +45,8 @@ func RunJobs(app *core.App) func() {
 			refetchAnnouncementsTicker.Stop()
 			notificationCleanupTicker.Stop()
 			refreshViewerTicker.Stop()
+			newsTicker.Stop()
+			newsStartupCheck.Stop()
 			wg.Wait()
 		})
 	}
@@ -133,6 +141,28 @@ func RunJobs(app *core.App) func() {
 					continue
 				}
 				RefreshViewerJob(ctx)
+			}
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-stopCh:
+				return
+			case <-newsStartupCheck.C:
+				if app.IsOffline() {
+					// Boot raced the network; retry on the ticker instead of busy-looping here.
+					continue
+				}
+				CheckNewsNotificationsJob(ctx)
+			case <-newsTicker.C:
+				if app.IsOffline() {
+					continue
+				}
+				CheckNewsNotificationsJob(ctx)
 			}
 		}
 	}()

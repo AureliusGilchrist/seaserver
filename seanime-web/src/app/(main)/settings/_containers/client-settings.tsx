@@ -1,6 +1,7 @@
 import { SettingsCard, SettingsPageHeader } from "@/app/(main)/settings/_components/settings-card"
 import { AnilistOverwriteCard } from "@/app/(main)/settings/_containers/anilist-overwrite-settings"
 import { PlaybackSettings } from "@/app/(main)/settings/_components/playback-settings"
+import { StillWatchingTiming } from "@/app/(main)/settings/_components/still-watching-timing"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { NumberInput } from "@/components/ui/number-input"
@@ -85,32 +86,22 @@ export function ClientSettings(props: ClientSettingsProps) {
                                 }
                             }}
                         />
-                        <NumberInput
-                            className="max-w-[240px]"
-                            label="Ask between (from hour)"
-                            help="The hour of day the check applies from — 19 is 7 pm. Hours are 24-hour, 0–23."
-                            min={0}
-                            max={23}
-                            value={personal.stillWatchingStartHour}
-                            onValueChange={v => {
-                                if (!Number.isNaN(v)) {
-                                    handleSet("stillWatchingStartHour", v)
-                                }
-                            }}
-                        />
-                        <NumberInput
-                            className="max-w-[240px]"
-                            label="Ask between (until hour)"
-                            help="The hour of day the check applies until — 10 is 10 am. The window can cross midnight: from 19 until 10 means 7 pm to 10 am."
-                            min={0}
-                            max={23}
-                            value={personal.stillWatchingEndHour}
-                            onValueChange={v => {
-                                if (!Number.isNaN(v)) {
-                                    handleSet("stillWatchingEndHour", v)
-                                }
-                            }}
-                        />
+                        <div className="max-w-md">
+                            <p className="mb-2 text-sm font-medium">When to ask</p>
+                            <StillWatchingTiming
+                                mode={personal.stillWatchingTimingMode}
+                                startHour={personal.stillWatchingStartHour}
+                                endHour={personal.stillWatchingEndHour}
+                                onModeChange={mode => handleSet("stillWatchingTimingMode", mode)}
+                                onStartHourChange={hour => handleSet("stillWatchingStartHour", hour)}
+                                onEndHourChange={hour => handleSet("stillWatchingEndHour", hour)}
+                            />
+                            <p className="mt-2 text-xs text-[--muted]">
+                                Late-night sessions run long and empty rooms go unnoticed — that's when
+                                the question earns its interruption. Midday viewing stays untouched unless
+                                you choose All day or draw your own hours.
+                            </p>
+                        </div>
                     </>
                 )}
             </SettingsCard>
@@ -141,6 +132,32 @@ export function ClientSettings(props: ClientSettingsProps) {
                     onValueChange={v => handleSet("mangaAutoUpdateProgress", v)}
                     label="Automatically update manga progress"
                     help="If enabled, reading a chapter to the end marks it as read on your list."
+                />
+            </SettingsCard>
+
+            <SettingsCard
+                title="News"
+                description="The RSS headlines on the home page and the News page."
+            >
+                <Switch
+                    value={personal.newsNotifyNewEntries}
+                    onValueChange={v => handleSet("newsNotifyNewEntries", v)}
+                    label="Notify about new articles"
+                    help="When a feed publishes something new, a notification pops up and lands in the notification drawer."
+                    moreHelp="Each profile decides for itself; the server checks your feeds every 15 minutes."
+                />
+                <NumberInput
+                    className="max-w-[240px]"
+                    label="Entries in the News page"
+                    help="How many entries the News page shows — the page the widget's “Show more” opens. Between 10 and 200."
+                    min={10}
+                    max={200}
+                    value={personal.newsFeedShowMoreCount}
+                    onValueChange={v => {
+                        if (!Number.isNaN(v)) {
+                            handleSet("newsFeedShowMoreCount", v)
+                        }
+                    }}
                 />
             </SettingsCard>
 

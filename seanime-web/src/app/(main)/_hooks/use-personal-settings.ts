@@ -2,15 +2,23 @@ import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { useClientSettings } from "@/lib/client-settings"
 import React from "react"
 
+export type StillWatchingTimingMode = "night" | "always" | "custom"
+
 export type PersonalSettings = {
     autoUpdateProgress: boolean
     enableWatchContinuity: boolean
     autoPlayNextEpisode: boolean
     stillWatchingChecksEnabled: boolean
     stillWatchingEpisodes: number
+    /** How the check's active hours are chosen: the default night window, all day, or custom hours. */
+    stillWatchingTimingMode: StillWatchingTimingMode
     /** Hours of day (0–23) the still-watching check applies in; the window may cross midnight. */
     stillWatchingStartHour: number
     stillWatchingEndHour: number
+    /** How many entries the full News page shows (the News widget's "Show more" tab). */
+    newsFeedShowMoreCount: number
+    /** Whether a new RSS entry raises a live notification + drawer entry for this profile. */
+    newsNotifyNewEntries: boolean
     hideAudienceScore: boolean
     blurAdultContent: boolean
     disableAnimeCardTrailers: boolean
@@ -43,8 +51,11 @@ export function usePersonalSettings(): PersonalSettings {
         autoPlayNextEpisode: clientSettings.autoPlayNextEpisode ?? serverStatus?.settings?.library?.autoPlayNextEpisode ?? false,
         stillWatchingChecksEnabled: clientSettings.stillWatchingChecksEnabled ?? serverStatus?.settings?.mediaPlayer?.stillWatchingChecksEnabled ?? true,
         stillWatchingEpisodes: clientSettings.stillWatchingEpisodes ?? serverStatus?.settings?.mediaPlayer?.stillWatchingEpisodes ?? 3,
+        stillWatchingTimingMode: clientSettings.stillWatchingTimingMode ?? "night",
         stillWatchingStartHour: clientSettings.stillWatchingStartHour ?? 19,
         stillWatchingEndHour: clientSettings.stillWatchingEndHour ?? 10,
+        newsFeedShowMoreCount: clientSettings.newsFeedShowMoreCount ?? 40,
+        newsNotifyNewEntries: clientSettings.newsNotifyNewEntries ?? true,
         hideAudienceScore: clientSettings.hideAudienceScore ?? serverStatus?.settings?.anilist?.hideAudienceScore ?? false,
         blurAdultContent: clientSettings.blurAdultContent ?? serverStatus?.settings?.anilist?.blurAdultContent ?? false,
         disableAnimeCardTrailers: clientSettings.disableAnimeCardTrailers ?? serverStatus?.settings?.library?.disableAnimeCardTrailers ?? false,

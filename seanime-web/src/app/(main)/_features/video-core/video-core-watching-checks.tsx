@@ -56,6 +56,21 @@ export function isInCheckWindow(hour: number, startHour: number, endHour: number
     return hour >= start || hour < end
 }
 
+/**
+ * Whether the check applies at this hour, honoring the chosen timing mode ("night" — the preset
+ * evening-to-morning window, "always" — every hour, "custom" — the user's own window).
+ * Midnight-crossing windows and equal ends mean the whole day, as in isInCheckWindow.
+ */
+export function isStillWatchingActiveHour(
+    hour: number,
+    timingMode: "night" | "always" | "custom",
+    startHour: number,
+    endHour: number,
+): boolean {
+    if (timingMode === "always") return true
+    return isInCheckWindow(hour, startHour, endHour)
+}
+
 export type VideoCoreSequelPromptState = {
     mediaId: number
     /** The series just finished. */
@@ -78,8 +93,11 @@ export type VideoCoreStillWatchingConfig = {
      * The check only intercepts an advance the player was about to make by itself — with
      * auto-next off the user picks each episode, so there is nothing to ask about. */
     canAutoAdvance?: boolean
-    /** Hours of day (0–23) the check applies in, "from startHour to endHour" — the default
-     * window is 19 → 10, 7 pm to 10 am. The window may span midnight; equal ends mean the
+    /** When the check applies: "night" — the preset 7 pm-to-10 am window (the default), "always" —
+     * every hour, "custom" — the startHour/endHour window below. */
+    timingMode?: "night" | "always" | "custom"
+    /** Hours of day (0–23) the check applies in when timingMode is "night" or "custom" — the
+     * default window is 19 → 10, 7 pm to 10 am. The window may span midnight; equal ends mean the
      * whole day. */
     startHour?: number
     endHour?: number
@@ -197,7 +215,7 @@ export function useVideoCoreWatchingChecks(
         setStillWatchingHold(false)
 
         const hour = new Date().getHours()
-        if (!isInCheckWindow(hour, stillWatchingConfig.startHour ?? DEFAULT_CHECK_START_HOUR, stillWatchingConfig.endHour ?? DEFAULT_CHECK_END_HOUR)) return false
+        if (!isStillWatchingActiveHour(hour, stillWatchingConfig.timingMode ?? "night", stillWatchingConfig.startHour ?? DEFAULT_CHECK_START_HOUR, stillWatchingConfig.endHour ?? DEFAULT_CHECK_END_HOUR)) return false
 
         const checkInterval = Math.max(1, stillWatchingConfig?.episodes ?? DEFAULT_EPISODES_BETWEEN_CHECKS)
         setStillWatching({ episodesWatched: checkInterval })

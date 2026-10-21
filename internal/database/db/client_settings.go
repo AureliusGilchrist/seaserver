@@ -28,6 +28,9 @@ type ClientSettingsOverrides struct {
 	MpvAutoSkipEnding  *bool `json:"mpvAutoSkipEnding,omitempty"`
 	MpvAutoSkipFiller  *bool `json:"mpvAutoSkipFiller,omitempty"`
 
+	// News: whether this profile wants a notification filed when a new RSS entry appears.
+	NewsNotifyNewEntries *bool `json:"newsNotifyNewEntries,omitempty"`
+
 	EnableRichPresence                      *bool `json:"enableRichPresence,omitempty"`
 	EnableAnimeRichPresence                 *bool `json:"enableAnimeRichPresence,omitempty"`
 	EnableMangaRichPresence                 *bool `json:"enableMangaRichPresence,omitempty"`

@@ -1,7 +1,7 @@
 "use client"
 
 import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
-import { useGetNewsFeed } from "@/api/hooks/news.hooks"
+import { formatNewsDate, useGetNewsFeed, type RssItem } from "@/api/hooks/news.hooks"
 import { useGetToWatch } from "@/api/hooks/towatch.hooks"
 import { useGetUnmatchedTorrents } from "@/api/hooks/unmatched.hooks"
 import { useGetAchievementSummary } from "@/api/hooks/achievement.hooks"
@@ -19,7 +19,7 @@ import { formatNumber } from "@/lib/helpers/number"
 import React from "react"
 import {
     LuArrowRight, LuCalendar, LuChevronLeft, LuCompass, LuDownload,
-    LuFolder, LuFolderOpen, LuFolderSearch, LuListVideo, LuMonitorPlay, LuRss,
+    LuFolder, LuFolderOpen, LuFolderSearch, LuListVideo, LuMonitorPlay, LuNewspaper, LuRss,
     LuUsers, LuWand, LuHardDrive, LuClipboardCheck, LuSettings, LuPalette, LuRefreshCw, LuLayers,
 } from "react-icons/lu"
 import { BiBook } from "react-icons/bi"
@@ -41,6 +41,7 @@ const quickLinkIcons: Record<string, React.ElementType> = {
     manga: BiBook,
     "to-watch": LuListVideo,
     discover: LuCompass,
+    news: LuNewspaper,
     lists: LuListVideo,
     unmatched: LuFolderSearch,
     "torrent-list": LuWand,
@@ -500,17 +501,22 @@ export function LandingUpdatesWidget() {
 
 /**
  * News — anime and manga headlines from the RSS feeds configured in Settings -> App, merged
- * newest-first by the server. Headlines open the source in a new tab; the description, when a
- * feed supplies one, is clamped to two lines so the list stays scannable.
+ * newest-first by the server. The rich card: a thumbnail when the feed supplies one, the feed's
+ * name as a chip, categories when there are any. Headlines open the source in a new tab; the
+ * full list — as many entries as Personal settings asks for — lives on the News page, which the
+ * footer's "Show more" opens.
  */
 export function LandingNewsWidget() {
     const { data, isLoading, isError, refetch, isRefetching } = useGetNewsFeed()
 
     const items = React.useMemo(() => data?.items ?? [], [data?.items])
+    // The widget is a headline rack, not an archive: the freshest six, the rest on the page.
+    const visible = React.useMemo(() => items.slice(0, 6), [items])
+    const hiddenCount = items.length - visible.length
 
     return (
-        <div className="relative z-[1] rounded-xl border border-brand-500/20 bg-black/25 backdrop-blur-md shadow-lg shadow-black/20 p-5">
-            <div className="flex items-center gap-3">
+        <div className="relative z-[1] overflow-hidden rounded-xl border border-brand-500/20 bg-black/25 backdrop-blur-md shadow-lg shadow-black/20">
+            <div className="flex items-center gap-3 p-5 pb-4">
                 <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-brand-500/15">
                     <LuRss className="w-4 h-4 text-[--brand]" />
                 </div>
@@ -526,54 +532,81 @@ export function LandingNewsWidget() {
                     <LuRefreshCw className={cn("w-4 h-4", isRefetching && "animate-spin")} />
                 </button>
             </div>
-            <div className="mt-4 space-y-2">
+            <div className="px-3 pb-3 space-y-1">
                 {isLoading && (
-                    <div className="space-y-2">
+                    <div className="space-y-2 px-2">
                         {[0, 1, 2].map(i => (
-                            <div key={i} className="h-12 rounded-lg bg-white/5 animate-pulse" />
+                            <div key={i} className="flex gap-3">
+                                <div className="h-16 w-24 rounded-lg bg-white/5 animate-pulse" />
+                                <div className="flex-1 space-y-2 py-1">
+                                    <div className="h-3.5 w-4/5 rounded bg-white/5 animate-pulse" />
+                                    <div className="h-3 w-2/5 rounded bg-white/5 animate-pulse" />
+                                </div>
+                            </div>
                         ))}
                     </div>
                 )}
                 {!isLoading && isError && (
-                    <p className="text-xs text-[--muted]">Could not load the news feeds. Check your connection and try again.</p>
+                    <p className="px-2 text-xs text-[--muted]">Could not load the news feeds. Check your connection and try again.</p>
                 )}
                 {!isLoading && !isError && items.length === 0 && (
-                    <p className="text-xs text-[--muted]">No items yet — feeds refresh every 15 minutes.</p>
+                    <p className="px-2 text-xs text-[--muted]">No items yet — feeds refresh every 15 minutes.</p>
                 )}
-                {!isLoading && !isError && items.map((item, idx) => (
-                    <a
-                        key={`${item.link}-${idx}`}
-                        href={item.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex gap-3 rounded-lg px-3 py-2 -mx-1 hover:bg-white/5 transition-colors"
-                    >
-                        <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium line-clamp-2 leading-snug">{item.title}</p>
-                            <div className="flex items-center gap-2 text-xs text-[--muted] mt-0.5">
-                                {!!item.feedTitle && <span className="truncate">{item.feedTitle}</span>}
-                                {!!item.publishedAt && (
-                                    <span className="flex-none">{formatNewsDate(item.publishedAt)}</span>
-                                )}
-                            </div>
-                            {!!item.description && (
-                                <p className="text-xs text-[--muted] line-clamp-2 mt-1">{item.description}</p>
-                            )}
-                        </div>
-                    </a>
+                {!isLoading && !isError && visible.map((item, idx) => (
+                    <NewsRow key={`${item.link}-${idx}`} item={item} />
                 ))}
             </div>
+            {!isLoading && !isError && (
+                <SeaLink
+                    href="/news"
+                    className="flex items-center justify-between border-t border-white/5 bg-white/[0.02] px-5 py-3 text-sm font-medium text-[--brand] transition-colors hover:bg-white/[0.05]"
+                >
+                    <span>Show more{hiddenCount > 0 ? ` — ${hiddenCount} more on the News page` : ""}</span>
+                    <LuArrowRight className="w-4 h-4" />
+                </SeaLink>
+            )}
         </div>
     )
 }
 
-/** Compact relative time for a feed item: "3h ago", "2d ago", or the date. */
-function formatNewsDate(unix: number): string {
-    const diff = Date.now() / 1000 - unix
-    if (diff < 0) return "just now"
-    if (diff < 3600) return `${Math.max(1, Math.floor(diff / 60))}m ago`
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
-    if (diff < 7 * 86400) return `${Math.floor(diff / 86400)}d ago`
-    return new Date(unix * 1000).toLocaleDateString()
+/** One headline: thumbnail when there is one, feed chip, title, snippet, age. */
+export function NewsRow({ item, withDescription = true }: { item: RssItem, withDescription?: boolean }) {
+    return (
+        <a
+            href={item.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-white/5"
+        >
+            {item.image ? (
+                <img
+                    src={item.image}
+                    alt=""
+                    loading="lazy"
+                    className="h-16 w-24 flex-none rounded-lg object-cover ring-1 ring-white/10"
+                />
+            ) : (
+                <div className="flex h-16 w-24 flex-none items-center justify-center rounded-lg bg-gradient-to-br from-brand-500/15 to-brand-900/20 ring-1 ring-white/5">
+                    <LuRss className="size-5 text-[--brand]/60" />
+                </div>
+            )}
+            <div className="min-w-0 flex-1 py-0.5">
+                <p className="text-sm font-medium line-clamp-2 leading-snug transition-colors group-hover:text-[--brand]">
+                    {item.title}
+                </p>
+                <div className="mt-1 flex items-center gap-1.5 text-xs text-[--muted]">
+                    {!!item.feedTitle && (
+                        <span className="max-w-[10rem] truncate rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                            {item.feedTitle}
+                        </span>
+                    )}
+                    {!!item.publishedAt && <span className="flex-none">{formatNewsDate(item.publishedAt)}</span>}
+                </div>
+                {withDescription && !!item.description && (
+                    <p className="mt-1 text-xs leading-relaxed text-[--muted] line-clamp-2">{item.description}</p>
+                )}
+            </div>
+        </a>
+    )
 }
 
