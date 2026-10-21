@@ -47,6 +47,37 @@ npm run build:apk:release  # release → android/app/build/outputs/apk/release/a
 The launcher icons come from the emblem SVG: `node scripts/make-icons.mjs` (needs `sharp`,
 already in devDependencies at time of writing — re-run only after changing the emblem).
 
+## Continuous builds
+
+`.github/workflows/android-release.yml` builds the release APK on every push to `main` that
+touches the client or the mobile frontend: it builds `out-mobile`, assembles `www/`, runs
+`assembleRelease`, verifies the signature, and attaches the APK to a prerelease
+(`v<version>-android`) plus a workflow artifact. The version string flows from `versions.json`
+through `sync-versions.js` into `package.json` and the gradle build; `versionCode` is the CI run
+number, so every build outranks the last.
+
+For a **signed** release, add these repository secrets:
+
+| Secret | Value |
+| --- | --- |
+| `ANDROID_KEYSTORE_B64` | base64 of `android/denshi-mobile.keystore` |
+| `ANDROID_KEYSTORE_PASSWORD` | the keystore's store password |
+| `ANDROID_KEY_ALIAS` | key alias (e.g. `denshi-mobile`) |
+| `ANDROID_KEY_PASSWORD` | the key password |
+
+Encode the keystore once with:
+
+```sh
+base64 -w 0 android/denshi-mobile.keystore
+```
+
+(On Windows Git Bash, `base64 -w 0` works; without `-w 0` the wrapped lines still decode
+fine with `base64 -d`.)
+
+Without the secrets the workflow still succeeds — the APK falls back to the debug signing key,
+which installs but can't update over a release-signed install. Signatures must match across
+installs, so add the secrets before publishing the first CI build users will keep.
+
 ## Publishing a frontend update
 
 From this directory:

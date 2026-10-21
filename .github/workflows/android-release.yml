@@ -1,0 +1,141 @@
+name: Denshi Mobile Android
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - main
+    paths:
+      - "seanime-denshi-mobile-android/**"
+      - "seanime-web/src/**"
+      - "seanime-web/package.json"
+      - "seanime-web/package-lock.json"
+      - "seanime-web/.env.mobile"
+      - "seanime-web/rsbuild.config.*"
+      - "versions.json"
+      - "sync-versions.js"
+      - ".github/workflows/android-release.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: denshi-mobile-android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            seanime-web/package-lock.json
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Install frontend dependencies
+        working-directory: seanime-web
+        run: |
+          npm ci
+          if [ $? -ne 0 ]; then echo "::error::npm ci failed in seanime-web"; exit 1; fi
+
+      - name: Build mobile frontend
+        working-directory: seanime-web
+        run: |
+          npm run build:mobile
+          if [ $? -ne 0 ]; then echo "::error::mobile frontend build failed"; exit 1; fi
+          if [ ! -f out-mobile/index.html ]; then echo "::error::out-mobile output is missing"; exit 1; fi
+
+      - name: Assemble web assets into the Android project
+        working-directory: seanime-denshi-mobile-android
+        run: |
+          npm ci
+          if [ $? -ne 0 ]; then echo "::error::npm ci failed in seanime-denshi-mobile-android"; exit 1; fi
+          node scripts/build-www.mjs
+          npx cap sync android
+
+      - name: Restore signing keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        working-directory: android
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > denshi-mobile.keystore
+            cat > keystore.properties <<EOF
+          storeFile=denshi-mobile.keystore
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+            echo "Release signing configured from secrets"
+          else
+            echo "::warning::ANDROID_KEYSTORE_B64 is not set — the release APK will be debug-signed"
+          fi
+
+      - name: Build release APK
+        working-directory: seanime-denshi-mobile-android/android
+        run: |
+          ./gradlew assembleRelease --no-daemon --stacktrace
+          if [ $? -ne 0 ]; then echo "::error::APK build failed"; exit 1; fi
+          if [ ! -f app/build/outputs/apk/release/app-release.apk ]; then echo "::error::APK output is missing"; exit 1; fi
+
+      - name: Name the APK after the release version
+        id: apk
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          VERSION=$(node -p "require('./seanime-denshi-mobile-android/package.json').version")
+          RELEASE_VERSION="$VERSION.auto.$RUN_NUMBER.$RUN_ATTEMPT"
+          ASSET="seanime-denshi-mobile-android-$RELEASE_VERSION.apk"
+          cp seanime-denshi-mobile-android/android/app/build/outputs/apk/release/app-release.apk "$ASSET"
+          echo "release_version=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
+          echo "asset=$ASSET" >> "$GITHUB_OUTPUT"
+
+      - name: Verify APK signature
+        run: |
+          BUILD_TOOLS_DIR="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+          "$BUILD_TOOLS_DIR/apksigner" verify --print-certs "${{ steps.apk.outputs.asset }}" | sed 's/^/  /'
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.apk.outputs.asset }}
+          path: ${{ steps.apk.outputs.asset }}
+          if-no-files-found: error
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ steps.apk.outputs.release_version }}
+          ASSET: ${{ steps.apk.outputs.asset }}
+        run: |
+          TAG="v${RELEASE_VERSION}-android"
+          NOTES="Automated Denshi Mobile Android build from commit $GITHUB_SHA."
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1
+          if [ $? -eq 0 ]; then
+            gh release upload "$TAG" "$ASSET" --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" "$ASSET" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Seanime Denshi Mobile $RELEASE_VERSION" \
+              --notes "$NOTES" \
+              --prerelease \
+              --target "$GITHUB_SHA"
+          fi

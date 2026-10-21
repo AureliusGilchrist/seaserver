@@ -8,6 +8,12 @@ if (keystorePropertiesFile.exists()) {
     keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
 }
 
+// The app's version follows the repo's single source of truth: sync-versions.js writes the
+// version into the project's package.json, and this reads it back. versionCode comes from the
+// CI run number so each automated build outranks the last; local builds stay at 1.
+def appPackage = new groovy.json.JsonSlurper().parseText(file('../../package.json').text)
+def ciRunNumber = System.getenv("GITHUB_RUN_NUMBER")
+
 android {
     namespace "app.seanine.denshi.mobile"
     compileSdk rootProject.ext.compileSdkVersion
@@ -15,8 +21,8 @@ android {
         applicationId "app.seanine.denshi.mobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode ciRunNumber ? ciRunNumber.toInteger() : 1
+        versionName appPackage.version
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

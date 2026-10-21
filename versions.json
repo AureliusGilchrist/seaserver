@@ -17,6 +17,10 @@
         "version": "5.0.6-1",
         "source": "seanime-denshi/package.json"
     },
+    "seanime-denshi-mobile-android": {
+        "version": "5.0.6-1",
+        "source": "seanime-denshi-mobile-android/package.json"
+    },
     "updater": {
         "fork_owner": "AureliusGilchrist",
         "fork_repo": "seaserver",

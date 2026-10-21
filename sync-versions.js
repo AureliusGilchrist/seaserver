@@ -62,6 +62,7 @@ if (BUMP) {
 
 const webVersion    = manifest["seanime-web"]?.version
 const denshiVersion = manifest["seanime-denshi"]?.version
+const androidVersion = manifest["seanime-denshi-mobile-android"]?.version
 const serverVersion = manifest["seaserver"]?.version
 const serverName    = manifest["seaserver"]?.codename
 const roomsVersion  = manifest["rooms"]?.version
@@ -120,6 +121,7 @@ console.log("sync-versions: propagating versions.json →")
 
 if (webVersion)    patchPackageJson("seanime-web/package.json",    webVersion)
 if (denshiVersion) patchPackageJson("seanime-denshi/package.json", denshiVersion)
+if (androidVersion) patchPackageJson("seanime-denshi-mobile-android/package.json", androidVersion)
 if (serverVersion && serverName && roomsVersion)
     patchGoConstants("internal/constants/constants.go", serverVersion, serverName, roomsVersion)
 
