@@ -1,0 +1,14 @@
+{
+    "appId": "app.seanine.denshi.mobile",
+    "appName": "Denshi Mobile",
+    "webDir": "www",
+    "android": {
+        "allowMixedContent": true,
+        "webContentsDebuggingEnabled": false
+    },
+    "plugins": {
+        "CapacitorHttp": {
+            "enabled": true
+        }
+    }
+}

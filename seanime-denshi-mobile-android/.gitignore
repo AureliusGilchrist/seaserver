@@ -1,0 +1,20 @@
+node_modules/
+www/
+publish/
+dist/
+
+# Android build outputs and local configuration
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/app/src/main/assets/public/
+android/capacitor-cordova-android-plugins/
+*.keystore
+!debug.keystore
+*.jks
+denshi-mobile.keystore
+keystore.properties
+
+# Built APKs stay out of git
+/DenshiMobile*.apk
