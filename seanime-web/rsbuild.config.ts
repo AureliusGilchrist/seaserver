@@ -11,7 +11,8 @@ import path from "path"
 const { publicVars } = loadEnv({ prefixes: ["SEA_"] })
 
 const isElectronDesktop = process.env.SEA_PUBLIC_DESKTOP === "electron"
-const distPath = isElectronDesktop ? "out-denshi" : "out"
+const isMobileShell = process.env.SEA_PUBLIC_PLATFORM === "mobile"
+const distPath = isMobileShell ? "out-mobile" : isElectronDesktop ? "out-denshi" : "out"
 
 // App version (single source of truth: package.json, kept in sync by sync-versions.js).
 // Exposed to the client so the react-query persister buster is tied to the build,

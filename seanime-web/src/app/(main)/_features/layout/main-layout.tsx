@@ -7,6 +7,7 @@ import { LibraryExplorerDrawer } from "@/app/(main)/_features/library-explorer/l
 import { LibraryWatcher } from "@/app/(main)/_features/library-watcher/library-watcher"
 import { MediaPreviewModal } from "@/app/(main)/_features/media/_containers/media-preview-modal"
 import { MainSidebar } from "@/app/(main)/_features/navigation/main-sidebar"
+import { MobileTabBar } from "@/app/(main)/_features/navigation/mobile-tab-bar"
 import { GlobalPlaylistManager } from "@/app/(main)/_features/playlists/_containers/global-playlist-manager"
 import { PlaylistListModal } from "@/app/(main)/_features/playlists/playlist-list-modal"
 import { PluginManager } from "@/app/(main)/_features/plugin/plugin-manager"
@@ -32,7 +33,8 @@ import { TorrentStreamOverlay } from "@/app/(main)/entry/_containers/torrent-str
 import { ChapterDownloadsDrawer } from "@/app/(main)/manga/_containers/chapter-downloads/chapter-downloads-drawer"
 import { LoadingOverlayWithLogo } from "@/components/shared/loading-overlay-with-logo"
 import { AppLayout, AppLayoutContent, AppLayoutSidebar, AppSidebarProvider } from "@/components/ui/app-layout"
-import { __isElectronDesktop__ } from "@/types/constants"
+import { cn } from "@/components/ui/core/styling"
+import { __isElectronDesktop__, __isMobileShell__ } from "@/types/constants"
 import { usePathname, useRouter } from "@/lib/navigation"
 import React from "react"
 import { useServerStatus } from "../../_hooks/use-server-status"
@@ -135,12 +137,15 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
             <WorkspaceBar />
 
             <AppSidebarProvider>
-                <AppLayout withSidebar sidebarSize="slim" style={{ paddingTop: topOffset }}>
-                    <AppLayoutSidebar>
+                {__isMobileShell__ && <MobileTabBar />}
+                <AppLayout withSidebar={!__isMobileShell__} sidebarSize="slim" style={{ paddingTop: topOffset }}>
+                    {/* The mobile shell keeps the sidebar mounted for its drawer (it portals), but
+                        never shows the desktop rail, even when the window is resized wide. */}
+                    <AppLayoutSidebar className={cn(__isMobileShell__ && "lg:!hidden")}>
                         <MainSidebar />
                     </AppLayoutSidebar>
                     <AppLayout>
-                        <AppLayoutContent>
+                        <AppLayoutContent className={cn(__isMobileShell__ && "pb-28")}>
                             {children}
                         </AppLayoutContent>
                     </AppLayout>

@@ -5,7 +5,7 @@ import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { MemoryStatsResponse, Models_HomeItem, Status, Updater_Announcement } from "@/api/generated/types"
 import { serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { copyToClipboard, openTab } from "@/lib/helpers/browser"
-import { __isDesktop__ } from "@/types/constants"
+import { __isDesktop__, __isMobileShell__ } from "@/types/constants"
 import { useQueryClient } from "@tanstack/react-query"
 import { useAtomValue } from "jotai"
 import { toast } from "sonner"
@@ -19,8 +19,8 @@ export function useGetStatus() {
         retryDelay: 1000,
         // Fixes macOS desktop app startup issue
         retry: 6,
-        // Mute error if the platform is desktop
-        muteError: __isDesktop__,
+        // Mute error if the platform is desktop or the mobile shell (both are clients of a server)
+        muteError: __isDesktop__ || __isMobileShell__,
     })
 }
 

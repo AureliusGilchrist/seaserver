@@ -1,5 +1,5 @@
 import { __DEV_SERVER_PORT, TESTONLY__DEV_SERVER_PORT2, TESTONLY__DEV_SERVER_PORT3 } from "@/lib/server/config"
-import { __isDesktop__ } from "@/types/constants"
+import { __isDesktop__, __isMobileShell__ } from "@/types/constants"
 
 function devOrProd(dev: string, prod: string): string {
     return process.env.NODE_ENV === "development" ? dev : prod
@@ -22,7 +22,7 @@ function getStoredRemoteUrl(): string | undefined {
 }
 
 export function getServerBaseUrl(removeProtocol: boolean = false): string {
-    if (__isDesktop__) {
+    if (__isDesktop__ || __isMobileShell__) {
         // Check if the user configured a remote server in the desktop app
         const remoteUrl = getStoredRemoteUrl()
         if (remoteUrl) {
