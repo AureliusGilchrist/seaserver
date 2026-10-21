@@ -128,8 +128,10 @@ jobs:
         run: |
           TAG="v${RELEASE_VERSION}-android"
           NOTES="Automated Denshi Mobile Android build from commit $GITHUB_SHA."
-          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1
-          if [ $? -eq 0 ]; then
+          # The existence probe must be the if-condition itself: GitHub runs steps with
+          # bash -e, and a standalone `gh release view` exiting 1 (release not found — the
+          # normal first-run case) would abort the script before the create ever runs.
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" "$ASSET" --clobber --repo "$GITHUB_REPOSITORY"
           else
             gh release create "$TAG" "$ASSET" \
