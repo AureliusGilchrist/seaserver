@@ -15,10 +15,6 @@ import { NumberInput } from "@/components/ui/number-input"
 import { RadioGroup } from "@/components/ui/radio-group"
 import { Select } from "@/components/ui/select"
 import { TextInput } from "@/components/ui/text-input"
-import { DndContext, DragEndEvent } from "@dnd-kit/core"
-import { restrictToVerticalAxis } from "@dnd-kit/modifiers"
-import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
-import { CSS } from "@dnd-kit/utilities"
 import { useQueryClient } from "@tanstack/react-query"
 import { atom } from "jotai"
 import { useAtom } from "jotai/react"
@@ -29,6 +25,8 @@ import {
     LuBookOpen,
     LuCalendar,
     LuCalendarClock,
+    LuChevronDown,
+    LuChevronUp,
     LuCirclePlay,
     LuClock,
     LuCompass,
@@ -119,21 +117,23 @@ export function HomeSettingsModal({ emptyLibrary, isNakamaLibrary }: { emptyLibr
         }
     }, [_homeItems])
 
-    const handleDragEnd = React.useCallback((event: DragEndEvent) => {
-        const { active, over } = event
+    // Moves one row and saves immediately, so the home page behind the modal re-orders as the
+    // arrows are clicked rather than whenever the modal happens to close.
+    const handleMoveItem = React.useCallback((index: number, direction: -1 | 1) => {
+        const newIndex = index + direction
+        if (newIndex < 0 || newIndex >= currentItems.length) return
 
-        if (active.id !== over?.id) {
-            const oldIndex = currentItems.findIndex(item => item.id === active.id)
-            const newIndex = currentItems.findIndex(item => item.id === over?.id)
+        const reordered = [...currentItems]
+        const [moved] = reordered.splice(index, 1)
+        reordered.splice(newIndex, 0, moved)
 
-            const newItems = normalizeHomeItems(arrayMove(currentItems, oldIndex, newIndex))
-            setCurrentItems(newItems)
-            updateHomeItems({ items: newItems }, {
-                onSuccess: () => {
-                    // toast.success("Home items reordered")
-                },
-            })
-        }
+        const newItems = normalizeHomeItems(reordered)
+        setCurrentItems(newItems)
+        updateHomeItems({ items: newItems }, {
+            onSuccess: () => {
+                // toast.success("Home items reordered")
+            },
+        })
     }, [currentItems, updateHomeItems])
 
     function normalizeHomeItems(items: Models_HomeItem[]) {
@@ -313,31 +313,26 @@ export function HomeSettingsModal({ emptyLibrary, isNakamaLibrary }: { emptyLibr
                                 <LoadingSpinner />
                             </div>
                         ) : (
-                            <DndContext
-                                modifiers={[restrictToVerticalAxis]}
-                                onDragEnd={handleDragEnd}
-                            >
-                                <SortableContext items={currentItems.map(item => item.id)} strategy={verticalListSortingStrategy}>
-                                    <div className="space-y-2 bg-gray-900/30 rounded-xl p-4 border border-gray-800">
-                                        {currentItems.length === 0 ? (
-                                            <div className="text-center py-8 text-gray-400">
-                                                No items added yet. Add some items below to customize your home screen.
-                                            </div>
-                                        ) : (
-                                            currentItems.map((item, index) => (
-                                                <SortableHomeItem
-                                                    key={item.id}
-                                                    item={item}
-                                                    index={index}
-                                                    onRemove={handleRemoveItem}
-                                                    onEditOptions={setOptionsModalOpen}
-                                                    isUpdating={isUpdatingHomeItems}
-                                                />
-                                            ))
-                                        )}
-                                    </div>
-                                </SortableContext>
-                            </DndContext>
+                        <div className="space-y-2 bg-gray-900/30 rounded-xl p-4 border border-gray-800">
+                            {currentItems.length === 0 ? (
+                                <div className="text-center py-8 text-gray-400">
+                                    No items added yet. Add some items below to customize your home screen.
+                                </div>
+                            ) : (
+                                currentItems.map((item, index) => (
+                                    <HomeItemRow
+                                        key={item.id}
+                                        item={item}
+                                        index={index}
+                                        isLast={index === currentItems.length - 1}
+                                        onMove={handleMoveItem}
+                                        onRemove={handleRemoveItem}
+                                        onEditOptions={setOptionsModalOpen}
+                                        isUpdating={isUpdatingHomeItems}
+                                    />
+                                ))
+                            )}
+                        </div>
                         )}
                     </div>
 
@@ -388,28 +383,17 @@ export function HomeSettingsModal({ emptyLibrary, isNakamaLibrary }: { emptyLibr
     )
 }
 
-interface SortableHomeItemProps {
+interface HomeItemRowProps {
     item: Models_HomeItem
+    onMove: (index: number, direction: -1 | 1) => void
     onRemove: (id: string) => void
     onEditOptions: (id: string) => void
     isUpdating: boolean
     index: number
+    isLast: boolean
 }
 
-function SortableHomeItem({ item, onRemove, onEditOptions, isUpdating, index }: SortableHomeItemProps) {
-    const {
-        attributes,
-        listeners,
-        setNodeRef,
-        transform,
-        transition,
-    } = useSortable({ id: item.id })
-
-    const style = {
-        transform: CSS.Transform.toString(transform ? { ...transform, scaleY: 1 } : null),
-        transition,
-    }
-
+function HomeItemRow({ item, onMove, onRemove, onEditOptions, isUpdating, index, isLast }: HomeItemRowProps) {
     const homeItemConfig = HOME_ITEMS[item.type]
     const Icon = HOME_ITEM_ICONS[item.type as keyof typeof HOME_ITEM_ICONS] || IoHomeOutline
 
@@ -417,12 +401,8 @@ function SortableHomeItem({ item, onRemove, onEditOptions, isUpdating, index }: 
 
     return (
         <div
-            ref={setNodeRef}
-            style={style}
-            {...attributes}
-            {...listeners}
             className={cn(
-                "flex items-center gap-3 p-3 bg-gray-800/50 rounded-xl border border-gray-700 hover:border-gray-600 transition-colors cursor-move",
+                "flex items-center gap-3 p-3 bg-gray-800/50 rounded-xl border border-gray-700 hover:border-gray-600 transition-colors",
                 homeItemConfig.kind.length === 1 && homeItemConfig.kind[0] === "header" && index !== 0 && "opacity-50",
             )}
         >
@@ -445,6 +425,24 @@ function SortableHomeItem({ item, onRemove, onEditOptions, isUpdating, index }: 
             </div>
 
             <div className="flex items-center gap-1">
+                <IconButton
+                    intent="gray-subtle"
+                    size="sm"
+                    onClick={() => onMove(index, -1)}
+                    disabled={isUpdating || index === 0}
+                    className="hover:bg-white/10 hover:text-white"
+                    icon={<LuChevronUp className="size-4" />}
+                />
+
+                <IconButton
+                    intent="gray-subtle"
+                    size="sm"
+                    onClick={() => onMove(index, 1)}
+                    disabled={isUpdating || isLast}
+                    className="hover:bg-white/10 hover:text-white"
+                    icon={<LuChevronDown className="size-4" />}
+                />
+
                 {homeItemConfig.options && (
                     <IconButton
                         intent="gray-subtle"
@@ -456,7 +454,6 @@ function SortableHomeItem({ item, onRemove, onEditOptions, isUpdating, index }: 
                             homeItemConfig.options?.find(n => n.name === "name") && !item.options?.name?.length && "bg-fuchsia-600 animate-bounce",
                         )}
                         icon={<BiCog className="size-4" />}
-                        onPointerDown={(e) => e.stopPropagation()}
                     />
                 )}
 
@@ -467,7 +464,6 @@ function SortableHomeItem({ item, onRemove, onEditOptions, isUpdating, index }: 
                     disabled={isUpdating}
                     className="hover:bg-red-500/20 hover:text-red-400"
                     icon={<BiTrash className="size-4" />}
-                    onPointerDown={(e) => e.stopPropagation()}
                 />
             </div>
         </div>

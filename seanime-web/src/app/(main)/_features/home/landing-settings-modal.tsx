@@ -4,14 +4,10 @@ import { LANDING_QUICK_LINKS, LANDING_WIDGET_META, useLandingFolders, useLanding
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { Modal } from "@/components/ui/modal"
-import { DndContext, DragEndEvent } from "@dnd-kit/core"
-import { restrictToVerticalAxis } from "@dnd-kit/modifiers"
-import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
-import { CSS } from "@dnd-kit/utilities"
 import { atom } from "jotai"
 import React from "react"
 import { BiTrash } from "react-icons/bi"
-import { LuFolderPlus, LuGripVertical } from "react-icons/lu"
+import { LuChevronDown, LuChevronUp, LuFolderPlus } from "react-icons/lu"
 
 export const __landingSettingsModalOpen = atom(false)
 
@@ -50,13 +46,10 @@ export function LandingSettingsModal({ open, onOpenChange }: { open: boolean, on
         })))
     }
 
-    function handleDragEnd(event: DragEndEvent) {
-        const { active, over } = event
-        if (!over || active.id === over.id) return
-        const from = widgets.findIndex(w => w.id === active.id)
-        const to = widgets.findIndex(w => w.id === over.id)
-        if (from === -1 || to === -1) return
-        moveWidget(from, to)
+    function moveWidgetRow(index: number, direction: -1 | 1) {
+        const to = index + direction
+        if (to < 0 || to >= widgets.length) return
+        moveWidget(index, to)
     }
 
     return (
@@ -68,23 +61,22 @@ export function LandingSettingsModal({ open, onOpenChange }: { open: boolean, on
         >
             <div className="space-y-4 mt-4">
                 <p className="text-sm text-[--muted]">
-                    What the landing page shows, and in what order. Drag to move a widget, toggle it to
-                    hide it.
+                    What the landing page shows, and in what order. Use the arrows to move a widget,
+                    toggle it to hide it.
                 </p>
 
-                <DndContext onDragEnd={handleDragEnd} modifiers={[restrictToVerticalAxis]}>
-                    <SortableContext items={widgets.map(w => w.id)} strategy={verticalListSortingStrategy}>
-                        <div className="space-y-1.5">
-                            {widgets.map(widget => (
-                                <SortableWidgetRow
-                                    key={widget.id}
-                                    widget={widget}
-                                    onToggle={enabled => setWidgetEnabled(widget.id, enabled)}
-                                />
-                            ))}
-                        </div>
-                    </SortableContext>
-                </DndContext>
+                <div className="space-y-1.5">
+                    {widgets.map((widget, index) => (
+                        <WidgetRow
+                            key={widget.id}
+                            widget={widget}
+                            index={index}
+                            isLast={index === widgets.length - 1}
+                            onMove={moveWidgetRow}
+                            onToggle={enabled => setWidgetEnabled(widget.id, enabled)}
+                        />
+                    ))}
+                </div>
 
                 <p className="text-xs text-[--muted]">{enabledCount} of {widgets.length} shown</p>
 
@@ -187,39 +179,42 @@ export function LandingSettingsModal({ open, onOpenChange }: { open: boolean, on
     )
 }
 
-function SortableWidgetRow({ widget, onToggle }: {
+function WidgetRow({ widget, index, isLast, onMove, onToggle }: {
     widget: { id: LandingWidgetId, enabled: boolean }
+    index: number
+    isLast: boolean
+    onMove: (index: number, direction: -1 | 1) => void
     onToggle: (enabled: boolean) => void
 }) {
-    const {
-        attributes,
-        listeners,
-        setNodeRef,
-        transform,
-        transition,
-        isDragging,
-    } = useSortable({ id: widget.id })
-
     const meta = LANDING_WIDGET_META[widget.id]
 
     return (
         <div
-            ref={setNodeRef}
-            style={{ transform: CSS.Transform.toString(transform), transition }}
             className={cn(
                 "flex items-center gap-3 rounded-lg border border-[--border] bg-[--card] px-3 py-2.5",
-                isDragging && "opacity-80 z-50",
                 !widget.enabled && "opacity-50",
             )}
         >
-            <button
-                className="text-[--muted] hover:text-[--foreground] cursor-grab active:cursor-grabbing touch-none"
-                {...attributes}
-                {...listeners}
-                aria-label="Drag to reorder"
-            >
-                <LuGripVertical className="w-4 h-4" />
-            </button>
+            <div className="flex flex-col flex-none">
+                <button
+                    type="button"
+                    onClick={() => onMove(index, -1)}
+                    disabled={index === 0}
+                    aria-label="Move up"
+                    className="text-[--muted] hover:text-[--foreground] disabled:opacity-30 disabled:pointer-events-none"
+                >
+                    <LuChevronUp className="w-4 h-4" />
+                </button>
+                <button
+                    type="button"
+                    onClick={() => onMove(index, 1)}
+                    disabled={isLast}
+                    aria-label="Move down"
+                    className="text-[--muted] hover:text-[--foreground] disabled:opacity-30 disabled:pointer-events-none"
+                >
+                    <LuChevronDown className="w-4 h-4" />
+                </button>
+            </div>
             <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{meta?.name ?? widget.id}</p>
                 <p className="text-xs text-[--muted] truncate">{meta?.description}</p>
