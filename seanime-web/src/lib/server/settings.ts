@@ -131,6 +131,8 @@ export const settingsSchema = z.object({
     stillWatchingEpisodes: z.preprocess(v => (typeof v === "number" && !Number.isNaN(v) ? v : undefined), z.number().optional().default(3)),
     autoPauseStaleWatchingDays: z.preprocess(v => (typeof v === "number" && !Number.isNaN(v) ? v : undefined), z.number().optional().default(7)),
     newsFeeds: z.string().optional().default(""),
+    // Enqueue Future: search with the default provider only, instead of trying SeaDex first.
+    enqueueFutureUseConfiguredProvider: z.boolean().optional().default(false),
     scannerUseLegacyMatching: z.boolean().optional().default(false),
     scannerConfig: z.string().optional().default(""),
     updateChannel: z.string().optional().default("github"),
@@ -168,6 +170,7 @@ export const getDefaultSettings = (data: z.infer<typeof gettingStartedSchema>): 
         scannerConfig: "",
         updateChannel: "github",
         newsFeeds: "",
+        enqueueFutureUseConfiguredProvider: false,
     },
     nakama: {
         enabled: false,

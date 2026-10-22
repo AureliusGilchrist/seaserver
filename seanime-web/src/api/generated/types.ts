@@ -5379,6 +5379,7 @@ export type Models_LibrarySettings = {
     updateChannel: string
     planningSlutToken: string
     newsFeeds: string
+    enqueueFutureUseConfiguredProvider: boolean
 }
 
 /**

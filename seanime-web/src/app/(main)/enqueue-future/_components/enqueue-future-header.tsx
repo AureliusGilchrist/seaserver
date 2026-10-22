@@ -19,7 +19,7 @@ import { BiXCircle } from "react-icons/bi"
  */
 export function EnqueueFutureHeader({
     item, index, total, onPrevious, onNext, isBusy, autoMatch, onAutoMatchChange,
-    clearStale, isClearing,
+    clearStale, isClearing, useConfiguredProvider, onUseConfiguredProviderChange,
 }: {
     item: EnqueueFuture_Item | undefined
     index: number
@@ -34,6 +34,9 @@ export function EnqueueFutureHeader({
     clearStale?: () => void
     /** Whether the clear operation is in progress */
     isClearing?: boolean
+    /** Search with the saved default provider only, instead of trying SeaDex first. */
+    useConfiguredProvider: boolean
+    onUseConfiguredProviderChange: (value: boolean) => void
 }) {
 
     return (
@@ -113,6 +116,13 @@ export function EnqueueFutureHeader({
                     value={autoMatch}
                     onValueChange={onAutoMatchChange}
                     data-enqueue-future-auto-match-switch
+                />
+                <Switch
+                    label="Default provider only"
+                    help="Searches only the Default Provider set in Settings → Torrent — SeaDex if that's what it's set to, AnimeTosho if not. Off: SeaDex is searched first, and your Default Provider is only tried when SeaDex has nothing."
+                    value={useConfiguredProvider}
+                    onValueChange={onUseConfiguredProviderChange}
+                    data-enqueue-future-configured-provider-switch
                 />
             </div>
         </div>

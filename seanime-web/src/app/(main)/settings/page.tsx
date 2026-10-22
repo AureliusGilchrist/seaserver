@@ -423,6 +423,9 @@ export default function Page() {
                                         scannerConfig: data.scannerConfig ?? "",
                                         updateChannel: data.updateChannel || "github",
                                         newsFeeds: data.newsFeeds ?? "",
+                                    // Set from the Enqueue Future page's switch, not here — preserved so a
+                                    // general settings save never silently flips it back off.
+                                        enqueueFutureUseConfiguredProvider: status?.settings?.library?.enqueueFutureUseConfiguredProvider ?? false,
                                     },
                                     nakama: {
                                         enabled: data.nakamaEnabled ?? false,

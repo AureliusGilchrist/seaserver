@@ -20,6 +20,8 @@ import { TorrentSearchSnapshot } from "@/app/(main)/entry/_containers/torrent-se
 import { __torrentDownload_autoMatchAtom } from "@/app/(main)/entry/_containers/torrent-search/torrent-download-auto-match"
 import { __torrentSearch_selectedTorrentsAtom, TorrentSearchContainer } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-container"
 import { useClearAllDownloadedMediaState, useClearAllStuckDownloadingMediaState, useGetStuckDownloadingMediaIds, usePurgeDownloadedMediaState } from "@/api/hooks/torrent_client.hooks"
+import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
+import { useSaveSettings } from "@/api/hooks/settings.hooks"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { cn } from "@/components/ui/core/styling"
 import { AppLayoutStack } from "@/components/ui/app-layout"
@@ -61,6 +63,21 @@ export function EnqueueFuturePage() {
     const { data: queue, isLoading } = useGetEnqueueFutureQueue({ isRunning: !!status?.running })
     const { mutate: clearQueue, isPending: isClearing } = useClearEnqueueFuture()
     const { mutate: rewalk, isPending: isRewalking } = useRewalkEnqueueFutureFamilies()
+
+    // "Default provider only": the search follows the saved Default Provider instead of trying
+    // SeaDex first. Server setting, so a run already under way reads the flip on its next item.
+    const serverStatus = useServerStatus()
+    const { mutateAsync: saveSettings } = useSaveSettings()
+    const useConfiguredProvider = !!serverStatus?.settings?.library?.enqueueFutureUseConfiguredProvider
+    const setUseConfiguredProvider = React.useCallback((value: boolean) => {
+        void saveSettings({
+            ...(serverStatus?.settings as any),
+            library: {
+                ...(serverStatus?.settings?.library as any),
+                enqueueFutureUseConfiguredProvider: value,
+            },
+        })
+    }, [saveSettings, serverStatus?.settings])
 
     // Advisory: which of the anime shown above have a "downloading" badge with nothing live behind
     // it in the torrent client, because the torrent was removed outside Deus Ex Aeternae entirely. Polled
@@ -523,6 +540,8 @@ export function EnqueueFuturePage() {
                             onAutoMatchChange={setActiveAutoMatch}
                             clearStale={clearStaleAll}
                             isClearing={isClearingStale}
+                            useConfiguredProvider={useConfiguredProvider}
+                            onUseConfiguredProviderChange={setUseConfiguredProvider}
                         />
 
                         <ActiveItemBody

@@ -436,9 +436,17 @@ func (r *Repository) searchParamsFor(entry *anime.Entry, providerID string) (Sea
 // deployment's primary, which the settings value may not reflect yet.
 const preferredQueueProvider = "seadex"
 
-// queueProvider returns the provider a preparation searches first: SeaDex when installed, the
-// configured default otherwise.
+// queueProvider returns the provider a preparation searches first. Two modes, on the user's
+// "default provider only" switch:
+//
+//   - Off (the default): SeaDex when installed, the configured default otherwise. SeaDex is this
+//     deployment's primary, and the settings value may not reflect that yet.
+//   - On: the configured default, whatever it is — SeaDex if that is what is saved, AnimeTosho if
+//     not. The queue searches that provider and nothing else.
 func (r *Repository) queueProvider() string {
+	if r.useConfiguredProviderFunc != nil && r.useConfiguredProviderFunc() {
+		return strings.TrimSpace(r.defaultProviderFunc())
+	}
 	if r.torrentRepository != nil {
 		if _, found := r.torrentRepository.GetAnimeProviderExtension(preferredQueueProvider); found {
 			return preferredQueueProvider
@@ -448,8 +456,12 @@ func (r *Repository) queueProvider() string {
 }
 
 // fallbackQueueProvider returns the provider to retry with when the first search comes back empty:
-// the configured default, as long as it is set and is not the provider already tried.
+// the configured default, as long as it is set, is not the provider already tried, and the user has
+// not asked for the configured provider alone — on that switch, one provider means one provider.
 func (r *Repository) fallbackQueueProvider(tried string) (string, bool) {
+	if r.useConfiguredProviderFunc != nil && r.useConfiguredProviderFunc() {
+		return "", false
+	}
 	configured := strings.TrimSpace(r.defaultProviderFunc())
 	if configured == "" || configured == torrent.ProviderNone || configured == tried {
 		return "", false

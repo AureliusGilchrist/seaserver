@@ -36,7 +36,12 @@ type (
 		// Late-bound accessors, so the repository does not have to reach back into the app.
 		animeCollectionFunc func() (*anilist.AnimeCollection, error)
 		defaultProviderFunc func() string
-		isSimulatedFunc     func() bool
+		// useConfiguredProviderFunc reports the user's "default provider only" choice for the
+		// search: on, the queue searches exactly the provider the settings page has saved; off,
+		// SeaDex goes first and the saved provider is the fallback. Read per item, so flipping the
+		// switch mid-run applies to everything prepared after it.
+		useConfiguredProviderFunc func() bool
+		isSimulatedFunc           func() bool
 
 		pacer *pacer
 
@@ -72,7 +77,9 @@ type (
 		DataDir             string
 		AnimeCollectionFunc func() (*anilist.AnimeCollection, error)
 		DefaultProviderFunc func() string
-		IsSimulatedFunc     func() bool
+		// UseConfiguredProviderFunc is the "default provider only" switch; nil reads as off.
+		UseConfiguredProviderFunc func() bool
+		IsSimulatedFunc           func() bool
 	}
 )
 
@@ -87,6 +94,7 @@ func NewRepository(opts *NewRepositoryOptions) *Repository {
 		dataDir:             opts.DataDir,
 		animeCollectionFunc: opts.AnimeCollectionFunc,
 		defaultProviderFunc: opts.DefaultProviderFunc,
+		useConfiguredProviderFunc: opts.UseConfiguredProviderFunc,
 		isSimulatedFunc:     opts.IsSimulatedFunc,
 		pacer:               newPacer(ItemsPerMinute, RateBurst),
 		status: Status{

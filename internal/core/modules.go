@@ -567,6 +567,12 @@ func (a *App) initModulesOnce() {
 			}
 			return a.Settings.Library.TorrentProvider
 		},
+		UseConfiguredProviderFunc: func() bool {
+			if a.Settings == nil || a.Settings.Library == nil {
+				return false
+			}
+			return a.Settings.Library.EnqueueFutureUseConfiguredProvider
+		},
 		IsSimulatedFunc: func() bool {
 			user := a.GetUser()
 			return user != nil && user.IsSimulated

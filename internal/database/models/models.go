@@ -108,6 +108,8 @@ type LibrarySettings struct {
 	PlanningSlutToken string `gorm:"column:planning_slut_token" json:"planningSlutToken"`
 	// News widget: RSS feed URLs, one per line (empty = built-in anime/manga defaults)
 	NewsFeeds string `gorm:"column:news_feeds" json:"newsFeeds"`
+	// Enqueue Future: search with the default provider only, instead of trying SeaDex first.
+	EnqueueFutureUseConfiguredProvider bool `gorm:"column:enqueue_future_use_configured_provider" json:"enqueueFutureUseConfiguredProvider"`
 }
 
 func (o *LibrarySettings) GetLibraryPaths() (ret []string) {
