@@ -42,10 +42,25 @@ type TimelineResponse struct {
 //	@desc Returns activity events enriched with anime/manga titles and cover images.
 //	@param page - int - false - "Page number (default 1)"
 //	@param pageSize - int - false - "Events per page (default 50)"
+//	@param profileId - int - false - "Profile to read (default: the current profile)"
 //	@returns TimelineResponse
 //	@route /api/v1/profile/timeline [GET]
 func (h *Handler) HandleGetTimeline(c echo.Context) error {
 	pdb := h.GetProfileDatabase(c)
+	profileID := h.GetProfileID(c)
+
+	// Optional ?profileId= — the other-user profile page reads its subject's timeline,
+	// not the viewer's. Falls back to the caller's profile when absent or invalid.
+	if idStr := c.QueryParam("profileId"); idStr != "" {
+		if pid, err := strconv.ParseUint(idStr, 10, 64); err == nil && pid > 0 {
+			if h.App.ProfileDatabaseManager != nil {
+				if viewedDB, err := h.App.ProfileDatabaseManager.GetDatabase(uint(pid)); err == nil {
+					pdb = viewedDB
+					profileID = uint(pid)
+				}
+			}
+		}
+	}
 
 	page := 1
 	if p := c.QueryParam("page"); p != "" {
@@ -75,8 +90,6 @@ func (h *Handler) HandleGetTimeline(c echo.Context) error {
 	// which left timeline entries displaying "Media #123" instead of the title.
 	animeLookup := make(map[int]*anilist.BaseAnime)
 	mangaLookup := make(map[int]*anilist.BaseManga)
-
-	profileID := h.GetProfileID(c)
 
 	var animeCol *anilist.AnimeCollection
 	var mangaCol *anilist.MangaCollection

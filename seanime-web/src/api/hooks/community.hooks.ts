@@ -64,16 +64,16 @@ export function useUpdateBio() {
     })
 }
 
-export function useGetTimeline(pageSize = 50) {
+export function useGetTimeline(pageSize = 50, profileId?: number) {
     const password = useAtomValue(serverAuthTokenAtom)
     return useInfiniteQuery({
-        queryKey: [API_ENDPOINTS.TIMELINE.GetTimeline.key, pageSize],
+        queryKey: [API_ENDPOINTS.TIMELINE.GetTimeline.key, pageSize, profileId ?? 0],
         initialPageParam: 1,
         queryFn: async ({ pageParam }) => {
             return buildSeaQuery<Handlers_TimelineResponse>({
                 endpoint: API_ENDPOINTS.TIMELINE.GetTimeline.endpoint,
                 method: "GET",
-                params: { page: pageParam, pageSize },
+                params: { page: pageParam, pageSize, ...(profileId ? { profileId } : {}) },
                 password: password,
             })
         },

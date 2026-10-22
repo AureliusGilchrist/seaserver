@@ -260,6 +260,7 @@ function UserProfilePage() {
                     </TabsList>
                     <TabsContent value="activity" className="space-y-6 mt-6">
                         <ActivityTabContent
+                            userId={id}
                             animeStreak={animeStreak}
                             mangaStreak={mangaStreak}
                             activityHeatmap={activityHeatmap}

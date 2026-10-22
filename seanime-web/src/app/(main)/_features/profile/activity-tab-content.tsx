@@ -23,6 +23,8 @@ export interface ActivityTabContentProps {
   showcase?: Handlers_ShowcaseEntry[]
   recentAchievements?: Handlers_RecentAchievementEntry[]
   editable?: boolean
+  /** When set, the timeline reads this profile's events instead of the signed-in user's. */
+  userId?: number
   anilistProfile?: {
     avatar?: string
     banner?: string
@@ -320,8 +322,9 @@ function DaySeparator({ date }: { date: string }) {
 
 // ────────────────────────── Infinite scroll timeline ──────────────────────────
 
-function InfiniteTimeline() {
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useGetTimeline(50)
+function InfiniteTimeline({ userId }: { userId?: number }) {
+  // When viewing someone else's profile, read their timeline — not the signed-in user's.
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useGetTimeline(50, userId)
   const sentinelRef = React.useRef<HTMLDivElement>(null)
 
   React.useEffect(() => {
@@ -394,6 +397,7 @@ export function ActivityTabContent({
   showcase,
   recentAchievements,
   editable,
+  userId,
   anilistProfile,
 }: ActivityTabContentProps) {
   return (
@@ -420,7 +424,7 @@ export function ActivityTabContent({
             <LuActivity className="text-blue-400" />
             Timeline
           </h2>
-          <InfiniteTimeline />
+          <InfiniteTimeline userId={userId} />
         </div>
 
         {/* Right column — showcase + recent achievements */}
