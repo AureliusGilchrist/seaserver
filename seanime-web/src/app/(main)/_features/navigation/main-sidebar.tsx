@@ -31,7 +31,6 @@ import { Button, IconButton } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { DropdownMenu, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { defineSchema, Field, Form } from "@/components/ui/form"
-import { HoverCard } from "@/components/ui/hover-card"
 import { Modal } from "@/components/ui/modal"
 import { VerticalMenu, VerticalMenuItem } from "@/components/ui/vertical-menu"
 import { openTab } from "@/lib/helpers/browser"
@@ -55,7 +54,6 @@ import { IoCloudOfflineOutline, IoHomeOutline } from "react-icons/io5"
 import { LuBook, LuBookOpen, LuBell, LuCalendar, LuCirclePlay, LuClipboardCheck, LuCompass, LuDownload, LuFlag, LuFolderSearch, LuGlobe, LuGitFork, LuHardDriveDownload, LuLayers, LuListVideo, LuLayoutDashboard, LuMessagesSquare, LuMonitorPlay, LuNewspaper, LuRefreshCw, LuRss, LuSettings, LuShieldCheck, LuTv, LuUserRound, LuUsers } from "react-icons/lu"
 import { SiAnilist } from "react-icons/si"
 import { MdBackspace, MdOutlineConnectWithoutContact } from "react-icons/md"
-import { PiArrowCircleLeftDuotone, PiArrowCircleRightDuotone } from "react-icons/pi"
 import { RiListCheck3 } from "react-icons/ri"
 import { SiQbittorrent, SiTransmission } from "react-icons/si"
 import { TbReportSearch } from "react-icons/tb"
@@ -564,30 +562,6 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
                 handleExpandSidebar={() => { }}
                 handleUnexpandedSidebar={() => { }}
             />
-            {__isDesktop__ && <div className="w-full flex justify-center px-4">
-                <HoverCard
-                    side="right"
-                    sideOffset={-8}
-                    className="bg-transparent border-none"
-                    trigger={<IconButton
-                        intent="gray-basic"
-                        className="!text-[--muted] hover:!text-[--foreground]"
-                        icon={<PiArrowCircleLeftDuotone />}
-                        onClick={() => {
-                            router.back()
-                        }}
-                    />}
-                >
-                    <IconButton
-                        icon={<PiArrowCircleRightDuotone />}
-                        intent="gray-subtle"
-                        className="opacity-50 hover:opacity-100"
-                        onClick={() => {
-                            router.forward()
-                        }}
-                    />
-                </HoverCard>
-            </div>}
 
             <PluginSidebarTray place="sidebar" />
 
