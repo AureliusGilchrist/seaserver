@@ -7,7 +7,9 @@ import (
 	"seanime/internal/database/db"
 	"seanime/internal/database/models"
 	"seanime/internal/events"
+	"strings"
 	"time"
+	"unicode"
 )
 
 // Notifications for new feed entries.
@@ -21,6 +23,54 @@ import (
 // everything currently in the feed as seen without announcing it, which is what keeps a
 // restart (or a fresh install) from re-announcing a backlog of old headlines. A profile that
 // opted out of news notifications gets no rows at all — not silent ones.
+//
+// Announcements are further filtered by keyword: only items that look like a death
+// announcement ("death", "dies", "passed away", ...) become notifications. Every other
+// headline still appears on the News page — it just never interrupts anyone.
+
+// newsNotifyKeywords is the whitelist a headline must hit before it becomes a notification.
+// Single words match whole words only (so "studies" never trips "dies", and "deadline"
+// never trips "dead"); multi-word phrases match as substrings.
+var newsNotifyKeywords = []string{
+	"death", "deaths", "dies", "died", "dying", "dead", "killed", "kills", "killing", "killings",
+	"obituary", "obituaries", "memoriam", "funeral", "funerals", "suicide",
+	"mourning", "mourns", "mourned", "rip",
+}
+
+var newsNotifyPhrases = []string{
+	"passes away", "passed away", "passing away", "rest in peace", "in memoriam",
+}
+
+func matchesNewsNotifyKeywords(title, description string) bool {
+	if title == "" && description == "" {
+		return false
+	}
+	haystack := strings.ToLower(title + " " + description)
+	for _, kw := range newsNotifyKeywords {
+		if containsWholeWord(haystack, kw) {
+			return true
+		}
+	}
+	for _, phrase := range newsNotifyPhrases {
+		if strings.Contains(haystack, phrase) {
+			return true
+		}
+	}
+	return false
+}
+
+// containsWholeWord reports whether s contains word as a standalone word —
+// punctuation is a separator, so "dies," and "author's dies" both match "dies".
+func containsWholeWord(s, word string) bool {
+	for _, field := range strings.FieldsFunc(s, func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	}) {
+		if field == word {
+			return true
+		}
+	}
+	return false
+}
 
 type newsMetadata struct {
 	Link        string `json:"link"`
@@ -67,6 +117,16 @@ func CheckNewItemsNotifications(app *core.App) {
 		}
 	}
 	announceMu.Unlock()
+
+	// Only items that look like a death announcement are worth a notification — the rest
+	// stay feed-only: visible on the News page, never filed into the drawer.
+	notable := fresh[:0]
+	for _, item := range fresh {
+		if matchesNewsNotifyKeywords(item.Title, item.Description) {
+			notable = append(notable, item)
+		}
+	}
+	fresh = notable
 
 	if len(fresh) == 0 {
 		return
