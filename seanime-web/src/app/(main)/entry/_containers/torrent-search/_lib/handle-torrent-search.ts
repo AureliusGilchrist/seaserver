@@ -84,13 +84,18 @@ export function useHandleTorrentSearch(props: TorrentSearchHookProps) {
         return defaultExt
     }, [serverStatus?.settings?.library?.torrentProvider, providerExtensions])
 
-    // Gives the ability to change the selected provider extension
-    const [selectedProviderExtensionId, setSelectedProviderExtensionId] = React.useState(defaultProviderExtension?.id || "none")
+    // A queued anime arrives with results prepared under the provider the server searched — SeaDex
+    // first in this fork, which may differ from the saved default. Open on that provider so the
+    // prepared results answer the search below; picking another one re-searches live, as anywhere.
+    const snapshotProviderId = React.useMemo(() => snapshot?.params.provider.split(",")[0] ?? "", [snapshot?.params.provider])
 
-    // Update the selected provider only when the default provider changes
+    // Gives the ability to change the selected provider extension
+    const [selectedProviderExtensionId, setSelectedProviderExtensionId] = React.useState(snapshotProviderId || defaultProviderExtension?.id || "none")
+
+    // Update the selected provider only when the default (or the snapshot's) provider changes
     React.useLayoutEffect(() => {
-        setSelectedProviderExtensionId(defaultProviderExtension?.id || "none")
-    }, [defaultProviderExtension?.id])
+        setSelectedProviderExtensionId(snapshotProviderId || defaultProviderExtension?.id || "none")
+    }, [snapshotProviderId, defaultProviderExtension?.id])
 
     // Get the selected provider extension
     const selectedProviderExtension = React.useMemo(() => {

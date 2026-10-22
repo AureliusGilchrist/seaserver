@@ -3,11 +3,13 @@ package enqueuefuture
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"time"
 
 	"seanime/internal/api/anilist"
 	"seanime/internal/database/db_bridge"
+	hibiketorrent "seanime/internal/extension/hibike/torrent"
 	"seanime/internal/library/anime"
 	"seanime/internal/torrents/torrent"
 )
@@ -194,25 +196,53 @@ func (r *Repository) prepare(ctx context.Context, mediaID int) (*prepared, error
 		}, nil
 	}
 
-	params, err := r.searchParamsFor(entry)
+	// SeaDex first, regardless of what the settings page has saved — there the saved provider is
+	// the fallback, not the primary. One hit is a successful search: SeaDex is a curated list and
+	// often answers with a single best release. Only an empty answer moves the search on to the
+	// configured provider, which keeps the titles SeaDex has never heard of queueing something.
+	providerID := r.queueProvider()
+	if providerID == "" {
+		return nil, errors.New("no torrent provider is configured")
+	}
+
+	params, err := r.searchParamsFor(entry, providerID)
 	if err != nil {
 		return nil, err
 	}
 
 	var searchData *torrent.SearchData
 	if r.torrentRepository != nil {
-		searchData, err = r.torrentRepository.SearchAnime(ctx, torrent.AnimeSearchOptions{
-			Provider:      params.Provider,
-			Type:          torrent.AnimeSearchType(params.Type),
-			Media:         entry.Media,
-			Query:         params.Query,
-			Batch:         params.Batch,
-			EpisodeNumber: params.EpisodeNumber,
-			BestReleases:  params.BestRelease,
-			Resolution:    params.Resolution,
-		})
+		search := func(params SearchParams) (*torrent.SearchData, error) {
+			return r.torrentRepository.SearchAnime(ctx, torrent.AnimeSearchOptions{
+				Provider:      params.Provider,
+				Type:          torrent.AnimeSearchType(params.Type),
+				Media:         entry.Media,
+				Query:         params.Query,
+				Batch:         params.Batch,
+				EpisodeNumber: params.EpisodeNumber,
+				BestReleases:  params.BestRelease,
+				Resolution:    params.Resolution,
+			})
+		}
+
+		searchData, err = search(params)
 		if err != nil {
 			return nil, err
+		}
+
+		// A provider error fails the item as before — the run retries it. An empty result is not
+		// an error, and for SeaDex it is the normal answer for anything outside its list, so the
+		// search is repeated against the configured provider before the item is stored with
+		// nothing in it.
+		if len(searchData.Torrents) == 0 {
+			if fallbackID, ok := r.fallbackQueueProvider(providerID); ok {
+				if fallbackParams, fbErr := r.searchParamsFor(entry, fallbackID); fbErr == nil {
+					if fallbackData, fbErr := search(fallbackParams); fbErr == nil && len(fallbackData.Torrents) > 0 {
+						params = fallbackParams
+						searchData = fallbackData
+					}
+				}
+			}
 		}
 	}
 
@@ -342,10 +372,12 @@ func tetheredOVA(details *anilist.AnimeDetailsById_Media, format *anilist.MediaF
 // item shows the same results as opening that anime's page and clicking "Download N episodes".
 //
 // See seanime-web/src/app/(main)/entry/_containers/torrent-search: the drawer searches for a batch
-// by default in this fork, and a batch search must not carry an episode number — providers append
-// it to the query and come back with single episodes only.
-func (r *Repository) searchParamsFor(entry *anime.Entry) (SearchParams, error) {
-	providerID := strings.TrimSpace(r.defaultProviderFunc())
+// by default in this fork, but only when the provider offers the batch filter — for one that does
+// not, the switch is hidden and forced off, and the search narrows to the first episode to download
+// instead. The prepared results only get shown when they answer the question the drawer is asking,
+// so both shapes must match here too. A batch search must not carry an episode number either way:
+// providers append it to the query and come back with single episodes only.
+func (r *Repository) searchParamsFor(entry *anime.Entry, providerID string) (SearchParams, error) {
 	if providerID == "" || providerID == torrent.ProviderNone {
 		return SearchParams{}, errors.New("no torrent provider is configured")
 	}
@@ -354,11 +386,16 @@ func (r *Repository) searchParamsFor(entry *anime.Entry) (SearchParams, error) {
 	// provider cannot do it or the media is adult — mirror both rules rather than sending a smart
 	// search the provider will reject.
 	searchType := torrent.AnimeSearchTypeSmart
+	// Batch until the provider says otherwise: a provider without the batch filter gets the first
+	// episode, exactly as the drawer's hidden switch would have it.
+	batch := true
 	if r.torrentRepository != nil {
 		if ext, found := r.torrentRepository.GetAnimeProviderExtension(providerID); found {
-			if !ext.GetProvider().GetSettings().CanSmartSearch {
+			settings := ext.GetProvider().GetSettings()
+			if !settings.CanSmartSearch {
 				searchType = torrent.AnimeSearchTypeSimple
 			}
+			batch = slices.Contains(settings.SmartSearchFilters, hibiketorrent.AnimeProviderSmartSearchFilterBatch)
 		}
 	}
 	if entry.Media.IsAdult != nil && *entry.Media.IsAdult {
@@ -372,22 +409,52 @@ func (r *Repository) searchParamsFor(entry *anime.Entry) (SearchParams, error) {
 	}
 
 	absoluteOffset := 0
+	// What the drawer searches when the batch switch is off: the first episode still to download.
+	episodeNumber := 0
 	if entry.EntryDownloadInfo != nil {
 		absoluteOffset = entry.EntryDownloadInfo.AbsoluteOffset
+		if !batch && len(entry.EntryDownloadInfo.EpisodesToDownload) > 0 {
+			episodeNumber = entry.EntryDownloadInfo.EpisodesToDownload[0].EpisodeNumber
+		}
 	}
 
 	return SearchParams{
 		Type:     string(searchType),
 		Provider: providerID,
 		Query:    query,
-		// Zero because Batch is true: see the comment above, and torrent.SearchAnime strips it
+		// Zero whenever Batch is true: see the comment above, and torrent.SearchAnime strips it
 		// anyway for anything that is not a movie or a single episode.
-		EpisodeNumber:  0,
-		Batch:          true,
+		EpisodeNumber:  episodeNumber,
+		Batch:          batch,
 		AbsoluteOffset: absoluteOffset,
 		Resolution:     "",
 		BestRelease:    false,
 	}, nil
+}
+
+// preferredQueueProvider is the provider a preparation searches first when it is installed — this
+// deployment's primary, which the settings value may not reflect yet.
+const preferredQueueProvider = "seadex"
+
+// queueProvider returns the provider a preparation searches first: SeaDex when installed, the
+// configured default otherwise.
+func (r *Repository) queueProvider() string {
+	if r.torrentRepository != nil {
+		if _, found := r.torrentRepository.GetAnimeProviderExtension(preferredQueueProvider); found {
+			return preferredQueueProvider
+		}
+	}
+	return strings.TrimSpace(r.defaultProviderFunc())
+}
+
+// fallbackQueueProvider returns the provider to retry with when the first search comes back empty:
+// the configured default, as long as it is set and is not the provider already tried.
+func (r *Repository) fallbackQueueProvider(tried string) (string, bool) {
+	configured := strings.TrimSpace(r.defaultProviderFunc())
+	if configured == "" || configured == torrent.ProviderNone || configured == tried {
+		return "", false
+	}
+	return configured, true
 }
 
 // recommendationsFrom flattens the recommendation edges of a details payload.
