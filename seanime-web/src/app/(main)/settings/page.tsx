@@ -757,7 +757,10 @@ export default function Page() {
                                                 help="Used by the search engine. Select 'None' if you don't need torrent support."
                                                 leftIcon={<RiFolderDownloadFill className="text-orange-500" />}
                                                 options={[
-                                                    ...(torrentProviderExtensions?.filter(ext => ext?.settings?.type === "main")?.map(ext => ({
+                                                    // SeaDex marks itself "special" (it has no latest-releases
+                                                    // listing), but it's this deployment's primary provider, so
+                                                    // it stays selectable here.
+                                                    ...(torrentProviderExtensions?.filter(ext => ext?.settings?.type === "main" || ext?.id === "seadex")?.map(ext => ({
                                                         label: ext.name,
                                                         value: ext.id,
                                                     })) ?? []).sort((a, b) => a?.label?.localeCompare(b?.label) ?? 0),
