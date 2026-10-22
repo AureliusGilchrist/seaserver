@@ -1142,6 +1142,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 
 	// Timeline
 	v1.GET("/profile/timeline", h.HandleGetTimeline)
+	v1.GET("/profiles/timeline", h.HandleGetProfilesTimeline)
 	v1.POST("/profile/timeline/episode-watched", h.HandleRecordEpisodeWatched)
 
 	// Milestones (global)

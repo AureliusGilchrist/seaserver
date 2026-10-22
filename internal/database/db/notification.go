@@ -7,15 +7,22 @@ import (
 
 // GetNotifications returns paginated notifications ordered by created_at desc.
 // Also returns the total count for pagination.
-func (db *Database) GetNotifications(page, limit int) ([]models.Notification, int64, error) {
+// GetNotifications returns the profile's notifications, newest first, paginated.
+// An empty ntype returns every type; otherwise only notifications of that type —
+// the News page pages through RSS notifications five at a time with it.
+func (db *Database) GetNotifications(page, limit int, ntype string) ([]models.Notification, int64, error) {
+	q := db.gormdb.Model(&models.Notification{})
+	if ntype != "" {
+		q = q.Where("type = ?", ntype)
+	}
 	var total int64
-	if err := db.gormdb.Model(&models.Notification{}).Count(&total).Error; err != nil {
+	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
 	var notifications []models.Notification
 	offset := (page - 1) * limit
-	if err := db.gormdb.Order("created_at desc").Offset(offset).Limit(limit).Find(&notifications).Error; err != nil {
+	if err := q.Order("created_at desc").Offset(offset).Limit(limit).Find(&notifications).Error; err != nil {
 		return nil, 0, err
 	}
 

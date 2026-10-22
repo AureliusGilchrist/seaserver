@@ -27,10 +27,12 @@ func (h *Handler) HandleGetNotifications(c echo.Context) error {
 	if limit < 1 || limit > 100 {
 		limit = 20
 	}
+	// Optional type filter ("news" for RSS notifications); empty means every type.
+	ntype := c.QueryParam("type")
 
 	pdb := h.GetProfileDatabase(c)
 
-	notifications, totalCount, err := pdb.GetNotifications(page, limit)
+	notifications, totalCount, err := pdb.GetNotifications(page, limit, ntype)
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
