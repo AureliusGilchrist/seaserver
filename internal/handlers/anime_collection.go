@@ -246,11 +246,26 @@ func (h *Handler) HandleGetLibraryCollection(c echo.Context) error {
 
 	// Use a background context so that browser refresh/navigation doesn't cancel
 	// in-flight AniList API requests (which would cause "context canceled" errors).
+	//
+	// The watch history orders Continue Watching by most recently watched; when the caller
+	// has no profile (or no history), the collection falls back to its progress sort.
+	var lastWatchedAt map[int]time.Time
+	if h.App.ContinuityManager != nil && profileID > 0 {
+		if wh := h.App.ContinuityManager.GetWatchHistoryForProfile(profileID); len(wh) > 0 {
+			lastWatchedAt = make(map[int]time.Time, len(wh))
+			for mediaId, item := range wh {
+				if item != nil {
+					lastWatchedAt[mediaId] = item.TimeUpdated
+				}
+			}
+		}
+	}
 	libraryCollection, err := anime.NewLibraryCollection(context.Background(), &anime.NewLibraryCollectionOptions{
 		AnimeCollection:     animeCollection,
 		PlatformRef:         h.App.AnilistPlatformRef,
 		LocalFiles:          lfs,
 		MetadataProviderRef: h.App.MetadataProviderRef,
+		LastWatchedAt:       lastWatchedAt,
 		Logger:              h.App.Logger,
 	})
 	if err != nil {

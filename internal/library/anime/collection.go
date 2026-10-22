@@ -155,6 +155,10 @@ type (
 		LocalFiles          []*LocalFile
 		PlatformRef         *util.Ref[platform.Platform]
 		MetadataProviderRef *util.Ref[metadata_provider.Provider]
+		// LastWatchedAt maps a media id to when it was last played, used to order the Continue
+		// Watching list by most recently watched instead of by progress. Optional — when empty
+		// the list falls back to the progress sort.
+		LastWatchedAt map[int]time.Time
 		// Logger is optional. Without it a metadata lookup that fails leaves no trace at all, which
 		// is what made a blank card in the library impossible to explain.
 		Logger *zerolog.Logger
@@ -290,6 +294,7 @@ func NewLibraryCollection(ctx context.Context, opts *NewLibraryCollectionOptions
 		opts.AnimeCollection,
 		opts.PlatformRef,
 		opts.MetadataProviderRef,
+		opts.LastWatchedAt,
 	)
 
 	lc.UnmatchedLocalFiles = lo.Filter(opts.LocalFiles, func(lf *LocalFile, index int) bool {
@@ -723,6 +728,7 @@ func (lc *LibraryCollection) hydrateContinueWatchingList(
 	animeCollection *anilist.AnimeCollection,
 	platformRef *util.Ref[platform.Platform],
 	metadataProviderRef *util.Ref[metadata_provider.Provider],
+	lastWatchedAt map[int]time.Time,
 ) {
 
 	// Get currently watching list
@@ -766,10 +772,23 @@ func (lc *LibraryCollection) hydrateContinueWatchingList(
 		return
 	}
 
-	// Sort by progress
-	sort.Slice(mEntries, func(i, j int) bool {
-		return mEntries[i].EntryListData.Progress > mEntries[j].EntryListData.Progress
-	})
+	// Sort by most recently watched when the caller supplied watch timestamps — the show you
+	// last touched goes first. Media never played here (progress only ever updated on AniList,
+	// say) sinks below the played ones but keeps its progress order among themselves. Without
+	// timestamps at all, fall back to the plain progress sort.
+	if len(lastWatchedAt) > 0 {
+		sort.SliceStable(mEntries, func(i, j int) bool {
+			ti, tj := lastWatchedAt[mEntries[i].MediaId], lastWatchedAt[mEntries[j].MediaId]
+			if !ti.Equal(tj) {
+				return ti.After(tj)
+			}
+			return mEntries[i].EntryListData.Progress > mEntries[j].EntryListData.Progress
+		})
+	} else {
+		sort.Slice(mEntries, func(i, j int) bool {
+			return mEntries[i].EntryListData.Progress > mEntries[j].EntryListData.Progress
+		})
+	}
 
 	// Remove entries the user has watched all episodes of
 	mEntries = lop.Map(mEntries, func(mEntry *Entry, index int) *Entry {

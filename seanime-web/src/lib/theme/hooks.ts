@@ -110,7 +110,7 @@ export const THEME_DEFAULT_VALUES: ThemeSettings = {
     mediaPageBannerSize: ThemeMediaPageBannerSize.Default,
     mediaPageBannerInfoBoxSize: ThemeMediaPageInfoBoxSize.Fluid,
     showEpisodeCardAnimeInfo: false,
-    continueWatchingDefaultSorting: "AIRDATE_DESC",
+    continueWatchingDefaultSorting: "LAST_WATCHED_DESC",
     animeLibraryCollectionDefaultSorting: "TITLE",
     mangaLibraryCollectionDefaultSorting: "TITLE",
     showAnimeUnwatchedCount: false,
