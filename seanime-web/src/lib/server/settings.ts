@@ -1,7 +1,9 @@
 import { GettingStarted_Variables } from "@/api/generated/endpoint.types"
 import { z } from "zod"
 
-export const DEFAULT_TORRENT_PROVIDER = ""
+// SeaDex is this deployment's primary provider: new installs and any unset default resolve to it.
+// If the extension is ever removed, every fallback still lands on the first installed provider.
+export const DEFAULT_TORRENT_PROVIDER = "seadex"
 
 export const DEFAULT_TORRENT_CLIENT = "qbittorrent"
 

@@ -6,7 +6,7 @@ import { __torrentSearch_selectedTorrentsAtom } from "@/app/(main)/entry/_contai
 import { __torrentSearch_selectionEpisodeAtom, TorrentSelectionType } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-drawer"
 import { useDebounceWithTrigger } from "@/hooks/use-debounce"
 import { logger } from "@/lib/helpers/debug"
-import { TORRENT_PROVIDER } from "@/lib/server/settings"
+import { DEFAULT_TORRENT_PROVIDER, TORRENT_PROVIDER } from "@/lib/server/settings"
 import { useAtom } from "jotai/react"
 import { atomWithStorage } from "jotai/utils"
 import React, { startTransition } from "react"
@@ -78,7 +78,8 @@ export function useHandleTorrentSearch(props: TorrentSearchHookProps) {
 
         const defaultExt = providerExtensions?.find(ext => ext.id === serverStatus?.settings?.library?.torrentProvider)
         if (!defaultExt) {
-            return providerExtensions?.[0]
+            // Nothing valid configured: the deployment's primary provider, then whichever is first.
+            return providerExtensions?.find(ext => ext.id === DEFAULT_TORRENT_PROVIDER) ?? providerExtensions?.[0]
         }
         return defaultExt
     }, [serverStatus?.settings?.library?.torrentProvider, providerExtensions])

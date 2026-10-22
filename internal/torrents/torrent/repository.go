@@ -111,16 +111,24 @@ func (r *Repository) SetSettings(s *RepositorySettings) {
 	r.reloadExtensions()
 }
 
+// preferredDefaultProvider is what an unset or missing default resolves to when it is installed.
+// This deployment's primary provider is SeaDex, so the empty-settings fallback picks it over
+// "first installed"; when SeaDex is not installed, behavior is unchanged.
+const preferredDefaultProvider = "seadex"
+
 func (r *Repository) GetDefaultAnimeProviderExtension() (extension.AnimeTorrentProviderExtension, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	id := r.settings.DefaultAnimeProvider
-	// if no selected default provider, get the first one
+	// if no selected default provider, get the preferred one when installed, else the first
 	if id == "" {
 		ids := r.GetAllAnimeProviderExtensionIds()
 		if len(ids) > 0 {
 			id = ids[0]
+			if slices.Contains(ids, preferredDefaultProvider) {
+				id = preferredDefaultProvider
+			}
 		}
 		if id == "" {
 			return nil, false
@@ -141,6 +149,9 @@ func (r *Repository) GetAutoSelectProviderExtension() (extension.AnimeTorrentPro
 			ids := r.GetAllAnimeProviderExtensionIds()
 			if len(ids) > 0 {
 				id = ids[0]
+				if slices.Contains(ids, preferredDefaultProvider) {
+					id = preferredDefaultProvider
+				}
 			}
 			if id == "" {
 				return nil, false
@@ -155,7 +166,8 @@ func (r *Repository) GetAnimeProviderExtension(id string) (extension.AnimeTorren
 	return extension.GetExtension[extension.AnimeTorrentProviderExtension](r.extensionBankRef.Get(), id)
 }
 
-// GetAnimeProviderExtensionOrFirst returns the extension with the given ID, or the first one if the extension is not found
+// GetAnimeProviderExtensionOrFirst returns the extension with the given ID, or the deployment's
+// preferred default when the extension is not found
 func (r *Repository) GetAnimeProviderExtensionOrFirst(id string) (extension.AnimeTorrentProviderExtension, bool) {
 	ext, found := extension.GetExtension[extension.AnimeTorrentProviderExtension](r.extensionBankRef.Get(), id)
 	if !found {
@@ -163,6 +175,8 @@ func (r *Repository) GetAnimeProviderExtensionOrFirst(id string) (extension.Anim
 		// check if we find the default extension
 		if r.settings.DefaultAnimeProvider != "" && slices.Contains(ids, r.settings.DefaultAnimeProvider) {
 			id = r.settings.DefaultAnimeProvider
+		} else if slices.Contains(ids, preferredDefaultProvider) {
+			id = preferredDefaultProvider
 		} else if len(ids) > 0 {
 			id = ids[0]
 		} else {
