@@ -91,6 +91,19 @@ export function familySeeders(family: EnqueueFutureFamily): number {
 }
 
 /**
+ * How current a franchise is: the newest date any of its members aired. A franchise airing this
+ * season is more recent than one that ended years ago, whatever their seeders do. Zero — no member
+ * has a date, the usual state of something still preparing — sorts behind every dated family.
+ */
+export function familyRecency(family: EnqueueFutureFamily): number {
+    let latest = 0
+    for (const item of family) {
+        if ((item.airedAt || 0) > latest) latest = item.airedAt || 0
+    }
+    return latest
+}
+
+/**
  * The ordering memory the caller holds between polls: the sequence families are in, and what each
  * one is worth. Both have to survive from one poll to the next, or the list is rebuilt from whatever
  * happens to be left and moves under the person reading it.
@@ -119,7 +132,8 @@ function sameMembers(a: EnqueueFutureFamily | undefined, b: EnqueueFutureFamily)
 
 /**
  * Gathers a franchise into one bundle wherever its members turn up, draws a spine around it, and puts
- * the most widely shared franchises first — with every one-off behind them, as a block.
+ * the most widely shared first — one-offs ranked on the same terms as groups, no special placement
+ * either way.
  *
  * **The slot belongs to the family, not to a member of it.** A franchise is placed by its own total,
  * never by whichever member happens to be its earliest survivor. That distinction is what keeps the
@@ -127,8 +141,9 @@ function sameMembers(a: EnqueueFutureFamily | undefined, b: EnqueueFutureFamily)
  * screen the moment you deal with its top entry, because the anchor becomes the next member and the
  * group lands wherever that one came from.
  *
- * The order is groups before one-offs, popularity, highest total first, and — this is the part that
- * keeps the list usable — **a group's rank never falls because you dealt with one of its entries.**
+ * The order is popularity, highest total first, then recency — the newest-aired family ahead of an
+ * older one of equal standing — and — this is the part that keeps the list usable — **a family's rank
+ * never falls because you dealt with one of its entries.**
  *
  * The rank is the highest total the family has ever been worth, remembered across polls, not the sum
  * of whoever is left in it. Recomputing from the survivors meant every download re-ranked the family
@@ -145,21 +160,14 @@ function sameMembers(a: EnqueueFutureFamily | undefined, b: EnqueueFutureFamily)
  *    total can only rise, so it moves up and the ones it passes move down. This is the one movement
  *    that is worth having — a franchise that just became more popular should say so.
  *  - a franchise nobody has seen appears and takes the rank its seeders earn.
- *  - a franchise emptied down to its last entry stops being a group and joins the one-offs —
- *    landing just below the groups, since its remembered value is still higher than theirs.
- *
- * **A franchise of one — a one-off — sits behind every group**, however popular it is. A single
- * anime is one decision and a franchise is several, so when the two compete for a slot the several
- * wins; the one-offs then rank among themselves by the same popularity, so they keep the order they
- * already had and only move down as a block.
  *
  * Items with no total yet — anything still pending or preparing — sort at the very bottom, which is
- * where something you cannot act on belongs.
+ * where something you cannot act on belongs; among themselves, the freshest dates first.
  *
- * `order` is the tie-break, carried from one poll to the next by the caller. Two families of equal
- * popularity (and a queue full of unprepared zeroes is nothing but ties) keep the order they were
- * first shown in rather than swapping places on every poll, because the sort below is stable and this
- * is the sequence it stabilises against.
+ * `order` is the tie-break carried from one poll to the next by the caller, and it is the *last*
+ * tie-break: equal popularity and equal recency (a queue full of unprepared zeroes with no dates is
+ * nothing but ties) keep the order they were first shown in rather than swapping places on every
+ * poll, because the sort below is stable and this is the sequence it stabilises against.
  *
  * Each entry appears exactly once in the result, so flattening it is a reordering of the input and
  * never a duplication — which is what lets the list and Next/Previous agree on the same order.
@@ -245,18 +253,19 @@ export function groupIntoFamilies(
         values[key] = Math.max(current, remembered)
     }
 
-    // Then popularity decides, over a stable sort, so the line above only settles ties — with one
-    // partition in front of the other. Franchises first: several entries of the same story is what
-    // this screen is for deciding about, and a single anime ranked by its own figure can only ever
-    // be one decision, so the one-offs go behind the groups as a block, however popular they are.
-    // A one-off that used to be a group keeps its remembered value, so it lands at the top of the
-    // one-offs — just below the last group, the smallest fall available.
+    // Then popularity decides, over a stable sort, so the line above only settles ties — and
+    // recency settles what popularity cannot: a one-off ranks wherever its own figure puts it, same
+    // as a group, and two families of equal standing go newest-aired first. The chain is
+    // popularity, then recency, then the order the queue first showed.
     const nextOrder = held.concat(appended)
         .sort((a, b) => {
-            const aGroup = (byKey.get(a)?.length ?? 0) > 1
-            const bGroup = (byKey.get(b)?.length ?? 0) > 1
-            if (aGroup !== bGroup) return aGroup ? -1 : 1
-            return (values[b] ?? 0) - (values[a] ?? 0)
+            const va = values[a] ?? 0
+            const vb = values[b] ?? 0
+            if (va !== vb) return vb - va
+            const ra = familyRecency(byKey.get(a) ?? [])
+            const rb = familyRecency(byKey.get(b) ?? [])
+            if (ra !== rb) return rb - ra
+            return 0
         })
 
     return {

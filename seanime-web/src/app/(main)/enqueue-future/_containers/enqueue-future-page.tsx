@@ -149,11 +149,11 @@ export function EnqueueFuturePage() {
     // rather than items everywhere below.
     //
     // This is also where the queue is put in the order you actually want to work it: most widely
-    // seeded franchise first, adding up the figures of every member of it — where a member's figure
-    // is the seeders of the five healthiest torrents its search found, not of all of them — and the
-    // one-offs behind the groups as a block, however popular they are. A group's place comes from
-    // its own total and never from which of its members is still in it — otherwise dealing with the
-    // top entry of a group throws the rest of the group down the list.
+    // seeded family first, adding up the figures of every member of it — where a member's figure
+    // is the seeders of the five healthiest torrents its search found, not of all of them — then
+    // the newest-aired family among ties, with one-offs ranked on the same terms as groups. A
+    // family's place comes from its own total and never from which of its members is still in it
+    // — otherwise dealing with the top entry of a group throws the rest of the group down the list.
     //
     // Grouping is presentation only. Every action — skip, ignore, add torrents — applies to the one
     // entry it was pressed on and never to its siblings.
