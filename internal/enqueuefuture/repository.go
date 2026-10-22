@@ -904,11 +904,13 @@ func (r *Repository) storeSnapshot(mediaID int, result *prepared) {
 	}
 	best, count := bestSeeders(searchData)
 
-	// Nothing to download and nothing to decide about, so the row goes rather than lingering as one
-	// more thing to scroll past. Deleted rather than marked, the same way a tethered OVA is: it gives
-	// its franchise slot back, and if a later run finds the anime again the search will have moved on
-	// anyway. There is nothing here worth remembering.
-	if count == 0 || best < MinSeeders {
+	// SeaDex is the one exception: it is a curated list, and having an entry is the whole test.
+	// Its seeder counts are scraped after the fact and often come back unknown or small, and its
+	// single best release is worth having in front of you no matter what the count says — that is
+	// the point of putting it ahead of everything else. The gate stays for every other provider:
+	// below MinSeeders a download there either never starts or crawls.
+	curated := result.snapshot != nil && result.snapshot.ProviderID == preferredQueueProvider
+	if count == 0 || (!curated && best < MinSeeders) {
 		reason := "no torrents found"
 		if count > 0 {
 			reason = "best torrent has " + strconv.Itoa(best) + " seeders"
