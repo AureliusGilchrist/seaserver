@@ -295,7 +295,7 @@ func (q *unmatchedMatchQueue) holdOnJournal(item *models.UnmatchedMatchQueueItem
 		q.clearJournalBlocked(item.ID)
 		_ = q.h.App.Database.SetUnmatchedMatchQueueItemQuestion(item.ID, nil, nil,
 			"An earlier match for this download was interrupted and could not be finished automatically. "+
-				"Match the rest of it by hand, or restart the server to try finishing it again.")
+				"Answer it below to run the match again, or remove it and match the rest by hand.")
 		q.sendQueueEvent()
 	}
 }
@@ -537,7 +537,7 @@ func (q *unmatchedMatchQueue) onPendingMatchFinished(torrentName string, complet
 	} else {
 		_ = q.h.App.Database.SetUnmatchedMatchQueueItemQuestion(item.ID, nil, nil,
 			"An earlier match for this download was interrupted and could not be finished automatically. "+
-				"Match the rest of it by hand, or restart the server to try finishing it again.")
+				"Answer it below to run the match again, or remove it and match the rest by hand.")
 	}
 
 	q.wakeUp()
@@ -808,7 +808,7 @@ func (h *Handler) HandleRetryUnmatchedMatchQueueItem(c echo.Context) error {
 	if item, _ := h.App.Database.GetUnmatchedMatchQueueItem(b.ID); item != nil {
 		if h.App.UnmatchedRepository.HasPendingMatchJournal(item.TorrentName) {
 			return h.RespondWithError(c, echo.NewHTTPError(409,
-				"an interrupted match for this download is still being finished — restart the server to finish it"))
+				"an interrupted match for this download is still unfinished — use Run it anyway to answer it"))
 		}
 	}
 
@@ -862,6 +862,46 @@ func (h *Handler) HandleResolveUnmatchedMatchQueueItem(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 	h.App.UnmatchedRepository.ClearPendingConflict(item.TorrentName)
+
+	h.UnmatchedMatchQueue.wakeUp()
+	h.UnmatchedMatchQueue.sendQueueEvent()
+	return h.RespondWithData(c, h.UnmatchedMatchQueue.state())
+}
+
+// HandleForceUnmatchedMatchQueueItem
+//
+//	@summary runs a queued match that was held back by an interrupted match, answering it by hand.
+//	@desc This handler tears up the interrupted match's plan on disk and puts the queued match back in
+//	@desc line to run again from what is left of the download. It is the answer to the question the
+//	@desc queue puts when a plan could not be finished at any start — the user deciding to proceed
+//	@desc rather than wait on a resume that never completes. The match's own checks still run: files
+//	@desc already in the library are asked about, not overwritten in silence.
+//	@route /api/v1/unmatched/queue/force [POST]
+//	@returns UnmatchedMatchQueueState
+func (h *Handler) HandleForceUnmatchedMatchQueueItem(c echo.Context) error {
+	type body struct {
+		ID uint `json:"id"`
+	}
+	var b body
+	if err := c.Bind(&b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	item, err := h.App.Database.GetUnmatchedMatchQueueItem(b.ID)
+	if err != nil || item == nil {
+		return h.RespondWithError(c, echo.NewHTTPError(404, "no such queued match"))
+	}
+
+	if !h.App.UnmatchedRepository.DiscardPendingMatchJournal(item.TorrentName) {
+		// Nothing was holding this item back after all — an ordinary retry is what is wanted, and
+		// the force would otherwise be silently the same thing.
+		return h.RespondWithError(c, echo.NewHTTPError(409,
+			"there is no interrupted match on this download — use Try again instead"))
+	}
+
+	if err := h.App.Database.ResetUnmatchedMatchQueueItem(b.ID); err != nil {
+		return h.RespondWithError(c, err)
+	}
 
 	h.UnmatchedMatchQueue.wakeUp()
 	h.UnmatchedMatchQueue.sendQueueEvent()

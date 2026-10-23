@@ -4359,6 +4359,20 @@ export const API_ENDPOINTS = {
             methods: ["POST"],
             endpoint: "/api/v1/unmatched/queue/resolve",
         },
+        /**
+         *  @description
+         *  Route runs a queued match that was held back by an interrupted match, answering it by hand.
+         *  This handler tears up the interrupted match's plan on disk and puts the queued match back in
+         *  line to run again from what is left of the download. It is the answer to the question the
+         *  queue puts when a plan could not be finished at any start — the user deciding to proceed
+         *  rather than wait on a resume that never completes. The match's own checks still run: files
+         *  already in the library are asked about, not overwritten in silence.
+         */
+        ForceUnmatchedMatchQueueItem: {
+            key: "UNMATCHED-MATCH-QUEUE-force-unmatched-match-queue-item",
+            methods: ["POST"],
+            endpoint: "/api/v1/unmatched/queue/force",
+        },
     },
     UNMATCHED_SWEEP: {
         /**

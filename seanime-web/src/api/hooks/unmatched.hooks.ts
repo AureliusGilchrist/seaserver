@@ -229,6 +229,11 @@ export const UNMATCHED_ENDPOINTS = {
         methods: ["POST"] as const,
         endpoint: "/api/v1/unmatched/queue/resolve",
     },
+    ForceMatchQueueItem: {
+        key: "UNMATCHED-force-match-queue-item",
+        methods: ["POST"] as const,
+        endpoint: "/api/v1/unmatched/queue/force",
+    },
     GetSweepStatus: {
         key: "UNMATCHED-get-sweep-status",
         methods: ["GET"] as const,
@@ -799,6 +804,21 @@ export function useResolveUnmatchedMatchQueueItem() {
         endpoint: UNMATCHED_ENDPOINTS.ResolveMatchQueueItem.endpoint,
         method: UNMATCHED_ENDPOINTS.ResolveMatchQueueItem.methods[0],
         mutationKey: [UNMATCHED_ENDPOINTS.ResolveMatchQueueItem.key],
+        onSuccess: async (data) => writeCache(data),
+    })
+}
+
+/**
+ * Answers an "interrupted match" question by throwing the unfinished plan away and running the
+ * queued match again from what is left of the download. Files already in the library are still
+ * asked about, so this is a decision to proceed, not a bypass of the checks.
+ */
+export function useForceUnmatchedMatchQueueItem() {
+    const writeCache = useMatchQueueCacheWriter()
+    return useServerMutation<UnmatchedMatchQueueState, { id: number }>({
+        endpoint: UNMATCHED_ENDPOINTS.ForceMatchQueueItem.endpoint,
+        method: UNMATCHED_ENDPOINTS.ForceMatchQueueItem.methods[0],
+        mutationKey: [UNMATCHED_ENDPOINTS.ForceMatchQueueItem.key],
         onSuccess: async (data) => writeCache(data),
     })
 }

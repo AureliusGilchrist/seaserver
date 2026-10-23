@@ -12,6 +12,7 @@ import {
     useResumeUnmatchedMatchQueue,
     useRetryUnmatchedMatchQueueItem,
     useResolveUnmatchedMatchQueueItem,
+    useForceUnmatchedMatchQueueItem,
     UnmatchedTorrent,
     UnmatchedMatchQueueItem,
     UnmatchedMatchQueueStatus,
@@ -175,6 +176,7 @@ export function UnmatchedTorrentsPage() {
     const { mutate: removeQueueItem } = useRemoveUnmatchedMatchQueueItem()
     const { mutate: retryQueueItem, isPending: isRetrying } = useRetryUnmatchedMatchQueueItem()
     const { mutate: resolveQueueItem, isPending: isResolving } = useResolveUnmatchedMatchQueueItem()
+    const { mutate: forceQueueItem, isPending: isForcing } = useForceUnmatchedMatchQueueItem()
     const { mutate: pauseQueue } = usePauseUnmatchedMatchQueue()
     const { mutate: resumeQueue } = useResumeUnmatchedMatchQueue()
     const { mutate: clearQueue } = useClearUnmatchedMatchQueue()
@@ -183,6 +185,20 @@ export function UnmatchedTorrentsPage() {
         title: "Clear the match queue",
         description: "Removes every queued match without carrying it out. Downloads already matched stay matched; nothing on disk is touched.",
         onConfirm: () => clearQueue({}),
+    })
+
+    // Answering "run it anyway" on an interrupted match: the unfinished plan is thrown away and the
+    // match runs again from what is left of the download. Worth one confirmation, since the point
+    // is that the automatic resume could not finish it.
+    const [forcingId, setForcingId] = React.useState<number | null>(null)
+    const forceItemConfirmation = useConfirmationDialog({
+        title: "Run this match anyway?",
+        description: "The unfinished match plan is thrown away and the match runs again from what's left of the download. Episodes already in the library are still checked first — nothing is overwritten without asking.",
+        actionText: "Run it anyway",
+        onConfirm: () => {
+            if (forcingId != null) forceQueueItem({ id: forcingId })
+            setForcingId(null)
+        },
     })
 
     // The question a queued match stopped on, and the item it belongs to. Opened from the queue.
@@ -452,7 +468,11 @@ export function UnmatchedTorrentsPage() {
                                         onRemove={() => removeQueueItem({ id: item.id })}
                                         onRetry={() => retryQueueItem({ id: item.id })}
                                         onAnswer={() => setAnswering(item)}
-                                        isBusy={isRetrying || isResolving}
+                                        onForce={() => {
+                                            setForcingId(item.id)
+                                            forceItemConfirmation.open()
+                                        }}
+                                        isBusy={isRetrying || isResolving || isForcing}
                                     />
                                 ))}
                             </div>
@@ -519,6 +539,7 @@ export function UnmatchedTorrentsPage() {
             )}
 
             <ConfirmationDialog {...clearQueueConfirmation} />
+            <ConfirmationDialog {...forceItemConfirmation} />
         </PageWrapper>
     )
 }
@@ -630,6 +651,7 @@ function QueueItemRow({
     onRemove,
     onRetry,
     onAnswer,
+    onForce,
     isBusy,
 }: {
     item: UnmatchedMatchQueueItem
@@ -637,6 +659,8 @@ function QueueItemRow({
     onRemove: () => void
     onRetry: () => void
     onAnswer: () => void
+    /** Answering an "interrupted match" question: discard the plan and run the match again. */
+    onForce: () => void
     isBusy: boolean
 }) {
     const failed = item.status === "pending" && item.attempts > 0 && !!item.errorMessage
@@ -743,6 +767,13 @@ function QueueItemRow({
                 {needsDecision && (item.conflict || item.countMismatch) && (
                     <Button size="sm" intent="primary" onClick={onAnswer} disabled={isBusy}>
                         Answer
+                    </Button>
+                )}
+                {/* An interrupted match handed over by the queue has no conflict to settle — its
+                    question is whether to proceed at all, which is answered by running it. */}
+                {needsDecision && !item.conflict && !item.countMismatch && (
+                    <Button size="sm" intent="primary" onClick={onForce} disabled={isBusy}>
+                        Run it anyway
                     </Button>
                 )}
                 {item.status === "pending" && failed && (

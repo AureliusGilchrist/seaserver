@@ -235,6 +235,32 @@ func (r *Repository) HasPendingMatchJournal(torrentName string) bool {
 	return err == nil
 }
 
+// DiscardPendingMatchJournal tears up an interrupted match's plan, so the download can be matched
+// again from what is left of it. It is the user's answer to a question the server cannot settle on
+// its own: the resume has tried at every start and could not finish, and waiting longer changes
+// nothing. Re-planning from the remaining files numbers them from one — which is exactly what
+// matching the rest by hand would do — and the match's own checks still run, so anything already
+// sitting in the library is asked about rather than overwritten in silence.
+//
+// Reports whether a plan was there to discard.
+func (r *Repository) DiscardPendingMatchJournal(torrentName string) bool {
+	if torrentName == "" {
+		return false
+	}
+	path := pendingMatchPath(torrentName)
+	if _, err := os.Stat(path); err != nil {
+		return false
+	}
+	if err := os.Remove(path); err != nil {
+		r.logger.Warn().Err(err).Str("torrent", torrentName).
+			Msg("unmatched: Could not discard the interrupted match plan")
+		return false
+	}
+	r.logger.Info().Str("torrent", torrentName).
+		Msg("unmatched: Interrupted match plan discarded at the user's decision, the download can be matched again")
+	return true
+}
+
 // SetOnPendingMatchFinished registers a listener for resumed matches. It is called once per
 // interrupted match that ResumePendingMatches took on, with whether the match was completed.
 func (r *Repository) SetOnPendingMatchFinished(fn func(torrentName string, completed bool)) {

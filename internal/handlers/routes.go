@@ -1014,6 +1014,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Unmatched.POST("/queue/resume", h.HandleResumeUnmatchedMatchQueue)
 	v1Unmatched.POST("/queue/retry", h.HandleRetryUnmatchedMatchQueueItem)
 	v1Unmatched.POST("/queue/resolve", h.HandleResolveUnmatchedMatchQueueItem)
+	v1Unmatched.POST("/queue/force", h.HandleForceUnmatchedMatchQueueItem)
 	v1Unmatched.POST("/match-all", h.HandleSweepUnmatchedTorrents)
 	v1Unmatched.GET("/match-all/status", h.HandleGetUnmatchedSweepStatus)
 	v1Unmatched.POST("/match-all/stop", h.HandleStopUnmatchedSweep)
