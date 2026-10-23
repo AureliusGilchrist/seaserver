@@ -1,4 +1,4 @@
-package handlers
+package torrent
 
 import (
 	"testing"
@@ -78,7 +78,7 @@ func TestCountTorrentContents(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := countTorrentContents(tt.info)
+			got := CountTorrentContents(tt.info)
 			if got.Files != tt.wantFiles {
 				t.Errorf("files = %d, want %d", got.Files, tt.wantFiles)
 			}
@@ -91,13 +91,13 @@ func TestCountTorrentContents(t *testing.T) {
 
 func TestTorrentContentsKey(t *testing.T) {
 	t.Run("the info hash names the contents, case aside", func(t *testing.T) {
-		if got := torrentContentsKey("  ABCDEF  ", "https://example.test/x.torrent"); got != "abcdef" {
+		if got := TorrentContentsKey("  ABCDEF  ", "https://example.test/x.torrent"); got != "abcdef" {
 			t.Errorf("got %q, want %q", got, "abcdef")
 		}
 	})
 
 	t.Run("the download URL stands in when there is no hash", func(t *testing.T) {
-		if got := torrentContentsKey("", " https://example.test/x.torrent "); got != "https://example.test/x.torrent" {
+		if got := TorrentContentsKey("", " https://example.test/x.torrent "); got != "https://example.test/x.torrent" {
 			t.Errorf("got %q", got)
 		}
 	})
@@ -105,7 +105,7 @@ func TestTorrentContentsKey(t *testing.T) {
 	// Nothing to identify it by: the caller skips these rather than caching under an empty key,
 	// which would make every unidentifiable torrent share one answer.
 	t.Run("nothing to go on", func(t *testing.T) {
-		if got := torrentContentsKey("  ", ""); got != "" {
+		if got := TorrentContentsKey("  ", ""); got != "" {
 			t.Errorf("got %q, want empty", got)
 		}
 	})

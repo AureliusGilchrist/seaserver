@@ -50,11 +50,12 @@ export function useTorrentContents(torrents: HibikeTorrent_AnimeTorrent[] | null
         const seen = new Set<string>()
         for (const torrent of torrents ?? []) {
             const key = torrentContentsKey(torrent)
-            // Nothing to fetch from without a download URL: reading a magnet means joining the
-            // swarm, which is the cost this avoids.
-            if (!key || !torrent.downloadUrl || contents[key] || seen.has(key)) continue
+            // A result with no download URL has nothing that can be read from the network — but the
+            // server may still know its contents, because the search counts the SeaDex list's own
+            // releases ahead of time. Ask anyway and let the answer be absent if it isn't.
+            if (!key || contents[key] || seen.has(key)) continue
             seen.add(key)
-            out.push({ infoHash: torrent.infoHash || "", downloadUrl: torrent.downloadUrl })
+            out.push({ infoHash: torrent.infoHash || "", downloadUrl: torrent.downloadUrl || "" })
         }
         return out
     }, [torrents, contents])

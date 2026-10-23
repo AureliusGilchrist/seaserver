@@ -218,6 +218,7 @@ func (r *Repository) SearchAnime(ctx context.Context, opts AnimeSearchOptions) (
 		}
 
 		if ret != nil {
+			populateContentsFromSeaDex(opts.Media.GetID(), ret.Torrents)
 			tmp := *ret
 			ret = &tmp
 		}
@@ -483,6 +484,7 @@ func (r *Repository) SearchAnime(ctx context.Context, opts AnimeSearchOptions) (
 	}
 
 	if ret != nil {
+		populateContentsFromSeaDex(opts.Media.GetID(), ret.Torrents)
 		tmp := *ret
 		ret = &tmp
 	}
