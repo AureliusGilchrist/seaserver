@@ -480,60 +480,60 @@ const MainOfflineEntryAnimeIndexRoute =
   )
 
 export interface FileRoutesByFullPath {
-  '/error-test': typeof MainErrorTestRoute
   '/': typeof MainIndexRoute
-  '/popout-player': typeof PopoutPlayerIndexRoute
-  '/splashscreen': typeof SplashscreenIndexRoute
-  '/docs': typeof DocsIndexLazyRoute
-  '/issue-report': typeof IssueReportIndexLazyRoute
-  '/scan-log-viewer': typeof ScanLogViewerIndexLazyRoute
-  '/achievements': typeof MainAchievementsIndexRoute
-  '/character': typeof MainCharacterIndexRoute
-  '/community': typeof MainCommunityIndexRoute
-  '/custom-sources': typeof MainCustomSourcesIndexRoute
-  '/discover': typeof MainDiscoverIndexRoute
-  '/entry': typeof MainEntryIndexRoute
-  '/extensions': typeof MainExtensionsIndexRoute
-  '/medialinks': typeof MainMedialinksIndexRoute
-  '/mediastream': typeof MainMediastreamIndexRoute
-  '/milestones': typeof MainMilestonesIndexRoute
-  '/news': typeof MainNewsIndexRoute
-  '/offline': typeof MainOfflineIndexRoute
-  '/search': typeof MainSearchIndexRoute
-  '/settings': typeof MainSettingsIndexRoute
-  '/staff': typeof MainStaffIndexRoute
-  '/studio': typeof MainStudioIndexRoute
-  '/theme-manager': typeof MainThemeManagerIndexRoute
-  '/public/auth': typeof PublicAuthIndexRoute
-  '/splashscreen/crash': typeof SplashscreenCrashIndexRoute
-  '/anime': typeof MainAnimeIndexLazyRoute
-  '/auto-downloader': typeof MainAutoDownloaderIndexLazyRoute
-  '/debrid': typeof MainDebridIndexLazyRoute
-  '/enmasse-anime': typeof MainEnmasseAnimeIndexLazyRoute
-  '/enmasse-manga': typeof MainEnmasseMangaIndexLazyRoute
-  '/enqueue-future': typeof MainEnqueueFutureIndexLazyRoute
-  '/lists': typeof MainListsIndexLazyRoute
-  '/manga': typeof MainMangaIndexLazyRoute
-  '/missed-sequels': typeof MainMissedSequelsIndexLazyRoute
-  '/qbittorrent': typeof MainQbittorrentIndexLazyRoute
-  '/scan-summaries': typeof MainScanSummariesIndexLazyRoute
-  '/schedule': typeof MainScheduleIndexLazyRoute
-  '/sync': typeof MainSyncIndexLazyRoute
-  '/to-watch': typeof MainToWatchIndexLazyRoute
-  '/torrent-list': typeof MainTorrentListIndexLazyRoute
-  '/unmatched': typeof MainUnmatchedIndexLazyRoute
-  '/webview': typeof MainWebviewIndexLazyRoute
-  '/admin/announcements': typeof MainAdminAnnouncementsIndexRoute
-  '/auth/callback': typeof MainAuthCallbackIndexRoute
-  '/manga/entry': typeof MainMangaEntryIndexRoute
-  '/profile/me': typeof MainProfileMeIndexRoute
-  '/profile/stats': typeof MainProfileStatsIndexRoute
-  '/profile/user': typeof MainProfileUserIndexRoute
-  '/settings/manga-scan': typeof MainSettingsMangaScanIndexRoute
-  '/extensions/playground': typeof MainExtensionsPlaygroundIndexLazyRoute
-  '/offline/manga': typeof MainOfflineMangaIndexLazyRoute
-  '/offline/entry/anime': typeof MainOfflineEntryAnimeIndexRoute
-  '/offline/entry/manga': typeof MainOfflineEntryMangaIndexRoute
+  '/error-test': typeof MainErrorTestRoute
+  '/popout-player/': typeof PopoutPlayerIndexRoute
+  '/splashscreen/': typeof SplashscreenIndexRoute
+  '/docs/': typeof DocsIndexLazyRoute
+  '/issue-report/': typeof IssueReportIndexLazyRoute
+  '/scan-log-viewer/': typeof ScanLogViewerIndexLazyRoute
+  '/achievements/': typeof MainAchievementsIndexRoute
+  '/character/': typeof MainCharacterIndexRoute
+  '/community/': typeof MainCommunityIndexRoute
+  '/custom-sources/': typeof MainCustomSourcesIndexRoute
+  '/discover/': typeof MainDiscoverIndexRoute
+  '/entry/': typeof MainEntryIndexRoute
+  '/extensions/': typeof MainExtensionsIndexRoute
+  '/medialinks/': typeof MainMedialinksIndexRoute
+  '/mediastream/': typeof MainMediastreamIndexRoute
+  '/milestones/': typeof MainMilestonesIndexRoute
+  '/news/': typeof MainNewsIndexRoute
+  '/offline/': typeof MainOfflineIndexRoute
+  '/search/': typeof MainSearchIndexRoute
+  '/settings/': typeof MainSettingsIndexRoute
+  '/staff/': typeof MainStaffIndexRoute
+  '/studio/': typeof MainStudioIndexRoute
+  '/theme-manager/': typeof MainThemeManagerIndexRoute
+  '/public/auth/': typeof PublicAuthIndexRoute
+  '/splashscreen/crash/': typeof SplashscreenCrashIndexRoute
+  '/anime/': typeof MainAnimeIndexLazyRoute
+  '/auto-downloader/': typeof MainAutoDownloaderIndexLazyRoute
+  '/debrid/': typeof MainDebridIndexLazyRoute
+  '/enmasse-anime/': typeof MainEnmasseAnimeIndexLazyRoute
+  '/enmasse-manga/': typeof MainEnmasseMangaIndexLazyRoute
+  '/enqueue-future/': typeof MainEnqueueFutureIndexLazyRoute
+  '/lists/': typeof MainListsIndexLazyRoute
+  '/manga/': typeof MainMangaIndexLazyRoute
+  '/missed-sequels/': typeof MainMissedSequelsIndexLazyRoute
+  '/qbittorrent/': typeof MainQbittorrentIndexLazyRoute
+  '/scan-summaries/': typeof MainScanSummariesIndexLazyRoute
+  '/schedule/': typeof MainScheduleIndexLazyRoute
+  '/sync/': typeof MainSyncIndexLazyRoute
+  '/to-watch/': typeof MainToWatchIndexLazyRoute
+  '/torrent-list/': typeof MainTorrentListIndexLazyRoute
+  '/unmatched/': typeof MainUnmatchedIndexLazyRoute
+  '/webview/': typeof MainWebviewIndexLazyRoute
+  '/admin/announcements/': typeof MainAdminAnnouncementsIndexRoute
+  '/auth/callback/': typeof MainAuthCallbackIndexRoute
+  '/manga/entry/': typeof MainMangaEntryIndexRoute
+  '/profile/me/': typeof MainProfileMeIndexRoute
+  '/profile/stats/': typeof MainProfileStatsIndexRoute
+  '/profile/user/': typeof MainProfileUserIndexRoute
+  '/settings/manga-scan/': typeof MainSettingsMangaScanIndexRoute
+  '/extensions/playground/': typeof MainExtensionsPlaygroundIndexLazyRoute
+  '/offline/manga/': typeof MainOfflineMangaIndexLazyRoute
+  '/offline/entry/anime/': typeof MainOfflineEntryAnimeIndexRoute
+  '/offline/entry/manga/': typeof MainOfflineEntryMangaIndexRoute
 }
 export interface FileRoutesByTo {
   '/error-test': typeof MainErrorTestRoute
@@ -652,60 +652,60 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/error-test'
     | '/'
-    | '/popout-player'
-    | '/splashscreen'
-    | '/docs'
-    | '/issue-report'
-    | '/scan-log-viewer'
-    | '/achievements'
-    | '/character'
-    | '/community'
-    | '/custom-sources'
-    | '/discover'
-    | '/entry'
-    | '/extensions'
-    | '/medialinks'
-    | '/mediastream'
-    | '/milestones'
-    | '/news'
-    | '/offline'
-    | '/search'
-    | '/settings'
-    | '/staff'
-    | '/studio'
-    | '/theme-manager'
-    | '/public/auth'
-    | '/splashscreen/crash'
-    | '/anime'
-    | '/auto-downloader'
-    | '/debrid'
-    | '/enmasse-anime'
-    | '/enmasse-manga'
-    | '/enqueue-future'
-    | '/lists'
-    | '/manga'
-    | '/missed-sequels'
-    | '/qbittorrent'
-    | '/scan-summaries'
-    | '/schedule'
-    | '/sync'
-    | '/to-watch'
-    | '/torrent-list'
-    | '/unmatched'
-    | '/webview'
-    | '/admin/announcements'
-    | '/auth/callback'
-    | '/manga/entry'
-    | '/profile/me'
-    | '/profile/stats'
-    | '/profile/user'
-    | '/settings/manga-scan'
-    | '/extensions/playground'
-    | '/offline/manga'
-    | '/offline/entry/anime'
-    | '/offline/entry/manga'
+    | '/error-test'
+    | '/popout-player/'
+    | '/splashscreen/'
+    | '/docs/'
+    | '/issue-report/'
+    | '/scan-log-viewer/'
+    | '/achievements/'
+    | '/character/'
+    | '/community/'
+    | '/custom-sources/'
+    | '/discover/'
+    | '/entry/'
+    | '/extensions/'
+    | '/medialinks/'
+    | '/mediastream/'
+    | '/milestones/'
+    | '/news/'
+    | '/offline/'
+    | '/search/'
+    | '/settings/'
+    | '/staff/'
+    | '/studio/'
+    | '/theme-manager/'
+    | '/public/auth/'
+    | '/splashscreen/crash/'
+    | '/anime/'
+    | '/auto-downloader/'
+    | '/debrid/'
+    | '/enmasse-anime/'
+    | '/enmasse-manga/'
+    | '/enqueue-future/'
+    | '/lists/'
+    | '/manga/'
+    | '/missed-sequels/'
+    | '/qbittorrent/'
+    | '/scan-summaries/'
+    | '/schedule/'
+    | '/sync/'
+    | '/to-watch/'
+    | '/torrent-list/'
+    | '/unmatched/'
+    | '/webview/'
+    | '/admin/announcements/'
+    | '/auth/callback/'
+    | '/manga/entry/'
+    | '/profile/me/'
+    | '/profile/stats/'
+    | '/profile/user/'
+    | '/settings/manga-scan/'
+    | '/extensions/playground/'
+    | '/offline/manga/'
+    | '/offline/entry/anime/'
+    | '/offline/entry/manga/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/error-test'
@@ -837,42 +837,42 @@ declare module '@tanstack/react-router' {
     '/_main': {
       id: '/_main'
       path: ''
-      fullPath: ''
+      fullPath: '/'
       preLoaderRoute: typeof MainRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/scan-log-viewer/': {
       id: '/scan-log-viewer/'
       path: '/scan-log-viewer'
-      fullPath: '/scan-log-viewer'
+      fullPath: '/scan-log-viewer/'
       preLoaderRoute: typeof ScanLogViewerIndexLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/issue-report/': {
       id: '/issue-report/'
       path: '/issue-report'
-      fullPath: '/issue-report'
+      fullPath: '/issue-report/'
       preLoaderRoute: typeof IssueReportIndexLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/docs/': {
       id: '/docs/'
       path: '/docs'
-      fullPath: '/docs'
+      fullPath: '/docs/'
       preLoaderRoute: typeof DocsIndexLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/splashscreen/': {
       id: '/splashscreen/'
       path: '/splashscreen'
-      fullPath: '/splashscreen'
+      fullPath: '/splashscreen/'
       preLoaderRoute: typeof SplashscreenIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/popout-player/': {
       id: '/popout-player/'
       path: '/popout-player'
-      fullPath: '/popout-player'
+      fullPath: '/popout-player/'
       preLoaderRoute: typeof PopoutPlayerIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
@@ -893,329 +893,329 @@ declare module '@tanstack/react-router' {
     '/_main/webview/': {
       id: '/_main/webview/'
       path: '/webview'
-      fullPath: '/webview'
+      fullPath: '/webview/'
       preLoaderRoute: typeof MainWebviewIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/unmatched/': {
       id: '/_main/unmatched/'
       path: '/unmatched'
-      fullPath: '/unmatched'
+      fullPath: '/unmatched/'
       preLoaderRoute: typeof MainUnmatchedIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/torrent-list/': {
       id: '/_main/torrent-list/'
       path: '/torrent-list'
-      fullPath: '/torrent-list'
+      fullPath: '/torrent-list/'
       preLoaderRoute: typeof MainTorrentListIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/to-watch/': {
       id: '/_main/to-watch/'
       path: '/to-watch'
-      fullPath: '/to-watch'
+      fullPath: '/to-watch/'
       preLoaderRoute: typeof MainToWatchIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/sync/': {
       id: '/_main/sync/'
       path: '/sync'
-      fullPath: '/sync'
+      fullPath: '/sync/'
       preLoaderRoute: typeof MainSyncIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/schedule/': {
       id: '/_main/schedule/'
       path: '/schedule'
-      fullPath: '/schedule'
+      fullPath: '/schedule/'
       preLoaderRoute: typeof MainScheduleIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/scan-summaries/': {
       id: '/_main/scan-summaries/'
       path: '/scan-summaries'
-      fullPath: '/scan-summaries'
+      fullPath: '/scan-summaries/'
       preLoaderRoute: typeof MainScanSummariesIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/qbittorrent/': {
       id: '/_main/qbittorrent/'
       path: '/qbittorrent'
-      fullPath: '/qbittorrent'
+      fullPath: '/qbittorrent/'
       preLoaderRoute: typeof MainQbittorrentIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/missed-sequels/': {
       id: '/_main/missed-sequels/'
       path: '/missed-sequels'
-      fullPath: '/missed-sequels'
+      fullPath: '/missed-sequels/'
       preLoaderRoute: typeof MainMissedSequelsIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/manga/': {
       id: '/_main/manga/'
       path: '/manga'
-      fullPath: '/manga'
+      fullPath: '/manga/'
       preLoaderRoute: typeof MainMangaIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/lists/': {
       id: '/_main/lists/'
       path: '/lists'
-      fullPath: '/lists'
+      fullPath: '/lists/'
       preLoaderRoute: typeof MainListsIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/enqueue-future/': {
       id: '/_main/enqueue-future/'
       path: '/enqueue-future'
-      fullPath: '/enqueue-future'
+      fullPath: '/enqueue-future/'
       preLoaderRoute: typeof MainEnqueueFutureIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/enmasse-manga/': {
       id: '/_main/enmasse-manga/'
       path: '/enmasse-manga'
-      fullPath: '/enmasse-manga'
+      fullPath: '/enmasse-manga/'
       preLoaderRoute: typeof MainEnmasseMangaIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/enmasse-anime/': {
       id: '/_main/enmasse-anime/'
       path: '/enmasse-anime'
-      fullPath: '/enmasse-anime'
+      fullPath: '/enmasse-anime/'
       preLoaderRoute: typeof MainEnmasseAnimeIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/debrid/': {
       id: '/_main/debrid/'
       path: '/debrid'
-      fullPath: '/debrid'
+      fullPath: '/debrid/'
       preLoaderRoute: typeof MainDebridIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/auto-downloader/': {
       id: '/_main/auto-downloader/'
       path: '/auto-downloader'
-      fullPath: '/auto-downloader'
+      fullPath: '/auto-downloader/'
       preLoaderRoute: typeof MainAutoDownloaderIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/anime/': {
       id: '/_main/anime/'
       path: '/anime'
-      fullPath: '/anime'
+      fullPath: '/anime/'
       preLoaderRoute: typeof MainAnimeIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
     '/splashscreen/crash/': {
       id: '/splashscreen/crash/'
       path: '/splashscreen/crash'
-      fullPath: '/splashscreen/crash'
+      fullPath: '/splashscreen/crash/'
       preLoaderRoute: typeof SplashscreenCrashIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/public/auth/': {
       id: '/public/auth/'
       path: '/public/auth'
-      fullPath: '/public/auth'
+      fullPath: '/public/auth/'
       preLoaderRoute: typeof PublicAuthIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_main/theme-manager/': {
       id: '/_main/theme-manager/'
       path: '/theme-manager'
-      fullPath: '/theme-manager'
+      fullPath: '/theme-manager/'
       preLoaderRoute: typeof MainThemeManagerIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/studio/': {
       id: '/_main/studio/'
       path: '/studio'
-      fullPath: '/studio'
+      fullPath: '/studio/'
       preLoaderRoute: typeof MainStudioIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/staff/': {
       id: '/_main/staff/'
       path: '/staff'
-      fullPath: '/staff'
+      fullPath: '/staff/'
       preLoaderRoute: typeof MainStaffIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/settings/': {
       id: '/_main/settings/'
       path: '/settings'
-      fullPath: '/settings'
+      fullPath: '/settings/'
       preLoaderRoute: typeof MainSettingsIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/search/': {
       id: '/_main/search/'
       path: '/search'
-      fullPath: '/search'
+      fullPath: '/search/'
       preLoaderRoute: typeof MainSearchIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/offline/': {
       id: '/_main/offline/'
       path: '/offline'
-      fullPath: '/offline'
+      fullPath: '/offline/'
       preLoaderRoute: typeof MainOfflineIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/news/': {
       id: '/_main/news/'
       path: '/news'
-      fullPath: '/news'
+      fullPath: '/news/'
       preLoaderRoute: typeof MainNewsIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/milestones/': {
       id: '/_main/milestones/'
       path: '/milestones'
-      fullPath: '/milestones'
+      fullPath: '/milestones/'
       preLoaderRoute: typeof MainMilestonesIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/mediastream/': {
       id: '/_main/mediastream/'
       path: '/mediastream'
-      fullPath: '/mediastream'
+      fullPath: '/mediastream/'
       preLoaderRoute: typeof MainMediastreamIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/medialinks/': {
       id: '/_main/medialinks/'
       path: '/medialinks'
-      fullPath: '/medialinks'
+      fullPath: '/medialinks/'
       preLoaderRoute: typeof MainMedialinksIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/extensions/': {
       id: '/_main/extensions/'
       path: '/extensions'
-      fullPath: '/extensions'
+      fullPath: '/extensions/'
       preLoaderRoute: typeof MainExtensionsIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/entry/': {
       id: '/_main/entry/'
       path: '/entry'
-      fullPath: '/entry'
+      fullPath: '/entry/'
       preLoaderRoute: typeof MainEntryIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/discover/': {
       id: '/_main/discover/'
       path: '/discover'
-      fullPath: '/discover'
+      fullPath: '/discover/'
       preLoaderRoute: typeof MainDiscoverIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/custom-sources/': {
       id: '/_main/custom-sources/'
       path: '/custom-sources'
-      fullPath: '/custom-sources'
+      fullPath: '/custom-sources/'
       preLoaderRoute: typeof MainCustomSourcesIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/community/': {
       id: '/_main/community/'
       path: '/community'
-      fullPath: '/community'
+      fullPath: '/community/'
       preLoaderRoute: typeof MainCommunityIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/character/': {
       id: '/_main/character/'
       path: '/character'
-      fullPath: '/character'
+      fullPath: '/character/'
       preLoaderRoute: typeof MainCharacterIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/achievements/': {
       id: '/_main/achievements/'
       path: '/achievements'
-      fullPath: '/achievements'
+      fullPath: '/achievements/'
       preLoaderRoute: typeof MainAchievementsIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/offline/manga/': {
       id: '/_main/offline/manga/'
       path: '/offline/manga'
-      fullPath: '/offline/manga'
+      fullPath: '/offline/manga/'
       preLoaderRoute: typeof MainOfflineMangaIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/extensions/playground/': {
       id: '/_main/extensions/playground/'
       path: '/extensions/playground'
-      fullPath: '/extensions/playground'
+      fullPath: '/extensions/playground/'
       preLoaderRoute: typeof MainExtensionsPlaygroundIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/settings/manga-scan/': {
       id: '/_main/settings/manga-scan/'
       path: '/settings/manga-scan'
-      fullPath: '/settings/manga-scan'
+      fullPath: '/settings/manga-scan/'
       preLoaderRoute: typeof MainSettingsMangaScanIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/profile/user/': {
       id: '/_main/profile/user/'
       path: '/profile/user'
-      fullPath: '/profile/user'
+      fullPath: '/profile/user/'
       preLoaderRoute: typeof MainProfileUserIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/profile/stats/': {
       id: '/_main/profile/stats/'
       path: '/profile/stats'
-      fullPath: '/profile/stats'
+      fullPath: '/profile/stats/'
       preLoaderRoute: typeof MainProfileStatsIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/profile/me/': {
       id: '/_main/profile/me/'
       path: '/profile/me'
-      fullPath: '/profile/me'
+      fullPath: '/profile/me/'
       preLoaderRoute: typeof MainProfileMeIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/manga/entry/': {
       id: '/_main/manga/entry/'
       path: '/manga/entry'
-      fullPath: '/manga/entry'
+      fullPath: '/manga/entry/'
       preLoaderRoute: typeof MainMangaEntryIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/auth/callback/': {
       id: '/_main/auth/callback/'
       path: '/auth/callback'
-      fullPath: '/auth/callback'
+      fullPath: '/auth/callback/'
       preLoaderRoute: typeof MainAuthCallbackIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/admin/announcements/': {
       id: '/_main/admin/announcements/'
       path: '/admin/announcements'
-      fullPath: '/admin/announcements'
+      fullPath: '/admin/announcements/'
       preLoaderRoute: typeof MainAdminAnnouncementsIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/offline/entry/manga/': {
       id: '/_main/offline/entry/manga/'
       path: '/offline/entry/manga'
-      fullPath: '/offline/entry/manga'
+      fullPath: '/offline/entry/manga/'
       preLoaderRoute: typeof MainOfflineEntryMangaIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/offline/entry/anime/': {
       id: '/_main/offline/entry/anime/'
       path: '/offline/entry/anime'
-      fullPath: '/offline/entry/anime'
+      fullPath: '/offline/entry/anime/'
       preLoaderRoute: typeof MainOfflineEntryAnimeIndexRouteImport
       parentRoute: typeof MainRoute
     }
