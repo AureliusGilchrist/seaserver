@@ -381,9 +381,14 @@ export function EnqueueFuturePage() {
                 wallpaper and the page rather than on top of it. */}
             <div className="relative z-[1] space-y-4">
 
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                    <LuLayers className="text-3xl" />
+                    <div
+                        className="hidden sm:flex h-10 w-10 rounded-[--radius-md] border bg-gray-950 items-center justify-center flex-none"
+                        aria-hidden
+                    >
+                        <LuLayers className="text-xl text-[--brand]" />
+                    </div>
                     <div>
                         <h3>Enqueue Future</h3>
                         <p className="text-sm text-[--muted]">
@@ -392,7 +397,7 @@ export function EnqueueFuturePage() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     {/* The global clear is reachable whatever the queue shows: the stale rows it takes
                         down include ones the list leaves out entirely — a queue row still marked
                         "downloaded" by an older build is invisible to the screen — so a button that
@@ -439,9 +444,15 @@ export function EnqueueFuturePage() {
             <EnqueueFutureProgress status={status} />
 
             {!orderedItems.length ? (
-                <div className="text-center py-16 space-y-2 border rounded-[--radius-md] bg-gray-950">
+                <div className="text-center py-16 space-y-3 border rounded-[--radius-md] bg-gray-950" data-enqueue-future-empty>
+                    <div
+                        className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border bg-gray-900"
+                        aria-hidden
+                    >
+                        <LuLayers className="text-2xl text-[--muted]" />
+                    </div>
                     <p className="text-lg font-semibold">Nothing queued</p>
-                    <p className="text-sm text-[--muted]">
+                    <p className="text-sm text-[--muted] max-w-md mx-auto">
                         Open an anime and press <span className="text-[--foreground]">Enqueue Future</span> to
                         queue up everything it leads to.
                     </p>
@@ -453,14 +464,16 @@ export function EnqueueFuturePage() {
                 // wide screen spent its extra width on the right-hand pane while the list — the part
                 // you scroll through a hundred entries of — stayed as narrow as it was on a laptop.
                 // It now grows with the viewport and stops at a width where a title still reads as a
-                // title rather than a line of text.
+                // title rather than a line of text. Two columns from lg rather than xl, so a laptop
+                // screen gets the workbench too instead of a stacked page that needs two scrolls.
                 <div className={cn(
                     "grid grid-cols-1 gap-4 items-start",
-                    "xl:grid-cols-[clamp(320px,24vw,520px)_1fr]",
+                    "lg:grid-cols-[clamp(300px,24vw,480px)_minmax(0,1fr)]",
+                    "xl:grid-cols-[clamp(320px,24vw,520px)_minmax(0,1fr)]",
                 )}>
 
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between gap-2">
+                    <div className="space-y-2 min-w-0">
+                        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
                             <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">
                                 Queue
                             </p>
@@ -529,7 +542,7 @@ export function EnqueueFuturePage() {
                         />
                     </div>
 
-                    <AppLayoutStack>
+                    <AppLayoutStack className="min-w-0">
                         <EnqueueFutureHeader
                             item={activeItem}
                             index={index}
@@ -538,8 +551,6 @@ export function EnqueueFuturePage() {
                             onNext={() => goTo(index + 1)}
                             autoMatch={activeAutoMatch}
                             onAutoMatchChange={setActiveAutoMatch}
-                            clearStale={clearStaleAll}
-                            isClearing={isClearingStale}
                             useConfiguredProvider={useConfiguredProvider}
                             onUseConfiguredProviderChange={setUseConfiguredProvider}
                         />

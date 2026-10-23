@@ -8,7 +8,6 @@ import { IconButton } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import React from "react"
 import { LuChevronLeft, LuChevronRight, LuExternalLink } from "react-icons/lu"
-import { BiXCircle } from "react-icons/bi"
 
 /**
  * The bar you actually drive the queue from: where you are, what this one is, and Next.
@@ -19,7 +18,7 @@ import { BiXCircle } from "react-icons/bi"
  */
 export function EnqueueFutureHeader({
     item, index, total, onPrevious, onNext, isBusy, autoMatch, onAutoMatchChange,
-    clearStale, isClearing, useConfiguredProvider, onUseConfiguredProviderChange,
+    useConfiguredProvider, onUseConfiguredProviderChange,
 }: {
     item: EnqueueFuture_Item | undefined
     index: number
@@ -30,10 +29,6 @@ export function EnqueueFutureHeader({
     /** This anime's own auto-match choice — see the note in the queue container. */
     autoMatch: boolean
     onAutoMatchChange: (value: boolean) => void
-    /** Callback to clear stale queue entries */
-    clearStale?: () => void
-    /** Whether the clear operation is in progress */
-    isClearing?: boolean
     /** Search with the saved default provider only, instead of trying SeaDex first. */
     useConfiguredProvider: boolean
     onUseConfiguredProviderChange: (value: boolean) => void
@@ -42,7 +37,7 @@ export function EnqueueFutureHeader({
     return (
         <div className="rounded-[--radius-md] border bg-gray-950 p-4 space-y-4" data-enqueue-future-header>
 
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
 
                 <IconButton
                     icon={<LuChevronLeft />}
@@ -63,7 +58,7 @@ export function EnqueueFutureHeader({
                     />
                 )}
 
-                <div className="flex-1 min-w-0 space-y-1">
+                <div className="flex-1 min-w-[12rem] space-y-1">
                     <div className="flex items-center gap-2">
                         <span className="text-sm text-[--muted] tabular-nums flex-none">
                             {total > 0 ? `${formatNumber(index + 1)} / ${formatNumber(total)}` : "0 / 0"}
@@ -74,7 +69,7 @@ export function EnqueueFutureHeader({
                         )}
                     </div>
                     {item && (
-                        <div className="flex items-center gap-3 text-sm text-[--muted]">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-[--muted]">
                             <span>{item.depth > 0 ? `${item.depth} hop${item.depth > 1 ? "s" : ""} out` : "Direct recommendation"}</span>
                             <SeaLink
                                 href={`/entry?id=${item.mediaId}`}
@@ -88,16 +83,6 @@ export function EnqueueFutureHeader({
 
                 <div className="flex items-center gap-2 flex-none">
                     <EnqueueFutureItemActions item={item} />
-                    {/* NEW: Clear Stale button */}
-                    <IconButton
-                        icon={<BiXCircle />}
-                        intent="alert-outline"
-                        size="md"
-                        onClick={clearStale}
-                        disabled={isClearing}
-                        data-enqueue-future-clear-stale-button aria-label="Clear Stale"
-                    >
-                                        </IconButton>
                     <IconButton
                         icon={<LuChevronRight />}
                         intent="white"
@@ -109,7 +94,7 @@ export function EnqueueFutureHeader({
                 </div>
             </div>
 
-            <div className="flex items-center justify-between gap-4 border-t pt-3">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t pt-3">
                 <Switch
                     label="Match automatically when finished"
                     help="Set per show, not for the whole queue — turn it on for this one and it goes straight into your library when it completes; leave it off and it waits in the Unmatched screen for you to review. You'll be asked to confirm once."

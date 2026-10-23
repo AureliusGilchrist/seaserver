@@ -45,9 +45,13 @@ export function EnqueueFutureCurrentShow({ item, snapshot, onEditSearch }: {
 
     return (
         <div
-            className="rounded-[--radius-md] border bg-gray-950 p-4 flex gap-4"
+            className="rounded-[--radius-md] border bg-gray-950 p-4 flex gap-4 relative overflow-hidden"
             data-enqueue-future-current-show
         >
+            {/* The queue list marks its highlighted rows with a brand edge; the card that states what
+                those rows are about carries the same one. */}
+            <div className="absolute inset-y-0 left-0 w-0.5 bg-[--brand]" />
+
             {media?.coverImage?.large && (
                 <img
                     src={media.coverImage.extraLarge || media.coverImage.large}
@@ -63,7 +67,7 @@ export function EnqueueFutureCurrentShow({ item, snapshot, onEditSearch }: {
                     <p className="text-xs uppercase tracking-wide text-[--muted] flex items-center gap-1.5">
                         <LuDownload /> Torrenting for
                     </p>
-                    <h4 className="truncate">{title}</h4>
+                    <h4 className="truncate text-lg">{title}</h4>
                     {altTitle && <p className="text-sm text-[--muted] truncate">{altTitle}</p>}
                 </div>
 

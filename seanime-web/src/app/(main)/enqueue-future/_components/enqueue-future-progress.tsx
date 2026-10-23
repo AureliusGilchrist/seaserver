@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import React from "react"
-import { LuCircleStop, LuPlay, LuTimer, LuX } from "react-icons/lu"
+import { LuChevronDown, LuCircleStop, LuPlay, LuTimer, LuX } from "react-icons/lu"
 
 /** Mirrors MaxPendingRoots on the server, so the header can say how much room is left. */
 const MAX_PENDING_ROOTS = 20
@@ -248,12 +248,21 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
                 </div>
             )}
 
-            <p className="text-xs text-[--muted]">
-                This runs on the server — you can close this page, or go and do something else, and it keeps going.
-                It has no limit on how much it takes on: it keeps walking until it runs out of shows to find, and once
-                a series is in, the rest of it comes along regardless. Stop it any time — everything prepared so far
-                stays in the queue.
-            </p>
+            {/* The run keeps going without this page open, which used to be a permanent paragraph
+                of small print under the progress bar. It is true once and then in the way, so it is
+                a line you can open rather than one you scroll past. */}
+            <details className="group/progress-help text-xs text-[--muted]" data-enqueue-future-progress-help>
+                <summary className="cursor-pointer select-none hover:text-[--foreground] transition list-none flex items-center gap-1 [&::-webkit-details-marker]:hidden">
+                    <LuChevronDown className="transition-transform group-open/progress-help:rotate-180 flex-none" />
+                    How this run works
+                </summary>
+                <p className="pt-2 pl-5">
+                    This runs on the server — you can close this page, or go and do something else, and it keeps going.
+                    It has no limit on how much it takes on: it keeps walking until it runs out of shows to find, and once
+                    a series is in, the rest of it comes along regardless. Stop it any time — everything prepared so far
+                    stays in the queue.
+                </p>
+            </details>
         </div>
     )
 }

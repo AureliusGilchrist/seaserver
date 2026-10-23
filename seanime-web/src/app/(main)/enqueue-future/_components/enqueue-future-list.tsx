@@ -342,7 +342,7 @@ export function EnqueueFutureList({ families, activeMediaId, onSelect }: {
         // than leaving a third of the column empty. Sticky so it stays with you as the right-hand
         // pane scrolls, and it scrolls inside itself instead of pushing the page taller.
         <div
-            className="rounded-[--radius-md] border bg-gray-950 overflow-y-auto xl:sticky xl:top-4 max-h-[calc(100vh-8rem)]"
+            className="rounded-[--radius-md] border bg-gray-950 overflow-y-auto overscroll-contain lg:sticky lg:top-4 max-h-[calc(100vh-9rem)]"
             data-enqueue-future-list
         >
             {shown.map(family => (
