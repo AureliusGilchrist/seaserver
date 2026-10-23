@@ -178,6 +178,39 @@ func fetch(feedUrls []string) *Response {
 
 	wg.Wait()
 
+	// The same story can arrive more than once: ANN's all-topics feed runs an article under
+	// several topics, and two configured feeds may both have covered it. Collapse to one item
+	// per story — same link, or same title once case and extra whitespace are ignored — keeping
+	// the copy that carries an image when the duplicates disagree.
+	byLink := make(map[string]int, len(items))
+	byTitle := make(map[string]int, len(items))
+	deduped := make([]Item, 0, len(items))
+	for _, it := range items {
+		if it.Link != "" {
+			if i, seen := byLink[it.Link]; seen {
+				if it.Image != "" && deduped[i].Image == "" {
+					deduped[i].Image = it.Image
+				}
+				continue
+			}
+		}
+		titleKey := strings.ToLower(strings.Join(strings.Fields(it.Title), " "))
+		if titleKey != "" {
+			if i, seen := byTitle[titleKey]; seen {
+				if it.Image != "" && deduped[i].Image == "" {
+					deduped[i].Image = it.Image
+				}
+				continue
+			}
+			byTitle[titleKey] = len(deduped)
+		}
+		if it.Link != "" {
+			byLink[it.Link] = len(deduped)
+		}
+		deduped = append(deduped, it)
+	}
+	items = deduped
+
 	sort.SliceStable(items, func(i, j int) bool {
 		if items[i].PublishedAt == items[j].PublishedAt {
 			return items[i].Title < items[j].Title
