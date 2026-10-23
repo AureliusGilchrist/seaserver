@@ -10,7 +10,6 @@ import (
 	"seanime/internal/achievement"
 	"seanime/internal/api/anilist"
 	"seanime/internal/api/metadata_provider"
-	"seanime/internal/chat"
 	"seanime/internal/constants"
 	"seanime/internal/continuity"
 	"seanime/internal/database/db"
@@ -190,7 +189,6 @@ type (
 		NakamaManager   *nakama.Manager
 		WatchPartyManager *watchparty.Manager
 		ProfileActivityManager *profileactivity.Manager
-		ChatManager            *chat.Manager
 
 		// Unmatched torrent management
 		UnmatchedRepository  *unmatched.Repository
@@ -539,7 +537,6 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 		NakamaManager:                 nil,                                          // Initialized in App.initModulesOnce
 		WatchPartyManager:             nil,                                          // Initialized in App.initModulesOnce
 		ProfileActivityManager:        profileactivity.NewManager(),
-		ChatManager:                   chat.NewManager(cfg.Data.AppDataDir, logger),
 		LibraryExplorer:               nil,                                          // Initialized in App.initModulesOnce
 		TorrentClientRepository:       nil,                                          // Initialized in App.InitOrRefreshModules
 		TorrentClientRepositoryRef:    util.NewRef[*torrent_client.Repository](nil), // Ref for late binding
@@ -635,12 +632,6 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 	app.AddCleanupFunctionOnce("privacy-manager.shutdown", func() {
 		if app.PrivacyManager != nil {
 			app.PrivacyManager.Shutdown()
-		}
-	})
-
-	app.AddCleanupFunctionOnce("chat-manager.close", func() {
-		if app.ChatManager != nil {
-			app.ChatManager.Close()
 		}
 	})
 

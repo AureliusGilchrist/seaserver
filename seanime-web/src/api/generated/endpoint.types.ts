@@ -43,7 +43,7 @@ import type {
     Report_ReactQueryLog,
     RunPlaygroundCodeParams,
     Settings,
-    TorrentContentsRequestItem,
+    Torrent_TorrentContentsRequestItem,
     Torrentstream_PlaybackType,
     WatchParty_Settings,
 } from "@/api/generated/types.ts"
@@ -626,113 +626,6 @@ export type GetAnilistCharacterDetails_Variables = {
      *  The AniList character ID
      */
     id: number
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// chat
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/**
- * - Filepath: internal/handlers/chat.go
- * - Filename: chat.go
- * - Endpoint: /api/v1/chat/setup-pin
- * @description
- * Route creates or resets this profile's chat identity.
- */
-export type SetupChatPin_Variables = {
-    salt: string
-    verifier: string
-    publicKey: string
-    encryptedPrivateKey: string
-}
-
-/**
- * - Filepath: internal/handlers/chat.go
- * - Filename: chat.go
- * - Endpoint: /api/v1/chat/send
- * @description
- * Route sends an encrypted message to a peer profile.
- */
-export type SendChatMessage_Variables = {
-    toProfileId: number
-    iv: string
-    ciphertext: string
-    replyToId: string
-    imageId: string
-    imageIv: string
-}
-
-/**
- * - Filepath: internal/handlers/chat.go
- * - Filename: chat.go
- * - Endpoint: /api/v1/chat/edit
- * @description
- * Route edits an encrypted message.
- */
-export type EditChatMessage_Variables = {
-    messageId: string
-    iv: string
-    ciphertext: string
-}
-
-/**
- * - Filepath: internal/handlers/chat.go
- * - Filename: chat.go
- * - Endpoint: /api/v1/chat/delete
- * @description
- * Route deletes a message for both participants.
- */
-export type DeleteChatMessage_Variables = {
-    messageId: string
-}
-
-/**
- * - Filepath: internal/handlers/chat.go
- * - Filename: chat.go
- * - Endpoint: /api/v1/chat/react
- * @description
- * Route sets or clears this profile's encrypted reaction on a message.
- */
-export type ReactChatMessage_Variables = {
-    messageId: string
-    iv: string
-    ciphertext: string
-}
-
-/**
- * - Filepath: internal/handlers/chat.go
- * - Filename: chat.go
- * - Endpoint: /api/v1/chat/mark-read
- * @description
- * Route marks all messages from a peer as read.
- */
-export type MarkChatRead_Variables = {
-    withProfileId: number
-}
-
-/**
- * - Filepath: internal/handlers/chat.go
- * - Filename: chat.go
- * - Endpoint: /api/v1/chat/typing
- * @description
- * Route relays a typing indicator to a peer.
- */
-export type ChatTyping_Variables = {
-    toProfileId: number
-    isTyping: boolean
-}
-
-/**
- * - Filepath: internal/handlers/chat.go
- * - Filename: chat.go
- * - Endpoint: /api/v1/chat/image
- * @description
- * Route uploads an encrypted image blob for a chat message.
- */
-export type UploadChatImage_Variables = {
-    toProfileId: number
-    iv: string
-    ciphertext: string
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2141,6 +2034,14 @@ export type DeleteMediaMetadataParent_Variables = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// mobile_frontend
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// mobile_frontend_test
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // nakama
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -2549,6 +2450,10 @@ export type SetProfileActivity_Variables = {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// profile_comments
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // profile_helpers
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -2673,6 +2578,28 @@ export type ReorderToWatch_Variables = {
 export type SetProfileWallpaper_Variables = {
     url: string
     effects: string
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// profiles_timeline
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - Filepath: internal/handlers/profiles_timeline.go
+ * - Filename: profiles_timeline.go
+ * - Endpoint: /api/v1/profiles/timeline
+ * @description
+ * Route returns activity events from every profile, merged into one timeline.
+ */
+export type GetProfilesTimeline_Variables = {
+    /**
+     *  Page number (default 1)
+     */
+    page?: number
+    /**
+     *  Events per page (default 20, max 100)
+     */
+    pageSize?: number
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2989,6 +2916,10 @@ export type GetTimeline_Variables = {
      *  Events per page (default 50)
      */
     pageSize?: number
+    /**
+     *  Profile to read (default: the current profile)
+     */
+    profileId?: number
 }
 
 /**
@@ -3145,7 +3076,7 @@ export type TorrentClientAddMagnetFromRule_Variables = {
  * Route returns how many files and folders each torrent holds.
  */
 export type GetTorrentContents_Variables = {
-    torrents: Array<TorrentContentsRequestItem>
+    torrents: Array<Torrent_TorrentContentsRequestItem>
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3438,6 +3369,17 @@ export type ResolveUnmatchedMatchQueueItem_Variables = {
     id: number
     overwriteExisting: boolean
     confirmCountMismatch: boolean
+}
+
+/**
+ * - Filepath: internal/handlers/unmatched_match_queue.go
+ * - Filename: unmatched_match_queue.go
+ * - Endpoint: /api/v1/unmatched/queue/force
+ * @description
+ * Route runs a queued match that was held back by an interrupted match, answering it by hand.
+ */
+export type ForceUnmatchedMatchQueueItem_Variables = {
+    id: number
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

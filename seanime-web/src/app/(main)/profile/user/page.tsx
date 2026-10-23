@@ -2,7 +2,7 @@
 
 import { useGetUserAchievements } from "@/api/hooks/achievement.hooks"
 import { useGetMyProfile, useGetUserProfile } from "@/api/hooks/community.hooks"
-import { useGetProfileComments, type ProfileCommentItem } from "@/api/hooks/chat.hooks"
+import { useGetProfileComments, type ProfileCommentItem } from "@/api/hooks/profile-comments.hooks"
 import { useGetUserProfileStats } from "@/api/hooks/profile-stats.hooks"
 import {
     Achievement_Category,
@@ -497,9 +497,10 @@ function ProfileCommentsTabContent({ userId }: { userId: number }) {
 }
 
 function ProfileCommentRow({ comment }: { comment: ProfileCommentItem }) {
-    const date = new Date(comment.createdAt)
-    const dateLabel = date.toLocaleDateString(undefined, { weekday: "short", year: "numeric", month: "short", day: "numeric" })
-    const timeLabel = date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+    // The generated type leaves timestamps optional, so an old comment without one falls back to nothing.
+    const date = comment.createdAt ? new Date(comment.createdAt) : undefined
+    const dateLabel = date?.toLocaleDateString(undefined, { weekday: "short", year: "numeric", month: "short", day: "numeric" })
+    const timeLabel = date?.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
     const href = comment.mediaType === "manga" ? `/manga/details?id=${comment.mediaId}` : `/anime/details?id=${comment.mediaId}`
 
     return (
@@ -510,7 +511,7 @@ function ProfileCommentRow({ comment }: { comment: ProfileCommentItem }) {
                         {comment.mediaTitle || `#${comment.mediaId}`}
                     </span>
                 </SeaLink>
-                <span className="text-xs text-[--muted] shrink-0" title={date.toISOString()}>
+                <span className="text-xs text-[--muted] shrink-0" title={date?.toISOString()}>
                     {dateLabel} · {timeLabel}{comment.isEdited ? " · edited" : ""}
                 </span>
             </div>

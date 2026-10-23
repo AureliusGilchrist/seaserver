@@ -3303,698 +3303,6 @@
     }
   },
   {
-    "name": "HandleGetChatState",
-    "trimmedName": "GetChatState",
-    "comments": [
-      "HandleGetChatState",
-      "",
-      "\t@summary returns this profile's chat identity state.",
-      "\t@desc Returns whether a PIN is set up, and if so the salt, verifier, public key and",
-      "\t@desc sealed private key the client needs to derive keys locally. Nothing here can",
-      "\t@desc decrypt anything without the profile's PIN.",
-      "\t@returns chat.State",
-      "\t@route /api/v1/chat/state [GET]",
-      ""
-    ],
-    "filepath": "internal/handlers/chat.go",
-    "filename": "chat.go",
-    "api": {
-      "summary": "returns this profile's chat identity state.",
-      "descriptions": [
-        "Returns whether a PIN is set up, and if so the salt, verifier, public key and",
-        "sealed private key the client needs to derive keys locally. Nothing here can",
-        "decrypt anything without the profile's PIN."
-      ],
-      "endpoint": "/api/v1/chat/state",
-      "methods": [
-        "GET"
-      ],
-      "params": [],
-      "bodyFields": [],
-      "returns": "chat.State",
-      "returnGoType": "chat.State",
-      "returnTypescriptType": "Chat_State"
-    }
-  },
-  {
-    "name": "HandleSetupChatPin",
-    "trimmedName": "SetupChatPin",
-    "comments": [
-      "HandleSetupChatPin",
-      "",
-      "\t@summary creates or resets this profile's chat identity.",
-      "\t@desc The client derives everything locally: a PBKDF2 salt, a verifier (encryption of a",
-      "\t@desc constant under the PIN key), an ECDH keypair whose private half is sealed under",
-      "\t@desc the PIN key. The server stores only opaque strings. Resetting invalidates old",
-      "\t@desc messages (they can no longer be decrypted by this profile).",
-      "\t@returns chat.State",
-      "\t@route /api/v1/chat/setup-pin [POST]",
-      ""
-    ],
-    "filepath": "internal/handlers/chat.go",
-    "filename": "chat.go",
-    "api": {
-      "summary": "creates or resets this profile's chat identity.",
-      "descriptions": [
-        "The client derives everything locally: a PBKDF2 salt, a verifier (encryption of a",
-        "constant under the PIN key), an ECDH keypair whose private half is sealed under",
-        "the PIN key. The server stores only opaque strings. Resetting invalidates old",
-        "messages (they can no longer be decrypted by this profile)."
-      ],
-      "endpoint": "/api/v1/chat/setup-pin",
-      "methods": [
-        "POST"
-      ],
-      "params": [],
-      "bodyFields": [
-        {
-          "name": "Salt",
-          "jsonName": "salt",
-          "goType": "string",
-          "usedStructType": "",
-          "typescriptType": "string",
-          "required": true,
-          "descriptions": []
-        },
-        {
-          "name": "Verifier",
-          "jsonName": "verifier",
-          "goType": "string",
-          "usedStructType": "",
-          "typescriptType": "string",
-          "required": true,
-          "descriptions": []
-        },
-        {
-          "name": "PublicKey",
-          "jsonName": "publicKey",
-          "goType": "string",
-          "usedStructType": "",
-          "typescriptType": "string",
-          "required": true,
-          "descriptions": []
-        },
-        {
-          "name": "EncryptedPrivateKey",
-          "jsonName": "encryptedPrivateKey",
-          "goType": "string",
-          "usedStructType": "",
-          "typescriptType": "string",
-          "required": true,
-          "descriptions": []
-        }
-      ],
-      "returns": "chat.State",
-      "returnGoType": "chat.State",
-      "returnTypescriptType": "Chat_State"
-    }
-  },
-  {
-    "name": "HandleGetChatPeerKey",
-    "trimmedName": "GetChatPeerKey",
-    "comments": [
-      "HandleGetChatPeerKey",
-      "",
-      "\t@summary returns a peer profile's public chat key.",
-      "\t@desc The client needs the peer's ECDH public key to derive the conversation key.",
-      "\t@returns chat.PeerKey",
-      "\t@route /api/v1/chat/peer-key [GET]",
-      ""
-    ],
-    "filepath": "internal/handlers/chat.go",
-    "filename": "chat.go",
-    "api": {
-      "summary": "returns a peer profile's public chat key.",
-      "descriptions": [
-        "The client needs the peer's ECDH public key to derive the conversation key."
-      ],
-      "endpoint": "/api/v1/chat/peer-key",
-      "methods": [
-        "GET"
-      ],
-      "params": [],
-      "bodyFields": [],
-      "returns": "chat.PeerKey",
-      "returnGoType": "chat.PeerKey",
-      "returnTypescriptType": "Chat_PeerKey"
-    }
-  },
-  {
-    "name": "HandleGetChatConversations",
-    "trimmedName": "GetChatConversations",
-    "comments": [
-      "HandleGetChatConversations",
-      "",
-      "\t@summary lists this profile's chat conversations.",
-      "\t@desc One entry per profile this profile has exchanged messages with. Last messages are",
-      "\t@desc still encrypted; the client decrypts previews locally. Unread counts are computed",
-      "\t@desc from read receipts (metadata, not content).",
-      "\t@returns chat.Conversations",
-      "\t@route /api/v1/chat/conversations [GET]",
-      ""
-    ],
-    "filepath": "internal/handlers/chat.go",
-    "filename": "chat.go",
-    "api": {
-      "summary": "lists this profile's chat conversations.",
-      "descriptions": [
-        "One entry per profile this profile has exchanged messages with. Last messages are",
-        "still encrypted; the client decrypts previews locally. Unread counts are computed",
-        "from read receipts (metadata, not content)."
-      ],
-      "endpoint": "/api/v1/chat/conversations",
-      "methods": [
-        "GET"
-      ],
-      "params": [],
-      "bodyFields": [],
-      "returns": "chat.Conversations",
-      "returnGoType": "chat.Conversations",
-      "returnTypescriptType": "Chat_Conversations"
-    }
-  },
-  {
-    "name": "HandleGetChatMessages",
-    "trimmedName": "GetChatMessages",
-    "comments": [
-      "HandleGetChatMessages",
-      "",
-      "\t@summary returns the messages between this profile and a peer.",
-      "\t@desc Oldest first, paginated with `beforeId` (the message ID to page back from).",
-      "\t@returns chat.Messages",
-      "\t@route /api/v1/chat/messages [GET]",
-      ""
-    ],
-    "filepath": "internal/handlers/chat.go",
-    "filename": "chat.go",
-    "api": {
-      "summary": "returns the messages between this profile and a peer.",
-      "descriptions": [
-        "Oldest first, paginated with `beforeId` (the message ID to page back from)."
-      ],
-      "endpoint": "/api/v1/chat/messages",
-      "methods": [
-        "GET"
-      ],
-      "params": [],
-      "bodyFields": [],
-      "returns": "chat.Messages",
-      "returnGoType": "chat.Messages",
-      "returnTypescriptType": "Chat_Messages"
-    }
-  },
-  {
-    "name": "HandleSendChatMessage",
-    "trimmedName": "SendChatMessage",
-    "comments": [
-      "HandleSendChatMessage",
-      "",
-      "\t@summary sends an encrypted message to a peer profile.",
-      "\t@desc The payload is the {iv, ciphertext} pair the client encrypted with the",
-      "\t@desc conversation key. The server relays it over websocket to the recipient's",
-      "\t@desc devices and echoes to the sender's other devices.",
-      "\t@returns chat.Message",
-      "\t@route /api/v1/chat/send [POST]",
-      ""
-    ],
-    "filepath": "internal/handlers/chat.go",
-    "filename": "chat.go",
-    "api": {
-      "summary": "sends an encrypted message to a peer profile.",
-      "descriptions": [
-        "The payload is the {iv, ciphertext} pair the client encrypted with the",
-        "conversation key. The server relays it over websocket to the recipient's",
-        "devices and echoes to the sender's other devices."
-      ],
-      "endpoint": "/api/v1/chat/send",
-      "methods": [
-        "POST"
-      ],
-      "params": [],
-      "bodyFields": [
-        {
-          "name": "ToProfileID",
-          "jsonName": "toProfileId",
-          "goType": "uint",
-          "usedStructType": "",
-          "typescriptType": "number",
-          "required": true,
-          "descriptions": []
-        },
-        {
-          "name": "IV",
-          "jsonName": "iv",
-          "goType": "string",
-          "usedStructType": "",
-          "typescriptType": "string",
-          "required": true,
-          "descriptions": []
-        },
-        {
-          "name": "Ciphertext",
-          "jsonName": "ciphertext",
-          "goType": "string",
-          "usedStructType": "",
-          "typescriptType": "string",
-          "required": true,
-          "descriptions": []
-        },
-        {
-          "name": "ReplyToID",
-          "jsonName": "replyToId",
-          "goType": "string",
-          "usedStructType": "",
-          "typescriptType": "string",
-          "required": true,
-          "descriptions": []
-        },
-        {
-          "name": "ImageID",
-          "jsonName": "imageId",
-          "goType": "string",
-          "usedStructType": "",
-          "typescriptType": "string",
-          "required": true,
-          "descriptions": []
-        },
-        {
-          "name": "ImageIV",
-          "jsonName": "imageIv",
-          "goType": "string",
-          "usedStructType": "",
-          "typescriptType": "string",
-          "required": true,
-          "descriptions": []
-        }
-      ],
-      "returns": "chat.Message",
-      "returnGoType": "chat.Message",
-      "returnTypescriptType": "Chat_Message"
-    }
-  },
-  {
-    "name": "HandleEditChatMessage",
-    "trimmedName": "EditChatMessage",
-    "comments": [
-      "HandleEditChatMessage",
-      "",
-      "\t@summary edits an encrypted message.",
-      "\t@desc Only the sender can edit. The client re-encrypts the new text; the server just",
-      "\t@desc swaps the ciphertext and marks the edit.",
-      "\t@returns chat.Message",
-      "\t@route /api/v1/chat/edit [POST]",
-      ""
-    ],
-    "filepath": "internal/handlers/chat.go",
-    "filename": "chat.go",
-    "api": {
-      "summary": "edits an encrypted message.",
-      "descriptions": [
-        "Only the sender can edit. The client re-encrypts the new text; the server just",
-        "swaps the ciphertext and marks the edit."
-      ],
-      "endpoint": "/api/v1/chat/edit",
-      "methods": [
-        "POST"
-      ],
-      "params": [],
-      "bodyFields": [
-        {
-          "name": "MessageID",
-          "jsonName": "messageId",
-          "goType": "string",
-          "usedStructType": "",
-          "typescriptType": "string",
-          "required": true,
-          "descriptions": []
-        },
-        {
-          "name": "IV",
-          "jsonName": "iv",
-          "goType": "string",
-          "usedStructType": "",
-          "typescriptType": "string",
-          "required": true,
-          "descriptions": []
-        },
-        {
-          "name": "Ciphertext",
-          "jsonName": "ciphertext",
-          "goType": "string",
-          "usedStructType": "",
-          "typescriptType": "string",
-          "required": true,
-          "descriptions": []
-        }
-      ],
-      "returns": "chat.Message",
-      "returnGoType": "chat.Message",
-      "returnTypescriptType": "Chat_Message"
-    }
-  },
-  {
-    "name": "HandleDeleteChatMessage",
-    "trimmedName": "DeleteChatMessage",
-    "comments": [
-      "HandleDeleteChatMessage",
-      "",
-      "\t@summary deletes a message for both participants.",
-      "\t@desc The sender or the recipient can delete. The server clears the ciphertext (so the",
-      "\t@desc content is gone even from storage) and notifies both sides.",
-      "\t@returns chat.Message",
-      "\t@route /api/v1/chat/delete [POST]",
-      ""
-    ],
-    "filepath": "internal/handlers/chat.go",
-    "filename": "chat.go",
-    "api": {
-      "summary": "deletes a message for both participants.",
-      "descriptions": [
-        "The sender or the recipient can delete. The server clears the ciphertext (so the",
-        "content is gone even from storage) and notifies both sides."
-      ],
-      "endpoint": "/api/v1/chat/delete",
-      "methods": [
-        "POST"
-      ],
-      "params": [],
-      "bodyFields": [
-        {
-          "name": "MessageID",
-          "jsonName": "messageId",
-          "goType": "string",
-          "usedStructType": "",
-          "typescriptType": "string",
-          "required": true,
-          "descriptions": []
-        }
-      ],
-      "returns": "chat.Message",
-      "returnGoType": "chat.Message",
-      "returnTypescriptType": "Chat_Message"
-    }
-  },
-  {
-    "name": "HandleReactChatMessage",
-    "trimmedName": "ReactChatMessage",
-    "comments": [
-      "HandleReactChatMessage",
-      "",
-      "\t@summary sets or clears this profile's encrypted reaction on a message.",
-      "\t@desc An empty ciphertext removes the reaction. Reactions are encrypted with the",
-      "\t@desc conversation key, so the server stores only opaque blobs.",
-      "\t@returns chat.Message",
-      "\t@route /api/v1/chat/react [POST]",
-      ""
-    ],
-    "filepath": "internal/handlers/chat.go",
-    "filename": "chat.go",
-    "api": {
-      "summary": "sets or clears this profile's encrypted reaction on a message.",
-      "descriptions": [
-        "An empty ciphertext removes the reaction. Reactions are encrypted with the",
-        "conversation key, so the server stores only opaque blobs."
-      ],
-      "endpoint": "/api/v1/chat/react",
-      "methods": [
-        "POST"
-      ],
-      "params": [],
-      "bodyFields": [
-        {
-          "name": "MessageID",
-          "jsonName": "messageId",
-          "goType": "string",
-          "usedStructType": "",
-          "typescriptType": "string",
-          "required": true,
-          "descriptions": []
-        },
-        {
-          "name": "IV",
-          "jsonName": "iv",
-          "goType": "string",
-          "usedStructType": "",
-          "typescriptType": "string",
-          "required": true,
-          "descriptions": []
-        },
-        {
-          "name": "Ciphertext",
-          "jsonName": "ciphertext",
-          "goType": "string",
-          "usedStructType": "",
-          "typescriptType": "string",
-          "required": true,
-          "descriptions": []
-        }
-      ],
-      "returns": "chat.Message",
-      "returnGoType": "chat.Message",
-      "returnTypescriptType": "Chat_Message"
-    }
-  },
-  {
-    "name": "HandleMarkChatRead",
-    "trimmedName": "MarkChatRead",
-    "comments": [
-      "HandleMarkChatRead",
-      "",
-      "\t@summary marks all messages from a peer as read.",
-      "\t@desc Read receipts are timing metadata (the server already sees delivery timing). The",
-      "\t@desc peer is notified so their UI can show \"read\".",
-      "\t@returns bool",
-      "\t@route /api/v1/chat/mark-read [POST]",
-      ""
-    ],
-    "filepath": "internal/handlers/chat.go",
-    "filename": "chat.go",
-    "api": {
-      "summary": "marks all messages from a peer as read.",
-      "descriptions": [
-        "Read receipts are timing metadata (the server already sees delivery timing). The",
-        "peer is notified so their UI can show \"read\"."
-      ],
-      "endpoint": "/api/v1/chat/mark-read",
-      "methods": [
-        "POST"
-      ],
-      "params": [],
-      "bodyFields": [
-        {
-          "name": "WithProfileID",
-          "jsonName": "withProfileId",
-          "goType": "uint",
-          "usedStructType": "",
-          "typescriptType": "number",
-          "required": true,
-          "descriptions": []
-        }
-      ],
-      "returns": "bool",
-      "returnGoType": "bool",
-      "returnTypescriptType": "boolean"
-    }
-  },
-  {
-    "name": "HandleChatTyping",
-    "trimmedName": "ChatTyping",
-    "comments": [
-      "HandleChatTyping",
-      "",
-      "\t@summary relays a typing indicator to a peer.",
-      "\t@desc Fire-and-forget: the server forwards the ping if the peer is online. No storage.",
-      "\t@returns bool",
-      "\t@route /api/v1/chat/typing [POST]",
-      ""
-    ],
-    "filepath": "internal/handlers/chat.go",
-    "filename": "chat.go",
-    "api": {
-      "summary": "relays a typing indicator to a peer.",
-      "descriptions": [
-        "Fire-and-forget: the server forwards the ping if the peer is online. No storage."
-      ],
-      "endpoint": "/api/v1/chat/typing",
-      "methods": [
-        "POST"
-      ],
-      "params": [],
-      "bodyFields": [
-        {
-          "name": "ToProfileID",
-          "jsonName": "toProfileId",
-          "goType": "uint",
-          "usedStructType": "",
-          "typescriptType": "number",
-          "required": true,
-          "descriptions": []
-        },
-        {
-          "name": "IsTyping",
-          "jsonName": "isTyping",
-          "goType": "bool",
-          "usedStructType": "",
-          "typescriptType": "boolean",
-          "required": true,
-          "descriptions": []
-        }
-      ],
-      "returns": "bool",
-      "returnGoType": "bool",
-      "returnTypescriptType": "boolean"
-    }
-  },
-  {
-    "name": "HandleUploadChatImage",
-    "trimmedName": "UploadChatImage",
-    "comments": [
-      "HandleUploadChatImage",
-      "",
-      "\t@summary uploads an encrypted image blob for a chat message.",
-      "\t@desc The client encrypts the image bytes with the conversation key before upload. The",
-      "\t@desc returned imageId goes into the message. Only the two participants can fetch it.",
-      "\t@returns chat.ImageUpload",
-      "\t@route /api/v1/chat/image [POST]",
-      ""
-    ],
-    "filepath": "internal/handlers/chat.go",
-    "filename": "chat.go",
-    "api": {
-      "summary": "uploads an encrypted image blob for a chat message.",
-      "descriptions": [
-        "The client encrypts the image bytes with the conversation key before upload. The",
-        "returned imageId goes into the message. Only the two participants can fetch it."
-      ],
-      "endpoint": "/api/v1/chat/image",
-      "methods": [
-        "POST"
-      ],
-      "params": [],
-      "bodyFields": [
-        {
-          "name": "ToProfileID",
-          "jsonName": "toProfileId",
-          "goType": "uint",
-          "usedStructType": "",
-          "typescriptType": "number",
-          "required": true,
-          "descriptions": []
-        },
-        {
-          "name": "IV",
-          "jsonName": "iv",
-          "goType": "string",
-          "usedStructType": "",
-          "typescriptType": "string",
-          "required": true,
-          "descriptions": []
-        },
-        {
-          "name": "Ciphertext",
-          "jsonName": "ciphertext",
-          "goType": "string",
-          "usedStructType": "",
-          "typescriptType": "string",
-          "required": true,
-          "descriptions": []
-        }
-      ],
-      "returns": "chat.ImageUpload",
-      "returnGoType": "chat.ImageUpload",
-      "returnTypescriptType": "Chat_ImageUpload"
-    }
-  },
-  {
-    "name": "HandleServeChatImage",
-    "trimmedName": "ServeChatImage",
-    "comments": [
-      "HandleServeChatImage",
-      "",
-      "\t@summary serves an encrypted chat image blob.",
-      "\t@desc Only the two conversation participants can fetch. The bytes are still encrypted;",
-      "\t@desc the client decrypts with the conversation key before rendering.",
-      "\t@returns string",
-      "\t@route /api/v1/chat/image/:id [GET]",
-      ""
-    ],
-    "filepath": "internal/handlers/chat.go",
-    "filename": "chat.go",
-    "api": {
-      "summary": "serves an encrypted chat image blob.",
-      "descriptions": [
-        "Only the two conversation participants can fetch. The bytes are still encrypted;",
-        "the client decrypts with the conversation key before rendering."
-      ],
-      "endpoint": "/api/v1/chat/image/:id",
-      "methods": [
-        "GET"
-      ],
-      "params": [],
-      "bodyFields": [],
-      "returns": "string",
-      "returnGoType": "string",
-      "returnTypescriptType": "string"
-    }
-  },
-  {
-    "name": "HandleGetProfileComments",
-    "trimmedName": "GetProfileComments",
-    "comments": [
-      "HandleGetProfileComments",
-      "",
-      "\t@summary returns the comments a profile has made, newest first.",
-      "\t@desc Used by the profile page's Comments tab: every comment the profile left on any",
-      "\t@desc show or manga, with the media reference and timestamp.",
-      "\t@returns handlers.ProfileCommentsResponse",
-      "\t@route /api/v1/profile/comments [GET]",
-      ""
-    ],
-    "filepath": "internal/handlers/chat.go",
-    "filename": "chat.go",
-    "api": {
-      "summary": "returns the comments a profile has made, newest first.",
-      "descriptions": [
-        "Used by the profile page's Comments tab: every comment the profile left on any",
-        "show or manga, with the media reference and timestamp."
-      ],
-      "endpoint": "/api/v1/profile/comments",
-      "methods": [
-        "GET"
-      ],
-      "params": [],
-      "bodyFields": [],
-      "returns": "handlers.ProfileCommentsResponse",
-      "returnGoType": "handlers.ProfileCommentsResponse",
-      "returnTypescriptType": "ProfileCommentsResponse"
-    }
-  },
-  {
-    "name": "resolveCommentTitles",
-    "trimmedName": "resolveCommentTitles",
-    "comments": [
-      "resolveCommentTitles fills in the media title of each comment from the comment",
-      "author's cached AniList collection (memory or disk copy — never blocks on a",
-      "fresh fetch). Comments are left from a media page, so the author's collection",
-      "almost always contains the media. Unresolved titles stay empty and the client",
-      "falls back to the media id.",
-      ""
-    ],
-    "filepath": "internal/handlers/chat.go",
-    "filename": "chat.go",
-    "api": {
-      "summary": "",
-      "descriptions": [],
-      "endpoint": "",
-      "methods": null,
-      "params": [],
-      "bodyFields": [],
-      "returns": "bool",
-      "returnGoType": "bool",
-      "returnTypescriptType": "boolean"
-    }
-  },
-  {
     "name": "HandleGetClientPrefs",
     "trimmedName": "GetClientPrefs",
     "comments": [
@@ -5480,6 +4788,29 @@
       "returns": "audio/aac file",
       "returnGoType": "audio/aac file",
       "returnTypescriptType": "audio/aac file"
+    }
+  },
+  {
+    "name": "effectiveDiscordSettings",
+    "trimmedName": "effectiveDiscordSettings",
+    "comments": [
+      "effectiveDiscordSettings merges the requesting profile's Personal overrides (client-prefs)",
+      "over the server-wide Discord settings, so each profile's rich presence choices apply to",
+      "their own presence. Returns nil when there are no server-wide settings.",
+      ""
+    ],
+    "filepath": "internal/handlers/discord.go",
+    "filename": "discord.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
     }
   },
   {
@@ -12454,6 +11785,93 @@
     }
   },
   {
+    "name": "HandlePublishMobileFrontend",
+    "trimmedName": "PublishMobileFrontend",
+    "comments": [
+      "Publishes a frontend bundle: saves the zip, hashes it, writes the manifest. The write is",
+      "atomic in effect — the manifest lands last, so a half-published bundle is never \"the new",
+      "version\" a client would pick up.",
+      ""
+    ],
+    "filepath": "internal/handlers/mobile_frontend.go",
+    "filename": "mobile_frontend.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetMobileFrontendManifest",
+    "trimmedName": "GetMobileFrontendManifest",
+    "comments": [
+      "Public: clients check this before they have a session, and it says nothing about the user.",
+      ""
+    ],
+    "filepath": "internal/handlers/mobile_frontend.go",
+    "filename": "mobile_frontend.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetMobileFrontendBundle",
+    "trimmedName": "GetMobileFrontendBundle",
+    "comments": [
+      "Streams the bundle, validating the manifest's hash against the file on disk so a client never",
+      "downloads one without the other.",
+      ""
+    ],
+    "filepath": "internal/handlers/mobile_frontend.go",
+    "filename": "mobile_frontend.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "newMobileFrontendTestApp",
+    "trimmedName": "newMobileFrontendTestApp",
+    "comments": [
+      "newMobileFrontendTestApp builds a Handler whose data dir is a throwaway directory.",
+      ""
+    ],
+    "filepath": "internal/handlers/mobile_frontend_test.go",
+    "filename": "mobile_frontend_test.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleNakamaWebSocket",
     "trimmedName": "NakamaWebSocket",
     "comments": [
@@ -15798,6 +15216,84 @@
     }
   },
   {
+    "name": "HandleGetProfileComments",
+    "trimmedName": "GetProfileComments",
+    "comments": [
+      "HandleGetProfileComments",
+      "",
+      "\t@summary returns the comments a profile has made, newest first.",
+      "\t@desc Used by the profile page's Comments tab: every comment the profile left on any",
+      "\t@desc show or manga, with the media reference and timestamp.",
+      "\t@returns handlers.ProfileCommentsResponse",
+      "\t@route /api/v1/profile/comments [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_comments.go",
+    "filename": "profile_comments.go",
+    "api": {
+      "summary": "returns the comments a profile has made, newest first.",
+      "descriptions": [
+        "Used by the profile page's Comments tab: every comment the profile left on any",
+        "show or manga, with the media reference and timestamp."
+      ],
+      "endpoint": "/api/v1/profile/comments",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "handlers.ProfileCommentsResponse",
+      "returnGoType": "handlers.ProfileCommentsResponse",
+      "returnTypescriptType": "ProfileCommentsResponse"
+    }
+  },
+  {
+    "name": "resolveCommentTitles",
+    "trimmedName": "resolveCommentTitles",
+    "comments": [
+      "resolveCommentTitles fills in the media title of each comment from the comment",
+      "author's cached AniList collection (memory or disk copy — never blocks on a",
+      "fresh fetch). Comments are left from a media page, so the author's collection",
+      "almost always contains the media. Unresolved titles stay empty and the client",
+      "falls back to the media id.",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_comments.go",
+    "filename": "profile_comments.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "parseUintParam",
+    "trimmedName": "parseUintParam",
+    "comments": [
+      "parseUintParam parses a uint query parameter.",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_comments.go",
+    "filename": "profile_comments.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "GetProfileDatabase",
     "trimmedName": "GetProfileDatabase",
     "comments": [
@@ -16931,6 +16427,88 @@
     }
   },
   {
+    "name": "HandleGetProfilesTimeline",
+    "trimmedName": "GetProfilesTimeline",
+    "comments": [
+      "HandleGetProfilesTimeline",
+      "",
+      "\t@summary returns activity events from every profile, merged into one timeline.",
+      "\t@desc Each profile's own database is read and the events are merged newest-first,",
+      "\t@desc so the News page can show what everyone on the server was doing as one feed.",
+      "\t@desc Media titles resolve against the acting profile's AniList collection.",
+      "\t@param page - int - false - \"Page number (default 1)\"",
+      "\t@param pageSize - int - false - \"Events per page (default 20, max 100)\"",
+      "\t@returns []*handlers.ProfilesTimelineResponse",
+      "\t@route /api/v1/profiles/timeline [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/profiles_timeline.go",
+    "filename": "profiles_timeline.go",
+    "api": {
+      "summary": "returns activity events from every profile, merged into one timeline.",
+      "descriptions": [
+        "Each profile's own database is read and the events are merged newest-first,",
+        "so the News page can show what everyone on the server was doing as one feed.",
+        "Media titles resolve against the acting profile's AniList collection."
+      ],
+      "endpoint": "/api/v1/profiles/timeline",
+      "methods": [
+        "GET"
+      ],
+      "params": [
+        {
+          "name": "page",
+          "jsonName": "page",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": false,
+          "descriptions": [
+            "Page number (default 1)"
+          ]
+        },
+        {
+          "name": "pageSize",
+          "jsonName": "pageSize",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": false,
+          "descriptions": [
+            "Events per page (default 20, max 100)"
+          ]
+        }
+      ],
+      "bodyFields": [],
+      "returns": "[]*handlers.ProfilesTimelineResponse",
+      "returnGoType": "handlers.ProfilesTimelineResponse",
+      "returnTypescriptType": "Array\u003cProfilesTimelineResponse\u003e"
+    }
+  },
+  {
+    "name": "resolveTimelineEvent",
+    "trimmedName": "resolveTimelineEvent",
+    "comments": [
+      "resolveTimelineEvent maps one raw activity event to the timeline shape shared with the",
+      "single-profile endpoint: collection lookup first, then the title/image recorded in the",
+      "event's metadata at the time it happened.",
+      ""
+    ],
+    "filepath": "internal/handlers/profiles_timeline.go",
+    "filename": "profiles_timeline.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "isTransferHeader",
     "trimmedName": "isTransferHeader",
     "comments": [
@@ -17502,7 +17080,7 @@
       "\t@desc Fetches each feed configured in Settings -\u003e App (defaults to anime/manga news feeds),",
       "\t@desc merges the items newest-first and caches the result for 15 minutes.",
       "\t@route /api/v1/news [GET]",
-      "\t@returns handlers.RssFeedResponse",
+      "\t@returns news.Response",
       ""
     ],
     "filepath": "internal/handlers/rss.go",
@@ -17519,52 +17097,9 @@
       ],
       "params": [],
       "bodyFields": [],
-      "returns": "handlers.RssFeedResponse",
-      "returnGoType": "handlers.RssFeedResponse",
-      "returnTypescriptType": "RssFeedResponse"
-    }
-  },
-  {
-    "name": "getRssFeedUrls",
-    "trimmedName": "getRssFeedUrls",
-    "comments": [
-      "getRssFeedUrls returns the user's configured feeds, falling back to the defaults.",
-      "Feeds are stored in Settings -\u003e App as one URL per line (or comma-separated).",
-      ""
-    ],
-    "filepath": "internal/handlers/rss.go",
-    "filename": "rss.go",
-    "api": {
-      "summary": "",
-      "descriptions": [],
-      "endpoint": "",
-      "methods": null,
-      "params": [],
-      "bodyFields": [],
-      "returns": "bool",
-      "returnGoType": "bool",
-      "returnTypescriptType": "boolean"
-    }
-  },
-  {
-    "name": "stripRssHtml",
-    "trimmedName": "stripRssHtml",
-    "comments": [
-      "stripRssHtml removes HTML tags and collapses whitespace in feed descriptions.",
-      ""
-    ],
-    "filepath": "internal/handlers/rss.go",
-    "filename": "rss.go",
-    "api": {
-      "summary": "",
-      "descriptions": [],
-      "endpoint": "",
-      "methods": null,
-      "params": [],
-      "bodyFields": [],
-      "returns": "bool",
-      "returnGoType": "bool",
-      "returnTypescriptType": "boolean"
+      "returns": "news.Response",
+      "returnGoType": "news.Response",
+      "returnTypescriptType": "Response"
     }
   },
   {
@@ -19865,6 +19400,7 @@
       "\t@desc Returns activity events enriched with anime/manga titles and cover images.",
       "\t@param page - int - false - \"Page number (default 1)\"",
       "\t@param pageSize - int - false - \"Events per page (default 50)\"",
+      "\t@param profileId - int - false - \"Profile to read (default: the current profile)\"",
       "\t@returns TimelineResponse",
       "\t@route /api/v1/profile/timeline [GET]",
       ""
@@ -19901,6 +19437,17 @@
           "required": false,
           "descriptions": [
             "Events per page (default 50)"
+          ]
+        },
+        {
+          "name": "profileId",
+          "jsonName": "profileId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": false,
+          "descriptions": [
+            "Profile to read (default: the current profile)"
           ]
         }
       ],
@@ -20871,7 +20418,8 @@
       "\t@summary returns how many files and folders each torrent holds.",
       "\t@desc Reads the .torrent file itself over HTTP and parses it — no torrent client involved, so",
       "\t@desc nothing is added to a download queue to answer this. Torrents with no download URL (magnet",
-      "\t@desc only) are absent from the result rather than reported as zero.",
+      "\t@desc only) are absent from the result rather than reported as zero — unless the search already",
+      "\t@desc answered them from the SeaDex list, whose releases are counted ahead of time.",
       "\t@route /api/v1/torrent/contents [POST]",
       "\t@returns map[string]handlers.TorrentContents",
       ""
@@ -20883,7 +20431,8 @@
       "descriptions": [
         "Reads the .torrent file itself over HTTP and parses it — no torrent client involved, so",
         "nothing is added to a download queue to answer this. Torrents with no download URL (magnet",
-        "only) are absent from the result rather than reported as zero."
+        "only) are absent from the result rather than reported as zero — unless the search already",
+        "answered them from the SeaDex list, whose releases are counted ahead of time."
       ],
       "endpoint": "/api/v1/torrent/contents",
       "methods": [
@@ -20894,9 +20443,9 @@
         {
           "name": "Torrents",
           "jsonName": "torrents",
-          "goType": "[]TorrentContentsRequestItem",
-          "usedStructType": "handlers.TorrentContentsRequestItem",
-          "typescriptType": "Array\u003cTorrentContentsRequestItem\u003e",
+          "goType": "[]torrent.TorrentContentsRequestItem",
+          "usedStructType": "torrent.TorrentContentsRequestItem",
+          "typescriptType": "Array\u003cTorrent_TorrentContentsRequestItem\u003e",
           "required": true,
           "descriptions": []
         }
@@ -20915,76 +20464,6 @@
       "A .torrent fetch is a request to a tracker's web server, indistinguishable from browsing it. Going",
       "out on a bare http.Client would put that request outside the SOCKS5 proxy every other outbound",
       "request in this application goes through — which is the whole point of having one.",
-      ""
-    ],
-    "filepath": "internal/handlers/torrent_contents.go",
-    "filename": "torrent_contents.go",
-    "api": {
-      "summary": "",
-      "descriptions": [],
-      "endpoint": "",
-      "methods": null,
-      "params": [],
-      "bodyFields": [],
-      "returns": "bool",
-      "returnGoType": "bool",
-      "returnTypescriptType": "boolean"
-    }
-  },
-  {
-    "name": "torrentContentsKey",
-    "trimmedName": "torrentContentsKey",
-    "comments": [
-      "torrentContentsKey is the identity a result is cached and returned under. The info hash names the",
-      "contents exactly; a download URL is the fallback for providers that do not give one up front, and",
-      "is what the client keys its own lookup by in that case.",
-      ""
-    ],
-    "filepath": "internal/handlers/torrent_contents.go",
-    "filename": "torrent_contents.go",
-    "api": {
-      "summary": "",
-      "descriptions": [],
-      "endpoint": "",
-      "methods": null,
-      "params": [],
-      "bodyFields": [],
-      "returns": "bool",
-      "returnGoType": "bool",
-      "returnTypescriptType": "boolean"
-    }
-  },
-  {
-    "name": "fetchTorrentContents",
-    "trimmedName": "fetchTorrentContents",
-    "comments": [
-      "fetchTorrentContents downloads a .torrent and counts what is inside it.",
-      "",
-      "Reports ok=false for anything that did not parse — an unreachable tracker, an HTML error page",
-      "served with a 200, a login wall. The caller leaves those out of the response entirely rather than",
-      "reporting zero, because \"no files\" and \"could not tell\" are different answers and only one of them",
-      "should be shown to somebody choosing a release.",
-      ""
-    ],
-    "filepath": "internal/handlers/torrent_contents.go",
-    "filename": "torrent_contents.go",
-    "api": {
-      "summary": "",
-      "descriptions": [],
-      "endpoint": "",
-      "methods": null,
-      "params": [],
-      "bodyFields": [],
-      "returns": "bool",
-      "returnGoType": "bool",
-      "returnTypescriptType": "boolean"
-    }
-  },
-  {
-    "name": "countTorrentContents",
-    "trimmedName": "countTorrentContents",
-    "comments": [
-      "countTorrentContents counts what a parsed torrent holds.",
       ""
     ],
     "filepath": "internal/handlers/torrent_contents.go",
@@ -23007,6 +22486,54 @@
           "goType": "bool",
           "usedStructType": "",
           "typescriptType": "boolean",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "UnmatchedMatchQueueState",
+      "returnGoType": "UnmatchedMatchQueueState",
+      "returnTypescriptType": "UnmatchedMatchQueueState"
+    }
+  },
+  {
+    "name": "HandleForceUnmatchedMatchQueueItem",
+    "trimmedName": "ForceUnmatchedMatchQueueItem",
+    "comments": [
+      "HandleForceUnmatchedMatchQueueItem",
+      "",
+      "\t@summary runs a queued match that was held back by an interrupted match, answering it by hand.",
+      "\t@desc This handler tears up the interrupted match's plan on disk and puts the queued match back in",
+      "\t@desc line to run again from what is left of the download. It is the answer to the question the",
+      "\t@desc queue puts when a plan could not be finished at any start — the user deciding to proceed",
+      "\t@desc rather than wait on a resume that never completes. The match's own checks still run: files",
+      "\t@desc already in the library are asked about, not overwritten in silence.",
+      "\t@route /api/v1/unmatched/queue/force [POST]",
+      "\t@returns UnmatchedMatchQueueState",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched_match_queue.go",
+    "filename": "unmatched_match_queue.go",
+    "api": {
+      "summary": "runs a queued match that was held back by an interrupted match, answering it by hand.",
+      "descriptions": [
+        "This handler tears up the interrupted match's plan on disk and puts the queued match back in",
+        "line to run again from what is left of the download. It is the answer to the question the",
+        "queue puts when a plan could not be finished at any start — the user deciding to proceed",
+        "rather than wait on a resume that never completes. The match's own checks still run: files",
+        "already in the library are asked about, not overwritten in silence."
+      ],
+      "endpoint": "/api/v1/unmatched/queue/force",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "ID",
+          "jsonName": "id",
+          "goType": "uint",
+          "usedStructType": "",
+          "typescriptType": "number",
           "required": true,
           "descriptions": []
         }

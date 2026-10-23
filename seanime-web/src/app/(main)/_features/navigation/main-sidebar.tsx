@@ -51,7 +51,7 @@ import { GiTrophyCup, GiPalette } from "react-icons/gi"
 import { FiLogIn, FiSearch } from "react-icons/fi"
 import { HiOutlineServerStack } from "react-icons/hi2"
 import { IoCloudOfflineOutline, IoHomeOutline } from "react-icons/io5"
-import { LuBook, LuBookOpen, LuBell, LuCalendar, LuCirclePlay, LuClipboardCheck, LuCompass, LuDownload, LuFlag, LuFolderSearch, LuGlobe, LuGitFork, LuHardDriveDownload, LuLayers, LuListVideo, LuLayoutDashboard, LuMessagesSquare, LuMonitorPlay, LuNewspaper, LuRefreshCw, LuRss, LuSettings, LuShieldCheck, LuTv, LuUserRound, LuUsers } from "react-icons/lu"
+import { LuBook, LuBookOpen, LuBell, LuCalendar, LuCirclePlay, LuClipboardCheck, LuCompass, LuDownload, LuFlag, LuFolderSearch, LuGlobe, LuGitFork, LuHardDriveDownload, LuLayers, LuListVideo, LuLayoutDashboard, LuMonitorPlay, LuNewspaper, LuRefreshCw, LuRss, LuSettings, LuShieldCheck, LuTv, LuUserRound, LuUsers } from "react-icons/lu"
 import { SiAnilist } from "react-icons/si"
 import { MdBackspace, MdOutlineConnectWithoutContact } from "react-icons/md"
 import { RiListCheck3 } from "react-icons/ri"
@@ -59,8 +59,6 @@ import { SiQbittorrent, SiTransmission } from "react-icons/si"
 import { TbReportSearch } from "react-icons/tb"
 import { nakamaModalOpenAtom, useNakamaStatus } from "../nakama/nakama-manager"
 import { watchPartyModalOpenAtom, watchPartySessionAtom } from "../watch-party/watch-party.atoms"
-import { chatModalOpenAtom } from "../chat/chat.atoms"
-import { useGetChatConversations } from "@/api/hooks/chat.hooks"
 import { PluginSidebarTray } from "../plugin/tray/plugin-sidebar-tray"
 
 export function MainSidebar() {
@@ -620,11 +618,6 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
     const [watchPartyModalOpen, setWatchPartyModalOpen] = useAtom(watchPartyModalOpenAtom)
     const watchPartySession = useAtomValue(watchPartySessionAtom)
 
-    // Chat
-    const [chatModalOpen, setChatModalOpen] = useAtom(chatModalOpenAtom)
-    const { data: chatConversations } = useGetChatConversations(true)
-    const chatUnreadCount = (chatConversations?.conversations ?? []).reduce((acc, c) => acc + (c.unreadCount ?? 0), 0)
-
     // Sign out
     const confirmSignOut = useConfirmationDialog({
         title: "Sign out",
@@ -683,21 +676,6 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
                             ></div>}
                         </>,
                     }] : [],
-                    {
-                        id: "chat",
-                        iconType: LuMessagesSquare,
-                        iconClass: "size-6",
-                        name: "Chat",
-                        isCurrent: chatModalOpen,
-                        onClick: () => {
-                            ctx.setOpen(false)
-                            setChatModalOpen(true)
-                        },
-                        addon: !!chatUnreadCount && <Badge
-                            className="absolute right-0 top-0" size="sm"
-                            intent="primary-solid"
-                        >{chatUnreadCount}</Badge>,
-                    },
                     {
                         id: "watch-together",
                         iconType: LuUsers,

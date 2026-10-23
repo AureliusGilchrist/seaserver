@@ -2316,125 +2316,6 @@ export type ChapterDownloader_DownloadID = {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Chat
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/**
- * - Filepath: internal/chat/chat.go
- * - Filename: chat.go
- * - Package: chat
- * @description
- *  Conversation is one peer conversation as seen by the requesting profile.
- */
-export type Chat_Conversation = {
-    peerId: number
-    peerName?: string
-    lastMessage?: Chat_Message
-    lastActivity?: string
-    unreadCount: number
-    isPeerTyping: boolean
-}
-
-/**
- * - Filepath: internal/chat/chat.go
- * - Filename: chat.go
- * - Package: chat
- * @description
- *  Conversations is the payload of the conversations endpoint.
- */
-export type Chat_Conversations = {
-    conversations?: Array<Chat_Conversation>
-}
-
-/**
- * - Filepath: internal/chat/chat.go
- * - Filename: chat.go
- * - Package: chat
- * @description
- *  ImageUpload is the response of the image upload endpoint.
- */
-export type Chat_ImageUpload = {
-    imageId: string
-}
-
-/**
- * - Filepath: internal/chat/chat.go
- * - Filename: chat.go
- * - Package: chat
- * @description
- *  Message is one encrypted chat message. Ciphertext is encrypted with the
- *  conversation key shared by From and To.
- */
-export type Chat_Message = {
-    id: string
-    from: number
-    to: number
-    iv: string
-    ciphertext: string
-    createdAt: string
-    editedAt?: string
-    deletedAt?: string
-    readAt?: string
-    replyToId?: string
-    imageId?: string
-    imageIv?: string
-    imageMime?: string
-    reactions?: Record<number, Chat_Reaction>
-}
-
-/**
- * - Filepath: internal/chat/chat.go
- * - Filename: chat.go
- * - Package: chat
- * @description
- *  Messages is the payload of the messages endpoint.
- */
-export type Chat_Messages = {
-    messages?: Array<Chat_Message>
-}
-
-/**
- * - Filepath: internal/chat/chat.go
- * - Filename: chat.go
- * - Package: chat
- * @description
- *  PeerKey is a peer profile's public chat key.
- */
-export type Chat_PeerKey = {
-    hasPin: boolean
-    publicKey?: string
-}
-
-/**
- * - Filepath: internal/chat/chat.go
- * - Filename: chat.go
- * - Package: chat
- * @description
- *  Reaction is a profile's (possibly multiple) emoji reaction on a message,
- *  stored encrypted with the conversation key.
- */
-export type Chat_Reaction = {
-    iv: string
-    ciphertext: string
-}
-
-/**
- * - Filepath: internal/chat/chat.go
- * - Filename: chat.go
- * - Package: chat
- * @description
- *  State is the payload of the chat state endpoint: this profile's chat identity.
- */
-export type Chat_State = {
-    hasPin: boolean
-    salt?: string
-    verifier?: string
-    publicKey?: string
-    encryptedPrivateKey?: string
-    unreadCount: number
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Continuity
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -3887,8 +3768,8 @@ export type PendingProgressSyncResponse = {
 }
 
 /**
- * - Filepath: internal/handlers/chat.go
- * - Filename: chat.go
+ * - Filepath: internal/handlers/profile_comments.go
+ * - Filename: profile_comments.go
  * - Package: handlers
  * @description
  *  ProfileCommentItem is one comment in a profile's Comments tab.
@@ -3906,8 +3787,8 @@ export type ProfileCommentItem = {
 }
 
 /**
- * - Filepath: internal/handlers/chat.go
- * - Filename: chat.go
+ * - Filepath: internal/handlers/profile_comments.go
+ * - Filename: profile_comments.go
  * - Package: handlers
  * @description
  *  ProfileCommentsResponse is the response of the profile comments endpoint.
@@ -3915,6 +3796,45 @@ export type ProfileCommentItem = {
 export type ProfileCommentsResponse = {
     comments?: Array<ProfileCommentItem>
     totalCount: number
+}
+
+/**
+ * - Filepath: internal/handlers/profiles_timeline.go
+ * - Filename: profiles_timeline.go
+ * - Package: handlers
+ * @description
+ *  ProfileTimelineEvent is one activity event tagged with the profile that did it.
+ */
+export type ProfileTimelineEvent = {
+    profileId: number
+    username: string
+    id: number
+    eventType: string
+    mediaId: number
+    metadata: string
+    createdAt?: string
+    mediaTitle?: string
+    mediaImage?: string
+    /**
+     * "anime" or "manga" or ""
+     */
+    mediaType: string
+    achievementIconSvg?: string
+    achievementDesc?: string
+}
+
+/**
+ * - Filepath: internal/handlers/profiles_timeline.go
+ * - Filename: profiles_timeline.go
+ * - Package: handlers
+ * @description
+ *  ProfilesTimelineResponse is the paginated response for the cross-profile timeline.
+ */
+export type ProfilesTimelineResponse = {
+    events?: Array<ProfileTimelineEvent>
+    page: number
+    hasMore: boolean
+    total: number
 }
 
 /**
@@ -3973,32 +3893,6 @@ export type RouteHandlerParam = {
 }
 
 /**
- * - Filepath: internal/handlers/rss.go
- * - Filename: rss.go
- * - Package: handlers
- */
-export type RssFeedResponse = {
-    items?: Array<RssItem>
-    feeds?: Array<string>
-    errors?: Array<string>
-    updatedAt: number
-}
-
-/**
- * - Filepath: internal/handlers/rss.go
- * - Filename: rss.go
- * - Package: handlers
- */
-export type RssItem = {
-    title: string
-    link: string
-    description: string
-    image: string
-    publishedAt: number
-    feedTitle: string
-}
-
-/**
  * - Filepath: internal/handlers/status.go
  * - Filename: status.go
  * - Package: handlers
@@ -4040,33 +3934,6 @@ export type Status = {
     profiles?: Array<INTERNAL_ProfileSummary>
     planningSlutConfigured: boolean
     bootId: string
-}
-
-/**
- * - Filepath: internal/handlers/torrent_contents.go
- * - Filename: torrent_contents.go
- * - Package: handlers
- * @description
- *  TorrentContents is how much a torrent actually holds.
- */
-export type TorrentContents = {
-    files: number
-    folders: number
-}
-
-/**
- * - Filepath: internal/handlers/torrent_contents.go
- * - Filename: torrent_contents.go
- * - Package: handlers
- * @description
- *  TorrentContentsRequestItem identifies one torrent to look inside.
- *  
- *  Named rather than declared inside the handler so the generated client has a type to refer to: an
- *  anonymous struct there produced a TypeScript definition citing a name that does not exist.
- */
-export type TorrentContentsRequestItem = {
-    infoHash: string
-    downloadUrl: string
 }
 
 /**
@@ -6077,6 +5944,38 @@ export type NativePlayer_ServerEvent = "open-and-await" |
 export type NativePlayer_StreamType = "torrent" | "localfile" | "debrid" | "nakama"
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// News
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - Filepath: internal/news/news.go
+ * - Filename: news.go
+ * - Package: news
+ */
+export type Item = {
+    title: string
+    link: string
+    description: string
+    image: string
+    publishedAt: number
+    feedTitle: string
+    author: string
+    categories?: Array<string>
+}
+
+/**
+ * - Filepath: internal/news/news.go
+ * - Filename: news.go
+ * - Package: news
+ */
+export type Response = {
+    items?: Array<Item>
+    feeds?: Array<string>
+    errors?: Array<string>
+    updatedAt: number
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Onlinestream
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -6709,6 +6608,16 @@ export type Torrent_SearchData = {
      */
     animeMetadata?: Metadata_AnimeMetadata
     includedSpecialProviders?: Array<string>
+}
+
+/**
+ * - Filepath: internal/torrents/torrent/contents.go
+ * - Filename: contents.go
+ * - Package: torrent
+ */
+export type Torrent_TorrentContentsRequestItem = {
+    infoHash: string
+    downloadUrl: string
 }
 
 /**
