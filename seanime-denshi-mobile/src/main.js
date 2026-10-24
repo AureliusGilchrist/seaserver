@@ -834,6 +834,10 @@ function proceedToConnection() {
     if (cfg && cfg.remote_url) {
         logStartupEvent("Boot: remote mode", cfg.remote_url)
         sendToSplash("remote-ready", { remote_url: cfg.remote_url })
+        // The splash normally acks within milliseconds and loads the main window itself. If it
+        // never does — a wedged or closed splash — load it here anyway: the config is on disk and
+        // localStorage carries the URL from the previous run, so nothing is lost by not waiting.
+        setTimeout(ensureMainWindowLoaded, 5000)
     } else {
         logStartupEvent("Boot: no server config — show setup")
         sendToSplash("show-setup", {})
@@ -894,10 +898,13 @@ app.whenReady().then(async () => {
     setupAppProtocol()
     startLocalServer()
 
-    // Peek at server config before creating windows. If absent, defer loading the main app so
-    // the hidden window doesn't spawn WS retries during setup.
-    const serverCfgPeek = loadServerConfig()
-    global.__seaDeferMainLoad = !serverCfgPeek
+    // The main app's load is ALWAYS deferred until the boot flow hands over, not just when there
+    // is no server config: launch rebuilds the frontend when the source changed, and a window that
+    // loads before that finishes serves the previous build — the live directory is then swapped out
+    // from under it and every lazily-loaded route chunk 404s (ChunkLoadError), leaving the renderer
+    // crash-looping on whatever screen is up, which is the login screen. ensureMainWindowLoaded()
+    // runs once the build has been staged and the splash has handed over.
+    global.__seaDeferMainLoad = true
 
     createMainWindow()
     global.__seaDeferMainLoad = false
