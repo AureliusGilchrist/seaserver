@@ -4,6 +4,10 @@ logs/
 *.db
 .run/
 testdata/
+# The shared episode-number fixture the Go and TypeScript tests both read (see
+# internal/unmatched/repository_test.go) is test data that must travel with the repo.
+!internal/unmatched/testdata/
+!internal/unmatched/testdata/**
 .vscode
 .cursor
 .DS_Store
