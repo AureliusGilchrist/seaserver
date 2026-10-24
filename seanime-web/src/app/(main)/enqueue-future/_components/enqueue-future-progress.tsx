@@ -19,6 +19,77 @@ const MAX_PENDING_ROOTS = 20
 const PENDING_ROOTS_PAGE = 6
 
 /**
+ * A rough estimate of when this run will have prepared everything it has discovered.
+ *
+ * The run itself reports no ETA, so this is worked out from what the screen can see: samples of
+ * (when, how much was done) are kept, the rate is the median of the intervals between them — the
+ * median because a rate limit or a large franchise produces one slow interval that would drag a
+ * mean out — and the remaining work is divided by it.
+ *
+ * It is a guess and it is allowed to be wrong: a run discovers more anime as it goes, so "remaining"
+ * grows mid-flight and the estimate follows it. It only claims to answer "is this going to be hours
+ * or days", not "minutes". Nothing shows until two intervals exist, so a just-started run shows
+ * nothing rather than nonsense.
+ */
+function useEta(done: number, discovered: number, paused: boolean): string | null {
+    // Sample history survives re-renders but is reset when the run changes identity — keyed to the
+    // run, not the component, by resetting whenever `paused` flips or the totals shrink (a new run).
+    const samplesRef = React.useRef<{ at: number, done: number }[]>([])
+    const lastKeyRef = React.useRef<string>("")
+    const [now, setNow] = React.useState(() => Date.now())
+
+    const key = paused ? "paused" : "running"
+    React.useEffect(() => {
+        if (lastKeyRef.current !== key) {
+            samplesRef.current = []
+            lastKeyRef.current = key
+        }
+    }, [key])
+
+    React.useEffect(() => {
+        if (paused) return
+        const id = setInterval(() => setNow(Date.now()), 30_000)
+        return () => clearInterval(id)
+    }, [paused])
+
+    React.useEffect(() => {
+        if (paused || done <= 0) return
+        const samples = samplesRef.current
+        const last = samples[samples.length - 1]
+        // One sample per distinct total, not one per poll — a stalled run polls the same total
+        // repeatedly and would otherwise record a zero-width interval.
+        if (last && last.done === done) return
+        samples.push({ at: Date.now(), done })
+        if (samples.length > 12) samples.shift()
+    }, [done, paused])
+
+    const remaining = discovered - done
+    if (remaining <= 0) return null
+
+    const samples = samplesRef.current
+    if (samples.length < 3) return null // need at least two intervals to have a median
+
+    const intervals: number[] = []
+    for (let i = 1; i < samples.length; i++) {
+        const dt = samples[i].at - samples[i - 1].at
+        const dd = samples[i].done - samples[i - 1].done
+        if (dt > 0 && dd > 0) intervals.push(dt / dd)
+    }
+    if (intervals.length < 2) return null
+    intervals.sort((a, b) => a - b)
+    const medianMs = intervals[Math.floor(intervals.length / 2)]
+
+    const ms = medianMs * remaining
+    const minutes = Math.round(ms / 60_000)
+    if (minutes < 1) return null
+    if (minutes < 60) return `~${minutes}m left`
+    const hours = Math.floor(minutes / 60)
+    if (hours < 24) return `~${hours}h ${minutes % 60}m left`
+    const days = Math.floor(hours / 24)
+    return `~${days}d ${hours % 24}h left`
+}
+
+/**
  * What the background run is doing, if anything.
  *
  * It is worth showing plainly rather than as a spinner, because the two states people will actually
@@ -88,6 +159,9 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
     const done = (status.prepared || 0) + (status.failed || 0)
     const percent = discovered > 0 ? Math.min(100, Math.round((done / discovered) * 100)) : 0
 
+    // Paused while rate-limited: the clock the estimate runs on stops, because no work is.
+    const eta = useEta(done, discovered, !!status.rateLimited)
+
     const retryInSeconds = status.retryAt
         ? Math.max(0, Math.ceil((new Date(status.retryAt).getTime() - now) / 1000))
         : 0
@@ -117,6 +191,7 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
                         ) : (
                             <>
                                 {status.prepared} of {status.discovered} ready
+                                {eta ? <> · {eta}</> : ""}
                                 {status.families ? ` · ${status.families} series` : ""}
                                 {status.currentTitle ? ` · ${status.currentTitle}` : ""}
                                 {status.skipped ? ` · ${status.skipped} skipped` : ""}
