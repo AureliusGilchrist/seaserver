@@ -178,10 +178,32 @@ func fetch(feedUrls []string) *Response {
 
 	wg.Wait()
 
-	// The same story can arrive more than once: ANN's all-topics feed runs an article under
-	// several topics, and two configured feeds may both have covered it. Collapse to one item
-	// per story — same link, or same title once case and extra whitespace are ignored — keeping
-	// the copy that carries an image when the duplicates disagree.
+	items = dedupeItems(items)
+
+	sort.SliceStable(items, func(i, j int) bool {
+		if items[i].PublishedAt == items[j].PublishedAt {
+			return items[i].Title < items[j].Title
+		}
+		return items[i].PublishedAt > items[j].PublishedAt
+	})
+	if len(items) > maxItemsTotal {
+		items = items[:maxItemsTotal]
+	}
+
+	return &Response{
+		Items:     items,
+		Feeds:     feedUrls,
+		Errors:    errors,
+		UpdatedAt: time.Now().Unix(),
+	}
+}
+
+// dedupeItems collapses repeated stories to one item. The same story can arrive more than
+// once: ANN's all-topics feed runs an article under several topics, and two configured
+// feeds may both have covered it. Two items are the same story when they share a link, or
+// when their titles match once case and extra whitespace are ignored. When the copies
+// disagree about carrying an image, the copy that has one wins.
+func dedupeItems(items []Item) []Item {
 	byLink := make(map[string]int, len(items))
 	byTitle := make(map[string]int, len(items))
 	deduped := make([]Item, 0, len(items))
@@ -209,24 +231,7 @@ func fetch(feedUrls []string) *Response {
 		}
 		deduped = append(deduped, it)
 	}
-	items = deduped
-
-	sort.SliceStable(items, func(i, j int) bool {
-		if items[i].PublishedAt == items[j].PublishedAt {
-			return items[i].Title < items[j].Title
-		}
-		return items[i].PublishedAt > items[j].PublishedAt
-	})
-	if len(items) > maxItemsTotal {
-		items = items[:maxItemsTotal]
-	}
-
-	return &Response{
-		Items:     items,
-		Feeds:     feedUrls,
-		Errors:    errors,
-		UpdatedAt: time.Now().Unix(),
-	}
+	return deduped
 }
 
 // stripHTML removes HTML tags and collapses whitespace in feed descriptions.

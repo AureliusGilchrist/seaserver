@@ -129,6 +129,22 @@ export default function Page() {
                     </div>
                 )}
 
+                {/* A feed that failed to load is not fatal — the others still show — but silently
+                    dropping it would look like the source simply went quiet. */}
+                {!isError && !!data?.errors?.length && (
+                    <div className="rounded-2xl border border-amber-300/25 bg-amber-400/[0.07] p-4 backdrop-blur-md">
+                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-amber-200/90">
+                            <LuBell className="size-3.5" />
+                            {data.errors.length === 1 ? "A feed could not be loaded" : `${data.errors.length} feeds could not be loaded`}
+                        </div>
+                        <ul className="mt-2 space-y-1">
+                            {data.errors.slice(0, 5).map((err, i) => (
+                                <li key={i} className="text-xs text-white/65">{err}</li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+
                 {!isLoading && !isError && shown.length === 0 && (
                     <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03] p-10 text-center backdrop-blur-md">
                         <LuRss className="mx-auto mb-3 size-8 text-[--muted]" />
