@@ -272,6 +272,7 @@ export function useHydrateMangaPaginationMap(pageContainer?: Manga_PageContainer
         if (
             readingMode === MangaReadingMode.PAGED
             || readingMode === MangaReadingMode.LONG_STRIP
+            || readingMode === MangaReadingMode.INFINITE_SCROLL
             || (!pageContainer.pageDimensions || Object.keys(pageContainer.pageDimensions).length === 0)
         ) {
             let i = 0
@@ -366,6 +367,7 @@ export function useSwitchSettingsWithKeys() {
     const getReadingModeLabel = (value: string) => {
         const labels: Record<string, string> = {
             [MangaReadingMode.LONG_STRIP]: "Long Strip",
+            [MangaReadingMode.INFINITE_SCROLL]: "Infinite Scroll",
             [MangaReadingMode.PAGED]: "Single Page",
             [MangaReadingMode.DOUBLE_PAGE]: "Double Page",
         }

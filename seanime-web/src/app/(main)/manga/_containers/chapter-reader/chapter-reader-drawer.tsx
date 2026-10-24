@@ -4,6 +4,7 @@ import { useAchievementActivityHeartbeat } from "@/api/hooks/achievement.hooks"
 import { useSeaCommandInject } from "@/app/(main)/_features/sea-command/use-inject"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
+import { MangaContinuousReader } from "@/app/(main)/manga/_containers/chapter-reader/_components/chapter-continuous-reader"
 import { MangaHorizontalReader } from "@/app/(main)/manga/_containers/chapter-reader/_components/chapter-horizontal-reader"
 import { MangaVerticalReader } from "@/app/(main)/manga/_containers/chapter-reader/_components/chapter-vertical-reader"
 import { MangaReaderActionDisplay } from "@/app/(main)/manga/_containers/chapter-reader/manga-reader-action-display"
@@ -395,8 +396,10 @@ export function ChapterReaderDrawer(props: ChapterDrawerProps) {
                     ? (<LoadingSpinner containerClass="h-full" />)
                     : (readingMode === MangaReadingMode.LONG_STRIP
                         ? (<MangaVerticalReader pageContainer={pageContainer} />)
-                        : (readingMode === MangaReadingMode.PAGED || readingMode === MangaReadingMode.DOUBLE_PAGE)
-                            ? (<MangaHorizontalReader pageContainer={pageContainer} />) : null)}
+                        : (readingMode === MangaReadingMode.INFINITE_SCROLL
+                            ? (<MangaContinuousReader pageContainer={pageContainer} />)
+                            : (readingMode === MangaReadingMode.PAGED || readingMode === MangaReadingMode.DOUBLE_PAGE)
+                                ? (<MangaHorizontalReader pageContainer={pageContainer} />) : null))}
             </div>
         </Drawer>
     )

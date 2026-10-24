@@ -66,6 +66,9 @@ export const MangaReadingMode = {
     LONG_STRIP: "long-strip",
     PAGED: "paged",
     DOUBLE_PAGE: "double-page",
+    // Continuous horizontal strip: pages laid side by side, scrolled through without paging.
+    // Honors the reading direction setting, so RTL reads right to left.
+    INFINITE_SCROLL: "infinite-scroll",
 }
 
 export const __manga_readingModeAtom = atomWithStorage<string>(MANGA_SETTINGS_ATOM_KEYS.readingMode, MangaReadingMode.LONG_STRIP)

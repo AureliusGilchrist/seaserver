@@ -3,6 +3,7 @@
 import { useSeaCommand } from "@/app/(main)/_features/sea-command/sea-command"
 import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
+import { __manga_selectedChapterAtom } from "@/app/(main)/manga/_lib/handle-chapter-reader"
 import { useAppSidebarContext } from "@/components/ui/app-layout"
 import { cn } from "@/components/ui/core/styling"
 import { __isMobileShell__ } from "@/types/constants"
@@ -36,6 +37,9 @@ export function MobileTabBar() {
     const sidebarCtx = useAppSidebarContext()
     const { setSeaCommandOpen } = useSeaCommand()
     const isFullscreen = useAtomValue(vc_isFullscreen)
+    // The manga reader is a fullscreen experience with its own bottom bar; the dock would
+    // sit on top of it and block it.
+    const isReadingManga = !!useAtomValue(__manga_selectedChapterAtom)
 
     const enableManga = !!serverStatus?.settings?.library?.enableManga
     const isOnManga = enableManga && pathname.startsWith("/manga")
@@ -77,8 +81,9 @@ export function MobileTabBar() {
         },
     ]
 
-    // Fullscreen video owns the screen; get out of its way.
-    if (isFullscreen) return null
+    // Fullscreen video owns the screen; get out of its way. Same for the manga reader,
+    // which has its own bottom bar the dock would cover.
+    if (isFullscreen || isReadingManga) return null
 
     return (
         <div

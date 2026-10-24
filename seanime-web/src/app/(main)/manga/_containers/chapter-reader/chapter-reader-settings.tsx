@@ -39,7 +39,7 @@ import { AiOutlineColumnHeight, AiOutlineColumnWidth } from "react-icons/ai"
 import { BiCog } from "react-icons/bi"
 import { FaRedo, FaRegImage } from "react-icons/fa"
 import { GiResize } from "react-icons/gi"
-import { LuSettings } from "react-icons/lu"
+import { LuArrowRightToLine, LuSettings } from "react-icons/lu"
 import { MdMenuBook, MdOutlinePhotoSizeSelectLarge } from "react-icons/md"
 import { PiArrowCircleLeftDuotone, PiArrowCircleRightDuotone, PiReadCvLogoLight, PiScrollDuotone } from "react-icons/pi"
 import { TbArrowAutofitHeight } from "react-icons/tb"
@@ -72,12 +72,17 @@ export const MANGA_READING_MODE_ICONS = {
     [MangaReadingMode.LONG_STRIP]: <PiScrollDuotone className="text-xl" />,
     [MangaReadingMode.PAGED]: <PiReadCvLogoLight className="text-xl" />,
     [MangaReadingMode.DOUBLE_PAGE]: <MdMenuBook className="text-xl" />,
+    [MangaReadingMode.INFINITE_SCROLL]: <LuArrowRightToLine className="text-xl" />,
 }
 
 export const MANGA_READING_MODE_OPTIONS = [
     {
         value: MangaReadingMode.LONG_STRIP,
         label: <span className="flex gap-2 items-center"><PiScrollDuotone className="text-xl" /> <span>Long Strip</span></span>,
+    },
+    {
+        value: MangaReadingMode.INFINITE_SCROLL,
+        label: <span className="flex gap-2 items-center"><LuArrowRightToLine className="text-xl" /> <span>Infinite Scroll</span></span>,
     },
     {
         value: MangaReadingMode.PAGED,
@@ -179,6 +184,10 @@ export function ChapterReaderSettings(props: ChapterReaderSettingsProps) {
                     pageFit: MangaPageFit.COVER,
                     pageStretch: MangaPageStretch.NONE,
                 },
+                [MangaReadingMode.INFINITE_SCROLL]: {
+                    pageFit: MangaPageFit.CONTAIN,
+                    pageStretch: MangaPageStretch.NONE,
+                },
                 [MangaReadingMode.PAGED]: {
                     pageFit: MangaPageFit.CONTAIN,
                     pageStretch: MangaPageStretch.NONE,
@@ -192,6 +201,10 @@ export function ChapterReaderSettings(props: ChapterReaderSettingsProps) {
             return {
                 [MangaReadingMode.LONG_STRIP]: {
                     pageFit: MangaPageFit.LARGER,
+                    pageStretch: MangaPageStretch.NONE,
+                },
+                [MangaReadingMode.INFINITE_SCROLL]: {
+                    pageFit: MangaPageFit.CONTAIN,
                     pageStretch: MangaPageStretch.NONE,
                 },
                 [MangaReadingMode.PAGED]: {
@@ -423,6 +436,9 @@ export function ChapterReaderSettings(props: ChapterReaderSettingsProps) {
                             options={MANGA_PAGE_FIT_OPTIONS}
                             value={pageFit}
                             onValueChange={(value) => setPageFit(value)}
+                            className={cn(
+                                readingMode === MangaReadingMode.INFINITE_SCROLL && "opacity-50 pointer-events-none",
+                            )}
                             // help={<>
                             //     <p>'Contain': Fit Height</p>
                             //     <p>'Overflow': Height overflow</p>

@@ -72,7 +72,7 @@ export function MangaReaderBar(props: MangaReaderBarProps) {
     const hiddenBar = useAtomValue(__manga_hiddenBarAtom)
 
     const ChapterNavButton = React.useCallback(({ dir }: { dir: "left" | "right" }) => {
-        const reversed = (readingDirection === MangaReadingDirection.RTL && (readingMode === MangaReadingMode.PAGED || readingMode === MangaReadingMode.DOUBLE_PAGE))
+        const reversed = (readingDirection === MangaReadingDirection.RTL && readingMode !== MangaReadingMode.LONG_STRIP)
         if (reversed) {
             if (dir === "left") {
                 return (

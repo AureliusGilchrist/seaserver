@@ -213,7 +213,11 @@ export function MangaHorizontalReader({ pageContainer }: MangaHorizontalReaderPr
                         )}
                         imageClass={cn(
                             "focus-visible:outline-none",
-                            "h-full inset-0 object-center select-none z-[4] relative",
+                            // No base height: every page-fit mode sizes its own height, and a base
+                            // h-full would override COVER/LARGER's h-auto (twMerge keeps the last
+                            // height class — the fit class), forcing w-full h-full with no
+                            // object-fit, i.e. object-fit: fill — visibly stretched pages.
+                            "inset-0 object-center select-none z-[4] relative",
 
                             //
                             // Page fit
