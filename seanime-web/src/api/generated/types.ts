@@ -3910,6 +3910,7 @@ export type Status = {
     settings?: Models_Settings
     version: string
     versionName: string
+    frontendVersion: string
     themeSettings?: Models_Theme
     isOffline: boolean
     mediastreamSettings?: Models_MediastreamSettings

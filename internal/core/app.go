@@ -284,6 +284,10 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 	// share the copy was going to. See util.RecoverInterruptedMoves, run in modules.go.
 	util.SetMoveJournalDir(filepath.Join(cfg.Data.AppDataDir, "pending-moves"))
 
+	// The chat feature was removed; its data store is now dead weight. One quiet sweep on startup
+	// clears it — this only ever runs into data the removed feature wrote, so nothing is asked.
+	cleanupRemovedChatData(cfg.Data.AppDataDir, logger)
+
 	// Log if running in desktop sidecar mode
 	if configOpts.Flags.IsDesktopSidecar {
 		logger.Info().Msg("app: Desktop sidecar mode enabled")
@@ -713,6 +717,25 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 	}
 
 	return app
+}
+
+// cleanupRemovedChatData deletes the data store of the removed chat feature, if the
+// directory holds one. Kept as its own step so the removal is visible in the log exactly
+// once, then never thought about again.
+func cleanupRemovedChatData(appDataDir string, logger *zerolog.Logger) {
+	removed := false
+	if err := os.Remove(filepath.Join(appDataDir, "chat.json")); err == nil {
+		removed = true
+	}
+	imagesDir := filepath.Join(appDataDir, "chat-images")
+	if _, err := os.Stat(imagesDir); err == nil {
+		if err := os.RemoveAll(imagesDir); err == nil {
+			removed = true
+		}
+	}
+	if removed {
+		logger.Info().Msg("app: removed leftover chat feature data")
+	}
 }
 
 func (a *App) IsOffline() bool {

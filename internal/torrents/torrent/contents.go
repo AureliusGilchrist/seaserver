@@ -176,6 +176,9 @@ const (
 	seaDexContentsTimeout = 5 * time.Second
 )
 
+// Overridden by tests to point the fetch at a local fake of the list's API.
+var seaDexContentsEndpoint = seaDexContentsURL
+
 // seaDexContentsCache holds, per anime, the file counts of every release the list has for it — an
 // empty map meaning "not in the list", which is the usual answer and must not cost a request a
 // search. Bounded because the number of anime searched is unbounded and the entries expire.
@@ -203,7 +206,7 @@ type seaDexResponse struct {
 
 func fetchSeaDexContents(mediaID int) (map[string]*TorrentContents, error) {
 	filter := `alID="` + strconv.Itoa(mediaID) + `"`
-	url := seaDexContentsURL + "?page=1&perPage=1&skipTotal=1&expand=trs&filter=" + url.QueryEscape(filter)
+	url := seaDexContentsEndpoint + "?page=1&perPage=1&skipTotal=1&expand=trs&filter=" + url.QueryEscape(filter)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {

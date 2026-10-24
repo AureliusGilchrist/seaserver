@@ -84,7 +84,7 @@ function patchPackageJson(relPath, newVersion) {
 }
 
 // ── 3. Helper: patch Go constants fallback defaults ─────────────────────────
-function patchGoConstants(relPath, version, codename, roomsVer) {
+function patchGoConstants(relPath, version, codename, roomsVer, webVer) {
     const absPath = resolve(root, relPath)
     let src = readFileSync(absPath, "utf8")
     let changed = false
@@ -107,13 +107,19 @@ function patchGoConstants(relPath, version, codename, roomsVer) {
         if (m !== replacement) changed = true
         return replacement
     })
+    // Match: FrontendVersion = "x.y.z-N"
+    src = src.replace(/(FrontendVersion\s*=\s*)"[^"]+"/, (m, prefix) => {
+        const replacement = `${prefix}"${webVer}"`
+        if (m !== replacement) changed = true
+        return replacement
+    })
 
     if (!changed) {
         console.log(`  [skip]  ${relPath} already up to date`)
         return
     }
     writeFileSync(absPath, src)
-    console.log(`  [patch] ${relPath}: Version=${version}, VersionName=${codename}, Rooms=${roomsVer}`)
+    console.log(`  [patch] ${relPath}: Version=${version}, VersionName=${codename}, Rooms=${roomsVer}, Frontend=${webVer}`)
 }
 
 // ── 4. Apply ─────────────────────────────────────────────────────────────────
@@ -123,6 +129,6 @@ if (webVersion)    patchPackageJson("seanime-web/package.json",    webVersion)
 if (denshiVersion) patchPackageJson("seanime-denshi/package.json", denshiVersion)
 if (androidVersion) patchPackageJson("seanime-denshi-mobile-android/package.json", androidVersion)
 if (serverVersion && serverName && roomsVersion)
-    patchGoConstants("internal/constants/constants.go", serverVersion, serverName, roomsVersion)
+    patchGoConstants("internal/constants/constants.go", serverVersion, serverName, roomsVersion, webVersion)
 
 console.log("sync-versions: done")

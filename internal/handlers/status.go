@@ -35,6 +35,9 @@ type Status struct {
 	Settings              *models.Settings              `json:"settings"`
 	Version               string                        `json:"version"`
 	VersionName           string                        `json:"versionName"`
+	// FrontendVersion is the seanime-web version this server build ships. The client
+	// compares it with the version baked into its own bundle to detect a stale UI.
+	FrontendVersion       string                        `json:"frontendVersion"`
 	ThemeSettings         *models.Theme                 `json:"themeSettings"`
 	IsOffline             bool                          `json:"isOffline"`
 	MediastreamSettings   *models.MediastreamSettings   `json:"mediastreamSettings"`
@@ -116,6 +119,7 @@ func (h *Handler) NewStatus(c echo.Context) *Status {
 		Settings:              settings,
 		Version:               h.App.Version,
 		VersionName:           constants.VersionName,
+		FrontendVersion:       constants.FrontendVersion,
 		ThemeSettings:         theme,
 		IsOffline:             h.App.Config.Server.Offline,
 		MediastreamSettings:   h.App.SecondarySettings.Mediastream,

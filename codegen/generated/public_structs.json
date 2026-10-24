@@ -31460,6 +31460,18 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "SeanimeWeb",
+        "jsonName": "seanime-web",
+        "goType": "VersionsManifest_SeanimeWeb",
+        "inlineStructType": "struct{\nVersion string `json:\"version\"`}",
+        "typescriptType": "VersionsManifest_SeanimeWeb",
+        "usedTypescriptType": "{ version: string; }",
+        "usedStructName": "constants.VersionsManifest_SeanimeWeb",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [
@@ -31503,6 +31515,28 @@
     "filename": "constants.go",
     "name": "VersionsManifest_Rooms",
     "formattedName": "VersionsManifest_Rooms",
+    "package": "constants",
+    "fields": [
+      {
+        "name": "Version",
+        "jsonName": "version",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " VersionsManifest mirrors the structure of versions.json at the repo root. Only the",
+      " fields the Go server cares about are decoded here; additional keys are ignored."
+    ]
+  },
+  {
+    "filepath": "../internal/constants/constants.go",
+    "filename": "constants.go",
+    "name": "VersionsManifest_SeanimeWeb",
+    "formattedName": "VersionsManifest_SeanimeWeb",
     "package": "constants",
     "fields": [
       {
@@ -59702,6 +59736,15 @@
       {
         "name": "VersionName",
         "jsonName": "versionName",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FrontendVersion",
+        "jsonName": "frontendVersion",
         "goType": "string",
         "typescriptType": "string",
         "required": true,

@@ -13,6 +13,10 @@ var (
 	Version             = "5.0.0-1"
 	VersionName         = "Deus Ex Aeternae"
 	SeanimeRoomsVersion = "5.0.0-0"
+	// FrontendVersion is the seanime-web version this server build was made to serve.
+	// The web client compares it against the version baked into its own bundle and
+	// shows an out-of-date banner when they differ.
+	FrontendVersion = "4.0.1-0"
 )
 
 const (
@@ -39,6 +43,9 @@ type VersionsManifest struct {
 	Rooms struct {
 		Version string `json:"version"`
 	} `json:"rooms"`
+	SeanimeWeb struct {
+		Version string `json:"version"`
+	} `json:"seanime-web"`
 }
 
 // SetVersionsFromJSON overrides the package-level version variables from the embedded
@@ -61,6 +68,9 @@ func SetVersionsFromJSON(data []byte) error {
 	}
 	if m.Rooms.Version != "" {
 		SeanimeRoomsVersion = m.Rooms.Version
+	}
+	if m.SeanimeWeb.Version != "" {
+		FrontendVersion = m.SeanimeWeb.Version
 	}
 	return nil
 }

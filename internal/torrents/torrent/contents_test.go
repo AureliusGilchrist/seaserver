@@ -1,6 +1,8 @@
 package torrent
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/anacrolix/torrent/metainfo"
@@ -109,4 +111,75 @@ func TestTorrentContentsKey(t *testing.T) {
 			t.Errorf("got %q, want empty", got)
 		}
 	})
+}
+
+// The list's API is faked on a local server so the decode and its quirks are tested without
+// touching the network: redacted and empty hashes are skipped, a repeated release keeps the
+// first record, and anything other than a 200 is an error rather than a silent empty answer.
+func TestFetchSeaDexContents(t *testing.T) {
+	const listPayload = `{
+		"items": [
+			{
+				"expand": {
+					"trs": [
+						{ "infoHash": "ABCDEF1234567890ABCDEF1234567890ABCDEF12", "files": [{"name": "a.mkv"}, {"name": "b.mkv"}, {"name": "c.mkv"}] },
+						{ "infoHash": "<redacted>", "files": [{"name": "x.mkv"}] },
+						{ "infoHash": "", "files": [{"name": "y.mkv"}] },
+						{ "infoHash": "abcdef1234567890abcdef1234567890abcdef12", "files": [{"name": "late.mkv"}] }
+					]
+				}
+			}
+		]
+	}`
+
+	original := seaDexContentsEndpoint
+	defer func() { seaDexContentsEndpoint = original }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Query().Get("filter") {
+		case `alID="1"`:
+			w.Write([]byte(listPayload))
+		case `alID="2"`:
+			w.Write([]byte(`{"items": []}`))
+		case `alID="3"`:
+			w.WriteHeader(http.StatusServiceUnavailable)
+		case `alID="4"`:
+			w.Write([]byte(`not json`))
+		default:
+			w.WriteHeader(http.StatusBadRequest)
+		}
+	}))
+	defer server.Close()
+
+	seaDexContentsEndpoint = server.URL + "/api/collections/entries/records"
+
+	counts, err := fetchSeaDexContents(1)
+	if err != nil {
+		t.Fatalf("fetchSeaDexContents(1) returned error: %v", err)
+	}
+	if len(counts) != 1 {
+		t.Fatalf("expected 1 usable release, got %d", len(counts))
+	}
+	got, ok := counts["abcdef1234567890abcdef1234567890abcdef12"]
+	if !ok {
+		t.Fatalf("release keyed by lowercased hash missing from answer: %v", counts)
+	}
+	if got.Files != 3 {
+		t.Errorf("expected 3 files counted, got %d", got.Files)
+	}
+
+	counts, err = fetchSeaDexContents(2)
+	if err != nil {
+		t.Fatalf("fetchSeaDexContents(2) returned error: %v", err)
+	}
+	if len(counts) != 0 {
+		t.Errorf("expected an empty answer for an unlisted anime, got %v", counts)
+	}
+
+	if _, err = fetchSeaDexContents(3); err == nil {
+		t.Error("expected an error for a non-200 answer, got nil")
+	}
+	if _, err = fetchSeaDexContents(4); err == nil {
+		t.Error("expected an error for a malformed answer, got nil")
+	}
 }

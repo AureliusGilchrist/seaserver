@@ -41,6 +41,7 @@ import { useServerStatus } from "../../_hooks/use-server-status"
 import { useInvalidateQueriesListener } from "../../_listeners/invalidate-queries.listeners"
 import { AdminAnnouncementsBanner } from "../admin-announcements"
 import { AnilistStatusBanner } from "../anilist-status-banner"
+import { StaleFrontendBanner } from "../stale-frontend-banner"
 import { Announcements } from "../announcements"
 import { AnimeThemeProvider, useAnimeThemeOrNull } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { ProfileWallpaper } from "@/app/(main)/profile/_components/profile-wallpaper"
@@ -126,6 +127,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
             <NewEpisodeNotifier />
             <NewMangaChapterNotifier />
             <AnilistStatusBanner />
+            <StaleFrontendBanner />
             <Announcements />
             <AdminAnnouncementsBanner />
             <LibraryExplorerDrawer />
