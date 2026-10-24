@@ -124,21 +124,29 @@ func CountTorrentContents(info metainfo.Info) *TorrentContents {
 }
 
 // populateContentsFromSeaDex answers, ahead of time, what the file-count route will be asked about.
-//
-// The SeaDex list records every release it has curated together with its complete file list, and the
-// file-count route can only read a torrent's contents by downloading the .torrent file — which needs
-// a download URL a provider may not have supplied. A search knows the anime being searched, and the
-// list is keyed by the same anime, so this is where the two meet: after a search, every listed
-// release of that anime has its contents counted and put in the cache, so the modal shows how many
-// files a release holds even when its .torrent file could not be read at all.
-//
-// Best-effort and quiet: the list being unreachable costs nothing but a skipped enrichment, and the
-// searches themselves must not wait on it or fail because of it. The per-anime cache covers repeat
-// searches, including the answer "this anime is not in the list at all".
 func populateContentsFromSeaDex(mediaID int, torrents []*hibiketorrent.AnimeTorrent) {
-	defer util.HandlePanicInModuleThen("torrents/torrent/populateContentsFromSeaDex", func() {})
-
 	if mediaID <= 0 || len(torrents) == 0 {
+		return
+	}
+	PopulateSeaDexContents(mediaID)
+}
+
+// PopulateSeaDexContents counts every release the SeaDex list has for one anime and puts the answers
+// in the shared cache, under each release's info hash, where the file-count route will find them.
+//
+// The list records every release it has curated together with its complete file list, and the
+// file-count route can only read a torrent's contents by downloading the .torrent file — which needs
+// a download URL a provider may not have supplied, or one whose server may simply be down. The list
+// is keyed by the same anime a search is, so asking it by media ID answers for the releases the
+// .torrent fetch cannot reach, and does so long after the search that turned them up — which is what
+// a prepared snapshot being opened hours later needs.
+//
+// Best-effort and quiet: the list being unreachable costs nothing but a skipped enrichment. The
+// per-anime cache covers repeat asks, including the answer "this anime is not in the list at all".
+func PopulateSeaDexContents(mediaID int) {
+	defer util.HandlePanicInModuleThen("torrents/torrent/PopulateSeaDexContents", func() {})
+
+	if mediaID <= 0 {
 		return
 	}
 
@@ -149,7 +157,7 @@ func populateContentsFromSeaDex(mediaID int, torrents []*hibiketorrent.AnimeTorr
 
 	counts, err := fetchSeaDexContents(mediaID)
 	if err != nil {
-		// Not cached, so the next search tries again — a transient outage should not stick for
+		// Not cached, so the next ask tries again — a transient outage should not stick for
 		// half an hour.
 		return
 	}
@@ -239,8 +247,77 @@ func fetchSeaDexContents(mediaID int) (map[string]*TorrentContents, error) {
 			if _, ok := counts[infoHash]; ok {
 				continue
 			}
-			counts[infoHash] = &TorrentContents{Files: len(tr.Files)}
+			counts[infoHash] = countSeaDexFiles(tr.Files)
 		}
 	}
 	return counts, nil
+}
+
+// countSeaDexFiles counts the files and folders in one release's file list.
+//
+// The list's file entries are held raw because their inner shape has drifted — a bare name at some
+// point, a path at another, an object wrapping either. Each entry is read as generously as it can
+// be, then treated as a relative path: everything before the final segment is a directory, and the
+// directories are deduplicated so several files under one folder count it once. A torrent's own
+// top-level folder cannot be named here — the list stores paths, not the metainfo's name — so it is
+// counted only when a path carries one, which is what "the folder a download creates" amounts to
+// from the outside.
+func countSeaDexFiles(files []json.RawMessage) *TorrentContents {
+	folders := make(map[string]struct{})
+	counted := 0
+	for _, raw := range files {
+		p := seaDexFilePath(raw)
+		if p == "" {
+			continue
+		}
+		counted++
+
+		// The list's paths have been written with either separator over the years; the rest of this
+		// package's counting works in forward slashes.
+		p = strings.ReplaceAll(p, "\\", "/")
+		for dir := path.Dir(p); dir != "." && dir != "/" && dir != ""; dir = path.Dir(dir) {
+			folders[dir] = struct{}{}
+		}
+	}
+
+	// Every entry unreadable: the count of the list as given is still worth more than zero, which
+	// would read to somebody choosing a release as "this torrent is empty".
+	if counted == 0 && len(files) > 0 {
+		counted = len(files)
+	}
+
+	return &TorrentContents{Files: counted, Folders: len(folders)}
+}
+
+// seaDexFilePath reads one raw file entry as a path, as tolerantly as the entry can be read.
+//
+// The shapes the list has used: a plain string, an object with a path — itself either a string or
+// an array of segments — and an object with only a name. Anything that cannot be read at all comes
+// back empty and costs a file from the count, which the caller answers for.
+func seaDexFilePath(raw json.RawMessage) string {
+	var asString string
+	if err := json.Unmarshal(raw, &asString); err == nil {
+		return strings.TrimSpace(asString)
+	}
+
+	var asObject struct {
+		Path json.RawMessage `json:"path"`
+		Name string          `json:"name"`
+	}
+	if err := json.Unmarshal(raw, &asObject); err != nil {
+		return ""
+	}
+
+	if len(asObject.Path) > 0 {
+		var asPathString string
+		if err := json.Unmarshal(asObject.Path, &asPathString); err == nil && strings.TrimSpace(asPathString) != "" {
+			return strings.TrimSpace(asPathString)
+		}
+		var asSegments []string
+		if err := json.Unmarshal(asObject.Path, &asSegments); err == nil && len(asSegments) > 0 {
+			return path.Join(asSegments...)
+		}
+	}
+
+	return strings.TrimSpace(asObject.Name)
 }

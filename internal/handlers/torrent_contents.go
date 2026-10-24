@@ -22,12 +22,16 @@ type TorrentContents = torrent.TorrentContents
 //	@desc nothing is added to a download queue to answer this. Torrents with no download URL (magnet
 //	@desc only) are absent from the result rather than reported as zero — unless the search already
 //	@desc answered them from the SeaDex list, whose releases are counted ahead of time.
+//	@desc When mediaId is given, the SeaDex list is asked for that anime first, so a release the list
+//	@desc has curated is answered from its own records even when the .torrent file cannot be fetched
+//	@desc — no download URL, a tracker that is down, a server restarted since the search ran.
 //	@route /api/v1/torrent/contents [POST]
 //	@returns map[string]handlers.TorrentContents
 func (h *Handler) HandleGetTorrentContents(c echo.Context) error {
 
 	type body struct {
 		Torrents []torrent.TorrentContentsRequestItem `json:"torrents"`
+		MediaId  int                                  `json:"mediaId"`
 	}
 
 	var b body
@@ -38,6 +42,15 @@ func (h *Handler) HandleGetTorrentContents(c echo.Context) error {
 	res := make(map[string]*TorrentContents, len(b.Torrents))
 	if len(b.Torrents) == 0 {
 		return h.RespondWithData(c, res)
+	}
+
+	// The list is one small GET and its answer covers every release it has curated, so it is asked
+	// before anything else: releases it knows are then answered from the cache below without a
+	// .torrent fetch, and ones it does not know fall through to the fetch as before. The ask is
+	// cached per anime, so a screen polling this route for the same anime costs the list nothing
+	// after the first.
+	if b.MediaId > 0 {
+		torrent.PopulateSeaDexContents(b.MediaId)
 	}
 
 	// Answer from the cache first, and only go to the network for what is left. A search re-run with
@@ -65,7 +78,8 @@ func (h *Handler) HandleGetTorrentContents(c echo.Context) error {
 			continue
 		}
 		// Nothing to fetch from: a magnet-only result cannot be read without joining the swarm,
-		// which is exactly the cost this route exists to avoid.
+		// which is exactly the cost this route exists to avoid. If the list above knew it, the cache
+		// already answered; if it did not, there is genuinely nothing to say.
 		if t.DownloadUrl == "" {
 			continue
 		}

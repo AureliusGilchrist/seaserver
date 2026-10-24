@@ -6,15 +6,10 @@ import (
 	"seanime/internal/mkvparser"
 	"seanime/internal/util"
 	"strings"
-	"time"
-
-	"github.com/imroc/req/v3"
 )
 
 func (vc *VideoCore) FetchAndConvertSubsTo(url string, to int) (string, error) {
-	client := req.C()
-	client.SetTimeout(30 * time.Second)
-	resp := client.Get(url).Do()
+	resp := sharedClient.Get(url).Do()
 
 	if resp.IsErrorState() {
 		return "", errors.New("failed to fetch subtitle file")

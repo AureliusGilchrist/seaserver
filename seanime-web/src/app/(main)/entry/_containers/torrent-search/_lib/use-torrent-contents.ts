@@ -29,10 +29,10 @@ export function torrentContentsKey(torrent: HibikeTorrent_AnimeTorrent | null | 
  * already answered. Magnet-only results have nothing to fetch and simply come back absent, which is
  * why the map is read with a lookup that can miss rather than a count that would read as zero.
  */
-export function useTorrentContents(torrents: HibikeTorrent_AnimeTorrent[] | null | undefined) {
+export function useTorrentContents(torrents: HibikeTorrent_AnimeTorrent[] | null | undefined, mediaId?: number | null) {
     const [contents, setContents] = React.useState<Record<string, TorrentContents>>({})
 
-    const { mutate } = useServerMutation<Record<string, TorrentContents>, { torrents: { infoHash: string, downloadUrl: string }[] }>({
+    const { mutate } = useServerMutation<Record<string, TorrentContents>, { torrents: { infoHash: string, downloadUrl: string }[], mediaId?: number }>({
         endpoint: "/api/v1/torrent/contents",
         method: "POST",
         mutationKey: ["torrent-contents"],
@@ -70,8 +70,8 @@ export function useTorrentContents(torrents: HibikeTorrent_AnimeTorrent[] | null
         if (requestedRef.current === signature) return
         requestedRef.current = signature
 
-        mutate({ torrents: unanswered })
-    }, [unanswered, mutate])
+        mutate({ torrents: unanswered, mediaId: mediaId ?? undefined })
+    }, [unanswered, mutate, mediaId])
 
     return contents
 }

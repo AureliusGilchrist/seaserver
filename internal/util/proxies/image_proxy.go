@@ -13,9 +13,14 @@ import (
 
 type ImageProxy struct{}
 
+// One client for the process. Creating a req client per request used to leak a connection per
+// image: a dropped client's idle HTTP/2 connections are never closed — their read loops just keep
+// waiting for server frames — so every proxied image left a socket, a file descriptor and a
+// goroutine behind until the server ran out.
+var imageProxyClient = req.C().SetTimeout(60 * time.Second)
+
 func (ip *ImageProxy) GetImage(url string, headers map[string]string) ([]byte, error) {
-	client := req.C().SetTimeout(60 * time.Second)
-	request := client.NewRequest()
+	request := imageProxyClient.NewRequest()
 
 	for key, value := range headers {
 		request.SetHeader(key, value)

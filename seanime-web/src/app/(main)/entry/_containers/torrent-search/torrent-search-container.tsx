@@ -481,7 +481,7 @@ export function TorrentSearchContainer({
                         {/* Mounted once around every list this screen draws, so a row can say what a
                             torrent holds without each of the three places that render one having to
                             pass the same map down. */}
-                        <TorrentContentsProvider torrents={torrents}>
+                        <TorrentContentsProvider torrents={torrents} mediaId={entry?.media?.id}>
                         <div className="space-y-3" data-torrent-search-container-torrents-container>
 
                             {(type === "torrentstream-select" || type === "torrentstream-select-file" || type === "debridstream-select-file" || type === "debridstream-select") &&

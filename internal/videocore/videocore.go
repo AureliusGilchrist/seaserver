@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/imroc/req/v3"
 	"github.com/rs/zerolog"
 )
 
@@ -1102,9 +1101,7 @@ func (vc *VideoCore) listenToClientEvents() {
 								}
 								var translated string
 								if payload.Src != nil && len(*payload.Src) > 0 {
-									client := req.C()
-									client.SetTimeout(30 * time.Second)
-									resp := client.Get(*payload.Src).Do()
+									resp := sharedClient.Get(*payload.Src).Do()
 
 									if resp.IsErrorState() {
 										vc.logger.Error().Err(resp.Err).Msgf("videocore: Failed to download subtitle file %s", *payload.Src)

@@ -9,9 +9,11 @@ import (
 	"seanime/internal/events"
 )
 
-const anilistNotificationsQuery = `query AniListNotifications($page: Int, $perPage: Int, $types: [NotificationType]) {
+// AniList's notifications field takes a single NotificationType, not a list, so callers
+// issue one query per type they care about.
+const anilistNotificationsQuery = `query AniListNotifications($page: Int, $perPage: Int, $type: NotificationType) {
   Page(page: $page, perPage: $perPage) {
-    notifications(type: $types) {
+    notifications(type: $type) {
       ... on AiringNotification {
         id
         type
@@ -128,40 +130,47 @@ func persistAnilistNotifications(c *JobCtx, client anilist.AnilistClient, types 
 		return
 	}
 
-	request, err := json.Marshal(map[string]interface{}{
-		"query": anilistNotificationsQuery,
-		"variables": map[string]interface{}{
-			"page":    1,
-			"perPage": 50,
-			"types":   types,
-		},
-	})
-	if err != nil {
-		c.App.Logger.Error().Err(err).Msg("cron: failed to encode AniList related-media notification query")
-		return
-	}
+	// One request per type: AniList's notifications query only accepts a single NotificationType.
+	for _, notificationType := range types {
+		request, err := json.Marshal(map[string]interface{}{
+			"query": anilistNotificationsQuery,
+			"variables": map[string]interface{}{
+				"page":    1,
+				"perPage": 50,
+				"type":    notificationType,
+			},
+		})
+		if err != nil {
+			c.App.Logger.Error().Err(err).Str("type", notificationType).
+				Msg("cron: failed to encode AniList notification query")
+			continue
+		}
 
-	response, err := client.CustomQuery(request, c.App.Logger)
-	if err != nil {
-		c.App.Logger.Error().Err(err).Msg("cron: failed to fetch AniList notifications")
-		return
-	}
+		response, err := client.CustomQuery(request, c.App.Logger)
+		if err != nil {
+			c.App.Logger.Error().Err(err).Str("type", notificationType).
+				Msg("cron: failed to fetch AniList notifications")
+			continue
+		}
 
-	responseJSON, err := json.Marshal(response)
-	if err != nil {
-		c.App.Logger.Error().Err(err).Msg("cron: failed to encode AniList related-media notifications")
-		return
-	}
+		responseJSON, err := json.Marshal(response)
+		if err != nil {
+			c.App.Logger.Error().Err(err).Str("type", notificationType).
+				Msg("cron: failed to encode AniList notifications")
+			continue
+		}
 
-	var decoded relatedMediaNotificationResponse
-	if err := json.Unmarshal(responseJSON, &decoded); err != nil {
-		c.App.Logger.Error().Err(err).Msg("cron: failed to decode AniList notifications")
-		return
-	}
+		var decoded relatedMediaNotificationResponse
+		if err := json.Unmarshal(responseJSON, &decoded); err != nil {
+			c.App.Logger.Error().Err(err).Str("type", notificationType).
+				Msg("cron: failed to decode AniList notifications")
+			continue
+		}
 
-	for _, notification := range decoded.Page.Notifications {
-		if notif := anilistNotificationToModel(notification); notif != nil {
-			persistAnilistNotificationToDatabases(c, notif, databases)
+		for _, notification := range decoded.Page.Notifications {
+			if notif := anilistNotificationToModel(notification); notif != nil {
+				persistAnilistNotificationToDatabases(c, notif, databases)
+			}
 		}
 	}
 }

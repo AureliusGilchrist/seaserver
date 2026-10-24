@@ -14,11 +14,13 @@ import React from "react"
  */
 const TorrentContentsContext = React.createContext<Record<string, TorrentContents>>({})
 
-export function TorrentContentsProvider({ torrents, children }: {
+export function TorrentContentsProvider({ torrents, mediaId, children }: {
     torrents: HibikeTorrent_AnimeTorrent[] | null | undefined
+    /** The anime being searched, so the server can answer SeaDex releases from the list itself. */
+    mediaId?: number | null
     children: React.ReactNode
 }) {
-    const contents = useTorrentContents(torrents)
+    const contents = useTorrentContents(torrents, mediaId)
     return <TorrentContentsContext.Provider value={contents}>{children}</TorrentContentsContext.Provider>
 }
 

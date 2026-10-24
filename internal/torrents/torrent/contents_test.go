@@ -128,6 +128,25 @@ func TestFetchSeaDexContents(t *testing.T) {
 						{ "infoHash": "abcdef1234567890abcdef1234567890abcdef12", "files": [{"name": "late.mkv"}] }
 					]
 				}
+			},
+			{
+				"expand": {
+					"trs": [
+						{ "infoHash": "1111111111111111111111111111111111111111", "files": [
+							"Show/Season 1/ep01.mkv",
+							"Show/Season 1/ep02.mkv",
+							"Show\\Season 2\\ep01.mkv",
+							"readme.txt"
+						] },
+						{ "infoHash": "2222222222222222222222222222222222222222", "files": [
+							{"path": "Pack/Specials/ova.mkv"},
+							{"path": ["Pack", "Menus", "menu.mp4"]}
+						] },
+						{ "infoHash": "3333333333333333333333333333333333333333", "files": [
+							{"url": "https://example.test/unreadable", "size": 1}
+						] }
+					]
+				}
 			}
 		]
 	}`
@@ -145,6 +164,8 @@ func TestFetchSeaDexContents(t *testing.T) {
 			w.WriteHeader(http.StatusServiceUnavailable)
 		case `alID="4"`:
 			w.Write([]byte(`not json`))
+		case `alID="20"`:
+			w.Write([]byte(listPayload))
 		default:
 			w.WriteHeader(http.StatusBadRequest)
 		}
@@ -157,8 +178,8 @@ func TestFetchSeaDexContents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fetchSeaDexContents(1) returned error: %v", err)
 	}
-	if len(counts) != 1 {
-		t.Fatalf("expected 1 usable release, got %d", len(counts))
+	if len(counts) != 4 {
+		t.Fatalf("expected 4 usable releases, got %d", len(counts))
 	}
 	got, ok := counts["abcdef1234567890abcdef1234567890abcdef12"]
 	if !ok {
@@ -166,6 +187,45 @@ func TestFetchSeaDexContents(t *testing.T) {
 	}
 	if got.Files != 3 {
 		t.Errorf("expected 3 files counted, got %d", got.Files)
+	}
+
+	// File paths count their folders, deduplicated, whatever separator they were written with.
+	counts, err = fetchSeaDexContents(20)
+	if err != nil {
+		t.Fatalf("fetchSeaDexContents(20) returned error: %v", err)
+	}
+	if got, ok := counts["1111111111111111111111111111111111111111"]; !ok {
+		t.Errorf("string-path release missing from answer: %v", counts)
+	} else {
+		if got.Files != 4 {
+			t.Errorf("string-path release: files = %d, want 4", got.Files)
+		}
+		// Show, Show/Season 1, Show/Season 2
+		if got.Folders != 3 {
+			t.Errorf("string-path release: folders = %d, want 3", got.Folders)
+		}
+	}
+	if got, ok := counts["2222222222222222222222222222222222222222"]; !ok {
+		t.Errorf("object-path release missing from answer: %v", counts)
+	} else {
+		if got.Files != 2 {
+			t.Errorf("object-path release: files = %d, want 2", got.Files)
+		}
+		// Pack, Pack/Specials, Pack/Menus
+		if got.Folders != 3 {
+			t.Errorf("object-path release: folders = %d, want 3", got.Folders)
+		}
+	}
+	// An entry shape nothing can read still counts as a file, since the list recorded one.
+	if got, ok := counts["3333333333333333333333333333333333333333"]; !ok {
+		t.Errorf("unreadable-entry release missing from answer: %v", counts)
+	} else {
+		if got.Files != 1 {
+			t.Errorf("unreadable-entry release: files = %d, want 1", got.Files)
+		}
+		if got.Folders != 0 {
+			t.Errorf("unreadable-entry release: folders = %d, want 0", got.Folders)
+		}
 	}
 
 	counts, err = fetchSeaDexContents(2)

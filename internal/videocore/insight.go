@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/5rahim/go-astisub"
-	"github.com/imroc/req/v3"
 	"github.com/rs/zerolog"
 )
 
@@ -262,7 +261,7 @@ func (is *InSight) fetchCharacters(malId int) {
 	is.logger.Debug().Int("malId", malId).Msg("insight: Fetching characters")
 
 	is.rateLimiter.Wait()
-	resp, err := req.C().R().Get(fmt.Sprintf(JikanSeriesCharactersUrl, malId))
+	resp, err := sharedClient.R().Get(fmt.Sprintf(JikanSeriesCharactersUrl, malId))
 	if err != nil {
 		is.logger.Error().Err(err).Msg("insight: Failed to fetch characters")
 		return
@@ -546,7 +545,7 @@ func (is *InSight) GetCharacterInfo(malId int) (*InSightCharacterDetails, error)
 
 	is.rateLimiter.Wait()
 
-	resp, err := req.C().R().Get(fmt.Sprintf(JikanCharacterUrl, malId))
+	resp, err := sharedClient.R().Get(fmt.Sprintf(JikanCharacterUrl, malId))
 	if err != nil {
 		return nil, err
 	}
