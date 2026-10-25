@@ -18,7 +18,7 @@
         "build:denshi": "tsgo && env-cmd -f .env.denshi rsbuild build",
         "build:mobile": "tsgo && env-cmd -f .env.mobile rsbuild build",
         "build:development:desktop": "tsgo && env-cmd -f .env.development.desktop rsbuild build",
-        "test": "node scripts/verify-episode-number.mjs",
+        "test": "node scripts/verify-episode-number.mjs && node scripts/check-number-input.mjs",
         "preview": "rsbuild preview"
     },
     "dependencies": {

@@ -138,6 +138,7 @@ import {
 import { TorrentStreamOverlay } from "@/app/(main)/entry/_containers/torrent-stream/torrent-stream-overlay"
 import { GradientBackground } from "@/components/shared/gradient-background"
 import { LuffyError } from "@/components/shared/luffy-error"
+import { WidgetErrorBoundary } from "@/components/shared/widget-error-boundary"
 import { Button, IconButton } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
@@ -2083,38 +2084,40 @@ export function VideoCore(props: VideoCoreProps) {
                         fullscreen && "fixed z-[99999] inset-0",
                     )}
                 >
-                    <PlayerContent
-                        inline={inline}
-                        state={state}
-                        videoRef={videoRef}
-                        chapterCues={chapterCues}
-                        aniSkipData={resolvedSkipData}
-                        streamUrl={streamUrl}
-                        combineRef={combineRef}
-                        combineContainerRef={combineContainerRef}
-                        handleContainerPointerMove={handleContainerPointerMove}
-                        handleContainerMouseEnter={handleContainerMouseEnter}
-                        handleContainerMouseLeave={handleContainerMouseLeave}
-                        handleClick={handleClick}
-                        handleLoadedMetadata={handleLoadedMetadata}
-                        handleTimeUpdate={handleTimeUpdate}
-                        handleEnded={handleEnded}
-                        handlePlay={handlePlay}
-                        handlePause={handlePause}
-                        handleDoubleClick={handleDoubleClick}
-                        handleLoadedData={handleLoadedData}
-                        handleVolumeChange={handleVolumeChange}
-                        handleRateChange={handleRateChange}
-                        handleError={handleError}
-                        handleWaiting={handleWaiting}
-                        handleCanPlay={handleCanPlay}
-                        handleStalled={handleStalled}
-                        onTerminateStream={onTerminateStream}
-                        onVideoSourceChange={onVideoSourceChange}
-                        onHlsQualityChange={onHlsQualityChange}
-                        onBackToContent={handleBackToContent}
-                        onContinueAfterStillWatching={onContinueAfterStillWatching}
-                    />
+                    <WidgetErrorBoundary label="Player">
+                        <PlayerContent
+                            inline={inline}
+                            state={state}
+                            videoRef={videoRef}
+                            chapterCues={chapterCues}
+                            aniSkipData={resolvedSkipData}
+                            streamUrl={streamUrl}
+                            combineRef={combineRef}
+                            combineContainerRef={combineContainerRef}
+                            handleContainerPointerMove={handleContainerPointerMove}
+                            handleContainerMouseEnter={handleContainerMouseEnter}
+                            handleContainerMouseLeave={handleContainerMouseLeave}
+                            handleClick={handleClick}
+                            handleLoadedMetadata={handleLoadedMetadata}
+                            handleTimeUpdate={handleTimeUpdate}
+                            handleEnded={handleEnded}
+                            handlePlay={handlePlay}
+                            handlePause={handlePause}
+                            handleDoubleClick={handleDoubleClick}
+                            handleLoadedData={handleLoadedData}
+                            handleVolumeChange={handleVolumeChange}
+                            handleRateChange={handleRateChange}
+                            handleError={handleError}
+                            handleWaiting={handleWaiting}
+                            handleCanPlay={handleCanPlay}
+                            handleStalled={handleStalled}
+                            onTerminateStream={onTerminateStream}
+                            onVideoSourceChange={onVideoSourceChange}
+                            onHlsQualityChange={onHlsQualityChange}
+                            onBackToContent={handleBackToContent}
+                            onContinueAfterStillWatching={onContinueAfterStillWatching}
+                        />
+                    </WidgetErrorBoundary>
                 </div>
             </ScopeProvider>
         )
@@ -2180,38 +2183,40 @@ export function VideoCore(props: VideoCoreProps) {
                         enterMiniPlayer()
                     }}
                 >
-                    <PlayerContent
-                        inline={inline}
-                        state={state}
-                        videoRef={videoRef}
-                        chapterCues={chapterCues}
-                        aniSkipData={resolvedSkipData}
-                        streamUrl={streamUrl}
-                        combineRef={combineRef}
-                        combineContainerRef={combineContainerRef}
-                        handleContainerPointerMove={handleContainerPointerMove}
-                        handleContainerMouseEnter={handleContainerMouseEnter}
-                        handleContainerMouseLeave={handleContainerMouseLeave}
-                        handleClick={handleClick}
-                        handleLoadedMetadata={handleLoadedMetadata}
-                        handleTimeUpdate={handleTimeUpdate}
-                        handleEnded={handleEnded}
-                        handlePlay={handlePlay}
-                        handlePause={handlePause}
-                        handleDoubleClick={handleDoubleClick}
-                        handleLoadedData={handleLoadedData}
-                        handleVolumeChange={handleVolumeChange}
-                        handleRateChange={handleRateChange}
-                        handleError={handleError}
-                        handleWaiting={handleWaiting}
-                        handleCanPlay={handleCanPlay}
-                        handleStalled={handleStalled}
-                        onTerminateStream={onTerminateStream}
-                        onVideoSourceChange={onVideoSourceChange}
-                        onHlsQualityChange={onHlsQualityChange}
-                        onBackToContent={handleBackToContent}
-                        onContinueAfterStillWatching={onContinueAfterStillWatching}
-                    />
+                    <WidgetErrorBoundary label="Player">
+                        <PlayerContent
+                            inline={inline}
+                            state={state}
+                            videoRef={videoRef}
+                            chapterCues={chapterCues}
+                            aniSkipData={resolvedSkipData}
+                            streamUrl={streamUrl}
+                            combineRef={combineRef}
+                            combineContainerRef={combineContainerRef}
+                            handleContainerPointerMove={handleContainerPointerMove}
+                            handleContainerMouseEnter={handleContainerMouseEnter}
+                            handleContainerMouseLeave={handleContainerMouseLeave}
+                            handleClick={handleClick}
+                            handleLoadedMetadata={handleLoadedMetadata}
+                            handleTimeUpdate={handleTimeUpdate}
+                            handleEnded={handleEnded}
+                            handlePlay={handlePlay}
+                            handlePause={handlePause}
+                            handleDoubleClick={handleDoubleClick}
+                            handleLoadedData={handleLoadedData}
+                            handleVolumeChange={handleVolumeChange}
+                            handleRateChange={handleRateChange}
+                            handleError={handleError}
+                            handleWaiting={handleWaiting}
+                            handleCanPlay={handleCanPlay}
+                            handleStalled={handleStalled}
+                            onTerminateStream={onTerminateStream}
+                            onVideoSourceChange={onVideoSourceChange}
+                            onHlsQualityChange={onHlsQualityChange}
+                            onBackToContent={handleBackToContent}
+                            onContinueAfterStillWatching={onContinueAfterStillWatching}
+                        />
+                    </WidgetErrorBoundary>
                 </VideoCoreDrawer>
 
                 <Modal

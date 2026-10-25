@@ -142,18 +142,32 @@ appLoop:
 	}
 }
 
-// startGoroutineMonitor monitors goroutine count and logs warnings if it gets too high
+// startGoroutineMonitor monitors goroutine count and logs warnings if it gets too high.
+//
+// The warning is throttled to once every 10 minutes: a genuine leak used to print a warning
+// line every 30 seconds, which floods the log (10MB+ per day of nothing else) and buries the
+// lines that matter. The first line of an incident is still immediate, and the count is on
+// every throttled line, so the growth rate stays readable in the log.
 func startGoroutineMonitor() {
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
 
+		const warnRepeatInterval = 10 * time.Minute
+		lastWarned := time.Time{}
+
 		for range ticker.C {
 			count := runtime.NumGoroutine()
 			if count > 10000 { // Threshold for warning
-				log.Warn().Int("goroutines", count).Msg("High goroutine count detected - potential leak")
+				if time.Since(lastWarned) >= warnRepeatInterval {
+					lastWarned = time.Now()
+					log.Warn().Int("goroutines", count).Msg("High goroutine count detected - potential leak")
+				}
 			} else if count > 5000 { // Lower threshold for info
-				log.Info().Int("goroutines", count).Msg("Elevated goroutine count")
+				if time.Since(lastWarned) >= warnRepeatInterval {
+					lastWarned = time.Now()
+					log.Info().Int("goroutines", count).Msg("Elevated goroutine count")
+				}
 			}
 		}
 	}()

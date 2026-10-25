@@ -1,4 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { WidgetErrorBoundary } from "@/components/shared/widget-error-boundary"
 import { cn } from "@/components/ui/core/styling"
 import React, { useRef, useState } from "react"
 
@@ -88,7 +89,12 @@ export function SettingsCard({ title, description, children, className }: Settin
                         "space-y-3 flex-wrap",
                     )}
                 >
-                    {children}
+                    {/* One bad switch or number field must not take down the whole settings page
+                        (or, through a crash at mount, the entire app). The card title names the
+                        section in the fallback. */}
+                    <WidgetErrorBoundary label={title ?? "This settings card"}>
+                        {children}
+                    </WidgetErrorBoundary>
                 </CardContent>
             </Card>
         </>
