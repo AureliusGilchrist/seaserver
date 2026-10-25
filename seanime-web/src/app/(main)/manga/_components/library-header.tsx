@@ -1,5 +1,4 @@
 "use client"
-import { useHeroScrollFade } from "@/app/(main)/_features/media/_lib/use-hero-scroll-fade"
 import { AL_BaseManga } from "@/api/generated/types"
 import { TRANSPARENT_SIDEBAR_BANNER_IMG_STYLE } from "@/app/(main)/_features/custom-ui/styles"
 import { SeaImage } from "@/components/shared/sea-image"
@@ -12,6 +11,7 @@ import { useSetAtom } from "jotai/react"
 import { AnimatePresence, motion } from "motion/react"
 import React, { useEffect, useState } from "react"
 import { useWindowScroll } from "react-use"
+import { useHeroImageFadeStyle } from "@/app/(main)/_features/media/_lib/use-hero-scroll-fade"
 
 export const __mangaLibraryHeaderImageAtom = atom<string | null>(null)
 export const __mangaLibraryHeaderMangaAtom = atom<AL_BaseManga | null>(null)
@@ -59,8 +59,16 @@ export function MangaLibraryHeader({ manga }: { manga: AL_BaseManga[] }) {
         }
     }, [actualImage])
 
-    // Same scroll fade as the anime/manga page hero.
-    const heroFade = useHeroScrollFade()
+    const { y } = useWindowScroll()
+
+    useEffect(() => {
+        if (y > 100)
+            setDimmed(true)
+        else
+            setDimmed(false)
+    }, [(y > 100)])
+
+    const heroImageFade = useHeroImageFadeStyle()
 
     if (!image) return null
 
@@ -69,9 +77,9 @@ export function MangaLibraryHeader({ manga }: { manga: AL_BaseManga[] }) {
             <div
                 data-library-header-container
                 className={cn(
-                    "LIB_HEADER_CONTAINER __header h-[25rem] z-0 top-0 w-full group/library-header pointer-events-none",
-                    // Fixed + fading without a wallpaper, scrolling away with one — as on the media page.
-                    heroFade.containerClass,
+                    "LIB_HEADER_CONTAINER __header h-[25rem] z-0 top-0 w-full absolute group/library-header pointer-events-none",
+                    // Make it not fixed when the user scrolls down if a background image is set
+                    !ts.libraryScreenCustomBackgroundImage && "fixed",
                     !!ts.libraryScreenCustomBackgroundImage && __isDesktop__ && "top-[-2rem]",
                 )}
             >
@@ -108,6 +116,8 @@ export function MangaLibraryHeader({ manga }: { manga: AL_BaseManga[] }) {
                     {/*<div*/}
                     {/*    className="LIB_HEADER_TOP_FADE w-full absolute z-[2] top-0 h-[10rem] opacity-20 bg-gradient-to-b from-[var(--background)] to-transparent via"*/}
                     {/*/>*/}
+                    {/* Hero image fades out on scroll (image only). */}
+                    <div data-hero-image-fade className="absolute inset-0 z-[1] pointer-events-none" style={heroImageFade}>
                     <AnimatePresence>
                         {!!actualImage && (
                             <motion.div
@@ -127,10 +137,11 @@ export function MangaLibraryHeader({ manga }: { manga: AL_BaseManga[] }) {
                                     sizes="100vw"
                                     className={cn(
                                         "object-cover object-center z-[1] opacity-100 transition-opacity duration-700 scroll-locked-offset",
+                                        { "opacity-5": dimmed },
                                     )}
                                     initial={{ scale: 1.01, y: 0 }}
                                     animate={{
-                                        ...heroFade.imageAnimate,
+                                        scale: Math.min(1 + y * 0.0002, 1.03),
                                         // y: Math.max(y * -0.9, -10)
                                     }}
                                     exit={{ scale: 1.01, y: 0 }}
@@ -139,6 +150,7 @@ export function MangaLibraryHeader({ manga }: { manga: AL_BaseManga[] }) {
                             </motion.div>
                         )}
                     </AnimatePresence>
+                    </div>
                     {/* {prevImage && <MotionImage
                      data-library-header-banner-previous-image
                      src={getImageUrl(prevImage)}

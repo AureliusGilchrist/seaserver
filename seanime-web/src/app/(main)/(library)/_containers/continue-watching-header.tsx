@@ -1,6 +1,5 @@
 "use client"
 
-import { useHeroScrollFade } from "@/app/(main)/_features/media/_lib/use-hero-scroll-fade"
 import { Anime_Episode } from "@/api/generated/types"
 import { getEpisodeSecondsRemaining, getEpisodePercentageComplete, getEpisodeTotalSeconds, useGetContinuityWatchHistory } from "@/api/hooks/continuity.hooks"
 import { usePlayNext } from "@/app/(main)/_atoms/playback.atoms"
@@ -27,6 +26,7 @@ import { useRouter } from "@/lib/navigation"
 import React, { useEffect, useState } from "react"
 import { RiSignalTowerLine } from "react-icons/ri"
 import { useWindowScroll } from "react-use"
+import { useHeroImageFadeStyle } from "@/app/(main)/_features/media/_lib/use-hero-scroll-fade"
 
 export const __continueWatching_hoveringHeaderAtom = atom(false)
 export const __continueWatching_currentEpisodeIndexAtom = atom(0)
@@ -348,15 +348,23 @@ function BannerImage({ episode, isTransitioning, shouldBlurBanner }: BannerImage
         && ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Custom) ? getAssetUrl(ts.libraryScreenCustomBannerImage) :
         episode?.baseAnime?.bannerImage || episode?.baseAnime?.coverImage?.extraLarge
 
-    // Same scroll fade as the anime/manga page hero.
-    const heroFade = useHeroScrollFade()
+    const { y } = useWindowScroll()
+    const heroImageFade = useHeroImageFadeStyle()
+
+    const [dimmed, setDimmed] = useState(false)
+    useEffect(() => {
+        if (y > 100)
+            setDimmed(true)
+        else
+            setDimmed(false)
+    }, [(y > 100)])
 
     return (
         <div
             data-continue-watching-header-banner-image
             className={cn(
-                "lg:h-[35rem] w-full flex-none object-cover object-center top-0 bg-[--background]",
-                heroFade.containerClass,
+                "lg:h-[35rem] w-full flex-none object-cover object-center top-0 bg-[--background] absolute",
+                !ts.libraryScreenCustomBackgroundImage && "fixed",
                 !ts.disableSidebarTransparency && TRANSPARENT_SIDEBAR_BANNER_IMG_STYLE,
                 __isDesktop__ && "top-[-2rem]",
                 ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && "lg:h-[30rem]",
@@ -372,12 +380,7 @@ function BannerImage({ episode, isTransitioning, shouldBlurBanner }: BannerImage
             />
 
             <AnimatePresence>
-                <motion.div
-                    className="w-full h-full absolute z-[1] overflow-hidden scroll-locked-offset-width"
-                    initial={{ scale: 1, y: 0 }}
-                    animate={heroFade.imageAnimate}
-                    transition={{ duration: 0.6, ease: "easeOut" }}
-                >
+                <div className="w-full h-full absolute z-[1] overflow-hidden scroll-locked-offset-width" style={heroImageFade}>
                     {bannerImage && (
                         <MotionImage
                             src={bannerImage}
@@ -390,10 +393,11 @@ function BannerImage({ episode, isTransitioning, shouldBlurBanner }: BannerImage
                                 isTransitioning && "scale-[1.01] -translate-x-0.5",
                                 !isTransitioning && "scale-100 translate-x-0",
                                 !episode?.baseAnime?.bannerImage && "opacity-35",
+                                { "opacity-5": dimmed },
                             )}
                         />
                     )}
-                </motion.div>
+                </div>
             </AnimatePresence>
 
             {shouldBlurBanner && (
