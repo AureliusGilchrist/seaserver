@@ -19,6 +19,10 @@ export type PersonalSettings = {
     newsFeedShowMoreCount: number
     /** Whether a new RSS entry raises a live notification + drawer entry for this profile. */
     newsNotifyNewEntries: boolean
+    /** Which new entries notify (see internal/news/notify_filter.go). */
+    newsNotifyMode: "all" | "lists" | "keywords"
+    /** Comma-separated keywords for "keywords" mode; empty = built-in list. */
+    newsNotifyKeywords: string
     hideAudienceScore: boolean
     blurAdultContent: boolean
     disableAnimeCardTrailers: boolean
@@ -56,6 +60,8 @@ export function usePersonalSettings(): PersonalSettings {
         stillWatchingEndHour: clientSettings.stillWatchingEndHour ?? 10,
         newsFeedShowMoreCount: clientSettings.newsFeedShowMoreCount ?? 40,
         newsNotifyNewEntries: clientSettings.newsNotifyNewEntries ?? true,
+        newsNotifyMode: clientSettings.newsNotifyMode ?? "keywords",
+        newsNotifyKeywords: clientSettings.newsNotifyKeywords ?? "",
         hideAudienceScore: clientSettings.hideAudienceScore ?? serverStatus?.settings?.anilist?.hideAudienceScore ?? false,
         blurAdultContent: clientSettings.blurAdultContent ?? serverStatus?.settings?.anilist?.blurAdultContent ?? false,
         disableAnimeCardTrailers: clientSettings.disableAnimeCardTrailers ?? serverStatus?.settings?.library?.disableAnimeCardTrailers ?? false,

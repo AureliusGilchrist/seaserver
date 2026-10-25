@@ -34,6 +34,10 @@ export const clientSettingsSchema = z.object({
     newsFeedShowMoreCount: z.number().optional(),
     /** Whether a new RSS entry raises a live notification + drawer entry for this profile. */
     newsNotifyNewEntries: z.boolean().optional(),
+    /** Which new entries notify: every one, ones naming a Planning/Completed title, or keyword matches. */
+    newsNotifyMode: z.enum(["all", "lists", "keywords"]).optional(),
+    /** Comma-separated keywords for "keywords" mode; empty uses the built-in list. */
+    newsNotifyKeywords: z.string().optional(),
     // Display
     hideAudienceScore: z.boolean().optional(),
     blurAdultContent: z.boolean().optional(),

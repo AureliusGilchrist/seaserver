@@ -30,6 +30,11 @@ type ClientSettingsOverrides struct {
 
 	// News: whether this profile wants a notification filed when a new RSS entry appears.
 	NewsNotifyNewEntries *bool `json:"newsNotifyNewEntries,omitempty"`
+	// Which new entries become notifications: "all", "lists" (headline names something on the
+	// profile's Planning or Completed list) or "keywords" (the default). See news.NotifyFilter.
+	NewsNotifyMode *string `json:"newsNotifyMode,omitempty"`
+	// Comma-separated keywords for "keywords" mode. Empty uses the built-in list.
+	NewsNotifyKeywords *string `json:"newsNotifyKeywords,omitempty"`
 
 	EnableRichPresence                      *bool `json:"enableRichPresence,omitempty"`
 	EnableAnimeRichPresence                 *bool `json:"enableAnimeRichPresence,omitempty"`

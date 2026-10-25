@@ -8,6 +8,24 @@ import { Button } from "@/components/ui/button"
 import React from "react"
 import { LuMonitorDown, LuX } from "react-icons/lu"
 
+/**
+ * Whether the server's interface is a newer *release* than this bundle's.
+ *
+ * Only X.Y.Z counts. The -N test suffix moves on every server build (build-all bumps it), and CI
+ * tags release bundles ".auto.<run>.<attempt>"; neither is something a refresh can fix — a Denshi
+ * client gets its interface from the GitHub release, not from the server's local build. Comparing
+ * the full strings made a freshly-updated client report itself out of date after any NAS rebuild.
+ */
+export function isNewerRelease(server: string, client: string): boolean {
+    const core = (v: string) => (v.match(/^(\d+)\.(\d+)\.(\d+)/)?.slice(1).map(Number)) ?? null
+    const s = core(server), c = core(client)
+    if (!s || !c) return false
+    for (let i = 0; i < 3; i++) {
+        if (s[i] !== c[i]) return s[i] > c[i]
+    }
+    return false
+}
+
 export function StaleFrontendBanner() {
     const serverStatus = useServerStatus()
     const [dismissed, setDismissed] = React.useState(false)
@@ -16,7 +34,7 @@ export function StaleFrontendBanner() {
     const clientVersion = process.env.SEA_APP_VERSION
 
     // Missing on either side means an older server or a dev build — never nag there.
-    const isStale = !!serverVersion && !!clientVersion && serverVersion !== clientVersion
+    const isStale = !!serverVersion && !!clientVersion && isNewerRelease(serverVersion, clientVersion)
 
     if (!isStale || dismissed) {
         return null

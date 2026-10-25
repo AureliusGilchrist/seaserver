@@ -198,11 +198,11 @@ export function useHandleMediastream(props: HandleMediastreamProps) {
             })
 
             if (!codecSupported && mediastreamSettings.directPlayOnly) {
-                logger("MEDIASTREAM").warning("Codec not supported for direct play", mediaContainer?.mediaInfo?.mimeCodec)
-                logger("MEDIASTREAM").warning("Stopping playback")
-                toast.warning("Codec not supported for direct play")
+                // No transcode to fall back to — try direct play rather than refuse.
+                logger("MEDIASTREAM").warning("Codec reported unsupported in direct-play-only mode, trying direct play", mediaContainer?.mediaInfo?.mimeCodec)
+                toast.warning("This file's codec may not be supported on this device — trying anyway")
+                setStreamType("direct")
                 changeUrl(undefined)
-                logger("MEDIASTREAM").info("Setting URL to undefined")
                 return
             }
 
@@ -222,8 +222,8 @@ export function useHandleMediastream(props: HandleMediastreamProps) {
                     changeUrl(undefined)
                     return
                 } else {
-                    logger("MEDIASTREAM").warning("Direct play only but codec not supported")
-                    toast.warning("Codec not supported for direct play")
+                    logger("MEDIASTREAM").warning("Direct play only but codec reported unsupported, trying anyway")
+                    setStreamType("direct")
                     changeUrl(undefined)
                     return
                 }
@@ -233,7 +233,7 @@ export function useHandleMediastream(props: HandleMediastreamProps) {
         }
         // If the codec is not supported, switch to transcode
         if (mediaContainer?.streamType === "direct") {
-            if (!codecSupported) {
+            if (!codecSupported && !mediastreamSettings?.directPlayOnly) {
                 logger("MEDIASTREAM").warning("Codec not supported for direct play", mediaContainer?.mediaInfo?.mimeCodec)
                 logger("MEDIASTREAM").warning("Switching to transcode")
                 setStreamType("transcode")

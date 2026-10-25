@@ -107,8 +107,11 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
                 log.info("User forced transcode, skipping auto-switch to direct play")
             } else {
                 if (!codecSupported && mediastreamSettings.directPlayOnly) {
-                    log.warning("Codec not supported for direct play")
-                    toast.warning("Codec not supported for direct play")
+                    // Transcoding is off, so refusing would guarantee nothing plays. Try direct play;
+                    // the browser's own "maybe" is often wrong (MKV, AC3 audio) and it may well work.
+                    log.warning("Codec reported unsupported in direct-play-only mode, trying direct play anyway")
+                    toast.warning("This file's codec may not be supported on this device — trying anyway")
+                    setStreamType("direct")
                     changeUrl(undefined)
                     return
                 }
@@ -126,8 +129,8 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
                         changeUrl(undefined)
                         return
                     } else {
-                        log.warning("Direct play only mode but codec not supported")
-                        toast.warning("Codec not supported for direct play")
+                        log.warning("Direct play only mode but codec reported unsupported, trying anyway")
+                        setStreamType("direct")
                         changeUrl(undefined)
                         return
                     }
@@ -137,7 +140,8 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
 
         // Auto-switch to transcode if codec not supported for direct play
         if (mediaContainer?.streamType === "direct") {
-            if (!codecSupported) {
+            // With direct-play-only there is no transcode to fall back to: play it as-is.
+            if (!codecSupported && !mediastreamSettings.directPlayOnly) {
                 log.warning("Codec not supported, switching to transcode")
                 setStreamType("transcode")
                 changeUrl(undefined)

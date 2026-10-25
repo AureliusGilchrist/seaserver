@@ -47,9 +47,15 @@ export function ChapterPage(props: ChapterPageProps) {
         }
     }, [isLoaded])
 
-    const { getChapterPageUrl, isReady } = useMangaReaderUtils()
+    const { getChapterPageUrl, getProxiedChapterPageUrl, isReady } = useMangaReaderUtils()
+    // Switched on after the first load error: from then on the page comes through the server.
+    const [viaProxy, setViaProxy] = React.useState(false)
+    React.useEffect(() => setViaProxy(false), [page?.url])
 
     if (!page) return null
+
+    const proxied = getProxiedChapterPageUrl(page.url, pageContainer?.isDownloaded, page.headers)
+    const src = (viaProxy && proxied) || getChapterPageUrl(page.url, pageContainer?.isDownloaded, page.headers)
 
     return (
         <>
@@ -74,7 +80,16 @@ export function ChapterPage(props: ChapterPageProps) {
                 {isReady && <img
                     data-chapter-page-image
                     data-page-index={index}
-                    src={getChapterPageUrl(page.url, pageContainer?.isDownloaded, page.headers)}
+                    src={src}
+                    // No referrer: hosts that check it reject the app's own origin (https://localhost
+                    // on Android). The server proxy below is the fallback for those that still refuse.
+                    referrerPolicy="no-referrer"
+                    onError={() => {
+                        if (!viaProxy && proxied) {
+                            logger("chapter-page").info("direct load failed, retrying through the server", index)
+                            setViaProxy(true)
+                        }
+                    }}
                     alt={`Page ${index}`}
                     className={imageClass}
                     style={{ width: imageWidth, maxWidth: imageMaxWidth }}

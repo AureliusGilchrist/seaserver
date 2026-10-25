@@ -3,6 +3,7 @@ package news
 import (
 	"encoding/json"
 	"fmt"
+	"seanime/internal/api/anilist"
 	"seanime/internal/core"
 	"seanime/internal/database/db"
 	"seanime/internal/database/models"
@@ -24,9 +25,10 @@ import (
 // restart (or a fresh install) from re-announcing a backlog of old headlines. A profile that
 // opted out of news notifications gets no rows at all — not silent ones.
 //
-// Announcements are further filtered by keyword: only items that look like a death
-// announcement ("death", "dies", "passed away", ...) become notifications. Every other
-// headline still appears on the News page — it just never interrupts anyone.
+// Which entries become notifications is each profile's choice (Settings → Personal → News, see
+// NotifyFilter): every entry, only entries naming something on their Planning/Completed lists,
+// or only entries matching keywords — by default the built-in list below (death announcements:
+// "death", "dies", "passed away", ...). Every headline still appears on the News page either way.
 
 // newsNotifyKeywords is the whitelist a headline must hit before it becomes a notification.
 // Single words match whole words only (so "studies" never trips "dies", and "deadline"
@@ -118,16 +120,6 @@ func CheckNewItemsNotifications(app *core.App) {
 	}
 	announceMu.Unlock()
 
-	// Only items that look like a death announcement are worth a notification — the rest
-	// stay feed-only: visible on the News page, never filed into the drawer.
-	notable := fresh[:0]
-	for _, item := range fresh {
-		if matchesNewsNotifyKeywords(item.Title, item.Description) {
-			notable = append(notable, item)
-		}
-	}
-	fresh = notable
-
 	if len(fresh) == 0 {
 		return
 	}
@@ -147,26 +139,52 @@ func CheckNewItemsNotifications(app *core.App) {
 				app.Logger.Error().Err(err).Uint("profileID", profile.ID).Msg("news: failed to open profile database for news notifications")
 				continue
 			}
-			announceToDatabase(app, database, fresh)
+			announceToDatabase(app, database, profile.ID, fresh)
 		}
 		return
 	}
 
 	if fallback := app.ProfileDatabaseManager.GetFallbackDatabase(); fallback != nil {
-		announceToDatabase(app, fallback, fresh)
+		announceToDatabase(app, fallback, 0, fresh)
 	}
 }
 
 // announceToDatabase files one notification per fresh item into the database, honoring the
 // profile's Personal "notify about new articles" choice (client-prefs override), and pushes
 // each created notification over the websocket.
-func announceToDatabase(app *core.App, database *db.Database, fresh []Item) {
+func announceToDatabase(app *core.App, database *db.Database, profileID uint, fresh []Item) {
+	ovr, _ := database.GetClientSettingsOverrides()
 	// No override means the feature's default: on, like every other notification source.
-	if ovr, err := database.GetClientSettingsOverrides(); err == nil && ovr != nil && ovr.NewsNotifyNewEntries != nil && !*ovr.NewsNotifyNewEntries {
+	if ovr != nil && ovr.NewsNotifyNewEntries != nil && !*ovr.NewsNotifyNewEntries {
 		return
 	}
 
+	// The profile's own lists (cached reads only) for "lists" mode.
+	filter := NewNotifyFilter(ovr,
+		func() *anilist.AnimeCollection {
+			if profileID > 0 && app.AnilistClientManager != nil {
+				if col, err := app.AnilistClientManager.GetAnimeCollection(profileID); err == nil {
+					return col
+				}
+			}
+			col, _ := app.GetAnimeCollection(false)
+			return col
+		},
+		func() *anilist.MangaCollection {
+			if profileID > 0 && app.AnilistClientManager != nil {
+				if col, err := app.AnilistClientManager.GetMangaCollection(profileID); err == nil {
+					return col
+				}
+			}
+			col, _ := app.GetMangaCollection(false)
+			return col
+		},
+	)
+
 	for _, item := range fresh {
+		if !filter.Matches(item) {
+			continue
+		}
 		meta := newsMetadata{
 			Link:        item.Link,
 			FeedTitle:   item.FeedTitle,

@@ -55,9 +55,23 @@ export function useMangaReaderUtils() {
         return `${getServerBaseUrl()}/manga-downloads/${url}`
     }, [tokenQueryParam, localPageToken])
 
+    /**
+     * The same page fetched by the server instead of the device. Used when a direct provider image
+     * fails to load: image hosts commonly reject requests by referrer/origin, and the Android
+     * client's origin (https://localhost) is one they refuse. Returns null for pages that already
+     * come from the server.
+     */
+    const getProxiedChapterPageUrl = React.useCallback((url: string, isDownloaded: boolean | undefined, headers?: Record<string, string>) => {
+        if (isDownloaded || url.startsWith("{{manga-local-assets}}") || !/^https?:\/\//i.test(url)) return null
+        if (url.startsWith(getServerBaseUrl())) return null
+        return `${getServerBaseUrl()}/api/v1/image-proxy?url=${encodeURIComponent(url)}&headers=${encodeURIComponent(
+            JSON.stringify(headers ?? {}))}` + tokenQueryParam
+    }, [tokenQueryParam])
+
     return {
         isReady: (!serverStatus?.serverHasPassword) || (!!password && !!tokenQueryParam),
         getChapterPageUrl,
+        getProxiedChapterPageUrl,
     }
 
 }
