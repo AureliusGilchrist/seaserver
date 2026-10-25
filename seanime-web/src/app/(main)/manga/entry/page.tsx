@@ -1,4 +1,5 @@
 "use client"
+import { isStillOnPath } from "@/lib/navigation"
 import { useGetMangaEntry, useGetMangaEntryDetails } from "@/api/hooks/manga.hooks"
 import { MediaEntryCharactersSection } from "@/app/(main)/_features/media/_components/media-entry-characters-section"
 import { MediaEntryPageLoadingDisplay } from "@/app/(main)/_features/media/_components/media-entry-page-loading-display"
@@ -46,7 +47,8 @@ export default function Page() {
     const { downloadData, downloadDataLoading } = useHandleMangaDownloadData(mediaId)
 
     React.useEffect(() => {
-        if (!mediaId) {
+        // Only while this page is still the one shown (see isStillOnPath).
+        if (!mediaId && isStillOnPath("/manga/entry")) {
             router.push("/")
         }
     }, [mediaId, router])

@@ -1,3 +1,4 @@
+import { isStillOnPath } from "@/lib/navigation"
 import { Anime_Entry } from "@/api/generated/types"
 import { useGetAnilistAnimeDetails } from "@/api/hooks/anilist.hooks"
 import { useGetAnimeEntry, useResetAnimeEntryMetadata } from "@/api/hooks/anime_entries.hooks"
@@ -205,7 +206,9 @@ export function AnimeEntryPage() {
 
     React.useEffect(() => {
         if (isSynthetic) return
-        if (!mediaId) { router.push("/"); return }
+        // Only while this page is still the one being shown: during a navigation away, the outgoing
+        // page already sees the next URL's (missing) id and would hijack the click.
+        if (!mediaId) { if (isStillOnPath("/entry")) router.push("/"); return }
 
         if (animeEntryError && !animeEntry) {
             // Request failed — retry a few times with a short backoff instead of redirecting.
@@ -236,7 +239,7 @@ export function AnimeEntryPage() {
             // Query completed with no data and no error — wait before redirecting in case
             // a background refetch is about to fill in the entry.
             settledTimer.current = setTimeout(() => {
-                if (!animeEntry) router.push("/")
+                if (!animeEntry && isStillOnPath("/entry")) router.push("/")
             }, 2500)
         } else {
             if (settledTimer.current) {

@@ -1,4 +1,4 @@
-import { useNavigate, useLocation, useRouterState } from "@tanstack/react-router"
+import { useNavigate, useLocation } from "@tanstack/react-router"
 import { useMemo } from "react"
 
 function parseHref(href: string) {
@@ -62,24 +62,31 @@ export function usePathname() {
 }
 
 export function useSearchParams() {
-    // The search params of the page that is actually on screen.
-    //
-    // useLocation() switches to the *next* location the moment a navigation starts, while the old
-    // page is still mounted (routes are lazy, so it stays up until the new chunk loads). Pages that
-    // send you home when their ?id= is missing then saw no id and pushed "/" — overriding the link
-    // you'd just clicked. That is how almost every sidebar click ended on the landing page, except
-    // from the landing page itself, which has no such guard. The resolved location only changes
-    // once the new page has actually taken over.
-    const search = useRouterState({ select: s => (s.resolvedLocation ?? s.location).search })
+    const location = useLocation()
 
     return useMemo(() => {
         const params = new URLSearchParams()
 
-        Object.entries(search ?? {}).forEach(([key, value]) => {
+        Object.entries(location.search).forEach(([key, value]) => {
             if (value === undefined || value === null) return
             params.set(key, String(value))
         })
 
         return params
-    }, [search])
+    }, [location.search])
+}
+
+/**
+ * Whether the browser is still on `path` right now.
+ *
+ * Routes are lazy, so a page stays mounted for a moment after you navigate away, and during that
+ * moment useSearchParams() already reads the *next* location. A page that sends you home when its
+ * `?id=` is missing must check this at the moment it redirects, or it hijacks the link you just
+ * clicked (that's how sidebar clicks used to land on the landing page). The URL changes as soon as
+ * a navigation starts, so this is also right inside timers.
+ */
+export function isStillOnPath(path: string): boolean {
+    if (typeof window === "undefined") return true
+    const current = window.location.pathname.replace(/\/+$/, "") || "/"
+    return current === path
 }

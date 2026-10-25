@@ -1,4 +1,5 @@
 "use client"
+import { isStillOnPath } from "@/lib/navigation"
 import { useGetAnimeEntry } from "@/api/hooks/anime_entries.hooks"
 import { EpisodeGridItem } from "@/app/(main)/_features/anime/_components/episode-grid-item"
 import { MediaEntryPageSmallBanner } from "@/app/(main)/_features/media/_components/media-entry-page-small-banner"
@@ -80,7 +81,8 @@ export default function Page() {
      */
     React.useEffect(() => {
         if (!mediaId || (!animeEntryLoading && !animeEntry) || (!animeEntryLoading && !!animeEntry && !filePath)) {
-            router.push("/")
+            // Only while this page is still the one shown (see isStillOnPath).
+            if (isStillOnPath("/mediastream")) router.push("/")
         }
     }, [mediaId, animeEntry, animeEntryLoading, filePath])
 
