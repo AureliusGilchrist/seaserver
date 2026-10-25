@@ -193,7 +193,9 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
         name: basicFieldProps.name,
         disabled: basicFieldProps.disabled,
         readOnly: basicFieldProps.readonly,
-        value: controlledValue ? String(controlledValue) : (defaultValue ? String(defaultValue) : undefined),
+        value: (controlledValue !== undefined && controlledValue !== null)
+            ? String(controlledValue)
+            : ((defaultValue !== undefined && defaultValue !== null) ? String(defaultValue) : undefined),
         min,
         max,
         step,
@@ -210,20 +212,12 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
 
     const api = numberInput.connect(service, normalizeProps)
 
-    const isFirst = React.useRef(true)
+    // Note: The controlled `value` prop is passed to the machine above, so value
+    // changes from the outside are handled there. Never call api.setValue() from an
+    // effect with a number: the machine re-parses values through Intl.NumberFormat
+    // when formatOptions is set, and feeding it a number instead of a string crashes
+    // the React tree (TypeError: e.replace is not a function) and unmounts the player.
 
-    React.useEffect(() => {
-        if (!isFirst.current) {
-            if (typeof controlledValue === "string" && !isNaN(Number(controlledValue))) {
-                api.setValue(Number(controlledValue))
-            } else if (typeof controlledValue === "number") {
-                api.setValue(controlledValue)
-            } else if (controlledValue === undefined) {
-                api.setValue(min)
-            }
-        }
-        isFirst.current = false
-    }, [controlledValue])
 
     return (
         <BasicField
