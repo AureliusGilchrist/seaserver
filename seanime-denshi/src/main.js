@@ -9,6 +9,7 @@ import("strip-ansi").then(module => {
 })
 const log = require("electron-log/main")
 const { createLiveUpdater, getLiveWebDir, getLiveBinaryPath } = require("./live-update")
+const { createGitHubFrontendUpdater } = require("./github-frontend-update")
 log.initialize()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -22,6 +23,8 @@ const DENSHI_SETTINGS_DEFAULTS = {
     windowBounds: null,
     windowMaximized: true,
     sourceRepoPath: "",
+    // Frontend auto-update from GitHub releases (see github-frontend-update.js)
+    autoUpdateFrontend: true,
 }
 
 const MAIN_WINDOW_DEFAULT_BOUNDS = {
@@ -1060,6 +1063,22 @@ function stopServerAndWait() {
     })
 }
 
+const reloadAppWindows = () => {
+    for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed() && /^(app|http):/.test(win.webContents.getURL())) {
+            win.webContents.reloadIgnoringCache()
+        }
+    }
+}
+
+const emitUpdateProgress = (payload) => {
+    for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) {
+            win.webContents.send("live-update:progress", payload)
+        }
+    }
+}
+
 const liveUpdater = createLiveUpdater({
     app,
     log,
@@ -1068,21 +1087,42 @@ const liveUpdater = createLiveUpdater({
     isRemoteMode: () => loadServerConfig()?.mode === "remote",
     stopServer: stopServerAndWait,
     startServer: () => launchSeanimeServer(true),
-    reloadWindows: () => {
-        for (const win of BrowserWindow.getAllWindows()) {
-            if (!win.isDestroyed() && /^(app|http):/.test(win.webContents.getURL())) {
-                win.webContents.reloadIgnoringCache()
-            }
-        }
-    },
-    emitProgress: (payload) => {
-        for (const win of BrowserWindow.getAllWindows()) {
-            if (!win.isDestroyed()) {
-                win.webContents.send("live-update:progress", payload)
-            }
-        }
-    },
+    reloadWindows: reloadAppWindows,
+    emitProgress: emitUpdateProgress,
 })
+
+const githubFrontendUpdater = createGitHubFrontendUpdater({
+    app,
+    log,
+    isDevelopment: _development,
+    emitProgress: emitUpdateProgress,
+    reloadWindows: reloadAppWindows,
+    isOtherUpdateRunning: () => liveUpdater.getInfo().busy,
+})
+
+// Once per launch, shortly after the main window is up: swap in a newer frontend from GitHub
+// if one has been installed from there before (see github-frontend-update.js). Waits for the
+// renderer to be ready so the swap lands before any real watching session starts.
+function scheduleGitHubFrontendAutoUpdate() {
+    if (_development) return
+    const startedAt = Date.now()
+    const attempt = async () => {
+        try {
+            if (!denshiSettings.autoUpdateFrontend) return
+            if (!mainWindowStartupReady && Date.now() - startedAt < 30000) {
+                setTimeout(attempt, 3000)
+                return
+            }
+            const res = await githubFrontendUpdater.autoUpdate()
+            if (res.updated) log.info(`[GitHubFrontendUpdate] Auto-updated the frontend to ${res.version}`)
+            else if (!res.ok) log.warn(`[GitHubFrontendUpdate] Auto-update failed: ${res.error}`)
+            else log.info(`[GitHubFrontendUpdate] Auto-update: ${res.skipped}`)
+        } catch (err) {
+            log.warn("[GitHubFrontendUpdate] Auto-update crashed:", err)
+        }
+    }
+    setTimeout(attempt, 5000)
+}
 
 async function restartSeanimeServer() {
     if (serverRestartPromise) {
@@ -1479,6 +1519,8 @@ app.whenReady().then(async () => {
 
     // Create tray
     createTray()
+
+    scheduleGitHubFrontendAutoUpdate()
 
     // Launch server (gated by server-connection.json: local | remote | unset → setup)
     const serverCfg = loadServerConfig()
@@ -1931,6 +1973,10 @@ app.whenReady().then(async () => {
     ipcMain.handle("live-update:check-backend", () => liveUpdater.checkBackend())
     ipcMain.handle("live-update:check-frontend", () => liveUpdater.checkFrontend())
     ipcMain.handle("live-update:info", () => liveUpdater.getInfo())
+
+    ipcMain.handle("live-update:check-github", () => githubFrontendUpdater.check())
+    ipcMain.handle("live-update:update-github", () => githubFrontendUpdater.update())
+    ipcMain.handle("live-update:github-info", () => githubFrontendUpdater.getInfo())
 
     // Denshi settings IPC handlers
     ipcMain.handle("denshi:getSettings", () => {

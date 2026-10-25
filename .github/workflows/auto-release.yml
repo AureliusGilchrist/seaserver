@@ -74,6 +74,27 @@ jobs:
           Get-ChildItem -LiteralPath "seanime-web\out-denshi" -Force |
             Copy-Item -Destination $destination -Recurse -Force
 
+      - name: Package Denshi frontend bundle
+        id: bundle
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.release_version }}
+        run: |
+          # Published alongside the installer so a Denshi client can update its frontend
+          # straight from the release without git, Node or a GitHub account.
+          $zipPath = "denshi-frontend-$env:RELEASE_VERSION.zip"
+          Compress-Archive -Path "seanime-web\out-denshi\*" -DestinationPath $zipPath -Force
+          if (-not (Test-Path -LiteralPath $zipPath)) { throw "Frontend bundle was not created" }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $zipPath))
+          try {
+            $hasIndex = $zip.Entries | Where-Object { $_.FullName -eq "index.html" }
+            if (-not $hasIndex) { throw "Frontend bundle is missing a root index.html" }
+          } finally {
+            $zip.Dispose()
+          }
+          "frontend_zip=$zipPath" >> $env:GITHUB_OUTPUT
+
       - name: Prepare server embed placeholder
         shell: pwsh
         run: |
@@ -118,13 +139,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ steps.version.outputs.release_version }}
           ASSET: ${{ steps.package.outputs.asset }}
+          FRONTEND_ZIP: ${{ steps.bundle.outputs.frontend_zip }}
         shell: pwsh
         run: |
           $tag = "v$env:RELEASE_VERSION"
           $repository = $env:GITHUB_REPOSITORY
-          $assetPath = [System.IO.Path]::GetFullPath($env:ASSET)
-          if (-not (Test-Path -LiteralPath $assetPath -PathType Leaf)) {
-            throw "Denshi release asset is missing: $assetPath"
+          $assetPaths = @([System.IO.Path]::GetFullPath($env:ASSET))
+          if ($env:FRONTEND_ZIP) {
+            $assetPaths += [System.IO.Path]::GetFullPath($env:FRONTEND_ZIP)
+          }
+          foreach ($p in $assetPaths) {
+            if (-not (Test-Path -LiteralPath $p -PathType Leaf)) {
+              throw "Release asset is missing: $p"
+            }
           }
           $notes = "Automated Windows Denshi build from commit $env:GITHUB_SHA."
           $maxAttempts = 4
@@ -133,10 +160,11 @@ jobs:
             gh release view $tag --repo $repository *> $null
             $viewExitCode = $LASTEXITCODE
             if ($viewExitCode -eq 0) {
-              $publishArgs = @("release", "upload", $tag, $assetPath, "--clobber", "--repo", $repository)
+              $publishArgs = @("release", "upload", $tag) + $assetPaths + @("--clobber", "--repo", $repository)
             } else {
               $publishArgs = @(
-                "release", "create", $tag, $assetPath,
+                "release", "create", $tag
+              ) + $assetPaths + @(
                 "--repo", $repository,
                 "--title", "Seanime Denshi $env:RELEASE_VERSION",
                 "--notes", $notes,

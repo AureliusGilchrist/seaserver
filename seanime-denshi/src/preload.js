@@ -157,6 +157,10 @@ contextBridge.exposeInMainWorld(
             checkBackend: () => ipcRenderer.invoke("live-update:check-backend"),
             checkFrontend: () => ipcRenderer.invoke("live-update:check-frontend"),
             getInfo: () => ipcRenderer.invoke("live-update:info"),
+            // Frontend updates from GitHub releases (no account, no git needed)
+            checkGitHub: () => ipcRenderer.invoke("live-update:check-github"),
+            updateGitHub: () => ipcRenderer.invoke("live-update:update-github"),
+            getGitHubInfo: () => ipcRenderer.invoke("live-update:github-info"),
         },
 
         // Discord Rich Presence (used when server runs on a different machine

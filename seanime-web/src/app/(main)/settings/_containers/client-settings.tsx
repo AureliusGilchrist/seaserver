@@ -2,6 +2,7 @@ import { SettingsCard, SettingsPageHeader } from "@/app/(main)/settings/_compone
 import { AnilistOverwriteCard } from "@/app/(main)/settings/_containers/anilist-overwrite-settings"
 import { PlaybackSettings } from "@/app/(main)/settings/_components/playback-settings"
 import { StillWatchingTiming } from "@/app/(main)/settings/_components/still-watching-timing"
+import { MAX_LOG_LINES, stamp, updateSettingsLogAtom } from "@/app/(main)/settings/_containers/update-settings"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { NumberInput } from "@/components/ui/number-input"
@@ -9,8 +10,9 @@ import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { type ClientSettings, resetClientSettings, setClientSettings, useClientSettings } from "@/lib/client-settings"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
+import { useAtom } from "jotai"
 import React from "react"
-import { LuRotateCcw, LuUserCog } from "react-icons/lu"
+import { LuDownload, LuRotateCcw, LuSearch, LuUserCog } from "react-icons/lu"
 import { toast } from "sonner"
 
 type ClientSettingsProps = {}
@@ -19,6 +21,150 @@ type ClientSettingsProps = {}
 // server under the current profile, so they follow the profile across devices and survive
 // reinstalls — while never affecting any other profile. Each switch applies immediately; a
 // field left unset (see "Reset") inherits the server-wide value an admin configured.
+// Frontend updates straight from GitHub releases: the app downloads the prebuilt bundle
+// the CI publishes, swaps it in and reloads — no git, no Node and no account needed on
+// this machine. Settings live on the Electron side (denshiSettings), per machine.
+function GitHubFrontendUpdateCard() {
+    const [settings, setSettings] = React.useState<DenshiSettings | null>(null)
+    const [checking, setChecking] = React.useState(false)
+    const [installing, setInstalling] = React.useState(false)
+    const [result, setResult] = React.useState<LiveUpdateGitHubCheck | null>(null)
+    const [lines, setLines] = useAtom(updateSettingsLogAtom)
+
+    const appendLines = React.useCallback((next: string[]) => {
+        if (!next.length) return
+        setLines(prev => [...prev, ...next].slice(-MAX_LOG_LINES))
+    }, [setLines])
+
+    React.useEffect(() => {
+        window.electron?.denshiSettings.get().then(setSettings)
+    }, [])
+
+    // Surface progress in the shared update log (the Updates tab renders it in full).
+    React.useEffect(() => {
+        const off = window.electron?.on("live-update:progress", (p: { target: string, line: string }) => {
+            if (p.target !== "frontend") return
+            appendLines([stamp(p.line)])
+        })
+        return () => off?.()
+    }, [appendLines])
+
+    async function refresh(checkNow: boolean = true) {
+        const liveUpdate = window.electron?.liveUpdate
+        if (!liveUpdate?.checkGitHub) return
+        if (checkNow) {
+            setChecking(true)
+            try {
+                const res = await liveUpdate.checkGitHub()
+                setResult(res)
+                if (res.ok) {
+                    const summary = res.updateAvailable
+                        ? `Frontend: update available (${res.current ?? "unknown"} → ${res.latest})`
+                        : `Frontend: up to date (${res.current ?? res.latest ?? "unknown"})`
+                    appendLines([stamp(summary)])
+                } else {
+                    appendLines([stamp(`Frontend check: Failed - ${res.error ?? "unknown error"}`)])
+                }
+            } catch (e: any) {
+                toast.error(`Update check failed: ${e?.message ?? "unknown error"}`)
+            } finally {
+                setChecking(false)
+            }
+        } else {
+            liveUpdate.getGitHubInfo?.().then((info) => {
+                setResult(prev => prev ? { ...prev, current: info.version, currentSource: info.source } : prev)
+            })
+        }
+    }
+
+    React.useEffect(() => {
+        refresh()
+    }, [])
+
+    async function handleInstall() {
+        const liveUpdate = window.electron?.liveUpdate
+        if (!liveUpdate?.updateGitHub) return
+        setInstalling(true)
+        setLines([stamp("Frontend update: [00%] Checking GitHub for the latest frontend")])
+        try {
+            const res = await liveUpdate.updateGitHub()
+            if (res.ok) {
+                toast.success(res.message ?? `Frontend updated to ${res.version}`)
+                appendLines(["", stamp(`Frontend update: [100%] Succeeded (${res.version})`)])
+            } else {
+                toast.error(`Frontend update failed: ${res.error ?? "unknown error"}`)
+            }
+        } catch (e: any) {
+            toast.error(`Frontend update failed: ${e?.message ?? "unknown error"}`)
+            appendLines(["", stamp(`Frontend update: Failed - ${e?.message ?? "unknown error"}`)])
+        } finally {
+            setInstalling(false)
+        }
+    }
+
+    function setAutoUpdate(value: boolean) {
+        if (!window.electron?.denshiSettings) return
+        const next = { ...(settings ?? ({} as DenshiSettings)), autoUpdateFrontend: value }
+        setSettings(next)
+        window.electron.denshiSettings.set(next)
+    }
+
+    if (!window.electron?.liveUpdate?.checkGitHub) return null
+
+    return (
+        <SettingsCard
+            title="Frontend updates"
+            description="Download the prebuilt frontend from GitHub releases and swap it in live — no git, Node or GitHub account needed on this machine."
+        >
+            <p className="text-sm text-[--muted]">
+                {result && !result.ok && (
+                    <span className="text-red-300">Could not reach GitHub: {result.error}</span>
+                )}
+                {result?.ok && result.updateAvailable && (
+                    <span>Version <span className="text-[--brand] font-medium">{result.latest}</span> is available
+                        {result.current ? <> (installed: {result.current})</> : null}.
+                    </span>
+                )}
+                {result?.ok && !result.updateAvailable && (
+                    <span>
+                        {result.currentSource === "github" && <>Up to date — installed from GitHub: {result.current}</>}
+                        {result.currentSource === "local" && <>Running a local build (version unknown). The latest release on GitHub is {result.latest ?? "unavailable"}.</>}
+                        {result.currentSource === "bundled" && <>Up to date — running the bundled frontend ({result.current}).</>}
+                    </span>
+                )}
+                {!result && <span>Checking GitHub…</span>}
+            </p>
+            <Switch
+                side="right"
+                value={!!settings?.autoUpdateFrontend}
+                onValueChange={setAutoUpdate}
+                label="Update the frontend automatically"
+                help="When enabled, the app checks GitHub on launch and installs a newer frontend before you start watching. Only applies after the first update has been installed from here."
+            />
+            <div className="flex gap-2">
+                <Button
+                    intent="gray-outline"
+                    loading={checking}
+                    disabled={installing}
+                    leftIcon={<LuSearch className="size-4" />}
+                    onClick={() => refresh()}
+                >
+                    Search for updates
+                </Button>
+                <Button
+                    intent="primary"
+                    loading={installing}
+                    disabled={checking || !result?.canInstall}
+                    leftIcon={<LuDownload className="size-4" />}
+                    onClick={handleInstall}
+                >
+                    Install update
+                </Button>
+            </div>
+        </SettingsCard>
+    )
+}
+
 export function ClientSettings(props: ClientSettingsProps) {
 
     const {} = props
@@ -242,6 +388,8 @@ export function ClientSettings(props: ClientSettingsProps) {
             </SettingsCard>
 
             <PlaybackSettings />
+
+            <GitHubFrontendUpdateCard />
 
             <SettingsCard
                 title="Server defaults"

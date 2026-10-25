@@ -11,14 +11,14 @@ import { toast } from "sonner"
 
 type Target = "backend" | "frontend"
 
+const UPDATE_LOG_STORAGE_KEY = "sea-settings-update-log"
+export const MAX_LOG_LINES = 500
+export const updateSettingsLogAtom = atomWithStorage<string[]>(UPDATE_LOG_STORAGE_KEY, [], undefined, { getOnInit: true })
+
 // Prefixes a log line with the time it was received; blank spacer lines are left alone.
-function stamp(line: string) {
+export function stamp(line: string) {
     return line === "" ? line : `[${new Date().toLocaleTimeString([], { hour12: false })}] ${line}`
 }
-
-const UPDATE_LOG_STORAGE_KEY = "sea-settings-update-log"
-const MAX_LOG_LINES = 500
-const updateSettingsLogAtom = atomWithStorage<string[]>(UPDATE_LOG_STORAGE_KEY, [], undefined, { getOnInit: true })
 
 function readProgress(lines: string[]) {
     for (let i = lines.length - 1; i >= 0; i--) {

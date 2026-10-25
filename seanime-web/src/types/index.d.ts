@@ -89,6 +89,16 @@ declare global {
                     hasLiveBackend: boolean;
                     hasLiveFrontend: boolean
                 }>;
+                // Frontend updates from GitHub releases (no account, no git needed)
+                checkGitHub?: () => Promise<LiveUpdateGitHubCheck>;
+                updateGitHub?: () => Promise<LiveUpdateGitHubResult>;
+                getGitHubInfo?: () => Promise<{
+                    busy: boolean;
+                    repo: string;
+                    version: string | null;
+                    source: "github" | "local" | "bundled";
+                    installedAt?: string | null;
+                }>;
             };
             discord?: {
                 setActivity: (payload: any) => Promise<boolean>;
@@ -183,10 +193,34 @@ declare global {
         stats?: { files: number; insertions: number; deletions: number; lines: number; changes?: LiveUpdateFileChange[]; baseline?: boolean };
     }
 
+    interface LiveUpdateGitHubCheck {
+        ok: boolean;
+        error?: string;
+        /** Version of the frontend currently in use; null when it is a local build. */
+        current?: string | null;
+        currentSource?: "github" | "local" | "bundled";
+        installedAt?: string | null;
+        /** Newest version with a frontend bundle on GitHub; null when none was found. */
+        latest?: string | null;
+        tag?: string | null;
+        assetName?: string | null;
+        releaseUrl?: string | null;
+        /** A newer GitHub frontend exists than the one in use. */
+        updateAvailable?: boolean;
+        /** A frontend bundle can be installed over what is in use right now. */
+        canInstall?: boolean;
+    }
+
+    interface LiveUpdateGitHubResult extends LiveUpdateGitHubCheck {
+        message?: string;
+        version?: string | null;
+    }
+
     interface DenshiSettings {
         minimizeToTray: boolean;
         openInBackground: boolean;
         openAtLaunch: boolean;
         sourceRepoPath?: string;
+        autoUpdateFrontend?: boolean;
     }
 }
