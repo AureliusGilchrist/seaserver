@@ -42,6 +42,10 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
     // Set when the user explicitly requests transcode (e.g. for audio switching).
     const userForcedTranscodeRef = React.useRef(false)
 
+    // Bumped on every onPlayFile so the URL effect re-runs even when the container (and its
+    // streamUrl) come back identical — replaying the same episode.
+    const [playNonce, setPlayNonce] = React.useState(0)
+
     // Per-tab session ID for multi-client stream isolation
     const mediastreamSessionId = React.useMemo(() => getMediastreamSessionId(), [])
     const vcWatchContinuity = useAtomValue(vc_watchContinuityAtom)
@@ -156,7 +160,7 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
         } else {
             changeUrl(undefined)
         }
-    }, [mediaContainer?.streamUrl, mediastreamSettings?.disableAutoSwitchToDirectPlay, mediastreamSettings, mediastreamSettingsLoading])
+    }, [mediaContainer?.streamUrl, mediastreamSettings?.disableAutoSwitchToDirectPlay, mediastreamSettings, mediastreamSettingsLoading, playNonce])
 
     // ── WebSocket: shutdown stream ──────────────────────────────────────
 
@@ -184,12 +188,24 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
         return episodes.find(ep => !!ep.localFile?.path && ep.localFile?.path === filePath)
     }, [episodes, filePath])
 
+    const filePathRef = React.useRef(filePath)
+    filePathRef.current = filePath
+
     const onPlayFile = React.useCallback((filepath: string) => {
         log.info("Playing file", filepath)
         userForcedTranscodeRef.current = false
+        // Every file starts from the default again. A fallback to transcode on one episode used to
+        // stick: replaying it kept the same query key and URL-effect inputs, so no URL was ever
+        // produced and nothing played until the app was restarted.
+        setStreamType("transcode")
+        setPlayNonce(n => n + 1)
         changeUrl(undefined)
         setFilePath(filepath)
-    }, [])
+        if (filepath === filePathRef.current) {
+            // Same file again: nothing in the query key changed, so ask for a fresh container.
+            setTimeout(() => { void refetch() }, 0)
+        }
+    }, [refetch])
 
     const playNextEpisode = React.useCallback(() => {
         log.info("Playing next episode")

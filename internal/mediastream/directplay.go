@@ -71,6 +71,13 @@ func (r *Repository) ServeEchoDirectPlay(c echo.Context, clientId string) error 
 		return errors.New("no file has been loaded for this client")
 	}
 
+	// A request for a file other than the one now playing (?h= is the file hash; old clients send
+	// none) comes from a player that should have stopped. Refuse it rather than hand it the new
+	// file, so it lets go of its connection.
+	if h := c.QueryParam("h"); h != "" && h != mediaContainer.Hash {
+		return c.NoContent(http.StatusGone)
+	}
+
 	if c.Request().Method == http.MethodHead {
 		r.logger.Trace().Msg("mediastream: Received HEAD request for direct play")
 

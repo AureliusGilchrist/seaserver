@@ -2,6 +2,7 @@ package mediastream
 
 import (
 	"fmt"
+	"net/url"
 	"seanime/internal/mediastream/videofile"
 	"seanime/internal/util/result"
 	"sync"
@@ -150,7 +151,10 @@ func (p *PlaybackManager) RequestPlayback(filepath string, streamType StreamType
 	streamUrl := ""
 	switch streamType {
 	case StreamTypeDirect:
-		streamUrl = fmt.Sprintf("/api/v1/mediastream/direct/%s", clientId)
+		// The file's hash rides along: every episode used to share one URL per client, so a <video>
+		// still alive from the previous episode kept pulling the *new* file's bytes, and the browser
+		// treated a new episode as the same resource. See ServeEchoDirectPlay.
+		streamUrl = fmt.Sprintf("/api/v1/mediastream/direct/%s?h=%s", clientId, url.QueryEscape(container.Hash))
 	case StreamTypeTranscode:
 		streamUrl = fmt.Sprintf("/api/v1/mediastream/transcode/%s/master.m3u8", clientId)
 	case StreamTypeOptimized:

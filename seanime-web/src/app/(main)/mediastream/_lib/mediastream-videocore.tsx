@@ -127,6 +127,7 @@ function MediastreamDirectPlayEffects({
                     (audioElementRef.current as any).__vcSyncCleanup()
                 }
                 audioElementRef.current.pause()
+                if ((audioElementRef.current as any).__vcBlobUrl) URL.revokeObjectURL((audioElementRef.current as any).__vcBlobUrl)
                 audioElementRef.current.removeAttribute("src")
                 audioElementRef.current.remove()
                 audioElementRef.current = null
@@ -176,11 +177,20 @@ function MediastreamDirectPlayEffects({
 
             // Use fetch() to wait for the full extraction, then point <audio> at the cached URL.
             // This prevents the browser from aborting the HTTP connection (which would kill FFmpeg).
+            // Tear down the previous track's sync before starting a new one: its listeners and
+            // blob URL were left behind on every switch.
+            if ((audioEl as any).__vcSyncCleanup) {
+                ;(audioEl as any).__vcSyncCleanup()
+                ;(audioEl as any).__vcSyncCleanup = undefined
+            }
+
             fetch(audioUrl).then(resp => {
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
                 return resp.blob()
             }).then(blob => {
                 const blobUrl = URL.createObjectURL(blob)
+                if ((audioEl as any).__vcBlobUrl) URL.revokeObjectURL((audioEl as any).__vcBlobUrl)
+                ;(audioEl as any).__vcBlobUrl = blobUrl
                 audioEl!.src = blobUrl
                 audioEl!.preload = "auto"
 
@@ -221,7 +231,12 @@ function MediastreamDirectPlayEffects({
                     video.addEventListener("ratechange", onVideoRateChange)
 
                     const syncLoop = () => {
-                        if (!audioEl || !video) return
+                        // Stop once this video is gone (episode changed / player unmounted).
+                        if (!audioEl || !video || !video.isConnected) {
+                            audioEl?.pause()
+                            audioSyncRafRef.current = 0
+                            return
+                        }
 
                         // Skip drift correction during seek cooldown to prevent
                         // the micro-seeking oscillation (±0.3-0.4s bouncing)
@@ -258,7 +273,13 @@ function MediastreamDirectPlayEffects({
                 setDirectPlayAudioUrl(null)
             })
         })
-        return () => setRequestTranscodeForAudio(null)
+        return () => {
+            setRequestTranscodeForAudio(null)
+            if (audioSyncRafRef.current) {
+                cancelAnimationFrame(audioSyncRafRef.current)
+                audioSyncRafRef.current = 0
+            }
+        }
     }, [handleChangeStreamType, currentStreamType, videoElement])
 
     // ── Diagnostics: log playback-position jumps nobody asked for ──
@@ -315,7 +336,7 @@ function MediastreamDirectPlayEffects({
             if (hasSwitchedRef.current) return
             clearStallTimer()
             stallTimerRef.current = setTimeout(() => {
-                if (hasSwitchedRef.current) return
+                if (hasSwitchedRef.current || !videoElement.isConnected) return
                 hasSwitchedRef.current = true
                 log.warning("Direct play stalled for 3s, auto-switching to transcode")
                 toast.info("Direct play stalling — switching to transcode")
@@ -331,6 +352,9 @@ function MediastreamDirectPlayEffects({
         // Android client, whose WebView can't play many MKV/HEVC files directly).
         const switchToTranscode = (reason: string) => {
             if (hasSwitchedRef.current) return
+            // Only for the element that is actually playing: a leftover element from a previous
+            // episode must never switch the current one's stream type.
+            if (!videoElement.isConnected) return
             hasSwitchedRef.current = true
             clearStallTimer()
             log.warning(`Direct play failed (${reason}), switching to transcode`)

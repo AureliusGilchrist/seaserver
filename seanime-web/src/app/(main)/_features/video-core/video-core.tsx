@@ -1135,8 +1135,27 @@ export function VideoCore(props: VideoCoreProps) {
         }
     }, [state.active, state.playbackInfo?.id])
 
+    // The element the ref last pointed at. React nulls the callback ref when the <video> unmounts,
+    // *before* the cleanup effect below runs, so that effect found videoRef.current already null and
+    // never released the element. Every finished episode then left a detached <video> still
+    // streaming (preload="auto"); a few episodes in, those held all of the browser's connections to
+    // the server, the next episode stalled, and nothing played again until the app was restarted.
+    const lastVideoElRef = React.useRef<HTMLVideoElement | null>(null)
+
     // Merge refs
     const combineRef = React.useCallback((instance: HTMLVideoElement | null) => {
+        const previous = lastVideoElRef.current
+        if (previous && previous !== instance) {
+            // Deferred: when this callback is recreated, React calls it with null and then again with
+            // the *same* element. Only release an element that wasn't handed back and has really
+            // left the document.
+            setTimeout(() => {
+                if (lastVideoElRef.current !== previous && !previous.isConnected) {
+                    releaseVideoElement(previous)
+                }
+            }, 0)
+        }
+        lastVideoElRef.current = instance
         videoRef.current = instance
         if (mRef) {
             mRef.current = instance
@@ -1204,12 +1223,10 @@ export function VideoCore(props: VideoCoreProps) {
             cancelDiscordActivity({ clientId })
             hasSoughtRef.current = false
             isFirstError.current = true
-            if (videoRef.current) {
-                videoRef.current.pause()
-                videoRef.current.removeAttribute("src")
-                videoRef.current.load()
-                videoRef.current = null
-            }
+            // videoRef is usually already null here (see lastVideoElRef); release whichever is set.
+            const el = videoRef.current ?? lastVideoElRef.current
+            if (el) releaseVideoElement(el)
+            videoRef.current = null
             subtitleManagerPlaybackKeyRef.current = null
             setVideoElement(null)
             subtitleManager?.destroy?.()
@@ -2347,4 +2364,21 @@ function FloatingButtons(props: { part: "video" | "loading", onTerminateStream: 
     }
 
     return <Content />
+}
+
+/**
+ * Stops a <video> from holding a network connection: pause, drop the source, and load() so the
+ * browser aborts the in-flight range request. Safe on an element that's already detached.
+ */
+function releaseVideoElement(el: HTMLVideoElement) {
+    try {
+        el.pause()
+        if (el.getAttribute("src") || el.currentSrc) {
+            el.removeAttribute("src")
+            el.load()
+        }
+    }
+    catch {
+        // a detached element can throw on load(); nothing left to release then
+    }
 }
