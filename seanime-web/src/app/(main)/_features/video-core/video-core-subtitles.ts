@@ -1752,6 +1752,47 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     }
 }
 
+// Labels of tracks that carry no dialogue — signs, on-screen text, songs. A track with one of
+// these markers is never accepted as the carrier of a saved caption unless the saved caption's
+// own label had the same marker: picking "Dialogue@EMBER+NekoYu" on one episode must not
+// auto-select "Signs & Songs@EMBER" on the next one, which renders as "subtitles stopped
+// persisting" (the menu shows a track selected, but no dialogue is ever displayed).
+const NON_DIALOGUE_LABEL_RE = /\b(?:signs?|songs?|titles?|on[- ]?screen|credits?|forced)\b/i
+
+/**
+ * Scores how likely a candidate track is to be the same caption the user saved under
+ * `savedLabel`, for use when no track carries the label verbatim. Release groups rename and
+ * reorder tracks between episodes (e.g. "Dialogue@EMBER+NekoYu" becomes
+ * "Dialogue@NekoYu+EMBER", or a batch switch renames the full track entirely), so exact
+ * matching alone leaves the next episode to the first same-language track — often the
+ * signs/songs one.
+ *
+ * The score counts shared word tokens ("dialogue", "full", the group names) and rewards one
+ * label containing the other; a candidate whose label marks it as a non-dialogue track the
+ * saved one was not is rejected outright.
+ */
+function labelSimilarityScore(savedLabel: string, candidateLabel: string): number | null {
+    const saved = savedLabel.toLowerCase()
+    const candidate = candidateLabel.toLowerCase()
+    const savedIsNonDialogue = NON_DIALOGUE_LABEL_RE.test(saved)
+    if (NON_DIALOGUE_LABEL_RE.test(candidate) !== savedIsNonDialogue) return null
+
+    const tokenize = (label: string) => new Set(label.match(/[a-z0-9]+/g) ?? [])
+    const savedTokens = tokenize(saved)
+    const candidateTokens = tokenize(candidate)
+    if (savedTokens.size === 0 || candidateTokens.size === 0) return null
+
+    let shared = 0
+    for (const token of savedTokens) {
+        if (candidateTokens.has(token)) shared++
+    }
+    if (shared === 0) return null
+
+    let score = shared * 2
+    if (candidate.includes(saved) || saved.includes(candidate)) score += 2
+    return score
+}
+
 /**
  * Resolves a per-media subtitle preference to a concrete track number against the given tracks.
  * Returns:
@@ -1759,8 +1800,10 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
  * - the matching track number when a track matches the saved label/language/codec
  * - `null` when there is no override or no match (caller should fall back to defaults)
  *
- * Matching is ordered from most to least specific (label, then language preferring a codec match)
- * so the same caption a user picked carries across episodes even when track numbers differ.
+ * Matching is ordered from most to least specific (label, then language preferring a codec
+ * match, then the most label-similar same-language track) so the same caption a user picked
+ * carries across episodes even when track numbers differ or the release group renamed the
+ * track between episodes.
  */
 export function resolveOverrideTrackNumber(
     override: PerMediaTrackOverride | undefined,
@@ -1805,6 +1848,21 @@ export function resolveOverrideTrackNumber(
             if (override.subtitleCodecID) {
                 const byCodec = sameLang.find(t => t.codecID === override.subtitleCodecID)
                 if (byCodec) return byCodec.number
+            }
+            // The saved label doesn't exist on this episode (renamed between releases).
+            // Among the same-language tracks, take the one most similar to the saved label —
+            // falling back to the first track here used to land on the signs/songs track
+            // whenever it was listed before the dialogue one.
+            if (override.subtitleLabel && sameLang.length > 1) {
+                let best: { track: (typeof sameLang)[number], score: number } | null = null
+                for (const track of sameLang) {
+                    if (!track.label) continue
+                    const score = labelSimilarityScore(override.subtitleLabel, track.label)
+                    if (score !== null && (!best || score > best.score)) {
+                        best = { track, score }
+                    }
+                }
+                if (best) return best.track.number
             }
             return sameLang[0].number
         }

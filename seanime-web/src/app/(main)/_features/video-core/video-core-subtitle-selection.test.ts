@@ -30,4 +30,48 @@ describe("subtitle track selection", () => {
             ],
         )).toBe(1)
     })
+
+    it("does not fall back to a signs/songs track when the saved label was renamed between episodes", () => {
+        // Real case (Komi-san, season 1): the user picked the dialogue track on one episode;
+        // the next batch renamed it ("Dialogue@EMBER+NekoYu" → "Dialogue@NekoYu+EMBER") and the
+        // signs/songs track is listed first. The old fallback took the first English track.
+        expect(resolveOverrideTrackNumber(
+            { subtitleLanguage: "en", subtitleLabel: "Dialogue@EMBER+NekoYu" },
+            [
+                { number: 0, label: "Signs & Songs@EMBER", language: "en" },
+                { number: 1, label: "Dialogue@NekoYu+EMBER", language: "en" },
+                { number: 2, label: "NF", language: "en" },
+            ],
+        )).toBe(1)
+    })
+
+    it("prefers a similarly-named full track over a signs/songs track", () => {
+        expect(resolveOverrideTrackNumber(
+            { subtitleLanguage: "en", subtitleLabel: "English [Full] (FFF/DDY modified)" },
+            [
+                { number: 0, label: "Signs & Songs", language: "en" },
+                { number: 1, label: "English - Full", language: "en" },
+            ],
+        )).toBe(1)
+    })
+
+    it("still honors a saved signs/songs track", () => {
+        expect(resolveOverrideTrackNumber(
+            { subtitleLanguage: "en", subtitleLabel: "Signs & Songs@EMBER" },
+            [
+                { number: 0, label: "Signs & Songs@EMBER", language: "en" },
+                { number: 1, label: "Dialogue@EMBER", language: "en" },
+            ],
+        )).toBe(0)
+    })
+
+    it("falls back to the first same-language track when no label resembles the saved one", () => {
+        expect(resolveOverrideTrackNumber(
+            { subtitleLanguage: "en", subtitleLabel: "Something completely different" },
+            [
+                { number: 0, label: "English", language: "en" },
+                { number: 1, label: "Other", language: "en" },
+            ],
+        )).toBe(0)
+    })
 })

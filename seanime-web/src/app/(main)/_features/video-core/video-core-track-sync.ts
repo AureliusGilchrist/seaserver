@@ -37,7 +37,13 @@ export function useTrackPreferenceSync() {
         }
     }, [isSuccess, serverPrefs])
 
-    // Register the write-through callback so menus can call it
+    // Register the write-through callback so menus can call it.
+    // The atom is GLOBAL while this hook is instantiated by every VideoCore — in Electron the
+    // layout-level "native-player" instance unmounts the moment a player page (mediastream,
+    // onlinestream, …) claims the active player, and this effect's cleanup would then null the
+    // callback the page's own instance just registered — server-side preference saving stayed
+    // broken for every pick afterwards ("Server track-preference sync is not ready"). Only
+    // clear the callback when it is still the one this instance registered.
     useEffect(() => {
         const save = (mediaId: string, override: Partial<PerMediaTrackOverride>) => {
             const current = overridesRef.current[mediaId] || {}
@@ -59,7 +65,8 @@ export function useTrackPreferenceSync() {
                 subtitleLabel: merged.subtitleLabel,
             })
         }
-        setSaveCallback(() => save)
-        return () => setSaveCallback(null)
+        const registered = () => save
+        setSaveCallback(registered)
+        return () => setSaveCallback((prev: NonNullable<typeof save> | null) => (prev === registered ? null : prev))
     }, [upsert, setOverrides, setSaveCallback])
 }
