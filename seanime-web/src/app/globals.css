@@ -2362,13 +2362,6 @@ html[data-sea-idle-active] body::after {
 }
 @keyframes sea-idle-in { from { opacity: 0; } to { opacity: 1; } }
 
-/* ── XP-skin page effects on the profile page ────────────────────────────── */
-.sea-profile-accent { position: relative; }
-.sea-profile-accent::before {
-    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
-    background: var(--sea-page-vignette, none), linear-gradient(var(--sea-page-bg-tint, transparent), var(--sea-page-bg-tint, transparent));
-}
-
 /* ══ Profile Style rewards ══════════════════════════════════════════════════ */
 
 /* Avatar frames — drawn as a ring behind the avatar */
