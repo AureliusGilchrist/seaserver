@@ -1,4 +1,7 @@
 "use client"
+import { isMobile } from "@/lib/utils/browser-detection"
+import { buildSeaQuery } from "@/api/client/requests"
+import { resolveServerAsset } from "@/lib/server/assets"
 import React from "react"
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai"
 import { atomWithStorage } from "jotai/utils"
@@ -277,6 +280,9 @@ function buildConfigFromMeta(meta: import("@/lib/theme/marketplace-theme-loader"
         sidebarOverrides,
         achievementNames: meta.achievementNames ?? {},
         musicUrl: `/theme-music/${meta.id}/opening.mp3`,
+        // Without these a marketplace theme never had a wallpaper (on any platform).
+        backgroundImageUrl: meta.backgroundImageUrl,
+        mobileBackgroundImageUrl: meta.mobileBackgroundImageUrl,
         previewColors: meta.previewColors ?? { primary: "#333", secondary: "#444", accent: "#555", bg: "#0a0a0a" },
         milestoneNames: meta.milestoneNames,
         milestoneCategoryNames: meta.milestoneCategoryNames,
@@ -376,10 +382,10 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         } catch { /* noop */ }
         // Persist to server so other devices / browsers see the same theme
         if (profileId > 0) {
-            fetch(`/api/v1/profiles/${profileId}`, {
+            buildSeaQuery({
+                endpoint: `/api/v1/profiles/${profileId}`,
                 method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ themeId: id }),
+                data: { themeId: id },
             }).catch(() => { /* best-effort */ })
         }
     }, [profileKey, profileId])
@@ -634,14 +640,23 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     }, [profileKey, themeId])
 
     // ── Active background URL (per-theme, per-profile, user-selectable) ──
+    //
+    // Phones keep a wallpaper of their own: a landscape desktop wallpaper is mostly cropped away on
+    // a portrait screen. Same behaviour as desktop otherwise — pick it in the Theme Manager on the
+    // phone, and the accent comes from it. A theme may ship a portrait default
+    // (mobileBackgroundImageUrl); without one the desktop image is used, center-cropped.
+    const isPhone = React.useMemo(() => typeof window !== "undefined" && isMobile(), [])
+    const bgStorageKey = `${isPhone ? "sea-anime-bgurl-mobile" : "sea-anime-bgurl"}-${profileKey}-${themeId}`
+    const themeDefaultBackground = (isPhone ? config.mobileBackgroundImageUrl : undefined) ?? config.backgroundImageUrl ?? null
+
     const [activeBackgroundUrl, setActiveBackgroundUrlRaw] = React.useState<string | null>(() => {
-        if (typeof window === "undefined") return ANIME_THEMES[themeId as AnimeThemeId]?.backgroundImageUrl ?? null
+        if (typeof window === "undefined") return themeDefaultBackground
         if (themeId === "seanime") return null
         try {
-            const stored = seaStorage.getItem(`sea-anime-bgurl-${profileKey}-${themeId}`)
+            const stored = seaStorage.getItem(bgStorageKey)
             if (stored !== null) return stored
         } catch { }
-        return ANIME_THEMES[themeId as AnimeThemeId]?.backgroundImageUrl ?? null
+        return themeDefaultBackground
     })
 
     // Reload active background when theme or profile changes
@@ -651,25 +666,25 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
             return
         }
         try {
-            const stored = seaStorage.getItem(`sea-anime-bgurl-${profileKey}-${themeId}`)
-            setActiveBackgroundUrlRaw(stored !== null ? stored : (ANIME_THEMES[themeId as AnimeThemeId]?.backgroundImageUrl ?? null))
+            const stored = seaStorage.getItem(bgStorageKey)
+            setActiveBackgroundUrlRaw(stored !== null ? stored : themeDefaultBackground)
         } catch {
-            setActiveBackgroundUrlRaw(ANIME_THEMES[themeId as AnimeThemeId]?.backgroundImageUrl ?? null)
+            setActiveBackgroundUrlRaw(themeDefaultBackground)
         }
-    }, [themeId, profileKey])
+    }, [themeId, profileKey, bgStorageKey, themeDefaultBackground])
 
     const setActiveBackgroundUrl = React.useCallback((url: string | null) => {
 
         if (themeId === "seanime") return
         setActiveBackgroundUrlRaw(url)
         try {
-            if (url === null || url === (ANIME_THEMES[themeId as AnimeThemeId]?.backgroundImageUrl ?? null)) {
-                seaStorage.removeItem(`sea-anime-bgurl-${profileKey}-${themeId}`)
+            if (url === null || url === themeDefaultBackground) {
+                seaStorage.removeItem(bgStorageKey)
             } else {
-                seaStorage.setItem(`sea-anime-bgurl-${profileKey}-${themeId}`, url)
+                seaStorage.setItem(bgStorageKey, url)
             }
         } catch { }
-    }, [profileKey, themeId])
+    }, [themeId, bgStorageKey, themeDefaultBackground])
 
     // ── CSS var injection ──
     // When the user's color scheme (Settings > Color scheme) is enabled, it owns the UI
@@ -747,7 +762,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         // Keep the last wallpaper-derived accent while the new image is sampled. Clearing it here
         // exposes the theme's accent (often red) on every navigation and when image sampling fails.
         let cancelled = false
-        extractWallpaperAccent(url).then(accent => {
+        extractWallpaperAccent(resolveServerAsset(url)).then(accent => {
             if (cancelled || !accent) return
             setWallpaperAccent(accent)
         })
@@ -1078,10 +1093,11 @@ function AnimeThemeMusicPlayer() {
         const a = refFor(activeRef.current)
         if (!a) return
         if (legacySrc) {
-            if (a.src !== absoluteUrl(legacySrc)) a.src = legacySrc
+            const src = resolveServerAsset(legacySrc)
+            if (a.src !== absoluteUrl(src)) a.src = src
             a.loop = true
         } else if (tracks.length > 0) {
-            const url = tracks[trackIndex]?.url
+            const url = resolveServerAsset(tracks[trackIndex]?.url)
             if (url && a.src !== absoluteUrl(url)) {
                 a.src = url
                 a.currentTime = 0
@@ -1212,7 +1228,7 @@ function AnimeThemeMusicPlayer() {
         if (!nextEl) return
         const nextUrl = tracks[nextIdx]?.url
         if (!nextUrl) return
-        nextEl.src = nextUrl
+        nextEl.src = resolveServerAsset(nextUrl)
         nextEl.currentTime = 0
         nextEl.volume = 0
         nextEl.loop = false
@@ -1297,7 +1313,7 @@ export function ThemeBackgroundImage({ url, dim, blur, exposure, saturation, con
                 style={{
                     position: "absolute",
                     inset: 0,
-                    backgroundImage: `url("${url}")`,
+                    backgroundImage: `url("${resolveServerAsset(url)}")`,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
                     backgroundRepeat: "no-repeat",

@@ -1,4 +1,5 @@
 "use client"
+import { useRequireAdmin } from "@/app/(main)/_hooks/use-require-admin"
 import { Debrid_TorrentItem } from "@/api/generated/types"
 import { useDebridCancelDownload, useDebridDeleteTorrent, useDebridDownloadTorrent, useDebridGetTorrents } from "@/api/hooks/debrid.hooks"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
@@ -57,7 +58,14 @@ function getDashboardLink(provider: string) {
     }
 }
 
+// Downloads are admin-only (see main-sidebar).
 export default function Page() {
+    const allowed = useRequireAdmin()
+    if (!allowed) return null
+    return <AdminPage />
+}
+
+function AdminPage() {
     const serverStatus = useServerStatus()
 
     if (!serverStatus) return <LoadingSpinner />

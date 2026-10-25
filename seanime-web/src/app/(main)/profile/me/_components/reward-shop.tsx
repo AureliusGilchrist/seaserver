@@ -1107,15 +1107,15 @@ export function RewardShop({ currentLevel }: Props) {
     const [section, setSection] = React.useState<MainSection>("profile")
 
     return (
-        <div className="flex gap-4 min-h-[400px]">
-            {/* Vertical left sidebar */}
-            <div className="flex flex-col gap-1 w-44 shrink-0">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-[--muted] px-2 mb-1">Sections</p>
+        <div className="flex flex-col md:flex-row gap-4 min-h-[400px]">
+            {/* Left sidebar on desktop; a row of section pills above the content on phones */}
+            <div className="flex flex-row md:flex-col gap-1 md:w-44 shrink-0 overflow-x-auto hide-scrollbar">
+                <p className="hidden md:block text-[10px] font-semibold uppercase tracking-widest text-[--muted] px-2 mb-1">Sections</p>
 
                 <button
                     onClick={() => setSection("profile")}
                     className={cn(
-                        "flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-left transition-all",
+                        "flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-left transition-all whitespace-nowrap shrink-0",
                         section === "profile"
                             ? "bg-[--color-brand-900]/50 text-[--color-brand-200] border border-[--color-brand-700]/40"
                             : "text-[--muted] hover:text-[--foreground] hover:bg-white/5 border border-transparent",
@@ -1128,7 +1128,7 @@ export function RewardShop({ currentLevel }: Props) {
                 <button
                     onClick={() => setSection("ui")}
                     className={cn(
-                        "flex items-center gap-2 px-3 py-3 rounded-xl text-sm font-semibold text-left transition-all mt-1",
+                        "flex items-center gap-2 px-3 py-3 rounded-xl text-sm font-semibold text-left transition-all md:mt-1 whitespace-nowrap shrink-0",
                         section === "ui"
                             ? "bg-[--color-brand-800]/60 text-[--color-brand-100] border border-[--color-brand-600]/50 shadow-[0_0_16px_rgba(139,92,246,0.2)]"
                             : "text-[--foreground] hover:bg-white/5 border border-[--border]",
@@ -1139,7 +1139,7 @@ export function RewardShop({ currentLevel }: Props) {
                 </button>
 
                 {section === "ui" && (
-                    <div className="mt-1 pl-2 text-[10px] text-[--muted] leading-relaxed">
+                    <div className="hidden md:block mt-1 pl-2 text-[10px] text-[--muted] leading-relaxed">
                         Customize animations, card style, colors, layout and more.
                     </div>
                 )}

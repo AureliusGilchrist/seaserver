@@ -1757,8 +1757,11 @@ export function VideoCore(props: VideoCoreProps) {
 
     const handleError = (e: React.SyntheticEvent<HTMLVideoElement>) => {
         log.error("Video error", e)
-        if (isFirstError.current && props.id !== "native-player") {
-            // Change stream type to HLS if it failed to load
+        const srcUrl = state.playbackInfo?.streamUrl ?? ""
+        const looksLikeHls = /\.m3u8(\?|$)|\/hls\//i.test(srcUrl)
+        if (isFirstError.current && props.id !== "native-player" && looksLikeHls) {
+            // Change stream type to HLS if it failed to load. Only for an HLS source: retrying a
+            // plain file (direct play) as HLS can't work and left the player spinning silently.
             log.warning("Video player could not load the URL, switching to HLS")
             setStreamType("hls")
             isFirstError.current = false

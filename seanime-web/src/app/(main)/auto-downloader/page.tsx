@@ -1,4 +1,5 @@
 "use client"
+import { useRequireAdmin } from "@/app/(main)/_hooks/use-require-admin"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
 import { AutoDownloaderPage } from "@/app/(main)/auto-downloader/_containers/autodownloader-page"
 import { PageWrapper } from "@/components/shared/page-wrapper"
@@ -6,7 +7,14 @@ import React from "react"
 
 export const dynamic = "force-static"
 
+// Downloads are admin-only (see main-sidebar).
 export default function Page() {
+    const allowed = useRequireAdmin()
+    if (!allowed) return null
+    return <AdminPage />
+}
+
+function AdminPage() {
 
     return (
         <>

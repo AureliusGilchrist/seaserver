@@ -83,7 +83,18 @@ export function MobileTabBar() {
 
     // Fullscreen video owns the screen; get out of its way. Same for the manga reader,
     // which has its own bottom bar the dock would cover.
-    if (isFullscreen || isReadingManga) return null
+    const dockVisible = !(isFullscreen || isReadingManga)
+
+    // html[data-sea-dock] lets every floating pill (.sea-float-bottom*) sit above the dock instead
+    // of under or on top of it. See globals.css.
+    React.useEffect(() => {
+        const root = document.documentElement
+        if (dockVisible) root.setAttribute("data-sea-dock", "")
+        else root.removeAttribute("data-sea-dock")
+        return () => root.removeAttribute("data-sea-dock")
+    }, [dockVisible])
+
+    if (!dockVisible) return null
 
     return (
         <div

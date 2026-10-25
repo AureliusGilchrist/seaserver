@@ -261,6 +261,40 @@ function MediastreamDirectPlayEffects({
         return () => setRequestTranscodeForAudio(null)
     }, [handleChangeStreamType, currentStreamType, videoElement])
 
+    // ── Diagnostics: log playback-position jumps nobody asked for ──
+    // The picture has been seen to hitch back/forward while audio carries on. A real jump in
+    // currentTime would show up here; if this stays quiet, the hitch is purely in rendering.
+    React.useEffect(() => {
+        if (!videoElement) return
+        let lastTime = videoElement.currentTime
+        let lastAt = performance.now()
+        let seeking = false
+        const onSeeking = () => { seeking = true }
+        const onSeeked = () => {
+            seeking = false
+            lastTime = videoElement.currentTime
+            lastAt = performance.now()
+        }
+        const onTimeUpdate = () => {
+            const now = performance.now()
+            const expected = lastTime + ((now - lastAt) / 1000) * videoElement.playbackRate
+            const jump = videoElement.currentTime - expected
+            if (!seeking && !videoElement.paused && Math.abs(jump) > 0.5) {
+                log.warning(`Unrequested position jump of ${jump.toFixed(2)}s at ${videoElement.currentTime.toFixed(2)}s`)
+            }
+            lastTime = videoElement.currentTime
+            lastAt = now
+        }
+        videoElement.addEventListener("seeking", onSeeking)
+        videoElement.addEventListener("seeked", onSeeked)
+        videoElement.addEventListener("timeupdate", onTimeUpdate)
+        return () => {
+            videoElement.removeEventListener("seeking", onSeeking)
+            videoElement.removeEventListener("seeked", onSeeked)
+            videoElement.removeEventListener("timeupdate", onTimeUpdate)
+        }
+    }, [videoElement])
+
     // ── Stall detection: auto-switch from direct play to transcode ──
     const stallTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
     const hasSwitchedRef = React.useRef(false)
@@ -292,15 +326,34 @@ function MediastreamDirectPlayEffects({
         const onPlaying = () => clearStallTimer()
         const onCanPlay = () => clearStallTimer()
 
+        // A file the device can't demux or decode never fires "waiting" — it errors, or simply
+        // never gets as far as its metadata. Both used to leave an endless spinner (notably on the
+        // Android client, whose WebView can't play many MKV/HEVC files directly).
+        const switchToTranscode = (reason: string) => {
+            if (hasSwitchedRef.current) return
+            hasSwitchedRef.current = true
+            clearStallTimer()
+            log.warning(`Direct play failed (${reason}), switching to transcode`)
+            toast.info("This device can't play the file directly — switching to transcode")
+            handleChangeStreamType("transcode")
+        }
+        const onError = () => switchToTranscode(`video error ${videoElement.error?.code ?? "unknown"}`)
+        const metadataWatchdog = setTimeout(() => {
+            if (videoElement.readyState < 1) switchToTranscode("no metadata after 12s")
+        }, 12_000)
+
         videoElement.addEventListener("waiting", onWaiting)
         videoElement.addEventListener("playing", onPlaying)
         videoElement.addEventListener("canplay", onCanPlay)
+        videoElement.addEventListener("error", onError)
 
         return () => {
             clearStallTimer()
+            clearTimeout(metadataWatchdog)
             videoElement.removeEventListener("waiting", onWaiting)
             videoElement.removeEventListener("playing", onPlaying)
             videoElement.removeEventListener("canplay", onCanPlay)
+            videoElement.removeEventListener("error", onError)
         }
     }, [videoElement, handleChangeStreamType, currentStreamType])
 

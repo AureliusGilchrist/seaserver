@@ -218,6 +218,9 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
     // Within the groups, the occasional pages fold into one submenu row of their own — Planning,
     // Download tools, You — so a group is two or three rows however many pages it holds. The
     // per-page badges ride on the submenu parent as their sum.
+    // The admin, or anyone on a single-user install (same rule as the Settings entry below).
+    const isAdminOrSingleUser = !serverStatus?.profilesEnabled || !serverStatus?.profiles?.length || !!serverStatus?.currentProfile?.isAdmin
+
     const items = React.useMemo(() => {
         const planningItems = [
             {
@@ -401,6 +404,8 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
         },
 
         // ── Downloads ────────────────────────────────────────────────────
+        // Admin only: downloading, matching and the torrent client manage the shared library.
+        ...(isAdminOrSingleUser ? [
         {
             id: "group-downloads",
             name: "Downloads",
@@ -445,6 +450,7 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
             >{enqueueFutureCount + autoDownloaderQueueCount}</Badge> : undefined,
             subContent: <SidebarSubMenu items={downloadToolItems} collapsed={isCollapsed} />,
         },
+        ] : []),
 
         // ── Community ────────────────────────────────────────────────────
         {
@@ -489,6 +495,7 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
         achievementUnlockedCount,
         isCollapsed,
         myProfileId,
+        isAdminOrSingleUser,
     ])
 
     // Plugins

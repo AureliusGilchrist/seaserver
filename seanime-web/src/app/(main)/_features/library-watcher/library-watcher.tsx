@@ -104,7 +104,7 @@ export function LibraryWatcher(props: LibraryWatcherProps) {
 
     if (autoScanning.active && progress > 0) {
         return (
-            <div className="z-50 fixed bottom-4 right-4">
+            <div className="sea-float-bottom-2 z-50 fixed bottom-4 right-4">
                 <PageWrapper>
                     <Card className="w-fit max-w-[400px]">
                         <CardHeader>
@@ -118,7 +118,7 @@ export function LibraryWatcher(props: LibraryWatcherProps) {
         )
     } else if (!!fileEvent) {
         return (
-            <div className="z-50 fixed bottom-4 right-4">
+            <div className="sea-float-bottom-2 z-50 fixed bottom-4 right-4">
                 <PageWrapper>
                     <Card className="w-full max-w-[400px] min-h-[150px] relative">
                         <CardHeader>

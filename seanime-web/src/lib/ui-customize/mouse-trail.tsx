@@ -200,8 +200,12 @@ export function MouseTrail({ kind }: { kind: string }) {
             }
         }
 
+        // Never compete with a playing video for frames.
+        const videoPlaying = () => Array.from(document.querySelectorAll("video")).some(v => !v.paused && !v.ended && v.readyState > 2)
+
         const onMove = (e: PointerEvent) => {
             if (e.pointerType === "touch") return
+            if (videoPlaying()) return
             const x = e.clientX, y = e.clientY
             if (last && Math.hypot(x - last.x, y - last.y) < 4) return
             last = { x, y }

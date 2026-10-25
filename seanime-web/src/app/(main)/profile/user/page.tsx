@@ -17,6 +17,7 @@ import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-l
 import { LevelRingAvatar } from "@/app/(main)/_features/level-ring-avatar"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { tabsTriggerClass, tabsListClass } from "@/components/shared/classnames"
+
 import { cn } from "@/components/ui/core/styling"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Separator } from "@/components/ui/separator"
@@ -136,7 +137,7 @@ function UserProfilePage() {
             {profile!.bannerImage ? (
                 <div
                     className={cn(
-                        "relative -mt-20 h-[300px] w-full overflow-hidden lg:mt-0 lg:-ml-20 lg:w-[calc(100%+5rem)]",
+                        "relative h-[190px] sm:-mt-20 sm:h-[300px] w-full overflow-hidden lg:mt-0 lg:-ml-20 lg:w-[calc(100%+5rem)]",
                         __isDesktop__ && "lg:-mt-4",
                     )}
                 >
@@ -161,7 +162,7 @@ function UserProfilePage() {
             ) : (
                 <CustomLibraryBanner discrete />
             )}
-            <PageWrapper className={cn("p-4 sm:p-8 space-y-6", profile!.bannerImage && "-mt-40 relative z-10")}>
+            <PageWrapper className={cn("p-4 sm:p-8 space-y-6", profile!.bannerImage && "-mt-20 sm:-mt-40 relative z-10")}>
                 <SeaLink href="/community">
                     <span className="text-[--muted] hover:text-white text-sm flex items-center gap-1 mb-4">
                         <LuArrowLeft className="size-4" /> Community
@@ -188,7 +189,7 @@ function UserProfilePage() {
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                            <h1 className={cn("sea-profile-name text-3xl font-bold truncate", nameHasGradient && "sea-name-shine")} style={nameStyle}>
+                            <h1 className={cn("sea-profile-name text-2xl sm:text-3xl font-bold break-words sm:truncate", nameHasGradient && "sea-name-shine")} style={nameStyle}>
                                 {profile!.name}
                                 {profile!.anilistUsername && (
                                     <span className="text-[--muted] font-normal" style={{}}> ({profile!.anilistUsername})</span>
@@ -221,7 +222,7 @@ function UserProfilePage() {
                         </div>
                         {profile!.bio && (
                             <div className="mt-2">
-                                <p className="text-[--muted] text-sm max-w-md truncate">
+                                <p className="text-[--muted] text-sm max-w-md line-clamp-3 sm:line-clamp-none sm:truncate">
                                     {profile!.bio}
                                 </p>
                             </div>
@@ -260,23 +261,23 @@ function UserProfilePage() {
                     value={activeTab}
                     onValueChange={(v: string) => router.push(`/profile/user?id=${id}&tab=${v}`)}
                 >
-                    <TabsList className={tabsListClass}>
-                        <TabsTrigger value="activity" className={tabsTriggerClass}>
+                    <TabsList className={profileTabsListClass}>
+                        <TabsTrigger value="activity" className={profileTabsTriggerClass}>
                             <LuActivity className="mr-1.5" /> Activity
                         </TabsTrigger>
-                        <TabsTrigger value="timeline" className={tabsTriggerClass}>
+                        <TabsTrigger value="timeline" className={profileTabsTriggerClass}>
                             <LuMessagesSquare className="mr-1.5" /> Timeline
                         </TabsTrigger>
-                        <TabsTrigger value="towatch" className={tabsTriggerClass}>
+                        <TabsTrigger value="towatch" className={profileTabsTriggerClass}>
                             <LuListVideo className="mr-1.5" /> Todo List
                         </TabsTrigger>
-                        <TabsTrigger value="stats" className={tabsTriggerClass}>
+                        <TabsTrigger value="stats" className={profileTabsTriggerClass}>
                             <LuStar className="mr-1.5" /> Stats
                         </TabsTrigger>
-                        <TabsTrigger value="achievements" className={tabsTriggerClass}>
+                        <TabsTrigger value="achievements" className={profileTabsTriggerClass}>
                             <LuTrophy className="mr-1.5" /> Achievements
                         </TabsTrigger>
-                        <TabsTrigger value="comments" className={tabsTriggerClass}>
+                        <TabsTrigger value="comments" className={profileTabsTriggerClass}>
                             <LuMessageSquare className="mr-1.5" /> Comments
                         </TabsTrigger>
                     </TabsList>
@@ -544,3 +545,7 @@ function ProfileCommentRow({ comment }: { comment: ProfileCommentItem }) {
         </div>
     )
 }
+
+// Phones: one scrollable row of tabs instead of several wrapped rows.
+const profileTabsListClass = cn(tabsListClass, "max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:justify-start hide-scrollbar")
+const profileTabsTriggerClass = cn(tabsTriggerClass, "max-sm:text-sm max-sm:px-3 shrink-0")

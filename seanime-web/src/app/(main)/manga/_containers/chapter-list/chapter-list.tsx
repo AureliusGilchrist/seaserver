@@ -67,6 +67,7 @@ export function ChapterList(props: ChapterListProps) {
         chapterContainer,
         chapterContainerLoading,
         chapterContainerError,
+        refetchChapterContainer,
     } = useHandleMangaChapters(mediaId)
 
 
@@ -412,6 +413,10 @@ export function ChapterList(props: ChapterListProps) {
 
             {(chapterContainerLoading || isClearingMangaCache) ? <LoadingSpinner /> : (
                 chapterContainerError ? <LuffyError title="No chapters found">
+                    <p className="text-sm text-[--muted] mb-2">The source didn't answer in time, or found nothing for this title.</p>
+                    <Button intent="primary-subtle" size="md" className="mb-2" onClick={() => refetchChapterContainer()}>
+                        Try again
+                    </Button>
                     <MangaManualMappingModal entry={entry}>
                         <Button
                             leftIcon={<LuSearch className="text-lg" />}

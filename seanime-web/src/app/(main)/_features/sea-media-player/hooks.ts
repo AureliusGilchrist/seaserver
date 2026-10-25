@@ -1,3 +1,4 @@
+import { isMobile } from "@/lib/utils/browser-detection"
 
 export function useIsCodecSupported() {
     const isCodecSupported = (codec: string) => {
@@ -10,6 +11,9 @@ export function useIsCodecSupported() {
         const videos = document.getElementsByTagName("video")
         const video = videos.item(0) ?? document.createElement("video")
         const support = video.canPlayType(codec)
+        // Phones get no benefit of the doubt: a WebView's "maybe" (MKV) and HEVC are usually a no,
+        // and a wrong yes means a file that never starts. Only a firm "probably" direct-plays there.
+        if (isMobile()) return support === "probably"
         // Treat both "probably" and "maybe" as acceptable to avoid false negatives on containers like MKV
         if (support === "probably" || support === "maybe") return true
 

@@ -486,6 +486,8 @@ export type AnimeThemeConfig = {
     hasAnimatedElements?: boolean
     /** Full-resolution background image URL (loaded from CDN, cached by browser) */
     backgroundImageUrl?: string
+    /** Portrait wallpaper for phones; falls back to backgroundImageUrl (center-cropped). */
+    mobileBackgroundImageUrl?: string
     /** Background dim (0-1), default 0 means use default opacity */
     backgroundDim?: number
     /** Background blur in px, default 0 */

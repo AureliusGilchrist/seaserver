@@ -19,8 +19,8 @@ const containerConfig = {
         full: "sm:w-full sm:h-full",
     },
     positions: {
-        "bottom-right": "bottom-5 right-5",
-        "bottom-left": "bottom-5 left-5",
+        "bottom-right": "sea-float-bottom-2 bottom-5 right-5",
+        "bottom-left": "sea-float-bottom-2 bottom-5 left-5",
     },
     containerPositions: {
         "bottom-right": "sm:bottom-[calc(100%+10px)] sm:right-0",

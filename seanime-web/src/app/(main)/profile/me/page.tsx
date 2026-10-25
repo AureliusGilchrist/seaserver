@@ -45,6 +45,7 @@ import { ActivityHeatmap } from "@/app/(main)/_features/profile/activity-heatmap
 import { ProfileWallpaper, ProfileWallpaperEditor } from "@/app/(main)/profile/_components/profile-wallpaper"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { tabsTriggerClass, tabsListClass } from "@/components/shared/classnames"
+
 import { Badge } from "@/components/ui/badge"
 import { BarChart, DonutChart, AreaChart } from "@/components/ui/charts"
 import { cn } from "@/components/ui/core/styling"
@@ -211,7 +212,7 @@ export function MyProfilePage() {
             {profile!.bannerImage ? (
                 <div
                     className={cn(
-                        "relative -mt-20 h-[320px] w-full overflow-hidden lg:mt-0 lg:-ml-20 lg:w-[calc(100%+5rem)]",
+                        "relative h-[190px] sm:-mt-20 sm:h-[320px] w-full overflow-hidden lg:mt-0 lg:-ml-20 lg:w-[calc(100%+5rem)]",
                         __isDesktop__ && "lg:-mt-4",
                     )}
                 >
@@ -236,7 +237,7 @@ export function MyProfilePage() {
             ) : (
                 <CustomLibraryBanner discrete />
             )}
-            <PageWrapper className={cn("p-4 sm:p-8 space-y-6", profile!.bannerImage && "-mt-44 relative z-10")}>
+            <PageWrapper className={cn("p-4 sm:p-8 space-y-6", profile!.bannerImage && "-mt-20 sm:-mt-44 relative z-10")}>
                 {/* Unified Profile Header */}
                 <div
                     className={cn("flex flex-col sm:flex-row items-center gap-6 pb-2 border-b border-[--border] relative", headerBgStyle.background && "rounded-xl p-4", profileLayout?.className)}
@@ -261,7 +262,7 @@ export function MyProfilePage() {
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                            <h1 className={cn("sea-profile-name text-3xl font-bold truncate", nameHasGradient && "sea-name-shine")} style={nameStyle}>
+                            <h1 className={cn("sea-profile-name text-2xl sm:text-3xl font-bold break-words sm:truncate", nameHasGradient && "sea-name-shine")} style={nameStyle}>
                                 {profile!.name}
                                 {profile!.anilistUsername && (
                                     <span className="text-[--muted] font-normal" style={{}}> ({profile!.anilistUsername})</span>
@@ -305,7 +306,7 @@ export function MyProfilePage() {
                             {editingBio ? (
                                 <div className="flex items-center gap-2">
                                     <textarea
-                                        className="bg-[--subtle] border border-[--border] rounded px-2 py-1 text-sm w-64 resize-none"
+                                        className="bg-[--subtle] border border-[--border] rounded px-2 py-1 text-sm w-full sm:w-64 resize-none"
                                         rows={2}
                                         maxLength={500}
                                         value={bioText}
@@ -331,7 +332,7 @@ export function MyProfilePage() {
                                 </div>
                             ) : (
                                 <div className="flex items-center gap-2">
-                                    <p className="text-[--muted] text-sm max-w-md truncate">
+                                    <p className="text-[--muted] text-sm max-w-md line-clamp-3 sm:line-clamp-none sm:truncate">
                                         {profile!.bio || "No bio yet"}
                                     </p>
                                     <button
@@ -372,29 +373,29 @@ export function MyProfilePage() {
                     value={activeTab}
                     onValueChange={(v: string) => router.push(`/profile/user?id=${profile.id}&tab=${v}`)}
                 >
-                    <TabsList className={tabsListClass}>
-                        <TabsTrigger value="activity" className={tabsTriggerClass}>
+                    <TabsList className={profileTabsListClass}>
+                        <TabsTrigger value="activity" className={profileTabsTriggerClass}>
                             <LuActivity className="mr-1.5" /> Activity
                         </TabsTrigger>
-                        <TabsTrigger value="timeline" className={tabsTriggerClass}>
+                        <TabsTrigger value="timeline" className={profileTabsTriggerClass}>
                             <LuMessagesSquare className="mr-1.5" /> Timeline
                         </TabsTrigger>
-                        <TabsTrigger value="stats" className={tabsTriggerClass}>
+                        <TabsTrigger value="stats" className={profileTabsTriggerClass}>
                             <LuStar className="mr-1.5" /> Stats
                         </TabsTrigger>
-                        <TabsTrigger value="achievements" className={tabsTriggerClass}>
+                        <TabsTrigger value="achievements" className={profileTabsTriggerClass}>
                             <LuTrophy className="mr-1.5" /> Achievements
                         </TabsTrigger>
-                        <TabsTrigger value="favorites" className={tabsTriggerClass}>
+                        <TabsTrigger value="favorites" className={profileTabsTriggerClass}>
                             <LuHeart className="mr-1.5" /> Favorites
                         </TabsTrigger>
-                        <TabsTrigger value="rewards" className={tabsTriggerClass}>
+                        <TabsTrigger value="rewards" className={profileTabsTriggerClass}>
                             <LuGift className="mr-1.5" /> Rewards
                         </TabsTrigger>
-                        <TabsTrigger value="wallpaper" className={tabsTriggerClass}>
+                        <TabsTrigger value="wallpaper" className={profileTabsTriggerClass}>
                             <LuImage className="mr-1.5" /> Wallpaper
                         </TabsTrigger>
-                        <TabsTrigger value="secrets" className={tabsTriggerClass}>
+                        <TabsTrigger value="secrets" className={profileTabsTriggerClass}>
                             🥚 Secrets
                         </TabsTrigger>
                     </TabsList>
@@ -1418,3 +1419,7 @@ function FavoriteStudioCard({ id }: { id: number }) {
         />
     )
 }
+
+// Phones: one scrollable row of tabs instead of several wrapped rows.
+const profileTabsListClass = cn(tabsListClass, "max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:justify-start hide-scrollbar")
+const profileTabsTriggerClass = cn(tabsTriggerClass, "max-sm:text-sm max-sm:px-3 shrink-0")

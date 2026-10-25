@@ -1,4 +1,5 @@
 "use client"
+import { useRequireAdmin } from "@/app/(main)/_hooks/use-require-admin"
 import { Anime_LocalFile, Summary_ScanSummaryFile, Summary_ScanSummaryLog } from "@/api/generated/types"
 import { useGetScanSummaries } from "@/api/hooks/scan_summary.hooks"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
@@ -24,7 +25,14 @@ import { TbListSearch } from "react-icons/tb"
 
 export const dynamic = "force-static"
 
+// Downloads are admin-only (see main-sidebar).
 export default function Page() {
+    const allowed = useRequireAdmin()
+    if (!allowed) return null
+    return <AdminPage />
+}
+
+function AdminPage() {
 
     const [selectedSummaryId, setSelectedSummaryId] = React.useState<string | undefined | null>(undefined)
     const [searchQuery, setSearchQuery] = React.useState("")

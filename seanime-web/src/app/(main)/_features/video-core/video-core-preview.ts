@@ -254,6 +254,11 @@ export class VideoCorePreviewManager {
 
         if (!frameWidth || !frameHeight) return undefined
 
+        // Reading a frame back from the *playing* video stalls the compositor for a moment, which
+        // showed up as the picture hitching (jumping back/forward) while audio carried on. Do it
+        // only when the browser is idle, right after a frame has been presented.
+        await waitForIdleAfterFrame(this.videoElement)
+
         try {
             this.configureRenderingSurface(frameWidth, frameHeight)
             this._drawingContext.drawImage(
@@ -548,4 +553,21 @@ type Job = {
     segmentIndex: number
     execute: () => Promise<void>
     promise: Promise<string | undefined>
+}
+
+/**
+ * Resolves after the next presented video frame (requestVideoFrameCallback) and then the next idle
+ * period (requestIdleCallback), with fallbacks, so preview captures never compete with playback.
+ */
+function waitForIdleAfterFrame(video: HTMLVideoElement): Promise<void> {
+    return new Promise(resolve => {
+        const idle = () => {
+            const ric = (window as any).requestIdleCallback as ((cb: () => void, opts?: { timeout: number }) => number) | undefined
+            if (ric) ric(() => resolve(), { timeout: 1500 })
+            else setTimeout(resolve, 50)
+        }
+        const rvfc = (video as any).requestVideoFrameCallback as ((cb: () => void) => number) | undefined
+        if (rvfc && !video.paused) rvfc.call(video, idle)
+        else idle()
+    })
 }

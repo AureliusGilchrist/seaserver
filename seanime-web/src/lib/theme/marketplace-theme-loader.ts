@@ -20,6 +20,8 @@ export interface MarketplaceThemeMeta {
     playerIconOverrides: Record<string, string>
     previewColors?: { bg: string; primary: string; secondary: string; accent: string }
     backgroundImageUrl?: string
+    /** Portrait wallpaper for phones. */
+    mobileBackgroundImageUrl?: string
     cssVars?: Record<string, string>
     fontFamily?: string
     fontHref?: string

@@ -453,9 +453,12 @@ func (h *Handler) HandleEmptyMangaEntryCache(c echo.Context) error {
 //	@returns manga.ChapterContainer
 func (h *Handler) HandleGetMangaEntryChapters(c echo.Context) error {
 
+	// Also answers GET ?mediaId=&provider= — the Android client sends POSTs through Capacitor's
+	// native plugin bridge, where a large chapter list could stall forever; a GET takes the WebView's
+	// own request path.
 	type body struct {
-		MediaId  int    `json:"mediaId"`
-		Provider string `json:"provider"`
+		MediaId  int    `json:"mediaId" query:"mediaId"`
+		Provider string `json:"provider" query:"provider"`
 	}
 
 	var b body

@@ -56,7 +56,7 @@ export function ScanProgressBar() {
             {/*        <p>{progress}% - {status}</p>*/}
             {/*    </div>*/}
             {/*</div>*/}
-            <div className="z-50 fixed bottom-4 right-4" data-scan-progress-bar-card-container>
+            <div className="sea-float-bottom-2 z-50 fixed bottom-4 right-4" data-scan-progress-bar-card-container>
                 <PageWrapper>
                     <Card className="w-fit max-w-[400px] relative" data-scan-progress-bar-card>
                         <CardHeader>
@@ -92,7 +92,7 @@ export function MangaHydrationProgressBar() {
 
     return (
         <>
-            <div className="z-50 fixed bottom-4 right-4" data-manga-hydration-status-card-container>
+            <div className="sea-float-bottom-2 z-50 fixed bottom-4 right-4" data-manga-hydration-status-card-container>
                 <PageWrapper>
                     <Card className="w-[440px] max-w-[calc(100vw-2rem)]" data-manga-hydration-status-card>
                         <CardHeader className="space-y-3">

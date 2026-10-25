@@ -107,7 +107,7 @@ export function GlobalOstSearchButton() {
                 title={disabled ? "Select a theme to search OST" : `Find OST — ${themeDisplayName}`}
                 disabled={disabled}
                 className={cn(
-                    "fixed right-5 z-50 flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xl",
+                    "sea-float-bottom fixed right-5 z-50 flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xl",
                     "border shadow-xl transition-all duration-300 ease-out",
                     "text-[--foreground] font-semibold group",
                     bottomPosition,

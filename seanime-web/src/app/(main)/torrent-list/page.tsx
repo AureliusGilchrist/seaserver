@@ -1,4 +1,5 @@
 "use client"
+import { useRequireAdmin } from "@/app/(main)/_hooks/use-require-admin"
 import { TorrentClientAction_Variables } from "@/api/generated/endpoint.types"
 import { TorrentClient_Torrent } from "@/api/generated/types"
 import { useGetActiveTorrentList, useGetTorrentAddQueue, useTorrentClientAction } from "@/api/hooks/torrent_client.hooks"
@@ -26,7 +27,14 @@ import { TbSortAscending, TbSortDescending } from "react-icons/tb"
 
 export const dynamic = "force-static"
 
+// Downloads are admin-only (see main-sidebar).
 export default function Page() {
+    const allowed = useRequireAdmin()
+    if (!allowed) return null
+    return <AdminPage />
+}
+
+function AdminPage() {
     const serverStatus = useServerStatus()
 
     return (

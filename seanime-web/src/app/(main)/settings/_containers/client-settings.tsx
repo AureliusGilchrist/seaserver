@@ -189,7 +189,6 @@ function PersonalSection({ def, children, wide }: { def: SectionDef, children: R
             className={cn(
                 "scroll-mt-28 rounded-2xl border border-white/[0.07] bg-gradient-to-b from-white/[0.035] to-white/[0.01]",
                 "shadow-xl shadow-black/20 backdrop-blur-md overflow-hidden",
-                wide && "xl:col-span-2",
             )}
         >
             <header className="flex items-start gap-3 px-5 pt-5 pb-4 border-b border-white/[0.06]">
@@ -420,8 +419,9 @@ export function ClientSettings(props: ClientSettingsProps) {
             <PersonalHero overridesCount={overridesCount} />
             <PersonalNav />
 
-            <div className="grid gap-5 xl:grid-cols-2 items-start">
-
+            {/* Full-width section, then a two-column masonry flow (no row gaps on desktop), then the
+                full-width App section. */}
+            <div className="space-y-5">
                 <PersonalSection def={section("playback")} wide>
                     <div className="grid lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-white/[0.05]">
                         <SettingRow settingKey="autoUpdateProgress">
@@ -494,185 +494,188 @@ export function ClientSettings(props: ClientSettingsProps) {
                     </SettingRow>
                 </PersonalSection>
 
-                <PersonalSection def={section("news")}>
-                    <SettingRow settingKey="newsNotifyNewEntries">
-                        <Switch
-                            side="right"
-                            value={personal.newsNotifyNewEntries}
-                            onValueChange={v => handleSet("newsNotifyNewEntries", v)}
-                            label="Notify me about new articles"
-                            help="A notification pops up and lands in your notification drawer."
-                            moreHelp="The server checks your feeds every 15 minutes."
-                        />
-                    </SettingRow>
-                    <SettingRow settingKey={["newsNotifyMode", "newsNotifyKeywords"]}>
-                        <div className="space-y-3">
-                            <div>
-                                <p className="text-sm font-medium">Which news notifies me</p>
-                                <p className="text-xs text-[--muted]">Every headline still shows on the News page — this only decides what interrupts you.</p>
-                            </div>
-                            <NewsNotifyModePicker
-                                value={personal.newsNotifyMode}
-                                onChange={v => handleSet("newsNotifyMode", v)}
-                                disabled={!personal.newsNotifyNewEntries}
-                            />
-                            {personal.newsNotifyNewEntries && personal.newsNotifyMode === "keywords" && (
-                                <KeywordEditor value={personal.newsNotifyKeywords} onChange={v => handleSet("newsNotifyKeywords", v)} />
-                            )}
-                            {personal.newsNotifyNewEntries && personal.newsNotifyMode === "lists" && (
-                                <p className="rounded-lg bg-black/20 px-3 py-2 text-xs text-[--muted] ring-1 ring-white/[0.06]">
-                                    Matches a headline against the titles on your Planning and Completed lists (anime and manga).
-                                </p>
-                            )}
-                        </div>
-                    </SettingRow>
-                    <SettingRow settingKey="newsFeedShowMoreCount">
-                        <NumberInput
-                            className="max-w-[240px]"
-                            label="Entries on the News page"
-                            help="Between 10 and 200."
-                            min={10}
-                            max={200}
-                            value={personal.newsFeedShowMoreCount}
-                            onValueChange={v => {
-                                if (!Number.isNaN(v)) handleSet("newsFeedShowMoreCount", v)
-                            }}
-                        />
-                    </SettingRow>
-                </PersonalSection>
-
-                <PersonalSection def={section("display")}>
-                    <SettingRow settingKey="hideAudienceScore">
-                        <Switch
-                            side="right"
-                            value={personal.hideAudienceScore}
-                            onValueChange={v => handleSet("hideAudienceScore", v)}
-                            label="Hide audience score"
-                            help="Keep scores hidden until you choose to see them."
-                        />
-                    </SettingRow>
-                    <SettingRow settingKey="blurAdultContent">
-                        <Switch
-                            side="right"
-                            value={personal.blurAdultContent}
-                            onValueChange={v => handleSet("blurAdultContent", v)}
-                            label="Blur adult content"
-                            help="Whether adult content appears at all is a server-wide setting."
-                        />
-                    </SettingRow>
-                    <SettingRow settingKey="disableAnimeCardTrailers">
-                        <Switch
-                            side="right"
-                            value={personal.disableAnimeCardTrailers}
-                            onValueChange={v => handleSet("disableAnimeCardTrailers", v)}
-                            label="Disable card trailers"
-                            help="No trailer previews when hovering anime cards."
-                        />
-                    </SettingRow>
-                </PersonalSection>
-
-                <PersonalSection def={section("lists")}>
-                    <SettingRow settingKey="mangaAutoUpdateProgress">
-                        <Switch
-                            side="right"
-                            value={personal.mangaAutoUpdateProgress}
-                            onValueChange={v => handleSet("mangaAutoUpdateProgress", v)}
-                            label="Update manga progress automatically"
-                            help="Reading a chapter to the end marks it as read."
-                        />
-                    </SettingRow>
-                    <SettingRow settingKey="autoPauseStaleWatchingDays">
-                        <NumberInput
-                            className="max-w-[240px]"
-                            label="Auto-pause series after (days)"
-                            help="A Watching series with no activity for this long is set to Paused. 0 turns it off."
-                            min={0}
-                            max={365}
-                            value={personal.autoPauseStaleWatchingDays}
-                            onValueChange={v => {
-                                if (!Number.isNaN(v)) handleSet("autoPauseStaleWatchingDays", v)
-                            }}
-                        />
-                    </SettingRow>
-                    <div className="p-3 [&_.UI-Card__root]:bg-transparent [&_.UI-Card__root]:border-0 [&_.UI-Card__root]:shadow-none">
-                        <AnilistOverwriteCard />
-                    </div>
-                </PersonalSection>
-
-                <PersonalSection def={section("player")}>
-                    <SettingRow settingKey="mpvAutoSkipOpening">
-                        <Switch
-                            side="right"
-                            value={personal.mpvAutoSkipOpening}
-                            onValueChange={v => handleSet("mpvAutoSkipOpening", v)}
-                            label="Skip openings"
-                        />
-                    </SettingRow>
-                    <SettingRow settingKey="mpvAutoSkipEnding">
-                        <Switch
-                            side="right"
-                            value={personal.mpvAutoSkipEnding}
-                            onValueChange={v => handleSet("mpvAutoSkipEnding", v)}
-                            label="Skip endings"
-                        />
-                    </SettingRow>
-                    <SettingRow settingKey="mpvAutoSkipFiller">
-                        <Switch
-                            side="right"
-                            value={personal.mpvAutoSkipFiller}
-                            onValueChange={v => handleSet("mpvAutoSkipFiller", v)}
-                            label="Skip filler episodes"
-                            help="Jumps to the next non-filler episode, using AnimeFillerList data."
-                        />
-                    </SettingRow>
-                    <div className="p-3 [&_.UI-Card__root]:bg-transparent [&_.UI-Card__root]:border-0 [&_.UI-Card__root]:shadow-none">
-                        <PlaybackSettings />
-                    </div>
-                </PersonalSection>
-
-                <PersonalSection def={section("discord")}>
-                    <SettingRow settingKey={["enableRichPresence", "enableAnimeRichPresence", "enableMangaRichPresence"]}>
-                        <div className="space-y-3">
+                <div className="gap-5 xl:columns-2 [&>section]:mb-5 [&>section]:break-inside-avoid">
+                    <PersonalSection def={section("news")}>
+                        <SettingRow settingKey="newsNotifyNewEntries">
                             <Switch
                                 side="right"
-                                value={personal.enableRichPresence}
-                                onValueChange={v => handleSet("enableRichPresence", v)}
-                                label="Enable rich presence"
+                                value={personal.newsNotifyNewEntries}
+                                onValueChange={v => handleSet("newsNotifyNewEntries", v)}
+                                label="Notify me about new articles"
+                                help="A notification pops up and lands in your notification drawer."
+                                moreHelp="The server checks your feeds every 15 minutes."
                             />
-                            <div className={cn("flex flex-wrap gap-2", !personal.enableRichPresence && "opacity-50 pointer-events-none")}>
-                                {([["enableAnimeRichPresence", "Anime"], ["enableMangaRichPresence", "Manga"]] as const).map(([key, label]) => (
-                                    <button
-                                        key={key}
-                                        type="button"
-                                        onClick={() => handleSet(key, !personal[key])}
-                                        className={cn(
-                                            "rounded-full px-3 py-1 text-xs font-medium ring-1 transition-colors",
-                                            personal[key] ? "bg-blue-500/20 text-blue-100 ring-blue-400/30" : "bg-white/5 text-[--muted] ring-white/10 hover:text-white",
-                                        )}
-                                    >
-                                        {personal[key] ? "✓ " : ""}{label}
-                                    </button>
-                                ))}
+                        </SettingRow>
+                        <SettingRow settingKey={["newsNotifyMode", "newsNotifyKeywords"]}>
+                            <div className="space-y-3">
+                                <div>
+                                    <p className="text-sm font-medium">Which news notifies me</p>
+                                    <p className="text-xs text-[--muted]">Every headline still shows on the News page — this only decides what interrupts you.</p>
+                                </div>
+                                <NewsNotifyModePicker
+                                    value={personal.newsNotifyMode}
+                                    onChange={v => handleSet("newsNotifyMode", v)}
+                                    disabled={!personal.newsNotifyNewEntries}
+                                />
+                                {personal.newsNotifyNewEntries && personal.newsNotifyMode === "keywords" && (
+                                    <KeywordEditor value={personal.newsNotifyKeywords} onChange={v => handleSet("newsNotifyKeywords", v)} />
+                                )}
+                                {personal.newsNotifyNewEntries && personal.newsNotifyMode === "lists" && (
+                                    <p className="rounded-lg bg-black/20 px-3 py-2 text-xs text-[--muted] ring-1 ring-white/[0.06]">
+                                        Matches a headline against the titles on your Planning and Completed lists (anime and manga).
+                                    </p>
+                                )}
                             </div>
+                        </SettingRow>
+                        <SettingRow settingKey="newsFeedShowMoreCount">
+                            <NumberInput
+                                className="max-w-[240px]"
+                                label="Entries on the News page"
+                                help="Between 10 and 200."
+                                min={10}
+                                max={200}
+                                value={personal.newsFeedShowMoreCount}
+                                onValueChange={v => {
+                                    if (!Number.isNaN(v)) handleSet("newsFeedShowMoreCount", v)
+                                }}
+                            />
+                        </SettingRow>
+                    </PersonalSection>
+
+                    <PersonalSection def={section("display")}>
+                        <SettingRow settingKey="hideAudienceScore">
+                            <Switch
+                                side="right"
+                                value={personal.hideAudienceScore}
+                                onValueChange={v => handleSet("hideAudienceScore", v)}
+                                label="Hide audience score"
+                                help="Keep scores hidden until you choose to see them."
+                            />
+                        </SettingRow>
+                        <SettingRow settingKey="blurAdultContent">
+                            <Switch
+                                side="right"
+                                value={personal.blurAdultContent}
+                                onValueChange={v => handleSet("blurAdultContent", v)}
+                                label="Blur adult content"
+                                help="Whether adult content appears at all is a server-wide setting."
+                            />
+                        </SettingRow>
+                        <SettingRow settingKey="disableAnimeCardTrailers">
+                            <Switch
+                                side="right"
+                                value={personal.disableAnimeCardTrailers}
+                                onValueChange={v => handleSet("disableAnimeCardTrailers", v)}
+                                label="Disable card trailers"
+                                help="No trailer previews when hovering anime cards."
+                            />
+                        </SettingRow>
+                    </PersonalSection>
+
+                    <PersonalSection def={section("discord")}>
+                        <SettingRow settingKey={["enableRichPresence", "enableAnimeRichPresence", "enableMangaRichPresence"]}>
+                            <div className="space-y-3">
+                                <Switch
+                                    side="right"
+                                    value={personal.enableRichPresence}
+                                    onValueChange={v => handleSet("enableRichPresence", v)}
+                                    label="Enable rich presence"
+                                />
+                                <div className={cn("flex flex-wrap gap-2", !personal.enableRichPresence && "opacity-50 pointer-events-none")}>
+                                    {([["enableAnimeRichPresence", "Anime"], ["enableMangaRichPresence", "Manga"]] as const).map(([key, label]) => (
+                                        <button
+                                            key={key}
+                                            type="button"
+                                            onClick={() => handleSet(key, !personal[key])}
+                                            className={cn(
+                                                "rounded-full px-3 py-1 text-xs font-medium ring-1 transition-colors",
+                                                personal[key] ? "bg-blue-500/20 text-blue-100 ring-blue-400/30" : "bg-white/5 text-[--muted] ring-white/10 hover:text-white",
+                                            )}
+                                        >
+                                            {personal[key] ? "✓ " : ""}{label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </SettingRow>
+                        <SettingRow settingKey="richPresenceHideSeanimeRepositoryButton">
+                            <Switch
+                                side="right"
+                                value={personal.richPresenceHideSeanimeRepositoryButton}
+                                onValueChange={v => handleSet("richPresenceHideSeanimeRepositoryButton", v)}
+                                label="Hide the repository button"
+                            />
+                        </SettingRow>
+                        <SettingRow settingKey="richPresenceShowAniListProfileButton">
+                            <Switch
+                                side="right"
+                                value={personal.richPresenceShowAniListProfileButton}
+                                onValueChange={v => handleSet("richPresenceShowAniListProfileButton", v)}
+                                label="Show my AniList profile button"
+                            />
+                        </SettingRow>
+                    </PersonalSection>
+
+                    <PersonalSection def={section("lists")}>
+                        <SettingRow settingKey="mangaAutoUpdateProgress">
+                            <Switch
+                                side="right"
+                                value={personal.mangaAutoUpdateProgress}
+                                onValueChange={v => handleSet("mangaAutoUpdateProgress", v)}
+                                label="Update manga progress automatically"
+                                help="Reading a chapter to the end marks it as read."
+                            />
+                        </SettingRow>
+                        <SettingRow settingKey="autoPauseStaleWatchingDays">
+                            <NumberInput
+                                className="max-w-[240px]"
+                                label="Auto-pause series after (days)"
+                                help="A Watching series with no activity for this long is set to Paused. 0 turns it off."
+                                min={0}
+                                max={365}
+                                value={personal.autoPauseStaleWatchingDays}
+                                onValueChange={v => {
+                                    if (!Number.isNaN(v)) handleSet("autoPauseStaleWatchingDays", v)
+                                }}
+                            />
+                        </SettingRow>
+                        <div className="p-3 [&_.UI-Card__root]:bg-transparent [&_.UI-Card__root]:border-0 [&_.UI-Card__root]:shadow-none">
+                            <AnilistOverwriteCard />
                         </div>
-                    </SettingRow>
-                    <SettingRow settingKey="richPresenceHideSeanimeRepositoryButton">
-                        <Switch
-                            side="right"
-                            value={personal.richPresenceHideSeanimeRepositoryButton}
-                            onValueChange={v => handleSet("richPresenceHideSeanimeRepositoryButton", v)}
-                            label="Hide the repository button"
-                        />
-                    </SettingRow>
-                    <SettingRow settingKey="richPresenceShowAniListProfileButton">
-                        <Switch
-                            side="right"
-                            value={personal.richPresenceShowAniListProfileButton}
-                            onValueChange={v => handleSet("richPresenceShowAniListProfileButton", v)}
-                            label="Show my AniList profile button"
-                        />
-                    </SettingRow>
-                </PersonalSection>
+                    </PersonalSection>
+
+                    <PersonalSection def={section("player")}>
+                        <SettingRow settingKey="mpvAutoSkipOpening">
+                            <Switch
+                                side="right"
+                                value={personal.mpvAutoSkipOpening}
+                                onValueChange={v => handleSet("mpvAutoSkipOpening", v)}
+                                label="Skip openings"
+                            />
+                        </SettingRow>
+                        <SettingRow settingKey="mpvAutoSkipEnding">
+                            <Switch
+                                side="right"
+                                value={personal.mpvAutoSkipEnding}
+                                onValueChange={v => handleSet("mpvAutoSkipEnding", v)}
+                                label="Skip endings"
+                            />
+                        </SettingRow>
+                        <SettingRow settingKey="mpvAutoSkipFiller">
+                            <Switch
+                                side="right"
+                                value={personal.mpvAutoSkipFiller}
+                                onValueChange={v => handleSet("mpvAutoSkipFiller", v)}
+                                label="Skip filler episodes"
+                                help="Jumps to the next non-filler episode, using AnimeFillerList data."
+                            />
+                        </SettingRow>
+                        <div className="p-3 [&_.UI-Card__root]:bg-transparent [&_.UI-Card__root]:border-0 [&_.UI-Card__root]:shadow-none">
+                            <PlaybackSettings />
+                        </div>
+                    </PersonalSection>
+
+                </div>
 
                 <PersonalSection def={section("app")} wide>
                     <div className="p-3 [&_.UI-Card__root]:bg-transparent [&_.UI-Card__root]:border-0 [&_.UI-Card__root]:shadow-none">

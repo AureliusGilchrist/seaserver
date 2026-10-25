@@ -31,6 +31,19 @@ func NewEchoApp(app *App, webFS *embed.FS) *echo.Echo {
 		e.Use(middleware.Secure())
 	}
 
+	// The web-static handler below answers before the CORS middleware (registered later, in
+	// InitRoutes) ever runs. The Android client loads theme wallpapers cross-origin and reads them
+	// back into a canvas to take the accent color, which needs this header; without it the image
+	// load fails and the app has no accent.
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if strings.HasPrefix(c.Request().URL.Path, "/themes/") {
+				c.Response().Header().Set("Access-Control-Allow-Origin", "*")
+			}
+			return next(c)
+		}
+	})
+
 	e.Use(middleware.StaticWithConfig(middleware.StaticConfig{
 		Filesystem: webFs,
 		Browse:     true,

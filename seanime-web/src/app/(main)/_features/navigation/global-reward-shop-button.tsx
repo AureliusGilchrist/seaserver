@@ -18,10 +18,6 @@ export function GlobalRewardShopButton() {
     const isFullscreen = useAtomValue(vc_isFullscreen)
     const isSeaPlayerFullscreen = useAtomValue(__seaMediaPlayer_isFullscreenAtom)
 
-    // Hide the floating reward-shop / level pill entirely while any player
-    // is fullscreen — it would otherwise overlap the video.
-    if (isFullscreen || isSeaPlayerFullscreen) return null
-
     // Extract a solid color from the XP bar fill CSS for use as the badge background
     const badgeBg = React.useMemo(() => {
         const fill = activeXPBarSkin?.fillCss
@@ -44,8 +40,11 @@ export function GlobalRewardShopButton() {
             : "rgba(255,255,255,0.12)",
     }
 
-    // In fullscreen: raise the button well above the player's timeline + control bar (animated)
-    const bottomPosition = isFullscreen ? "bottom-[140px]" : "bottom-5"
+    // Hide the floating reward-shop / level pill entirely while any player is fullscreen — it would
+    // otherwise overlap the video. (After every hook: returning before useMemo broke hook order.)
+    if (isFullscreen || isSeaPlayerFullscreen) return null
+
+    const bottomPosition = "bottom-5"
 
     return (
         <>
@@ -55,7 +54,7 @@ export function GlobalRewardShopButton() {
                 title="Reward Shop"
                 style={badgeStyle}
                 className={cn(
-                    "fixed left-5 lg:left-[5.5rem] z-50 flex items-center gap-2 px-3 py-2 rounded-2xl",
+                    "sea-float-bottom fixed left-5 lg:left-[5.5rem] z-50 flex items-center gap-2 px-3 py-2 rounded-2xl",
                     "border shadow-xl transition-all duration-300 ease-out",
                     "hover:brightness-125",
                     "text-[--foreground] text-sm font-semibold group",
@@ -77,9 +76,9 @@ export function GlobalRewardShopButton() {
                     />
 
                     {/* Panel */}
-                    <div className="relative z-10 w-full max-w-5xl max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-[--background] border border-[--border] shadow-2xl overflow-hidden">
+                    <div className="relative z-10 w-full max-w-5xl max-h-[88dvh] sm:max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-[--background] border border-[--border] shadow-2xl overflow-hidden">
                         {/* Header */}
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-[--border] shrink-0">
+                        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-[--border] shrink-0">
                             <div className="flex items-center gap-3">
                                 <GiTrophyCup className="w-5 h-5 text-[--color-brand-400]" />
                                 <h2 className="text-lg font-bold">Reward Shop</h2>
@@ -94,7 +93,7 @@ export function GlobalRewardShopButton() {
                         </div>
 
                         {/* Content */}
-                        <div className="overflow-y-auto p-6">
+                        <div className="overflow-y-auto p-3 sm:p-6 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
                             <RewardShop currentLevel={level} />
                         </div>
                     </div>

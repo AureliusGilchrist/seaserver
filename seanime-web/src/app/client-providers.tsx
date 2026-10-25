@@ -77,6 +77,10 @@ const NON_PERSISTED_QUERY_KEYS = new Set<string>([
     API_ENDPOINTS.ANIME.GetAnimeEpisodeCollection.key,
     API_ENDPOINTS.MANGA.GetMangaEntry.key,
     API_ENDPOINTS.MANGA.GetMangaEntryDetails.key,
+    // Chapter lists can run to thousands of entries; serializing them into the persisted cache
+    // on every write is heavy, especially on a phone.
+    API_ENDPOINTS.MANGA.GetMangaEntryChapters.key,
+    API_ENDPOINTS.MANGA.GetMangaEntryPages.key,
     // A media container contains a per-client live stream URL and must never survive that session.
     API_ENDPOINTS.MEDIASTREAM.RequestMediastreamMediaContainer.key,
     // Ephemeral queue state: the download queue can emit events every couple of

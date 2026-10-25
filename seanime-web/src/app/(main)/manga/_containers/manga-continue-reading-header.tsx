@@ -1,4 +1,5 @@
 "use client"
+import { useHeroScrollFade } from "@/app/(main)/_features/media/_lib/use-hero-scroll-fade"
 import { AL_BaseManga } from "@/api/generated/types"
 import { TRANSPARENT_SIDEBAR_BANNER_IMG_STYLE } from "@/app/(main)/_features/custom-ui/styles"
 import { MediaEntryAudienceScore } from "@/app/(main)/_features/media/_components/media-entry-metadata-components"
@@ -22,7 +23,6 @@ import { AnimatePresence, motion } from "motion/react"
 import React from "react"
 import { RiSignalTowerLine } from "react-icons/ri"
 import { LuBookMarked } from "react-icons/lu"
-import { useWindowScroll } from "react-use"
 import { MangaContinueReadingEntry } from "@/app/(main)/manga/_lib/use-manga-continue-reading"
 
 /**
@@ -372,22 +372,15 @@ function BannerImage({ manga, isTransitioning, shouldBlurBanner }: BannerImagePr
     ], `${manga?.id ?? "none"}:${customBannerImage ?? ""}`)
     const isPrimaryBanner = !!bannerImage && (bannerImage === customBannerImage || bannerImage === manga?.bannerImage)
 
-    const { y } = useWindowScroll()
-
-    const [dimmed, setDimmed] = React.useState(false)
-    React.useEffect(() => {
-        if (y > 100)
-            setDimmed(true)
-        else
-            setDimmed(false)
-    }, [(y > 100)])
+    // Same scroll fade as the anime home and media page heroes. Fade only: the banner keeps its size.
+    const heroFade = useHeroScrollFade()
 
     return (
         <div
             data-continue-watching-header-banner-image
             className={cn(
-                "lg:h-[35rem] w-full flex-none object-cover object-center top-0 bg-[--background] absolute",
-                !ts.libraryScreenCustomBackgroundImage && "fixed",
+                "lg:h-[35rem] w-full flex-none object-cover object-center top-0 bg-[--background]",
+                heroFade.containerClass,
                 !ts.disableSidebarTransparency && TRANSPARENT_SIDEBAR_BANNER_IMG_STYLE,
                 __isDesktop__ && "top-[-2rem]",
                 ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && "lg:h-[30rem]",
@@ -416,7 +409,6 @@ function BannerImage({ manga, isTransitioning, shouldBlurBanner }: BannerImagePr
                                 isTransitioning && "scale-[1.01] -translate-x-0.5",
                                 !isTransitioning && "scale-100 translate-x-0",
                                 !isPrimaryBanner && "opacity-35",
-                                { "opacity-5": dimmed },
                             )}
                             onError={handleBannerError}
                         />

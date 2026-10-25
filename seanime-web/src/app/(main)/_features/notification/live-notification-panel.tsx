@@ -26,7 +26,7 @@ export function LiveNotificationPanel({
         <section
             aria-label="New notifications"
             aria-live="polite"
-            className="fixed bottom-5 right-5 z-[100] flex w-[22rem] max-w-[calc(100vw-2.5rem)] flex-col gap-3"
+            className="sea-float-bottom-2 fixed bottom-5 right-5 z-[100] flex w-[22rem] max-w-[calc(100vw-2.5rem)] flex-col gap-3"
         >
             {notifications.map(notification => (
                 notification.type === "news"

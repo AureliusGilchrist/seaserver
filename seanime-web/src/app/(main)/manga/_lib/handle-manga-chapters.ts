@@ -31,6 +31,7 @@ export function useHandleMangaChapters(
         data: chapterContainer,
         isLoading: chapterContainerLoading,
         isError: chapterContainerError,
+        refetch: refetchChapterContainer,
     } = useGetMangaEntryChapters({
         mediaId: Number(mediaId),
         provider: selectedProvider || undefined,
@@ -140,5 +141,6 @@ export function useHandleMangaChapters(
         chapterContainer: filteredChapterContainer,
         chapterContainerLoading,
         chapterContainerError,
+        refetchChapterContainer,
     }
 }

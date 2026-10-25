@@ -2401,3 +2401,21 @@ html[data-sea-idle-active] body::after {
 @media (prefers-reduced-motion: reduce) {
     .sea-frame::before, html[data-sea-accent] .UI-Button__root, html[data-sea-slider] .UI-ProgressBar__indicator { animation: none !important; }
 }
+
+/* ══ Phones: safe areas and the mobile dock ═════════════════════════════════
+   The mobile dock (mobile-tab-bar.tsx) sets html[data-sea-dock] while it's shown. Floating pills
+   carry .sea-float-bottom (first row: Lv / OST) or .sea-float-bottom-2 (second row: sync status,
+   notifications, scan cards, playlist) so they stack above the dock instead of under or on top
+   of it, and above the phone's own gesture/navigation bar. */
+:root {
+    --sea-safe-top: env(safe-area-inset-top, 0px);
+    --sea-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --sea-dock-clear: calc(4.25rem + max(0.9rem, var(--sea-safe-bottom)) + 0.75rem);
+}
+html[data-sea-dock] .sea-float-bottom { bottom: var(--sea-dock-clear) !important; }
+html[data-sea-dock] .sea-float-bottom-2 { bottom: calc(var(--sea-dock-clear) + 3.25rem) !important; }
+html[data-sea-dock] .sea-float-bottom-2.left-4,
+html[data-sea-dock] .sea-float-bottom-2.left-5 { left: 50% !important; transform: translateX(-50%); }
+/* Toasts and the top bar clear the status bar / notch. */
+[data-sonner-toaster][data-y-position="top"] { top: calc(var(--sea-safe-top) + 16px) !important; }
+[data-top-navbar] { padding-top: var(--sea-safe-top); }

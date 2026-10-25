@@ -126,8 +126,10 @@ export function useSelectedMangaProvider(mId: Nullish<string | number>) {
         // Remove the stored provider if there are no providers available
         if (!defaultProvider || extensions.length === 0) {
             setStoredProvider(prev => {
-                delete prev[String(mId)]
-                return prev
+                // A new object: deleting from prev and returning it unchanged never re-renders.
+                const next = { ...prev }
+                delete next[String(mId)]
+                return next
             })
             return
         }

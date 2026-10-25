@@ -4,7 +4,8 @@
     "webDir": "www",
     "android": {
         "allowMixedContent": true,
-        "webContentsDebuggingEnabled": false
+        "webContentsDebuggingEnabled": false,
+        "adjustMarginsForEdgeToEdge": "auto"
     },
     "plugins": {
         "CapacitorHttp": {

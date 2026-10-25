@@ -107,12 +107,15 @@ export default function Page() {
             data-manga-entry-list-data={JSON.stringify(mangaEntry.listData)}
         >
             <MetaSection entry={mangaEntry} details={mangaDetails} />
-            <MangaReleaseEstimate
-                mediaId={mangaEntry.mediaId}
-                status={mangaEntry.media?.status}
-            />
 
             <div data-manga-entry-page-content-container className="px-4 md:px-8 relative z-[8]">
+
+                {/* Inside the raised content container: on its own it sat under the fixed banner
+                    (z-3) and couldn't be seen on desktop. */}
+                <MangaReleaseEstimate
+                    mediaId={mangaEntry.mediaId}
+                    status={mangaEntry.media?.status}
+                />
 
                 <PageWrapper
                     data-manga-entry-page-content

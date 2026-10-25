@@ -163,11 +163,16 @@ export function useGetMangaEntryChapters(variables: Partial<GetMangaEntryChapter
     const queryClient = useQueryClient()
     const query = useServerQuery<Manga_ChapterContainer, GetMangaEntryChapters_Variables>({
         endpoint: API_ENDPOINTS.MANGA.GetMangaEntryChapters.endpoint,
-        method: API_ENDPOINTS.MANGA.GetMangaEntryChapters.methods[0],
+        // GET (the server answers both): on Android a POST goes through Capacitor's native plugin
+        // bridge, where a large chapter list could stall and leave the list loading forever.
+        method: "GET",
         queryKey: [API_ENDPOINTS.MANGA.GetMangaEntryChapters.key, String(variables.mediaId), variables.provider],
-        data: variables as GetMangaEntryChapters_Variables,
+        params: { mediaId: variables.mediaId, provider: variables.provider } as GetMangaEntryChapters_Variables,
         enabled: !!variables.mediaId && !!variables.provider,
         muteError: true,
+        // A provider scrape can be slow, but it must end: an error with Retry beats an endless spinner.
+        timeout: 45_000,
+        retry: 1,
     })
     React.useEffect(() => {
         if (query.data) {

@@ -119,6 +119,8 @@ type SeaQuery<D> = {
      * *is* waiting on go first. See `background` in buildSeaQuery.
      */
     background?: boolean
+    /** Abort after this many milliseconds instead of waiting forever (axios `timeout`). */
+    timeout?: number
 }
 
 export function useSeaQuery() {
@@ -151,6 +153,7 @@ export async function buildSeaQuery<T, D extends any = any>(
         data,
         params,
         background,
+        timeout,
     }: SeaQuery<D>): Promise<T | undefined> {
 
     // Resolve auth credentials from the Jotai store at request time rather than trusting the
@@ -172,6 +175,7 @@ export async function buildSeaQuery<T, D extends any = any>(
         method,
         data,
         params,
+        timeout,
         headers: {
             ...(effectivePassword ? { "X-Seanime-Token": effectivePassword } : {}),
             ...(effectiveProfileToken ? { "X-Seanime-Profile-Token": effectiveProfileToken } : {}),
@@ -263,6 +267,8 @@ type ServerQueryProps<R, V> = UseQueryOptions<R | undefined, SeaError, R | undef
     data?: V
     muteError?: boolean
     muteCacheMiss?: boolean
+    /** Request timeout in ms; without one a stalled request leaves the query loading forever. */
+    timeout?: number
 }
 
 /**
@@ -278,6 +284,7 @@ export function useServerQuery<R, V = any>(
         data,
         muteError,
         muteCacheMiss,
+        timeout,
         ...options
     }: ServerQueryProps<R | undefined, V>) {
 
@@ -294,6 +301,7 @@ export function useServerQuery<R, V = any>(
                 data: data,
                 password: password,
                 profileToken: profileToken,
+                timeout,
             })
         },
         ...options,

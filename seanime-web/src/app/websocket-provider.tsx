@@ -85,7 +85,7 @@ export function WebsocketProvider({ children }: { children: React.ReactNode }) {
             <WebSocketContext.Provider value={socket}>
                 <ServerDownModal />
                 {!isConnected && <div
-                    className="fixed right-4 bottom-4 bg-gray-950 border text-sm py-2 px-4 font-semibold rounded-xl z-[100] flex gap-2 items-center opacity-70"
+                    className="sea-float-bottom-2 fixed right-4 bottom-4 bg-gray-950 border text-sm py-2 px-4 font-semibold rounded-xl z-[100] flex gap-2 items-center opacity-70"
                 >
                     <ImSpinner2 className="animate-spin text-base" />
                     Connecting...

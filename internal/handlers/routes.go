@@ -462,24 +462,24 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.POST("/profiles/migration/run", h.HandleRunMigration, h.RequireProfileAdmin)
 	v1.POST("/profiles/migration/skip", h.HandleSkipMigration, h.RequireProfileAdmin)
 
-	// Auto Downloader
-	v1.POST("/auto-downloader/run", h.HandleRunAutoDownloader)
+	// Auto Downloader — managing rules and the queue is admin-only, like the Downloads sidebar group.
+	v1.POST("/auto-downloader/run", h.HandleRunAutoDownloader, h.RequireProfileAdmin)
 	v1.POST("/auto-downloader/run/simulation", h.HandleRunAutoDownloaderSimulation)
 	v1.GET("/auto-downloader/rule/:id", h.HandleGetAutoDownloaderRule)
 	v1.GET("/auto-downloader/rule/anime/:id", h.HandleGetAutoDownloaderRulesByAnime)
 	v1.GET("/auto-downloader/rules", h.HandleGetAutoDownloaderRules)
-	v1.POST("/auto-downloader/rule", h.HandleCreateAutoDownloaderRule)
-	v1.PATCH("/auto-downloader/rule", h.HandleUpdateAutoDownloaderRule)
-	v1.DELETE("/auto-downloader/rule/:id", h.HandleDeleteAutoDownloaderRule)
+	v1.POST("/auto-downloader/rule", h.HandleCreateAutoDownloaderRule, h.RequireProfileAdmin)
+	v1.PATCH("/auto-downloader/rule", h.HandleUpdateAutoDownloaderRule, h.RequireProfileAdmin)
+	v1.DELETE("/auto-downloader/rule/:id", h.HandleDeleteAutoDownloaderRule, h.RequireProfileAdmin)
 
 	v1.GET("/auto-downloader/items", h.HandleGetAutoDownloaderItems)
-	v1.DELETE("/auto-downloader/item", h.HandleDeleteAutoDownloaderItem)
+	v1.DELETE("/auto-downloader/item", h.HandleDeleteAutoDownloaderItem, h.RequireProfileAdmin)
 
 	v1.GET("/auto-downloader/profiles", h.HandleGetAutoDownloaderProfiles)
 	v1.GET("/auto-downloader/profile/:id", h.HandleGetAutoDownloaderProfile)
-	v1.POST("/auto-downloader/profile", h.HandleCreateAutoDownloaderProfile)
-	v1.PATCH("/auto-downloader/profile", h.HandleUpdateAutoDownloaderProfile)
-	v1.DELETE("/auto-downloader/profile/:id", h.HandleDeleteAutoDownloaderProfile)
+	v1.POST("/auto-downloader/profile", h.HandleCreateAutoDownloaderProfile, h.RequireProfileAdmin)
+	v1.PATCH("/auto-downloader/profile", h.HandleUpdateAutoDownloaderProfile, h.RequireProfileAdmin)
+	v1.DELETE("/auto-downloader/profile/:id", h.HandleDeleteAutoDownloaderProfile, h.RequireProfileAdmin)
 
 	// Other
 	v1.POST("/test-dump", h.HandleTestDump)
@@ -635,8 +635,8 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.DELETE("/torrent-client/stuck-downloading-media", h.HandleClearAllStuckDownloadingMediaState)
 	v1.DELETE("/torrent-client/downloaded-media/:mediaId", h.HandleClearDownloadedMediaState)
 	v1.DELETE("/torrent-client/downloaded-media", h.HandleClearAllDownloadedMediaState)
-	v1.DELETE("/torrent-client/purge-downloaded-media", h.HandlePurgeDownloadedMediaState)
-	v1.POST("/torrent-client/action", h.HandleTorrentClientAction)
+	v1.DELETE("/torrent-client/purge-downloaded-media", h.HandlePurgeDownloadedMediaState, h.RequireProfileAdmin)
+	v1.POST("/torrent-client/action", h.HandleTorrentClientAction, h.RequireProfileAdmin)
 	v1.POST("/torrent-client/get-files", h.HandleTorrentClientGetFiles)
 	v1.POST("/torrent-client/rule-magnet", h.HandleTorrentClientAddMagnetFromRule)
 
@@ -742,6 +742,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Manga.GET("/entry/:id/details", h.HandleGetMangaEntryDetails)
 	v1Manga.DELETE("/entry/cache", h.HandleEmptyMangaEntryCache)
 	v1Manga.POST("/chapters", h.HandleGetMangaEntryChapters)
+	v1Manga.GET("/chapters", h.HandleGetMangaEntryChapters)
 	v1Manga.POST("/pages", h.HandleGetMangaEntryPages)
 	v1Manga.POST("/update-progress", h.HandleUpdateMangaProgress)
 

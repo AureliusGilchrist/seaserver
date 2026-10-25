@@ -1,4 +1,5 @@
 "use client"
+import { resolveServerAsset } from "@/lib/server/assets"
 import React from "react"
 import { useAnimeTheme, deriveBrandShades, wallpaperPreviewModeAtom } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { useSetAtom } from "jotai"
@@ -1071,7 +1072,7 @@ export default function ThemeManagerPage() {
                                                 : "border-transparent hover:border-white/30",
                                         )}
                                     >
-                                        <img src={config.backgroundImageUrl} alt="Default" className="w-full h-full object-cover" loading="lazy" />
+                                        <img src={resolveServerAsset(config.backgroundImageUrl)} alt="Default" className="w-full h-full object-cover" loading="lazy" />
                                         <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-[9px] text-white/70 text-center py-0.5">Default</div>
                                     </button>
                                 )}
@@ -1549,7 +1550,7 @@ function WallpaperShopTab({
                                             : "border-transparent hover:border-white/30",
                                     )}
                                 >
-                                    <img src={config.backgroundImageUrl} alt="Default" className="w-full h-full object-cover" loading="lazy" />
+                                    <img src={resolveServerAsset(config.backgroundImageUrl)} alt="Default" className="w-full h-full object-cover" loading="lazy" />
                                     <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-[9px] text-white/70 text-center py-0.5">Default</div>
                                 </button>
                             )}

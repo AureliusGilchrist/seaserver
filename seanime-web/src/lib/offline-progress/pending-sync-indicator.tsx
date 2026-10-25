@@ -103,7 +103,7 @@ export function PendingSyncIndicator() {
                     exit={{ y: 20, opacity: 0 }}
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
                     className={cn(
-                        "fixed bottom-4 left-4 z-[180] rounded-lg px-3 py-2 cursor-pointer",
+                        "sea-float-bottom-2 fixed bottom-4 left-4 z-[180] rounded-lg px-3 py-2 cursor-pointer",
                         "border border-[--border] bg-gray-950/90 backdrop-blur-md shadow-lg",
                         "text-xs text-[--muted] select-none",
                     )}
