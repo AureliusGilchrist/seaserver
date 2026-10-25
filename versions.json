@@ -1,7 +1,7 @@
 {
     "$comment": "Single source of truth for all version numbers. Edit ONLY this file — sync-versions.js (run via predev/prebuild hooks or `node sync-versions.js`) propagates values to seanime-web/package.json, seanime-denshi/package.json, and internal/constants/constants.go automatically.",
     "seaserver": {
-        "version": "5.0.0-1",
+        "version": "5.0.0-2",
         "codename": "Deus Ex Aeternae",
         "source": "internal/constants/constants.go (Version, VersionName)"
     },
@@ -36,5 +36,5 @@
             "url": "https://raw.githubusercontent.com/5rahim/seanime-extensions/refs/heads/main/marketplace.json"
         }
     },
-    "lastUpdated": "2026-10-21"
+    "lastUpdated": "2026-10-25"
 }

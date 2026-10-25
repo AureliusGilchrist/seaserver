@@ -10,7 +10,7 @@ import (
 // at startup via SetVersionsFromJSON. Defaults below are used as fallback if the
 // manifest is missing or malformed.
 var (
-	Version             = "5.0.0-1"
+	Version             = "5.0.0-2"
 	VersionName         = "Deus Ex Aeternae"
 	SeanimeRoomsVersion = "5.0.0-0"
 	// FrontendVersion is the seanime-web version this server build was made to serve.
