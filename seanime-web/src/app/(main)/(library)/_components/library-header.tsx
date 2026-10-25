@@ -1,4 +1,5 @@
 "use client"
+import { useHeroScrollFade } from "@/app/(main)/_features/media/_lib/use-hero-scroll-fade"
 import { Anime_Episode } from "@/api/generated/types"
 import { __libraryHeaderEpisodeAtom } from "@/app/(main)/(library)/_containers/continue-watching"
 import { TRANSPARENT_SIDEBAR_BANNER_IMG_STYLE } from "@/app/(main)/_features/custom-ui/styles"
@@ -12,7 +13,6 @@ import { useSetAtom } from "jotai/react"
 import { AnimatePresence, motion } from "motion/react"
 import React, { useEffect, useState } from "react"
 import { useWindowScroll } from "react-use"
-import { useHeroImageFadeStyle } from "@/app/(main)/_features/media/_lib/use-hero-scroll-fade"
 
 export const __libraryHeaderImageAtom = atom<{ bannerImage?: string | null, episodeImage?: string | null } | null>({
     bannerImage: null,
@@ -70,16 +70,8 @@ export function LibraryHeader({ list }: { list: Anime_Episode[] }) {
         }
     }, [actualImage])
 
-    const { y } = useWindowScroll()
-
-    useEffect(() => {
-        if (y > 100)
-            setDimmed(true)
-        else
-            setDimmed(false)
-    }, [(y > 100)])
-
-    const heroImageFade = useHeroImageFadeStyle()
+    // Same scroll fade as the anime/manga page hero.
+    const heroFade = useHeroScrollFade()
 
     if (!image) return null
 
@@ -88,9 +80,9 @@ export function LibraryHeader({ list }: { list: Anime_Episode[] }) {
             <div
                 data-library-header-container
                 className={cn(
-                    "LIB_HEADER_CONTAINER __header h-[25rem] z-0 !mt-0 !pt-0 top-0 w-full absolute group/library-header pointer-events-none",
-                    // Make it not fixed when the user scrolls down if a background image is set
-                    !ts.libraryScreenCustomBackgroundImage && "fixed",
+                    "LIB_HEADER_CONTAINER __header h-[25rem] z-0 !mt-0 !pt-0 top-0 w-full group/library-header pointer-events-none",
+                    // Fixed + fading without a wallpaper, scrolling away with one — as on the media page.
+                    heroFade.containerClass,
                     !!ts.libraryScreenCustomBackgroundImage && __isDesktop__ && "top-[-2rem]",
                 )}
             >
@@ -128,8 +120,6 @@ export function LibraryHeader({ list }: { list: Anime_Episode[] }) {
                     {/*<div*/}
                     {/*    className="LIB_HEADER_TOP_FADE w-full absolute z-[2] top-0 h-[10rem] opacity-20 bg-gradient-to-b from-[var(--background)] to-transparent via"*/}
                     {/*/>*/}
-                    {/* Hero image fades out on scroll (image only). */}
-                    <div data-hero-image-fade className="absolute inset-0 z-[1] pointer-events-none" style={heroImageFade}>
                     <AnimatePresence>
                         {!!actualImage && (
                             <motion.div
@@ -151,11 +141,10 @@ export function LibraryHeader({ list }: { list: Anime_Episode[] }) {
                                         "object-cover object-center z-[1] opacity-100 transition-opacity duration-700",
                                         !ts.libraryScreenCustomBackgroundImage && "scroll-locked-offset", // if fixed
                                         (shouldHideBanner || shouldBlurBanner) && "opacity-15",
-                                        { "opacity-5": dimmed },
                                     )}
                                     initial={{ scale: 1.01, y: 0 }}
                                     animate={{
-                                        scale: Math.min(1 + y * 0.0002, 1.03),
+                                        ...heroFade.imageAnimate,
                                         // y: Math.max(y * -0.9, -10)
                                     }}
                                     exit={{ scale: 1.01, y: 0 }}
@@ -164,7 +153,6 @@ export function LibraryHeader({ list }: { list: Anime_Episode[] }) {
                             </motion.div>
                         )}
                     </AnimatePresence>
-                    </div>
                     {/* {prevImage && <MotionImage
                      data-library-header-banner-previous-image
                      src={getImageUrl(actualImage || prevImage!)}
