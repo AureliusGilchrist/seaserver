@@ -86,6 +86,8 @@ export const enum WSEvents {
     /** Everything one evaluation pass unlocked, in a single message. */
     ACHIEVEMENTS_UNLOCKED = "achievements-unlocked",
     ANILIST_RATE_LIMITED = "anilist-rate-limited",
+    /** Payload: { items: {mediaId, progress, queuedAt}[], synced: {mediaId, progress}[] } */
+    PROGRESS_QUEUE_UPDATED = "progress-queue-updated",
     ANILIST_API_ONLINE = "anilist-api-online",
     ANILIST_TOKEN_EXPIRED = "anilist-token-expired",
     ANILIST_PLANNING_SLUT_TOKEN_EXPIRED = "anilist-planning-slut-token-expired",

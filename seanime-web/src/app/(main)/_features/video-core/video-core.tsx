@@ -36,7 +36,7 @@ import { vc_paused } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_miniPlayer } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_cursorPosition } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_cursorBusy } from "@/app/(main)/_features/video-core/video-core-atoms"
-import { vc_busy } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_busy, vc_cursorForceHidden } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_containerElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_previousPausedState } from "@/app/(main)/_features/video-core/video-core-atoms"
@@ -242,6 +242,7 @@ export function VideoCoreProvider(props: { id: string, children: React.ReactNode
                 vc_miniPlayer,
                 vc_cursorPosition,
                 vc_busy,
+                vc_cursorForceHidden,
                 vc_videoElement,
                 vc_containerElement,
                 vc_playbackInfo,
@@ -357,6 +358,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
     const isMobile = useAtomValue(vc_isMobile)
     const isMiniPlayer = useAtomValue(vc_miniPlayer)
     const busy = useAtomValue(vc_busy)
+    const cursorForceHidden = useAtomValue(vc_cursorForceHidden)
     const paused = useAtomValue(vc_paused)
     const buffering = useAtomValue(vc_buffering)
     const settings = useAtomValue(vc_settings)
@@ -423,7 +425,8 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                 ref={combineContainerRef}
                 className={cn(
                     "relative w-full h-full bg-black overflow-clip flex items-center justify-center",
-                    (!busy && !isMiniPlayer) && "cursor-none",
+                    // Only a right-click hides the cursor; idling never does (see vc_cursorForceHidden).
+                    (cursorForceHidden && !isMiniPlayer) && "cursor-none",
                 )}
                 onPointerMove={handleContainerPointerMove}
                 onMouseEnter={handleContainerMouseEnter}
@@ -886,6 +889,7 @@ export function VideoCore(props: VideoCoreProps) {
     const perMediaTrackOverrides = useAtomValue(vc_perMediaTrackOverrides)
     const [isMiniPlayer, setIsMiniPlayer] = useAtom(vc_miniPlayer)
     const [busy, setBusy] = useAtom(vc_busy)
+    const setCursorForceHidden = useSetAtom(vc_cursorForceHidden)
     const cursorBusy = useAtomValue(vc_cursorBusy)
     const paused = useAtomValue(vc_paused)
     const [buffering, setBuffering] = useAtom(vc_buffering)
@@ -2013,6 +2017,7 @@ export function VideoCore(props: VideoCoreProps) {
         // even if they were forced hidden by a right-click.
         if (forceHiddenRef.current) {
             forceHiddenRef.current = false
+            setCursorForceHidden(false)
         }
         busyRef.current = true
         setBusy(true)
@@ -2021,6 +2026,7 @@ export function VideoCore(props: VideoCoreProps) {
     // Right-click toggles forcing the controls/cursor hidden, overriding the normal hover behavior.
     const handleContainerContextMenu = () => {
         forceHiddenRef.current = !forceHiddenRef.current
+        setCursorForceHidden(forceHiddenRef.current)
         busyRef.current = !forceHiddenRef.current
         setBusy(!forceHiddenRef.current)
     }

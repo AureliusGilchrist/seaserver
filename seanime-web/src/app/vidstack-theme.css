@@ -46,7 +46,13 @@
 
 [data-media-player][data-view-type='video'][data-started]:not([data-controls]) {
     pointer-events: auto;
-    cursor: none;
+}
+
+/* The cursor is hidden only when the user right-clicks the player (data-sea-cursor-hidden is set by
+   sea-media-player.tsx); idle controls hiding no longer takes the cursor with them. */
+[data-media-player][data-sea-cursor-hidden],
+[data-media-player][data-sea-cursor-hidden] * {
+    cursor: none !important;
 }
 
 [data-media-player] slot {

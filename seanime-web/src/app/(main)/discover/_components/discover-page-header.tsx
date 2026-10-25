@@ -1,3 +1,4 @@
+import { useHeroScrollFade } from "@/app/(main)/_features/media/_lib/use-hero-scroll-fade"
 import { AL_BaseAnime } from "@/api/generated/types"
 import { ElectronYoutubeEmbed, useElectronYoutubeEmbed } from "@/app/(main)/_electron/electron-embed"
 import { TRANSPARENT_SIDEBAR_BANNER_IMG_STYLE } from "@/app/(main)/_features/custom-ui/styles"
@@ -115,12 +116,15 @@ function BannerImage({ media, isTransitioning, shouldBlurBanner, showTrailer, tr
     const trailerSite = (media as AL_BaseAnime)?.trailer?.site || "youtube"
 
     const { electronEmbedAddress } = useElectronYoutubeEmbed()
+    // Same scroll fade as the anime/manga page hero.
+    const heroFade = useHeroScrollFade()
 
     return (
         <div
             data-discover-page-header-banner-image
             className={cn(
-                "lg:h-[35rem] w-full flex-none object-cover object-center absolute top-0 bg-[--background]",
+                "lg:h-[35rem] w-full flex-none object-cover object-center top-0 bg-[--background]",
+                heroFade.containerClass,
                 !ts.disableSidebarTransparency && TRANSPARENT_SIDEBAR_BANNER_IMG_STYLE,
                 __isDesktop__ && "top-[-2rem]",
                 ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && "lg:h-[30rem]",
@@ -138,7 +142,12 @@ function BannerImage({ media, isTransitioning, shouldBlurBanner, showTrailer, tr
 
             {/* Banner Image */}
             <AnimatePresence>
-                <div className="w-full h-full absolute z-[1] overflow-hidden">
+                <motion.div
+                    className="w-full h-full absolute z-[1] overflow-hidden"
+                    initial={{ scale: 1, y: 0 }}
+                    animate={heroFade.imageAnimate}
+                    transition={{ duration: 0.6, ease: "easeOut" }}
+                >
                     {bannerImage && (
                         <MotionImage
                             src={bannerImage}
@@ -155,7 +164,7 @@ function BannerImage({ media, isTransitioning, shouldBlurBanner, showTrailer, tr
                             )}
                         />
                     )}
-                </div>
+                </motion.div>
             </AnimatePresence>
 
             {/* Trailer */}

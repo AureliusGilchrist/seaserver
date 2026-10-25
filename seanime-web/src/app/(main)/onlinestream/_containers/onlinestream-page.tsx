@@ -1034,6 +1034,7 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
                                 currentEpisodeNumber={currentEpisodeNumber}
                                 onEpisodeSelect={selectEpisodeNumberPreferLocal}
                                 progress={progress}
+                                mediaId={mediaId}
                                 disabled={episodeLoading}
                                 getEpisodeId={(ep) => `episode-${ep.number}`}
                             />

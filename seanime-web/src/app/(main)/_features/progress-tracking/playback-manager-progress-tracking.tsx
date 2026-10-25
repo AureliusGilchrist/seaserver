@@ -21,6 +21,7 @@ import { cn } from "@/components/ui/core/styling"
 import { Modal } from "@/components/ui/modal"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import { logger } from "@/lib/helpers/debug"
+import { getEffectiveProgress, markPromptDismissed, markRunProgress, wasPromptDismissed } from "@/lib/progress-queue/progress-queue"
 import { WSEvents } from "@/lib/server/ws-events"
 import { useQueryClient } from "@tanstack/react-query"
 import { atom, useAtomValue } from "jotai"
@@ -119,6 +120,8 @@ export function PlaybackManagerProgressTracking() {
     const { currentPlaylist } = usePlaylistManager()
 
     const { mutate: syncProgress, isPending } = usePlaybackSyncCurrentProgress()
+    const syncProgressRef = React.useRef(() => {})
+    syncProgressRef.current = () => syncProgress()
 
     const { mutate: playlistNext, isSuccess: submittedPlaylistNext } = usePlaybackPlaylistNext([playlistState?.current?.name])
 
@@ -220,6 +223,7 @@ export function PlaybackManagerProgressTracking() {
 
                 setState(data)
                 const newEp = data.episodeNumber
+                if (data.mediaId && typeof newEp === "number" && newEp > 0) markRunProgress(data.mediaId, newEp)
                 if (typeof newEp === "number" && newEp > 0) {
                     toast.success(`AniList updated from episode ${newEp - 1} to ${newEp}`)
                 } else {
@@ -239,9 +243,16 @@ export function PlaybackManagerProgressTracking() {
     useWebsocketMessageListener<{ mediaId: number, currentProgress: number, newProgress: number } | null>({
         type: WSEvents.PLAYBACK_MANAGER_PROGRESS_UPDATE_CONFIRM,
         onMessage: data => {
-            if (data && data.newProgress > data.currentProgress + 1) {
-                setProgressConfirm(data)
+            if (!data || data.newProgress <= data.currentProgress + 1) return
+            // Asked and declined earlier in this run: don't ask again.
+            if (wasPromptDismissed(data.mediaId, data.newProgress)) return
+            // The server's view lags; this run may already account for the "skipped" episodes.
+            // If so it's an ordinary next-episode update, applied without asking.
+            if (data.newProgress <= getEffectiveProgress(data.mediaId, data.currentProgress) + 1) {
+                syncProgressRef.current()
+                return
             }
+            setProgressConfirm(data)
         },
     })
 
@@ -586,7 +597,10 @@ export function PlaybackManagerProgressTracking() {
                         <div className="flex justify-end gap-2">
                             <Button
                                 intent="gray-outline"
-                                onClick={() => setProgressConfirm(null)}
+                                onClick={() => {
+                                    markPromptDismissed(progressConfirm.mediaId, progressConfirm.newProgress)
+                                    setProgressConfirm(null)
+                                }}
                             >
                                 Skip
                             </Button>

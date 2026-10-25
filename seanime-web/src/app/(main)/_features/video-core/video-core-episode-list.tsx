@@ -108,6 +108,7 @@ export function VideoCoreEpisodeListMenu() {
                         episode={episode}
                         isPlaying={episode.progressNumber === currentProgressNumber}
                         isWatched={(episode.progressNumber ?? 0) <= watchedProgress}
+                        watchedProgress={animeEntry?.listData ? watchedProgress : undefined}
                         isAnchor={episode.progressNumber === anchorProgressNumber}
                         onPlay={() => {
                             setMenuOpen(null)
@@ -120,8 +121,9 @@ export function VideoCoreEpisodeListMenu() {
     )
 }
 
-function EpisodeListRow({ episode, isPlaying, isWatched, isAnchor, onPlay }: {
+function EpisodeListRow({ episode, isPlaying, isWatched, watchedProgress, isAnchor, onPlay }: {
     episode: Anime_Episode
+    watchedProgress?: number
     isPlaying: boolean
     isWatched: boolean
     isAnchor: boolean
@@ -142,6 +144,7 @@ function EpisodeListRow({ episode, isPlaying, isWatched, isAnchor, onPlay }: {
                 progressNumber={episode?.progressNumber}
                 isWatched={isWatched && !isPlaying}
                 isSelected={isPlaying}
+                watchedProgress={watchedProgress}
                 className="flex-none w-full"
                 onClick={onPlay}
             />

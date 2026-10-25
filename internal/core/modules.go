@@ -150,6 +150,11 @@ func (a *App) initModulesOnce() {
 				a.AnilistClientManager.InvalidateAnimeCollection(profileID)
 			}
 		},
+		ApplyProgressWriteFunc: func(profileID uint, mediaID int, progress int, completed bool) {
+			if a.AnilistClientManager != nil && profileID > 0 {
+				a.AnilistClientManager.RecordProgressWrite(profileID, mediaID, progress, completed)
+			}
+		},
 		GetProfileAnimeCollectionFunc: func(profileID uint) *anilist.AnimeCollection {
 			// The account being written to is the one whose dates decide whether a start date is
 			// missing. Cached read only: this sits in the middle of a progress update.
@@ -302,6 +307,20 @@ func (a *App) initModulesOnce() {
 			}
 			return collection
 		},
+		ApplyProgressWriteFunc: func(profileID uint, mediaID int, progress int, completed bool) {
+			if a.AnilistClientManager != nil && profileID > 0 {
+				a.AnilistClientManager.RecordProgressWrite(profileID, mediaID, progress, completed)
+			}
+		},
+		EnqueuePendingProgressFunc: func(profileID uint, mediaID int, progress int, status *anilist.MediaListStatus, startedAt *anilist.FuzzyDateInput, completedAt *anilist.FuzzyDateInput) {
+			if a.AnilistClientManager != nil {
+				a.AnilistClientManager.EnqueueProgressUpdate(profileID, mediaID, progress, status, startedAt, completedAt)
+			}
+		},
+		HasRecentProgressWriteFunc: func(profileID uint, mediaID int, progress int) bool {
+			return a.AnilistClientManager != nil && a.AnilistClientManager.HasRecentProgressWrite(profileID, mediaID, progress)
+		},
+		AutoUpdateProgressEnabledFunc: a.AutoUpdateProgressEnabledFor,
 		// Mirror the PlaybackManager activity tracker so that direct-stream playback
 		// also feeds the profile XP / level / achievements / community feed.
 		// AchievementEngine / MilestoneEngine are initialized later in this function

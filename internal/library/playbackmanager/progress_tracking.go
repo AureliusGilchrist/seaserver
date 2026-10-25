@@ -154,10 +154,9 @@ func (pm *PlaybackManager) handleTrackingStarted(status *mediaplayer.PlaybackSta
 	pm.activityRecorded = false
 	pm.activeProfileIDMu.Unlock()
 
-	// Reset session-level last-synced episode tracking
-	pm.sessionLastSyncedEpisodeMu.Lock()
-	pm.sessionLastSyncedEpisode = nil
-	pm.sessionLastSyncedEpisodeMu.Unlock()
+	// sessionLastSyncedEpisode is deliberately NOT reset here. It is the memory of what this run has
+	// already synced, and a run spans many files: resetting it on every new file is what made the
+	// next episode look like a two-episode jump whenever the cached AniList progress lagged behind.
 
 	// Set the current media playback status
 	pm.currentMediaPlaybackStatus = status
@@ -508,10 +507,9 @@ func (pm *PlaybackManager) handleStreamingTrackingStarted(status *mediaplayer.Pl
 	pm.activityRecorded = false
 	pm.activeProfileIDMu.Unlock()
 
-	// Reset session-level last-synced episode tracking
-	pm.sessionLastSyncedEpisodeMu.Lock()
-	pm.sessionLastSyncedEpisode = nil
-	pm.sessionLastSyncedEpisodeMu.Unlock()
+	// sessionLastSyncedEpisode is deliberately NOT reset here. It is the memory of what this run has
+	// already synced, and a run spans many files: resetting it on every new file is what made the
+	// next episode look like a two-episode jump whenever the cached AniList progress lagged behind.
 
 	// Set the current media playback status
 	pm.currentMediaPlaybackStatus = status
@@ -764,6 +762,18 @@ func (pm *PlaybackManager) autoSyncCurrentProgress(_ps *PlaybackState) {
 		return
 	}
 
+	// The profile's Personal setting wins over the server-wide one, exactly as the client reads
+	// it. Ignoring it meant a profile with auto-update on, on a server with it off, never synced
+	// from here and was left with a manual "Update progress" button every episode.
+	pm.activeProfileIDMu.RLock()
+	ovrProfileID := pm.activeProfileID
+	pm.activeProfileIDMu.RUnlock()
+	if ovrProfileID > 0 && pm.getClientSettingsOverridesFunc != nil {
+		if ovr := pm.getClientSettingsOverridesFunc(ovrProfileID); ovr != nil && ovr.AutoUpdateProgress != nil {
+			shouldUpdate = *ovr.AutoUpdateProgress
+		}
+	}
+
 	if !shouldUpdate {
 		return
 	}
@@ -808,6 +818,18 @@ func (pm *PlaybackManager) autoSyncCurrentProgress(_ps *PlaybackState) {
 	// watched ep 1 → AniList=1, but currentMediaListEntry still reads 0, so ep 2 would
 	// otherwise look like a 2-episode jump).
 	effectiveProgress := currentProgress
+	// The profile's own cached collection, which progress writes now patch immediately, is fresher
+	// than the snapshot taken when tracking started (and that snapshot is the admin's list).
+	if ovrProfileID > 0 && pm.getProfileAnimeCollectionFunc != nil {
+		if col := pm.getProfileAnimeCollectionFunc(ovrProfileID); col != nil {
+			if entry, ok := col.GetListEntryFromAnimeId(mediaId); ok && entry.GetProgressSafe() > effectiveProgress {
+				effectiveProgress = entry.GetProgressSafe()
+			}
+		}
+	}
+	if effectiveProgress >= epProgressNum {
+		return
+	}
 	pm.sessionLastSyncedEpisodeMu.Lock()
 	if pm.sessionLastSyncedEpisode != nil {
 		if last, ok := pm.sessionLastSyncedEpisode[mediaId]; ok && last > effectiveProgress {
@@ -815,6 +837,13 @@ func (pm *PlaybackManager) autoSyncCurrentProgress(_ps *PlaybackState) {
 		}
 	}
 	pm.sessionLastSyncedEpisodeMu.Unlock()
+
+	// Already synced (or queued) earlier in this run — nothing to do, and certainly nothing to ask.
+	if effectiveProgress >= epProgressNum {
+		_ps.ProgressUpdated = true
+		pm.sendEventToCurrentClient(events.PlaybackManagerProgressUpdated, _ps)
+		return
+	}
 
 	// If the gap is larger than 1 episode, ask the client to confirm rather than silently
 	// updating AniList. The client will call the dedicated confirm endpoint to apply the update.
@@ -864,9 +893,9 @@ func (pm *PlaybackManager) SyncCurrentProgress() error {
 		var _ps PlaybackState
 		switch pm.currentPlaybackType {
 		case LocalFilePlayback:
-			pm.getLocalFilePlaybackState(pm.currentMediaPlaybackStatus)
+			_ps = pm.getLocalFilePlaybackState(pm.currentMediaPlaybackStatus)
 		case StreamPlayback:
-			pm.getStreamPlaybackState(pm.currentMediaPlaybackStatus)
+			_ps = pm.getStreamPlaybackState(pm.currentMediaPlaybackStatus)
 		}
 		_ps.ProgressUpdated = true
 		pm.historyMap[pm.currentMediaPlaybackStatus.Filename] = _ps
@@ -1005,6 +1034,9 @@ func (pm *PlaybackManager) updateProgress() (err error) {
 		}
 	}
 
+	// queued: the write went to the retry queue rather than to AniList. The cache is then left
+	// showing AniList's real progress, so the UI can tell queued episodes from synced ones.
+	queued := false
 	if resolvedClient != nil && resolvedClient.IsAuthenticated() {
 		status := anilist.MediaListStatusCurrent
 		isCompleted := totalEpisodes > 0 && epNum >= totalEpisodes
@@ -1022,6 +1054,7 @@ func (pm *PlaybackManager) updateProgress() (err error) {
 			pm.enqueueProfilePendingProgressFunc(resolvedProfileID, mediaId, epNum, &status, startedAt, completedAt)
 			pm.Logger.Warn().Int("mediaId", mediaId).Int("episode", epNum).Msg("playback manager: AniList unreachable; queued progress update for later sync")
 			err = nil
+			queued = true
 		}
 	} else {
 		// No linked AniList account anywhere — fall back to the platform layer, which
@@ -1039,7 +1072,11 @@ func (pm *PlaybackManager) updateProgress() (err error) {
 	}
 
 	// For profile users, invalidate their cached anime collection so subsequent fetches are fresh.
-	if resolvedProfileID > 0 && pm.invalidateProfileAnimeCollectionFunc != nil {
+	if queued {
+		// Nothing to patch yet; the flusher patches the cache when the queued write lands.
+	} else if pm.applyProgressWriteFunc != nil {
+		pm.applyProgressWriteFunc(resolvedProfileID, mediaId, epNum, totalEpisodes > 0 && epNum >= totalEpisodes)
+	} else if resolvedProfileID > 0 && pm.invalidateProfileAnimeCollectionFunc != nil {
 		pm.invalidateProfileAnimeCollectionFunc(resolvedProfileID)
 	}
 

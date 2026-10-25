@@ -5,6 +5,7 @@ type Handlers_CommunityProfile = any
 type Handlers_AggregateStats = any
 type Handlers_ActivityFeedEntry = any
 import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
+import { ProfileTimeline } from "@/app/(main)/_features/profile/profile-timeline"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { cn } from "@/components/ui/core/styling"
@@ -106,6 +107,15 @@ export default function Page() {
                 ) : (
                     <LeaderboardView profiles={sorted} />
                 )}
+
+                {/* Timeline: everyone's posts and watch activity, AniList-style */}
+                <div className="space-y-3">
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                        <LuActivity className="text-brand-300" />
+                        Timeline
+                    </h2>
+                    <ProfileTimeline community />
+                </div>
 
                 {/* Activity Feed */}
                 {feed && feed.length > 0 && (

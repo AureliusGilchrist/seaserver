@@ -3,6 +3,7 @@ import { __anime_entryPageViewAtom } from "@/app/(main)/entry/_containers/anime-
 import { useHandlePlayMedia } from "@/app/(main)/entry/_lib/handle-play-media"
 import { usePlayNextVideoOnMount } from "@/app/(main)/entry/_lib/handle-play-on-mount"
 import { __onlinestream_selectedEpisodeNumberAtom } from "@/app/(main)/onlinestream/_lib/onlinestream.atoms"
+import { useProgressQueue } from "@/lib/progress-queue/progress-queue"
 import { useSetAtom } from "jotai"
 import React from "react"
 
@@ -67,17 +68,21 @@ export function useHandleEpisodeSection(props: { entry: Anime_Entry }) {
         return entry.episodes?.some(ep => ep.isInvalid) ?? false
     }, [entry.episodes])
 
+    // Episodes watched this run but still queued for AniList count as watched here: "up next" is the
+    // episode the user is actually on, not the one AniList hasn't caught up to yet.
+    const { effectiveProgress } = useProgressQueue(entry.mediaId, entry.listData?.progress)
+
     const episodesToWatch = React.useMemo(() => {
 
         const ret = mainEpisodes.filter(ep => {
             if (!entry.nextEpisode) {
                 return true
             } else {
-                return ep.progressNumber > (entry.listData?.progress ?? 0)
+                return ep.progressNumber > effectiveProgress
             }
         })
         return (!!entry.listData?.progress && !entry.nextEpisode) ? ret.reverse() : ret
-    }, [mainEpisodes, entry.nextEpisode, entry.listData?.progress])
+    }, [mainEpisodes, entry.nextEpisode, entry.listData?.progress, effectiveProgress])
 
     return {
         media,

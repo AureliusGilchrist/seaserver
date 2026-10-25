@@ -1,4 +1,5 @@
 import { Anime_Entry, Anime_Episode, Anime_EpisodeCollection } from "@/api/generated/types"
+import { useProgressQueue } from "@/lib/progress-queue/progress-queue"
 import { getEpisodeSecondsRemaining, getEpisodePercentageComplete, getEpisodeTotalSeconds, useGetContinuityWatchHistory } from "@/api/hooks/continuity.hooks"
 import { EpisodeCard } from "@/app/(main)/_features/anime/_components/episode-card"
 import { EpisodeGridItem } from "@/app/(main)/_features/anime/_components/episode-grid-item"
@@ -45,15 +46,18 @@ export function TorrentStreamEpisodeSection(props: TorrentStreamEpisodeSectionPr
     /**
      * Organize episodes to watch
      */
+    // Queued-for-AniList episodes count as watched for "up next" (see lib/progress-queue).
+    const { effectiveProgress } = useProgressQueue(entry.mediaId, entry.listData?.progress)
+
     const episodesToWatch = useMemo(() => {
         if (!episodeCollection?.episodes) return []
         let ret = [...episodeCollection?.episodes]
         ret = ((!!entry.listData?.progress && !!entry.media?.episodes && entry.listData?.progress === entry.media?.episodes)
                 ? ret?.reverse()
-                : ret?.slice(entry.listData?.progress || 0)
+                : ret?.slice(effectiveProgress || 0)
         )?.slice(0, 30) || []
         return ret
-    }, [episodeCollection?.episodes, entry.nextEpisode, entry.listData?.progress])
+    }, [episodeCollection?.episodes, entry.nextEpisode, entry.listData?.progress, effectiveProgress])
 
     /**
      * Play next episode on mount if requested

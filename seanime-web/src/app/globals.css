@@ -452,9 +452,6 @@ pre {
 }
 
 
-.discrete-controls[data-media-player][data-playing][data-seeking][data-controls]:not(:has(.vds-controls-group:hover)) {
-    @apply cursor-none
-}
 
 .halo:after {
     opacity: .1;
@@ -2223,4 +2220,184 @@ h1.sea-profile-name.sea-name-shine,
 }
 [data-mako-mark] .mako-sparkle {
     animation: mako-sparkle-twinkle 2.5s ease-in-out infinite;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Reward Shop → UI Enhancements: what each preset actually does.
+   ui-customize-provider sets html[data-sea-<category>="<preset id>"] plus the
+   preset's --sea-* variables; everything below keys on those.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Hover: apply to media cards and episode cards too ───────────────────── */
+[data-media-entry-card-body],
+[data-episode-card-image-container] {
+    transition:
+        transform  var(--sea-hover-dur, 200ms) var(--sea-ease, ease),
+        box-shadow var(--sea-hover-dur, 200ms) var(--sea-ease, ease),
+        border-color var(--sea-hover-dur, 200ms) var(--sea-ease, ease);
+}
+[data-media-entry-card-body]:hover,
+[data-episode-card-image-container]:hover {
+    transform:  scale(var(--sea-hover-scale, 1)) translateY(var(--sea-hover-lift, 0px));
+    box-shadow: var(--sea-hover-glow, none);
+}
+/* Border Light: the rim brightens */
+html[data-sea-hover="hover-border-glow"] :is(.sea-hoverable, [data-media-entry-card-body], [data-episode-card-image-container]):hover {
+    outline: 1px solid rgba(255, 255, 255, var(--sea-hover-border-opacity, 0.5));
+    outline-offset: -1px;
+}
+/* Tilt: a real 3D tilt */
+html[data-sea-hover="hover-tilt"] :is(.sea-hoverable, [data-media-entry-card-body], [data-episode-card-image-container]):hover {
+    transform: perspective(700px) rotateX(4deg) rotateY(-5deg) translateY(var(--sea-hover-lift, 0px)) scale(var(--sea-hover-scale, 1));
+}
+/* Float: keeps bobbing while hovered */
+@keyframes sea-hover-float {
+    0%, 100% { transform: translateY(var(--sea-hover-lift, -6px)); }
+    50%      { transform: translateY(calc(var(--sea-hover-lift, -6px) - 4px)); }
+}
+html[data-sea-hover="hover-float"] :is(.sea-hoverable, [data-media-entry-card-body], [data-episode-card-image-container]):hover {
+    animation: sea-hover-float 1.6s ease-in-out infinite;
+}
+
+/* ── Visual Effects: presets with a shadow boost deepen card shadows ────── */
+html:is([data-sea-effects="fx-neon-haze"], [data-sea-effects="fx-hologram"]) .UI-Card__root {
+    box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5), 0 0 22px rgb(var(--color-brand-500) / 0.18);
+}
+
+/* ── Layout Density ──────────────────────────────────────────────────────── */
+html[data-sea-layout]:not([data-sea-layout="layout-default"]) :is(.gap-2) { gap: calc(0.5rem * var(--sea-spacing, 1)); }
+html[data-sea-layout]:not([data-sea-layout="layout-default"]) :is(.gap-3) { gap: calc(0.75rem * var(--sea-spacing, 1)); }
+html[data-sea-layout]:not([data-sea-layout="layout-default"]) :is(.gap-4) { gap: calc(1rem * var(--sea-spacing, 1)); }
+html[data-sea-layout]:not([data-sea-layout="layout-default"]) :is(.gap-6) { gap: calc(1.5rem * var(--sea-spacing, 1)); }
+html[data-sea-layout]:not([data-sea-layout="layout-default"]) :is(.space-y-4) > :not([hidden]) ~ :not([hidden]) { margin-top: calc(1rem * var(--sea-spacing, 1)); }
+html[data-sea-layout]:not([data-sea-layout="layout-default"]) :is(.space-y-6) > :not([hidden]) ~ :not([hidden]) { margin-top: calc(1.5rem * var(--sea-spacing, 1)); }
+html[data-sea-layout]:not([data-sea-layout="layout-default"]) :is(.p-4) { padding: calc(1rem * var(--sea-spacing, 1)); }
+html[data-sea-layout]:not([data-sea-layout="layout-default"]) :is(.p-8) { padding: calc(2rem * var(--sea-spacing, 1)); }
+html[data-sea-layout]:not([data-sea-layout="layout-default"]) .UI-Card__root { padding: calc(1rem * var(--sea-spacing, 1)); }
+
+/* ── Sidebar ─────────────────────────────────────────────────────────────── */
+html[data-sea-sidebar]:not([data-sea-sidebar="sidebar-default"]) .UI-AppSidebar__sidebar {
+    background: var(--sea-sidebar-bg, rgb(from var(--background) r g b / var(--sea-sidebar-opacity, 0.95))) !important;
+    backdrop-filter: blur(var(--sea-sidebar-blur, 0px));
+    box-shadow: var(--sea-sidebar-shadow, none), var(--sea-sidebar-glow, 0 0 0 transparent);
+    border-right: var(--sea-sidebar-border, none);
+}
+html[data-sea-sidebar]:is([data-sea-sidebar="sidebar-glass"], [data-sea-sidebar="sidebar-transparent"]) .UI-AppSidebar__sidebar {
+    background: rgb(from var(--background) r g b / var(--sea-sidebar-opacity, 0.6)) !important;
+}
+
+/* ── Typography ──────────────────────────────────────────────────────────── */
+html[data-sea-typography]:not([data-sea-typography="type-default"]) { font-size: calc(100% * var(--sea-font-scale, 1)); }
+html:is([data-sea-typography="type-system"], [data-sea-typography="type-humanist"], [data-sea-typography="type-serif"], [data-sea-typography="type-mono"], [data-sea-typography="type-rounded"]) body,
+html:is([data-sea-typography="type-system"], [data-sea-typography="type-humanist"], [data-sea-typography="type-serif"], [data-sea-typography="type-mono"], [data-sea-typography="type-rounded"]) :is(button, input, textarea, select) {
+    font-family: var(--sea-font-family) !important;
+}
+html:is([data-sea-typography="type-wide"], [data-sea-typography="type-tight"]) :is(h1, h2, h3) {
+    letter-spacing: var(--sea-heading-tracking, normal);
+}
+
+/* ── Accent Effects ──────────────────────────────────────────────────────── */
+html:is([data-sea-accent="accent-glow"], [data-sea-accent="accent-glow-big"]) .UI-Button__root[class*="bg-brand"] {
+    box-shadow: 0 0 var(--sea-accent-glow, 14px) rgb(var(--color-brand-500) / 0.55);
+}
+@keyframes sea-accent-flow { from { background-position: 0% 50%; } to { background-position: 200% 50%; } }
+html[data-sea-accent="accent-gradient"] .UI-Button__root[class*="bg-brand"] {
+    background-image: linear-gradient(90deg, rgb(var(--color-brand-600)), rgb(var(--color-brand-400)), #ec4899, rgb(var(--color-brand-600)));
+    background-size: 200% 100%;
+    animation: sea-accent-flow 4s linear infinite;
+}
+html[data-sea-accent="accent-outline"] .UI-Button__root[class*="bg-brand"] {
+    box-shadow: inset 0 0 0 2px rgb(var(--color-brand-300) / 0.9);
+}
+@keyframes sea-accent-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgb(var(--color-brand-500) / 0.5); } 50% { box-shadow: 0 0 0 6px rgb(var(--color-brand-500) / 0); } }
+html[data-sea-accent="accent-pulse"] .UI-Button__root[class*="bg-brand"] { animation: sea-accent-pulse 2.2s ease-in-out infinite; }
+
+/* ── Top Bar ─────────────────────────────────────────────────────────────── */
+html[data-sea-navbar="navbar-glass"] [data-top-navbar] { background: rgb(from var(--background) r g b / 0.55) !important; backdrop-filter: blur(14px); }
+html[data-sea-navbar="navbar-solid"] [data-top-navbar] { background: var(--background) !important; }
+html[data-sea-navbar="navbar-minimal"] [data-top-navbar] { background: transparent !important; box-shadow: none !important; border: none !important; backdrop-filter: none !important; }
+html[data-sea-navbar="navbar-pill"] [data-top-navbar] {
+    margin: 0.5rem 1rem 0; border-radius: 9999px; background: rgb(from var(--background) r g b / 0.8) !important;
+    backdrop-filter: blur(12px); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.06);
+}
+html[data-sea-navbar="navbar-accent"] [data-top-navbar] { border-bottom: 2px solid rgb(var(--color-brand-500) / 0.8) !important; }
+
+/* ── Progress Bars ───────────────────────────────────────────────────────── */
+html[data-sea-slider="slider-thick"] .UI-ProgressBar__root { height: 0.65rem !important; }
+html[data-sea-slider="slider-gradient"] .UI-ProgressBar__indicator { background-image: linear-gradient(90deg, rgb(var(--color-brand-500)), #ec4899) !important; }
+@keyframes sea-stripes { from { background-position: 0 0; } to { background-position: 32px 0; } }
+html[data-sea-slider="slider-striped"] .UI-ProgressBar__indicator {
+    background-image: repeating-linear-gradient(45deg, rgb(var(--color-brand-500)) 0 8px, rgb(var(--color-brand-400)) 8px 16px) !important;
+    background-size: 32px 32px; animation: sea-stripes 1s linear infinite;
+}
+html[data-sea-slider="slider-glow"] .UI-ProgressBar__indicator { box-shadow: 0 0 10px rgb(var(--color-brand-500) / 0.8); }
+html[data-sea-slider="slider-flat"] :is(.UI-ProgressBar__root, .UI-ProgressBar__indicator) { border-radius: 0 !important; }
+html[data-sea-slider]:not([data-sea-slider="slider-default"]) input[type="range"] { accent-color: rgb(var(--color-brand-500)); }
+
+/* ── Notifications (sonner) ──────────────────────────────────────────────── */
+html[data-sea-toast="toast-glass"] [data-sonner-toast] { background: rgb(from var(--background) r g b / 0.6) !important; backdrop-filter: blur(14px); }
+html[data-sea-toast="toast-accent"] [data-sonner-toast] { border-left: 4px solid rgb(var(--color-brand-500)) !important; }
+html[data-sea-toast="toast-pill"] [data-sonner-toast] { border-radius: 9999px !important; padding-inline: 1.25rem !important; }
+html[data-sea-toast="toast-minimal"] [data-sonner-toast] { border: none !important; box-shadow: none !important; padding-block: 0.6rem !important; }
+html[data-sea-toast="toast-neon"] [data-sonner-toast] { box-shadow: 0 0 12px rgb(168 85 247 / 0.6), inset 0 0 0 1px rgb(168 85 247 / 0.6) !important; }
+
+/* ── Selection & Focus ───────────────────────────────────────────────────── */
+html[data-sea-selection]:not([data-sea-selection="select-default"]) ::selection { background: var(--sea-selection-bg); color: #fff; }
+html[data-sea-selection]:not([data-sea-selection="select-default"]) :focus-visible {
+    outline: var(--sea-focus-ring) !important; outline-offset: 2px; box-shadow: var(--sea-focus-glow, none);
+}
+
+/* ── Badges ──────────────────────────────────────────────────────────────── */
+html[data-sea-badge="badge-pill"] .UI-Badge__root { border-radius: 9999px !important; }
+html[data-sea-badge="badge-square"] .UI-Badge__root { border-radius: 0 !important; }
+html[data-sea-badge="badge-outline"] .UI-Badge__root { background: transparent !important; box-shadow: inset 0 0 0 1px currentColor; }
+html[data-sea-badge="badge-glass"] .UI-Badge__root { background: rgba(255, 255, 255, 0.1) !important; backdrop-filter: blur(6px); }
+html[data-sea-badge="badge-caps"] .UI-Badge__root { text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.7em; }
+
+/* ── Idle Dim ────────────────────────────────────────────────────────────── */
+html[data-sea-idle-active] body::after {
+    content: ""; position: fixed; inset: 0; z-index: 99990; pointer-events: none;
+    background: rgba(0, 0, 0, var(--sea-idle-opacity, 0.55));
+    animation: sea-idle-in 2s ease forwards;
+}
+@keyframes sea-idle-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── XP-skin page effects on the profile page ────────────────────────────── */
+.sea-profile-accent { position: relative; }
+.sea-profile-accent::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background: var(--sea-page-vignette, none), linear-gradient(var(--sea-page-bg-tint, transparent), var(--sea-page-bg-tint, transparent));
+}
+
+/* ══ Profile Style rewards ══════════════════════════════════════════════════ */
+
+/* Avatar frames — drawn as a ring behind the avatar */
+.sea-frame { position: relative; isolation: isolate; }
+.sea-frame::before {
+    content: ""; position: absolute; inset: -6px; border-radius: 9999px; z-index: -1; pointer-events: none;
+}
+@keyframes sea-frame-spin { to { transform: rotate(360deg); } }
+@keyframes sea-frame-pulse { 0%, 100% { opacity: 0.55; transform: scale(1); } 50% { opacity: 1; transform: scale(1.04); } }
+@keyframes sea-frame-flicker { 0%, 100% { opacity: 1; } 45% { opacity: 0.85; } 50% { opacity: 0.4; } 55% { opacity: 0.9; } }
+.sea-frame-pulse::before   { box-shadow: 0 0 0 3px rgb(var(--color-brand-500)), 0 0 18px rgb(var(--color-brand-500) / 0.6); animation: sea-frame-pulse 2.4s ease-in-out infinite; }
+.sea-frame-spin::before    { border: 3px dashed rgb(var(--color-brand-400)); animation: sea-frame-spin 12s linear infinite; }
+.sea-frame-rainbow::before { background: conic-gradient(#f43f5e, #f97316, #facc15, #4ade80, #60a5fa, #a78bfa, #f43f5e); animation: sea-frame-spin 6s linear infinite; }
+.sea-frame-gold::before    { background: conic-gradient(#78350f, #fbbf24, #fef3c7, #d97706, #78350f); animation: sea-frame-spin 9s linear infinite; box-shadow: 0 0 14px rgba(251, 191, 36, 0.45); }
+.sea-frame-sakura::before  { box-shadow: 0 0 0 3px #f9a8d4, 0 0 22px rgba(244, 114, 182, 0.55); animation: sea-frame-pulse 3s ease-in-out infinite; }
+.sea-frame-neon::before    { box-shadow: 0 0 0 2px #22d3ee, 0 0 12px #22d3ee, 0 0 28px rgba(34, 211, 238, 0.5); animation: sea-frame-flicker 3.5s steps(1) infinite; }
+.sea-frame-flame::before   { background: conic-gradient(from 90deg, #7f1d1d, #ef4444, #f97316, #fbbf24, #f97316, #ef4444, #7f1d1d); filter: blur(1px); animation: sea-frame-spin 3s linear infinite; }
+.sea-frame-void::before    { background: radial-gradient(circle, transparent 58%, #000 62%, #4c1d95 72%, transparent 76%); box-shadow: 0 0 26px rgba(76, 29, 149, 0.7); animation: sea-frame-pulse 4s ease-in-out infinite; }
+.sea-frame-aurora::before  { background: conic-gradient(#34d399, #22d3ee, #a78bfa, #34d399); filter: blur(2px); animation: sea-frame-spin 10s linear infinite; }
+
+/* Header layouts */
+.sea-layout-centered { flex-direction: column !important; text-align: center; }
+.sea-layout-centered > .flex-1 { width: 100%; }
+.sea-layout-centered :is(h1) { margin-inline: auto; }
+@media (min-width: 640px) { .sea-layout-reversed { flex-direction: row-reverse !important; text-align: right; } }
+.sea-layout-showcase { border-radius: 1rem; padding: 1.25rem !important; background: rgba(255, 255, 255, 0.04); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.06); }
+.sea-layout-compact { gap: 0.75rem !important; padding-bottom: 0.25rem !important; }
+.sea-layout-compact :is(h1) { font-size: 1.5rem !important; }
+
+@media (prefers-reduced-motion: reduce) {
+    .sea-frame::before, html[data-sea-accent] .UI-Button__root, html[data-sea-slider] .UI-ProgressBar__indicator { animation: none !important; }
 }

@@ -1,7 +1,6 @@
 package videocore
 
 import (
-	"context"
 	"fmt"
 	"seanime/internal/continuity"
 	"seanime/internal/discordrpc/presence"
@@ -95,34 +94,11 @@ func (vc *VideoCore) setupSharedEffects() {
 					}
 				}
 
-				shouldUpdateProgress := false
-				vc.settingsMu.RLock()
-				shouldUpdateProgress = vc.settings.Library.AutoUpdateProgress
-				vc.settingsMu.RUnlock()
-
-				if shouldUpdateProgress {
-					// get the list entry
-					collection, err := vc.platformRef.Get().GetAnimeCollection(context.Background(), false)
-					if err != nil {
-						vc.logger.Error().Err(err).Msg("videocore: Cannot update progress, failed to get anime collection")
-						continue
-					}
-
-					progress := state.PlaybackInfo.Episode.GetProgressNumber()
-					totalEpisodes := state.PlaybackInfo.Media.Episodes
-
-					if listEntry, hasEntry := collection.GetListEntryFromAnimeId(mediaId); hasEntry {
-						if listEntry.Progress != nil && progress <= *listEntry.Progress {
-							continue
-						}
-					}
-
-					err = vc.platformRef.Get().UpdateEntryProgress(context.Background(), mediaId, progress, totalEpisodes)
-					if err != nil {
-						vc.logger.Error().Err(err).Msgf("videocore: Failed to update progress for media %d", mediaId)
-					}
-					vc.refreshAnimeCollectionFunc()
-				}
+				// No AniList write here. This used to update progress through the global platform — the
+				// shared/admin account, whichever profile was watching — on top of the per-profile writes
+				// the direct-stream tracker and the client already make. Three writes per episode spent
+				// rate-limit slots, and a 429 on the right one dropped the update and brought back the
+				// progress prompt. Progress is written once, to the right account, via the progress queue.
 			case *VideoTerminatedEvent:
 				if opts, ok := lastHistoryOptions[event.GetClientId()]; ok {
 					delete(lastHistoryOptions, event.GetClientId())

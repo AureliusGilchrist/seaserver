@@ -70,6 +70,10 @@ type (
 		// invalidateProfileAnimeCollectionFunc invalidates the profile's cached anime collection
 		// after a successful progress update so the next fetch returns fresh data.
 		invalidateProfileAnimeCollectionFunc func(profileID uint)
+		// applyProgressWriteFunc writes a progress update straight into the profile's cached
+		// collection, so the next read sees it instead of a stale copy. Preferred over
+		// invalidating when set.
+		applyProgressWriteFunc func(profileID uint, mediaID int, progress int, completed bool)
 		// getProfileAnimeCollectionFunc returns the collection of the account a progress update is
 		// being written to. The start/completion date rule reads whether a date is already recorded,
 		// and that question is only meaningful about the account being written to — the global
@@ -250,7 +254,8 @@ type (
 		GetProfileAnilistClientFunc          func(profileID uint) (anilist.AnilistClient, uint)
 		GetClientSettingsOverridesFunc       func(profileID uint) *db.ClientSettingsOverrides
 		InvalidateProfileAnimeCollectionFunc func(profileID uint)
-		GetProfileAnimeCollectionFunc        func(profileID uint) *anilist.AnimeCollection
+		ApplyProgressWriteFunc               func(profileID uint, mediaID int, progress int, completed bool)
+		GetProfileAnimeCollectionFunc       func(profileID uint) *anilist.AnimeCollection
 		EnqueueProfilePendingProgressFunc    func(profileID uint, mediaID int, progress int, status *anilist.MediaListStatus, startedAt *anilist.FuzzyDateInput, completedAt *anilist.FuzzyDateInput)
 	}
 
@@ -300,6 +305,7 @@ func New(opts *NewPlaybackManagerOptions) *PlaybackManager {
 		getProfileAnilistClientFunc:          opts.GetProfileAnilistClientFunc,
 		getClientSettingsOverridesFunc:       opts.GetClientSettingsOverridesFunc,
 		invalidateProfileAnimeCollectionFunc: opts.InvalidateProfileAnimeCollectionFunc,
+		applyProgressWriteFunc:               opts.ApplyProgressWriteFunc,
 		getProfileAnimeCollectionFunc:        opts.GetProfileAnimeCollectionFunc,
 		enqueueProfilePendingProgressFunc:    opts.EnqueueProfilePendingProgressFunc,
 		mu:                           sync.Mutex{},

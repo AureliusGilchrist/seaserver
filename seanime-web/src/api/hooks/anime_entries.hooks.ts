@@ -11,6 +11,7 @@ import {
 } from "@/api/generated/endpoint.types"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { AL_BaseAnime, Anime_Entry, Anime_LocalFile, Anime_MissingEpisodes, Nullish } from "@/api/generated/types"
+import { markRunProgress, unmarkRunProgress } from "@/lib/progress-queue/progress-queue"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
@@ -180,6 +181,15 @@ export function useUpdateAnimeEntryProgress(id: Nullish<string | number>, episod
         endpoint: API_ENDPOINTS.ANIME_ENTRIES.UpdateAnimeEntryProgress.endpoint,
         method: API_ENDPOINTS.ANIME_ENTRIES.UpdateAnimeEntryProgress.methods[0],
         mutationKey: [API_ENDPOINTS.ANIME_ENTRIES.UpdateAnimeEntryProgress.key, id, episodeNumber],
+        // Remember the episode for this run as soon as it is sent: until AniList (and the cache)
+        // agree, the next episode must not look like a skipped one. See lib/progress-queue.
+        onMutate: (vars) => {
+            if (vars?.mediaId && vars?.episodeNumber) markRunProgress(vars.mediaId, vars.episodeNumber)
+        },
+        onSettled: (_data, error, vars) => {
+            // The server queues outages and rate limits itself, so an error here was a real rejection.
+            if (error && vars?.mediaId && vars?.episodeNumber) unmarkRunProgress(vars.mediaId, vars.episodeNumber)
+        },
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANILIST.GetAnimeCollection.key] })
             await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANIME_COLLECTION.GetLibraryCollection.key] })

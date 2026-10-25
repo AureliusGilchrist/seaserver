@@ -93,8 +93,8 @@ fi
 
 WEB_FORCE_BUILD="${WEB_FORCE_BUILD:-0}"
 
-# Auto-increment the seaserver build version (versions.json) so every build is
-# newer than the last; the prebuild hooks then propagate it to both packages.
+# Bump the shared version's test suffix (X.Y.Z-N → -N+1, versions.json) so every build is
+# newer than the last; the prebuild hooks then propagate it to every component.
 step "0.5" "Bump build version"
 node "$SCRIPT_DIR/sync-versions.js" --bump || { fail "Version bump failed"; exit 1; }
 success "Version bumped"

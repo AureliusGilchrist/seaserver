@@ -1,7 +1,7 @@
 {
-    "$comment": "Single source of truth for all version numbers. Edit ONLY this file — sync-versions.js (run via predev/prebuild hooks or `node sync-versions.js`) propagates values to seanime-web/package.json, seanime-denshi/package.json, and internal/constants/constants.go automatically.",
+    "$comment": "Single source of truth for the version. Edit ONLY this file (or use the flags): sync-versions.js propagates \"version\" to seanime-web, seanime-denshi, seanime-denshi-mobile, seanime-denshi-mobile-android and internal/constants/constants.go. Scheme X.Y.Z-N: --bump-test (every test build) -> -N+1; --release-patch (update confirmed working) -> Z+1, -0; --release-minor (huge update confirmed working) -> Y+1, Z=0, -0. X/Y/Z past 15 carry into the number before them. See CLAUDE.md.",
+    "version": "5.0.6-2",
     "seaserver": {
-        "version": "5.0.0-2",
         "codename": "Deus Ex Aeternae",
         "source": "internal/constants/constants.go (Version, VersionName)"
     },
@@ -10,15 +10,12 @@
         "source": "internal/constants/constants.go (SeanimeRoomsVersion)"
     },
     "seanime-web": {
-        "version": "4.0.1-0",
         "source": "seanime-web/package.json"
     },
     "seanime-denshi": {
-        "version": "5.0.6-1",
         "source": "seanime-denshi/package.json"
     },
     "seanime-denshi-mobile-android": {
-        "version": "5.0.6-1",
         "source": "seanime-denshi-mobile-android/package.json"
     },
     "updater": {
@@ -35,6 +32,9 @@
         "extensions_marketplace": {
             "url": "https://raw.githubusercontent.com/5rahim/seanime-extensions/refs/heads/main/marketplace.json"
         }
+    },
+    "seanime-denshi-mobile": {
+        "source": "seanime-denshi-mobile/package.json"
     },
     "lastUpdated": "2026-10-25"
 }

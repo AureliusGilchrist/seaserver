@@ -1,4 +1,5 @@
 "use client"
+import { useHeroScrollFade } from "@/app/(main)/_features/media/_lib/use-hero-scroll-fade"
 import { TRANSPARENT_SIDEBAR_BANNER_IMG_STYLE } from "@/app/(main)/_features/custom-ui/styles"
 import { cn } from "@/components/ui/core/styling"
 import { getAssetUrl } from "@/lib/server/assets"
@@ -23,16 +24,8 @@ export function CustomLibraryBanner(props: CustomLibraryBannerProps) {
     const ts = useThemeSettings()
     const image = React.useMemo(() => ts.libraryScreenCustomBannerImage ? getAssetUrl(ts.libraryScreenCustomBannerImage) : "",
         [ts.libraryScreenCustomBannerImage])
-    const [dimmed, setDimmed] = React.useState(false)
-
-    const { y } = useWindowScroll()
-
-    useEffect(() => {
-        if (y > 100)
-            setDimmed(true)
-        else
-            setDimmed(false)
-    }, [(y > 100)])
+    // Same scroll fade as the anime/manga page hero.
+    const heroFade = useHeroScrollFade()
 
     if (isLibraryScreen && ts.libraryScreenBannerType !== ThemeLibraryScreenBannerType.Custom) return null
     if (discrete && !!ts.libraryScreenCustomBackgroundImage) return null
@@ -50,10 +43,10 @@ export function CustomLibraryBanner(props: CustomLibraryBannerProps) {
             <div
                 data-custom-library-banner-container
                 className={cn(
-                    "__header h-[30rem] z-[1] top-0 w-full fixed group/library-header transition-opacity duration-1000",
+                    "__header h-[30rem] z-[1] top-0 w-full group/library-header",
+                    // Same scroll fade as the anime/manga page hero.
+                    heroFade.containerClass,
                     discrete && "opacity-20",
-                    !!ts.libraryScreenCustomBackgroundImage && "absolute", // If there's a background image, make the banner absolute
-                    (!ts.libraryScreenCustomBackgroundImage && dimmed) && "opacity-5", // If the user has scrolled down, dim the banner
                     !ts.disableSidebarTransparency && TRANSPARENT_SIDEBAR_BANNER_IMG_STYLE,
                     __isDesktop__ && "top-[-2rem]",
                     !ts.disableSidebarTransparency ? "scroll-locked-offset-width" : "scroll-locked-offset-fixed",

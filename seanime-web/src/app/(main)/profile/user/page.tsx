@@ -1,5 +1,8 @@
 "use client"
 
+import { lookupAvatarFrame, lookupBannerOverlay, lookupProfileLayout } from "@/lib/rewards/profile-style-definitions"
+import { lookupBackground, lookupBorder } from "@/lib/rewards/reward-provider"
+import { profileAvatarBorderStyle, profileHeaderBackgroundStyle, profileNameStyle } from "@/lib/rewards/profile-cosmetics"
 import { useGetUserAchievements } from "@/api/hooks/achievement.hooks"
 import { useGetMyProfile, useGetUserProfile } from "@/api/hooks/community.hooks"
 import { useGetProfileComments, type ProfileCommentItem } from "@/api/hooks/profile-comments.hooks"
@@ -22,6 +25,8 @@ import { useRouter, useSearchParams } from "@/lib/navigation"
 import { useAtomValue } from "jotai"
 import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { ActivityTabContent } from "@/app/(main)/_features/profile/activity-tab-content"
+import { ProfileTimeline } from "@/app/(main)/_features/profile/profile-timeline"
+import { LuMessagesSquare } from "react-icons/lu"
 import { ProfileWallpaper } from "@/app/(main)/profile/_components/profile-wallpaper"
 import { ActivityBuffBadge, MyProfilePage, StreakCard, StatsActivityHeatmap, DayOfWeekChart, CategoryPill, AchievementCard, ProgressRing, getLevelColor } from "@/app/(main)/profile/me/page"
 import { getProfileOwnerMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
@@ -92,15 +97,17 @@ function UserProfilePage() {
     const profileAccentVars = React.useMemo(() => profileAccentStyle(xpBarFillCss), [xpBarFillCss])
 
     // Name style: driven by xpBarFillCss skin first, then nameGradientCss/nameColorCss
-    const nameStyle: React.CSSProperties = xpBarFillCss
-        ? xpBarFillCss.startsWith("linear-gradient")
-            ? { backgroundImage: xpBarFillCss, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }
-            : { color: xpBarFillCss }
-        : profile?.nameGradientCss
-            ? { backgroundImage: profile.nameGradientCss, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }
-            : profile?.nameColorCss
-                ? { color: profile.nameColorCss }
-                : {}
+    const nameStyle: React.CSSProperties = profileNameStyle({
+        nameColor: profile?.nameColorCss,
+        nameGradient: profile?.nameGradientCss,
+        xpBarFill: xpBarFillCss,
+    })
+    // Their published border and header background (Reward Shop), drawn as on their own page.
+    const avatarBorderStyle = profileAvatarBorderStyle(lookupBorder(profile?.profileBorderId ?? ""))
+    const headerBgStyle = profileHeaderBackgroundStyle(lookupBackground(profile?.profileBgId ?? ""))
+    const avatarFrame = lookupAvatarFrame(profile?.avatarFrameId)
+    const bannerOverlay = lookupBannerOverlay(profile?.bannerOverlayId)
+    const profileLayout = lookupProfileLayout(profile?.profileLayoutId)
     const nameHasGradient = Boolean(nameStyle.backgroundImage)
 
     // Title/level label style: same fill as XP bar skin
@@ -137,6 +144,13 @@ function UserProfilePage() {
                         className="absolute inset-0 bg-no-repeat bg-cover"
                         style={{ backgroundImage: `url(${profile!.bannerImage})`, backgroundPosition: "center center", backgroundSize: "cover" }}
                     />
+                    {bannerOverlay?.overlayCss && (
+                        <div
+                            data-profile-banner-overlay
+                            className="absolute inset-0 z-[1] pointer-events-none"
+                            style={{ background: bannerOverlay.overlayCss, mixBlendMode: bannerOverlay.blend as any }}
+                        />
+                    )}
                     {/* Top gradient - fade from background to transparent */}
                     <div className="absolute top-0 left-0 right-0 h-[5rem] bg-gradient-to-b from-[--background] to-transparent z-[2]" />
                     {/* Left fade - for sidebar transparency */}
@@ -154,19 +168,24 @@ function UserProfilePage() {
                     </span>
                 </SeaLink>
                 {/* Unified Profile Header */}
-                <div className="flex flex-col sm:flex-row items-center gap-6 pb-2 border-b border-[--border] relative">
-                    <LevelRingAvatar
-                        profile={{
-                            currentLevel: level?.currentLevel ?? 1,
-                            totalXP: level?.totalXP ?? 0,
-                            avatarPath: profile!.avatarPath,
-                            anilistAvatar: profile!.anilistAvatar,
-                            name: profile!.name,
-                        }}
-                        size={120}
-                        xpBarFillOverride={xpBarFillCss}
-                        xpBarAnimClass={xpBarAnimClass}
-                    />
+                <div
+                    className={cn("flex flex-col sm:flex-row items-center gap-6 pb-2 border-b border-[--border] relative", headerBgStyle.background && "rounded-xl p-4", profileLayout?.className)}
+                    style={headerBgStyle}
+                >
+                    <div style={avatarBorderStyle} className={cn("rounded-full shrink-0", avatarFrame?.className)}>
+                        <LevelRingAvatar
+                            profile={{
+                                currentLevel: level?.currentLevel ?? 1,
+                                totalXP: level?.totalXP ?? 0,
+                                avatarPath: profile!.avatarPath,
+                                anilistAvatar: profile!.anilistAvatar,
+                                name: profile!.name,
+                            }}
+                            size={120}
+                            xpBarFillOverride={xpBarFillCss}
+                            xpBarAnimClass={xpBarAnimClass}
+                        />
+                    </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                             <h1 className={cn("sea-profile-name text-3xl font-bold truncate", nameHasGradient && "sea-name-shine")} style={nameStyle}>
@@ -245,6 +264,9 @@ function UserProfilePage() {
                         <TabsTrigger value="activity" className={tabsTriggerClass}>
                             <LuActivity className="mr-1.5" /> Activity
                         </TabsTrigger>
+                        <TabsTrigger value="timeline" className={tabsTriggerClass}>
+                            <LuMessagesSquare className="mr-1.5" /> Timeline
+                        </TabsTrigger>
                         <TabsTrigger value="towatch" className={tabsTriggerClass}>
                             <LuListVideo className="mr-1.5" /> Todo List
                         </TabsTrigger>
@@ -273,6 +295,9 @@ function UserProfilePage() {
                                 name: profile.name,
                             } : undefined}
                         />
+                    </TabsContent>
+                    <TabsContent value="timeline" className="space-y-6 mt-6">
+                        <ProfileTimeline profileId={id} profileName={profile?.name} />
                     </TabsContent>
                     <TabsContent value="towatch" className="space-y-6 mt-6">
                         {/* What this person means to watch next — the list is theirs, so it is shown

@@ -12,6 +12,7 @@ import (
 	"seanime/internal/library/anime"
 	"seanime/internal/mkvparser"
 	"seanime/internal/nativeplayer"
+	"seanime/internal/platforms/shared_platform"
 	"seanime/internal/util"
 	"seanime/internal/util/result"
 	"seanime/internal/videocore"
@@ -305,7 +306,14 @@ func (m *Manager) handlePlayerEvent(event videocore.VideoEvent) {
 				epNum := baseStream.episode.GetProgressNumber()
 				totalEpisodes := baseStream.media.GetTotalEpisodeCount()
 
+				// Respect the auto-update setting (the profile's Personal override first). This path
+				// used to write regardless, so turning auto-update off did nothing for direct streams.
+				if baseStream.manager.autoUpdateProgressEnabledFunc != nil && !baseStream.manager.autoUpdateProgressEnabledFunc(baseStream.profileId) {
+					return
+				}
+
 				var updateErr error
+				queued := false
 				// Route the AniList update through the user's own AniList client so the
 				// correct account is updated. Resolved even when profileId is 0 (playback
 				// started without a profile session) so the update can't land on the shared
@@ -329,7 +337,19 @@ func (m *Manager) handlePlayerEvent(event videocore.VideoEvent) {
 					// all for a rewatch. See anilist.FirstWatchDates.
 					startedAt, completedAt := anilist.FirstWatchDates(
 						baseStream.manager.listEntryFor(mediaId, resolvedProfileID), isCompleted, time.Now())
+					m := baseStream.manager
+					if m.hasRecentProgressWriteFunc != nil && m.hasRecentProgressWriteFunc(resolvedProfileID, mediaId, epNum) {
+						// The client (or an earlier pass) already wrote or queued this episode.
+						m.Logger.Debug().Int("mediaId", mediaId).Int("episode", epNum).Msg("directstream: Progress already written, skipping duplicate")
+						return
+					}
 					_, updateErr = client.UpdateMediaListEntryProgress(anilist.WithUserInitiated(context.Background()), &mediaId, &epNum, &status, startedAt, completedAt)
+					if updateErr != nil && shared_platform.IsOutageError(updateErr) && m.enqueuePendingProgressFunc != nil {
+						m.enqueuePendingProgressFunc(resolvedProfileID, mediaId, epNum, &status, startedAt, completedAt)
+						m.Logger.Warn().Err(updateErr).Int("mediaId", mediaId).Int("episode", epNum).Msg("directstream: AniList unavailable; queued progress update")
+						updateErr = nil
+						queued = true
+					}
 				} else {
 					// No linked AniList account anywhere — fall back to the platform layer,
 					// which handles the simulated (offline) account.
@@ -340,8 +360,13 @@ func (m *Manager) handlePlayerEvent(event videocore.VideoEvent) {
 					baseStream.manager.Logger.Warn().Err(updateErr).Uint("profileID", resolvedProfileID).Int("mediaId", mediaId).Int("episode", epNum).Msg("directstream: Failed to update AniList progress")
 				} else {
 					baseStream.manager.Logger.Info().Uint("profileID", resolvedProfileID).Int("mediaId", mediaId).Int("episode", epNum).Msg("directstream: Updated AniList progress")
-					// For profile users, invalidate their cached anime collection so the next fetch is fresh.
-					if resolvedProfileID > 0 && baseStream.manager.invalidateProfileAnimeCollectionFunc != nil {
+					// Write the new progress into the profile's cache (a queued write is patched in by
+					// the flusher when it lands, so queued episodes stay distinguishable meanwhile).
+					if queued {
+						// nothing yet
+					} else if resolvedProfileID > 0 && baseStream.manager.applyProgressWriteFunc != nil {
+						baseStream.manager.applyProgressWriteFunc(resolvedProfileID, mediaId, epNum, totalEpisodes > 0 && epNum >= totalEpisodes)
+					} else if resolvedProfileID > 0 && baseStream.manager.invalidateProfileAnimeCollectionFunc != nil {
 						baseStream.manager.invalidateProfileAnimeCollectionFunc(resolvedProfileID)
 					}
 					// Record playback activity for profile XP / level / achievements / community feed.

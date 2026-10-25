@@ -1,7 +1,11 @@
 "use client"
 
+import { ProfileStyleTab } from "./profile-style-tab"
+import { fetchSharedThemesList, type SharedThemeInfo } from "@/lib/theme/marketplace-theme-loader"
+import type { AnimeThemeId } from "@/lib/theme/anime-themes/types"
+import { ANIME_THEME_LIST } from "@/lib/theme/anime-themes"
 import React from "react"
-import { LuLock, LuCheck, LuMousePointer2, LuTag, LuPalette, LuFrame, LuImage, LuZap, LuSparkles, LuVolume2, LuPlay, LuWand, LuCreditCard, LuCircleDot, LuType, LuDroplets, LuLayoutDashboard, LuPanelLeft, LuChevronsUpDown, LuSlidersHorizontal, LuMusic } from "react-icons/lu"
+import { LuLock, LuCheck, LuMousePointer2, LuTag, LuPalette, LuFrame, LuImage, LuZap, LuSparkles, LuVolume2, LuPlay, LuWand, LuCreditCard, LuCircleDot, LuType, LuDroplets, LuLayoutDashboard, LuPanelLeft, LuChevronsUpDown, LuSlidersHorizontal, LuMusic, LuPointer, LuPanelTop, LuGauge, LuBell, LuHighlighter, LuMoon } from "react-icons/lu"
 import {
     UI_CUSTOMIZE_CATEGORIES,
     type UICustomizeCategoryId,
@@ -764,46 +768,50 @@ type ThemeEntry = {
 }
 
 function ThemesTab({ currentLevel }: { currentLevel: number }) {
-    const { activeTheme, setActiveTheme } = useRewards()
-    const [themes, setThemes] = React.useState<ThemeEntry[]>([])
+    // Equipping goes through the real theme system (the same one the Theme Manager drives), so the
+    // whole app changes theme. This tab used to store its own "active theme" id that nothing read.
+    const { themeId, setThemeId } = useAnimeTheme()
+    const { setActiveTheme } = useRewards()
+    const [shared, setShared] = React.useState<SharedThemeInfo[]>([])
     const [loading, setLoading] = React.useState(true)
 
     React.useEffect(() => {
-        const loadThemes = async () => {
-            try {
-                setLoading(true)
-                // Fetch themes from marketplace endpoint
-                const response = await fetch("/api/v1/shared-themes/marketplace")
-                if (!response.ok) throw new Error("Failed to fetch themes")
-                const data = (await response.json()) as unknown
-                
-                // Data should be an array of themes
-                let themeList: any[] = []
-                if (Array.isArray(data)) {
-                    themeList = data
-                } else if (data && typeof data === 'object' && 'data' in data && Array.isArray((data as any).data)) {
-                    themeList = (data as any).data
-                }
-                setThemes(themeList.map((t: any) => ({
-                    id: t.id,
-                    name: t.name,
-                    title: t.title || t.name,
-                    description: t.description || "",
-                    author: t.author || "seanime",
-                    backgroundImageUrl: t.backgroundImageUrl || "",
-                    previewColors: t.previewColors || { bg: "#000", primary: "#fff", secondary: "#999", accent: "#f00" },
-                    level: t.level || 1,
-                })))
-            } catch (err) {
-                console.error("Failed to load themes:", err)
-                setThemes([])
-            } finally {
-                setLoading(false)
-            }
-        }
-
-        loadThemes()
+        let cancelled = false
+        fetchSharedThemesList()
+            .then(list => { if (!cancelled) setShared(list) })
+            .finally(() => { if (!cancelled) setLoading(false) })
+        return () => { cancelled = true }
     }, [])
+
+    const themes: ThemeEntry[] = React.useMemo(() => {
+        const bundled: ThemeEntry[] = ANIME_THEME_LIST.map(t => ({
+            id: t.id,
+            name: t.id,
+            title: t.displayName,
+            description: t.description ?? "",
+            author: "Seanime",
+            backgroundImageUrl: t.backgroundImageUrl || t.bannerImageUrl || "",
+            previewColors: t.previewColors,
+            level: 1,
+        }))
+        const seen = new Set(bundled.map(t => t.id))
+        const downloaded: ThemeEntry[] = shared.filter(t => !seen.has(t.id)).map(t => ({
+            id: t.id,
+            name: t.id,
+            title: t.displayName,
+            description: t.description ?? "",
+            author: t.author ?? "Marketplace",
+            backgroundImageUrl: t.backgroundImageUrl ?? "",
+            previewColors: t.previewColors ?? { bg: "#000", primary: "#fff", secondary: "#999", accent: "#f00" },
+            level: 1,
+        }))
+        return [...bundled, ...downloaded]
+    }, [shared])
+
+    const equip = (id: string) => {
+        setThemeId(id as AnimeThemeId)
+        setActiveTheme(id)
+    }
 
     return (
         <div className="space-y-4">
@@ -812,57 +820,40 @@ function ThemesTab({ currentLevel }: { currentLevel: number }) {
                     <LuPalette />
                     <span>{themes.length} available</span>
                 </div>
-                {loading && <span className="text-xs text-[--muted] italic">Loading themes...</span>}
+                {loading && <span className="text-xs text-[--muted] italic">Loading downloaded themes...</span>}
             </div>
+            <p className="text-xs text-[--muted]">
+                Equipping a theme applies it to the whole app. Download more from the Theme Manager.
+            </p>
 
-            {loading ? (
-                <div className="flex items-center justify-center py-8">
-                    <div className="text-sm text-[--muted]">Loading marketplace themes...</div>
-                </div>
-            ) : themes.length === 0 ? (
-                <div className="flex items-center justify-center py-8">
-                    <div className="text-sm text-[--muted] text-center">
-                        No themes available. Please check back later!
-                    </div>
-                </div>
-            ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                    {themes.map((theme: ThemeEntry) => {
-                        const isActive = activeTheme === theme.id
-
-                        return (
-                            <CardBase key={theme.id} isActive={isActive} isUnlocked={true} onClick={() => setActiveTheme(theme.id)} className="items-start overflow-hidden">
-                                <div className="w-full space-y-2">
-                                    {/* Background image preview */}
-                                    {theme.backgroundImageUrl ? (
-                                        <div
-                                            className="w-full h-24 rounded-lg bg-cover bg-center border border-white/10"
-                                            style={{
-                                                backgroundImage: `url('${theme.backgroundImageUrl}')`,
-                                                backgroundSize: "cover",
-                                            }}
-                                            title={theme.title}
-                                        />
-                                    ) : (
-                                        <div
-                                            className="w-full h-24 rounded-lg border border-white/10 bg-gradient-to-br"
-                                            style={{
-                                                background: `linear-gradient(135deg, ${theme.previewColors.primary}88 0%, ${theme.previewColors.secondary}88 100%)`,
-                                            }}
-                                        />
-                                    )}
-
-                                    {/* Theme info */}
-                                    <div>
-                                        <p className="text-xs font-semibold leading-tight truncate">{theme.title}</p>
-                                        <p className="text-[10px] text-[--muted] leading-tight mt-0.5 truncate">{theme.author}</p>
-                                    </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {themes.map((theme: ThemeEntry) => {
+                    const isActive = themeId === theme.id
+                    const isUnlocked = currentLevel >= theme.level
+                    return (
+                        <CardBase key={theme.id} isActive={isActive} isUnlocked={isUnlocked} onClick={() => equip(theme.id)} className="items-start overflow-hidden">
+                            <div className="w-full space-y-2">
+                                {theme.backgroundImageUrl ? (
+                                    <div
+                                        className="w-full h-24 rounded-lg bg-cover bg-center border border-white/10"
+                                        style={{ backgroundImage: `url('${theme.backgroundImageUrl}')`, backgroundSize: "cover" }}
+                                        title={theme.title}
+                                    />
+                                ) : (
+                                    <div
+                                        className="w-full h-24 rounded-lg border border-white/10"
+                                        style={{ background: `linear-gradient(135deg, ${theme.previewColors.primary}88 0%, ${theme.previewColors.secondary}88 100%)` }}
+                                    />
+                                )}
+                                <div>
+                                    <p className="text-xs font-semibold leading-tight truncate">{theme.title}</p>
+                                    <p className="text-[10px] text-[--muted] leading-tight mt-0.5 truncate">{theme.author}</p>
                                 </div>
-                            </CardBase>
-                        )
-                    })}
-                </div>
-            )}
+                            </div>
+                        </CardBase>
+                    )
+                })}
+            </div>
         </div>
     )
 }
@@ -1013,6 +1004,14 @@ const UI_TAB_ICONS: Record<string, React.ReactNode> = {
     sidebar:     <LuPanelLeft className="w-3 h-3" />,
     transitions: <LuChevronsUpDown className="w-3 h-3" />,
     scrollbar:   <LuSlidersHorizontal className="w-3 h-3" />,
+    hover:       <LuPointer className="w-3 h-3" />,
+    trail:       <LuMousePointer2 className="w-3 h-3" />,
+    navbar:      <LuPanelTop className="w-3 h-3" />,
+    slider:      <LuGauge className="w-3 h-3" />,
+    toast:       <LuBell className="w-3 h-3" />,
+    selection:   <LuHighlighter className="w-3 h-3" />,
+    badge:       <LuTag className="w-3 h-3" />,
+    idle:        <LuMoon className="w-3 h-3" />,
 }
 
 function UIPresetsGrid({ category, currentLevel }: { category: typeof UI_CUSTOMIZE_CATEGORIES[number]; currentLevel: number }) {
@@ -1154,11 +1153,19 @@ export function RewardShop({ currentLevel }: Props) {
                             <TabsTrigger value="titles"  className="flex items-center gap-1.5 text-xs"><LuTag       className="shrink-0" /> Titles</TabsTrigger>
                             <TabsTrigger value="themes"  className="flex items-center gap-1.5 text-xs"><LuPalette    className="shrink-0" /> Themes</TabsTrigger>
                             <TabsTrigger value="xpbars"  className="flex items-center gap-1.5 text-xs"><LuZap       className="shrink-0" /> XP Bars</TabsTrigger>
+                            <TabsTrigger value="namecolors" className="flex items-center gap-1.5 text-xs"><LuType className="shrink-0" /> Name Colors</TabsTrigger>
+                            <TabsTrigger value="borders" className="flex items-center gap-1.5 text-xs"><LuFrame className="shrink-0" /> Avatar Borders</TabsTrigger>
+                            <TabsTrigger value="backgrounds" className="flex items-center gap-1.5 text-xs"><LuImage className="shrink-0" /> Header Backgrounds</TabsTrigger>
+                            <TabsTrigger value="profilestyle" className="flex items-center gap-1.5 text-xs"><LuLayoutDashboard className="shrink-0" /> Profile Style</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="titles">  <TitlesTab  currentLevel={currentLevel} /> </TabsContent>
                         <TabsContent value="themes">  <ThemesTab  currentLevel={currentLevel} /> </TabsContent>
                         <TabsContent value="xpbars">  <XPBarsTab  currentLevel={currentLevel} /> </TabsContent>
+                        <TabsContent value="namecolors"><NameColorsTab currentLevel={currentLevel} /></TabsContent>
+                        <TabsContent value="borders"><BordersTab currentLevel={currentLevel} /></TabsContent>
+                        <TabsContent value="backgrounds"><BackgroundsTab currentLevel={currentLevel} /></TabsContent>
+                        <TabsContent value="profilestyle"><ProfileStyleTab currentLevel={currentLevel} /></TabsContent>
                     </Tabs>
                 )}
 

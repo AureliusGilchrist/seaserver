@@ -1117,6 +1117,41 @@ type CommentVote struct {
 	Value     int  `gorm:"column:value" json:"value"` // +1 or -1
 }
 
+// +---------------------+
+// |  Profile timeline   |
+// +---------------------+
+
+// ProfilePost is a text post on a profile's timeline (stored in the global database).
+// AuthorProfileID == WallProfileID is a status post; otherwise it is a message the author left on
+// someone else's wall, AniList-style.
+type ProfilePost struct {
+	BaseModel
+	AuthorProfileID uint   `gorm:"column:author_profile_id;index" json:"authorProfileId"`
+	WallProfileID   uint   `gorm:"column:wall_profile_id;index" json:"wallProfileId"`
+	Content         string `gorm:"column:content;type:text" json:"content"`
+	MediaID         int    `gorm:"column:media_id;default:0" json:"mediaId"`
+	MediaType       string `gorm:"column:media_type" json:"mediaType"` // "anime", "manga" or ""
+	IsSpoiler       bool   `gorm:"column:is_spoiler;default:false" json:"isSpoiler"`
+	IsEdited        bool   `gorm:"column:is_edited;default:false" json:"isEdited"`
+}
+
+// TimelineLike is one profile's like on a timeline item. TargetKey names the item:
+// "post:<id>" for a ProfilePost, "act:<profileId>:<eventId>" for an activity event (those live in
+// per-profile databases, so the owning profile is part of the key).
+type TimelineLike struct {
+	BaseModel
+	TargetKey string `gorm:"column:target_key;uniqueIndex:idx_timeline_like" json:"targetKey"`
+	ProfileID uint   `gorm:"column:profile_id;uniqueIndex:idx_timeline_like" json:"profileId"`
+}
+
+// TimelineReply is a reply under a timeline item (same TargetKey scheme as TimelineLike).
+type TimelineReply struct {
+	BaseModel
+	TargetKey       string `gorm:"column:target_key;index" json:"targetKey"`
+	AuthorProfileID uint   `gorm:"column:author_profile_id;index" json:"authorProfileId"`
+	Content         string `gorm:"column:content;type:text" json:"content"`
+}
+
 // MangaFavorite stores a favorited manga per profile (stored in per-profile DB).
 type MangaFavorite struct {
 	BaseModel

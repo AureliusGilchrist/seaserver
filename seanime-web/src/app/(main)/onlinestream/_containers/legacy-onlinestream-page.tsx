@@ -381,6 +381,7 @@ export function LegacyOnlinestreamPage({ animeEntry, animeEntryLoading, hideBack
                                     currentEpisodeNumber={currentEpisodeNumber}
                                     onEpisodeSelect={handleChangeEpisodeNumber}
                                     progress={progress}
+                                    mediaId={mediaId ? Number(mediaId) : undefined}
                                     disabled={episodeLoading}
                                     getEpisodeId={(ep) => `episode-${ep.number}`}
                                 />

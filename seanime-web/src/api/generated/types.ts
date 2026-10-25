@@ -2487,6 +2487,11 @@ export type INTERNAL_ProfileSummary = {
     anilistAuthenticated: boolean
     wallpaperUrl: string
     wallpaperEffects: string
+    profileBorderId?: string
+    profileBgId?: string
+    avatarFrameId?: string
+    bannerOverlayId?: string
+    profileLayoutId?: string
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

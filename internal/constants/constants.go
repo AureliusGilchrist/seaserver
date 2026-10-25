@@ -10,13 +10,13 @@ import (
 // at startup via SetVersionsFromJSON. Defaults below are used as fallback if the
 // manifest is missing or malformed.
 var (
-	Version             = "5.0.0-2"
+	Version             = "5.0.6-2"
 	VersionName         = "Deus Ex Aeternae"
 	SeanimeRoomsVersion = "5.0.0-0"
 	// FrontendVersion is the seanime-web version this server build was made to serve.
 	// The web client compares it against the version baked into its own bundle and
 	// shows an out-of-date banner when they differ.
-	FrontendVersion = "4.0.1-0"
+	FrontendVersion = "5.0.6-2"
 )
 
 const (
@@ -36,6 +36,9 @@ const (
 // VersionsManifest mirrors the structure of versions.json at the repo root. Only the
 // fields the Go server cares about are decoded here; additional keys are ignored.
 type VersionsManifest struct {
+	// Version is the single version every component (server, web, Denshi, Denshi Mobile) shares.
+	// When set it wins over the older per-component fields below.
+	Version   string `json:"version"`
 	Seaserver struct {
 		Version  string `json:"version"`
 		Codename string `json:"codename"`
@@ -60,7 +63,10 @@ func SetVersionsFromJSON(data []byte) error {
 	if err := json.Unmarshal(data, &m); err != nil {
 		return err
 	}
-	if m.Seaserver.Version != "" {
+	if m.Version != "" {
+		Version = m.Version
+		FrontendVersion = m.Version
+	} else if m.Seaserver.Version != "" {
 		Version = m.Seaserver.Version
 	}
 	if m.Seaserver.Codename != "" {
@@ -69,7 +75,7 @@ func SetVersionsFromJSON(data []byte) error {
 	if m.Rooms.Version != "" {
 		SeanimeRoomsVersion = m.Rooms.Version
 	}
-	if m.SeanimeWeb.Version != "" {
+	if m.Version == "" && m.SeanimeWeb.Version != "" {
 		FrontendVersion = m.SeanimeWeb.Version
 	}
 	return nil

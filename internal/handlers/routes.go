@@ -1126,6 +1126,15 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 
 	// Timeline
 	v1.GET("/profile/timeline", h.HandleGetTimeline)
+	v1.GET("/profile/timeline-feed", h.HandleGetProfileTimelineFeed)
+	v1.GET("/community/timeline-feed", h.HandleGetCommunityTimelineFeed)
+	v1.POST("/profile/posts", h.HandleCreateProfilePost)
+	v1.PATCH("/profile/posts/:id", h.HandleUpdateProfilePost)
+	v1.DELETE("/profile/posts/:id", h.HandleDeleteProfilePost)
+	v1.POST("/profile/timeline/like", h.HandleToggleTimelineLike)
+	v1.GET("/profile/timeline/replies", h.HandleGetTimelineReplies)
+	v1.POST("/profile/timeline/replies", h.HandleCreateTimelineReply)
+	v1.DELETE("/profile/timeline/replies/:id", h.HandleDeleteTimelineReply)
 	v1.GET("/profiles/timeline", h.HandleGetProfilesTimeline)
 	v1.POST("/profile/timeline/episode-watched", h.HandleRecordEpisodeWatched)
 

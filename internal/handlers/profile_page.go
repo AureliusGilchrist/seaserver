@@ -189,6 +189,12 @@ func (h *Handler) HandleSetDisplayCosmetics(c echo.Context) error {
 		XPBarSkinID     string `json:"xpBarSkinId"`
 		NameColorCss    string `json:"nameColorCss"`
 		NameGradientCss string `json:"nameGradientCss"`
+		// Optional: only written when sent, so older clients that don't know them never clear them.
+		ProfileBorderID *string `json:"profileBorderId"`
+		ProfileBgID     *string `json:"profileBgId"`
+		AvatarFrameID   *string `json:"avatarFrameId"`
+		BannerOverlayID *string `json:"bannerOverlayId"`
+		ProfileLayoutID *string `json:"profileLayoutId"`
 	}
 	b := new(body)
 	if err := c.Bind(b); err != nil {
@@ -201,6 +207,20 @@ func (h *Handler) HandleSetDisplayCosmetics(c echo.Context) error {
 		"xpbar_skin_id":     b.XPBarSkinID,
 		"name_color_css":    b.NameColorCss,
 		"name_gradient_css": b.NameGradientCss,
+	}
+	for col, v := range map[string]*string{
+		"profile_border_id": b.ProfileBorderID,
+		"profile_bg_id":     b.ProfileBgID,
+		"avatar_frame_id":   b.AvatarFrameID,
+		"banner_overlay_id": b.BannerOverlayID,
+		"profile_layout_id": b.ProfileLayoutID,
+	} {
+		if v != nil {
+			if len(*v) > 64 {
+				return h.RespondWithError(c, echo.NewHTTPError(400, "invalid cosmetic id"))
+			}
+			updates[col] = *v
+		}
 	}
 
 	profile, err := h.App.ProfileManager.UpdateProfile(profileID, updates)

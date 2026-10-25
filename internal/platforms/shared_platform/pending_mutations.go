@@ -38,6 +38,11 @@ func IsOutageError(err error) bool {
 		"timed out", "eof", "connection reset", "tls handshake", "dial tcp",
 		"temporary failure", "503", "502", "504", "500", "server error",
 		"service unavailable", "too many requests", "429",
+		// The client's own wording for a 429 it chose not to wait out (a user-initiated request).
+		// None of the signatures above match it, so a progress update that hit the rate limit was
+		// reported as a hard failure and dropped — the next episode then looked two ahead of AniList
+		// and asked the user to confirm a jump they never made.
+		"rate limited", "try again in",
 		// AniList taking its own API down. It answers 403 with this wording, which none of the
 		// signatures above match — so a progress update made while it was off was treated as a
 		// permanent failure and thrown away, rather than queued and replayed when it came back.
@@ -240,34 +245,104 @@ func (s *PendingMutationStore) Remove(id string) {
 // first failure (assuming the API is down again) so the remaining queue is preserved.
 // Safe to call concurrently; only one flush runs at a time.
 func (s *PendingMutationStore) Flush(ctx context.Context, client anilist.AnilistClient) {
+	_ = s.FlushWithResult(ctx, client)
+}
+
+// FlushWithResult is Flush, reporting the error that stopped it (nil when the queue drained or
+// another flush was already running), so a caller can back off before trying again.
+//
+// A mutation that fails with a permanent error (validation, auth) is dropped rather than left at
+// the head of the queue, where it would block every update behind it forever.
+func (s *PendingMutationStore) FlushWithResult(ctx context.Context, client anilist.AnilistClient) error {
 	if client == nil {
-		return
+		return nil
 	}
 	// Prevent overlapping flushes (e.g. transition watcher + caller-driven call).
 	if !s.flushing.CompareAndSwap(false, true) {
-		return
+		return nil
 	}
 	defer s.flushing.Store(false)
 
 	pending := s.Snapshot()
 	if len(pending) == 0 {
-		return
+		return nil
 	}
 	s.logger.Info().Int("count", len(pending)).Msg("anilist cache: flushing queued mutations")
 
 	for _, m := range pending {
 		if ctx.Err() != nil {
-			return
+			return ctx.Err()
 		}
 		if err := s.replay(ctx, client, m); err != nil {
+			if !IsOutageError(err) && !isAuthError(err) {
+				s.logger.Error().Err(err).Str("kind", string(m.Kind)).Interface("mediaId", m.MediaID).
+					Msg("anilist cache: queued mutation was rejected by AniList; dropping it")
+				s.Remove(m.ID)
+				continue
+			}
 			// Stop the flush; assume the API is unavailable again. The remaining entries
 			// stay in the queue for the next attempt.
 			s.logger.Warn().Err(err).Str("kind", string(m.Kind)).Msg("anilist cache: queued mutation failed to replay; will retry later")
-			return
+			return err
 		}
 		s.Remove(m.ID)
 	}
 	s.logger.Info().Msg("anilist cache: queued mutations flushed successfully")
+	return nil
+}
+
+// isAuthError reports an expired or missing token. The mutation itself is fine and must survive
+// until the user signs back in, so it is kept rather than dropped as a rejection.
+func isAuthError(err error) bool {
+	if errors.Is(err, anilist.ErrNotAuthenticated) {
+		return true
+	}
+	msg := strings.ToLower(err.Error())
+	for _, sig := range []string{"401", "unauthorized", "not authenticated", "invalid token", "token expired"} {
+		if strings.Contains(msg, sig) {
+			return true
+		}
+	}
+	return false
+}
+
+// PendingProgressItem is one queued progress update, as the UI shows it.
+type PendingProgressItem struct {
+	MediaID  int       `json:"mediaId"`
+	Progress int       `json:"progress"`
+	QueuedAt time.Time `json:"queuedAt"`
+}
+
+// ProgressItems lists the queued progress updates (one per media, the latest value).
+func (s *PendingMutationStore) ProgressItems() []PendingProgressItem {
+	out := make([]PendingProgressItem, 0)
+	for _, m := range s.Snapshot() {
+		if m.MediaID == nil || m.Progress == nil {
+			continue
+		}
+		if m.Kind != PendingKindUpdateEntryProgress && m.Kind != PendingKindUpdateEntry {
+			continue
+		}
+		out = append(out, PendingProgressItem{MediaID: *m.MediaID, Progress: *m.Progress, QueuedAt: m.QueuedAt})
+	}
+	return out
+}
+
+// RetryAfterHint pulls the wait out of a rate-limit error ("try again in 65s"), or 0 if absent.
+func RetryAfterHint(err error) time.Duration {
+	if err == nil {
+		return 0
+	}
+	msg := err.Error()
+	i := strings.Index(msg, "try again in ")
+	if i < 0 {
+		return 0
+	}
+	var sec int
+	if _, scanErr := fmt.Sscanf(msg[i+len("try again in "):], "%ds", &sec); scanErr != nil || sec <= 0 {
+		return 0
+	}
+	return time.Duration(sec) * time.Second
 }
 
 func (s *PendingMutationStore) replay(ctx context.Context, client anilist.AnilistClient, m *PendingMutation) error {

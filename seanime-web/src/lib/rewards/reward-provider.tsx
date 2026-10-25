@@ -63,6 +63,10 @@ interface ActiveRewards {
     shineEasing: string
     /** When false, no animation is applied even on gradient names. */
     shineEnabled: boolean
+    /** Profile Style rewards (see profile-style-definitions.ts). Published like the name color. */
+    avatarFrameId: string
+    bannerOverlayId: string
+    profileLayoutId: string
 }
 
 const DEFAULTS: ActiveRewards = {
@@ -77,6 +81,9 @@ const DEFAULTS: ActiveRewards = {
     shineDuration: 3,
     shineEasing: "linear",
     shineEnabled: true,
+    avatarFrameId: "frame-none",
+    bannerOverlayId: "overlay-none",
+    profileLayoutId: "layout-standard",
 }
 
 interface RewardContextValue {
@@ -122,6 +129,10 @@ interface RewardContextValue {
     setShineDirection: (v: "left" | "right") => void
     setShineDuration: (v: number) => void
     setShineEasing: (v: string) => void
+    avatarFrameId: string
+    bannerOverlayId: string
+    profileLayoutId: string
+    setProfileStyle: (patch: Partial<Pick<ActiveRewards, "avatarFrameId" | "bannerOverlayId" | "profileLayoutId">>) => void
 }
 
 const RewardContext = React.createContext<RewardContextValue>({
@@ -150,6 +161,10 @@ const RewardContext = React.createContext<RewardContextValue>({
     shineDirection: "right",
     shineDuration: 3,
     shineEasing: "linear",
+    avatarFrameId: "frame-none",
+    bannerOverlayId: "overlay-none",
+    profileLayoutId: "layout-standard",
+    setProfileStyle: () => {},
     setShineEnabled: () => {},
     setShineDirection: () => {},
     setShineDuration: () => {},
@@ -198,19 +213,19 @@ function lookupTitle(id: string, milestoneNames?: Record<string, Record<number, 
     return null
 }
 
-function lookupNameColor(id: string): NameColorReward | null {
+export function lookupNameColor(id: string): NameColorReward | null {
     return NAME_COLOR_REWARDS.find(r => r.id === id)
         ?? (ALL_EGG_REWARDS.find(r => r.id === id && r.type === "nameColor") as NameColorReward | undefined)
         ?? null
 }
 
-function lookupBorder(id: string): BorderReward | null {
+export function lookupBorder(id: string): BorderReward | null {
     return BORDER_REWARDS.find(r => r.id === id)
         ?? (ALL_EGG_REWARDS.find(r => r.id === id && r.type === "border") as BorderReward | undefined)
         ?? null
 }
 
-function lookupBackground(id: string): BackgroundReward | null {
+export function lookupBackground(id: string): BackgroundReward | null {
     return BACKGROUND_REWARDS.find(r => r.id === id) ?? null
 }
 
@@ -309,6 +324,11 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
                 xpBarSkinId:     skin.id,
                 nameColorCss:    nameColor?.color ?? "#ffffff",
                 nameGradientCss: nameColor?.gradientCss ?? "",
+                profileBorderId: loaded.borderId ?? "",
+                profileBgId:     loaded.backgroundId ?? "",
+                avatarFrameId:   loaded.avatarFrameId ?? "",
+                bannerOverlayId: loaded.bannerOverlayId ?? "",
+                profileLayoutId: loaded.profileLayoutId ?? "",
             })
         }
 
@@ -338,6 +358,9 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
         // the top-tier skins carry is chosen by skin.
         xpBarFillCss: string; xpBarAnimClass: string; xpBarSkinId: string
         nameColorCss: string; nameGradientCss: string
+        // Profile cosmetics by catalogue id — optional, so an update that leaves them out keeps them.
+        profileBorderId?: string; profileBgId?: string; avatarFrameId?: string
+        bannerOverlayId?: string; profileLayoutId?: string
     }>({
         endpoint: API_ENDPOINTS.PROFILE_PAGE.SetDisplayCosmetics.endpoint,
         method: "PATCH",
@@ -388,8 +411,39 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
         }
     }, [active, storageKey, saveDisplayCosmetics, publishedFill])
 
-    const setActiveBorder     = React.useCallback((id: string) => persist({ ...active, borderId: id }), [active, storageKey])
-    const setActiveBackground = React.useCallback((id: string) => persist({ ...active, backgroundId: id }), [active, storageKey])
+    // Border and background are published like the name color, so visitors see them on the profile.
+    const publishCosmetics = React.useCallback((next: ActiveRewards) => {
+        const skin = lookupXPBarSkin(next.xpBarSkinId)
+        const nameColor = lookupNameColor(next.nameColorId)
+        saveDisplayCosmetics({
+            xpBarFillCss: publishedFill(skin),
+            xpBarAnimClass: skin?.animClass ?? "",
+            xpBarSkinId: next.xpBarSkinId,
+            nameColorCss: nameColor?.color ?? "#ffffff",
+            nameGradientCss: nameColor?.gradientCss ?? "",
+            profileBorderId: next.borderId ?? "",
+            profileBgId: next.backgroundId ?? "",
+            avatarFrameId: next.avatarFrameId ?? "",
+            bannerOverlayId: next.bannerOverlayId ?? "",
+            profileLayoutId: next.profileLayoutId ?? "",
+        })
+    }, [saveDisplayCosmetics, publishedFill])
+
+    const setProfileStyle = React.useCallback((patch: Partial<Pick<ActiveRewards, "avatarFrameId" | "bannerOverlayId" | "profileLayoutId">>) => {
+        const next = { ...active, ...patch }
+        persist(next)
+        publishCosmetics(next)
+    }, [active, storageKey, publishCosmetics])
+    const setActiveBorder = React.useCallback((id: string) => {
+        const next = { ...active, borderId: id }
+        persist(next)
+        publishCosmetics(next)
+    }, [active, storageKey, publishCosmetics])
+    const setActiveBackground = React.useCallback((id: string) => {
+        const next = { ...active, backgroundId: id }
+        persist(next)
+        publishCosmetics(next)
+    }, [active, storageKey, publishCosmetics])
 
     // Legacy single-set setter: replaces all with one (or clears if "particles-none")
     const setActiveParticleSet = React.useCallback((id: string) => {
@@ -537,6 +591,10 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
         setShineDirection: (v) => setActive(prev => { const next = { ...prev, shineDirection: v }; persist(next); return next }),
         setShineDuration:  (v) => setActive(prev => { const next = { ...prev, shineDuration: v }; persist(next); return next }),
         setShineEasing:    (v) => setActive(prev => { const next = { ...prev, shineEasing: v }; persist(next); return next }),
+        avatarFrameId:     active.avatarFrameId,
+        bannerOverlayId:   active.bannerOverlayId,
+        profileLayoutId:   active.profileLayoutId,
+        setProfileStyle,
     }
 
     return (

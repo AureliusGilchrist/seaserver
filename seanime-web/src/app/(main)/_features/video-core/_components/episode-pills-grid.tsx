@@ -1,4 +1,5 @@
 import { cn } from "@/components/ui/core/styling"
+import { useProgressQueue } from "@/lib/progress-queue/progress-queue"
 import { motion } from "motion/react"
 import React from "react"
 
@@ -14,6 +15,8 @@ type EpisodePillsGridProps = {
     currentEpisodeNumber: number | null
     onEpisodeSelect: (episodeNumber: number, id: string) => void
     progress?: number
+    /** When set, episodes watched this run but still queued for AniList are grayed out. */
+    mediaId?: number
     disabled?: boolean
     className?: string
     getEpisodeId: (episode: Episode) => string
@@ -24,10 +27,12 @@ export function EpisodePillsGrid({
     currentEpisodeNumber,
     onEpisodeSelect,
     progress = 0,
+    mediaId,
     disabled = false,
     className,
     getEpisodeId,
 }: EpisodePillsGridProps) {
+    const queue = useProgressQueue(mediaId, progress)
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -45,6 +50,7 @@ export function EpisodePillsGrid({
                 ?.map((episode) => {
                     const isSelected = episode.number === currentEpisodeNumber
                     const isWatched = progress > 0 && episode.number <= progress
+                    const isQueued = !!mediaId && queue.isQueued(episode.number)
                     const isFiller = episode.isFiller
 
                     return (
@@ -60,7 +66,7 @@ export function EpisodePillsGrid({
                             // }}
                             onClick={() => !disabled && onEpisodeSelect(episode.number, getEpisodeId(episode))}
                             disabled={disabled}
-                            title={episode.title || `Episode ${episode.number}`}
+                            title={isQueued ? `${episode.title || `Episode ${episode.number}`} — watched, syncing to AniList` : (episode.title || `Episode ${episode.number}`)}
                             id={getEpisodeId(episode)}
                             className={cn(
                                 "relative flex items-center justify-center",
@@ -79,6 +85,9 @@ export function EpisodePillsGrid({
                                 ],
                                 isWatched && !isSelected && [
                                     "text-[--muted]",
+                                ],
+                                isQueued && !isSelected && [
+                                    "text-[--muted] opacity-50 grayscale border border-dashed border-gray-500/40",
                                 ],
                                 disabled && [
                                     "opacity-50 cursor-not-allowed",

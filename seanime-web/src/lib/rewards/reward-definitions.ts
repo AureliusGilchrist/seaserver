@@ -315,7 +315,7 @@ export const XP_BAR_SKIN_REWARDS: XPBarSkinReward[] = [
     { id: "xpbar-seafoam",      type: "xpBarSkin", name: "Seafoam",            description: "Soft seafoam green.",              requiredLevel: 30, fillCss: "#34d399",                                                                         icon: "🌊", category: "colors" },
     { id: "xpbar-coral",        type: "xpBarSkin", name: "Coral",              description: "Warm coral pink.",                 requiredLevel: 33, fillCss: "#fb7185",                                                                         icon: "🪸", category: "colors" },
     { id: "xpbar-lavender",     type: "xpBarSkin", name: "Lavender",           description: "Soft lavender.",                   requiredLevel: 36, fillCss: "#a78bfa",                                                                         icon: "💜", category: "colors" },
-    { id: "xpbar-amber",        type: "xpBarSkin", name: "Amber",              description: "Warm amber.",                      requiredLevel: 40, fillCss: "#f59e0b",                                                                         icon: "🍯", category: "colors" },
+    { id: "xpbar-amber-solid",  type: "xpBarSkin", name: "Amber",              description: "Warm amber.",                      requiredLevel: 40, fillCss: "#f59e0b",                                                                         icon: "🍯", category: "colors" },
     { id: "xpbar-rose",         type: "xpBarSkin", name: "Rose",               description: "Delicate rose.",                   requiredLevel: 44, fillCss: "#f43f5e",                                                                         icon: "🌹", category: "colors" },
     { id: "xpbar-magenta",      type: "xpBarSkin", name: "Magenta",            description: "Intense magenta.",                 requiredLevel: 48, fillCss: "#d946ef",                                                                         icon: "💗", category: "colors" },
     { id: "xpbar-indigo",       type: "xpBarSkin", name: "Indigo",             description: "Deep indigo.",                     requiredLevel: 52, fillCss: "#6366f1",                                                                         icon: "🌌", category: "colors" },
@@ -480,7 +480,7 @@ export const XP_BAR_SKIN_REWARDS: XPBarSkinReward[] = [
         },
     },
     {
-        id: "xpbar-blood-moon", type: "xpBarSkin", name: "Blood Moon",
+        id: "xpbar-blood-moon-fx", type: "xpBarSkin", name: "Blood Moon",
         description: "The moon rises red.",
         requiredLevel: 190,
         fillCss: "linear-gradient(90deg, #1c0000, #7f1d1d, #dc2626, #ea580c, #dc2626, #7f1d1d)",
@@ -648,7 +648,7 @@ export const EGG_PARTICLE_REWARDS: ParticleSetReward[] = [
         name: "Banana Rain",
         description: "🥚 Easter Egg Exclusive — it's raining bananas.",
         requiredLevel: 9999,
-        particleKey: "stars",   // reuse stars physics, yellow color
+        particleKey: "bananas",
         previewEmoji: "🍌",
         color: "#fbbf24",
         secondaryColor: "#f59e0b",
@@ -672,7 +672,8 @@ export const EGG_PARTICLE_REWARDS: ParticleSetReward[] = [
         name: "Gold Sparkles",
         description: "🥚 Easter Egg Exclusive — 50 series completed.",
         requiredLevel: 9999,
-        particleKey: "stars",
+        // Its own key: sharing "stars" with the Stars set made the two collide when both were on.
+        particleKey: "goldstars",
         previewEmoji: "🌟",
         color: "#fbbf24",
         secondaryColor: "#fde68a",

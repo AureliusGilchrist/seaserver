@@ -1,4 +1,5 @@
 "use client"
+import { useHeroScrollFade } from "@/app/(main)/_features/media/_lib/use-hero-scroll-fade"
 import { AL_BaseManga } from "@/api/generated/types"
 import { TRANSPARENT_SIDEBAR_BANNER_IMG_STYLE } from "@/app/(main)/_features/custom-ui/styles"
 import { SeaImage } from "@/components/shared/sea-image"
@@ -58,14 +59,8 @@ export function MangaLibraryHeader({ manga }: { manga: AL_BaseManga[] }) {
         }
     }, [actualImage])
 
-    const { y } = useWindowScroll()
-
-    useEffect(() => {
-        if (y > 100)
-            setDimmed(true)
-        else
-            setDimmed(false)
-    }, [(y > 100)])
+    // Same scroll fade as the anime/manga page hero.
+    const heroFade = useHeroScrollFade()
 
     if (!image) return null
 
@@ -74,9 +69,9 @@ export function MangaLibraryHeader({ manga }: { manga: AL_BaseManga[] }) {
             <div
                 data-library-header-container
                 className={cn(
-                    "LIB_HEADER_CONTAINER __header h-[25rem] z-0 top-0 w-full absolute group/library-header pointer-events-none",
-                    // Make it not fixed when the user scrolls down if a background image is set
-                    !ts.libraryScreenCustomBackgroundImage && "fixed",
+                    "LIB_HEADER_CONTAINER __header h-[25rem] z-0 top-0 w-full group/library-header pointer-events-none",
+                    // Fixed + fading without a wallpaper, scrolling away with one — as on the media page.
+                    heroFade.containerClass,
                     !!ts.libraryScreenCustomBackgroundImage && __isDesktop__ && "top-[-2rem]",
                 )}
             >
@@ -132,11 +127,10 @@ export function MangaLibraryHeader({ manga }: { manga: AL_BaseManga[] }) {
                                     sizes="100vw"
                                     className={cn(
                                         "object-cover object-center z-[1] opacity-100 transition-opacity duration-700 scroll-locked-offset",
-                                        { "opacity-5": dimmed },
                                     )}
                                     initial={{ scale: 1.01, y: 0 }}
                                     animate={{
-                                        scale: Math.min(1 + y * 0.0002, 1.03),
+                                        ...heroFade.imageAnimate,
                                         // y: Math.max(y * -0.9, -10)
                                     }}
                                     exit={{ scale: 1.01, y: 0 }}

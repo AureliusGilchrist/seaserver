@@ -885,6 +885,12 @@ func (h *Handler) HandleUpdateAnimeEntryProgress(c echo.Context) error {
 			status = anilist.MediaListStatusCompleted
 		}
 
+		// Another player (the server-side stream tracker) already wrote or queued this episode.
+		// Don't spend a rate-limit slot sending it again.
+		if h.App.AnilistClientManager != nil && h.App.AnilistClientManager.HasRecentProgressWrite(profileID, b.MediaId, b.EpisodeNumber) {
+			return h.RespondWithData(c, true)
+		}
+
 		// Dates for a first watch only: filled in when empty, never changed, nothing at all for a
 		// rewatch. See anilist.FirstWatchDates.
 		startedAt, completedAt := anilist.FirstWatchDates(h.profileListEntry(profileID, b.MediaId), isCompleted, time.Now())
@@ -898,15 +904,19 @@ func (h *Handler) HandleUpdateAnimeEntryProgress(c echo.Context) error {
 			completedAt,
 		)
 		if err != nil {
-			// If AniList is unreachable, queue the update so the user's true progress is never
-			// lost; it syncs automatically when the API recovers. Treat as success to the client
-			// so achievements/activity below still record the episode as watched.
+			// If AniList is unreachable or rate-limiting, queue the update so the user's true
+			// progress is never lost; it syncs as soon as AniList takes it. Treat as success to the
+			// client so achievements/activity below still record the episode as watched.
 			if h.App.AnilistClientManager != nil && shared_platform.IsOutageError(err) {
 				h.App.AnilistClientManager.EnqueueProgressUpdate(profileID, b.MediaId, b.EpisodeNumber, &status, startedAt, completedAt)
-				h.App.Logger.Warn().Int("mediaId", b.MediaId).Int("episode", b.EpisodeNumber).Msg("handler: AniList unreachable; queued progress update for later sync")
+				h.App.Logger.Warn().Err(err).Int("mediaId", b.MediaId).Int("episode", b.EpisodeNumber).Msg("handler: AniList unavailable; queued progress update for later sync")
 			} else {
 				return h.RespondWithError(c, err)
 			}
+		} else if h.App.AnilistClientManager != nil {
+			// Patch the cache with what AniList just accepted instead of discarding it — a discarded
+			// cache comes back stale and makes the next episode look like a skipped one.
+			h.App.AnilistClientManager.RecordProgressWrite(profileID, b.MediaId, b.EpisodeNumber, isCompleted)
 		}
 	} else {
 		// Admin: use platform layer (includes hooks, custom source handling, etc.)
@@ -917,7 +927,16 @@ func (h *Handler) HandleUpdateAnimeEntryProgress(c echo.Context) error {
 			&b.TotalEpisodes,
 		)
 		if err != nil {
-			return h.RespondWithError(c, err)
+			if h.App.AnilistClientManager != nil && shared_platform.IsOutageError(err) {
+				status := anilist.MediaListStatusCurrent
+				if b.TotalEpisodes > 0 && b.EpisodeNumber >= b.TotalEpisodes {
+					status = anilist.MediaListStatusCompleted
+				}
+				h.App.AnilistClientManager.EnqueueProgressUpdate(0, b.MediaId, b.EpisodeNumber, &status, nil, nil)
+				h.App.Logger.Warn().Err(err).Int("mediaId", b.MediaId).Int("episode", b.EpisodeNumber).Msg("handler: AniList unavailable; queued progress update for later sync")
+			} else {
+				return h.RespondWithError(c, err)
+			}
 		}
 	}
 
@@ -966,7 +985,8 @@ func (h *Handler) HandleUpdateAnimeEntryProgress(c echo.Context) error {
 	}
 
 	if profileID > 0 {
-		h.App.AnilistClientManager.InvalidateAnimeCollection(profileID)
+		// The profile's cache was patched above (RecordProgressWrite); only the app-level
+		// collection still needs a refresh.
 		go func() { _, _ = h.App.RefreshAnimeCollection() }()
 	} else {
 		_, _ = h.App.RefreshAnimeCollection()
@@ -986,15 +1006,21 @@ func (h *Handler) HandleUpdateAnimeEntryProgress(c echo.Context) error {
 //	@returns handlers.PendingProgressSyncResponse
 func (h *Handler) HandleGetPendingProgressSync(c echo.Context) error {
 	count := 0
+	items := make([]shared_platform.PendingProgressItem, 0)
 	if h.App.AnilistClientManager != nil {
-		count = h.App.AnilistClientManager.PendingProgressCount(h.GetProfileID(c))
+		profileID := h.GetProfileID(c)
+		count = h.App.AnilistClientManager.PendingProgressCount(profileID)
+		items = h.App.AnilistClientManager.PendingProgressItems(profileID)
 	}
-	return h.RespondWithData(c, PendingProgressSyncResponse{Count: count})
+	return h.RespondWithData(c, PendingProgressSyncResponse{Count: count, Items: items})
 }
 
 // PendingProgressSyncResponse is the payload returned by HandleGetPendingProgressSync.
 type PendingProgressSyncResponse struct {
 	Count int `json:"count"`
+	// Items are the queued progress updates, one per media (the latest value), so episode lists can
+	// gray out episodes that are watched but not yet on AniList.
+	Items []shared_platform.PendingProgressItem `json:"items"`
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------

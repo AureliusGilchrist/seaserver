@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"seanime/internal/constants"
 	"seanime/internal/util"
 	"strconv"
@@ -235,14 +236,18 @@ func NewConfig(options *ConfigOptions, logger *zerolog.Logger) (*Config, error) 
 	cfg.Data.AppDataDir = dataDir
 	cfg.Data.WorkingDir = os.Getenv("SEANIME_WORKING_DIR")
 
-	// Force manga download/local directories to the new path for ALL profiles
-	forcedMangaPath := filepath.FromSlash("/zroot/Soul/Otaku Media/Manga")
-	cfg.Manga.DownloadDir = forcedMangaPath
-	cfg.Manga.LocalDir = forcedMangaPath
-	viper.Set("manga.downloadDir", forcedMangaPath)
-	viper.Set("manga.localDir", forcedMangaPath)
-	logger.Info().Msgf("[config] Forced manga download path for all profiles: %s", forcedMangaPath)
-	_ = viper.WriteConfig()
+	// Force manga download/local directories to the new path for ALL profiles.
+	// The path is the NAS's; on Windows it is not absolute and config validation refuses to start,
+	// so a local dev/test server there keeps whatever its config says.
+	if runtime.GOOS != "windows" {
+		forcedMangaPath := filepath.FromSlash("/zroot/Soul/Otaku Media/Manga")
+		cfg.Manga.DownloadDir = forcedMangaPath
+		cfg.Manga.LocalDir = forcedMangaPath
+		viper.Set("manga.downloadDir", forcedMangaPath)
+		viper.Set("manga.localDir", forcedMangaPath)
+		logger.Info().Msgf("[config] Forced manga download path for all profiles: %s", forcedMangaPath)
+		_ = viper.WriteConfig()
+	}
 
 	if cfg.Server.Tls.Enabled && (cfg.Server.Tls.CertPath == "" || cfg.Server.Tls.KeyPath == "") {
 		viper.SetDefault("server.tls.certPath", "$SEANIME_DATA_DIR/certs/cert.pem")

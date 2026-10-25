@@ -201,6 +201,100 @@ export const SCROLLBAR_PRESETS: UIPreset[] = [
     { id: "scroll-minimal",  name: "Minimal",        description: "Ultra-thin barely visible.",            icon: "⬜", cssVars: { "--sea-scrollbar-width": "2px",    "--sea-scrollbar-color": "rgba(255,255,255,0.15) transparent" }, previewCss: "background:rgba(255,255,255,0.15);width:2px", requiredLevel: 3 },
 ]
 
+// ─── 11. Typography ──────────────────────────────────────────────────────────
+// System font stacks only — nothing to download, so every choice works offline.
+
+export const TYPOGRAPHY_PRESETS: UIPreset[] = [
+    { id: "type-default",   name: "Default",      description: "The theme's own font.",                     icon: "🔤", cssVars: { "--sea-font-scale": "1" },                                                                                  previewCss: "background:#1f2937", requiredLevel: 1 },
+    { id: "type-system",    name: "System UI",    description: "Your operating system's interface font.",  icon: "🖥️", cssVars: { "--sea-font-family": "system-ui,-apple-system,'Segoe UI',Roboto,sans-serif", "--sea-font-scale": "1" },    previewCss: "background:#374151", requiredLevel: 1 },
+    { id: "type-humanist",  name: "Humanist",     description: "Warm, readable sans-serif.",               icon: "📖", cssVars: { "--sea-font-family": "'Segoe UI',Candara,'Trebuchet MS',sans-serif", "--sea-font-scale": "1" },            previewCss: "background:#4b5563", requiredLevel: 3 },
+    { id: "type-serif",     name: "Serif",        description: "Bookish serif text.",                      icon: "📜", cssVars: { "--sea-font-family": "Georgia,'Times New Roman',serif", "--sea-font-scale": "1" },                        previewCss: "background:#78350f", requiredLevel: 5 },
+    { id: "type-mono",      name: "Monospace",    description: "Terminal-style monospace.",                icon: "⌨️", cssVars: { "--sea-font-family": "'Cascadia Code',Consolas,'Courier New',monospace", "--sea-font-scale": "0.95" },      previewCss: "background:#064e3b", requiredLevel: 8 },
+    { id: "type-rounded",   name: "Rounded",      description: "Soft rounded letterforms where available.", icon: "🫧", cssVars: { "--sea-font-family": "'Nunito','Varela Round','Segoe UI Rounded',ui-rounded,sans-serif", "--sea-font-scale": "1" }, previewCss: "background:#312e81", requiredLevel: 10 },
+    { id: "type-small",     name: "Small Text",   description: "Everything a touch smaller.",              icon: "🔡", cssVars: { "--sea-font-scale": "0.92" },                                                                               previewCss: "background:#1e3a8a", requiredLevel: 2 },
+    { id: "type-large",     name: "Large Text",   description: "Everything a touch larger.",               icon: "🔠", cssVars: { "--sea-font-scale": "1.08" },                                                                               previewCss: "background:#1e40af", requiredLevel: 2 },
+    { id: "type-wide",      name: "Wide Headings", description: "Spaced-out headings.",                    icon: "↔️", cssVars: { "--sea-font-scale": "1", "--sea-heading-tracking": "0.06em" },                                            previewCss: "background:#581c87", requiredLevel: 6 },
+    { id: "type-tight",     name: "Tight Headings", description: "Condensed, punchy headings.",            icon: "↕️", cssVars: { "--sea-font-scale": "1", "--sea-heading-tracking": "-0.03em" },                                           previewCss: "background:#701a75", requiredLevel: 6 },
+]
+
+// ─── 12. Accent Effects ──────────────────────────────────────────────────────
+// Effects layered on the accent color you already chose in Settings → UI (not a color picker).
+
+export const ACCENT_PRESETS: UIPreset[] = [
+    { id: "accent-none",      name: "None",          description: "Plain accent buttons.",                    icon: "⬜", cssVars: {},                                   previewCss: "background:rgb(97 82 223)", requiredLevel: 1 },
+    { id: "accent-glow",      name: "Glow",          description: "Accent buttons cast a soft glow.",         icon: "✨", cssVars: { "--sea-accent-glow": "14px" },      previewCss: "background:rgb(97 82 223);box-shadow:0 0 12px rgb(97 82 223)", requiredLevel: 3 },
+    { id: "accent-glow-big",  name: "Radiant",       description: "A strong accent halo.",                    icon: "🌟", cssVars: { "--sea-accent-glow": "28px" },      previewCss: "background:rgb(97 82 223);box-shadow:0 0 22px rgb(97 82 223)", requiredLevel: 10 },
+    { id: "accent-gradient",  name: "Flowing",       description: "Accent buttons shimmer with a moving gradient.", icon: "🌊", cssVars: {},                         previewCss: "background:linear-gradient(90deg,rgb(97 82 223),#ec4899,rgb(97 82 223))", requiredLevel: 15 },
+    { id: "accent-outline",   name: "Outlined",      description: "Accent buttons get a bright rim.",         icon: "🔲", cssVars: {},                                   previewCss: "background:transparent;border:2px solid rgb(97 82 223)", requiredLevel: 5 },
+    { id: "accent-pulse",     name: "Heartbeat",     description: "Accent buttons gently pulse.",             icon: "💓", cssVars: {},                                   previewCss: "background:rgb(97 82 223)", requiredLevel: 20 },
+]
+
+// ─── 13. Top Bar ─────────────────────────────────────────────────────────────
+
+export const NAVBAR_PRESETS: UIPreset[] = [
+    { id: "navbar-default",   name: "Default",       description: "The standard top bar.",                    icon: "▭",  cssVars: {}, previewCss: "background:#111827", requiredLevel: 1 },
+    { id: "navbar-glass",     name: "Glass",         description: "Frosted glass top bar.",                   icon: "🔷", cssVars: {}, previewCss: "background:rgba(255,255,255,0.08);backdrop-filter:blur(10px)", requiredLevel: 3 },
+    { id: "navbar-solid",     name: "Solid",         description: "Opaque top bar.",                          icon: "⬛", cssVars: {}, previewCss: "background:#0b0f19", requiredLevel: 2 },
+    { id: "navbar-pill",      name: "Floating Pill", description: "A rounded floating bar.",                  icon: "💊", cssVars: {}, previewCss: "background:#1f2937;border-radius:9999px", requiredLevel: 8 },
+    { id: "navbar-minimal",   name: "Minimal",       description: "No background, just the controls.",        icon: "▫️", cssVars: {}, previewCss: "background:transparent;border:1px dashed #374151", requiredLevel: 5 },
+    { id: "navbar-accent",    name: "Accent Line",   description: "An accent-colored underline.",             icon: "➖", cssVars: {}, previewCss: "background:#111827;border-bottom:2px solid rgb(97 82 223)", requiredLevel: 6 },
+]
+
+// ─── 14. Progress & Sliders ──────────────────────────────────────────────────
+
+export const SLIDER_PRESETS: UIPreset[] = [
+    { id: "slider-default",   name: "Default",       description: "Standard bars and sliders.",               icon: "▬", cssVars: {}, previewCss: "background:linear-gradient(90deg,rgb(97 82 223) 60%,#374151 60%)", requiredLevel: 1 },
+    { id: "slider-thick",     name: "Chunky",        description: "Thicker progress bars.",                   icon: "▰", cssVars: {}, previewCss: "background:linear-gradient(90deg,rgb(97 82 223) 60%,#374151 60%);height:12px", requiredLevel: 2 },
+    { id: "slider-gradient",  name: "Gradient",      description: "Progress fills with an accent gradient.",  icon: "🌈", cssVars: {}, previewCss: "background:linear-gradient(90deg,#6366f1,#ec4899)", requiredLevel: 5 },
+    { id: "slider-striped",   name: "Striped",       description: "Animated candy stripes.",                  icon: "🍬", cssVars: {}, previewCss: "background:repeating-linear-gradient(45deg,rgb(97 82 223) 0 8px,rgb(130 115 240) 8px 16px)", requiredLevel: 8 },
+    { id: "slider-glow",      name: "Glowing",       description: "Progress bars glow.",                      icon: "💡", cssVars: {}, previewCss: "background:rgb(97 82 223);box-shadow:0 0 10px rgb(97 82 223)", requiredLevel: 12 },
+    { id: "slider-flat",      name: "Flat",          description: "Square-cornered, minimal bars.",           icon: "▭", cssVars: {}, previewCss: "background:linear-gradient(90deg,#e5e7eb 60%,#374151 60%);border-radius:0", requiredLevel: 3 },
+]
+
+// ─── 15. Toasts ──────────────────────────────────────────────────────────────
+
+export const TOAST_PRESETS: UIPreset[] = [
+    { id: "toast-default",    name: "Default",       description: "Standard notifications.",                  icon: "🔔", cssVars: {}, previewCss: "background:#1f2937", requiredLevel: 1 },
+    { id: "toast-glass",      name: "Glass",         description: "Frosted glass notifications.",             icon: "🔷", cssVars: {}, previewCss: "background:rgba(255,255,255,0.08);backdrop-filter:blur(10px)", requiredLevel: 3 },
+    { id: "toast-accent",     name: "Accent Edge",   description: "An accent stripe on the left.",            icon: "▌", cssVars: {}, previewCss: "background:#1f2937;border-left:4px solid rgb(97 82 223)", requiredLevel: 5 },
+    { id: "toast-pill",       name: "Pill",          description: "Rounded pill notifications.",              icon: "💊", cssVars: {}, previewCss: "background:#1f2937;border-radius:9999px", requiredLevel: 8 },
+    { id: "toast-minimal",    name: "Minimal",       description: "Borderless, compact notifications.",       icon: "▫️", cssVars: {}, previewCss: "background:#111827", requiredLevel: 4 },
+    { id: "toast-neon",       name: "Neon",          description: "Glowing neon notifications.",              icon: "💡", cssVars: {}, previewCss: "background:#0d001a;box-shadow:0 0 10px #a855f7", requiredLevel: 15 },
+]
+
+// ─── 16. Selection & Focus ───────────────────────────────────────────────────
+
+export const SELECTION_PRESETS: UIPreset[] = [
+    { id: "select-default",   name: "Default",       description: "Browser default highlight.",               icon: "🖍️", cssVars: {}, previewCss: "background:#2563eb", requiredLevel: 1 },
+    { id: "select-accent",    name: "Accent",        description: "Highlight in your accent color.",          icon: "🎨", cssVars: { "--sea-selection-bg": "rgb(var(--color-brand-500) / 0.45)", "--sea-focus-ring": "2px solid rgb(var(--color-brand-400))" }, previewCss: "background:rgb(97 82 223)", requiredLevel: 2 },
+    { id: "select-gold",      name: "Gold",          description: "Golden highlight and focus ring.",         icon: "🥇", cssVars: { "--sea-selection-bg": "rgba(251,191,36,0.45)", "--sea-focus-ring": "2px solid #fbbf24" }, previewCss: "background:#fbbf24", requiredLevel: 10 },
+    { id: "select-mint",      name: "Mint",          description: "Fresh mint highlight.",                    icon: "🌿", cssVars: { "--sea-selection-bg": "rgba(52,211,153,0.45)", "--sea-focus-ring": "2px solid #34d399" }, previewCss: "background:#34d399", requiredLevel: 5 },
+    { id: "select-rose",      name: "Rose",          description: "Rose highlight.",                          icon: "🌹", cssVars: { "--sea-selection-bg": "rgba(244,63,94,0.45)", "--sea-focus-ring": "2px solid #fb7185" }, previewCss: "background:#f43f5e", requiredLevel: 5 },
+    { id: "select-glow",      name: "Glow Ring",     description: "Focused controls get a glowing ring.",     icon: "💫", cssVars: { "--sea-selection-bg": "rgb(var(--color-brand-500) / 0.4)", "--sea-focus-ring": "2px solid rgb(var(--color-brand-400))", "--sea-focus-glow": "0 0 0 4px rgb(var(--color-brand-500) / 0.35)" }, previewCss: "background:rgb(97 82 223);box-shadow:0 0 0 3px rgb(97 82 223 / 0.4)", requiredLevel: 12 },
+]
+
+// ─── 17. Badges ──────────────────────────────────────────────────────────────
+
+export const BADGE_PRESETS: UIPreset[] = [
+    { id: "badge-default",    name: "Default",       description: "Standard badges and chips.",               icon: "🏷️", cssVars: {}, previewCss: "background:#374151;border-radius:6px", requiredLevel: 1 },
+    { id: "badge-pill",       name: "Pill",          description: "Fully rounded badges.",                    icon: "💊", cssVars: {}, previewCss: "background:#374151;border-radius:9999px", requiredLevel: 2 },
+    { id: "badge-square",     name: "Square",        description: "Sharp-cornered badges.",                   icon: "⬛", cssVars: {}, previewCss: "background:#374151;border-radius:0", requiredLevel: 2 },
+    { id: "badge-outline",    name: "Outlined",      description: "Transparent badges with a rim.",           icon: "⬜", cssVars: {}, previewCss: "background:transparent;border:1px solid #9ca3af", requiredLevel: 4 },
+    { id: "badge-glass",      name: "Glass",         description: "Frosted badges.",                          icon: "🔷", cssVars: {}, previewCss: "background:rgba(255,255,255,0.1);backdrop-filter:blur(6px)", requiredLevel: 6 },
+    { id: "badge-caps",       name: "Small Caps",    description: "Uppercase, spaced badge text.",            icon: "🔠", cssVars: {}, previewCss: "background:#374151", requiredLevel: 8 },
+]
+
+// ─── 18. Idle Dim ────────────────────────────────────────────────────────────
+// Dims the app after a while without input (never during playback, see ui-customize-provider).
+
+export const IDLE_PRESETS: UIPreset[] = [
+    { id: "idle-off",         name: "Off",           description: "Never dim.",                               icon: "☀️", cssVars: { "--sea-idle-minutes": "0" },  previewCss: "background:#374151", requiredLevel: 1 },
+    { id: "idle-2",           name: "2 minutes",     description: "Dim after 2 idle minutes.",                icon: "🌙", cssVars: { "--sea-idle-minutes": "2", "--sea-idle-opacity": "0.55" },  previewCss: "background:#1f2937", requiredLevel: 2 },
+    { id: "idle-5",           name: "5 minutes",     description: "Dim after 5 idle minutes.",                icon: "🌙", cssVars: { "--sea-idle-minutes": "5", "--sea-idle-opacity": "0.55" },  previewCss: "background:#111827", requiredLevel: 2 },
+    { id: "idle-10",          name: "10 minutes",    description: "Dim after 10 idle minutes.",               icon: "🌙", cssVars: { "--sea-idle-minutes": "10", "--sea-idle-opacity": "0.55" }, previewCss: "background:#0b0f19", requiredLevel: 2 },
+    { id: "idle-deep-5",      name: "Deep (5 min)",  description: "Nearly black after 5 idle minutes.",       icon: "🌑", cssVars: { "--sea-idle-minutes": "5", "--sea-idle-opacity": "0.85" },  previewCss: "background:#000", requiredLevel: 6 },
+]
+
 // ─── All categories ───────────────────────────────────────────────────────────
 
 export const UI_CUSTOMIZE_CATEGORIES = [
@@ -212,6 +306,16 @@ export const UI_CUSTOMIZE_CATEGORIES = [
     { id: "layout",      label: "Layout Density",   icon: "📐", presets: LAYOUT_PRESETS         },
     { id: "transitions", label: "Page Transitions", icon: "🎬", presets: PAGE_TRANSITION_PRESETS },
     { id: "scrollbar",   label: "Scrollbar",        icon: "↕️", presets: SCROLLBAR_PRESETS     },
+    { id: "sidebar",     label: "Sidebar",          icon: "📋", presets: SIDEBAR_PRESETS       },
+    { id: "trail",       label: "Mouse Trail",      icon: "✨", presets: MOUSE_TRAIL_PRESETS   },
+    { id: "typography",  label: "Typography",       icon: "🔤", presets: TYPOGRAPHY_PRESETS    },
+    { id: "accent",      label: "Accent Effects",   icon: "🎨", presets: ACCENT_PRESETS        },
+    { id: "navbar",      label: "Top Bar",          icon: "▭",  presets: NAVBAR_PRESETS        },
+    { id: "slider",      label: "Progress Bars",    icon: "▬",  presets: SLIDER_PRESETS        },
+    { id: "toast",       label: "Notifications",    icon: "🔔", presets: TOAST_PRESETS         },
+    { id: "selection",   label: "Selection & Focus", icon: "🖍️", presets: SELECTION_PRESETS    },
+    { id: "badge",       label: "Badges",           icon: "🏷️", presets: BADGE_PRESETS         },
+    { id: "idle",        label: "Idle Dim",         icon: "🌙", presets: IDLE_PRESETS          },
 ] as const
 
 export type UICustomizeCategoryId = typeof UI_CUSTOMIZE_CATEGORIES[number]["id"]
@@ -247,6 +351,14 @@ export interface UICustomizeState {
     sidebar:     string
     transitions: string
     scrollbar:   string
+    typography:  string
+    accent:      string
+    navbar:      string
+    slider:      string
+    toast:       string
+    selection:   string
+    badge:       string
+    idle:        string
     // Layered page-transition settings (see PageTransitionControls)
     transitionVariant:        PageTransitionVariant
     transitionMaxDurationMs:  number
@@ -268,6 +380,14 @@ export const UI_CUSTOMIZE_DEFAULTS: UICustomizeState = {
     sidebar:     "sidebar-default",
     transitions: "pt-fade",
     scrollbar:   "scroll-default",
+    typography:  "type-default",
+    accent:      "accent-none",
+    navbar:      "navbar-default",
+    slider:      "slider-default",
+    toast:       "toast-default",
+    selection:   "select-default",
+    badge:       "badge-default",
+    idle:        "idle-off",
     transitionVariant:        "fade",
     transitionMaxDurationMs:  600,
     transitionMaxDelayMs:     350,

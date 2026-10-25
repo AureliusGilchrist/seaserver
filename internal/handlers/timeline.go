@@ -81,6 +81,19 @@ func (h *Handler) HandleGetTimeline(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
+	resolved := h.resolveTimelineEvents(profileID, events)
+
+	return h.RespondWithData(c, &TimelineResponse{
+		Events:  resolved,
+		Page:    page,
+		HasMore: int64(page*pageSize) < total,
+		Total:   total,
+	})
+}
+
+// resolveTimelineEvents enriches raw activity events with media titles/images (from the profile's
+// cached collections) and achievement details. Shared by the Activity tab and the merged timeline feed.
+func (h *Handler) resolveTimelineEvents(profileID uint, events []*models.ActivityEvent) []*TimelineEvent {
 	// Build a lookup map for achievement definitions
 	achDefMap := achievement.DefinitionMap()
 
@@ -200,12 +213,7 @@ func (h *Handler) HandleGetTimeline(c echo.Context) error {
 		resolved = append(resolved, te)
 	}
 
-	return h.RespondWithData(c, &TimelineResponse{
-		Events:  resolved,
-		Page:    page,
-		HasMore: int64(page*pageSize) < total,
-		Total:   total,
-	})
+	return resolved
 }
 
 // HandleRecordEpisodeWatched

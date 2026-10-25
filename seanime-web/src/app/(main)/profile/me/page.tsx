@@ -1,5 +1,7 @@
 "use client"
 
+import { lookupAvatarFrame, lookupBannerOverlay, lookupProfileLayout } from "@/lib/rewards/profile-style-definitions"
+import { profileAvatarBorderStyle, profileHeaderBackgroundStyle, profileNameStyle } from "@/lib/rewards/profile-cosmetics"
 import { useGetAchievements } from "@/api/hooks/achievement.hooks"
 import { useServerMutation } from "@/api/client/requests"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
@@ -145,7 +147,10 @@ export function MyProfilePage() {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => { setUserSoundLevel(currentLevel) }, [currentLevel, setUserSoundLevel])
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { activeTitle, activeNameColor, activeBorder, activeXPBarSkin, effectiveXPBarFill } = useRewards()
+    const { activeTitle, activeNameColor, activeBorder, activeBackground, activeXPBarSkin, effectiveXPBarFill, avatarFrameId, bannerOverlayId, profileLayoutId } = useRewards()
+    const avatarFrame = lookupAvatarFrame(avatarFrameId)
+    const bannerOverlay = lookupBannerOverlay(bannerOverlayId)
+    const profileLayout = lookupProfileLayout(profileLayoutId)
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const { config: themeConfig } = useAnimeTheme()
 
@@ -170,18 +175,15 @@ export function MyProfilePage() {
         return activeTitle.text
     }, [activeTitle, themeConfig.milestoneNames])
 
-    const nameStyle: React.CSSProperties = activeXPBarSkin?.fillCss
-        ? activeXPBarSkin.fillCss.startsWith("linear-gradient")
-            ? { backgroundImage: activeXPBarSkin.fillCss, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }
-            : { color: activeXPBarSkin.fillCss }
-        : activeNameColor?.gradientCss
-            ? { backgroundImage: activeNameColor.gradientCss, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }
-            : activeNameColor ? { color: activeNameColor.color } : {}
+    const nameStyle: React.CSSProperties = profileNameStyle({
+        nameColor: activeNameColor?.color,
+        nameGradient: activeNameColor?.gradientCss,
+        xpBarFill: activeXPBarSkin?.fillCss,
+    })
     const nameHasGradient = Boolean(nameStyle.backgroundImage)
 
-    const avatarBorderStyle: React.CSSProperties = activeBorder && activeBorder.borderCss !== "none"
-        ? { outline: activeBorder.borderCss, outlineOffset: "3px", boxShadow: activeBorder.glowCss ?? "none" }
-        : {}
+    const avatarBorderStyle: React.CSSProperties = profileAvatarBorderStyle(activeBorder)
+    const headerBgStyle: React.CSSProperties = profileHeaderBackgroundStyle(activeBackground)
 
     // Derive a solid accent color from XP bar fill for scoped brand overrides
     const profileAccentVars = React.useMemo(() => profileAccentStyle(effectiveXPBarFill), [effectiveXPBarFill])
@@ -217,6 +219,13 @@ export function MyProfilePage() {
                         className="absolute inset-0 bg-no-repeat bg-cover"
                         style={{ backgroundImage: `url(${profile!.bannerImage})`, backgroundPosition: "center center", backgroundSize: "cover" }}
                     />
+                    {bannerOverlay?.overlayCss && (
+                        <div
+                            data-profile-banner-overlay
+                            className="absolute inset-0 z-[1] pointer-events-none"
+                            style={{ background: bannerOverlay.overlayCss, mixBlendMode: bannerOverlay.blend as any }}
+                        />
+                    )}
                     {/* Top gradient - fade from background to transparent */}
                     <div className="absolute top-0 left-0 right-0 h-[5rem] bg-gradient-to-b from-[--background] to-transparent z-[2]" />
                     {/* Left fade - for sidebar transparency */}
@@ -229,8 +238,11 @@ export function MyProfilePage() {
             )}
             <PageWrapper className={cn("p-4 sm:p-8 space-y-6", profile!.bannerImage && "-mt-44 relative z-10")}>
                 {/* Unified Profile Header */}
-                <div className="flex flex-col sm:flex-row items-center gap-6 pb-2 border-b border-[--border] relative">
-                    <div style={avatarBorderStyle} className="rounded-full shrink-0">
+                <div
+                    className={cn("flex flex-col sm:flex-row items-center gap-6 pb-2 border-b border-[--border] relative", headerBgStyle.background && "rounded-xl p-4", profileLayout?.className)}
+                    style={headerBgStyle}
+                >
+                    <div style={avatarBorderStyle} className={cn("rounded-full shrink-0", avatarFrame?.className)}>
                         <LevelRingAvatar
                             profile={{
                                 currentLevel: level?.currentLevel ?? 1,
@@ -364,6 +376,9 @@ export function MyProfilePage() {
                         <TabsTrigger value="activity" className={tabsTriggerClass}>
                             <LuActivity className="mr-1.5" /> Activity
                         </TabsTrigger>
+                        <TabsTrigger value="timeline" className={tabsTriggerClass}>
+                            <LuMessagesSquare className="mr-1.5" /> Timeline
+                        </TabsTrigger>
                         <TabsTrigger value="stats" className={tabsTriggerClass}>
                             <LuStar className="mr-1.5" /> Stats
                         </TabsTrigger>
@@ -398,6 +413,9 @@ export function MyProfilePage() {
                                 name: profile.name,
                             } : undefined}
                         />
+                    </TabsContent>
+                    <TabsContent value="timeline" className="space-y-6 mt-6">
+                        <ProfileTimeline profileId={profile.id} profileName={profile.name} />
                     </TabsContent>
                     <TabsContent value="stats" className="space-y-6 mt-6">
                         <StatsTabContent />
@@ -514,6 +532,8 @@ export function ActivityBuffBadge({ multiplier }: { multiplier: number }) {
 // ─────────────────────── Activity Tab ───────────────────────
 
 import { ActivityTabContent } from "@/app/(main)/_features/profile/activity-tab-content"
+import { ProfileTimeline } from "@/app/(main)/_features/profile/profile-timeline"
+import { LuMessagesSquare } from "react-icons/lu"
 
 // ─────────────────────── Stats Tab (lazy) ───────────────────────
 

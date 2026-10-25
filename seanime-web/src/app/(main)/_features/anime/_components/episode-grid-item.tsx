@@ -6,11 +6,13 @@ import { imageShimmer } from "@/components/shared/image-helpers"
 import { SeaImage } from "@/components/shared/sea-image"
 import { cn } from "@/components/ui/core/styling"
 import { ProgressBar } from "@/components/ui/progress-bar"
+import { useProgressQueue } from "@/lib/progress-queue/progress-queue"
 import { getImageUrl } from "@/lib/server/assets"
 import { useEpisodeSpoilerState } from "@/lib/theme/anime-spoilers"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import React from "react"
 import { AiFillPlayCircle, AiFillWarning } from "react-icons/ai"
+import { LuClock } from "react-icons/lu"
 
 type EpisodeGridItemProps = {
     media: AL_BaseAnime,
@@ -81,10 +83,14 @@ export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.C
 
     const serverStatus = useServerStatus()
     const ts = useThemeSettings()
+    // Watched this run but not on AniList yet (queued / syncing). Grayed out, still playable, so the
+    // episode the user is actually on stays clear. Only meaningful when the list progress is known.
+    const queue = useProgressQueue(media.id, watchedProgress)
+    const isQueued = watchedProgress !== undefined && !isSelected && queue.isQueued(progressNumber ?? episodeNumber)
     const spoiler = useEpisodeSpoilerState(ts, {
         mediaId: media.id,
         episodeNumber,
-        watchedProgress,
+        watchedProgress: watchedProgress !== undefined ? queue.effectiveProgress : watchedProgress,
         spoilerActive,
     })
 
@@ -97,6 +103,7 @@ export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.C
             data-episode-number={episodeNumber}
             data-progress-number={progressNumber}
             data-is-watched={isWatched}
+            data-is-queued={isQueued}
             data-description={description}
             data-episode-title={episodeTitle}
             data-title={title}
@@ -113,6 +120,17 @@ export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.C
             )}
             {...rest}
         >
+
+            {isQueued && (
+                <span
+                    data-episode-grid-item-queued-badge
+                    title="Watched — waiting to sync to AniList"
+                    className={cn(
+                        "absolute top-3 right-3 z-[5] flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[10px] uppercase tracking-wider font-medium",
+                        "bg-black/50 text-gray-300 backdrop-blur-sm border border-gray-400/20",
+                    )}
+                ><LuClock className="size-3" /> Syncing</span>
+            )}
 
             {isFiller && (
                 <span
@@ -173,6 +191,7 @@ export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.C
                         sizes="10rem"
                         className={cn("object-cover object-center transition select-none", {
                             "opacity-25 lg:group-hover/episode-list-item:opacity-100": isWatched && !isSelected,
+                            "grayscale opacity-40 lg:group-hover/episode-list-item:opacity-100 lg:group-hover/episode-list-item:grayscale-0": isQueued,
                         },
                             spoiler.blurImage && "blur-2xl scale-110",
                             imageClassName)}
@@ -188,7 +207,7 @@ export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.C
                         </div>}
                 </div>
 
-                <div data-episode-grid-item-content className="relative overflow-hidden">
+                <div data-episode-grid-item-content className={cn("relative overflow-hidden transition", isQueued && "opacity-50 grayscale")}>
                     {isInvalid && <p data-episode-grid-item-invalid-metadata className="flex gap-2 text-red-300 items-center"><AiFillWarning
                         className="text-lg text-red-500"
                     /> Unidentified</p>}

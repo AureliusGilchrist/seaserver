@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"seanime/internal/api/anilist"
+	"seanime/internal/events"
 	"seanime/internal/platforms/shared_platform"
 	"seanime/internal/util"
 	"seanime/internal/util/filecache"
@@ -89,6 +90,9 @@ type AnilistClientManager struct {
 	// clients are raw clients, so they need their own queues.
 	pendingStores map[uint]*shared_platform.PendingMutationStore
 	pendingMu     sync.Mutex
+	// flushKick wakes the pending flusher for one profile (see KickPendingFlush). Nil until
+	// StartPendingFlusher runs.
+	flushKick chan uint
 }
 
 func NewAnilistClientManager(app *App) *AnilistClientManager {
@@ -138,12 +142,20 @@ func (m *AnilistClientManager) EnqueueProgressUpdate(
 	startedAt *anilist.FuzzyDateInput,
 	completedAt *anilist.FuzzyDateInput,
 ) {
-	if profileID == 0 {
-		return // admin path already queues via the shared cache layer
-	}
+	// Profile 0 (no profile system / the global account) gets a queue of its own too. The shared
+	// cache layer only queues once it has decided AniList is down, so a single rate-limited write
+	// on that path used to be lost.
 	mid := mediaID
 	prog := progress
-	m.getPendingStore(profileID).Enqueue(&shared_platform.PendingMutation{
+	store := m.getPendingStore(profileID)
+	// A queued value never moves backwards: an older episode finishing late must not overwrite a
+	// later one already waiting (the store keeps one entry per media, last write wins).
+	for _, it := range store.ProgressItems() {
+		if it.MediaID == mediaID && it.Progress > progress {
+			return
+		}
+	}
+	store.Enqueue(&shared_platform.PendingMutation{
 		Kind:        shared_platform.PendingKindUpdateEntryProgress,
 		MediaID:     &mid,
 		Progress:    &prog,
@@ -151,6 +163,115 @@ func (m *AnilistClientManager) EnqueueProgressUpdate(
 		StartedAt:   startedAt,
 		CompletedAt: completedAt,
 	})
+	m.notifyProgressQueue(profileID, nil)
+	m.KickPendingFlush(profileID)
+}
+
+// PendingProgressItems lists the progress updates still waiting to reach AniList for a profile.
+func (m *AnilistClientManager) PendingProgressItems(profileID uint) []shared_platform.PendingProgressItem {
+	return m.getPendingStore(profileID).ProgressItems()
+}
+
+// HasRecentProgressWrite reports whether this exact progress (or a later one) was written or queued
+// for the media in the last couple of minutes. Several players report the same completed episode —
+// the server-side stream tracker and the client both do — and every duplicate write spends an
+// AniList rate-limit slot, which is how the queue ends up rate-limited in the first place.
+func (m *AnilistClientManager) HasRecentProgressWrite(profileID uint, mediaID int, progress int) bool {
+	m.colMu.RLock()
+	if edit, ok := m.recentEdits[profileID][mediaID]; ok && edit.progress != nil &&
+		*edit.progress >= progress && time.Since(edit.appliedAt) < recentEditTTL {
+		m.colMu.RUnlock()
+		return true
+	}
+	m.colMu.RUnlock()
+	for _, it := range m.PendingProgressItems(profileID) {
+		if it.MediaID == mediaID && it.Progress >= progress {
+			return true
+		}
+	}
+	return false
+}
+
+// RecordProgressWrite writes a progress update AniList has just accepted into the profile's cached
+// collection, instead of throwing the cache away.
+//
+// Throwing it away is what made the progress prompt fire at random. The next read fell through to
+// the copy on disk — still holding the old progress — and the refresh behind it often came back
+// stale too, because AniList lags its own mutations. The player then saw the user two episodes ahead
+// of AniList and asked them to confirm a jump they never made. Patching, plus the replay window in
+// ApplyAnimeListEntryUpdate, keeps the cached value right from the moment of the write.
+func (m *AnilistClientManager) RecordProgressWrite(profileID uint, mediaID int, progress int, completed bool) {
+	if mediaID <= 0 {
+		return
+	}
+	m.ensureAnimeCollectionInMemory(profileID)
+
+	var status *anilist.MediaListStatus
+	if completed {
+		s := anilist.MediaListStatusCompleted
+		status = &s
+	} else {
+		// A progress write makes the entry "watching", except a rewatch, which stays where it is.
+		m.colMu.RLock()
+		current := m.cachedEntryStatusLocked(profileID, mediaID)
+		m.colMu.RUnlock()
+		if current == nil || *current != anilist.MediaListStatusRepeating {
+			s := anilist.MediaListStatusCurrent
+			status = &s
+		}
+	}
+	m.ApplyAnimeListEntryUpdate(profileID, mediaID, nil, status, nil, &progress, nil, nil)
+	m.refreshAnimeCollectionInBackground(profileID)
+}
+
+// ensureAnimeCollectionInMemory promotes the disk copy into memory when nothing is held, so a patch
+// has something to land in (ApplyAnimeListEntryUpdate only patches the in-memory copy).
+func (m *AnilistClientManager) ensureAnimeCollectionInMemory(profileID uint) {
+	m.colMu.RLock()
+	_, ok := m.animeColCache[profileID]
+	m.colMu.RUnlock()
+	if ok {
+		return
+	}
+	if diskCol, fetchedAt := m.loadAnimeCollectionFromDiskDated(profileID); diskCol != nil {
+		m.colMu.Lock()
+		if _, ok := m.animeColCache[profileID]; !ok {
+			m.animeColCache[profileID] = &profileAnimeCache{data: diskCol, fetchedAt: fetchedAt}
+		}
+		m.colMu.Unlock()
+	}
+}
+
+// cachedEntryStatusLocked returns the cached list status of a media for a profile. Callers hold colMu.
+func (m *AnilistClientManager) cachedEntryStatusLocked(profileID uint, mediaID int) *anilist.MediaListStatus {
+	cached, ok := m.animeColCache[profileID]
+	if !ok || cached == nil || cached.data == nil {
+		return nil
+	}
+	if entry, found := cached.data.GetListEntryFromAnimeId(mediaID); found {
+		return entry.GetStatus()
+	}
+	return nil
+}
+
+// notifyProgressQueue tells the profile's clients what is still queued (and what just synced), so
+// episode lists can gray out queued episodes and refetch once they land.
+func (m *AnilistClientManager) notifyProgressQueue(profileID uint, synced []shared_platform.PendingProgressItem) {
+	if m.app == nil || m.app.WSEventManager == nil {
+		return
+	}
+	if synced == nil {
+		synced = []shared_platform.PendingProgressItem{}
+	}
+	payload := map[string]interface{}{
+		"items":  m.PendingProgressItems(profileID),
+		"synced": synced,
+	}
+	if profileID == 0 {
+		m.app.WSEventManager.SendEvent(events.ProgressQueueUpdated, payload)
+		return
+	}
+	m.app.WSEventManager.SendEventToProfile(profileID, events.ProgressQueueUpdated, payload)
 }
 
 // EnqueueStatusUpdate queues a list-status change for a profile when AniList is unreachable,
@@ -173,9 +294,6 @@ func (m *AnilistClientManager) EnqueueStatusUpdate(profileID uint, mediaID int, 
 
 // PendingProgressCount returns how many progress updates are queued for a profile.
 func (m *AnilistClientManager) PendingProgressCount(profileID uint) int {
-	if profileID == 0 {
-		return 0
-	}
 	m.pendingMu.Lock()
 	store, ok := m.pendingStores[profileID]
 	m.pendingMu.Unlock()
@@ -188,20 +306,62 @@ func (m *AnilistClientManager) PendingProgressCount(profileID uint) int {
 
 // FlushPending attempts to replay a profile's queued mutations against its AniList client.
 func (m *AnilistClientManager) FlushPending(ctx context.Context, profileID uint) {
-	if profileID == 0 {
-		return
-	}
+	_ = m.flushPendingWithResult(ctx, profileID)
+}
+
+func (m *AnilistClientManager) flushPendingWithResult(ctx context.Context, profileID uint) error {
 	client := m.GetClient(profileID)
 	if client == nil || !client.IsAuthenticated() {
-		return
+		return nil
 	}
 	store := m.getPendingStore(profileID)
 	if store.Len() == 0 {
+		return nil
+	}
+	before := store.ProgressItems()
+	err := store.FlushWithResult(ctx, client)
+
+	// Whatever left the queue landed on AniList (or was rejected and dropped). Write the landed
+	// values into the cache so the UI shows them straight away rather than a stale refetch.
+	after := store.ProgressItems()
+	var synced []shared_platform.PendingProgressItem
+	for _, b := range before {
+		still := false
+		for _, a := range after {
+			if a.MediaID == b.MediaID && a.Progress == b.Progress {
+				still = true
+				break
+			}
+		}
+		if !still {
+			synced = append(synced, b)
+		}
+	}
+	if len(synced) > 0 {
+		if profileID > 0 {
+			for _, s := range synced {
+				m.RecordProgressWrite(profileID, s.MediaID, s.Progress, false)
+			}
+		} else if m.app != nil {
+			go func() { _, _ = m.app.RefreshAnimeCollection() }()
+		}
+		m.notifyProgressQueue(profileID, synced)
+	}
+	return err
+}
+
+// KickPendingFlush asks the flusher to try a profile's queue now rather than on its next tick.
+func (m *AnilistClientManager) KickPendingFlush(profileID uint) {
+	m.pendingMu.Lock()
+	kick := m.flushKick
+	m.pendingMu.Unlock()
+	if kick == nil {
 		return
 	}
-	store.Flush(ctx, client)
-	// Refresh the profile's cached collection so the UI reflects the synced progress.
-	m.InvalidateAnimeCollection(profileID)
+	select {
+	case kick <- profileID:
+	default: // a kick is already pending; the flusher will get to it
+	}
 }
 
 // loadPersistedStores scans the pending-mutations directory for profile queues persisted by a
@@ -232,15 +392,68 @@ func (m *AnilistClientManager) loadPersistedStores() {
 // StartPendingFlusher launches a background goroutine that periodically retries every
 // profile's queued progress updates. It stops when ctx is cancelled. Each flush stops at
 // the first failure, so a still-down API simply leaves the queue for the next tick.
+//
+// Queued progress is sent "as soon as AniList is ready": a new entry kicks a flush immediately,
+// and a failed flush backs off (5s doubling to 60s, or AniList's own retry-after) instead of
+// waiting a fixed half-minute between attempts.
 func (m *AnilistClientManager) StartPendingFlusher(ctx context.Context) {
 	m.loadPersistedStores()
+
+	kick := make(chan uint, 32)
+	m.pendingMu.Lock()
+	m.flushKick = kick
+	m.pendingMu.Unlock()
+
+	type backoffState struct {
+		fails int
+		next  time.Time
+	}
+	var stateMu sync.Mutex
+	state := make(map[uint]*backoffState)
+
+	attempt := func(id uint, force bool) {
+		stateMu.Lock()
+		st := state[id]
+		if st == nil {
+			st = &backoffState{}
+			state[id] = st
+		}
+		if !force && time.Now().Before(st.next) {
+			stateMu.Unlock()
+			return
+		}
+		stateMu.Unlock()
+
+		err := m.flushPendingWithResult(ctx, id)
+
+		stateMu.Lock()
+		defer stateMu.Unlock()
+		if err == nil {
+			st.fails = 0
+			st.next = time.Time{}
+			return
+		}
+		st.fails++
+		wait := 5 * time.Second << min(st.fails-1, 4) // 5s, 10s, 20s, 40s, 80s
+		if wait > time.Minute {
+			wait = time.Minute
+		}
+		if hint := shared_platform.RetryAfterHint(err); hint > wait {
+			wait = hint
+		}
+		st.next = time.Now().Add(wait)
+	}
+
 	go func() {
-		ticker := time.NewTicker(30 * time.Second)
+		ticker := time.NewTicker(5 * time.Second)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ctx.Done():
 				return
+			case id := <-kick:
+				// A new entry: try right away, but still respect a retry-after we were given.
+				go attempt(id, false)
 			case <-ticker.C:
 				m.pendingMu.Lock()
 				ids := make([]uint, 0, len(m.pendingStores))
@@ -251,7 +464,7 @@ func (m *AnilistClientManager) StartPendingFlusher(ctx context.Context) {
 				}
 				m.pendingMu.Unlock()
 				for _, id := range ids {
-					m.FlushPending(ctx, id)
+					go attempt(id, false)
 				}
 			}
 		}

@@ -271,7 +271,16 @@ function WebsocketManagement() {
                 }
             }
 
-            const wsUrl = `${document.location.protocol == "https:" ? "wss" : "ws"}://${getServerBaseUrl(true)}/events`
+            // The scheme follows the *server's* address, not the page's. The Android shell serves its
+            // pages from https://localhost while talking to a plain-http server, so keying off the
+            // page made it dial wss:// at an http server: every HTTP call worked (they go through the
+            // native HTTP plugin) but the websocket never connected, and the "server is down" overlay
+            // sat on top of the login screen.
+            const serverBase = getServerBaseUrl(false)
+            const wsScheme = /^https:/i.test(serverBase) ? "wss"
+                : /^http:/i.test(serverBase) ? "ws"
+                    : (document.location.protocol == "https:" ? "wss" : "ws")
+            const wsUrl = `${wsScheme}://${getServerBaseUrl(true)}/events`
             const clientId = cookies["Seanime-Client-Id"] || uuidv4()
 
             try {

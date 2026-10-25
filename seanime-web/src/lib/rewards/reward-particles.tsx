@@ -120,6 +120,14 @@ function drawParticle(ctx: CanvasRenderingContext2D, p: Particle) {
             ctx.stroke()
             break
         }
+        case "bananas": {
+            ctx.font = `${Math.round(p.size * 3.2)}px sans-serif`
+            ctx.textAlign = "center"
+            ctx.textBaseline = "middle"
+            ctx.fillText("🍌", 0, 0)
+            break
+        }
+        case "goldstars":
         case "stars": {
             ctx.fillStyle = p.color
             const outerR = p.size, innerR = p.size * 0.4
@@ -251,6 +259,7 @@ function spawnParticle(type: string, color: string, secondary: string, w: number
         case "sakura":
         case "feathers":
         case "rose":
+        case "bananas":
             vx = (Math.random() - 0.5) * 1.2
             vy = 0.5 + Math.random() * 1.2
             x = Math.random() * w
@@ -325,6 +334,7 @@ function spawnParticle(type: string, color: string, secondary: string, w: number
             rotationSpeed = (Math.random() - 0.5) * 0.04
             break
         case "stars":
+        case "goldstars":
         case "cosmos":
         case "galaxy":
         case "prismatic":
@@ -360,7 +370,7 @@ function spawnParticle(type: string, color: string, secondary: string, w: number
 const MAX_COUNTS: Record<string, number> = {
     none: 0,
     sakura: 35, snow: 60, sparks: 50, embers: 45, bubbles: 25,
-    leaves: 30, stars: 40, rose: 30, cosmos: 50, fireflies: 20,
+    leaves: 30, stars: 40, goldstars: 40, bananas: 30, rose: 30, cosmos: 50, fireflies: 20,
     rain: 120, feathers: 25, hearts: 20, music: 15, confetti: 60,
     crystals: 30, lightning: 15, void: 35, galaxy: 50, prismatic: 45,
 }
@@ -374,7 +384,7 @@ type ActiveSet = { key: string; color: string; secondary: string; maxCount: numb
 function updateSet(set: ActiveSet, particles: Particle[], frame: number, w: number, h: number): Particle[] {
     const { key, color, secondary, maxCount } = set
     const rate = SPAWN_RATE[key] ?? 1
-    const ambientTypes = ["stars", "cosmos", "galaxy", "void", "prismatic"]
+    const ambientTypes = ["stars", "goldstars", "cosmos", "galaxy", "void", "prismatic"]
     let pool = particles.filter(p => (p as any).__set === key)
     const others = particles.filter(p => (p as any).__set !== key)
 
@@ -387,7 +397,7 @@ function updateSet(set: ActiveSet, particles: Particle[], frame: number, w: numb
     pool = pool.filter(p => {
         const decay = key === "fireflies" ? 0.001 : key === "rain" ? 0.04 : 0.004
         p.life -= decay
-        if (["sakura", "feathers", "rose", "leaves", "crystals", "confetti", "snow"].includes(key)) {
+        if (["sakura", "feathers", "rose", "leaves", "crystals", "confetti", "snow", "bananas"].includes(key)) {
             p.vy += 0.01
             p.vx += Math.sin(frame * 0.02 + p.y * 0.01) * 0.02
         }
@@ -464,7 +474,7 @@ export function RewardParticlesLayer() {
         particlesRef.current = particlesRef.current.filter(p => keySet.has((p as any).__set))
 
         // Pre-seed ambient types
-        const ambientTypes = ["stars", "cosmos", "galaxy", "void", "prismatic"]
+        const ambientTypes = ["stars", "goldstars", "cosmos", "galaxy", "void", "prismatic"]
         for (const s of activeSets) {
             if (ambientTypes.includes(s.key)) {
                 const existing = particlesRef.current.filter(p => (p as any).__set === s.key).length
@@ -493,7 +503,7 @@ export function RewardParticlesLayer() {
             cancelAnimationFrame(animRef.current)
             window.removeEventListener("resize", resize)
         }
-    }, [activeKeys])
+    }, [activeKeys, isFullscreen, browserFullscreen])
 
     if (!activeKeys) return null
     if (isFullscreen || browserFullscreen) return null

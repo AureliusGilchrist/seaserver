@@ -50,6 +50,7 @@ const (
 
 	// AniList API status events
 	AnilistRateLimited          = "anilist-rate-limited"             // Payload: { retryAfter: number (seconds) }
+	ProgressQueueUpdated        = "progress-queue-updated"           // Payload: { items: [{mediaId, progress, queuedAt}], synced: [{mediaId, progress}] }
 	AnilistAPIOnline            = "anilist-api-online"               // Sent once the client successfully recovers
 	AnilistTokenExpired         = "anilist-token-expired"            // Sent when the profile's AniList token is rejected (401)
 	AnilistPlanningSlutTokenExpired = "anilist-planning-slut-token-expired" // Sent when the planning slut AniList token is rejected (401)

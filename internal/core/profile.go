@@ -56,6 +56,13 @@ type Profile struct {
 	// stored globally so every viewer sees it.
 	WallpaperURL     string `gorm:"column:wallpaper_url" json:"wallpaperUrl"`
 	WallpaperEffects string `gorm:"column:wallpaper_effects;type:text" json:"wallpaperEffects"`
+	// Reward Shop profile cosmetics, by catalogue id (seanime-web/src/lib/rewards). Stored globally so
+	// everyone viewing the profile sees them, not just the owner's own browser.
+	ProfileBorderID string `gorm:"column:profile_border_id" json:"profileBorderId"`
+	ProfileBgID     string `gorm:"column:profile_bg_id" json:"profileBgId"`
+	AvatarFrameID   string `gorm:"column:avatar_frame_id" json:"avatarFrameId"`
+	BannerOverlayID string `gorm:"column:banner_overlay_id" json:"bannerOverlayId"`
+	ProfileLayoutID string `gorm:"column:profile_layout_id" json:"profileLayoutId"`
 }
 
 // ProfileSummary is a safe projection of Profile for API responses (never includes PIN data).
@@ -81,6 +88,11 @@ type ProfileSummary struct {
 	AnilistAuthenticated bool   `json:"anilistAuthenticated"`
 	WallpaperURL         string `json:"wallpaperUrl"`
 	WallpaperEffects     string `json:"wallpaperEffects"`
+	ProfileBorderID      string `json:"profileBorderId"`
+	ProfileBgID          string `json:"profileBgId"`
+	AvatarFrameID        string `json:"avatarFrameId"`
+	BannerOverlayID      string `json:"bannerOverlayId"`
+	ProfileLayoutID      string `json:"profileLayoutId"`
 }
 
 func (p *Profile) ToSummary() *ProfileSummary {
@@ -104,6 +116,11 @@ func (p *Profile) ToSummary() *ProfileSummary {
 		NameGradientCss:   p.NameGradientCss,
 		WallpaperURL:      p.WallpaperURL,
 		WallpaperEffects:  p.WallpaperEffects,
+		ProfileBorderID:   p.ProfileBorderID,
+		ProfileBgID:       p.ProfileBgID,
+		AvatarFrameID:     p.AvatarFrameID,
+		BannerOverlayID:   p.BannerOverlayID,
+		ProfileLayoutID:   p.ProfileLayoutID,
 		ThemeID:           func() string { if p.ThemeID == "" { return "seanime" }; return p.ThemeID }(),
 	}
 }

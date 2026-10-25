@@ -234,8 +234,8 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
 
 # -- 1. Frontend -------------------------------------------
 
-# Auto-increment the seaserver build version (versions.json) so every build is
-# newer than the last; the prebuild hooks then propagate it to both packages.
+# Bump the shared version's test suffix (X.Y.Z-N -> -N+1, versions.json) so every build is
+# newer than the last; the prebuild hooks then propagate it to every component.
 Invoke-BuildStep '0.4' 'Bump build version' {
     SubStep 'node sync-versions.js --bump'
     node (Join-Path $ScriptDir 'sync-versions.js') --bump

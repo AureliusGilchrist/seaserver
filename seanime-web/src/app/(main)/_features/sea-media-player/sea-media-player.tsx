@@ -114,6 +114,8 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
         mediaInfoDuration,
     } = props
 
+    const [cursorHidden, setCursorHidden] = React.useState(false)
+
     const serverStatus = useServerStatus()
     const personal = usePersonalSettings()
     // Empty string rather than undefined: the server reads a missing clientId as "" anyway
@@ -639,6 +641,13 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
                 ) : (!!url && !isLoading) ? (
                     <MediaPlayer
                         data-sea-media-player
+                        data-sea-cursor-hidden={cursorHidden || undefined}
+                        onContextMenu={(e: React.MouseEvent) => {
+                            // Right-click is the only thing that hides the cursor; it toggles.
+                            e.preventDefault()
+                            setCursorHidden(h => !h)
+                        }}
+                        onMouseLeave={() => setCursorHidden(false)}
                         streamType="on-demand"
                         playsInline
                         ref={playerRef}

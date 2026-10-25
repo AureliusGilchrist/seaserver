@@ -47,6 +47,12 @@ type (
 		// after a successful progress update so the next fetch returns fresh data.
 		invalidateProfileAnimeCollectionFunc func(profileID uint)
 		getProfileAnimeCollectionFunc        func(profileID uint) *anilist.AnimeCollection
+		// Progress-queue hooks (see core.AnilistClientManager): patch the cache after a write, queue
+		// a write AniList could not take, and skip one another player already made.
+		applyProgressWriteFunc        func(profileID uint, mediaID int, progress int, completed bool)
+		enqueuePendingProgressFunc    func(profileID uint, mediaID int, progress int, status *anilist.MediaListStatus, startedAt *anilist.FuzzyDateInput, completedAt *anilist.FuzzyDateInput)
+		hasRecentProgressWriteFunc    func(profileID uint, mediaID int, progress int) bool
+		autoUpdateProgressEnabledFunc func(profileID uint) bool
 
 		// recordPlaybackActivityFunc is called after a successful AniList progress update.
 		// It mirrors PlaybackManager's activity tracker so that direct-stream playback
@@ -106,6 +112,10 @@ type (
 		GetProfileAnilistClientFunc func(profileID uint) (anilist.AnilistClient, uint)
 		InvalidateProfileAnimeCollectionFunc func(profileID uint)
 		GetProfileAnimeCollectionFunc        func(profileID uint) *anilist.AnimeCollection
+		ApplyProgressWriteFunc               func(profileID uint, mediaID int, progress int, completed bool)
+		EnqueuePendingProgressFunc           func(profileID uint, mediaID int, progress int, status *anilist.MediaListStatus, startedAt *anilist.FuzzyDateInput, completedAt *anilist.FuzzyDateInput)
+		HasRecentProgressWriteFunc           func(profileID uint, mediaID int, progress int) bool
+		AutoUpdateProgressEnabledFunc        func(profileID uint) bool
 		RecordPlaybackActivityFunc func(profileID uint, mediaID int, episodeNumber int, totalEpisodes int, durationSeconds int)
 		IsOfflineRef               *util.Ref[bool]
 		NativePlayer               *nativeplayer.NativePlayer
@@ -127,6 +137,10 @@ func NewManager(options NewManagerOptions) *Manager {
 		getProfileAnilistClientFunc: options.GetProfileAnilistClientFunc,
 		invalidateProfileAnimeCollectionFunc: options.InvalidateProfileAnimeCollectionFunc,
 		getProfileAnimeCollectionFunc:        options.GetProfileAnimeCollectionFunc,
+		applyProgressWriteFunc:               options.ApplyProgressWriteFunc,
+		enqueuePendingProgressFunc:           options.EnqueuePendingProgressFunc,
+		hasRecentProgressWriteFunc:           options.HasRecentProgressWriteFunc,
+		autoUpdateProgressEnabledFunc:        options.AutoUpdateProgressEnabledFunc,
 		recordPlaybackActivityFunc: options.RecordPlaybackActivityFunc,
 		isOfflineRef:               options.IsOfflineRef,
 		sessions:                   result.NewMap[string, *ProfileStreamSession](),
