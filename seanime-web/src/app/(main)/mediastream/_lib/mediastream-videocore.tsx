@@ -11,6 +11,7 @@ import { vc_directPlayAudioUrl, vc_directPlayAudioLoading, vc_directPlayAudioEle
 import { getMediastreamSessionId } from "@/app/(main)/mediastream/_lib/mediastream.atoms"
 import { useSkipData } from "@/app/(main)/_features/sea-media-player/aniskip"
 import { useAchievementActivityHeartbeat } from "@/api/hooks/achievement.hooks"
+import { useGetMediastreamSettings } from "@/api/hooks/mediastream.hooks"
 import { useAtomValue } from "jotai"
 import { useSetAtom } from "jotai/react"
 import { toast } from "sonner"
@@ -279,6 +280,12 @@ function MediastreamDirectPlayEffects({
     // ── Stall detection: auto-switch from direct play to transcode ──
     const stallTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
     const hasSwitchedRef = React.useRef(false)
+    // "Direct play only" means exactly that: these fallbacks never override it. They used to — a
+    // few seconds of buffering at the start of an episode (the server still reading the file)
+    // switched to transcoding, which on this server thrashed encoder heads, paused, drifted the
+    // audio and lost the resume position.
+    const { data: mediastreamSettings } = useGetMediastreamSettings(true)
+    const directPlayOnly = !!mediastreamSettings?.directPlayOnly
 
     React.useEffect(() => {
         if (!videoElement || !handleChangeStreamType || currentStreamType !== "direct") return
@@ -292,16 +299,21 @@ function MediastreamDirectPlayEffects({
             }
         }
 
+        // Only a long, real stall switches: a few seconds of buffering is normal for direct play
+        // (start of an episode, a seek on a busy disk) and recovers on its own.
+        const STALL_SWITCH_MS = 20_000
         const onWaiting = () => {
-            if (hasSwitchedRef.current) return
+            if (hasSwitchedRef.current || directPlayOnly) return
             clearStallTimer()
             stallTimerRef.current = setTimeout(() => {
                 if (hasSwitchedRef.current || !videoElement.isConnected) return
+                // Still no progress? Buffered data arriving means it's slow, not stuck.
+                if (videoElement.readyState >= 3) return
                 hasSwitchedRef.current = true
-                log.warning("Direct play stalled for 3s, auto-switching to transcode")
+                log.warning(`Direct play stalled for ${STALL_SWITCH_MS / 1000}s, auto-switching to transcode`)
                 toast.info("Direct play stalling — switching to transcode")
                 handleChangeStreamType("transcode")
-            }, 3000)
+            }, STALL_SWITCH_MS)
         }
 
         const onPlaying = () => clearStallTimer()
@@ -315,6 +327,12 @@ function MediastreamDirectPlayEffects({
             // Only for the element that is actually playing: a leftover element from a previous
             // episode must never switch the current one's stream type.
             if (!videoElement.isConnected) return
+            if (directPlayOnly) {
+                hasSwitchedRef.current = true
+                log.warning(`Direct play failed (${reason}); direct play only is on, not switching`)
+                toast.error("This file couldn't be played directly. Transcoding is off in Direct play only mode.")
+                return
+            }
             hasSwitchedRef.current = true
             clearStallTimer()
             log.warning(`Direct play failed (${reason}), switching to transcode`)
@@ -323,7 +341,7 @@ function MediastreamDirectPlayEffects({
         }
         const onError = () => switchToTranscode(`video error ${videoElement.error?.code ?? "unknown"}`)
         const metadataWatchdog = setTimeout(() => {
-            if (videoElement.readyState < 1) switchToTranscode("no metadata after 12s")
+            if (!directPlayOnly && videoElement.readyState < 1) switchToTranscode("no metadata after 12s")
         }, 12_000)
 
         videoElement.addEventListener("waiting", onWaiting)
@@ -339,7 +357,7 @@ function MediastreamDirectPlayEffects({
             videoElement.removeEventListener("canplay", onCanPlay)
             videoElement.removeEventListener("error", onError)
         }
-    }, [videoElement, handleChangeStreamType, currentStreamType])
+    }, [videoElement, handleChangeStreamType, currentStreamType, directPlayOnly])
 
     return null
 }

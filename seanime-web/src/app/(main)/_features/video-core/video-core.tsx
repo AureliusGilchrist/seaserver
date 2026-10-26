@@ -1214,6 +1214,9 @@ export function VideoCore(props: VideoCoreProps) {
     }, [watchHistory])
 
     const hasSoughtRef = React.useRef(false)
+    // Set when the video was ready before the saved position had arrived from the server: the
+    // resume is applied as soon as it does (see the effect below), instead of being skipped.
+    const pendingContinuityRestoreRef = React.useRef(false)
 
     // Lifecycle
     useUpdateEffect(() => {
@@ -1262,6 +1265,7 @@ export function VideoCore(props: VideoCoreProps) {
         // When a new playback info is received
         if (!!state.playbackInfo?.id && (!currentPlaybackRef.current || state.playbackInfo.id !== currentPlaybackRef.current)) {
             hasSoughtRef.current = false
+            pendingContinuityRestoreRef.current = false
             isFirstError.current = true
             setInSightOpen(false)
             setInSightData(null)
@@ -1843,7 +1847,11 @@ export function VideoCore(props: VideoCoreProps) {
             if (popoutResume) {
                 restoreSeekTime(popoutResume.time, false, popoutResume.paused)
             } else if (!state.playbackInfo.disableRestoreFromContinuity && !state.playbackInfo.initialState) {
-                if (state.playbackInfo?.episode?.episodeNumber && watchHistory?.found && watchHistory.item?.episodeNumber === state.playbackInfo?.episode?.episodeNumber) {
+                if (shouldWaitForWatchHistory && !watchHistory) {
+                    // Ready before the saved position arrived: resume once it does.
+                    log.info("Watch continuity: waiting for watch history to resume")
+                    pendingContinuityRestoreRef.current = true
+                } else if (state.playbackInfo?.episode?.episodeNumber && watchHistory?.found && watchHistory.item?.episodeNumber === state.playbackInfo?.episode?.episodeNumber) {
                     const lastWatchedTime = getEpisodeContinuitySeekTo(state.playbackInfo?.episode?.episodeNumber,
                         videoRef.current?.currentTime,
                         videoRef.current?.duration)
@@ -1866,6 +1874,21 @@ export function VideoCore(props: VideoCoreProps) {
             }
         }
     }
+
+    // The saved position arrived after the video was ready (see pendingContinuityRestoreRef).
+    React.useEffect(() => {
+        if (!pendingContinuityRestoreRef.current || !watchHistory || !videoRef.current || !state.playbackInfo) return
+        pendingContinuityRestoreRef.current = false
+        const episodeNumber = state.playbackInfo.episode?.episodeNumber
+        if (!episodeNumber || !watchHistory.found || watchHistory.item?.episodeNumber !== episodeNumber) return
+        // Someone who already moved on in the episode has chosen where to be.
+        if (videoRef.current.currentTime > 15) return
+        const lastWatchedTime = getEpisodeContinuitySeekTo(episodeNumber, videoRef.current.currentTime, videoRef.current.duration)
+        if (lastWatchedTime > 0) {
+            log.info("Watch continuity: Seeking to (late)", lastWatchedTime)
+            restoreSeekTime(lastWatchedTime, true)
+        }
+    }, [watchHistory])
 
     const handleStalled = (e: React.SyntheticEvent<HTMLVideoElement>) => {
         setBuffering(true)
