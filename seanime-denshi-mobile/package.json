@@ -1,6 +1,6 @@
 {
   "name": "seanime-denshi-mobile",
-  "version": "5.1.0-9",
+  "version": "5.2.0-0",
   "description": "Mobile-shaped, connect-only Electron client for Seaserver",
   "main": "src/main.js",
   "author": "5rahim <talkwithrahim@gmail.com>",
