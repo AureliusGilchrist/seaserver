@@ -14,6 +14,7 @@ import { IconButton } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { Popover } from "@/components/ui/popover"
 import { Tooltip } from "@/components/ui/tooltip"
+import { SeaLink } from "@/components/shared/sea-link"
 import { WSEvents } from "@/lib/server/ws-events"
 import { useWindowSize } from "@uidotdev/usehooks"
 import { useAtom } from "jotai/react"
@@ -37,6 +38,64 @@ export const __plugin_unpinnedTrayIconClickedAtom = atom<TrayIcon | null>(null)
 
 export const __plugin_openedTrayPlugin = atom<string | null>(null)
 
+/** An app shortcut that lives in the tray next to the plugins (Achievements, Milestones, …). */
+export type TrayExtraItem = {
+    id: string
+    iconType?: React.ElementType
+    name: string
+    href?: string
+    onClick?: (e?: any) => void
+    isCurrent?: boolean
+    badge?: number
+    spinning?: boolean
+}
+
+function TrayExtraButtons({ items, onNavigate }: { items: TrayExtraItem[], onNavigate?: () => void }) {
+    return (
+        <>
+            {items.map(item => {
+                const Icon = item.iconType
+                const button = (
+                    <span
+                        className={cn(
+                            "relative flex size-8 items-center justify-center rounded-full text-[--muted] transition hover:bg-white/10 hover:text-white",
+                            item.isCurrent && "bg-white/10 text-white",
+                        )}
+                    >
+                        {Icon && <Icon className={cn("size-[1.15rem]", item.spinning && "animate-spin")} />}
+                        {!!item.badge && item.badge > 0 && (
+                            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[0.6rem] font-bold text-black">
+                                {item.badge > 99 ? "99+" : item.badge}
+                            </span>
+                        )}
+                    </span>
+                )
+                return (
+                    <Tooltip
+                        key={item.id}
+                        side="right"
+                        trigger={item.href
+                            ? <SeaLink href={item.href} onClick={() => { item.onClick?.(); onNavigate?.() }} aria-label={item.name}>{button}</SeaLink>
+                            : <button type="button" onClick={() => item.onClick?.()} aria-label={item.name}>{button}</button>}
+                    >
+                        {item.name}
+                    </Tooltip>
+                )
+            })}
+        </>
+    )
+}
+
+/** The tray with only the app shortcuts in it (plugin tray off, or the mobile sidebar). */
+function TrayExtrasOnly({ items, onNavigate }: { items: TrayExtraItem[], onNavigate?: () => void }) {
+    if (!items.length) return null
+    return (
+        <div data-plugin-sidebar-tray className="mx-auto my-2 flex w-10 flex-col items-center gap-1 rounded-full border border-[--border] p-1">
+            <TrayExtraButtons items={items} onNavigate={onNavigate} />
+        </div>
+    )
+}
+
 const ExtensionList = ({
     place,
     developmentModeExtensions,
@@ -45,6 +104,8 @@ const ExtensionList = ({
     trayIcons,
     settings,
     width,
+    extraItems = [],
+    onNavigate,
 }: {
     place: "sidebar" | "top";
     developmentModeExtensions: Extension_Extension[];
@@ -53,6 +114,8 @@ const ExtensionList = ({
     trayIcons: TrayIcon[];
     settings: ExtensionRepo_StoredPluginSettingsData | undefined;
     width: number | null;
+    extraItems?: TrayExtraItem[];
+    onNavigate?: () => void;
 }) => {
 
     const { mutate: setPluginSettingsPinnedTrays, isPending: isSettingPluginSettingsPinnedTrays } = useSetPluginSettingsPinnedTrays()
@@ -97,9 +160,10 @@ const ExtensionList = ({
                     "w-10 mx-auto p-1 my-2",
                     "flex flex-col gap-1 items-center border border-transparent justify-center rounded-full transition-all duration-300 select-none",
                     place === "top" && "flex-row w-auto my-0 justify-start px-2 py-2 border-none",
-                    pinnedTrayIcons.length > 0 && "border-[--border]",
+                    (pinnedTrayIcons.length > 0 || extraItems.length > 0) && "border-[--border]",
                 )}
             >
+                {place === "sidebar" && <TrayExtraButtons items={extraItems} onNavigate={onNavigate} />}
 
                 <Popover
                     open={trayIconListOpen}
@@ -273,7 +337,12 @@ const ExtensionList = ({
     )
 }
 
-export function PluginSidebarTray({ place }: { place: "sidebar" | "top" }) {
+export function PluginSidebarTray({ place, extraItems = [], onNavigate }: {
+    place: "sidebar" | "top"
+    /** App shortcuts shown in the sidebar tray alongside the plugins. */
+    extraItems?: TrayExtraItem[]
+    onNavigate?: () => void
+}) {
     const { isFeatureDisabled } = useServerDisabledFeatures()
     const { width } = useWindowSize()
     const [trayIcons, setTrayIcons] = useAtom(__plugin_trayIconsAtom)
@@ -396,6 +465,12 @@ export function PluginSidebarTray({ place }: { place: "sidebar" | "top" }) {
 
     const isMobile = width && width < 1024
 
+    // The app shortcuts stay reachable when plugins can't show (tray turned off, or the phone
+    // layout, where plugins live in the top bar instead).
+    if (place === "sidebar" && (isFeatureDisabled("PluginTray") || !trayIcons || isMobile)) {
+        return <TrayExtrasOnly items={extraItems} onNavigate={onNavigate} />
+    }
+
     if (isFeatureDisabled("PluginTray")) return null
 
     if (!trayIcons) return null
@@ -403,6 +478,8 @@ export function PluginSidebarTray({ place }: { place: "sidebar" | "top" }) {
     return (
         <>
             {!isMobile && place === "sidebar" && <ExtensionList
+                extraItems={extraItems}
+                onNavigate={onNavigate}
                 place={place}
                 developmentModeExtensions={developmentModeExtensions || []}
                 isReloadingExtension={isReloadingExtension}

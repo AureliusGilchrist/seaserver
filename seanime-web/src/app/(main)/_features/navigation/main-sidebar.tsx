@@ -61,7 +61,7 @@ import { SiQbittorrent, SiTransmission } from "react-icons/si"
 import { TbReportSearch } from "react-icons/tb"
 import { nakamaModalOpenAtom, useNakamaStatus } from "../nakama/nakama-manager"
 import { watchPartyModalOpenAtom, watchPartySessionAtom } from "../watch-party/watch-party.atoms"
-import { PluginSidebarTray } from "../plugin/tray/plugin-sidebar-tray"
+import { PluginSidebarTray, type TrayExtraItem } from "../plugin/tray/plugin-sidebar-tray"
 
 export function MainSidebar() {
 
@@ -503,7 +503,7 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
     ], [pathname, myProfileHref, myProfileId, searchParams])
 
     // Odds and ends, in the tray pill under the main menu.
-    const trayItems: SidebarTrayItem[] = [
+    const trayItems: TrayExtraItem[] = [
         {
             id: "achievements",
             iconType: GiTrophyCup,
@@ -574,9 +574,7 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
                 handleUnexpandedSidebar={() => { }}
             />
 
-            <SidebarTrayPill items={trayItems} onNavigate={() => ctx.setOpen(false)} />
-
-            <PluginSidebarTray place="sidebar" />
+            <PluginSidebarTray place="sidebar" extraItems={trayItems} onNavigate={() => ctx.setOpen(false)} />
 
             {/* Middle third */}
             <div className="flex flex-1 items-center py-4" data-sidebar-middle>
@@ -605,55 +603,6 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
                 }}
             />
 
-        </div>
-    )
-}
-
-type SidebarTrayItem = {
-    id: string
-    iconType?: React.ElementType
-    name: string
-    href?: string
-    onClick?: (e?: any) => void
-    isCurrent?: boolean
-    badge?: number
-    spinning?: boolean
-}
-
-/** The tray pill: small round buttons for things that don't need a row of their own. */
-function SidebarTrayPill({ items, onNavigate }: { items: SidebarTrayItem[], onNavigate: () => void }) {
-    if (!items.length) return null
-    return (
-        <div data-sidebar-tray-pill className="mx-auto my-2 flex w-10 flex-col items-center gap-1 rounded-full border border-[--border] p-1">
-            {items.map(item => {
-                const Icon = item.iconType
-                const button = (
-                    <span
-                        className={cn(
-                            "relative flex size-8 items-center justify-center rounded-full text-[--muted] transition hover:bg-white/10 hover:text-white",
-                            item.isCurrent && "bg-white/10 text-white",
-                        )}
-                    >
-                        {Icon && <Icon className={cn("size-[1.15rem]", item.spinning && "animate-spin")} />}
-                        {!!item.badge && item.badge > 0 && (
-                            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[0.6rem] font-bold text-black">
-                                {item.badge > 99 ? "99+" : item.badge}
-                            </span>
-                        )}
-                    </span>
-                )
-                return (
-                    <Tooltip
-                        key={item.id}
-                        side="right"
-                        trigger={item.href
-                            ? <SeaLink href={item.href} onClick={() => { item.onClick?.(); onNavigate() }} aria-label={item.name}>{button}</SeaLink>
-                            : <button type="button" onClick={item.onClick} aria-label={item.name}>{button}</button>}
-                    >
-                        {item.name}
-                    </Tooltip>
-                )
-            })}
         </div>
     )
 }
