@@ -49,20 +49,8 @@ export default function Page() {
         return { animeAppearances: anime, mangaAppearances: manga }
     }, [data])
 
-    if (isLoading) {
-        return <PageWrapper className="p-8 flex justify-center"><LoadingSpinner /></PageWrapper>
-    }
-
-    if (!data) {
-        return <PageWrapper className="p-8 text-center text-[--muted]">Character not found</PageWrapper>
-    }
-
-    const dob = data.dateOfBirth
-    const dobStr = dob && (dob.month || dob.day || dob.year)
-        ? [dob.month && `${dob.month}`, dob.day && `${dob.day}`, dob.year && `${dob.year}`].filter(Boolean).join("/")
-        : null
-
-    // Collect unique voice actors across all edges
+    // Collect unique voice actors across all edges. Before the early returns: a hook after them
+    // runs only once data has loaded, and React crashes the page on the changed hook count.
     const voiceActors = useMemo(() => {
         const seen = new Set<number>()
         const vas: any[] = []
@@ -76,6 +64,19 @@ export default function Page() {
         }
         return vas
     }, [data])
+
+    if (isLoading) {
+        return <PageWrapper className="p-8 flex justify-center"><LoadingSpinner /></PageWrapper>
+    }
+
+    if (!data) {
+        return <PageWrapper className="p-8 text-center text-[--muted]">Character not found</PageWrapper>
+    }
+
+    const dob = data.dateOfBirth
+    const dobStr = dob && (dob.month || dob.day || dob.year)
+        ? [dob.month && `${dob.month}`, dob.day && `${dob.day}`, dob.year && `${dob.year}`].filter(Boolean).join("/")
+        : null
 
     const bgImage = data.image?.large
 
