@@ -40,6 +40,8 @@ export type PersonalSettings = {
     hideAudienceScore: boolean
     blurAdultContent: boolean
     disableAnimeCardTrailers: boolean
+    /** Whether the anime library shows the Completed list. */
+    showCompletedInLibrary: boolean
     /** Card widths in px (see CardSizeVariables). */
     animeCardWidth: number
     mangaCardWidth: number
@@ -90,6 +92,7 @@ export function usePersonalSettings(): PersonalSettings {
         hideAudienceScore: clientSettings.hideAudienceScore ?? serverStatus?.settings?.anilist?.hideAudienceScore ?? false,
         blurAdultContent: clientSettings.blurAdultContent ?? serverStatus?.settings?.anilist?.blurAdultContent ?? false,
         disableAnimeCardTrailers: clientSettings.disableAnimeCardTrailers ?? serverStatus?.settings?.library?.disableAnimeCardTrailers ?? false,
+        showCompletedInLibrary: clientSettings.showCompletedInLibrary ?? true,
         animeCardWidth: clampCardWidth(clientSettings.animeCardWidth),
         mangaCardWidth: clampCardWidth(clientSettings.mangaCardWidth),
         mangaAutoUpdateProgress: clientSettings.mangaAutoUpdateProgress ?? serverStatus?.settings?.manga?.mangaAutoUpdateProgress ?? false,

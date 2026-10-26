@@ -56,6 +56,8 @@ export const clientSettingsSchema = z.object({
     hideAudienceScore: z.boolean().optional(),
     blurAdultContent: z.boolean().optional(),
     disableAnimeCardTrailers: z.boolean().optional(),
+    /** Whether the anime library shows the Completed list. */
+    showCompletedInLibrary: z.boolean().optional(),
     /** Card widths in px, one for anime cards and one for manga cards. */
     animeCardWidth: z.number().optional(),
     mangaCardWidth: z.number().optional(),

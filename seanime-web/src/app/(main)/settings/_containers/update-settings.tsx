@@ -465,32 +465,6 @@ function LiveUpdates() {
                 </div>
             </SettingsCard>
 
-            <SettingsCard title="Frontend">
-                <p className="text-sm text-[--muted]">
-                    {liveUpdate
-                        ? "Builds the frontend from the local files on this machine and swaps it in live. The window reloads when it is done."
-                        : "Frontend live updates are available in the Denshi desktop app. The backend update controls above work from this page."}
-                </p>
-                <div className="flex gap-2">
-                    <Button
-                        intent="primary"
-                        loading={running === "frontend"}
-                        disabled={!liveUpdate || running !== null || checking !== null}
-                        onClick={() => run("frontend")}
-                    >
-                        Update frontend
-                    </Button>
-                    <Button
-                        intent="gray-outline"
-                        loading={checking === "frontend"}
-                        disabled={!liveUpdate || running !== null || checking !== null}
-                        onClick={() => check("frontend")}
-                    >
-                        Check for updates
-                    </Button>
-                </div>
-            </SettingsCard>
-
             {lines.length > 0 && (
                 <div className="relative">
                     <Button

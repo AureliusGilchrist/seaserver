@@ -33,6 +33,7 @@ import { cn } from "@/components/ui/core/styling"
 import { DropdownMenu, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { defineSchema, Field, Form } from "@/components/ui/form"
 import { Modal } from "@/components/ui/modal"
+import { Tooltip } from "@/components/ui/tooltip"
 import { VerticalMenu, VerticalMenuItem } from "@/components/ui/vertical-menu"
 import { openTab } from "@/lib/helpers/browser"
 import { AnilistLogo, AnilistTokenButton } from "@/components/shared/anilist-token-button"
@@ -291,30 +292,6 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
             }] : [],
         ]
 
-        const youItems = [
-            {
-                id: "my-profile",
-                iconType: LuUsers,
-                name: "Profile",
-                href: myProfileHref,
-                isCurrent: pathname.startsWith("/profile/user") && (!myProfileId || searchParams.get("id") === String(myProfileId)),
-            },
-            {
-                id: "achievements",
-                iconType: GiTrophyCup,
-                name: "Achievements",
-                href: "/achievements",
-                isCurrent: pathname === "/achievements",
-            },
-            {
-                id: "milestones",
-                iconType: LuFlag,
-                name: "Milestones",
-                href: "/milestones",
-                isCurrent: pathname === "/milestones",
-            },
-        ]
-
         return [
         {
             id: "landing",
@@ -459,29 +436,6 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
         },
         ] : []),
 
-        // ── Community ────────────────────────────────────────────────────
-        {
-            id: "group-community",
-            name: "Community",
-            iconType: LuUsers,
-            isGroupHeading: true,
-        },
-        {
-            id: "community",
-            iconType: LuGlobe,
-            name: "Community",
-            href: "/community",
-            isCurrent: pathname.includes("/community"),
-        },
-        {
-            id: "you",
-            iconType: LuUserRound,
-            name: "You",
-            isCurrent: youItems.some(item => item.isCurrent),
-            subContentOpen: youItems.some(item => item.isCurrent),
-            addon: achievementUnlockedCount > 0 ? <Badge className="absolute right-0 top-0 bg-amber-500" size="sm" intent="alert-solid">{achievementUnlockedCount}</Badge> : undefined,
-            subContent: <SidebarSubMenu items={youItems} collapsed={isCollapsed} />,
-        },
         ]}, [
         pathname,
         missingEpisodeCount,
@@ -529,8 +483,65 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
         return items.filter(item => !ts.unpinnedMenuItems?.includes(item.id))
     }, [items, ts.unpinnedMenuItems])
 
+    // The middle third: you and everyone else, on their own between the app's sections and the
+    // footer.
+    const middleItems: VerticalMenuItem[] = React.useMemo(() => [
+        {
+            id: "my-profile",
+            iconType: LuUserRound,
+            name: "Profile",
+            href: myProfileHref,
+            isCurrent: (pathname.startsWith("/profile/user") && (!myProfileId || searchParams.get("id") === String(myProfileId))) || pathname === "/profile/me",
+        },
+        {
+            id: "community",
+            iconType: LuGlobe,
+            name: "Community",
+            href: "/community",
+            isCurrent: pathname.includes("/community"),
+        },
+    ], [pathname, myProfileHref, myProfileId, searchParams])
+
+    // Odds and ends, in the tray pill under the main menu.
+    const trayItems: SidebarTrayItem[] = [
+        {
+            id: "achievements",
+            iconType: GiTrophyCup,
+            name: "Achievements",
+            href: "/achievements",
+            isCurrent: pathname === "/achievements",
+            badge: achievementUnlockedCount,
+        },
+        {
+            id: "milestones",
+            iconType: LuFlag,
+            name: "Milestones",
+            href: "/milestones",
+            isCurrent: pathname === "/milestones",
+        },
+        {
+            id: "refresh-anilist",
+            iconType: LuRefreshCw,
+            name: isRefreshingAC ? "Refreshing AniList…" : "Refresh AniList",
+            spinning: isRefreshingAC,
+            onClick: () => {
+                ctx.setOpen(false)
+                if (isRefreshingAC) return
+                refreshAC()
+            },
+        },
+        ...pluginWebviewItems.map(item => ({
+            id: item.id,
+            iconType: item.iconType,
+            name: item.name,
+            href: item.href ?? undefined,
+            onClick: item.onClick,
+            isCurrent: item.isCurrent,
+        })),
+    ]
+
     return (
-        <div>
+        <div className="flex flex-1 flex-col">
             <div
                 className={cn(
                     "mb-4 p-4 pb-0 flex justify-center w-full",
@@ -551,19 +562,7 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
                 itemContentClass="gap-3"
                 itemChevronClass={isCollapsed ? "hidden" : undefined}
                 itemIconClass="transition-transform duration-300"
-                items={[
-                    ...visibleItems.map(applyAnimeOverride),
-                    ...pluginWebviewItems,
-                    {
-                        iconType: LuRefreshCw,
-                        name: "Refresh AniList",
-                        onClick: () => {
-                            ctx.setOpen(false)
-                            if (isRefreshingAC) return
-                            refreshAC()
-                        },
-                    },
-                ]}
+                items={visibleItems.map(applyAnimeOverride)}
                 subContentClass={cn((ts.hideTopNavbar || __isDesktop__) && "border-transparent !border-b-0", "overflow-visible")}
                 onLinkItemClick={() => ctx.setOpen(false)}
                 isSidebar
@@ -575,7 +574,23 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
                 handleUnexpandedSidebar={() => { }}
             />
 
+            <SidebarTrayPill items={trayItems} onNavigate={() => ctx.setOpen(false)} />
+
             <PluginSidebarTray place="sidebar" />
+
+            {/* Middle third */}
+            <div className="flex flex-1 items-center py-4" data-sidebar-middle>
+                <VerticalMenu
+                    className="w-full px-4"
+                    collapsed={isCollapsed}
+                    itemClass="relative transition-all duration-300 ease-out"
+                    itemContentClass="gap-3"
+                    itemIconClass="transition-transform duration-300"
+                    items={middleItems.map(applyAnimeOverride)}
+                    onLinkItemClick={() => ctx.setOpen(false)}
+                    isSidebar
+                />
+            </div>
 
             <NotificationDrawer
                 open={notificationDrawerOpen}
@@ -590,6 +605,55 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
                 }}
             />
 
+        </div>
+    )
+}
+
+type SidebarTrayItem = {
+    id: string
+    iconType?: React.ElementType
+    name: string
+    href?: string
+    onClick?: (e?: any) => void
+    isCurrent?: boolean
+    badge?: number
+    spinning?: boolean
+}
+
+/** The tray pill: small round buttons for things that don't need a row of their own. */
+function SidebarTrayPill({ items, onNavigate }: { items: SidebarTrayItem[], onNavigate: () => void }) {
+    if (!items.length) return null
+    return (
+        <div data-sidebar-tray-pill className="mx-auto my-2 flex w-10 flex-col items-center gap-1 rounded-full border border-[--border] p-1">
+            {items.map(item => {
+                const Icon = item.iconType
+                const button = (
+                    <span
+                        className={cn(
+                            "relative flex size-8 items-center justify-center rounded-full text-[--muted] transition hover:bg-white/10 hover:text-white",
+                            item.isCurrent && "bg-white/10 text-white",
+                        )}
+                    >
+                        {Icon && <Icon className={cn("size-[1.15rem]", item.spinning && "animate-spin")} />}
+                        {!!item.badge && item.badge > 0 && (
+                            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[0.6rem] font-bold text-black">
+                                {item.badge > 99 ? "99+" : item.badge}
+                            </span>
+                        )}
+                    </span>
+                )
+                return (
+                    <Tooltip
+                        key={item.id}
+                        side="right"
+                        trigger={item.href
+                            ? <SeaLink href={item.href} onClick={() => { item.onClick?.(); onNavigate() }} aria-label={item.name}>{button}</SeaLink>
+                            : <button type="button" onClick={item.onClick} aria-label={item.name}>{button}</button>}
+                    >
+                        {item.name}
+                    </Tooltip>
+                )
+            })}
         </div>
     )
 }

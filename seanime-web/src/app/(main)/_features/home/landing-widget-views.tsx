@@ -223,7 +223,8 @@ export function LandingAnimeStatsWidget() {
                 { label: "completed", value: v(stats?.completed) },
                 { label: "episodes watched", value: v(stats?.episodesWatched) },
                 { label: "planning", value: v(stats?.planning) },
-                { label: "downloaded", value: v(stats?.downloaded) },
+                // Every episode on disk, whoever downloaded it: the server's library is shared.
+                { label: "downloaded episodes", value: libraryCollection ? (libraryCollection.stats?.totalFiles ?? 0) : null },
             ]}
             href="/anime"
         />

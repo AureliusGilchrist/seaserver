@@ -74,10 +74,10 @@ export function useHandleDetailedLibraryCollection({ enabled = true }: { enabled
             _lists.find(n => n.type === "CURRENT"),
             _lists.find(n => n.type === "PAUSED"),
             _lists.find(n => n.type === "PLANNING"),
-            _lists.find(n => n.type === "COMPLETED"),
+            personal.showCompletedInLibrary ? _lists.find(n => n.type === "COMPLETED") : undefined,
             _lists.find(n => n.type === "DROPPED"),
         ].filter(Boolean)
-    }, [data, debouncedParams, serverStatus?.settings?.anilist?.enableAdultContent, watchHistory, animeGojuuonMap])
+    }, [data, debouncedParams, serverStatus?.settings?.anilist?.enableAdultContent, watchHistory, animeGojuuonMap, personal.showCompletedInLibrary])
 
     const filteredCollection: Anime_LibraryCollectionList[] = React.useMemo(() => {
         return _filteredCollection.map(obj => {
@@ -102,7 +102,7 @@ export function useHandleDetailedLibraryCollection({ enabled = true }: { enabled
             data.continueWatchingList,
             watchHistory,
             animeGojuuonMap)
-    }, [data, debouncedParams, serverStatus?.settings?.anilist?.enableAdultContent, watchHistory, animeGojuuonMap])
+    }, [data, debouncedParams, serverStatus?.settings?.anilist?.enableAdultContent, watchHistory, animeGojuuonMap, personal.showCompletedInLibrary])
 
     const filteredEntries: Anime_LibraryCollectionEntry[] = React.useMemo(() => {
         return filterEntriesByTitle(_filteredEntries, debouncedSearchInput)

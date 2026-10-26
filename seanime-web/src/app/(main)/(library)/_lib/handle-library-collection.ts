@@ -197,10 +197,10 @@ export function useHandleLibraryCollection() {
             _lists.find(n => n.type === "CURRENT"),
             _lists.find(n => n.type === "PAUSED"),
             _lists.find(n => n.type === "PLANNING"),
-            _lists.find(n => n.type === "COMPLETED"),
+            personal.showCompletedInLibrary ? _lists.find(n => n.type === "COMPLETED") : undefined,
             _lists.find(n => n.type === "DROPPED"),
         ].filter(Boolean)
-    }, [data, params, animeLibraryCollectionDefaultSorting, serverStatus?.settings?.anilist?.enableAdultContent, watchHistory, animeGojuuonMap])
+    }, [data, params, animeLibraryCollectionDefaultSorting, serverStatus?.settings?.anilist?.enableAdultContent, watchHistory, animeGojuuonMap, personal.showCompletedInLibrary])
 
     /**
      * Filter the collection
@@ -246,10 +246,10 @@ export function useHandleLibraryCollection() {
             _lists.find(n => n.type === "CURRENT"),
             _lists.find(n => n.type === "PAUSED"),
             _lists.find(n => n.type === "PLANNING"),
-            _lists.find(n => n.type === "COMPLETED"),
+            personal.showCompletedInLibrary ? _lists.find(n => n.type === "COMPLETED") : undefined,
             _lists.find(n => n.type === "DROPPED"),
         ].filter(Boolean)
-    }, [data, params, serverStatus?.settings?.anilist?.enableAdultContent, watchHistory, animeGojuuonMap])
+    }, [data, params, serverStatus?.settings?.anilist?.enableAdultContent, watchHistory, animeGojuuonMap, personal.showCompletedInLibrary])
 
     /**
      * Entries the user marked COMPLETED on their own AniList account that the full collection
@@ -284,6 +284,8 @@ export function useHandleLibraryCollection() {
     ) => {
         const allLists = lists.filter(l => (l.type as string) !== "LOCAL")
 
+        // Completed hidden (Personal -> Display): no section to add the extra entries to.
+        if (!personal.showCompletedInLibrary) return allLists.filter(l => l.type !== "COMPLETED")
         if (!completedEntriesWithoutLocalFiles.length) return allLists
 
         // Run the extra entries through the same filter/sort as the rest of the collection so
@@ -315,6 +317,7 @@ export function useHandleLibraryCollection() {
         })
     }, [
         completedEntriesWithoutLocalFiles,
+        personal.showCompletedInLibrary,
         serverStatus?.settings?.anilist?.enableAdultContent,
         watchHistory,
         animeGojuuonMap,

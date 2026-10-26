@@ -1,3 +1,4 @@
+import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { AL_ListRecentAnime_Page_AiringSchedules, Anime_LibraryCollectionEntry, Anime_LibraryCollectionList, Anime_ScheduleItem, Models_HomeItem } from "@/api/generated/types"
 import { useAnilistListAnime, useAnilistListRecentAiringAnime } from "@/api/hooks/anilist.hooks"
 import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
@@ -1233,6 +1234,7 @@ export function AnimeCarousel(props: { libraryCollectionProps: HandleLibraryColl
 
 function MyLists(props: { item: Models_HomeItem }) {
     const { item } = props
+    const { showCompletedInLibrary } = usePersonalSettings()
 
     const {
         currentList,
@@ -1272,7 +1274,7 @@ function MyLists(props: { item: Models_HomeItem }) {
                 <h2>Paused <span className="text-[--muted] font-medium ml-3">{formatNumber(pausedList?.entries?.length ?? 0)}</span></h2>
                 <AnilistAnimeEntryList type={item.options?.type ?? "anime"} layout={item.options?.layout} list={pausedList} />
             </>}
-            {(!!completedList?.entries?.length && !isCustomList && (!item.options?.statuses?.length || item.options?.statuses?.includes("COMPLETED"))) && <>
+            {(showCompletedInLibrary && !!completedList?.entries?.length && !isCustomList && (!item.options?.statuses?.length || item.options?.statuses?.includes("COMPLETED"))) && <>
                 <h2>Completed <span className="text-[--muted] font-medium ml-3">{formatNumber(completedList?.entries?.length ?? 0)}</span></h2>
                 <AnilistAnimeEntryList type={item.options?.type ?? "anime"} layout={item.options?.layout} list={completedList} />
             </>}

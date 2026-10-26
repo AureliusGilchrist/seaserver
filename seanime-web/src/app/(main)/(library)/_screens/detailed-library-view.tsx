@@ -1,3 +1,4 @@
+import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { Anime_Episode, Anime_LibraryCollectionEntry, Anime_LibraryCollectionList } from "@/api/generated/types"
 import { __home_currentView } from "@/app/(main)/(library)/_home/home-screen"
 import {
@@ -313,6 +314,12 @@ export function SearchOptions() {
     const serverStatus = useServerStatus()
     const [params, setParams] = useAtom(__library_paramsAtom)
     const [selectedIndex, setSelectedIndex] = useAtom(__library_selectedListAtom)
+    const { showCompletedInLibrary } = usePersonalSettings()
+
+    // Completed hidden (Personal -> Display): leave its tab for Watching.
+    React.useEffect(() => {
+        if (!showCompletedInLibrary && selectedIndex === "COMPLETED") setSelectedIndex("CURRENT")
+    }, [showCompletedInLibrary, selectedIndex, setSelectedIndex])
 
     return (
         <AppLayoutStack className="px-4 xl:px-0" data-detailed-library-view-search-options-container>
@@ -326,7 +333,7 @@ export function SearchOptions() {
                         { name: "Watching", isCurrent: selectedIndex === "CURRENT", onClick: () => setSelectedIndex("CURRENT") },
                         { name: "Planning", isCurrent: selectedIndex === "PLANNING", onClick: () => setSelectedIndex("PLANNING") },
                         { name: "Paused", isCurrent: selectedIndex === "PAUSED", onClick: () => setSelectedIndex("PAUSED") },
-                        { name: "Completed", isCurrent: selectedIndex === "COMPLETED", onClick: () => setSelectedIndex("COMPLETED") },
+                        ...(showCompletedInLibrary ? [{ name: "Completed", isCurrent: selectedIndex === "COMPLETED", onClick: () => setSelectedIndex("COMPLETED") }] : []),
                         { name: "Dropped", isCurrent: selectedIndex === "DROPPED", onClick: () => setSelectedIndex("DROPPED") },
                     ]}
                 />

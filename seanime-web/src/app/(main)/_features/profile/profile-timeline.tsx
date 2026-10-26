@@ -17,6 +17,7 @@ import {
 } from "@/api/hooks/profile-timeline.hooks"
 import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
+import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { SeaLink } from "@/components/shared/sea-link"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
@@ -618,6 +619,19 @@ function CardActions({ item }: { item: TimelineFeedItem }) {
     const [pop, setPop] = React.useState(false)
     const { mutate: toggleLike } = useToggleTimelineLike()
     const { mutate: deletePost } = useDeleteProfilePost(item.postId ?? 0)
+    const me = useAtomValue(currentProfileAtom)
+    // Someone else's message on your wall is removed from it, not "your post" deleted.
+    const isOnMyWall = !!item.wallProfile && item.wallProfile.id === me?.id && item.author?.id !== me?.id
+    const deleteConfirm = useConfirmationDialog({
+        title: isOnMyWall ? "Remove this message from your wall?" : "Delete this post?",
+        description: isOnMyWall
+            ? `${item.author?.name ?? "Their"} message, its replies and its likes go away for everyone. This can't be undone.`
+            : "It disappears from every timeline, along with its replies and likes. This can't be undone.",
+        actionText: isOnMyWall ? "Remove" : "Delete",
+        cancelText: "Keep it",
+        actionIntent: "alert",
+        onConfirm: () => deletePost(),
+    })
 
     React.useEffect(() => {
         setLiked(item.likedByMe)
@@ -664,15 +678,14 @@ function CardActions({ item }: { item: TimelineFeedItem }) {
                 {item.canDelete && (
                     <button
                         className="ml-auto inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 opacity-0 transition hover:bg-red-500/10 hover:text-red-300 group-hover/tl:opacity-100 focus:opacity-100"
-                        onClick={() => {
-                            if (window.confirm("Delete this post?")) deletePost()
-                        }}
+                        onClick={() => deleteConfirm.open()}
                         aria-label="Delete"
                     >
                         <LuTrash2 className="size-4" />
                     </button>
                 )}
             </div>
+            {item.canDelete && <ConfirmationDialog {...deleteConfirm} />}
             {repliesOpen && <TimelineReplies targetKey={item.key} />}
         </div>
     )

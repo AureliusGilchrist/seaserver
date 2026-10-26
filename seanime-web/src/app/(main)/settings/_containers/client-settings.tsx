@@ -691,6 +691,15 @@ export function ClientSettings(props: ClientSettingsProps) {
                                 help="Whether adult content appears at all is a server-wide setting."
                             />
                         </SettingRow>
+                        <SettingRow settingKey="showCompletedInLibrary">
+                            <Switch
+                                side="right"
+                                value={personal.showCompletedInLibrary}
+                                onValueChange={v => handleSet("showCompletedInLibrary", v)}
+                                label="Show completed in library"
+                                help="The Completed list in your anime library. Off keeps the library to what you're watching, planning or have paused."
+                            />
+                        </SettingRow>
                         <SettingRow settingKey="disableAnimeCardTrailers">
                             <Switch
                                 side="right"
