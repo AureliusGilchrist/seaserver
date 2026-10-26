@@ -155,7 +155,7 @@ export function TimelineSkeleton({ count = 4 }: { count?: number }) {
     return (
         <div className="space-y-3">
             {Array.from({ length: count }).map((_, i) => (
-                <div key={i} className="flex gap-3 rounded-2xl bg-white/[0.025] p-4 ring-1 ring-white/[0.06]">
+                <div key={i} className="flex gap-3 rounded-2xl bg-white/[0.025] p-4 ring-1 ring-white/[0.06] backdrop-blur-md backdrop-saturate-150">
                     <Skeleton className="size-10 shrink-0 rounded-full" />
                     <div className="flex-1 space-y-2">
                         <Skeleton className="h-4 w-1/3" />
@@ -170,7 +170,7 @@ export function TimelineSkeleton({ count = 4 }: { count?: number }) {
 
 function TimelineEmpty() {
     return (
-        <div className="flex flex-col items-center gap-2 rounded-2xl bg-white/[0.02] px-6 py-14 text-center ring-1 ring-white/[0.06]">
+        <div className="flex flex-col items-center gap-2 rounded-2xl bg-white/[0.02] px-6 py-14 text-center ring-1 ring-white/[0.06] backdrop-blur-md backdrop-saturate-150">
             <span className="flex size-12 items-center justify-center rounded-2xl bg-brand-500/15 text-brand-300"><LuSparkles className="size-6" /></span>
             <p className="font-semibold">Nothing here yet</p>
             <p className="max-w-xs text-sm text-[--muted]">Watch something, unlock an achievement or post a thought, and it shows up here.</p>
@@ -215,7 +215,7 @@ export function TimelineComposer({ wallProfileId, placeholder, author }: {
         <div
             data-timeline-composer
             className={cn(
-                "rounded-2xl bg-gradient-to-b from-white/[0.05] to-white/[0.02] p-3 ring-1 transition-shadow sm:p-4",
+                "rounded-2xl bg-gradient-to-b from-white/[0.05] to-white/[0.02] p-3 ring-1 transition-shadow sm:p-4 backdrop-blur-md backdrop-saturate-150",
                 open ? "ring-brand-400/40 shadow-[0_10px_40px_-20px_rgb(var(--color-brand-500)/0.7)]" : "ring-white/[0.08]",
             )}
         >
@@ -324,7 +324,7 @@ export function TimelineCard({ item }: { item: TimelineFeedItem }) {
             data-timeline-card
             data-kind={item.kind}
             className={cn(
-                "group/tl relative overflow-hidden rounded-2xl bg-white/[0.03] ring-1 ring-white/[0.07] transition duration-200",
+                "group/tl relative overflow-hidden rounded-2xl bg-white/[0.03] ring-1 ring-white/[0.07] transition duration-200 backdrop-blur-md backdrop-saturate-150",
                 "hover:-translate-y-px hover:bg-white/[0.045] hover:ring-white/[0.12]",
                 "before:absolute before:inset-y-3 before:left-0 before:w-[3px] before:rounded-r-full before:opacity-70",
                 KIND_ACCENT[kind],
@@ -756,7 +756,7 @@ function TimelineReplies({ targetKey }: { targetKey: string }) {
                         <div key={r.id} className="group/reply flex items-start gap-2.5">
                             <Avatar p={r.author} className="size-7" />
                             <div className="min-w-0 max-w-full">
-                                <div className="w-fit max-w-full rounded-2xl rounded-tl-md bg-white/[0.06] px-3.5 py-2 ring-1 ring-white/[0.06]">
+                                <div className="w-fit max-w-full rounded-2xl rounded-tl-md bg-white/[0.06] px-3.5 py-2 ring-1 ring-white/[0.06] backdrop-blur-md backdrop-saturate-150">
                                     <div className="flex items-baseline gap-2 text-xs">
                                         <ProfileName p={r.author} />
                                     </div>
@@ -784,7 +784,7 @@ function TimelineReplies({ targetKey }: { targetKey: string }) {
                     <AvatarImg src={myAvatar} name={me.name} className="mb-0.5 size-7" />
                     <div
                         className={cn(
-                            "flex min-w-0 flex-1 items-end gap-1 rounded-[1.25rem] bg-white/[0.05] py-1 pl-4 pr-1 ring-1 ring-white/10 transition",
+                            "flex min-w-0 flex-1 items-end gap-1 rounded-[1.25rem] bg-white/[0.05] py-1 pl-4 pr-1 ring-1 ring-white/10 transition backdrop-blur-md backdrop-saturate-150",
                             "focus-within:bg-white/[0.07] focus-within:ring-brand-400/50",
                         )}
                     >

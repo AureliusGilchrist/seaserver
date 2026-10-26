@@ -77,7 +77,7 @@ export default function Page() {
             <CustomLibraryBanner discrete />
             <PageWrapper className="mx-auto max-w-[96rem] space-y-6 p-4 sm:p-8">
                 {/* Header band */}
-                <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-500/15 via-white/[0.03] to-transparent p-5 ring-1 ring-white/[0.08] sm:p-6">
+                <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-500/15 via-white/[0.03] to-transparent p-5 backdrop-blur-md backdrop-saturate-150 ring-1 ring-white/[0.08] sm:p-6">
                     <div aria-hidden className="pointer-events-none absolute -right-16 -top-24 size-72 rounded-full bg-brand-500/20 blur-3xl" />
                     <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                         <div className="flex items-center gap-3">
@@ -109,7 +109,7 @@ export default function Page() {
                         </SeaLink>
                     ))}
                     <button onClick={() => setMembersOpen(true)} className="flex w-16 shrink-0 flex-col items-center justify-center gap-1 text-[--muted]">
-                        <span className="flex size-14 items-center justify-center rounded-full bg-white/[0.05] ring-1 ring-white/10"><LuLayoutGrid className="size-5" /></span>
+                        <span className="flex size-14 items-center justify-center rounded-full bg-white/[0.05] backdrop-blur-md backdrop-saturate-150 ring-1 ring-white/10"><LuLayoutGrid className="size-5" /></span>
                         <span className="text-[0.7rem]">All</span>
                     </button>
                 </div>
@@ -188,7 +188,7 @@ export default function Page() {
 
 function StatPill({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
     return (
-        <div className="flex items-center gap-2 rounded-full bg-black/25 px-3 py-1.5 ring-1 ring-white/[0.08] backdrop-blur">
+        <div className="flex items-center gap-2 rounded-full bg-black/25 px-3 py-1.5 ring-1 ring-white/[0.08] backdrop-blur-md backdrop-saturate-150">
             <span className="text-brand-300">{icon}</span>
             <span className="text-sm font-semibold tabular-nums">{value}</span>
             <span className="text-xs text-[--muted]">{label}</span>
@@ -198,7 +198,7 @@ function StatPill({ icon, label, value }: { icon: React.ReactNode; label: string
 
 function SidebarCard({ title, icon, action, children }: { title: string, icon: React.ReactNode, action?: React.ReactNode, children: React.ReactNode }) {
     return (
-        <section className="rounded-2xl bg-white/[0.03] p-4 ring-1 ring-white/[0.07]">
+        <section className="rounded-2xl bg-white/[0.03] p-4 ring-1 ring-white/[0.07] backdrop-blur-md backdrop-saturate-150">
             <div className="mb-3 flex items-center gap-2">
                 <span className="text-brand-300">{icon}</span>
                 <h2 className="text-sm font-semibold uppercase tracking-wider">{title}</h2>
