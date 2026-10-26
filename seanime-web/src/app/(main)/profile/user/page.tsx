@@ -546,6 +546,7 @@ function ProfileCommentRow({ comment }: { comment: ProfileCommentItem }) {
     )
 }
 
-// Phones: one scrollable row of tabs instead of several wrapped rows.
-const profileTabsListClass = cn(tabsListClass, "max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:justify-start hide-scrollbar")
-const profileTabsTriggerClass = cn(tabsTriggerClass, "max-sm:text-sm max-sm:px-3 shrink-0")
+// Phones only (every class is max-sm:): one scrollable row of tabs instead of several wrapped
+// rows. Desktop keeps the shared tab classes untouched.
+const profileTabsListClass = cn(tabsListClass, "max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:justify-start max-sm:[scrollbar-width:none]")
+const profileTabsTriggerClass = cn(tabsTriggerClass, "max-sm:text-sm max-sm:px-3 max-sm:shrink-0")
