@@ -1,4 +1,5 @@
 "use client"
+import { attachHiddenAudioSync } from "@/app/(main)/_features/video-core/hidden-audio-sync"
 import React from "react"
 import { Anime_Episode, Mediastream_StreamType } from "@/api/generated/types"
 import { getServerBaseUrl } from "@/api/client/server-url"
@@ -93,6 +94,9 @@ function MediastreamDirectPlayEffects({
 }) {
     const videoElement = useAtomValue(vc_videoElement)
     const settings = useAtomValue(vc_settings)
+    // Read by the hidden-audio sync on every pass, so changing the delay mid-episode applies at once.
+    const audioDelayRef = React.useRef(settings.audioDelay ?? 0)
+    audioDelayRef.current = settings.audioDelay ?? 0
     const setRequestTranscodeForAudio = useSetAtom(vc_requestTranscodeForAudio)
     const setDirectPlayAudioUrl = useSetAtom(vc_directPlayAudioUrl)
     const setDirectPlayAudioLoading = useSetAtom(vc_directPlayAudioLoading)
@@ -111,8 +115,6 @@ function MediastreamDirectPlayEffects({
     // Refs for the hidden audio element and rAF sync loop
     const audioElementRef = React.useRef<HTMLAudioElement | null>(null)
     const audioSyncRafRef = React.useRef<number>(0)
-    // Guard: suppress drift correction for a short window after seeking
-    const seekCooldownRef = React.useRef<number>(0)
 
     // Cleanup hidden audio element on unmount
     React.useEffect(() => {
@@ -196,73 +198,13 @@ function MediastreamDirectPlayEffects({
 
                 const onCanPlay = () => {
                     setDirectPlayAudioLoading(false)
-                    toast.success("Audio track switched")
                     toast.success("Audio track ready", { id: toastId })
 
                     video.muted = true
-                    // audioDelay: positive = audio plays ahead, negative = audio plays behind
-                    const getTargetAudioTime = () => video.currentTime + (settings.audioDelay ?? 0)
-                    audioEl!.currentTime = getTargetAudioTime()
-                    audioEl!.playbackRate = video.playbackRate
-                    if (!video.paused) audioEl!.play().catch(() => {})
-
-                    // Hard resync on seek — set audio time once and suppress the
-                    // drift-correction loop for 1 second so the two elements don't
-                    // fight each other.
-                    const onVideoSeeked = () => {
-                        if (!audioEl) return
-                        audioEl.currentTime = getTargetAudioTime()
-                        seekCooldownRef.current = Date.now() + 1000
-                        log.trace("Audio hard-resynced after seek")
-                    }
-                    // Pause audio during seeking to prevent playback at the wrong position
-                    const onVideoSeeking = () => {
-                        if (!audioEl) return
-                        seekCooldownRef.current = Date.now() + 1000
-                    }
-                    // Keep playback rate in sync
-                    const onVideoRateChange = () => {
-                        if (!audioEl) return
-                        audioEl.playbackRate = video.playbackRate
-                    }
-
-                    video.addEventListener("seeked", onVideoSeeked)
-                    video.addEventListener("seeking", onVideoSeeking)
-                    video.addEventListener("ratechange", onVideoRateChange)
-
-                    const syncLoop = () => {
-                        // Stop once this video is gone (episode changed / player unmounted).
-                        if (!audioEl || !video || !video.isConnected) {
-                            audioEl?.pause()
-                            audioSyncRafRef.current = 0
-                            return
-                        }
-
-                        // Skip drift correction during seek cooldown to prevent
-                        // the micro-seeking oscillation (±0.3-0.4s bouncing)
-                        if (Date.now() < seekCooldownRef.current) {
-                            audioSyncRafRef.current = requestAnimationFrame(syncLoop)
-                            return
-                        }
-
-                        const targetTime = getTargetAudioTime()
-                        const drift = Math.abs(targetTime - audioEl.currentTime)
-                        if (drift > 0.5) {
-                            audioEl.currentTime = targetTime
-                            log.trace(`Audio drift-corrected: ${drift.toFixed(3)}s`)
-                        }
-                        if (video.paused && !audioEl.paused) audioEl.pause()
-                        if (!video.paused && audioEl.paused) audioEl.play().catch(() => {})
-                        audioSyncRafRef.current = requestAnimationFrame(syncLoop)
-                    }
-                    audioSyncRafRef.current = requestAnimationFrame(syncLoop)
-
-                    // Store cleanup references for the video event listeners
-                    ;(audioEl as any).__vcSyncCleanup = () => {
-                        video.removeEventListener("seeked", onVideoSeeked)
-                        video.removeEventListener("seeking", onVideoSeeking)
-                        video.removeEventListener("ratechange", onVideoRateChange)
-                    }
+                    // Event-driven sync with gentle drift correction (see hidden-audio-sync.ts).
+                    // audioDelay: positive = audio plays ahead, negative = audio plays behind.
+                    const detach = attachHiddenAudioSync(video, audioEl!, () => audioDelayRef.current, msg => log.info(msg))
+                    ;(audioEl as any).__vcSyncCleanup = detach
                 }
 
                 audioEl!.addEventListener("canplay", onCanPlay, { once: true })
@@ -290,17 +232,31 @@ function MediastreamDirectPlayEffects({
         let lastTime = videoElement.currentTime
         let lastAt = performance.now()
         let seeking = false
-        const onSeeking = () => { seeking = true }
-        const onSeeked = () => {
-            seeking = false
+        // While buffering the clock stands still; that is not a jump.
+        let stalled = false
+        const reset = () => {
             lastTime = videoElement.currentTime
             lastAt = performance.now()
         }
+        const onSeeking = () => { seeking = true }
+        const onSeeked = () => {
+            seeking = false
+            reset()
+        }
+        const onWaiting = () => { stalled = true }
+        const onPlaying = () => {
+            stalled = false
+            reset()
+        }
         const onTimeUpdate = () => {
             const now = performance.now()
+            if (seeking || stalled || videoElement.paused || videoElement.readyState < 3) {
+                reset()
+                return
+            }
             const expected = lastTime + ((now - lastAt) / 1000) * videoElement.playbackRate
             const jump = videoElement.currentTime - expected
-            if (!seeking && !videoElement.paused && Math.abs(jump) > 0.5) {
+            if (Math.abs(jump) > 0.5) {
                 log.warning(`Unrequested position jump of ${jump.toFixed(2)}s at ${videoElement.currentTime.toFixed(2)}s`)
             }
             lastTime = videoElement.currentTime
@@ -308,10 +264,14 @@ function MediastreamDirectPlayEffects({
         }
         videoElement.addEventListener("seeking", onSeeking)
         videoElement.addEventListener("seeked", onSeeked)
+        videoElement.addEventListener("waiting", onWaiting)
+        videoElement.addEventListener("playing", onPlaying)
         videoElement.addEventListener("timeupdate", onTimeUpdate)
         return () => {
             videoElement.removeEventListener("seeking", onSeeking)
             videoElement.removeEventListener("seeked", onSeeked)
+            videoElement.removeEventListener("waiting", onWaiting)
+            videoElement.removeEventListener("playing", onPlaying)
             videoElement.removeEventListener("timeupdate", onTimeUpdate)
         }
     }, [videoElement])

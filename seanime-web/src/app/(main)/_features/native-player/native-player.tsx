@@ -1,3 +1,4 @@
+import { attachHiddenAudioSync } from "@/app/(main)/_features/video-core/hidden-audio-sync"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { useDirectstreamPlayLocalFile } from "@/api/hooks/directstream.hooks"
 import { setPendingPopoutResume } from "@/app/(main)/_features/video-core/video-core-popout-resume"
@@ -335,11 +336,19 @@ export function NativePlayer() {
 
             // Use fetch() to wait for the full extraction, then point <audio> at the cached URL.
             // This prevents the browser from aborting the HTTP connection (which would kill FFmpeg).
+            // A previous track's sync stops before the new one starts.
+            if ((audioEl as any).__vcSyncCleanup) {
+                ;(audioEl as any).__vcSyncCleanup()
+                ;(audioEl as any).__vcSyncCleanup = undefined
+            }
+
             fetch(audioUrl).then(resp => {
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
                 return resp.blob()
             }).then(blob => {
                 const blobUrl = URL.createObjectURL(blob)
+                if ((audioEl as any).__vcBlobUrl) URL.revokeObjectURL((audioEl as any).__vcBlobUrl)
+                ;(audioEl as any).__vcBlobUrl = blobUrl
                 audioEl!.src = blobUrl
                 audioEl!.preload = "auto"
 
@@ -348,20 +357,8 @@ export function NativePlayer() {
                     toast.success("Audio track switched")
 
                     video.muted = true
-                    audioEl!.currentTime = video.currentTime
-                    if (!video.paused) audioEl!.play().catch(() => {})
-
-                    const syncLoop = () => {
-                        if (!audioEl || !video) return
-                        const drift = Math.abs(video.currentTime - audioEl.currentTime)
-                        if (drift > 0.3) {
-                            audioEl.currentTime = video.currentTime
-                        }
-                        if (video.paused && !audioEl.paused) audioEl.pause()
-                        if (!video.paused && audioEl.paused) audioEl.play().catch(() => {})
-                        audioSyncRafRef.current = requestAnimationFrame(syncLoop)
-                    }
-                    audioSyncRafRef.current = requestAnimationFrame(syncLoop)
+                    // Event-driven sync with gentle drift correction (see hidden-audio-sync.ts).
+                    ;(audioEl as any).__vcSyncCleanup = attachHiddenAudioSync(video, audioEl!, () => 0, msg => log.info(msg))
                 }
 
                 audioEl!.addEventListener("canplay", onCanPlay, { once: true })
@@ -381,8 +378,10 @@ export function NativePlayer() {
                 audioSyncRafRef.current = 0
             }
             if (audioElementRef.current) {
+                if ((audioElementRef.current as any).__vcSyncCleanup) (audioElementRef.current as any).__vcSyncCleanup()
                 audioElementRef.current.pause()
-                audioElementRef.current.src = ""
+                if ((audioElementRef.current as any).__vcBlobUrl) URL.revokeObjectURL((audioElementRef.current as any).__vcBlobUrl)
+                audioElementRef.current.removeAttribute("src")
                 audioElementRef.current.remove()
                 audioElementRef.current = null
             }
