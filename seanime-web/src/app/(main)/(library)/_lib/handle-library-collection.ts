@@ -197,10 +197,10 @@ export function useHandleLibraryCollection() {
             _lists.find(n => n.type === "CURRENT"),
             _lists.find(n => n.type === "PAUSED"),
             _lists.find(n => n.type === "PLANNING"),
-            personal.showCompletedInLibrary ? _lists.find(n => n.type === "COMPLETED") : undefined,
+            _lists.find(n => n.type === "COMPLETED"),
             _lists.find(n => n.type === "DROPPED"),
         ].filter(Boolean)
-    }, [data, params, animeLibraryCollectionDefaultSorting, serverStatus?.settings?.anilist?.enableAdultContent, watchHistory, animeGojuuonMap, personal.showCompletedInLibrary])
+    }, [data, params, animeLibraryCollectionDefaultSorting, serverStatus?.settings?.anilist?.enableAdultContent, watchHistory, animeGojuuonMap])
 
     /**
      * Filter the collection
@@ -246,10 +246,10 @@ export function useHandleLibraryCollection() {
             _lists.find(n => n.type === "CURRENT"),
             _lists.find(n => n.type === "PAUSED"),
             _lists.find(n => n.type === "PLANNING"),
-            personal.showCompletedInLibrary ? _lists.find(n => n.type === "COMPLETED") : undefined,
+            _lists.find(n => n.type === "COMPLETED"),
             _lists.find(n => n.type === "DROPPED"),
         ].filter(Boolean)
-    }, [data, params, serverStatus?.settings?.anilist?.enableAdultContent, watchHistory, animeGojuuonMap, personal.showCompletedInLibrary])
+    }, [data, params, serverStatus?.settings?.anilist?.enableAdultContent, watchHistory, animeGojuuonMap])
 
     /**
      * Entries the user marked COMPLETED on their own AniList account that the full collection
@@ -377,11 +377,23 @@ export function useHandleLibraryCollection() {
         return [...new Set(allGenres)].filter(Boolean)?.sort((a, b) => a.localeCompare(b))
     }, [filteredCollection])
 
+    // "Show completed in library" (Personal -> Display) hides the Completed *section*. The full
+    // lists stay underneath: the Local Anime Library grid, favourites and "is there anything here"
+    // all read every list, and hiding Completed there emptied the local library.
+    const withoutHiddenCompleted = React.useCallback(
+        (lists: Anime_LibraryCollectionList[]) => personal.showCompletedInLibrary ? lists : lists.filter(l => l.type !== "COMPLETED"),
+        [personal.showCompletedInLibrary],
+    )
+    const shownLibraryCollectionList = React.useMemo(() => withoutHiddenCompleted(sortedCollection), [sortedCollection, withoutHiddenCompleted])
+    const shownFilteredLibraryCollectionList = React.useMemo(() => withoutHiddenCompleted(filteredCollection), [filteredCollection, withoutHiddenCompleted])
+
     return {
         libraryGenres,
         isLoading: isLoading,
-        libraryCollectionList: sortedCollection,
-        filteredLibraryCollectionList: filteredCollection,
+        libraryCollectionList: shownLibraryCollectionList,
+        filteredLibraryCollectionList: shownFilteredLibraryCollectionList,
+        /** Every list, Completed included whatever the display setting says. */
+        allLibraryCollectionList: sortedCollection,
         // Same lists, for the home screen's status sections. See `buildStatusLists`.
         statusCollectionList,
         filteredStatusCollectionList,

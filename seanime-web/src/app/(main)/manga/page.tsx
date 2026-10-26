@@ -483,7 +483,7 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                 libraryCollectionProps={{
                     libraryGenres: [],
                     isLoading: false,
-                    libraryCollectionList: [],
+                    libraryCollectionList: [], allLibraryCollectionList: [],
                     filteredLibraryCollectionList: [],
                     statusCollectionList: [],
                     filteredStatusCollectionList: [],

@@ -80,6 +80,7 @@ export function HomeScreen() {
     const {
         libraryGenres,
         libraryCollectionList,
+        allLibraryCollectionList,
         filteredLibraryCollectionList,
         statusCollectionList,
         filteredStatusCollectionList,
@@ -422,6 +423,7 @@ export function HomeScreen() {
                                     libraryCollectionProps={{
                                         libraryGenres,
                                         libraryCollectionList,
+                                        allLibraryCollectionList,
                                         filteredLibraryCollectionList,
                                         statusCollectionList,
                                         filteredStatusCollectionList,
@@ -503,6 +505,7 @@ export function HomeScreenItem(props: HomeScreenItemProps) {
     const {
         libraryGenres,
         libraryCollectionList,
+        allLibraryCollectionList,
         filteredLibraryCollectionList,
         statusCollectionList,
         filteredStatusCollectionList,
@@ -597,7 +600,7 @@ export function HomeScreenItem(props: HomeScreenItemProps) {
     if (item.type === "anime-favorites") {
         return (
             <AnimeFavoritesSection
-                libraryCollectionList={libraryCollectionList}
+                libraryCollectionList={allLibraryCollectionList}
                 onHoverImage={onHoverImage}
             />
         )
@@ -808,7 +811,8 @@ function localEntryKey(entry: Anime_LibraryCollectionEntry): string {
 function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollectionProps, item: Models_HomeItem, index: number }) {
     const serverStatus = useServerStatus()
     const layout = props.item?.options?.layout || "grid"
-    const collectionList = props.libraryCollectionProps.libraryCollectionList
+    // Every list (Completed included): membership here is about files on disk, not list display.
+    const collectionList = props.libraryCollectionProps.allLibraryCollectionList
 
     // Search state
     const [searchInput, setSearchInput] = React.useState("")
