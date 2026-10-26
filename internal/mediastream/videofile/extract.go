@@ -131,11 +131,15 @@ func isFfmpegSafeFilename(name string) bool {
 // dumped under a fallback name are renamed back to their embedded names afterwards
 // so the /att/ endpoint keeps serving the original names.
 func extractAttachments(ffmpegPath, path, attachmentPath string, mediaInfo *MediaInfo) error {
+	// -dump_attachment is an *input* option, so it has to come before the "-i" it applies to.
+	// It used to be placed after it: ffmpeg rejected the whole command ("cannot be applied to
+	// output url ... you are trying to apply an input option to an output file", exit 234), so
+	// fonts were never extracted, and the extraction was retried, reading the file, every time an
+	// episode was opened.
 	args := []string{
 		"-nostdin",
 		// override old attachments
 		"-y",
-		"-i", path,
 	}
 
 	type rename struct{ from, to string }
@@ -179,8 +183,11 @@ func extractAttachments(ffmpegPath, path, attachmentPath string, mediaInfo *Medi
 		args = append(args, "-dump_attachment:t", "")
 	}
 
-	// ffmpeg requires at least one output file; send the (copied) streams to null
-	args = append(args, "-map", "0", "-c", "copy", "-f", "null", os.DevNull)
+	args = append(args, "-i", path)
+
+	// ffmpeg requires an output file. The attachments are written when the input is opened, so
+	// the output stops at zero seconds instead of copying every stream of the file through.
+	args = append(args, "-t", "0", "-f", "null", os.DevNull)
 
 	_, err := runFfmpeg(ffmpegPath, attachmentPath, args)
 	if err != nil {
