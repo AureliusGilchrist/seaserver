@@ -453,7 +453,7 @@ export function ClientSettings(props: ClientSettingsProps) {
                             />
                         </SettingRow>
                     </div>
-                    <SettingRow settingKey={["stillWatchingChecksEnabled", "stillWatchingEpisodes", "stillWatchingTimingMode", "stillWatchingStartHour", "stillWatchingEndHour"]}>
+                    <SettingRow settingKey={["stillWatchingChecksEnabled", "stillWatchingEpisodes", "stillWatchingTimingMode", "stillWatchingStartHour", "stillWatchingEndHour", "stillWatchingSessionGapMinutes", "stillWatchingMouseExtends", "stillWatchingMouseAmount", "stillWatchingMouseMaxExtra"]}>
                         <div className="space-y-4">
                             <Switch
                                 side="right"
@@ -464,15 +464,28 @@ export function ClientSettings(props: ClientSettingsProps) {
                             />
                             {personal.stillWatchingChecksEnabled && (
                                 <div className="grid gap-4 md:grid-cols-[240px_1fr] rounded-xl bg-black/20 p-4 ring-1 ring-white/[0.06]">
-                                    <NumberInput
-                                        label="Episodes between checks"
-                                        min={1}
-                                        max={20}
-                                        value={personal.stillWatchingEpisodes}
-                                        onValueChange={v => {
-                                            if (!Number.isNaN(v)) handleSet("stillWatchingEpisodes", v)
-                                        }}
-                                    />
+                                    <div className="space-y-4">
+                                        <NumberInput
+                                            label="Episodes before asking"
+                                            help="How many episodes in a row play before the question. Any number from 1."
+                                            min={1}
+                                            max={50}
+                                            value={personal.stillWatchingEpisodes}
+                                            onValueChange={v => {
+                                                if (!Number.isNaN(v)) handleSet("stillWatchingEpisodes", v)
+                                            }}
+                                        />
+                                        <NumberInput
+                                            label="Fresh session after a break of (minutes)"
+                                            help="Pausing or stepping away for up to this long keeps your count. A longer break starts a new session, and the count starts over."
+                                            min={1}
+                                            max={720}
+                                            value={personal.stillWatchingSessionGapMinutes}
+                                            onValueChange={v => {
+                                                if (!Number.isNaN(v)) handleSet("stillWatchingSessionGapMinutes", v)
+                                            }}
+                                        />
+                                    </div>
                                     <div>
                                         <p className="mb-2 text-sm font-medium">When to ask</p>
                                         <StillWatchingTiming
@@ -487,6 +500,39 @@ export function ClientSettings(props: ClientSettingsProps) {
                                             Late-night sessions run long — that's when the question earns its interruption.
                                             Choose All day or your own hours to change it.
                                         </p>
+                                    </div>
+                                    <div className="md:col-span-2 space-y-3 border-t border-white/[0.06] pt-4">
+                                        <Switch
+                                            side="right"
+                                            value={personal.stillWatchingMouseExtends}
+                                            onValueChange={v => handleSet("stillWatchingMouseExtends", v)}
+                                            label="Mouse movement postpones the question"
+                                            help="If you've been moving the mouse, you're clearly there: the question waits an extra episode."
+                                        />
+                                        {personal.stillWatchingMouseExtends && (
+                                            <div className="grid gap-4 sm:grid-cols-2">
+                                                <NumberInput
+                                                    label="Movement for one extra episode"
+                                                    help="How far the mouse has to travel, in screen widths (moving across the screen once = 1)."
+                                                    min={1}
+                                                    max={200}
+                                                    value={personal.stillWatchingMouseAmount}
+                                                    onValueChange={v => {
+                                                        if (!Number.isNaN(v)) handleSet("stillWatchingMouseAmount", v)
+                                                    }}
+                                                />
+                                                <NumberInput
+                                                    label="Most extra episodes"
+                                                    help="After this many postponed episodes it asks anyway."
+                                                    min={1}
+                                                    max={10}
+                                                    value={personal.stillWatchingMouseMaxExtra}
+                                                    onValueChange={v => {
+                                                        if (!Number.isNaN(v)) handleSet("stillWatchingMouseMaxExtra", v)
+                                                    }}
+                                                />
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             )}

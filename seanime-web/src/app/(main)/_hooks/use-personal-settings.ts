@@ -15,6 +15,14 @@ export type PersonalSettings = {
     /** Hours of day (0–23) the still-watching check applies in; the window may cross midnight. */
     stillWatchingStartHour: number
     stillWatchingEndHour: number
+    /** A pause/gap longer than this (minutes) starts a fresh session for the episode count. */
+    stillWatchingSessionGapMinutes: number
+    /** Mouse movement during playback postpones the still-watching check. */
+    stillWatchingMouseExtends: boolean
+    /** Movement needed (screen widths travelled) to earn one extra episode. */
+    stillWatchingMouseAmount: number
+    /** Most extra episodes movement can add. */
+    stillWatchingMouseMaxExtra: number
     /** How many entries the full News page shows (the News widget's "Show more" tab). */
     newsFeedShowMoreCount: number
     /** Whether a new RSS entry raises a live notification + drawer entry for this profile. */
@@ -58,6 +66,10 @@ export function usePersonalSettings(): PersonalSettings {
         stillWatchingTimingMode: clientSettings.stillWatchingTimingMode ?? "night",
         stillWatchingStartHour: clientSettings.stillWatchingStartHour ?? 19,
         stillWatchingEndHour: clientSettings.stillWatchingEndHour ?? 10,
+        stillWatchingSessionGapMinutes: clientSettings.stillWatchingSessionGapMinutes ?? 30,
+        stillWatchingMouseExtends: clientSettings.stillWatchingMouseExtends ?? false,
+        stillWatchingMouseAmount: clientSettings.stillWatchingMouseAmount ?? 20,
+        stillWatchingMouseMaxExtra: clientSettings.stillWatchingMouseMaxExtra ?? 2,
         newsFeedShowMoreCount: clientSettings.newsFeedShowMoreCount ?? 40,
         newsNotifyNewEntries: clientSettings.newsNotifyNewEntries ?? true,
         newsNotifyMode: clientSettings.newsNotifyMode ?? "keywords",

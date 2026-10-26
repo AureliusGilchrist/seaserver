@@ -851,7 +851,11 @@ export function VideoCore(props: VideoCoreProps) {
         timingMode: personal.stillWatchingTimingMode,
         startHour: personal.stillWatchingStartHour,
         endHour: personal.stillWatchingEndHour,
-    }), [personal.stillWatchingChecksEnabled, personal.stillWatchingEpisodes, personal.stillWatchingTimingMode, personal.stillWatchingStartHour, personal.stillWatchingEndHour, autoNext, isWatchPartyParticipant])
+        sessionGapMinutes: personal.stillWatchingSessionGapMinutes,
+        mouseExtends: personal.stillWatchingMouseExtends,
+        mouseAmount: personal.stillWatchingMouseAmount,
+        mouseMaxExtra: personal.stillWatchingMouseMaxExtra,
+    }), [personal.stillWatchingChecksEnabled, personal.stillWatchingEpisodes, personal.stillWatchingTimingMode, personal.stillWatchingStartHour, personal.stillWatchingEndHour, personal.stillWatchingSessionGapMinutes, personal.stillWatchingMouseExtends, personal.stillWatchingMouseAmount, personal.stillWatchingMouseMaxExtra, autoNext, isWatchPartyParticipant])
     const { onEpisodeEnded, onVideoEnded, beforeAutoNext } = useVideoCoreWatchingChecks(state, stillWatchingConfig)
 
     // Fork: current mediastream file path — the popout handoff URL needs it when the

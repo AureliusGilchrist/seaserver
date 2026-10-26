@@ -1,6 +1,7 @@
 import { useGetAnimeEntry } from "@/api/hooks/anime_entries.hooks"
 import { useGetAnilistAnimeDetails } from "@/api/hooks/anilist.hooks"
 import { VideoCoreLifecycleState } from "@/app/(main)/_features/video-core/video-core.atoms"
+import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { Button } from "@/components/ui/button"
 import { usePlayNext } from "@/app/(main)/_atoms/playback.atoms"
 import { useRouter } from "@/lib/navigation"
@@ -101,6 +102,35 @@ export type VideoCoreStillWatchingConfig = {
      * whole day. */
     startHour?: number
     endHour?: number
+    /** A pause or gap longer than this (minutes) starts a fresh viewing session: the count restarts. */
+    sessionGapMinutes?: number
+    /** Mouse movement during playback postpones the question, one episode per `mouseAmount`
+     * screen-widths travelled, at most `mouseMaxExtra` episodes. */
+    mouseExtends?: boolean
+    mouseAmount?: number
+    mouseMaxExtra?: number
+}
+
+/**
+ * The viewing session the check counts in. Module scope on purpose: the player remounts between
+ * episodes, and a per-mount ref lost the count every episode (so the question was never asked).
+ * A session ends only after a break longer than the profile's "fresh session" setting.
+ */
+const stillWatchingSession = {
+    /** Episodes played since the last check in this session. */
+    played: 0,
+    /** Last time video was actually playing (ms), for the session-break rule. */
+    lastActiveAt: 0,
+    /** Mouse travel since the last check, in screen widths. */
+    moved: 0,
+    /** Extra episodes already granted by mouse movement since the last check. */
+    extraUsed: 0,
+}
+
+function resetStillWatchingSession() {
+    stillWatchingSession.played = 0
+    stillWatchingSession.moved = 0
+    stillWatchingSession.extraUsed = 0
 }
 
 // Module-level, like the progress prompt: there is one in-app player at a time.
@@ -148,10 +178,6 @@ export function useVideoCoreWatchingChecks(
     const setStillWatching = useSetAtom(vc_stillWatchingPrompt)
     const setStillWatchingHold = useSetAtom(vc_stillWatchingHold)
 
-    // Episodes played since the last check, kept per playback session. A ref, not state: nothing
-    // renders from the count, and a re-render per episode would be work for no visible difference.
-    const playedRef = React.useRef(0)
-
     // The last episode the end-of-episode callback has already handled, so a replayed end (a seek
     // back and forward again) does not count twice.
     const handledEndRef = React.useRef<string | null>(null)
@@ -166,10 +192,54 @@ export function useVideoCoreWatchingChecks(
         setStillWatchingHold(false)
     }, [state.playbackInfo?.id, setStillWatching, setStillWatchingHold])
 
+    // A different show is a different end-of-episode key; the session count itself carries on.
     React.useEffect(() => {
-        playedRef.current = 0
         handledEndRef.current = null
     }, [mediaId])
+
+    // Session break: while video plays, note the time; a gap longer than the profile's setting
+    // (pause, or time between episodes) starts a fresh session.
+    const videoElement = useAtomValue(vc_videoElement)
+    const sessionGapMs = Math.max(1, stillWatchingConfig?.sessionGapMinutes ?? 30) * 60_000
+    React.useEffect(() => {
+        if (!videoElement) return
+        let lastTick = 0
+        const touch = () => {
+            const now = Date.now()
+            if (now - lastTick < 2000) return
+            lastTick = now
+            const last = stillWatchingSession.lastActiveAt
+            if (last && now - last > sessionGapMs) resetStillWatchingSession()
+            stillWatchingSession.lastActiveAt = now
+        }
+        const onPlaying = () => {
+            lastTick = 0
+            touch()
+        }
+        videoElement.addEventListener("playing", onPlaying)
+        videoElement.addEventListener("timeupdate", touch)
+        return () => {
+            videoElement.removeEventListener("playing", onPlaying)
+            videoElement.removeEventListener("timeupdate", touch)
+        }
+    }, [videoElement, sessionGapMs])
+
+    // Mouse movement, in screen widths travelled, for the "movement postpones the question" option.
+    const mouseExtends = !!stillWatchingConfig?.mouseExtends
+    React.useEffect(() => {
+        if (!mouseExtends) return
+        let lx: number | null = null, ly: number | null = null
+        const onMove = (e: PointerEvent) => {
+            if (e.pointerType === "touch") return
+            if (lx !== null && ly !== null) {
+                stillWatchingSession.moved += Math.hypot(e.clientX - lx, e.clientY - ly) / Math.max(1, window.innerWidth)
+            }
+            lx = e.clientX
+            ly = e.clientY
+        }
+        window.addEventListener("pointermove", onMove, { passive: true })
+        return () => window.removeEventListener("pointermove", onMove)
+    }, [mouseExtends])
 
     const latestRef = React.useRef({ details, state, mediaId, episodeNumber, totalEpisodes, setSequelPrompt, setStillWatching, setStillWatchingHold, stillWatchingConfig, stillWatchingHold })
     latestRef.current = { details, state, mediaId, episodeNumber, totalEpisodes, setSequelPrompt, setStillWatching, setStillWatchingHold, stillWatchingConfig, stillWatchingHold }
@@ -186,15 +256,27 @@ export function useVideoCoreWatchingChecks(
         if (handledEndRef.current === key) return
         handledEndRef.current = key
 
-        // The check intercepts only advances the player would make on its own.
+        // The check intercepts only advances the player would make on its own, and only when on.
         if (stillWatchingConfig?.canAutoAdvance === false) return
+        if (stillWatchingConfig?.enabled === false) return
 
         const checkInterval = Math.max(1, stillWatchingConfig?.episodes ?? DEFAULT_EPISODES_BETWEEN_CHECKS)
-        if (playedRef.current + 1 >= checkInterval) {
-            playedRef.current = 0
+        const session = stillWatchingSession
+        if (session.played + 1 >= checkInterval) {
+            // Enough mouse movement since the last check means someone's clearly here: postpone by
+            // one episode, up to the profile's maximum.
+            const amount = Math.max(1, stillWatchingConfig?.mouseAmount ?? 20)
+            const maxExtra = Math.max(0, stillWatchingConfig?.mouseMaxExtra ?? 2)
+            if (stillWatchingConfig?.mouseExtends && session.moved >= amount && session.extraUsed < maxExtra) {
+                session.extraUsed += 1
+                session.moved = 0
+                session.played = checkInterval - 1 // the next episode checks again
+                return
+            }
+            resetStillWatchingSession()
             setStillWatchingHold(true)
         } else {
-            playedRef.current += 1
+            session.played += 1
         }
     }, [])
 
@@ -210,11 +292,13 @@ export function useVideoCoreWatchingChecks(
         setStillWatching(null)
 
         if (!stillWatchingConfig?.canAutoAdvance) return false
+        if (stillWatchingConfig.enabled === false) return false
         if (!stillWatchingHold) return false
 
         setStillWatchingHold(false)
 
         const hour = new Date().getHours()
+        // When to ask follows the profile's Personal settings (night by default, all day, or own hours).
         if (!isStillWatchingActiveHour(hour, stillWatchingConfig.timingMode ?? "night", stillWatchingConfig.startHour ?? DEFAULT_CHECK_START_HOUR, stillWatchingConfig.endHour ?? DEFAULT_CHECK_END_HOUR)) return false
 
         const checkInterval = Math.max(1, stillWatchingConfig?.episodes ?? DEFAULT_EPISODES_BETWEEN_CHECKS)

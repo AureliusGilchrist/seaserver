@@ -29,6 +29,14 @@ export const clientSettingsSchema = z.object({
     stillWatchingEndHour: z.number().optional(),
     // When the check applies: "night" (default 7 pm–10 am window), "always", or "custom" hours.
     stillWatchingTimingMode: z.enum(["night", "always", "custom"]).optional(),
+    /** A pause or gap longer than this (minutes) starts a fresh viewing session: the episode count restarts. */
+    stillWatchingSessionGapMinutes: z.number().optional(),
+    // Mouse movement during playback counts as "someone's here" and postpones the check.
+    stillWatchingMouseExtends: z.boolean().optional(),
+    /** How much movement (in screen widths travelled) earns one extra episode. */
+    stillWatchingMouseAmount: z.number().optional(),
+    /** The most extra episodes movement can add before the question is asked anyway. */
+    stillWatchingMouseMaxExtra: z.number().optional(),
     // News
     /** How many entries the full News page shows (the widget's "Show more" tab). */
     newsFeedShowMoreCount: z.number().optional(),
