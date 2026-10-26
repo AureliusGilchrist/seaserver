@@ -194,10 +194,13 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
     const onPlayFile = React.useCallback((filepath: string) => {
         log.info("Playing file", filepath)
         userForcedTranscodeRef.current = false
-        // Every file starts from the default again. A fallback to transcode on one episode used to
-        // stick: replaying it kept the same query key and URL-effect inputs, so no URL was ever
-        // produced and nothing played until the app was restarted.
-        setStreamType("transcode")
+        // Every file starts from the preferred type again (a fallback to transcode on one episode
+        // used to stick: replaying it kept the same query key and URL-effect inputs, so nothing
+        // played until a restart). Preferred means direct play whenever settings allow it — asking
+        // for transcode first made the server probe and extract every file twice, competing with
+        // direct play for the disk; the codec check still falls back to transcode when needed.
+        const preferDirect = !!mediastreamSettings && (!!mediastreamSettings.directPlayOnly || !mediastreamSettings.disableAutoSwitchToDirectPlay)
+        setStreamType(preferDirect ? "direct" : "transcode")
         setPlayNonce(n => n + 1)
         changeUrl(undefined)
         setFilePath(filepath)
@@ -205,7 +208,7 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
             // Same file again: nothing in the query key changed, so ask for a fresh container.
             setTimeout(() => { void refetch() }, 0)
         }
-    }, [refetch])
+    }, [refetch, mediastreamSettings])
 
     const playNextEpisode = React.useCallback(() => {
         log.info("Playing next episode")

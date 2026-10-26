@@ -209,10 +209,23 @@ func (p *PlaybackManager) newMediaContainer(filepath string, streamType StreamTy
 
 	p.logger.Trace().Str("hash", hash).Msg("mediastream: Checking cache")
 
-	// Check the cache ONLY if the stream type is the same.
-	if mc, ok := p.mediaContainers.Get(hash); ok && mc.StreamType == streamType {
+	// The media info and the extracted subtitles/fonts belong to the file, not to how it is
+	// streamed. A cache hit for another stream type is reused as-is with the type swapped: it used
+	// to count as a miss, so asking for transcode and then direct play (what the player does when
+	// it auto-switches) probed the file twice and ran two background FFmpeg passes over the whole
+	// file at once, right as direct play started reading it — enough disk contention on a NAS to
+	// make playback stutter and stall.
+	if mc, ok := p.mediaContainers.Get(hash); ok {
 		p.logger.Debug().Str("hash", hash).Msg("mediastream: Media container cache HIT")
-		return mc, nil
+		if mc.StreamType == streamType {
+			return mc, nil
+		}
+		return &MediaContainer{
+			Filepath:   mc.Filepath,
+			Hash:       mc.Hash,
+			StreamType: streamType,
+			MediaInfo:  mc.MediaInfo,
+		}, nil
 	}
 
 	p.logger.Trace().Str("hash", hash).Msg("mediastream: Creating media container")
