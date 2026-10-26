@@ -216,7 +216,8 @@ func announceToDatabase(app *core.App, database *db.Database, profileID uint, fr
 			app.Logger.Error().Err(err).Str("link", item.Link).Msg("news: failed to save news notification")
 			continue
 		}
-		app.WSEventManager.SendEvent(events.NotificationCreated, n)
+		// Only this profile's clients: another profile's Personal settings decide nothing here.
+		app.WSEventManager.SendEventToProfile(profileID, events.NotificationCreated, n)
 	}
 }
 

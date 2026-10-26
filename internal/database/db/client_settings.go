@@ -2,6 +2,9 @@ package db
 
 import (
 	"encoding/json"
+	"math"
+	"reflect"
+	"strings"
 )
 
 // clientSettingsPrefKey is the client-prefs key the web client stores its per-profile
@@ -50,17 +53,54 @@ type ClientSettingsOverrides struct {
 }
 
 // GetClientSettingsOverrides reads and parses the current database's per-profile Personal
-// settings. Returns (nil, nil) when the profile has no overrides or the value is unparsable —
+// settings. Returns (nil, nil) when the profile has no overrides or the value is not a JSON object —
 // callers fall back to the server-wide settings.
 func (db *Database) GetClientSettingsOverrides() (*ClientSettingsOverrides, error) {
 	pref, err := db.GetClientPref(clientSettingsPrefKey)
 	if err != nil || pref == nil {
 		return nil, err
 	}
+	return parseClientSettingsOverrides(pref.Value), nil
+}
+
+// parseClientSettingsOverrides decodes the stored settings. One field the server can't read (a
+// fraction where a whole number belongs, a type that changed) must not cost the profile every other
+// setting — it used to, and the news notifier then applied the defaults over the user's choices — so
+// when the whole object fails, each field is decoded on its own and the unreadable ones are skipped.
+func parseClientSettingsOverrides(raw string) *ClientSettingsOverrides {
 	var o ClientSettingsOverrides
-	if err := json.Unmarshal([]byte(pref.Value), &o); err != nil {
-		return nil, nil
+	if err := json.Unmarshal([]byte(raw), &o); err == nil {
+		return &o
 	}
-	return &o, nil
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &fields); err != nil {
+		return nil
+	}
+	// Start clean: the failed decode above may have half-filled o.
+	o = ClientSettingsOverrides{}
+	v := reflect.ValueOf(&o).Elem()
+	t := v.Type()
+	for i := 0; i < t.NumField(); i++ {
+		name := strings.Split(t.Field(i).Tag.Get("json"), ",")[0]
+		data, ok := fields[name]
+		if !ok || name == "" {
+			continue
+		}
+		target := reflect.New(t.Field(i).Type)
+		if err := json.Unmarshal(data, target.Interface()); err == nil {
+			v.Field(i).Set(target.Elem())
+			continue
+		}
+		// A number stored with a fraction, for an integer setting: round it.
+		elem := t.Field(i).Type
+		if elem.Kind() == reflect.Ptr && elem.Elem().Kind() == reflect.Int {
+			var f float64
+			if err := json.Unmarshal(data, &f); err == nil {
+				n := int(math.Round(f))
+				v.Field(i).Set(reflect.ValueOf(&n))
+			}
+		}
+	}
+	return &o
 }
 

@@ -5,7 +5,7 @@ import { formatNewsDate, useGetNewsFeed, type RssItem } from "@/api/hooks/news.h
 import { useGetToWatch } from "@/api/hooks/towatch.hooks"
 import { useGetUnmatchedTorrents } from "@/api/hooks/unmatched.hooks"
 import { useGetAchievementSummary } from "@/api/hooks/achievement.hooks"
-import { useAnilistListRecentAiringAnime } from "@/api/hooks/anilist.hooks"
+import { useAnilistListRecentAiringAnime, useGetAnimeCollection } from "@/api/hooks/anilist.hooks"
 import { useGetTorrentAddQueue } from "@/api/hooks/torrent_client.hooks"
 import { useMissingEpisodeCount } from "@/app/(main)/_hooks/missing-episodes-loader"
 import { useGetMangaCollection } from "@/api/hooks/manga.hooks"
@@ -169,30 +169,61 @@ function QuickLinkCard({ link }: { link: typeof LANDING_QUICK_LINKS[number] }) {
     )
 }
 
+/**
+ * Your own anime numbers: counted from the signed-in profile's AniList lists (never the server-wide
+ * library, which also holds every local file on the server and the shared account's entries).
+ */
 export function LandingAnimeStatsWidget() {
-    const { data: libraryCollection, isLoading } = useGetLibraryCollection({ staleTime: 30_000 })
-    const entries = React.useMemo(
-        () => libraryCollection?.lists?.flatMap(list => list.entries ?? []) ?? [],
-        [libraryCollection],
-    )
-    const episodesWatched = entries.reduce((total, entry) => total + (entry.listData?.progress ?? 0), 0)
-    const episodesTotal = entries.reduce((total, entry) => total + (entry.media?.episodes ?? 0), 0)
-    const completed = libraryCollection?.lists?.find(list => list.type === "COMPLETED")?.entries?.length ?? 0
-    const watching = (libraryCollection?.lists?.find(list => list.type === "CURRENT")?.entries?.length ?? 0)
-        + (libraryCollection?.lists?.find(list => list.type === "REPEATING")?.entries?.length ?? 0)
-    const progress = episodesTotal > 0 ? `${Math.min(100, Math.round((episodesWatched / episodesTotal) * 100))}%` : "—"
+    const { data: animeCollection, isLoading, isError } = useGetAnimeCollection()
+    // Only used to tell which of *your* titles have files on the server.
+    const { data: libraryCollection } = useGetLibraryCollection({ staleTime: 30_000 })
+
+    const stats = React.useMemo(() => {
+        const lists = animeCollection?.MediaListCollection?.lists ?? []
+        if (!lists.length) return null
+        const withFiles = new Set<number>()
+        for (const list of libraryCollection?.lists ?? []) {
+            if ((list.type as string) === "LOCAL") continue
+            for (const e of list.entries ?? []) if (e.libraryData && e.mediaId) withFiles.add(e.mediaId)
+        }
+        let onLists = 0, planning = 0, watching = 0, completed = 0, episodesWatched = 0, episodesTotal = 0, downloaded = 0
+        const seen = new Set<number>()
+        for (const list of lists) {
+            for (const e of list?.entries ?? []) {
+                const id = e?.media?.id
+                if (!id || seen.has(id)) continue
+                seen.add(id)
+                const status = e.status ?? list?.status
+                if (status === "PLANNING") {
+                    planning++
+                    continue
+                }
+                onLists++
+                if (status === "CURRENT" || status === "REPEATING") watching++
+                if (status === "COMPLETED") completed++
+                episodesWatched += e.progress ?? 0
+                episodesTotal += e.media?.episodes ?? e.progress ?? 0
+                if (withFiles.has(id)) downloaded++
+            }
+        }
+        const progress = episodesTotal > 0 ? `${Math.min(100, Math.round((episodesWatched / episodesTotal) * 100))}%` : "—"
+        return { onLists, planning, watching, completed, episodesWatched, progress, downloaded }
+    }, [animeCollection, libraryCollection])
+
+    // No AniList linked (or it failed): dashes, never someone else's numbers.
+    const v = (n: number | string | undefined) => isLoading || !stats ? null : n ?? null
 
     return (
         <StatsDoor
-            title="Anime"
+            title={!isLoading && (isError || !stats) ? "Anime · link AniList" : "Anime"}
             icon={<LuMonitorPlay className="w-5 h-5" />}
             stats={[
-                { label: "in your library", value: isLoading ? null : entries.length },
-                { label: "watching / rewatching", value: isLoading ? null : watching },
-                { label: "completed", value: isLoading ? null : completed },
-                { label: "episodes watched", value: isLoading ? null : episodesWatched },
-                { label: "progress", value: isLoading ? null : progress },
-                { label: "local files", value: isLoading ? null : libraryCollection?.stats?.totalFiles ?? 0 },
+                { label: "on your lists", value: v(stats?.onLists) },
+                { label: "watching / rewatching", value: v(stats?.watching) },
+                { label: "completed", value: v(stats?.completed) },
+                { label: "episodes watched", value: v(stats?.episodesWatched) },
+                { label: "planning", value: v(stats?.planning) },
+                { label: "downloaded", value: v(stats?.downloaded) },
             ]}
             href="/anime"
         />
@@ -201,8 +232,10 @@ export function LandingAnimeStatsWidget() {
 
 export function LandingMangaStatsWidget() {
     const { data: mangaCollection, isLoading } = useGetMangaCollection()
+    // Planning is left out: it is also where the shared account's downloaded manga are merged in,
+    // and this card counts what you have read.
     const entries = React.useMemo(
-        () => mangaCollection?.lists?.flatMap(list => list.entries ?? []) ?? [],
+        () => mangaCollection?.lists?.filter(list => list.type !== "PLANNING").flatMap(list => list.entries ?? []) ?? [],
         [mangaCollection],
     )
     const reading = mangaCollection?.lists?.find(list => list.type === "CURRENT")?.entries?.length ?? 0
@@ -215,7 +248,7 @@ export function LandingMangaStatsWidget() {
             title="Manga"
             icon={<BiBook className="w-5 h-5" />}
             stats={[
-                { label: "in your library", value: isLoading ? null : entries.length },
+                { label: "on your lists", value: isLoading ? null : entries.length },
                 { label: "currently reading", value: isLoading ? null : reading },
                 { label: "completed", value: isLoading ? null : completed },
                 { label: "chapters read", value: isLoading ? null : chaptersRead },

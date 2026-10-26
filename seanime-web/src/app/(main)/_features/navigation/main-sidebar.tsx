@@ -1,4 +1,5 @@
 "use client"
+import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { useRefreshAnimeCollection } from "@/api/hooks/anilist.hooks"
 import { useLogout } from "@/api/hooks/auth.hooks"
 import { useGetExtensionUpdateData as useGetExtensionUpdateData, usePluginWithIssuesCount } from "@/api/hooks/extensions.hooks"
@@ -182,7 +183,13 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
     const [notificationDrawerOpen, setNotificationDrawerOpen] = React.useState(false)
     const [liveNotifications, setLiveNotifications] = React.useState<(NotificationCreatedEvent & { liveID: string })[]>([])
     const { data: unreadCount } = useGetUnreadNotificationCount()
+    // Backstop for Personal -> News: a news popup this profile turned off never shows, whatever
+    // the server sent.
+    const { newsNotifyNewEntries } = usePersonalSettings()
+    const newsOnRef = React.useRef(newsNotifyNewEntries)
+    newsOnRef.current = newsNotifyNewEntries
     const handleNotificationCreated = React.useCallback((notification: NotificationCreatedEvent) => {
+        if (notification.type === "news" && !newsOnRef.current) return
         const liveID = notification.id ? String(notification.id) : `${Date.now()}-${notification.mediaId}`
         setLiveNotifications(previous => [
             ...previous,

@@ -702,57 +702,113 @@ function EditPost({ item, onDone }: { item: TimelineFeedItem, onDone: () => void
 
 function TimelineReplies({ targetKey }: { targetKey: string }) {
     const me = useAtomValue(currentProfileAtom)
-    const { data: replies, isLoading, refetch, isFetching } = useTimelineReplies(targetKey, true)
+    const { data: replies, isLoading } = useTimelineReplies(targetKey, true)
     const { mutate: create, isPending } = useCreateTimelineReply(targetKey)
     const { mutate: remove } = useDeleteTimelineReply(targetKey)
     const [text, setText] = React.useState("")
+    const inputRef = React.useRef<HTMLTextAreaElement>(null)
+
+    // One line until there's more to say; grows with the text up to a few lines.
+    React.useLayoutEffect(() => {
+        const el = inputRef.current
+        if (!el) return
+        el.style.height = "auto"
+        el.style.height = `${Math.min(el.scrollHeight, 160)}px`
+    }, [text])
+
+    React.useEffect(() => {
+        inputRef.current?.focus({ preventScroll: true })
+    }, [])
 
     const submit = () => {
         const t = text.trim()
-        if (!t) return
+        if (!t || isPending) return
         create({ targetKey, content: t }, { onSuccess: () => setText("") })
     }
 
+    const myAvatar = me?.avatarPath || me?.anilistAvatar
+
     return (
-        <div className="ml-[3.25rem] mt-2 space-y-3 border-l-2 border-white/[0.07] pl-4 animate-in fade-in slide-in-from-top-1" data-timeline-replies>
-            {isLoading && <p className="text-xs text-[--muted]">Loading replies…</p>}
-            {replies?.map(r => (
-                <div key={r.id} className="group/reply flex gap-2.5 text-sm">
-                    <Avatar p={r.author} className="size-7" />
-                    <div className="min-w-0 flex-1 rounded-xl bg-white/[0.03] px-3 py-2 ring-1 ring-white/[0.05]">
-                        <div className="flex items-baseline gap-2">
-                            <ProfileName p={r.author} />
-                            <span className="text-xs text-[--muted]">{timeAgo(r.createdAt)}</span>
-                            {r.canDelete && (
-                                <button className="ml-auto text-xs text-[--muted] opacity-0 transition hover:text-red-400 group-hover/reply:opacity-100" onClick={() => remove(r.id)}>
-                                    <LuTrash2 />
-                                </button>
-                            )}
-                        </div>
-                        <div className="whitespace-pre-wrap break-words text-white/85"><RichText text={r.content} /></div>
-                    </div>
-                </div>
-            ))}
-            {!!me && (
-                <div className="flex items-end gap-2">
-                    <Textarea
-                        value={text}
-                        onValueChange={setText}
-                        placeholder="Write a reply…"
-                        className="min-h-[2.5rem] rounded-xl"
-                        maxLength={2000}
-                        onKeyDown={e => {
-                            if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) submit()
-                        }}
-                    />
-                    <Button size="sm" intent="primary-subtle" loading={isPending} disabled={!text.trim()} onClick={submit} className="rounded-full">Reply</Button>
-                    {!isLoading && (
-                        <button onClick={() => refetch()} className="mb-2 text-[--muted] hover:text-white" title="Refresh replies">
-                            <LuRefreshCw className={cn("size-3.5", isFetching && "animate-spin")} />
-                        </button>
-                    )}
+        <div className="ml-[3.25rem] mt-2 space-y-2 animate-in fade-in slide-in-from-top-1" data-timeline-replies>
+            {isLoading && (
+                <div className="flex items-center gap-2 py-1">
+                    <Skeleton className="size-7 rounded-full" />
+                    <Skeleton className="h-9 w-2/3 rounded-2xl" />
                 </div>
             )}
+
+            {!!replies?.length && (
+                <div className="space-y-2">
+                    {replies.map(r => (
+                        <div key={r.id} className="group/reply flex items-start gap-2.5">
+                            <Avatar p={r.author} className="size-7" />
+                            <div className="min-w-0 max-w-full">
+                                <div className="w-fit max-w-full rounded-2xl rounded-tl-md bg-white/[0.06] px-3.5 py-2 ring-1 ring-white/[0.06]">
+                                    <div className="flex items-baseline gap-2 text-xs">
+                                        <ProfileName p={r.author} />
+                                    </div>
+                                    <div className="whitespace-pre-wrap break-words text-sm leading-relaxed text-white/90"><RichText text={r.content} /></div>
+                                </div>
+                                <div className="mt-0.5 flex items-center gap-3 pl-3 text-[0.7rem] text-[--muted]">
+                                    <span title={new Date(r.createdAt).toLocaleString()}>{timeAgo(r.createdAt)}</span>
+                                    {r.canDelete && (
+                                        <button
+                                            className="opacity-0 transition hover:text-red-300 group-hover/reply:opacity-100 focus:opacity-100"
+                                            onClick={() => remove(r.id)}
+                                        >
+                                            Delete
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {!!me && (
+                <div className="flex items-end gap-2.5 pt-1">
+                    <AvatarImg src={myAvatar} name={me.name} className="mb-0.5 size-7" />
+                    <div
+                        className={cn(
+                            "flex min-w-0 flex-1 items-end gap-1 rounded-[1.25rem] bg-white/[0.05] py-1 pl-4 pr-1 ring-1 ring-white/10 transition",
+                            "focus-within:bg-white/[0.07] focus-within:ring-brand-400/50",
+                        )}
+                    >
+                        <textarea
+                            ref={inputRef}
+                            value={text}
+                            onChange={e => setText(e.target.value)}
+                            rows={1}
+                            maxLength={2000}
+                            placeholder="Write a reply…"
+                            className="max-h-40 min-h-[2rem] flex-1 resize-none border-0 bg-transparent py-1.5 text-sm leading-relaxed placeholder:text-[--muted] focus:outline-none focus:ring-0"
+                            onKeyDown={e => {
+                                // Enter sends; Shift+Enter is a new line.
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                    e.preventDefault()
+                                    submit()
+                                }
+                            }}
+                        />
+                        <button
+                            type="button"
+                            onClick={submit}
+                            disabled={!text.trim() || isPending}
+                            aria-label="Send reply"
+                            className={cn(
+                                "mb-0.5 flex size-8 shrink-0 items-center justify-center rounded-full transition",
+                                text.trim()
+                                    ? "bg-brand-500 text-white shadow-[0_4px_14px_-4px_rgb(var(--color-brand-500)/0.8)] hover:bg-brand-400 active:scale-95"
+                                    : "text-[--muted]",
+                            )}
+                        >
+                            {isPending ? <LuRefreshCw className="size-3.5 animate-spin" /> : <LuSend className="size-3.5" />}
+                        </button>
+                    </div>
+                </div>
+            )}
+            {!!me && <p className="pl-[2.6rem] text-[0.65rem] text-[--muted]">Enter to send · Shift+Enter for a new line</p>}
         </div>
     )
 }

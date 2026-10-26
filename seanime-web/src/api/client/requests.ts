@@ -1,4 +1,5 @@
 "use client"
+import { isCacheMissError, showCacheMissToast } from "@/lib/helpers/cache-miss-toast"
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { profileSessionEndedAtom, profileSessionTokenAtom, serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { formatErrorForToast } from "@/lib/helpers/error-details"
@@ -236,6 +237,11 @@ export function useServerMutation<R = void, V = void>(
             // showing the AniList token modal). Showing a generic toast on top of that causes
             // duplicate noise, so bail out early and let the caller deal with it.
             if (error?.response?.status === 401) return
+            // AniList didn't answer and nothing was cached: one shared, friendly toast.
+            if (isCacheMissError(error)) {
+                showCacheMissToast()
+                return
+            }
             // Use detailed error formatting for specific, actionable messages
             const { title, description } = formatErrorForToast(error, `${method} ${endpoint}`)
             if (title.includes("feature disabled") || description?.includes("feature disabled")) {
@@ -323,7 +329,10 @@ export function useServerQuery<R, V = any>(
             if (props.error?.response?.status === 401) return
             const serverErrMsg = props.error?.response?.data?.error ?? ""
             if (serverErrMsg === "not authenticated" || serverErrMsg === "unauthorized") return
-            if (muteCacheMiss && typeof serverErrMsg === "string" && serverErrMsg.includes("no cached data available")) return
+            if (isCacheMissError(props.error)) {
+                if (!muteCacheMiss) showCacheMissToast(() => props.refetch())
+                return
+            }
             console.log("Server error", props.error)
             // Use detailed error formatting for specific, actionable messages
             const { title, description } = formatErrorForToast(props.error, `${method} ${endpoint}`)
@@ -340,40 +349,6 @@ export function useServerQuery<R, V = any>(
 }
 
 //----------------------------------------------------------------------------------------------------------------------
-
-type SeaErrorDetail = { title: string; description?: string }
-
-function _handleSeaError(data: any): SeaErrorDetail {
-    if (typeof data === "string") return { title: "Server Error", description: data }
-
-    const err = data?.error as string
-
-    if (!err) return { title: "Unknown error" }
-
-    if (err.includes("Too many requests"))
-        return { title: "AniList: Too many requests", description: "Please wait a moment and try again." }
-
-    try {
-        const graphqlErr = JSON.parse(err) as any
-        console.log("AniList error", graphqlErr)
-        if (graphqlErr.graphqlErrors && graphqlErr.graphqlErrors.length > 0 && !!graphqlErr.graphqlErrors[0]?.message) {
-            return { title: "AniList error", description: graphqlErr.graphqlErrors[0]?.message }
-        }
-        return { title: "AniList error" }
-    }
-    catch (e) {
-        if (err.includes("no cached data") || err.includes("cache lookup failed")) {
-            return { title: "" }
-        }
-        // Truncate very long raw errors to avoid giant toasts
-        const detail = err.length > 300 ? err.slice(0, 300) + "…" : err
-        // Derive a short human-readable title from the first sentence / line
-        const firstLine = detail.split(/[\n:]/)[0]?.trim()
-        const title = firstLine && firstLine.length < 80 ? firstLine : "Server error"
-        const description = firstLine && firstLine !== detail ? detail : undefined
-        return { title, description }
-    }
-}
 
 function _handleSeaResponse<T>(res: unknown): { data: T | undefined, error: string | undefined } {
 
