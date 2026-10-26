@@ -40,7 +40,6 @@ export const ANIME_HOME_ITEM_IDS = [
     "local-anime-library",
     "library-upcoming-episodes",
     "aired-recently",
-    "missed-sequels",
     "anime-schedule-calendar",
     "local-anime-library-stats",
     "discover-header",
@@ -58,7 +57,6 @@ export const MANGA_HOME_ITEM_IDS = [
     "local-manga-library-stats",
     "manga-upcoming-chapters",
     "manga-aired-recently",
-    "manga-missed-sequels",
     "manga-schedule-calendar",
     "manga-discover-header",
     "manga-carousel",
@@ -429,12 +427,6 @@ export const HOME_ITEMS = {
         schemaVersion: 1,
         description: "Display a carousel of anime episodes that aired recently.",
     },
-    "missed-sequels": {
-        name: "Missed Sequels",
-        kind: ["row"],
-        schemaVersion: 1,
-        description: "Display a carousel of sequels that aren't in your collection.",
-    },
     "anime-schedule-calendar": {
         name: "Anime Schedule Calendar",
         kind: ["row"],
@@ -610,12 +602,6 @@ export const HOME_ITEMS = {
         kind: ["row"],
         schemaVersion: 1,
         description: "Coming soon: recently released manga chapters.",
-    },
-    "manga-missed-sequels": {
-        name: "Missed Manga Sequels",
-        kind: ["row"],
-        schemaVersion: 1,
-        description: "Coming soon: sequels not in your manga collection.",
     },
     "manga-schedule-calendar": {
         name: "Manga Release Calendar",

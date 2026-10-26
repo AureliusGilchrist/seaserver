@@ -24,7 +24,6 @@ import { LibraryView } from "@/app/(main)/(library)/_screens/library-view"
 import { __anilist_userAnimeMediaAtom } from "@/app/(main)/_atoms/anilist.atoms"
 import { AnilistAnimeEntryList } from "@/app/(main)/_features/anime/_components/anilist-media-entry-list"
 import { PluginWebviewSlot } from "@/app/(main)/_features/plugin/webview/plugin-webviews"
-import { DiscoverMissedSequelsSection } from "@/app/(main)/discover/_containers/discover-missed-sequels"
 import { TO_BE_RELEASED_LIST_NAME, useHandleUserAnilistLists } from "@/app/(main)/lists/_lib/handle-user-anilist-lists"
 import { MangaLibraryHeader } from "@/app/(main)/manga/_components/library-header"
 import { PageWrapper } from "@/components/shared/page-wrapper"
@@ -653,14 +652,6 @@ export function HomeScreenItem(props: HomeScreenItemProps) {
         )
     }
 
-    if (item.type === "missed-sequels") {
-        return (
-            <PageWrapper className="px-4">
-                <DiscoverMissedSequelsSection title="Missed Sequels" />
-            </PageWrapper>
-        )
-    }
-
     if (item.type === "manga-continue-reading-header") {
         return <ComingSoonPlaceholder title="Manga Continue Reading Header" />
     }
@@ -679,10 +670,6 @@ export function HomeScreenItem(props: HomeScreenItemProps) {
 
     if (item.type === "manga-aired-recently") {
         return <ComingSoonPlaceholder title="Recently Released (Manga)" />
-    }
-
-    if (item.type === "manga-missed-sequels") {
-        return <ComingSoonPlaceholder title="Missed Manga Sequels" />
     }
 
     if (item.type === "manga-schedule-calendar") {

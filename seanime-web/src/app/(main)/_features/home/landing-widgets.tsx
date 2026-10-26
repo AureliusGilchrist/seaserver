@@ -116,7 +116,6 @@ export const LANDING_QUICK_LINKS: LandingQuickLink[] = [
     { id: "discover", name: "Discover", description: "Something new, from what you already like.", href: "/discover" },
     { id: "schedule", name: "Schedule", description: "What airs next, and what you are behind on.", href: "/schedule" },
     { id: "news", name: "News", description: "The freshest from your feeds.", href: "/news" },
-    { id: "missed-sequels", name: "Missed Sequels", description: "Follow-up series you may have missed.", href: "/missed-sequels" },
     { id: "unmatched", name: "Unmatched Downloads", description: "Finished downloads waiting to be matched.", href: "/unmatched" },
     { id: "torrent-list", name: "Torrent list", description: "What is downloading, and what is seeding.", href: "/torrent-list" },
     { id: "debrid", name: "Debrid", description: "Browse and manage debrid downloads.", href: "/debrid" },
@@ -143,7 +142,7 @@ export type LandingFolderConfig = {
 
 export const DEFAULT_LANDING_FOLDERS: LandingFolderConfig[] = [
     { id: "library", name: "Library", linkIds: ["anime", "manga", "lists", "to-watch"] },
-    { id: "discover", name: "Discover", linkIds: ["discover", "schedule", "news", "missed-sequels"] },
+    { id: "discover", name: "Discover", linkIds: ["discover", "schedule", "news"] },
     { id: "downloads", name: "Downloads", linkIds: ["unmatched", "torrent-list", "debrid", "enqueue-future", "auto-downloader", "scan-summaries"] },
     { id: "community", name: "Community", linkIds: ["community", "achievements", "milestones", "profile"] },
     { id: "tools", name: "Tools", linkIds: ["enmasse-anime", "enmasse-manga", "extensions", "sync", "theme-manager", "settings"] },

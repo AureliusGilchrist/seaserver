@@ -1,3 +1,4 @@
+import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { INTERNAL_ProfileSummary as ProfileSummary } from "@/api/generated/types"
 import {
     useCreateProfile,
@@ -7,7 +8,7 @@ import {
     useSetAllowedLibraryPaths,
     useUpdateProfile,
 } from "@/api/hooks/profiles.hooks"
-import { useAdminSetProfileAniListToken, useDeletePlanningSlutToken, useGetPlanningSlutInfo, useSavePlanningSlutToken } from "@/api/hooks/admin.hooks"
+import { useAdminClearProfileAniListToken, useAdminSetProfileAniListToken, useDeletePlanningSlutToken, useGetPlanningSlutInfo, useSavePlanningSlutToken } from "@/api/hooks/admin.hooks"
 import { SeaLink } from "@/components/shared/sea-link"
 import { AnilistTokenButton } from "@/components/shared/anilist-token-button"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
@@ -407,6 +408,15 @@ function AdminProfileTokenRow({ profile }: { profile: ProfileSummary }) {
     const [token, setToken] = React.useState("")
     const [expanded, setExpanded] = React.useState(false)
     const { mutate: setAniListToken, isPending } = useAdminSetProfileAniListToken()
+    const { mutate: clearAniListToken, isPending: isClearing } = useAdminClearProfileAniListToken()
+    const clearConfirm = useConfirmationDialog({
+        title: `Clear ${profile.name}'s AniList token?`,
+        description: "The profile stays, with its settings, progress and history. It just stops syncing with AniList until a token is set again.",
+        actionText: "Clear token",
+        cancelText: "Keep it",
+        actionIntent: "alert",
+        onConfirm: () => clearAniListToken({ profileId: profile.id }),
+    })
 
     const handleSave = () => {
         if (!token.trim()) return
@@ -440,6 +450,16 @@ function AdminProfileTokenRow({ profile }: { profile: ProfileSummary }) {
                         <p className="text-xs text-yellow-500">No AniList account linked</p>
                     )}
                 </div>
+                {!!profile.anilistUsername && !expanded && (
+                    <Button
+                        intent="alert-subtle"
+                        size="sm"
+                        loading={isClearing}
+                        onClick={() => clearConfirm.open()}
+                    >
+                        Clear token
+                    </Button>
+                )}
                 <Button
                     intent="gray-subtle"
                     size="sm"
@@ -449,6 +469,7 @@ function AdminProfileTokenRow({ profile }: { profile: ProfileSummary }) {
                     {expanded ? "Cancel" : profile.anilistUsername ? "Change" : "Set Token"}
                 </Button>
             </div>
+            <ConfirmationDialog {...clearConfirm} />
             {expanded && (
                 <div className="mt-3 space-y-2">
                     <textarea

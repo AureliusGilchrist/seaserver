@@ -155,3 +155,23 @@ export function useAdminSetProfileAniListToken() {
         },
     })
 }
+
+export function useAdminClearProfileAniListToken() {
+    const qc = useQueryClient()
+
+    return useServerMutation<boolean, { profileId: number }>({
+        endpoint: "",
+        method: "DELETE",
+        mutationKey: ["admin-clear-profile-anilist-token"],
+        mutationFn: async variables => {
+            return (await import("@/api/client/requests")).buildSeaQuery<boolean>({
+                endpoint: `/api/v1/profiles/${variables.profileId}/anilist-token`,
+                method: "DELETE",
+            })
+        },
+        onSuccess: async () => {
+            await qc.invalidateQueries()
+            toast.success("AniList token cleared")
+        },
+    })
+}

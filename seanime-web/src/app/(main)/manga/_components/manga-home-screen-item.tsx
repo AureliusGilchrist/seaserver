@@ -114,10 +114,6 @@ export function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
         return <ComingSoonPlaceholder title="Recently Released (Manga)" />
     }
 
-    if (item.type === "manga-missed-sequels") {
-        return <ComingSoonPlaceholder title="Missed Manga Sequels" />
-    }
-
     if (item.type === "manga-schedule-calendar") {
         return <ComingSoonPlaceholder title="Manga Release Calendar" />
     }

@@ -26,7 +26,6 @@ import { useRouter, useSearchParams } from "@/lib/navigation"
 import { useAtomValue } from "jotai"
 import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { ActivityTabContent } from "@/app/(main)/_features/profile/activity-tab-content"
-import { ProfileTimeline } from "@/app/(main)/_features/profile/profile-timeline"
 import { LuMessagesSquare } from "react-icons/lu"
 import { ProfileWallpaper } from "@/app/(main)/profile/_components/profile-wallpaper"
 import { ActivityBuffBadge, MyProfilePage, StreakCard, StatsActivityHeatmap, DayOfWeekChart, CategoryPill, AchievementCard, ProgressRing, getLevelColor } from "@/app/(main)/profile/me/page"
@@ -265,9 +264,6 @@ function UserProfilePage() {
                         <TabsTrigger value="activity" className={profileTabsTriggerClass}>
                             <LuActivity className="mr-1.5" /> Activity
                         </TabsTrigger>
-                        <TabsTrigger value="timeline" className={profileTabsTriggerClass}>
-                            <LuMessagesSquare className="mr-1.5" /> Timeline
-                        </TabsTrigger>
                         <TabsTrigger value="towatch" className={profileTabsTriggerClass}>
                             <LuListVideo className="mr-1.5" /> Todo List
                         </TabsTrigger>
@@ -296,9 +292,6 @@ function UserProfilePage() {
                                 name: profile.name,
                             } : undefined}
                         />
-                    </TabsContent>
-                    <TabsContent value="timeline" className="space-y-6 mt-6">
-                        <ProfileTimeline profileId={id} profileName={profile?.name} />
                     </TabsContent>
                     <TabsContent value="towatch" className="space-y-6 mt-6">
                         {/* What this person means to watch next — the list is theirs, so it is shown

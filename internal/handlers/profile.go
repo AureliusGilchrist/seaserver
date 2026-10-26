@@ -839,3 +839,54 @@ func (h *Handler) HandleAdminSetProfileAniListToken(c echo.Context) error {
 	}
 	return h.RespondWithData(c, profile.ToSummary())
 }
+
+// HandleAdminClearProfileAniListToken
+//
+//	@summary clears a profile's AniList token (admin only).
+//	@desc The profile keeps everything else; it just stops talking to AniList until a token is set again.
+//	@param id - int - true - "The profile ID"
+//	@route /api/v1/profiles/{id}/anilist-token [DELETE]
+//	@returns bool
+func (h *Handler) HandleAdminClearProfileAniListToken(c echo.Context) error {
+	if session := c.Get("profileSession"); session != nil {
+		if payload, ok := session.(*core.ProfileSessionPayload); ok && !payload.IsAdmin {
+			return h.RespondWithError(c, echo.NewHTTPError(403, "Only admins can clear AniList tokens for other profiles"))
+		}
+	}
+
+	profileID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "invalid profile ID"))
+	}
+	profile, err := h.App.ProfileManager.GetProfile(uint(profileID))
+	if err != nil {
+		return h.RespondWithError(c, echo.NewHTTPError(404, "Profile not found"))
+	}
+	if h.App.ProfileDatabaseManager == nil {
+		return h.RespondWithError(c, echo.NewHTTPError(500, "Profile database manager not available"))
+	}
+	targetDB, dbErr := h.App.ProfileDatabaseManager.GetDatabase(profile.ID)
+	if dbErr != nil {
+		return h.RespondWithError(c, echo.NewHTTPError(500, "Failed to access profile database"))
+	}
+
+	// Same clearing as an AniList logout, done for that profile.
+	if _, err := targetDB.UpsertAccount(&models.Account{
+		BaseModel: models.BaseModel{ID: 1, UpdatedAt: time.Now()},
+		Username:  "",
+		Token:     "",
+		Viewer:    nil,
+	}); err != nil {
+		return h.RespondWithError(c, err)
+	}
+	if h.App.AnilistClientManager != nil {
+		h.App.AnilistClientManager.RemoveClient(profile.ID)
+	}
+	_, _ = h.App.ProfileManager.UpdateProfile(profile.ID, map[string]interface{}{
+		"anilist_username": "",
+		"anilist_avatar":   "",
+	})
+
+	h.App.Logger.Info().Uint("profileID", profile.ID).Msg("admin: AniList token cleared for profile")
+	return h.RespondWithData(c, true)
+}

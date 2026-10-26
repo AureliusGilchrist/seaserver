@@ -377,9 +377,6 @@ export function MyProfilePage() {
                         <TabsTrigger value="activity" className={profileTabsTriggerClass}>
                             <LuActivity className="mr-1.5" /> Activity
                         </TabsTrigger>
-                        <TabsTrigger value="timeline" className={profileTabsTriggerClass}>
-                            <LuMessagesSquare className="mr-1.5" /> Timeline
-                        </TabsTrigger>
                         <TabsTrigger value="stats" className={profileTabsTriggerClass}>
                             <LuStar className="mr-1.5" /> Stats
                         </TabsTrigger>
@@ -414,9 +411,6 @@ export function MyProfilePage() {
                                 name: profile.name,
                             } : undefined}
                         />
-                    </TabsContent>
-                    <TabsContent value="timeline" className="space-y-6 mt-6">
-                        <ProfileTimeline profileId={profile.id} profileName={profile.name} />
                     </TabsContent>
                     <TabsContent value="stats" className="space-y-6 mt-6">
                         <StatsTabContent />
@@ -533,7 +527,6 @@ export function ActivityBuffBadge({ multiplier }: { multiplier: number }) {
 // ─────────────────────── Activity Tab ───────────────────────
 
 import { ActivityTabContent } from "@/app/(main)/_features/profile/activity-tab-content"
-import { ProfileTimeline } from "@/app/(main)/_features/profile/profile-timeline"
 import { LuMessagesSquare } from "react-icons/lu"
 
 // ─────────────────────── Stats Tab (lazy) ───────────────────────

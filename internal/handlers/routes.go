@@ -446,6 +446,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.DELETE("/profiles/:id", h.HandleDeleteProfile, h.RequireProfileAdmin)
 	v1.POST("/profiles/:id/avatar", h.HandleUploadProfileAvatar, h.RequireProfileSession)
 	v1.POST("/profiles/:id/anilist-token", h.HandleAdminSetProfileAniListToken, h.RequireProfileAdmin)
+	v1.DELETE("/profiles/:id/anilist-token", h.HandleAdminClearProfileAniListToken, h.RequireProfileAdmin)
 
 	// Comments
 	v1.GET("/comments", h.HandleGetComments)

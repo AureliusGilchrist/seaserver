@@ -19,7 +19,6 @@ import { MangaContinueReadingHeader } from "@/app/(main)/manga/_containers/manga
 import { MangaDiscoverHeader } from "@/app/(main)/manga/_containers/manga-discover-header"
 import { MangaUpcomingChapters } from "@/app/(main)/manga/_containers/manga-upcoming-chapters"
 import { MangaRecentlyReleased } from "@/app/(main)/manga/_containers/manga-recently-released"
-import { MangaMissedSequels } from "@/app/(main)/manga/_containers/manga-missed-sequels"
 import { useGetMangaHomeItems } from "@/api/hooks/status.hooks"
 import { MangaContinueReadingEntry, useMangaContinueReadingList } from "@/app/(main)/manga/_lib/use-manga-continue-reading"
 import { PageWrapper } from "@/components/shared/page-wrapper"
@@ -743,16 +742,6 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
     if (item.type === "manga-aired-recently") {
         return (
             <MangaRecentlyReleased
-                onHoverImage={onHoverImage}
-                cardSizeClass={cardSizeClass}
-            />
-        )
-    }
-
-    // Missed Sequels
-    if (item.type === "manga-missed-sequels") {
-        return (
-            <MangaMissedSequels
                 onHoverImage={onHoverImage}
                 cardSizeClass={cardSizeClass}
             />

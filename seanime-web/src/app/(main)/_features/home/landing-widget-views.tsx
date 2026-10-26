@@ -49,7 +49,6 @@ const quickLinkIcons: Record<string, React.ElementType> = {
     achievements: GiTrophyCup,
     "enqueue-future": LuDownload,
     milestones: LuCalendar,
-    "missed-sequels": LuCalendar,
     debrid: LuHardDrive,
     "auto-downloader": LuDownload,
     "scan-summaries": LuClipboardCheck,

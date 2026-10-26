@@ -232,13 +232,6 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
     const items = React.useMemo(() => {
         const planningItems = [
             {
-                id: "missed-sequels",
-                iconType: LuGitFork,
-                name: "Missed sequels",
-                href: "/missed-sequels",
-                isCurrent: pathname === "/missed-sequels",
-            },
-            {
                 id: "to-watch",
                 iconType: LuListVideo,
                 name: "Todo List",

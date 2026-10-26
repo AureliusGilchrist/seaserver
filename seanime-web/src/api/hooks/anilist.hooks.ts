@@ -279,15 +279,6 @@ export function useGetAniListStats(enabled: boolean = true) {
     })
 }
 
-export function useAnilistListMissedSequels(enabled: boolean) {
-    return useServerQuery<Array<AL_BaseAnime>>({
-        endpoint: API_ENDPOINTS.ANILIST.AnilistListMissedSequels.endpoint,
-        method: API_ENDPOINTS.ANILIST.AnilistListMissedSequels.methods[0],
-        queryKey: [API_ENDPOINTS.ANILIST.AnilistListMissedSequels.key],
-        enabled: enabled,
-    })
-}
-
 export function useGetAnilistCacheLayerStatus() {
     return useServerQuery<boolean>({
         endpoint: API_ENDPOINTS.ANILIST.GetAnilistCacheLayerStatus.endpoint,

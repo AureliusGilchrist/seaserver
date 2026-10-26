@@ -399,10 +399,3 @@ export function useGetUpcomingMangaChapters() {
     })
 }
 
-export function useGetMangaMissedSequels() {
-    return useServerQuery<AL_BaseManga[]>({
-        endpoint: "/api/v1/manga/missed-sequels",
-        method: "GET",
-        queryKey: ["manga-missed-sequels"],
-    })
-}

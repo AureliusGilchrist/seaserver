@@ -1292,14 +1292,17 @@ function absoluteUrl(u: string): string {
 // Theme Background Image
 // ─────────────────────────────────────────────────────────────────
 
-export function ThemeBackgroundImage({ url, dim, blur, exposure, saturation, contrast, scanlinesStrength = 0, scanlinesSize = 0.5, noiseStrength = 0, noiseSpeed = 1, noiseScale = 1, vignetteStrength = 0, vignetteSize = 0.5, glowStrength = 0, glowSpeed = 2, glowScale = 0.5, hologramStrength = 0, effectsOnly = false }: { url: string; effectsOnly?: boolean; dim?: number; blur?: number; exposure?: number; saturation?: number; contrast?: number; scanlinesStrength?: number; scanlinesSize?: number; noiseStrength?: number; noiseSpeed?: number; noiseScale?: number; vignetteStrength?: number; vignetteSize?: number; glowStrength?: number; glowSpeed?: number; glowScale?: number; hologramStrength?: number }) {
+export function ThemeBackgroundImage({ url, dim, dimMode = "fade", blur, exposure, saturation, contrast, scanlinesStrength = 0, scanlinesSize = 0.5, noiseStrength = 0, noiseSpeed = 1, noiseScale = 1, vignetteStrength = 0, vignetteSize = 0.5, glowStrength = 0, glowSpeed = 2, glowScale = 0.5, hologramStrength = 0, effectsOnly = false }: { url: string; effectsOnly?: boolean; dim?: number; /** "fade" lowers the image's opacity over a dark underlay; "darken" keeps it opaque and lowers its brightness. */ dimMode?: "fade" | "darken"; blur?: number; exposure?: number; saturation?: number; contrast?: number; scanlinesStrength?: number; scanlinesSize?: number; noiseStrength?: number; noiseSpeed?: number; noiseScale?: number; vignetteStrength?: number; vignetteSize?: number; glowStrength?: number; glowSpeed?: number; glowScale?: number; hologramStrength?: number }) {
     const previewMode = useAtomValue(wallpaperPreviewModeAtom)
     // The wallpaper never goes above ~50% opacity so page text stays readable on busy images.
-    const effectiveDim = previewMode ? 0.05 : Math.max(dim ?? 0.65, 0.5)
-    const opacity = 1 - effectiveDim
+    const darken = dimMode === "darken"
+    const effectiveDim = previewMode ? 0.05 : darken ? Math.min(Math.max(dim ?? 0.5, 0), 0.95) : Math.max(dim ?? 0.65, 0.5)
+    // Darken: the picture stays solid and only gets darker, so its colours don't wash into the page.
+    const opacity = darken ? 1 : 1 - effectiveDim
+    const brightness = (exposure ?? 1) * (darken ? 1 - effectiveDim : 1)
     const filterParts: string[] = []
     if (blur) filterParts.push(`blur(${blur}px)`)
-    if (exposure != null && exposure !== 1) filterParts.push(`brightness(${exposure})`)
+    if (brightness !== 1) filterParts.push(`brightness(${brightness.toFixed(3)})`)
     if (saturation != null && saturation !== 1) filterParts.push(`saturate(${saturation})`)
     if (contrast != null && contrast !== 1) filterParts.push(`contrast(${contrast})`)
     const lineHeight = Math.round(2 + scanlinesSize * 6)
@@ -1307,7 +1310,7 @@ export function ThemeBackgroundImage({ url, dim, blur, exposure, saturation, con
     return (
         <div aria-hidden style={{ position: "fixed", inset: 0, zIndex: effectsOnly ? 0 : -1, pointerEvents: "none" }}>
             {/* Dark underlay so the semi-transparent wallpaper reads darker */}
-            {!previewMode && !effectsOnly && <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.75)" }} />}
+            {!previewMode && !effectsOnly && <div style={{ position: "absolute", inset: 0, background: darken ? "#000" : "rgba(0,0,0,0.75)" }} />}
             {/* Wallpaper image */}
             {!effectsOnly && <div
                 style={{

@@ -63,6 +63,7 @@ export function ProfileWallpaper({ url, effects }: { url?: string | null; effect
         <ThemeBackgroundImage
             url={resolveUrl(url)}
             dim={fx.dim}
+            dimMode="darken"
             blur={fx.blur}
             exposure={fx.exposure}
             saturation={fx.saturation}
@@ -78,7 +79,7 @@ export function ProfileWallpaper({ url, effects }: { url?: string | null; effect
 }
 
 const SLIDERS: { key: keyof WallpaperEffects; label: string; min: number; max: number; step: number }[] = [
-    { key: "dim", label: "Dim", min: 0.5, max: 0.95, step: 0.05 },
+    { key: "dim", label: "Dim", min: 0, max: 0.95, step: 0.05 },
     { key: "blur", label: "Blur", min: 0, max: 20, step: 1 },
     { key: "exposure", label: "Exposure", min: 0.5, max: 1.5, step: 0.05 },
     { key: "saturation", label: "Saturation", min: 0, max: 2, step: 0.05 },

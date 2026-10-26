@@ -53,7 +53,6 @@ export const HOME_ITEM_ICONS = {
     "discover-header": LuCompass,
     "anime-carousel": TbCarouselHorizontal,
     "centered-title": LuHeading,
-    "missed-sequels": LuMilestone,
     "my-lists": LuListTodo,
     // Manga icons
     "manga-continue-reading": LuBookOpen,
@@ -63,7 +62,6 @@ export const HOME_ITEM_ICONS = {
     "local-manga-library": IoLibraryOutline,
     "manga-upcoming-chapters": LuClock,
     "manga-aired-recently": LuCalendarClock,
-    "manga-missed-sequels": LuMilestone,
     "manga-schedule-calendar": LuCalendar,
     "manga-discover-header": LuCompass,
     "manga-carousel": TbCarouselHorizontal,
