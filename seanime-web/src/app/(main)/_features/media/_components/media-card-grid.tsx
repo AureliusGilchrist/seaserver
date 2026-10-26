@@ -1,42 +1,33 @@
 import { LuffyError } from "@/components/shared/luffy-error"
 import { cn } from "@/components/ui/core/styling"
 import { Skeleton } from "@/components/ui/skeleton"
-import { animeCardSizeAtom, getGridSizeClasses } from "@/app/(main)/_atoms/card-size.atoms"
-import { useAtomValue } from "jotai/react"
 import React from "react"
 
-// Fallback grid classes when card size atom is not available (server-side)
-const gridClass = cn(
-    "grid grid-cols-2 min-[768px]:grid-cols-3 min-[1080px]:grid-cols-4 min-[1320px]:grid-cols-5 min-[1750px]:grid-cols-6 min-[1850px]:grid-cols-7 min-[2000px]:grid-cols-8 gap-4",
-)
-const gridClassMax7 = cn(
-    "grid grid-cols-2 min-[768px]:grid-cols-3 min-[1080px]:grid-cols-4 min-[1320px]:grid-cols-5 min-[1750px]:grid-cols-6 min-[1850px]:grid-cols-7 min-[2000px]:grid-cols-7 gap-4",
-)
-const gridClassMax6 = cn(
-    "grid grid-cols-2 min-[768px]:grid-cols-3 min-[1080px]:grid-cols-4 min-[1320px]:grid-cols-5 min-[1750px]:grid-cols-6 min-[1850px]:grid-cols-6 min-[2000px]:grid-cols-6 gap-4",
-)
-const gridClassMax5 = cn(
-    "grid grid-cols-2 min-[768px]:grid-cols-3 min-[1080px]:grid-cols-4 min-[1320px]:grid-cols-5 min-[1750px]:grid-cols-5 min-[1850px]:grid-cols-5 min-[2000px]:grid-cols-5 gap-4",
-)
-const gridClassMax4 = cn(
-    "grid grid-cols-2 min-[768px]:grid-cols-3 min-[1080px]:grid-cols-4 min-[1320px]:grid-cols-4 min-[1750px]:grid-cols-4 min-[1850px]:grid-cols-4 min-[2000px]:grid-cols-4 gap-4",
-)
+// Cards in a grid are the width set in Personal -> Display (see card-size.tsx and the
+// `.sea-card-grid` utility): fixed-width columns, as many as fit, so a card is the same size here as
+// in every carousel. `type` picks the anime or manga width; left out, the grid inherits whichever
+// type an ancestor set (the manga pages set manga), defaulting to anime.
 
 type MediaCardGridProps = {
     children?: React.ReactNode
+    /** Kept for callers; columns now follow the card width. */
     maxCol?: number
+    type?: "anime" | "manga"
 } & React.HTMLAttributes<HTMLDivElement>
+
+function typeClass(type: "anime" | "manga" | undefined) {
+    return type === "manga" ? "sea-card-manga" : type === "anime" ? "sea-card-anime" : undefined
+}
 
 export function MediaCardGrid(props: MediaCardGridProps) {
 
     const {
         children,
-        maxCol = 8,
+        maxCol: _maxCol,
+        type,
+        className,
         ...rest
     } = props
-
-    const cardSize = useAtomValue(animeCardSizeAtom)
-    const sizeGridClasses = getGridSizeClasses(cardSize)
 
     if (React.Children.toArray(children).length === 0) {
         return <LuffyError title={null}>
@@ -44,21 +35,11 @@ export function MediaCardGrid(props: MediaCardGridProps) {
         </LuffyError>
     }
 
-    // Apply maxCol limit to size-based grid classes
-    const limitedGridClasses = cn(
-        "grid gap-4",
-        sizeGridClasses,
-        maxCol === 4 && "min-[1320px]:grid-cols-4 min-[1750px]:grid-cols-4 min-[1850px]:grid-cols-4 min-[2000px]:grid-cols-4",
-        maxCol === 5 && "min-[1750px]:grid-cols-5 min-[1850px]:grid-cols-5 min-[2000px]:grid-cols-5",
-        maxCol === 6 && "min-[1750px]:grid-cols-6 min-[1850px]:grid-cols-6 min-[2000px]:grid-cols-6",
-        maxCol === 7 && "min-[1850px]:grid-cols-7 min-[2000px]:grid-cols-7",
-    )
-
     return (
         <>
             <div
                 data-media-card-grid
-                className={limitedGridClasses}
+                className={cn("sea-card-grid", typeClass(type), className)}
                 {...rest}
             >
                 {children}
@@ -72,6 +53,7 @@ type MediaCardLazyGridProps = {
     itemCount: number
     containerRef?: React.RefObject<HTMLElement>
     maxCol?: number
+    type?: "anime" | "manga"
 } & React.HTMLAttributes<HTMLDivElement>;
 
 export function MediaCardLazyGrid({
@@ -103,7 +85,8 @@ export function MediaCardLazyGrid({
 export function MediaCardLazyGridRenderer({
     children,
     itemCount,
-    maxCol = 8,
+    maxCol: _maxCol,
+    type,
     ...rest
 }: MediaCardLazyGridProps) {
     // Once an item has been rendered it stays rendered.
@@ -126,37 +109,21 @@ export function MediaCardLazyGridRenderer({
     const itemRefs = React.useRef<(HTMLDivElement | null)[]>([])
     const observerRef = React.useRef<IntersectionObserver | null>(null)
 
-    const cardSize = useAtomValue(animeCardSizeAtom)
-    const sizeGridClasses = getGridSizeClasses(cardSize)
-
-    // Determine initial columns based on window width and card size
-    const getInitialColumns = () => {
-        const width = window.innerWidth
-        // Map card size to approximate column count at 1750px breakpoint
-        let baseCols: number
-        if (cardSize <= 0.7) baseCols = 8
-        else if (cardSize <= 0.85) baseCols = 7
-        else if (cardSize <= 1.0) baseCols = 6
-        else if (cardSize <= 1.15) baseCols = 5
-        else baseCols = 4
-
-        // Adjust for screen width
-        if (width < 768) baseCols = 2
-        else if (width < 1080) baseCols = Math.min(baseCols, 3)
-        else if (width < 1320) baseCols = Math.min(baseCols, 4)
-        else if (width < 1750) baseCols = Math.min(baseCols, 5)
-        else if (width < 1850) baseCols = Math.min(baseCols, 6)
-        else if (width < 2000) baseCols = Math.min(baseCols, 7)
-
-        return Math.min(baseCols, maxCol)
-    }
-
-    const [initialColumns, setInitialColumns] = React.useState(getInitialColumns)
-
-    // Update columns when card size changes
+    // How many columns the grid has right now: the browser lays the columns out from the card
+    // width, so ask it, and ask again when the grid or the card size changes.
+    const [initialColumns, setInitialColumns] = React.useState(() => Math.max(2, Math.floor(window.innerWidth / 236)))
     React.useEffect(() => {
-        setInitialColumns(getInitialColumns())
-    }, [cardSize, maxCol])
+        const el = gridRef.current
+        if (!el) return
+        const measure = () => {
+            const cols = getComputedStyle(el).gridTemplateColumns.split(" ").filter(Boolean).length
+            if (cols > 0) setInitialColumns(prev => prev === cols ? prev : cols)
+        }
+        measure()
+        const ro = new ResizeObserver(measure)
+        ro.observe(el)
+        return () => ro.disconnect()
+    }, [])
 
     // Seed the first row. Merged into whatever is already visible rather than replacing it, so a
     // change in column count cannot un-render everything the user has already scrolled past.
@@ -217,15 +184,7 @@ export function MediaCardLazyGridRenderer({
         }
     }, [])
 
-    // Apply maxCol limit to size-based grid classes
-    const limitedLazyGridClasses = cn(
-        "grid gap-4",
-        sizeGridClasses,
-        maxCol === 4 && "min-[1320px]:grid-cols-4 min-[1750px]:grid-cols-4 min-[1850px]:grid-cols-4 min-[2000px]:grid-cols-4",
-        maxCol === 5 && "min-[1750px]:grid-cols-5 min-[1850px]:grid-cols-5 min-[2000px]:grid-cols-5",
-        maxCol === 6 && "min-[1750px]:grid-cols-6 min-[1850px]:grid-cols-6 min-[2000px]:grid-cols-6",
-        maxCol === 7 && "min-[1850px]:grid-cols-7 min-[2000px]:grid-cols-7",
-    )
+    const limitedLazyGridClasses = cn("sea-card-grid", typeClass(type))
 
     return (
         <div data-media-card-lazy-grid-renderer {...rest}>

@@ -10,7 +10,7 @@ import (
 // Per-profile choice of which new feed entries become notifications (Settings → Personal → News).
 const (
 	NotifyModeAll      = "all"      // every new headline
-	NotifyModeLists    = "lists"    // headlines naming something on the profile's Planning or Completed list
+	NotifyModeLists    = "lists"    // headlines naming something on the profile's chosen lists (Watching, Planning, Completed)
 	NotifyModeKeywords = "keywords" // headlines matching the profile's keywords (default; built-in list when none set)
 )
 
@@ -58,8 +58,24 @@ func NewNotifyFilter(ovr *db.ClientSettingsOverrides, animeCol func() *anilist.A
 				}
 			}
 		}
+		on := func(b *bool) bool { return b == nil || *b }
+		current, planning, completed := true, true, true
+		if ovr != nil {
+			current, planning, completed = on(ovr.NewsNotifyListCurrent), on(ovr.NewsNotifyListPlanning), on(ovr.NewsNotifyListCompleted)
+		}
 		wanted := func(st *anilist.MediaListStatus) bool {
-			return st != nil && (*st == anilist.MediaListStatusPlanning || *st == anilist.MediaListStatusCompleted)
+			if st == nil {
+				return false
+			}
+			switch *st {
+			case anilist.MediaListStatusCurrent, anilist.MediaListStatusRepeating:
+				return current
+			case anilist.MediaListStatusPlanning:
+				return planning
+			case anilist.MediaListStatusCompleted:
+				return completed
+			}
+			return false
 		}
 		if animeCol != nil {
 			if col := animeCol(); col != nil {

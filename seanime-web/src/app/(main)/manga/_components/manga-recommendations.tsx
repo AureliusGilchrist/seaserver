@@ -31,7 +31,7 @@ export function MangaRecommendations(props: MangaRecommendationsProps) {
             {!!anime?.length && (
                 <>
                     <h2>Relations</h2>
-                    <MediaCardGrid maxCol={maxCol}>
+                    <MediaCardGrid maxCol={maxCol} type="manga">
                         {anime?.toSorted((a, b) => (a.node?.format === "TV" && b.node?.format !== "TV")
                             ? -1
                             : (a.node?.format !== "TV" && b.node?.format === "TV") ? 1 : 0).map(edge => {
@@ -52,7 +52,7 @@ export function MangaRecommendations(props: MangaRecommendationsProps) {
             )}
             {recommendations.length > 0 && <>
                 <h2>Recommendations</h2>
-                <MediaCardGrid maxCol={maxCol}>
+                <MediaCardGrid maxCol={maxCol} type="manga">
                     {recommendations.map(media => {
                         return <div key={media.id} className="col-span-1">
                             <MediaEntryCard

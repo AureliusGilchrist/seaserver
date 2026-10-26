@@ -2,6 +2,7 @@ import { useGetAnimeEntry } from "@/api/hooks/anime_entries.hooks"
 import { useGetAnilistAnimeDetails } from "@/api/hooks/anilist.hooks"
 import { VideoCoreLifecycleState } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_playlistState } from "@/app/(main)/_features/video-core/video-core-playlist"
 import { Button } from "@/components/ui/button"
 import { usePlayNext } from "@/app/(main)/_atoms/playback.atoms"
 import { useRouter } from "@/lib/navigation"
@@ -241,16 +242,26 @@ export function useVideoCoreWatchingChecks(
         return () => window.removeEventListener("pointermove", onMove)
     }, [mouseExtends])
 
-    const latestRef = React.useRef({ details, state, mediaId, episodeNumber, totalEpisodes, setSequelPrompt, setStillWatching, setStillWatchingHold, stillWatchingConfig, stillWatchingHold })
-    latestRef.current = { details, state, mediaId, episodeNumber, totalEpisodes, setSequelPrompt, setStillWatching, setStillWatchingHold, stillWatchingConfig, stillWatchingHold }
+    // Whether there is anything left to advance to. The playlist's next episode is what auto-next
+    // actually plays (it knows about missing files and skipped filler); before it has loaded, fall
+    // back to the episode count. No next episode means there's nothing to ask about.
+    const playlistState = useAtomValue(vc_playlistState)
+    const hasNextEpisode = playlistState
+        ? !!playlistState.nextEpisode
+        : !(totalEpisodes > 0 && episodeNumber >= totalEpisodes)
+
+    const latestRef = React.useRef({ details, state, mediaId, episodeNumber, totalEpisodes, setSequelPrompt, setStillWatching, setStillWatchingHold, stillWatchingConfig, stillWatchingHold, hasNextEpisode })
+    latestRef.current = { details, state, mediaId, episodeNumber, totalEpisodes, setSequelPrompt, setStillWatching, setStillWatchingHold, stillWatchingConfig, stillWatchingHold, hasNextEpisode }
 
     /**
      * Called when an episode reaches the completion threshold. Counts the episode and arms the
      * check when the interval is due — the question itself waits for the episode to end.
      */
     const onEpisodeEnded = React.useCallback(() => {
-        const { mediaId, episodeNumber, setStillWatchingHold, stillWatchingConfig } = latestRef.current
+        const { mediaId, episodeNumber, setStillWatchingHold, stillWatchingConfig, hasNextEpisode } = latestRef.current
         if (!mediaId || !episodeNumber) return
+        // The last episode: nothing plays next, so it neither counts nor asks.
+        if (!hasNextEpisode) return
 
         const key = `${mediaId}:${episodeNumber}`
         if (handledEndRef.current === key) return
@@ -286,10 +297,15 @@ export function useVideoCoreWatchingChecks(
      * false means "go ahead".
      */
     const beforeAutoNext = React.useCallback(() => {
-        const { setStillWatching, setStillWatchingHold, stillWatchingConfig, stillWatchingHold } = latestRef.current
+        const { setStillWatching, setStillWatchingHold, stillWatchingConfig, stillWatchingHold, hasNextEpisode } = latestRef.current
 
         // A still-watching prompt raised for a previous episode has no claim on this one.
         setStillWatching(null)
+
+        if (!hasNextEpisode) {
+            setStillWatchingHold(false)
+            return false
+        }
 
         if (!stillWatchingConfig?.canAutoAdvance) return false
         if (stillWatchingConfig.enabled === false) return false

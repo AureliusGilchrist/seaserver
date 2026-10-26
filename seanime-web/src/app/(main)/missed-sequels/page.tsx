@@ -90,7 +90,7 @@ function NotWatchedSection() {
                     <p className="text-sm text-[--muted]">Nothing here — everything that continues what you have finished is already on your lists.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                <div className="sea-card-grid">
                     {visible.map(media => (
                         <div key={media.id} className="col-span-1 group/msq relative">
                             <MediaEntryCard
@@ -149,7 +149,7 @@ function NotMatchedSection() {
                     <p className="text-sm text-[--muted]">Nothing here — everything in your library has something on disk.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                <div className="sea-card-grid">
                     {withNoFiles.slice(0, 60).map(entry => (
                         <div key={entry.mediaId} className="col-span-1 group/msq relative">
                             <button className="w-full text-left" onClick={() => setOpenMediaId(entry.mediaId)}>

@@ -13,7 +13,7 @@ export function AdvancedSearchList() {
     const items = data?.pages.filter(Boolean).flatMap(n => n.Page?.media).filter(Boolean).filter(media => !!media.startDate?.year)
 
     return <>
-        {!isLoading && <MediaCardLazyGrid itemCount={items?.length ?? 0}>
+        {!isLoading && <MediaCardLazyGrid itemCount={items?.length ?? 0} type={type === "manga" ? "manga" : "anime"}>
             {items?.map(media => (
                 <MediaEntryCard
                     key={`${media.id}`}

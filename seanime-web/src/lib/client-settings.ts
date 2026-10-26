@@ -42,14 +42,21 @@ export const clientSettingsSchema = z.object({
     newsFeedShowMoreCount: z.number().optional(),
     /** Whether a new RSS entry raises a live notification + drawer entry for this profile. */
     newsNotifyNewEntries: z.boolean().optional(),
-    /** Which new entries notify: every one, ones naming a Planning/Completed title, or keyword matches. */
+    /** Which new entries notify: every one, ones naming a title on the chosen lists, or keyword matches. */
     newsNotifyMode: z.enum(["all", "lists", "keywords"]).optional(),
+    /** Which lists "lists" mode reads (each on when unset). */
+    newsNotifyListCurrent: z.boolean().optional(),
+    newsNotifyListPlanning: z.boolean().optional(),
+    newsNotifyListCompleted: z.boolean().optional(),
     /** Comma-separated keywords for "keywords" mode; empty uses the built-in list. */
     newsNotifyKeywords: z.string().optional(),
     // Display
     hideAudienceScore: z.boolean().optional(),
     blurAdultContent: z.boolean().optional(),
     disableAnimeCardTrailers: z.boolean().optional(),
+    /** Card widths in px, one for anime cards and one for manga cards. */
+    animeCardWidth: z.number().optional(),
+    mangaCardWidth: z.number().optional(),
     // Manga
     mangaAutoUpdateProgress: z.boolean().optional(),
     // AniList

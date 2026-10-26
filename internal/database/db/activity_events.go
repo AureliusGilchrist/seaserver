@@ -112,3 +112,21 @@ func (db *Database) PruneActivityEvents(maxAge time.Duration) error {
 	cutoff := time.Now().Add(-maxAge)
 	return db.gormdb.Where("created_at < ?", cutoff).Delete(&models.ActivityEvent{}).Error
 }
+
+// GetFirstActivityTimes returns, for each media id, when this profile first watched or read it
+// (the oldest episode_watched / manga_chapter_read event still on record).
+func (db *Database) GetFirstActivityTimes(mediaIds []int) map[int]time.Time {
+	out := make(map[int]time.Time, len(mediaIds))
+	for _, id := range mediaIds {
+		var ev models.ActivityEvent
+		err := db.gormdb.
+			Where("media_id = ? AND event_type IN ?", id, []string{models.ActivityEventEpisodeWatched, models.ActivityEventMangaChapterRead}).
+			Order("created_at ASC").
+			Limit(1).
+			Find(&ev).Error
+		if err == nil && ev.ID > 0 {
+			out[id] = ev.CreatedAt
+		}
+	}
+	return out
+}

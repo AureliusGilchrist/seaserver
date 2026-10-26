@@ -71,7 +71,7 @@ export function AnilistAnimeEntryList(props: AnilistAnimeEntryListProps) {
                 {list?.entries?.filter(Boolean)?.map(entry => {
                     return <div
                         key={entry.media?.id}
-                        className={"relative basis-[200px] col-span-1 place-content-stretch flex-none md:basis-[250px] mx-2 mt-8 mb-0"}
+                        className={cn("relative sea-card-item col-span-1 place-content-stretch flex-none mx-2 mt-8 mb-0", type === "manga" ? "sea-card-manga" : "sea-card-anime")}
                     >
                         <MediaEntryCard
                             key={`${entry.media?.id}`}
@@ -89,7 +89,7 @@ export function AnilistAnimeEntryList(props: AnilistAnimeEntryListProps) {
 
     return (
         <>
-            <MediaCardLazyGrid itemCount={visibleEntries.length} data-anilist-anime-entry-list>
+            <MediaCardLazyGrid itemCount={visibleEntries.length} type={type} data-anilist-anime-entry-list>
                 {visibleEntries.map((entry) => (
                     <MediaEntryCard
                         key={`${entry.media?.id}`}

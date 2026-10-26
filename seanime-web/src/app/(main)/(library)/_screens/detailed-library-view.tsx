@@ -276,7 +276,7 @@ const LibraryCollectionEntryItem = React.memo(({ entry, streamingMediaIds, type 
             showListDataButton
             withAudienceScore={false}
             type="anime"
-            containerClassName={type === "carousel" ? "basis-[200px] md:basis-[250px] mx-2 mt-8 mb-0" : undefined}
+            containerClassName={type === "carousel" ? "sea-card-item mx-2 mt-8 mb-0" : undefined}
         />
     )
 })

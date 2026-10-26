@@ -26,7 +26,7 @@ import (
 // opted out of news notifications gets no rows at all — not silent ones.
 //
 // Which entries become notifications is each profile's choice (Settings → Personal → News, see
-// NotifyFilter): every entry, only entries naming something on their Planning/Completed lists,
+// NotifyFilter): every entry, only entries naming something on their chosen lists (Watching, Planning, Completed),
 // or only entries matching keywords — by default the built-in list below (death announcements:
 // "death", "dies", "passed away", ...). Every headline still appears on the News page either way.
 

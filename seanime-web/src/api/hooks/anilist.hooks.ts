@@ -1,4 +1,7 @@
-import { useServerMutation, useServerQuery } from "@/api/client/requests"
+import { buildSeaQuery, useServerMutation, useServerQuery } from "@/api/client/requests"
+import { serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
+import { useInfiniteQuery } from "@tanstack/react-query"
+import { useAtomValue } from "jotai/react"
 import {
     AddAnimeToPlanning_Variables,
     AnilistListAnime_Variables,
@@ -199,8 +202,65 @@ export function useGetAnilistStaffDetails(id: number) {
     })
 }
 
+export type CharacterDate = { year?: number | null, month?: number | null, day?: number | null }
+export type CharacterVoiceActor = {
+    id: number
+    name?: { full?: string, native?: string }
+    image?: { large?: string, medium?: string }
+    languageV2?: string
+}
+export type CharacterMediaNode = {
+    id: number
+    idMal?: number | null
+    siteUrl?: string
+    status?: string
+    season?: string
+    seasonYear?: number | null
+    type?: "ANIME" | "MANGA"
+    format?: string
+    bannerImage?: string
+    episodes?: number | null
+    chapters?: number | null
+    volumes?: number | null
+    synonyms?: string[]
+    isAdult?: boolean
+    countryOfOrigin?: string
+    meanScore?: number | null
+    averageScore?: number | null
+    popularity?: number | null
+    description?: string
+    genres?: string[]
+    title?: { userPreferred?: string, romaji?: string, english?: string, native?: string }
+    coverImage?: { extraLarge?: string, large?: string, medium?: string, color?: string }
+    startDate?: CharacterDate
+    endDate?: CharacterDate
+}
+export type CharacterDetails = {
+    id: number
+    name?: {
+        first?: string, middle?: string, last?: string, full?: string, native?: string, userPreferred?: string
+        alternative?: string[], alternativeSpoiler?: string[]
+    }
+    image?: { large?: string, medium?: string }
+    description?: string
+    gender?: string
+    age?: string
+    bloodType?: string
+    siteUrl?: string
+    dateOfBirth?: CharacterDate
+    favourites?: number
+    media?: {
+        edges?: {
+            characterRole?: "MAIN" | "SUPPORTING" | "BACKGROUND"
+            voiceActors?: CharacterVoiceActor[]
+            voiceActorRoles?: { roleNotes?: string, dubGroup?: string, voiceActor?: CharacterVoiceActor }[]
+            node?: CharacterMediaNode
+        }[]
+    }
+}
+
 export function useGetAnilistCharacterDetails(id: number) {
-    return useServerQuery<any>({
+    return useServerQuery<CharacterDetails>({
         endpoint: API_ENDPOINTS.CHARACTER.GetAnilistCharacterDetails.endpoint.replace("{id}", String(id)),
         method: API_ENDPOINTS.CHARACTER.GetAnilistCharacterDetails.methods[0],
         queryKey: [API_ENDPOINTS.CHARACTER.GetAnilistCharacterDetails.key, String(id)],
@@ -247,5 +307,41 @@ export function useToggleAnilistCacheLayerStatus() {
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANILIST.GetAnilistCacheLayerStatus.key] })
         },
+    })
+}
+
+export type MediaCharacterEdge = {
+    role?: "MAIN" | "SUPPORTING" | "BACKGROUND"
+    node?: {
+        id: number
+        name?: { full?: string, native?: string, userPreferred?: string }
+        image?: { large?: string, medium?: string }
+        age?: string
+        gender?: string
+        favourites?: number
+        isFavourite?: boolean
+    }
+    voiceActors?: CharacterVoiceActor[]
+}
+export type MediaCharactersPage = { total: number, hasNextPage: boolean, page: number, edges: MediaCharacterEdge[] }
+
+/** Every character of an anime or manga, a page of 25 at a time (main roles first). */
+export function useGetMediaCharacters(mediaId: number | null | undefined, enabled = true) {
+    const password = useAtomValue(serverAuthTokenAtom)
+    return useInfiniteQuery({
+        queryKey: ["ANILIST-get-media-characters", mediaId],
+        initialPageParam: 1,
+        enabled: !!mediaId && enabled,
+        staleTime: 30 * 60 * 1000,
+        gcTime: 60 * 60 * 1000,
+        queryFn: async ({ pageParam }) => {
+            return buildSeaQuery<MediaCharactersPage>({
+                endpoint: `/api/v1/anilist/media-characters/${mediaId}`,
+                method: "GET",
+                params: { page: pageParam },
+                password: password,
+            })
+        },
+        getNextPageParam: (lastPage) => lastPage?.hasNextPage ? lastPage.page + 1 : undefined,
     })
 }

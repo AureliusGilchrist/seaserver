@@ -511,6 +511,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Anilist.GET("/staff-details/:id", h.HandleGetAnilistStaffDetails)
 
 	v1Anilist.GET("/character-details/:id", h.HandleGetAnilistCharacterDetails)
+	v1Anilist.GET("/media-characters/:id", h.HandleGetAnilistMediaCharacters)
 
 	v1Anilist.POST("/list-entry", h.HandleEditAnilistListEntry)
 

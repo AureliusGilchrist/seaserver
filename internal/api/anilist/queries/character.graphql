@@ -1,77 +1,36 @@
+# Mirror of the query in internal/handlers/character.go (raw string; not part of the generated client).
 query CharacterDetails($id: Int) {
   Character(id: $id) {
     id
-    name {
-      full
-      native
-      alternative
-    }
-    image {
-      large
-    }
+    name { first middle last full native userPreferred alternative alternativeSpoiler }
+    image { large medium }
     description(asHtml: false)
     gender
     age
-    dateOfBirth {
-      year
-      month
-      day
-    }
+    bloodType
+    siteUrl
+    dateOfBirth { year month day }
     favourites
     media(sort: POPULARITY_DESC, perPage: 80) {
       edges {
         characterRole
-        voiceActors(language: JAPANESE, sort: RELEVANCE) {
-          id
-          name {
-            full
-            native
+        voiceActorRoles(sort: [RELEVANCE, ID]) {
+          roleNotes
+          dubGroup
+          voiceActor {
+            id
+            name { full native }
+            image { large medium }
+            languageV2
           }
-          image {
-            large
-          }
-          languageV2
         }
         node {
-          id
-          idMal
-          siteUrl
-          status(version: 2)
-          season
-          type
-          format
-          bannerImage
-          episodes
-          chapters
-          volumes
-          synonyms
-          isAdult
-          countryOfOrigin
-          meanScore
-          description
-          genres
-          title {
-            userPreferred
-            romaji
-            english
-            native
-          }
-          coverImage {
-            extraLarge
-            large
-            medium
-            color
-          }
-          startDate {
-            year
-            month
-            day
-          }
-          endDate {
-            year
-            month
-            day
-          }
+          id idMal siteUrl status(version: 2) season seasonYear type format bannerImage
+          episodes chapters volumes synonyms isAdult countryOfOrigin meanScore averageScore popularity description genres
+          title { userPreferred romaji english native }
+          coverImage { extraLarge large medium color }
+          startDate { year month day }
+          endDate { year month day }
         }
       }
     }

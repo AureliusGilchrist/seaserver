@@ -6,6 +6,7 @@ import {
     Anime_NakamaEntryLibraryData,
     Manga_EntryListData,
 } from "@/api/generated/types"
+import { cn } from "@/components/ui/core/styling"
 import { getAtomicLibraryEntryAtom } from "@/app/(main)/_atoms/anime-library-collection.atoms"
 import { useDownloadingAnime } from "@/app/(main)/_atoms/downloading.atoms"
 import { usePlayNext } from "@/app/(main)/_atoms/playback.atoms"
@@ -300,7 +301,7 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
             data-media-id={media.id}
             data-media-mal-id={media.idMal}
             data-media-type={type}
-            className={props.containerClassName}
+            className={cn(type === "manga" ? "sea-card-manga" : "sea-card-anime", props.containerClassName)}
             data-list-data={stringifiedListData}
             onMouseEnter={() => {
                 setIsHoveringCard(true)

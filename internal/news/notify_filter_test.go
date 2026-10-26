@@ -49,10 +49,54 @@ func TestNotifyFilterModes(t *testing.T) {
 	if !f.Matches(Item{Title: "Frieren: Beyond Journey's End gets a new trailer"}) {
 		t.Fatalf("lists mode should match a planning title")
 	}
-	if f.Matches(Item{Title: "Dandadan season 2 date"}) {
-		t.Fatalf("lists mode should ignore titles that are only on Watching")
+	if !f.Matches(Item{Title: "Dandadan season 2 date"}) {
+		t.Fatalf("lists mode should match a watching title by default")
 	}
 	if f.Matches(Item{Title: "Mob mentality in fandoms"}) {
 		t.Fatalf("very short titles must not match")
+	}
+}
+
+func TestNotifyFilterListCheckboxes(t *testing.T) {
+	strp := func(s string) *string { return &s }
+	boolp := func(b bool) *bool { return &b }
+	planning, current, completed := anilist.MediaListStatusPlanning, anilist.MediaListStatusCurrent, anilist.MediaListStatusCompleted
+	list := func(st *anilist.MediaListStatus, title string) *anilist.AnimeCollection_MediaListCollection_Lists {
+		return &anilist.AnimeCollection_MediaListCollection_Lists{Status: st, Entries: []*anilist.AnimeCollection_MediaListCollection_Lists_Entries{
+			{Media: &anilist.BaseAnime{Title: &anilist.BaseAnime_Title{Romaji: strp(title)}}},
+		}}
+	}
+	col := &anilist.AnimeCollection{MediaListCollection: &anilist.AnimeCollection_MediaListCollection{
+		Lists: []*anilist.AnimeCollection_MediaListCollection_Lists{
+			list(&planning, "Frieren"), list(&current, "Dandadan"), list(&completed, "Steins;Gate"),
+		},
+	}}
+	cases := []struct {
+		name                         string
+		cur, plan, comp              bool
+		wantFrieren, wantDan, wantSG bool
+	}{
+		{"all on", true, true, true, true, true, true},
+		{"watching only", true, false, false, false, true, false},
+		{"planning only", false, true, false, true, false, false},
+		{"completed only", false, false, true, false, false, true},
+		{"none", false, false, false, false, false, false},
+	}
+	for _, c := range cases {
+		f := NewNotifyFilter(&db.ClientSettingsOverrides{
+			NewsNotifyMode:          strp(NotifyModeLists),
+			NewsNotifyListCurrent:   boolp(c.cur),
+			NewsNotifyListPlanning:  boolp(c.plan),
+			NewsNotifyListCompleted: boolp(c.comp),
+		}, func() *anilist.AnimeCollection { return col }, nil)
+		if got := f.Matches(Item{Title: "Frieren news"}); got != c.wantFrieren {
+			t.Errorf("%s: Frieren = %v", c.name, got)
+		}
+		if got := f.Matches(Item{Title: "Dandadan news"}); got != c.wantDan {
+			t.Errorf("%s: Dandadan = %v", c.name, got)
+		}
+		if got := f.Matches(Item{Title: "Steins;Gate news"}); got != c.wantSG {
+			t.Errorf("%s: Steins;Gate = %v", c.name, got)
+		}
 	}
 }

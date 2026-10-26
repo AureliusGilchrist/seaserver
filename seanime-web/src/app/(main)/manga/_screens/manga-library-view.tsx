@@ -202,7 +202,7 @@ export function FilteredCollectionLists({ collectionList, genres, showStatuses, 
                 <GenreSelector genres={genres} />
             </div>}
 
-            {type === "grid" && <PaginatedMediaGrid
+            {type === "grid" && <PaginatedMediaGrid type="manga"
                 items={entries}
                 renderItem={entry => (
                     <div key={entry.media?.id}>
@@ -238,7 +238,7 @@ export function FilteredCollectionLists({ collectionList, genres, showStatuses, 
                             showListDataButton
                             withAudienceScore={false}
                             type="manga"
-                            containerClassName={type === "carousel" ? "basis-[200px] md:basis-[250px] mx-2 mt-8 mb-0" : undefined}
+                            containerClassName={type === "carousel" ? "sea-card-item mx-2 mt-8 mb-0" : undefined}
                             onHoverImage={onHoverImage}
                         />
                     })}
@@ -474,7 +474,7 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
 
             {/* CURRENT list: Use merged entries sorted by reading history */}
             {list.type === "CURRENT" && type === "grid" && displayEntries && (
-                <PaginatedMediaGrid
+                <PaginatedMediaGrid type="manga"
                     items={displayEntries}
                     renderItem={item => {
                         if (item.type === "regular" && item.entry) {
@@ -541,7 +541,7 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
                                 return (
                                     <div
                                         key={item.entry.media?.id}
-                                        className="relative basis-[200px] col-span-1 place-content-stretch flex-none md:basis-[250px] mx-2 mt-8 mb-0"
+                                        className="relative sea-card-item sea-card-manga col-span-1 place-content-stretch flex-none mx-2 mt-8 mb-0"
                                     >
                                         <MediaEntryCard
                                             media={item.entry.media!}
@@ -559,7 +559,7 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
                                 return (
                                     <div
                                         key={`synthetic-${item.syntheticManga.syntheticId}`}
-                                        className="relative basis-[200px] col-span-1 place-content-stretch flex-none md:basis-[250px] mx-2 mt-8 mb-0 cursor-pointer"
+                                        className="relative sea-card-item sea-card-manga col-span-1 place-content-stretch flex-none mx-2 mt-8 mb-0 cursor-pointer"
                                         onClick={() => router.push(`/manga/entry?id=${item.syntheticManga!.syntheticId}`)}
                                     >
                                         <div className="relative aspect-[2/3] rounded-[--radius-md] overflow-hidden group">
@@ -590,7 +590,7 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
 
             {/* Non-CURRENT lists: Use original entries */}
             {list.type !== "CURRENT" && type === "grid" && (
-                <PaginatedMediaGrid
+                <PaginatedMediaGrid type="manga"
                     items={list.entries}
                     renderItem={entry => (
                         <div key={entry.media?.id}>
@@ -623,7 +623,7 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
                         {list.entries?.map(entry => {
                             return <div
                                 key={entry.media?.id}
-                                className="relative basis-[200px] col-span-1 place-content-stretch flex-none md:basis-[250px] mx-2 mt-8 mb-0"
+                                className="relative sea-card-item sea-card-manga col-span-1 place-content-stretch flex-none mx-2 mt-8 mb-0"
                             >
                                 <MediaEntryCard
                                     media={entry.media!}

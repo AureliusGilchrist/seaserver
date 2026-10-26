@@ -2412,3 +2412,50 @@ html[data-sea-dock] .sea-float-bottom-2.left-5 { left: 50% !important; transform
 /* Toasts and the top bar clear the status bar / notch. */
 [data-sonner-toaster][data-y-position="top"] { top: calc(var(--sea-safe-top) + 16px) !important; }
 [data-top-navbar] { padding-top: var(--sea-safe-top); }
+
+/* ---------------------------------------------------------------------------------------------
+   Card sizes (Settings -> Personal -> Display). One width per media type, set on :root by
+   useCardSizeVariables. Registered so the variables themselves interpolate: every card, carousel
+   slot and grid that reads them grows or shrinks smoothly when the setting changes. Only the width
+   is set; each card keeps its own aspect ratio, so the height follows its shape.
+   --------------------------------------------------------------------------------------------- */
+@property --sea-card-w-anime { syntax: "<length>"; inherits: true; initial-value: 220px; }
+@property --sea-card-w-manga { syntax: "<length>"; inherits: true; initial-value: 220px; }
+:root {
+    --sea-card-gap: 1rem;
+    --sea-card-w: var(--sea-card-w-anime);
+    transition: --sea-card-w-anime 0.45s cubic-bezier(0.2, 0.8, 0.2, 1), --sea-card-w-manga 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+    :root { transition: none; }
+}
+.sea-card-anime { --sea-card-w: var(--sea-card-w-anime); }
+.sea-card-manga { --sea-card-w: var(--sea-card-w-manga); }
+/* A carousel slot (or a card used as one). Phones keep at least ~2 visible. */
+.sea-card-item {
+    flex: 0 0 min(var(--sea-card-w), 44vw) !important;
+    width: min(var(--sea-card-w), 44vw);
+    max-width: min(var(--sea-card-w), 44vw);
+}
+/* A carousel slot whose padding-left is the gap (CarouselItem): the card inside stays card-width. */
+.sea-card-slot {
+    flex: 0 0 calc(min(var(--sea-card-w), 44vw) + var(--sea-card-slot-pad, 1rem)) !important;
+}
+/* A grid of cards: fixed-width tracks, as many as fit, spare space shared between the gaps.
+   At least two columns on narrow screens. */
+.sea-card-grid {
+    display: grid;
+    gap: var(--sea-card-gap);
+    grid-template-columns: repeat(auto-fill, min(var(--sea-card-w), calc((100% - var(--sea-card-gap)) / 2)));
+    justify-content: space-between;
+}
+.sea-card-grid > * { min-width: 0; }
+/* Card titles scale with the card. */
+[data-media-entry-card-title-section-title] {
+    font-size: clamp(0.8rem, calc(var(--sea-card-w) * 0.068), 1.125rem) !important;
+}
+/* The Personal settings preview animates its own (local) widths the same way. */
+.sea-card-preview {
+    transition: --sea-card-w-anime 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), --sea-card-w-manga 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.sea-card-preview .sea-card-anime > div, .sea-card-preview .sea-card-manga > div { will-change: width; }

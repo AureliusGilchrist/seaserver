@@ -4,7 +4,8 @@ import * as React from "react"
 import { cn } from "@/components/ui/core/styling"
 import { SeaLink } from "@/components/shared/sea-link"
 import { useRewards } from "@/lib/rewards/reward-provider"
-import { LuCalendar, LuBookOpen, LuTv, LuClock, LuActivity, LuScan, LuFileCheck, LuFileX, LuPencil, LuTrash, LuTrophy, LuCheck } from "react-icons/lu"
+import { LuCalendar, LuBookOpen, LuTv, LuClock, LuActivity, LuScan, LuFileCheck, LuFileX, LuPencil, LuTrash, LuTrophy, LuCheck, LuFlag, LuPlay, LuFlagTriangleRight } from "react-icons/lu"
+import { Tooltip } from "@/components/ui/tooltip"
 import { ActivityHeatmap } from "@/app/(main)/_features/profile/activity-heatmap"
 import { StreakCard, ShowcaseCard, RecentAchievementRow } from "./shared-cards"
 
@@ -14,7 +15,25 @@ import type {
 } from "@/api/generated/types"
 type Handlers_ShowcaseEntry = any
 type Handlers_RecentAchievementEntry = any
-type Handlers_TimelineEvent = any
+/** One event from GET /api/v1/profile/timeline (internal/handlers/timeline.go). */
+type Handlers_TimelineEvent = {
+  id: number
+  eventType: string
+  mediaId: number
+  metadata: string
+  createdAt: string
+  mediaTitle?: string
+  mediaImage?: string
+  mediaType: "anime" | "manga" | ""
+  achievementIconSvg?: string
+  achievementDesc?: string
+  /** The AniList list entry: status and YYYY-MM-DD dates (empty when unset). */
+  entryStatus?: string
+  entryStartedAt?: string
+  entryCompletedAt?: string
+  /** The first watch/read of this media recorded here. */
+  firstActivityAt?: string
+}
 
 export interface ActivityTabContentProps {
   animeStreak?: ProfileStats_StreakInfo
@@ -215,7 +234,112 @@ function getEventHref(event: Handlers_TimelineEvent): string | null {
   }
 }
 
-function TimelineEventCard({ event }: { event: Handlers_TimelineEvent }) {
+// ────────────────────────── Started → Latest journey ──────────────────────────
+
+function parseDay(s: string | undefined | null): Date | null {
+  if (!s) return null
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(s + "T00:00:00") : new Date(s)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+function shortDate(d: Date) {
+  const sameYear = d.getFullYear() === new Date().getFullYear()
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }) })
+}
+
+function elapsed(from: Date, to: Date) {
+  const days = Math.max(0, Math.round((to.getTime() - from.getTime()) / 86_400_000))
+  if (days === 0) return "the same day"
+  if (days < 45) return `${days} ${days === 1 ? "day" : "days"}`
+  const months = Math.round(days / 30.4)
+  if (months < 18) return `${months} ${months === 1 ? "month" : "months"}`
+  const years = Math.round((days / 365) * 10) / 10
+  return `${years} years`
+}
+
+/**
+ * Two linked entries for a show's newest timeline item: when it was started and where it is now
+ * (or when it was finished). Started comes from the AniList entry's start date, falling back to
+ * the first watch/read recorded here.
+ */
+function MediaJourney({ event, accentColor }: { event: MergedTimelineEvent, accentColor: string | null }) {
+  const isManga = event.eventType === "manga_chapter_read"
+  const startFromList = parseDay(event.entryStartedAt)
+  const startFromLocal = parseDay(event.firstActivityAt)
+  const started = startFromList ?? startFromLocal
+  if (!started) return null
+
+  const latest = new Date(event.createdAt)
+  const finished = event.entryStatus === "COMPLETED" ? (parseDay(event.entryCompletedAt) ?? null) : null
+  const end = finished ?? latest
+
+  const meta = parseMetadata(event.metadata)
+  const values = (isManga ? event.__mergedChapters : event.__mergedEpisodes) ?? []
+  const nums = values.map(Number).filter(Number.isFinite)
+  const newest = nums.length ? Math.max(...nums) : null
+  const total = isManga ? meta?.totalChapters : meta?.totalEpisodes
+  const unit = isManga ? "Chapter" : "Episode"
+  const latestDetail = newest != null ? `${unit} ${newest}${total ? ` of ${total}` : ""}` : null
+
+  // A start after the end only happens with a wrong list date; show nothing rather than nonsense.
+  if (started.getTime() - end.getTime() > 86_400_000) return null
+
+  const accent = accentColor ?? "rgb(var(--color-brand-400))"
+  const sameDay = started.toDateString() === end.toDateString()
+
+  return (
+    <Tooltip
+      side="top"
+      trigger={
+        <div className="mt-2 flex items-stretch rounded-lg bg-white/[0.03] p-1.5 ring-1 ring-white/[0.06]">
+          <JourneyNode icon={LuPlay} label="Started" date={started} detail={startFromList ? null : "first watched here"} accent={accent} muted />
+          <div className="relative mx-1 flex min-w-6 flex-1 items-center" aria-hidden>
+            <div className="h-px w-full" style={{ background: `linear-gradient(90deg, color-mix(in srgb, ${accent} 30%, transparent), ${accent})` }} />
+            <div className="absolute right-0 size-1.5 rotate-45 border-r border-t" style={{ borderColor: accent }} />
+          </div>
+          {finished
+            ? <JourneyNode icon={LuFlagTriangleRight} label="Finished" date={finished} detail={latestDetail} accent={accent} />
+            : <JourneyNode icon={LuFlag} label="Latest" date={latest} detail={latestDetail} accent={accent} />}
+        </div>
+      }
+    >
+      <div className="space-y-0.5 text-xs">
+        <p>Started {started.toLocaleDateString("en-US", { dateStyle: "long" })}{startFromList ? "" : " (first watch recorded here)"}</p>
+        <p>{finished ? "Finished" : "Latest"} {end.toLocaleDateString("en-US", { dateStyle: "long" })}</p>
+        <p className="opacity-70">{sameDay ? "Same day" : `${elapsed(started, end)} in`}</p>
+      </div>
+    </Tooltip>
+  )
+}
+
+function JourneyNode({ icon: Icon, label, date, detail, accent, muted }: {
+  icon: React.ElementType
+  label: string
+  date: Date
+  detail: string | null
+  accent: string
+  muted?: boolean
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1">
+      <span
+        className="flex size-6 shrink-0 items-center justify-center rounded-full"
+        style={muted ? { backgroundColor: "rgba(255,255,255,0.06)" } : { backgroundColor: `color-mix(in srgb, ${accent} 18%, transparent)`, color: accent }}
+      >
+        <Icon className="size-3" />
+      </span>
+      <div className="min-w-0 leading-tight">
+        <p className="text-[0.6rem] font-semibold uppercase tracking-wider text-[--muted]">{label}</p>
+        <p className="truncate text-xs font-medium">
+          {shortDate(date)}
+          {detail && <span className="font-normal text-[--muted]"> · {detail}</span>}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function TimelineEventCard({ event, showJourney }: { event: MergedTimelineEvent, showJourney?: boolean }) {
   const cfg = EVENT_CONFIG[event.eventType] || { icon: LuActivity, label: event.eventType, color: "text-gray-300", bgColor: "bg-gray-500/10" }
   const Icon = cfg.icon
   const time = new Date(event.createdAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
@@ -271,6 +395,7 @@ function TimelineEventCard({ event }: { event: Handlers_TimelineEvent }) {
             {isAchievement && event.achievementDesc && (
               <p className="text-xs text-[--muted] mt-0.5 leading-snug">{event.achievementDesc}</p>
             )}
+            {showJourney && <MediaJourney event={event} accentColor={accentColor} />}
             <div className="flex items-center gap-2 mt-0.5">
               <span
                 className={cn("inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full", !badgeStyle && cn(cfg.color, cfg.bgColor))}
@@ -348,8 +473,22 @@ function InfiniteTimeline({ userId }: { userId?: number }) {
     return mergeConsecutiveWatchEvents(data.pages.flatMap((p) => p?.events ?? []))
   }, [data])
 
+  // The newest watch/read item of each show carries its Started -> Latest pair; older ones stay compact.
+  const journeyIds = React.useMemo(() => {
+    const ids = new Set<number>()
+    const seen = new Set<string>()
+    for (const event of allEvents) {
+      if (event.eventType !== "episode_watched" && event.eventType !== "manga_chapter_read") continue
+      const key = `${event.eventType}:${event.mediaId}`
+      if (!event.mediaId || seen.has(key)) continue
+      seen.add(key)
+      ids.add(event.id)
+    }
+    return ids
+  }, [allEvents])
+
   const groupedByDay = React.useMemo(() => {
-    const groups: { date: string; events: Handlers_TimelineEvent[] }[] = []
+    const groups: { date: string; events: MergedTimelineEvent[] }[] = []
     let currentDate = ""
     for (const event of allEvents) {
       const day = event.createdAt.slice(0, 10)
@@ -376,7 +515,7 @@ function InfiniteTimeline({ userId }: { userId?: number }) {
         <React.Fragment key={group.date}>
           <DaySeparator date={group.date} />
           {group.events.map((event) => (
-            <TimelineEventCard key={event.id} event={event} />
+            <TimelineEventCard key={event.id} event={event} showJourney={journeyIds.has(event.id)} />
           ))}
         </React.Fragment>
       ))}

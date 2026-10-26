@@ -4,6 +4,7 @@ import { WidgetErrorBoundary } from "@/components/shared/widget-error-boundary"
 import { AnilistOverwriteCard } from "@/app/(main)/settings/_containers/anilist-overwrite-settings"
 import { PlaybackSettings } from "@/app/(main)/settings/_components/playback-settings"
 import { StillWatchingTiming } from "@/app/(main)/settings/_components/still-watching-timing"
+import { CardSizeSettings } from "@/app/(main)/settings/_components/card-size-settings"
 import { MAX_LOG_LINES, stamp, updateSettingsLogAtom } from "@/app/(main)/settings/_containers/update-settings"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
@@ -247,7 +248,7 @@ function SettingRow({ settingKey, children, className }: {
 
 const NEWS_MODES: { id: "all" | "lists" | "keywords", title: string, description: string, icon: React.ElementType }[] = [
     { id: "all", title: "All news", description: "Every new headline.", icon: LuRss },
-    { id: "lists", title: "My lists", description: "Only titles on your Planning or Completed lists.", icon: LuBookmarkCheck },
+    { id: "lists", title: "My lists", description: "Only titles on the lists you pick.", icon: LuBookmarkCheck },
     { id: "keywords", title: "Keywords", description: "Only headlines with your keywords.", icon: LuTags },
 ]
 
@@ -280,6 +281,72 @@ function NewsNotifyModePicker({ value, onChange, disabled }: { value: "all" | "l
                     </button>
                 )
             })}
+        </div>
+    )
+}
+
+type NewsListKey = "newsNotifyListCurrent" | "newsNotifyListPlanning" | "newsNotifyListCompleted"
+
+const NEWS_LISTS: { key: NewsListKey, title: string, description: string, icon: React.ElementType }[] = [
+    { key: "newsNotifyListCurrent", title: "Currently watching", description: "Watching, reading or rewatching", icon: LuPlay },
+    { key: "newsNotifyListPlanning", title: "Planning to watch", description: "On your Planning list", icon: LuBookmarkCheck },
+    { key: "newsNotifyListCompleted", title: "Completed", description: "Already finished", icon: LuListChecks },
+]
+
+function NewsNotifyListPicker({ values, onToggle }: { values: Record<NewsListKey, boolean>, onToggle: (key: NewsListKey, v: boolean) => void }) {
+    const noneOn = NEWS_LISTS.every(l => !values[l.key])
+    return (
+        <div className="space-y-2">
+            <p className="text-xs font-medium uppercase tracking-wider text-[--muted]">Lists that notify me</p>
+            <div role="group" aria-label="Lists that notify you" className="grid gap-2 sm:grid-cols-3">
+                {NEWS_LISTS.map(l => {
+                    const Icon = l.icon
+                    const on = values[l.key]
+                    return (
+                        <button
+                            key={l.key}
+                            type="button"
+                            role="checkbox"
+                            aria-checked={on}
+                            onClick={() => onToggle(l.key, !on)}
+                            className={cn(
+                                "group relative flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-all duration-200 active:scale-[0.98]",
+                                on
+                                    ? "border-brand-400/60 bg-brand-500/10 shadow-[0_0_0_1px_rgb(var(--color-brand-500)/0.2),0_6px_18px_-10px_rgb(var(--color-brand-500)/0.6)]"
+                                    : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]",
+                            )}
+                        >
+                            <span
+                                className={cn(
+                                    "flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors",
+                                    on ? "bg-brand-500/25 text-brand-200" : "bg-white/[0.05] text-[--muted] group-hover:text-white/80",
+                                )}
+                            >
+                                <Icon className="size-4" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                                <span className="block text-sm font-semibold leading-tight">{l.title}</span>
+                                <span className="block truncate text-xs text-[--muted]">{l.description}</span>
+                            </span>
+                            <span
+                                className={cn(
+                                    "flex size-5 shrink-0 items-center justify-center rounded-md border-2 transition-all duration-200",
+                                    on ? "scale-100 border-brand-400 bg-brand-400 text-black" : "scale-90 border-white/25 text-transparent",
+                                )}
+                            >
+                                <svg viewBox="0 0 16 16" className="size-3" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M3.5 8.5l3 3 6-7" />
+                                </svg>
+                            </span>
+                        </button>
+                    )
+                })}
+            </div>
+            {noneOn && (
+                <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-200 ring-1 ring-amber-500/25">
+                    No lists picked, so no headline will notify you. Tick at least one.
+                </p>
+            )}
         </div>
     )
 }
@@ -552,7 +619,7 @@ export function ClientSettings(props: ClientSettingsProps) {
                                 moreHelp="The server checks your feeds every 15 minutes."
                             />
                         </SettingRow>
-                        <SettingRow settingKey={["newsNotifyMode", "newsNotifyKeywords"]}>
+                        <SettingRow settingKey={["newsNotifyMode", "newsNotifyKeywords", "newsNotifyListCurrent", "newsNotifyListPlanning", "newsNotifyListCompleted"]}>
                             <div className="space-y-3">
                                 <div>
                                     <p className="text-sm font-medium">Which news notifies me</p>
@@ -567,9 +634,14 @@ export function ClientSettings(props: ClientSettingsProps) {
                                     <KeywordEditor value={personal.newsNotifyKeywords} onChange={v => handleSet("newsNotifyKeywords", v)} />
                                 )}
                                 {personal.newsNotifyNewEntries && personal.newsNotifyMode === "lists" && (
-                                    <p className="rounded-lg bg-black/20 px-3 py-2 text-xs text-[--muted] ring-1 ring-white/[0.06]">
-                                        Matches a headline against the titles on your Planning and Completed lists (anime and manga).
-                                    </p>
+                                    <NewsNotifyListPicker
+                                        values={{
+                                            newsNotifyListCurrent: personal.newsNotifyListCurrent,
+                                            newsNotifyListPlanning: personal.newsNotifyListPlanning,
+                                            newsNotifyListCompleted: personal.newsNotifyListCompleted,
+                                        }}
+                                        onToggle={(key, v) => handleSet(key, v)}
+                                    />
                                 )}
                             </div>
                         </SettingRow>
@@ -589,6 +661,9 @@ export function ClientSettings(props: ClientSettingsProps) {
                     </PersonalSection>
 
                     <PersonalSection def={section("display")}>
+                        <SettingRow settingKey={["animeCardWidth", "mangaCardWidth"]}>
+                            <CardSizeSettings />
+                        </SettingRow>
                         <SettingRow settingKey="hideAudienceScore">
                             <Switch
                                 side="right"

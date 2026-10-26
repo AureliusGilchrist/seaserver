@@ -3,6 +3,7 @@ import { useSyncMangaBadges } from "@/app/(main)/_atoms/manga-badges.atoms"
 import { AchievementUnlockPanel } from "@/app/(main)/_features/achievement/achievement-unlock-panel"
 import { AnilistAvailabilityBanner } from "@/app/(main)/_features/anilist/anilist-availability-banner"
 import { MainLayout } from "@/app/(main)/_features/layout/main-layout"
+import { useCardSizeVariables } from "@/app/(main)/_features/media/card-size"
 import { OfflineLayout } from "@/app/(main)/_features/layout/offline-layout"
 import { TopNavbar } from "@/app/(main)/_features/layout/top-navbar"
 import { TourOverlay } from "@/app/(main)/_features/tour/tour-overlay"
@@ -35,6 +36,8 @@ function Layout() {
     useSyncDownloadingAnime()
     // The manga counterpart, polled the same way. See manga-badges.atoms.
     useSyncMangaBadges()
+    // Card widths from Personal -> Display, as CSS variables every card reads.
+    useCardSizeVariables()
 
     React.useEffect(() => {
         setHost(window?.location?.host || "")

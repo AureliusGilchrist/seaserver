@@ -319,7 +319,7 @@ export default function Page() {
 
             {!!trackedMangaItems?.length && <div className="space-y-4">
                 <h3>Saved manga</h3>
-                <MediaCardLazyGrid itemCount={trackedMangaItems?.length}>
+                <MediaCardLazyGrid itemCount={trackedMangaItems?.length} type="manga">
                     {trackedMangaItems?.map((item) => (
                         <MediaEntryCard
                             key={item.mediaId}

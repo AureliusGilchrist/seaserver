@@ -118,7 +118,7 @@ export default function Page() {
             {animeWorks.length > 0 && (
                 <div className="space-y-4">
                     <h2 className="text-xl font-semibold">Anime</h2>
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    <div className="sea-card-grid">
                         {animeWorks.map(media => (
                             <div key={media.id} className="col-span-1">
                                 <MediaEntryCard
@@ -135,7 +135,7 @@ export default function Page() {
             {mangaWorks.length > 0 && (
                 <div className="space-y-4">
                     <h2 className="text-xl font-semibold">Manga</h2>
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    <div className="sea-card-grid sea-card-manga">
                         {mangaWorks.map(media => (
                             <div key={media.id} className="col-span-1">
                                 <MediaEntryCard

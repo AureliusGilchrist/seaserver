@@ -37,7 +37,7 @@ export function DiscoverMissedSequelsSection({ title = "You Might Have Missed" }
                                 key={media.id}
                                 media={media}
                                 showLibraryBadge
-                                containerClassName="basis-[200px] md:basis-[250px] mx-2 mt-8 mb-0"
+                                containerClassName="sea-card-item mx-2 mt-8 mb-0"
                                 showTrailer
                                 type="anime"
                             />

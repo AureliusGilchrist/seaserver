@@ -22,7 +22,6 @@ import { MangaRecentlyReleased } from "@/app/(main)/manga/_containers/manga-rece
 import { MangaMissedSequels } from "@/app/(main)/manga/_containers/manga-missed-sequels"
 import { useGetMangaHomeItems } from "@/api/hooks/status.hooks"
 import { MangaContinueReadingEntry, useMangaContinueReadingList } from "@/app/(main)/manga/_lib/use-manga-continue-reading"
-import { mangaCardSizeAtom, getCardSizeClasses } from "@/app/(main)/_atoms/card-size.atoms"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { SeaLink } from "@/components/shared/sea-link"
 import { Alert } from "@/components/ui/alert/alert"
@@ -43,8 +42,8 @@ export const dynamic = "force-static"
 
 export default function Page() {
     const { data: mangaHomeItems } = useGetMangaHomeItems()
-    const cardSize = useAtomValue(mangaCardSizeAtom)
-    const cardSizeClass = getCardSizeClasses(cardSize)
+    // Carousel slots sized by the manga card width (Personal -> Display).
+    const cardSizeClass = "sea-card-slot sea-card-manga"
     const { width } = useWindowSize()
     const {
         mangaCollection,
@@ -196,13 +195,13 @@ export default function Page() {
                     <Skeleton className="h-12 w-full max-w-lg relative" />
                     <div
                         className={cn(
-                            "grid h-[22rem] min-[2000px]:h-[24rem] grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7 min-[2000px]:grid-cols-8 gap-4",
+                            "sea-card-grid sea-card-manga max-h-[calc(var(--sea-card-w)*4/3)] overflow-hidden",
                         )}
                     >
                         {[1, 2, 3, 4, 5, 6, 7, 8]?.map((_, idx) => {
                             return <Skeleton
                                 key={idx} className={cn(
-                                "h-[22rem] min-[2000px]:h-[24rem] col-span-1 aspect-[6/7] flex-none rounded-[--radius-md] relative overflow-hidden",
+                                "col-span-1 aspect-[6/8] flex-none rounded-[--radius-md] relative overflow-hidden",
                                 "[&:nth-child(8)]:hidden min-[2000px]:[&:nth-child(8)]:block",
                                 "[&:nth-child(7)]:hidden 2xl:[&:nth-child(7)]:block",
                                 "[&:nth-child(6)]:hidden xl:[&:nth-child(6)]:block",
@@ -448,7 +447,7 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                 </div>
 
                 {!!favoritesMedia.length && (
-                    <MediaCardLazyGrid itemCount={favoritesMedia.length}>
+                    <MediaCardLazyGrid itemCount={favoritesMedia.length} type="manga">
                         {favoritesMedia.map(media => (
                             <MediaEntryCard
                                 key={media.id}
@@ -563,8 +562,7 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                                                 <CarouselItem
                                                     key={dlItem.media?.id}
                                                     className={cn(
-                                                        "basis-1/2",
-                                                        cardSizeClass || "md:basis-1/3 lg:basis-1/4 xl:basis-1/5 2xl:basis-1/6 min-[2000px]:basis-1/8",
+                                                        cardSizeClass || "sea-card-slot sea-card-manga",
                                                     )}
                                                 >
                                                     <div
@@ -595,7 +593,7 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                                 </CarouselContent>
                             </Carousel>
                         ) : (
-                            <PaginatedMediaGrid
+                            <PaginatedMediaGrid type="manga"
                                 items={sourceFilteredDownloads}
                                 scrollTargetSelector="[data-local-manga-library]"
                                 renderItem={dlItem => {

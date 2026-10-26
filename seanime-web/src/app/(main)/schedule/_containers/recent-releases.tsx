@@ -45,7 +45,7 @@ export function RecentReleases() {
                                 key={item.id}
                                 media={item?.media!}
                                 showLibraryBadge
-                                containerClassName="basis-[200px] md:basis-[250px] mx-2 mt-8 mb-0"
+                                containerClassName="sea-card-item mx-2 mt-8 mb-0"
                                 hideReleasingBadge
                                 showTrailer
                                 type="anime"

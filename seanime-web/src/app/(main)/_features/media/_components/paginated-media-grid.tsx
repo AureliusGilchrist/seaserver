@@ -56,13 +56,15 @@ type PaginatedMediaGridProps<T> = {
      * their home layout.
      */
     scrollTargetSelector?: string
+    /** Which card width the grid uses (see MediaCardGrid). */
+    type?: "anime" | "manga"
 }
 
 /**
  * A media grid split into real pages rather than an endlessly growing lazy-loaded list.
  * Used by the local anime and manga libraries, which can hold thousands of series.
  */
-export function PaginatedMediaGrid<T>({ items, renderItem, pageSize = LIBRARY_PAGE_SIZE, gridProps, scrollTargetSelector }: PaginatedMediaGridProps<T>) {
+export function PaginatedMediaGrid<T>({ items, renderItem, pageSize = LIBRARY_PAGE_SIZE, gridProps, scrollTargetSelector, type }: PaginatedMediaGridProps<T>) {
 
     const { pageItems, page, pageCount, setPage, total, isPaginated } = usePaginatedItems(items, pageSize)
 
@@ -98,7 +100,7 @@ export function PaginatedMediaGrid<T>({ items, renderItem, pageSize = LIBRARY_PA
 
     return (
         <>
-            <MediaCardLazyGrid itemCount={pageItems.length} {...gridProps}>
+            <MediaCardLazyGrid itemCount={pageItems.length} type={type} {...gridProps}>
                 {pageItems.map(renderItem)}
             </MediaCardLazyGrid>
 

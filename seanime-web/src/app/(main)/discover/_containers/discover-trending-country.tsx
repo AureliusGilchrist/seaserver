@@ -119,7 +119,7 @@ export function DiscoverTrendingCountry({ country, forDiscoverHeader }: { countr
                         <MediaEntryCard
                             key={media.id}
                             media={media}
-                            containerClassName="basis-[200px] md:basis-[250px] mx-2 mt-8 mb-0"
+                            containerClassName="sea-card-item mx-2 mt-8 mb-0"
                             type="manga"
                         />
                     )

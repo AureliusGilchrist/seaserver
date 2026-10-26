@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -26,6 +27,31 @@ type TimelineEvent struct {
 	// Resolved achievement info (only set for achievement_unlocked events)
 	AchievementIconSVG *string `json:"achievementIconSvg,omitempty"`
 	AchievementDesc    *string `json:"achievementDesc,omitempty"`
+	// The list entry's dates and status (YYYY-MM-DD, empty when AniList has none), and the first
+	// time this profile watched or read the media here, so the Activity tab can show when a show
+	// was started next to its latest update.
+	EntryStatus      string     `json:"entryStatus,omitempty"`
+	EntryStartedAt   string     `json:"entryStartedAt,omitempty"`
+	EntryCompletedAt string     `json:"entryCompletedAt,omitempty"`
+	FirstActivityAt  *time.Time `json:"firstActivityAt,omitempty"`
+}
+
+func fuzzyDateString(year, month, day *int) string {
+	if year == nil || *year <= 0 {
+		return ""
+	}
+	m, d := 1, 1
+	if month != nil && *month > 0 {
+		m = *month
+	}
+	if day != nil && *day > 0 {
+		d = *day
+	}
+	return fmt.Sprintf("%04d-%02d-%02d", *year, m, d)
+}
+
+type timelineEntryInfo struct {
+	status, startedAt, completedAt string
 }
 
 // TimelineResponse is the paginated response for the timeline endpoint.
@@ -83,6 +109,24 @@ func (h *Handler) HandleGetTimeline(c echo.Context) error {
 
 	resolved := h.resolveTimelineEvents(profileID, events)
 
+	// First local watch/read per media on this page, for the "Started" half of the Activity tab.
+	mediaIDs := make([]int, 0, len(resolved))
+	seenMedia := map[int]bool{}
+	for _, te := range resolved {
+		if te.MediaID > 0 && !seenMedia[te.MediaID] && (te.EventType == models.ActivityEventEpisodeWatched || te.EventType == models.ActivityEventMangaChapterRead) {
+			seenMedia[te.MediaID] = true
+			mediaIDs = append(mediaIDs, te.MediaID)
+		}
+	}
+	if firsts := pdb.GetFirstActivityTimes(mediaIDs); len(firsts) > 0 {
+		for _, te := range resolved {
+			if t, ok := firsts[te.MediaID]; ok {
+				t := t
+				te.FirstActivityAt = &t
+			}
+		}
+	}
+
 	return h.RespondWithData(c, &TimelineResponse{
 		Events:  resolved,
 		Page:    page,
@@ -103,6 +147,7 @@ func (h *Handler) resolveTimelineEvents(profileID uint, events []*models.Activit
 	// which left timeline entries displaying "Media #123" instead of the title.
 	animeLookup := make(map[int]*anilist.BaseAnime)
 	mangaLookup := make(map[int]*anilist.BaseManga)
+	entryLookup := make(map[int]timelineEntryInfo)
 
 	var animeCol *anilist.AnimeCollection
 	var mangaCol *anilist.MangaCollection
@@ -122,6 +167,17 @@ func (h *Handler) resolveTimelineEvents(profileID uint, events []*models.Activit
 			for _, e := range l.GetEntries() {
 				if e.GetMedia() != nil {
 					animeLookup[e.GetMedia().ID] = e.GetMedia()
+					info := timelineEntryInfo{}
+					if e.Status != nil {
+						info.status = string(*e.Status)
+					}
+					if s := e.StartedAt; s != nil {
+						info.startedAt = fuzzyDateString(s.Year, s.Month, s.Day)
+					}
+					if s := e.CompletedAt; s != nil {
+						info.completedAt = fuzzyDateString(s.Year, s.Month, s.Day)
+					}
+					entryLookup[e.GetMedia().ID] = info
 				}
 			}
 		}
@@ -132,6 +188,19 @@ func (h *Handler) resolveTimelineEvents(profileID uint, events []*models.Activit
 			for _, e := range l.GetEntries() {
 				if e.GetMedia() != nil {
 					mangaLookup[e.GetMedia().ID] = e.GetMedia()
+					info := timelineEntryInfo{}
+					if e.Status != nil {
+						info.status = string(*e.Status)
+					}
+					if s := e.StartedAt; s != nil {
+						info.startedAt = fuzzyDateString(s.Year, s.Month, s.Day)
+					}
+					if s := e.CompletedAt; s != nil {
+						info.completedAt = fuzzyDateString(s.Year, s.Month, s.Day)
+					}
+					if _, taken := entryLookup[e.GetMedia().ID]; !taken {
+						entryLookup[e.GetMedia().ID] = info
+					}
 				}
 			}
 		}
@@ -146,6 +215,11 @@ func (h *Handler) resolveTimelineEvents(profileID uint, events []*models.Activit
 			MediaID:   ev.MediaId,
 			Metadata:  ev.Metadata,
 			CreatedAt: ev.CreatedAt,
+		}
+		if info, ok := entryLookup[ev.MediaId]; ok && ev.MediaId > 0 {
+			te.EntryStatus = info.status
+			te.EntryStartedAt = info.startedAt
+			te.EntryCompletedAt = info.completedAt
 		}
 
 		// Try anime first, then manga
