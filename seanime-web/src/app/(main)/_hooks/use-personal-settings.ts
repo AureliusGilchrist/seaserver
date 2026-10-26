@@ -35,6 +35,8 @@ export type PersonalSettings = {
     newsNotifyListCompleted: boolean
     /** Comma-separated keywords for "keywords" mode; empty = built-in list. */
     newsNotifyKeywords: string
+    /** Whether the community timeline shows paced news cards. */
+    communityShowNews: boolean
     hideAudienceScore: boolean
     blurAdultContent: boolean
     disableAnimeCardTrailers: boolean
@@ -84,6 +86,7 @@ export function usePersonalSettings(): PersonalSettings {
         newsNotifyListPlanning: clientSettings.newsNotifyListPlanning ?? true,
         newsNotifyListCompleted: clientSettings.newsNotifyListCompleted ?? true,
         newsNotifyKeywords: clientSettings.newsNotifyKeywords ?? "",
+        communityShowNews: clientSettings.communityShowNews ?? true,
         hideAudienceScore: clientSettings.hideAudienceScore ?? serverStatus?.settings?.anilist?.hideAudienceScore ?? false,
         blurAdultContent: clientSettings.blurAdultContent ?? serverStatus?.settings?.anilist?.blurAdultContent ?? false,
         disableAnimeCardTrailers: clientSettings.disableAnimeCardTrailers ?? serverStatus?.settings?.library?.disableAnimeCardTrailers ?? false,

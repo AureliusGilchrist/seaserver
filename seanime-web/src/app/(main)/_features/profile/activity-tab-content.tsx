@@ -6,6 +6,12 @@ import { SeaLink } from "@/components/shared/sea-link"
 import { useRewards } from "@/lib/rewards/reward-provider"
 import { LuCalendar, LuBookOpen, LuTv, LuClock, LuActivity, LuScan, LuFileCheck, LuFileX, LuPencil, LuTrash, LuTrophy, LuCheck, LuFlag, LuPlay, LuFlagTriangleRight } from "react-icons/lu"
 import { Tooltip } from "@/components/ui/tooltip"
+import { TIMELINE_FEED_KEY, TimelineFeedItem, useTimelineFeed } from "@/api/hooks/profile-timeline.hooks"
+import { TimelineCard, TimelineComposer } from "@/app/(main)/_features/profile/profile-timeline"
+import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
+import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
+import { useQueryClient } from "@tanstack/react-query"
+import { useAtomValue } from "jotai"
 import { ActivityHeatmap } from "@/app/(main)/_features/profile/activity-heatmap"
 import { StreakCard, ShowcaseCard, RecentAchievementRow } from "./shared-cards"
 
@@ -447,9 +453,18 @@ function DaySeparator({ date }: { date: string }) {
 
 // ────────────────────────── Infinite scroll timeline ──────────────────────────
 
-function InfiniteTimeline({ userId }: { userId?: number }) {
+type TimelineRow = { kind: "event", at: string, event: MergedTimelineEvent } | { kind: "post", at: string, item: TimelineFeedItem }
+
+function InfiniteTimeline({ userId, wallProfileId }: { userId?: number, wallProfileId?: number }) {
   // When viewing someone else's profile, read their timeline — not the signed-in user's.
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useGetTimeline(50, userId)
+  // The wall's posts (status posts and messages others left), mixed in by time.
+  const posts = useTimelineFeed(wallProfileId, false)
+  const qc = useQueryClient()
+  useWebsocketMessageListener({
+    type: "profile-timeline-updated",
+    onMessage: () => qc.invalidateQueries({ queryKey: [TIMELINE_FEED_KEY] }),
+  })
   const sentinelRef = React.useRef<HTMLDivElement>(null)
 
   React.useEffect(() => {
@@ -457,15 +472,15 @@ function InfiniteTimeline({ userId }: { userId?: number }) {
     if (!el) return
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
-          fetchNextPage()
-        }
+        if (!entries[0].isIntersecting) return
+        if (hasNextPage && !isFetchingNextPage) fetchNextPage()
+        if (posts.hasNextPage && !posts.isFetchingNextPage) posts.fetchNextPage()
       },
       { rootMargin: "200px" },
     )
     observer.observe(el)
     return () => observer.disconnect()
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, posts.hasNextPage, posts.isFetchingNextPage, posts.fetchNextPage])
 
   const allEvents = React.useMemo(() => {
     if (!data?.pages) return []
@@ -487,25 +502,35 @@ function InfiniteTimeline({ userId }: { userId?: number }) {
     return ids
   }, [allEvents])
 
+  const postItems = React.useMemo(
+    () => (posts.data?.pages.flatMap(p => p.items ?? []) ?? []).filter(i => i.kind === "post"),
+    [posts.data],
+  )
+
   const groupedByDay = React.useMemo(() => {
-    const groups: { date: string; events: MergedTimelineEvent[] }[] = []
+    const rows: TimelineRow[] = [
+      ...allEvents.map(event => ({ kind: "event" as const, at: event.createdAt, event })),
+      ...postItems.map(item => ({ kind: "post" as const, at: item.createdAt, item })),
+    ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+    const groups: { date: string; rows: TimelineRow[] }[] = []
     let currentDate = ""
-    for (const event of allEvents) {
-      const day = event.createdAt.slice(0, 10)
+    for (const row of rows) {
+      const d = new Date(row.at)
+      const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
       if (day !== currentDate) {
         currentDate = day
-        groups.push({ date: day, events: [] })
+        groups.push({ date: day, rows: [] })
       }
-      groups[groups.length - 1].events.push(event)
+      groups[groups.length - 1].rows.push(row)
     }
     return groups
-  }, [allEvents])
+  }, [allEvents, postItems])
 
   if (isLoading) {
     return <p className="text-[--muted] text-sm py-4">Loading timeline...</p>
   }
 
-  if (allEvents.length === 0) {
+  if (allEvents.length === 0 && postItems.length === 0) {
     return <p className="text-[--muted] text-sm py-4">No activity recorded yet.</p>
   }
 
@@ -514,9 +539,9 @@ function InfiniteTimeline({ userId }: { userId?: number }) {
       {groupedByDay.map((group) => (
         <React.Fragment key={group.date}>
           <DaySeparator date={group.date} />
-          {group.events.map((event) => (
-            <TimelineEventCard key={event.id} event={event} showJourney={journeyIds.has(event.id)} />
-          ))}
+          {group.rows.map((row) => row.kind === "event"
+            ? <TimelineEventCard key={`e-${row.event.id}`} event={row.event} showJourney={journeyIds.has(row.event.id)} />
+            : <div key={row.item.key} className="pb-3 pl-5"><TimelineCard item={row.item} /></div>)}
         </React.Fragment>
       ))}
       <div ref={sentinelRef} className="h-1" />
@@ -539,6 +564,10 @@ export function ActivityTabContent({
   userId,
   anilistProfile,
 }: ActivityTabContentProps) {
+  const me = useAtomValue(currentProfileAtom)
+  // Posts go on the profile being viewed: your own status, or a message on someone else's wall.
+  const wallId = userId ?? me?.id
+  const isOwn = !!me && wallId === me.id
   return (
     <>
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr_260px] gap-6 mt-6 items-start">
@@ -563,7 +592,16 @@ export function ActivityTabContent({
             <LuActivity className="text-blue-400" />
             Timeline
           </h2>
-          <InfiniteTimeline userId={userId} />
+          {!!me && !!wallId && (
+            <div className="mb-3">
+              <TimelineComposer
+                wallProfileId={wallId}
+                author={me}
+                placeholder={isOwn ? "Post an update…" : `Write on ${anilistProfile?.name ?? "their"} wall…`}
+              />
+            </div>
+          )}
+          <InfiniteTimeline userId={userId} wallProfileId={wallId} />
         </div>
 
         {/* Right column — showcase + recent achievements */}

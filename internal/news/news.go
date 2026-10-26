@@ -48,6 +48,8 @@ type Item struct {
 	FeedTitle   string   `json:"feedTitle"`
 	Author      string   `json:"author"`
 	Categories  []string `json:"categories"`
+	// How many feed entries carried this story (dedupeItems); a story several feeds ran ranks higher.
+	Coverage int `json:"coverage,omitempty"`
 }
 
 type Response struct {
@@ -213,6 +215,7 @@ func dedupeItems(items []Item) []Item {
 				if it.Image != "" && deduped[i].Image == "" {
 					deduped[i].Image = it.Image
 				}
+				deduped[i].Coverage++
 				continue
 			}
 		}
@@ -222,6 +225,7 @@ func dedupeItems(items []Item) []Item {
 				if it.Image != "" && deduped[i].Image == "" {
 					deduped[i].Image = it.Image
 				}
+				deduped[i].Coverage++
 				continue
 			}
 			byTitle[titleKey] = len(deduped)
@@ -229,6 +233,7 @@ func dedupeItems(items []Item) []Item {
 		if it.Link != "" {
 			byLink[it.Link] = len(deduped)
 		}
+		it.Coverage = 1
 		deduped = append(deduped, it)
 	}
 	return deduped
@@ -261,4 +266,18 @@ func stripHTML(s string) string {
 		out = out[:500] + "…"
 	}
 	return out
+}
+
+// CachedResponse returns the cached feed for these URLs without fetching, or nil when there is no
+// cache for them yet. For callers that must not wait on the network (the community timeline).
+func CachedResponse(feedUrls []string) *Response {
+	cacheMu.Lock()
+	defer cacheMu.Unlock()
+	if cache == nil || cache.response == nil {
+		return nil
+	}
+	if strings.Join(cache.response.Feeds, "\n") != strings.Join(feedUrls, "\n") {
+		return nil
+	}
+	return cache.response
 }

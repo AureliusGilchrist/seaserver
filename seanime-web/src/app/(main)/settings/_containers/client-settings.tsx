@@ -645,6 +645,15 @@ export function ClientSettings(props: ClientSettingsProps) {
                                 )}
                             </div>
                         </SettingRow>
+                        <SettingRow settingKey="communityShowNews">
+                            <Switch
+                                side="right"
+                                value={personal.communityShowNews}
+                                onValueChange={v => handleSet("communityShowNews", v)}
+                                label="Show news in the community timeline"
+                                help="A few headlines at a time, picked for you: ones about your lists stand out, the rest fold into a digest."
+                            />
+                        </SettingRow>
                         <SettingRow settingKey="newsFeedShowMoreCount">
                             <NumberInput
                                 className="max-w-[240px]"

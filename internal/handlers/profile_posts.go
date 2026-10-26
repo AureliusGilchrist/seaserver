@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
@@ -58,7 +59,7 @@ type TimelineProfileSummary struct {
 // TimelineFeedItem is one card on a timeline: a post or a (possibly grouped) activity event.
 type TimelineFeedItem struct {
 	Key         string                  `json:"key"`
-	Kind        string                  `json:"kind"` // "post" | "activity"
+	Kind        string                  `json:"kind"` // "post" | "activity" | "news"
 	CreatedAt   time.Time               `json:"createdAt"`
 	Author      *TimelineProfileSummary `json:"author"`
 	WallProfile *TimelineProfileSummary `json:"wallProfile,omitempty"` // set when posted on someone else's wall
@@ -75,6 +76,11 @@ type TimelineFeedItem struct {
 	Activity    *TimelineEvent `json:"activity,omitempty"`
 	EpisodeFrom int            `json:"episodeFrom,omitempty"`
 	EpisodeTo   int            `json:"episodeTo,omitempty"`
+	// Achievement unlocks on this card (several when a burst was folded together).
+	Achievements []*TimelineAchievement `json:"achievements,omitempty"`
+
+	// News fields (community timeline only)
+	News *TimelineNews `json:"news,omitempty"`
 
 	LikeCount  int  `json:"likeCount"`
 	LikedByMe  bool `json:"likedByMe"`
@@ -446,11 +452,18 @@ func (h *Handler) buildTimelineFeed(c echo.Context, profileIDs []uint, wall *uin
 				}
 			}
 			resolved := h.resolveTimelineEvents(pid, filtered)
-			items = append(items, groupActivity(pid, resolved, profiles.get(pid))...)
+			grouped := groupActivity(pid, resolved, profiles.get(pid))
+			items = append(items, h.withAchievements(pid, grouped, need)...)
 		}
 	}
 
+	// The community timeline also carries paced news.
+	if wall == nil {
+		items = append(items, h.timelineNewsItems(c)...)
+	}
+
 	sort.SliceStable(items, func(i, j int) bool { return items[i].CreatedAt.After(items[j].CreatedAt) })
+	items = separateNewsCards(items)
 
 	start := (page - 1) * pageSize
 	if start > len(items) {
@@ -617,6 +630,16 @@ func validTargetKey(k string) bool {
 		_, e1 := strconv.ParseUint(parts[1], 10, 64)
 		_, e2 := strconv.ParseUint(parts[2], 10, 64)
 		return e1 == nil && e2 == nil
+	case len(parts) == 4 && parts[0] == "ach":
+		_, e1 := strconv.ParseUint(parts[1], 10, 64)
+		_, e2 := strconv.ParseUint(parts[3], 10, 64)
+		return e1 == nil && e2 == nil && parts[2] != "" && len(parts[2]) <= 80
+	case len(parts) == 2 && parts[0] == "news":
+		if len(parts[1]) != 12 {
+			return false
+		}
+		_, err := hex.DecodeString(parts[1])
+		return err == nil
 	}
 	return false
 }

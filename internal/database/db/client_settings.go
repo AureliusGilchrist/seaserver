@@ -39,6 +39,8 @@ type ClientSettingsOverrides struct {
 	NewsNotifyListCompleted *bool `json:"newsNotifyListCompleted,omitempty"`
 	// Comma-separated keywords for "keywords" mode. Empty uses the built-in list.
 	NewsNotifyKeywords *string `json:"newsNotifyKeywords,omitempty"`
+	// Whether the community timeline shows paced news cards for this profile (default on).
+	CommunityShowNews *bool `json:"communityShowNews,omitempty"`
 
 	EnableRichPresence                      *bool `json:"enableRichPresence,omitempty"`
 	EnableAnimeRichPresence                 *bool `json:"enableAnimeRichPresence,omitempty"`

@@ -29,11 +29,33 @@ export type TimelineActivity = {
     achievementDesc?: string
 }
 
+export type TimelineAchievement = {
+    key: string
+    name: string
+    tier: number
+    tierName?: string
+    description?: string
+    iconSvg?: string
+    xp?: number
+}
+
+export type TimelineNewsBrief = {
+    title: string
+    link: string
+    image?: string
+    feedTitle: string
+    publishedAt: number
+    description?: string
+    matchedTitle?: string
+    matchedList?: string
+}
+
 export type TimelineFeedItem = {
     key: string
-    kind: "post" | "activity"
+    kind: "post" | "activity" | "news"
     createdAt: string
-    author: TimelineProfileSummary
+    /** Unset on news cards. */
+    author?: TimelineProfileSummary
     wallProfile?: TimelineProfileSummary
     postId?: number
     content?: string
@@ -44,6 +66,9 @@ export type TimelineFeedItem = {
     activity?: TimelineActivity
     episodeFrom?: number
     episodeTo?: number
+    /** Unlocks on an achievement card (several when a burst was folded together). */
+    achievements?: TimelineAchievement[]
+    news?: { lead?: TimelineNewsBrief, digest?: TimelineNewsBrief[] }
     likeCount: number
     likedByMe: boolean
     replyCount: number

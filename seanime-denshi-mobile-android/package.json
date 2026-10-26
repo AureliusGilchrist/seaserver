@@ -1,6 +1,6 @@
 {
     "name": "seanime-denshi-mobile-android",
-    "version": "5.2.0-0",
+    "version": "5.2.0-1",
     "description": "Seaserver Denshi Mobile - the Android (APK) shell of the Denshi Mobile client: a Capacitor wrapper around the seanime-web mobile build that hot-swaps in newer frontend bundles published to the server.",
     "private": true,
     "scripts": {

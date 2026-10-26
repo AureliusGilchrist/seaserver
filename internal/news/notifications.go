@@ -9,6 +9,7 @@ import (
 	"seanime/internal/database/models"
 	"seanime/internal/events"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 )
@@ -124,6 +125,14 @@ func CheckNewItemsNotifications(app *core.App) {
 		return
 	}
 
+	// Open community timelines refetch so the new headlines can take their place there.
+	timelineNudgeMu.Lock()
+	if time.Since(timelineNudgeAt) >= timelineNudgeEvery && app.WSEventManager != nil {
+		timelineNudgeAt = time.Now()
+		app.WSEventManager.SendEvent("profile-timeline-updated", map[string]interface{}{"wallProfileId": 0, "news": true})
+	}
+	timelineNudgeMu.Unlock()
+
 	if app.ProfileManager != nil && app.ProfileManager.HasProfiles() {
 		profiles, err := app.ProfileManager.GetAllProfiles()
 		if err != nil {
@@ -228,3 +237,10 @@ func feedName(item Item) string {
 	}
 	return "your feeds"
 }
+
+var (
+	timelineNudgeMu sync.Mutex
+	timelineNudgeAt time.Time
+)
+
+const timelineNudgeEvery = 15 * time.Minute

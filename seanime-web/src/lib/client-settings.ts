@@ -50,6 +50,8 @@ export const clientSettingsSchema = z.object({
     newsNotifyListCompleted: z.boolean().optional(),
     /** Comma-separated keywords for "keywords" mode; empty uses the built-in list. */
     newsNotifyKeywords: z.string().optional(),
+    /** Whether the community timeline shows paced news cards. */
+    communityShowNews: z.boolean().optional(),
     // Display
     hideAudienceScore: z.boolean().optional(),
     blurAdultContent: z.boolean().optional(),

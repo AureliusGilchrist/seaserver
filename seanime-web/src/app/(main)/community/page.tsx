@@ -1,15 +1,12 @@
 "use client"
 
-import { useGetCommunityProfiles, useGetActivityFeed } from "@/api/hooks/community.hooks"
-type Handlers_CommunityProfile = any
-type Handlers_AggregateStats = any
-type Handlers_ActivityFeedEntry = any
+import { useGetCommunityProfiles } from "@/api/hooks/community.hooks"
 import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { ProfileTimeline } from "@/app/(main)/_features/profile/profile-timeline"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { cn } from "@/components/ui/core/styling"
-import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useRewards } from "@/lib/rewards/reward-provider"
 import { XPBarFxOverlay } from "@/lib/rewards/xpbar-fx-overlay"
 import { ANIME_THEMES } from "@/lib/theme/anime-themes"
@@ -17,8 +14,33 @@ import { getMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { formatNumber } from "@/lib/helpers/number"
 import { useAtomValue } from "jotai"
 import * as React from "react"
-import { LuUsers, LuLayoutGrid, LuList, LuTrophy, LuStar, LuActivity, LuZap } from "react-icons/lu"
+import { LuUsers, LuLayoutGrid, LuList, LuTrophy, LuStar, LuZap, LuCrown, LuChevronRight } from "react-icons/lu"
+import { Modal } from "@/components/ui/modal"
 import { SeaLink } from "@/components/shared/sea-link"
+
+/** One profile on the community page (internal/handlers/community.go CommunityProfile). */
+type Handlers_CommunityProfile = {
+    id: number
+    name: string
+    anilistUsername: string
+    anilistAvatar: string
+    avatarPath: string
+    bio: string
+    bannerImage: string
+    isAdmin: boolean
+    currentLevel: number
+    totalXP: number
+    achievementCount: number
+    displayTitle: string
+    displayTitleColor: string
+    themeId: string
+    currentMilestoneName: string
+    xpBarFillCss: string
+    xpBarAnimClass: string
+    xpBarSkinId: string
+    nameColorCss: string
+    nameGradientCss: string
+}
 
 /** Resolve a stored displayTitle — turns raw milestone IDs like "milestone-tokyo-ghoul-75"
  *  into the actual rank name from the theme config. */
@@ -31,168 +53,198 @@ function resolveDisplayTitle(title: string): string {
 
 export default function Page() {
     const { data, isLoading } = useGetCommunityProfiles()
-    const { data: feed } = useGetActivityFeed()
+    const me = useAtomValue(currentProfileAtom)
+    const [membersOpen, setMembersOpen] = React.useState(false)
     const [view, setView] = React.useState<"grid" | "leaderboard">("grid")
 
-    if (isLoading) {
-        return (
-            <PageWrapper className="p-4 sm:p-8 flex items-center justify-center min-h-[50vh]">
-                <LoadingSpinner />
-            </PageWrapper>
-        )
-    }
-
-    const profiles = data?.profiles ?? []
+    const profiles: Handlers_CommunityProfile[] = data?.profiles ?? []
     const stats = data?.aggregateStats
+    const sorted = React.useMemo(() => [...profiles].sort((a, b) => b.totalXP - a.totalXP), [profiles])
+
+    if (isLoading) return <CommunitySkeleton />
 
     if (profiles.length === 0) {
         return (
-            <PageWrapper className="p-4 sm:p-8 flex flex-col items-center justify-center min-h-[50vh] gap-4">
+            <PageWrapper className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-4 sm:p-8">
                 <LuUsers className="size-12 text-[--muted]" />
-                <p className="text-[--muted] text-lg">No community profiles yet</p>
+                <p className="text-lg text-[--muted]">No community profiles yet</p>
             </PageWrapper>
         )
     }
-
-    const sorted = [...profiles].sort((a, b) => b.totalXP - a.totalXP)
 
     return (
         <>
             <CustomLibraryBanner discrete />
-            <PageWrapper className="p-4 sm:p-8 space-y-6">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <LuUsers className="size-7 text-brand-300" />
-                        <h1 className="text-2xl font-bold">Community</h1>
-                        <span className="text-[--muted] text-sm">({formatNumber(profiles.length)} profiles)</span>
+            <PageWrapper className="mx-auto max-w-[96rem] space-y-6 p-4 sm:p-8">
+                {/* Header band */}
+                <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-500/15 via-white/[0.03] to-transparent p-5 ring-1 ring-white/[0.08] sm:p-6">
+                    <div aria-hidden className="pointer-events-none absolute -right-16 -top-24 size-72 rounded-full bg-brand-500/20 blur-3xl" />
+                    <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                        <div className="flex items-center gap-3">
+                            <span className="flex size-12 items-center justify-center rounded-2xl bg-brand-500/20 text-brand-200 ring-1 ring-brand-400/30">
+                                <LuUsers className="size-6" />
+                            </span>
+                            <div>
+                                <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Community</h1>
+                                <p className="text-sm text-[--muted]">What everyone's watching, reading and unlocking.</p>
+                            </div>
+                        </div>
+                        {stats && (
+                            <div className="flex flex-wrap gap-2">
+                                <StatPill icon={<LuUsers className="size-3.5" />} label="Members" value={formatNumber(stats.totalProfiles)} />
+                                <StatPill icon={<LuStar className="size-3.5" />} label="Total XP" value={formatNumber(stats.totalXP)} />
+                                <StatPill icon={<LuTrophy className="size-3.5" />} label="Achievements" value={formatNumber(stats.totalAchievements)} />
+                                <StatPill icon={<LuZap className="size-3.5" />} label="Top level" value={stats.highestLevel} />
+                            </div>
+                        )}
                     </div>
-                    <div className="flex items-center gap-1 bg-[--subtle] rounded-md p-1">
-                        <button
-                            className={cn(
-                                "p-2 rounded transition-colors",
-                                view === "grid" ? "bg-[--muted] text-white" : "text-[--muted] hover:text-white",
-                            )}
-                            onClick={() => setView("grid")}
-                        >
-                            <LuLayoutGrid className="size-4" />
-                        </button>
-                        <button
-                            className={cn(
-                                "p-2 rounded transition-colors",
-                                view === "leaderboard" ? "bg-[--muted] text-white" : "text-[--muted] hover:text-white",
-                            )}
-                            onClick={() => setView("leaderboard")}
-                        >
-                            <LuList className="size-4" />
-                        </button>
-                    </div>
+                </header>
+
+                {/* Mobile: members strip above the feed */}
+                <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] lg:hidden">
+                    {sorted.map(p => (
+                        <SeaLink key={p.id} href={`/profile/user?id=${p.id}`} className="flex w-16 shrink-0 flex-col items-center gap-1">
+                            <LevelRingAvatar profile={p} size={56} xpBarFillOverride={p.xpBarFillCss || undefined} />
+                            <span className="w-full truncate text-center text-[0.7rem]">{p.name}</span>
+                        </SeaLink>
+                    ))}
+                    <button onClick={() => setMembersOpen(true)} className="flex w-16 shrink-0 flex-col items-center justify-center gap-1 text-[--muted]">
+                        <span className="flex size-14 items-center justify-center rounded-full bg-white/[0.05] ring-1 ring-white/10"><LuLayoutGrid className="size-5" /></span>
+                        <span className="text-[0.7rem]">All</span>
+                    </button>
                 </div>
 
-                {/* Aggregate Stats Bar */}
-                {stats && (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <StatCard icon={<LuUsers className="size-4" />} label="Profiles" value={formatNumber(stats.totalProfiles)} />
-                        <StatCard icon={<LuStar className="size-4" />} label="Total XP" value={formatNumber(stats.totalXP)} />
-                        <StatCard icon={<LuTrophy className="size-4" />} label="Achievements" value={formatNumber(stats.totalAchievements)} />
-                        <StatCard icon={<LuZap className="size-4" />} label="Highest Level" value={stats.highestLevel} />
-                    </div>
-                )}
+                <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+                    {/* Feed */}
+                    <main className="min-w-0">
+                        <ProfileTimeline community />
+                    </main>
 
-                {view === "grid" ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                        {sorted.map((profile) => (
-                            <CommunityProfileCard key={profile.id} profile={profile} />
-                        ))}
-                    </div>
-                ) : (
-                    <LeaderboardView profiles={sorted} />
-                )}
+                    {/* Sidebar */}
+                    <aside className="hidden space-y-4 lg:block">
+                        <div className="sticky top-20 space-y-4">
+                            <SidebarCard
+                                title="Members"
+                                icon={<LuUsers className="size-4" />}
+                                action={
+                                    <button onClick={() => setMembersOpen(true)} className="inline-flex items-center gap-0.5 text-xs font-medium text-brand-300 hover:text-brand-200">
+                                        View all <LuChevronRight className="size-3.5" />
+                                    </button>
+                                }
+                            >
+                                <div className="space-y-1">
+                                    {sorted.slice(0, 8).map(p => <MemberRow key={p.id} profile={p} isMe={p.id === me?.id} />)}
+                                </div>
+                            </SidebarCard>
 
-                {/* Timeline: everyone's posts and watch activity, AniList-style */}
-                <div className="space-y-3">
-                    <h2 className="text-lg font-semibold flex items-center gap-2">
-                        <LuActivity className="text-brand-300" />
-                        Timeline
-                    </h2>
-                    <ProfileTimeline community />
+                            <SidebarCard title="Leaderboard" icon={<LuCrown className="size-4" />}>
+                                <div className="space-y-1.5">
+                                    {sorted.slice(0, 5).map((p, i) => (
+                                        <SeaLink key={p.id} href={`/profile/user?id=${p.id}`} className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition hover:bg-white/[0.05]">
+                                            <span className={cn(
+                                                "flex size-6 shrink-0 items-center justify-center rounded-md text-xs font-bold",
+                                                i === 0 ? "bg-yellow-400/20 text-yellow-300" : i === 1 ? "bg-slate-300/15 text-slate-200" : i === 2 ? "bg-amber-700/25 text-amber-400" : "bg-white/[0.05] text-[--muted]",
+                                            )}>{i + 1}</span>
+                                            <span className="min-w-0 flex-1 truncate text-sm">{p.name}</span>
+                                            <span className="shrink-0 text-xs tabular-nums text-[--muted]">{formatNumber(p.totalXP)} XP</span>
+                                        </SeaLink>
+                                    ))}
+                                </div>
+                            </SidebarCard>
+                        </div>
+                    </aside>
                 </div>
+            </PageWrapper>
 
-                {/* Activity Feed */}
-                {feed && feed.length > 0 && (
-                    <div className="space-y-3">
-                        <h2 className="text-lg font-semibold flex items-center gap-2">
-                            <LuActivity className="text-brand-300" />
-                            Recent Activity
-                        </h2>
-                        <div className="space-y-2">
-                            {feed.slice(0, 20).map((entry, idx) => (
-                                <FeedRow key={idx} entry={entry} />
-                            ))}
+            <Modal
+                open={membersOpen}
+                onOpenChange={setMembersOpen}
+                title={
+                    <div className="flex items-center justify-between gap-3 pr-8">
+                        <span>Members</span>
+                        <div className="flex items-center gap-1 rounded-lg bg-white/[0.05] p-1 ring-1 ring-white/10">
+                            <button className={cn("rounded-md p-1.5 transition", view === "grid" ? "bg-white/15 text-white" : "text-[--muted] hover:text-white")} onClick={() => setView("grid")} aria-label="Grid">
+                                <LuLayoutGrid className="size-4" />
+                            </button>
+                            <button className={cn("rounded-md p-1.5 transition", view === "leaderboard" ? "bg-white/15 text-white" : "text-[--muted] hover:text-white")} onClick={() => setView("leaderboard")} aria-label="Leaderboard">
+                                <LuList className="size-4" />
+                            </button>
                         </div>
                     </div>
+                }
+                contentClass="max-w-5xl"
+            >
+                {view === "grid" ? (
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                        {sorted.map(profile => <CommunityProfileCard key={profile.id} profile={profile} />)}
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto"><div className="min-w-[36rem]"><LeaderboardView profiles={sorted} /></div></div>
                 )}
-            </PageWrapper>
+            </Modal>
         </>
     )
 }
 
-function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
+function StatPill({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
     return (
-        <div className="bg-[--subtle] rounded-lg p-3 flex items-center gap-3">
-            <div className="text-brand-300">{icon}</div>
-            <div>
-                <p className="text-lg font-bold">{value}</p>
-                <p className="text-xs text-[--muted]">{label}</p>
-            </div>
+        <div className="flex items-center gap-2 rounded-full bg-black/25 px-3 py-1.5 ring-1 ring-white/[0.08] backdrop-blur">
+            <span className="text-brand-300">{icon}</span>
+            <span className="text-sm font-semibold tabular-nums">{value}</span>
+            <span className="text-xs text-[--muted]">{label}</span>
         </div>
     )
 }
 
-function FeedRow({ entry }: { entry: Handlers_ActivityFeedEntry }) {
-    const timeAgo = entry.unlockedAt ? formatTimeAgo(new Date(entry.unlockedAt)) : ""
+function SidebarCard({ title, icon, action, children }: { title: string, icon: React.ReactNode, action?: React.ReactNode, children: React.ReactNode }) {
     return (
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-[--subtle]">
-            {entry.profileAvatar ? (
-                <img src={entry.profileAvatar} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
-            ) : (
-                <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-white text-xs font-bold shrink-0">
-                    {entry.profileName.charAt(0).toUpperCase()}
+        <section className="rounded-2xl bg-white/[0.03] p-4 ring-1 ring-white/[0.07]">
+            <div className="mb-3 flex items-center gap-2">
+                <span className="text-brand-300">{icon}</span>
+                <h2 className="text-sm font-semibold uppercase tracking-wider">{title}</h2>
+                <span className="ml-auto">{action}</span>
+            </div>
+            {children}
+        </section>
+    )
+}
+
+function MemberRow({ profile, isMe }: { profile: Handlers_CommunityProfile, isMe: boolean }) {
+    const tier = getLevelTier(profile.currentLevel)
+    const current = xpForLevel(profile.currentLevel)
+    const next = xpForLevel(profile.currentLevel + 1)
+    const pct = next > current ? Math.max(0, Math.min(100, ((profile.totalXP - current) / (next - current)) * 100)) : 0
+    return (
+        <SeaLink href={`/profile/user?id=${profile.id}`} className="flex items-center gap-3 rounded-xl px-2 py-1.5 transition hover:bg-white/[0.05]">
+            <LevelRingAvatar profile={profile} size={40} xpBarFillOverride={profile.xpBarFillCss || undefined} />
+            <div className="min-w-0 flex-1">
+                <div className="flex items-baseline gap-1.5">
+                    <p className="truncate text-sm font-semibold" style={profile.nameColorCss ? { color: profile.nameColorCss } : undefined}>{profile.name}</p>
+                    {isMe && <span className="shrink-0 text-[0.65rem] text-[--muted]">you</span>}
                 </div>
-            )}
-            {entry.iconSvg && (
-                <div className="w-8 h-8 shrink-0 rounded-lg bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center text-yellow-300 p-1.5"
-                    dangerouslySetInnerHTML={{ __html: entry.iconSvg }} />
-            )}
-            <div className="flex-1 min-w-0">
-                <p className="text-sm">
-                    <SeaLink href={`/profile/user?id=${entry.profileId}`}>
-                        <span className="font-semibold hover:underline">{entry.profileName}</span>
-                    </SeaLink>
-                    {" "}unlocked{" "}
-                    <span className="font-semibold text-yellow-300">{entry.achievementName}</span>
-                    {entry.achievementTier > 0 && <span className="text-[--muted]"> · Tier {entry.achievementTier}</span>}
-                    {entry.achievementXp > 0 && <span className="text-[--muted]"> · +{entry.achievementXp} XP</span>}
-                </p>
-                {entry.achievementDescription && (
-                    <p className="text-xs text-[--muted] mt-0.5 truncate">{entry.achievementDescription}</p>
-                )}
+                <div className="mt-1 flex items-center gap-2">
+                    <span className={cn("shrink-0 text-[0.7rem] font-bold", tier.label)}>Lv {profile.currentLevel}</span>
+                    <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/10">
+                        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: profile.xpBarFillCss || "rgb(var(--color-brand-400))" }} />
+                    </div>
+                </div>
             </div>
-            {timeAgo && <span className="text-xs text-[--muted] shrink-0">{timeAgo}</span>}
-        </div>
+        </SeaLink>
     )
 }
 
-function formatTimeAgo(date: Date): string {
-    const now = Date.now()
-    const diff = now - date.getTime()
-    const mins = Math.floor(diff / 60000)
-    if (mins < 60) return `${mins}m ago`
-    const hours = Math.floor(mins / 60)
-    if (hours < 24) return `${hours}h ago`
-    const days = Math.floor(hours / 24)
-    if (days < 30) return `${days}d ago`
-    const months = Math.floor(days / 30)
-    return `${months}mo ago`
+function CommunitySkeleton() {
+    return (
+        <PageWrapper className="mx-auto max-w-[96rem] space-y-6 p-4 sm:p-8">
+            <Skeleton className="h-28 rounded-3xl" />
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+                <div className="space-y-3">
+                    {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />)}
+                </div>
+                <Skeleton className="hidden h-96 rounded-2xl lg:block" />
+            </div>
+        </PageWrapper>
+    )
 }
 
 // Tier data drives both the ring SVG color and the label text color.
