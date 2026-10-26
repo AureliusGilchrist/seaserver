@@ -79,6 +79,9 @@ export const DEFAULT_LANDING_WIDGETS: LandingWidgetConfig[] = [
     { id: "continue-reading", enabled: false },
 ]
 
+/** Widgets the landing page always shows: they can be moved, not hidden. */
+export const ALWAYS_SHOWN_LANDING_WIDGETS: LandingWidgetId[] = ["continue-watching", "anime-stats"]
+
 export const LANDING_WIDGET_META: Record<LandingWidgetId, { name: string, description: string }> = {
     "continue-watching": { name: "Continue watching", description: "Whatever was being watched, first." },
     "continue-reading": { name: "Continue reading", description: "The manga you were reading, first." },
@@ -182,11 +185,14 @@ export function useLandingWidgets() {
 
     const widgets = React.useMemo(() => {
         const stored = widgetsByProfile?.[profileId]
-        if (!stored?.length) return DEFAULT_LANDING_WIDGETS
-        // Widgets added since this profile was last arranged join the end, on.
-        const known = new Set(stored.map(w => w.id))
-        const missing = DEFAULT_LANDING_WIDGETS.filter(w => !known.has(w.id))
-        return [...stored, ...missing]
+        const list = (() => {
+            if (!stored?.length) return DEFAULT_LANDING_WIDGETS
+            // Widgets added since this profile was last arranged join the end, on.
+            const known = new Set(stored.map(w => w.id))
+            const missing = DEFAULT_LANDING_WIDGETS.filter(w => !known.has(w.id))
+            return [...stored, ...missing]
+        })()
+        return list.map(w => ALWAYS_SHOWN_LANDING_WIDGETS.includes(w.id) ? { ...w, enabled: true } : w)
     }, [widgetsByProfile, profileId])
 
     const setWidgetEnabled = React.useCallback((id: LandingWidgetId, enabled: boolean) => {

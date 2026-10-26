@@ -26,11 +26,13 @@ import { seaCommand_compareMediaTitles } from "../../_features/sea-command/utils
 
 export const __libraryHeaderEpisodeAtom = atom<Anime_Episode | null>(null)
 
-export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle }: {
+export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle, showWhenEmpty }: {
     episodes: Anime_Episode[],
     isLoading: boolean
     linkTemplate?: string
     withTitle?: boolean
+    /** Keep the section (with a short note) when there is nothing in progress, e.g. on the landing page. */
+    showWhenEmpty?: boolean
 }) {
 
     const router = useRouter()
@@ -194,6 +196,14 @@ export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle 
                 </CarouselContent>
             </Carousel>
         </PageWrapper>
+    )
+    if (showWhenEmpty) return (
+        <div className="space-y-2 p-4" data-continue-watching-container>
+            <h2 data-continue-watching-title>Continue watching</h2>
+            <p className="text-sm text-[--muted]">
+                {isLoading ? "Loading what you were watching…" : "Nothing in progress right now. Start an episode and it will be waiting here."}
+            </p>
+        </div>
     )
     return null
 }

@@ -115,7 +115,7 @@ export function MangaContinueReading({ list, onHoverImage, withTitle }: MangaCon
                             return (
                                 <CarouselItem
                                     key={`history-${item.mediaId}`}
-                                    className="sea-card-slot sea-card-manga"
+                                    className="basis-[9.5rem] md:basis-[11rem] lg:basis-[12rem]"
                                 >
                                     <SeaLink
                                         href={`/manga/entry?id=${item.mediaId}`}
@@ -145,7 +145,7 @@ export function MangaContinueReading({ list, onHoverImage, withTitle }: MangaCon
                         return (
                             <CarouselItem
                                 key={item.mediaId}
-                                className="sea-card-slot sea-card-manga"
+                                className="basis-[9.5rem] md:basis-[11rem] lg:basis-[12rem]"
                             >
                                 <div
                                     onMouseEnter={() => {

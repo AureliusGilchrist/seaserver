@@ -1,6 +1,6 @@
 "use client"
 
-import { LANDING_QUICK_LINKS, LANDING_WIDGET_META, useLandingFolders, useLandingWidgets, type LandingWidgetId } from "@/app/(main)/_features/home/landing-widgets"
+import { ALWAYS_SHOWN_LANDING_WIDGETS, LANDING_QUICK_LINKS, LANDING_WIDGET_META, useLandingFolders, useLandingWidgets, type LandingWidgetId } from "@/app/(main)/_features/home/landing-widgets"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { Modal } from "@/components/ui/modal"
@@ -219,7 +219,9 @@ function WidgetRow({ widget, index, isLast, onMove, onToggle }: {
                 <p className="text-sm font-medium truncate">{meta?.name ?? widget.id}</p>
                 <p className="text-xs text-[--muted] truncate">{meta?.description}</p>
             </div>
-            <button
+            {ALWAYS_SHOWN_LANDING_WIDGETS.includes(widget.id) ? (
+                <span className="flex-none rounded-full bg-white/[0.06] px-2.5 py-1 text-[0.7rem] font-medium text-[--muted]">Always shown</span>
+            ) : <button
                 role="switch"
                 aria-checked={widget.enabled}
                 onClick={() => onToggle(!widget.enabled)}
@@ -234,7 +236,7 @@ function WidgetRow({ widget, index, isLast, onMove, onToggle }: {
                         widget.enabled ? "left-[1.15rem]" : "left-0.5",
                     )}
                 />
-            </button>
+            </button>}
         </div>
     )
 }

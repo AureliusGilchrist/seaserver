@@ -123,6 +123,7 @@ export function LandingHub() {
                         <ContinueWatching
                             episodes={continueWatchingList}
                             isLoading={isLibraryLoading}
+                            showWhenEmpty
                         />
                     </div>
                 )}
@@ -196,7 +197,7 @@ function LandingWidget({ id, continueWatchingList = [], isLibraryLoading = false
         case "continue-watching":
             return (
                 <div className="relative z-[1] rounded-3xl border border-white/10 bg-black/20 p-4 shadow-xl shadow-black/20 backdrop-blur-md sm:p-5">
-                    <ContinueWatching episodes={continueWatchingList} isLoading={isLibraryLoading} withTitle />
+                    <ContinueWatching episodes={continueWatchingList} isLoading={isLibraryLoading} withTitle showWhenEmpty />
                 </div>
             )
         case "continue-reading":
