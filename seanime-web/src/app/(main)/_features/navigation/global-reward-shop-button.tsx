@@ -66,39 +66,90 @@ export function GlobalRewardShopButton() {
                 <LuShoppingBag className="w-3.5 h-3.5 text-white/60 group-hover:text-white" />
             </button>
 
-            {/* Full-screen modal drawer */}
-            {open && (
-                <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center">
-                    {/* Backdrop */}
-                    <div
-                        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                        onClick={() => setOpen(false)}
-                    />
+            {open && <RewardShopSheet level={level} levelData={levelData} onClose={() => setOpen(false)} />}
+        </>
+    )
+}
 
-                    {/* Panel */}
-                    <div className="relative z-10 w-full max-w-5xl max-h-[88dvh] sm:max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-[--background] border border-[--border] shadow-2xl overflow-hidden">
-                        {/* Header */}
-                        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-[--border] shrink-0">
-                            <div className="flex items-center gap-3">
-                                <GiTrophyCup className="w-5 h-5 text-[--color-brand-400]" />
-                                <h2 className="text-lg font-bold">Reward Shop</h2>
-                                <span className="text-sm text-[--muted]">Level {level}</span>
-                            </div>
-                            <button
-                                onClick={() => setOpen(false)}
-                                className="w-8 h-8 flex items-center justify-center rounded-lg text-[--muted] hover:text-[--foreground] hover:bg-white/5 transition-colors"
-                            >
-                                <LuX className="w-4 h-4" />
-                            </button>
+function RewardShopSheet({ level, levelData, onClose }: { level: number, levelData: any, onClose: () => void }) {
+    const { activeXPBarSkin, effectiveXPBarFill } = useRewards()
+    const xpIn = levelData?.xpInCurrentLevel ?? 0
+    const xpNeeded = levelData?.xpNeededForLevel ?? 0
+    const pct = xpNeeded > 0 ? Math.min(100, Math.max(0, (xpIn / xpNeeded) * 100)) : 0
+    const fill = effectiveXPBarFill || activeXPBarSkin?.fillCss || "rgb(var(--color-brand-400))"
+
+    // Escape closes; the page behind doesn't scroll while the sheet is open.
+    React.useEffect(() => {
+        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
+        window.addEventListener("keydown", onKey)
+        const prevOverflow = document.body.style.overflow
+        document.body.style.overflow = "hidden"
+        return () => {
+            window.removeEventListener("keydown", onKey)
+            document.body.style.overflow = prevOverflow
+        }
+    }, [onClose])
+
+    return (
+        <div className="fixed inset-0 z-[9999] flex items-end justify-center sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label="Reward Shop">
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-md animate-in fade-in-0 duration-200" onClick={onClose} />
+
+            <div
+                className={cn(
+                    "relative z-10 flex h-[92dvh] w-full max-w-6xl flex-col overflow-hidden sm:h-[min(860px,88vh)]",
+                    "rounded-t-3xl sm:rounded-3xl border border-white/[0.08] bg-[--background]/95 shadow-[0_40px_120px_-30px_rgba(0,0,0,0.9)] backdrop-blur-2xl",
+                    "animate-in fade-in-0 slide-in-from-bottom-4 sm:zoom-in-[0.97] sm:slide-in-from-bottom-0 duration-300",
+                )}
+            >
+                {/* Accent glow behind the header */}
+                <div className="pointer-events-none absolute -top-32 left-1/2 h-64 w-[70%] -translate-x-1/2 rounded-full bg-brand-500/20 blur-3xl" />
+
+                {/* Grab handle on phones */}
+                <div className="flex justify-center pt-2 sm:hidden">
+                    <span className="h-1 w-10 rounded-full bg-white/20" />
+                </div>
+
+                <header className="relative flex shrink-0 items-center gap-4 border-b border-white/[0.06] px-4 py-3.5 sm:px-6 sm:py-4">
+                    <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-400 to-brand-700 shadow-lg shadow-brand-900/50 ring-1 ring-white/20">
+                        <GiTrophyCup className="size-5 text-white" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                        <h2 className="text-lg font-bold leading-tight sm:text-xl">Reward Shop</h2>
+                        <p className="truncate text-xs text-[--muted]">Make the app and your profile yours.</p>
+                    </div>
+
+                    <div className="hidden w-56 shrink-0 sm:block">
+                        <div className="mb-1.5 flex items-baseline justify-between">
+                            <span className="text-sm font-semibold">Level {level}</span>
+                            {xpNeeded > 0 && (
+                                <span className="text-[11px] tabular-nums text-[--muted]">
+                                    {xpIn.toLocaleString()} / {xpNeeded.toLocaleString()} XP
+                                </span>
+                            )}
                         </div>
-
-                        {/* Content */}
-                        <div className="overflow-y-auto p-3 sm:p-6 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-                            <RewardShop currentLevel={level} />
+                        <div className="h-2 overflow-hidden rounded-full bg-white/10" style={activeXPBarSkin?.trackCss ? { background: activeXPBarSkin.trackCss } : undefined}>
+                            <div
+                                className={cn("h-full rounded-full transition-[width] duration-700", activeXPBarSkin?.animClass)}
+                                style={{ width: `${pct}%`, background: fill, backgroundSize: activeXPBarSkin?.animClass ? "300% 100%" : undefined }}
+                            />
                         </div>
                     </div>
+                    <span className="rounded-full bg-white/[0.06] px-2.5 py-1 text-xs font-semibold ring-1 ring-white/10 sm:hidden">Lv {level}</span>
+
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        aria-label="Close"
+                        className="flex size-9 shrink-0 items-center justify-center rounded-xl text-[--muted] transition-colors hover:bg-white/[0.07] hover:text-white"
+                    >
+                        <LuX className="size-4" />
+                    </button>
+                </header>
+
+                <div className="relative min-h-0 flex-1 pb-[env(safe-area-inset-bottom)]">
+                    <RewardShop currentLevel={level} variant="modal" />
                 </div>
-            )}
-        </>
+            </div>
+        </div>
     )
 }

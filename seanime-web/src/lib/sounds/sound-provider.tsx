@@ -125,20 +125,11 @@ type SoundName = CoreSoundName | ExtendedSoundName
 
 const CORE_SOUND_NAMES = new Set<string>(["buttonClick", "itemUnlock", "notification", "error", "success"])
 
-/** Minimum player level required to hear each extended sound */
-export const SOUND_LEVEL_REQUIREMENTS: Record<ExtendedSoundName, number> = {
-    hover:        5,
-    toggleSwitch: 10,
-    navClick:     15,
-    tabSwitch:    20,
-    modalOpen:    25,
-    modalClose:   30,
-    inputFocus:   35,
-    linkClick:    40,
-    dropdownOpen: 45,
-    checkbox:     50,
-    carouselSwipe: 55,
-}
+/** The extended sound events, in the order the Reward Shop lists them. Each can be switched off. */
+export const EXTENDED_SOUND_NAMES: ExtendedSoundName[] = [
+    "hover", "toggleSwitch", "navClick", "tabSwitch", "modalOpen", "modalClose",
+    "inputFocus", "linkClick", "dropdownOpen", "checkbox", "carouselSwipe",
+]
 
 export const EXTENDED_SOUND_LABELS: Record<ExtendedSoundName, string> = {
     hover:        "Hover",
@@ -646,8 +637,8 @@ const PACK_SOUNDS: Record<string, Record<CoreSoundName, PackSoundFn>> = {
 
 const soundPackIdAtom = atomWithStorage<string>("sea-sound-pack-id", "default", seaJotaiStorage)
 const soundVolumeAtom = atomWithStorage<number>("sea-sound-volume", 0.6, seaJotaiStorage)
-/** Set this atom to the user's current level so level-gated sounds unlock correctly */
-export const userSoundLevelAtom = atomWithStorage<number>("sea-user-sound-level", 1, seaJotaiStorage)
+/** Extended sound events the user switched off (Reward Shop → Sounds). Every event plays otherwise. */
+const mutedSoundEventsAtom = atomWithStorage<ExtendedSoundName[]>("sea-muted-sound-events", [], seaJotaiStorage)
 
 // ── Context ───────────────────────────────────────────────────────────────────
 
@@ -658,9 +649,8 @@ type SoundContextValue = {
     setSoundVolume: (v: number) => void
     soundPacks: SoundPack[]
     playSound: (name: SoundName) => void
-    userLevel: number
-    setUserLevel: (n: number) => void
-    soundLevelRequirements: Record<ExtendedSoundName, number>
+    mutedSoundEvents: ExtendedSoundName[]
+    setSoundEventMuted: (name: ExtendedSoundName, muted: boolean) => void
     extendedSoundLabels: Record<ExtendedSoundName, string>
 }
 
@@ -669,16 +659,19 @@ const SoundContext = React.createContext<SoundContextValue | null>(null)
 export function SoundProvider({ children }: { children: React.ReactNode }) {
     const [activeSoundPackId, setActiveSoundPackId] = useAtom(soundPackIdAtom)
     const [soundVolume, setSoundVolume] = useAtom(soundVolumeAtom)
-    const [userLevel, setUserLevel] = useAtom(userSoundLevelAtom)
+    const [mutedSoundEvents, setMutedSoundEvents] = useAtom(mutedSoundEventsAtom)
     const audioCtxRef = React.useRef<AudioContext | null>(null)
+
+    const setSoundEventMuted = React.useCallback((name: ExtendedSoundName, muted: boolean) => {
+        setMutedSoundEvents(prev => {
+            const without = (prev ?? []).filter(n => n !== name)
+            return muted ? [...without, name] : without
+        })
+    }, [setMutedSoundEvents])
 
     const playSound = React.useCallback(async (name: SoundName) => {
         if (soundVolume <= 0) return
-        // Level-gate extended sounds
-        if (!CORE_SOUND_NAMES.has(name)) {
-            const required = SOUND_LEVEL_REQUIREMENTS[name as ExtendedSoundName] ?? 1
-            if (userLevel < required) return
-        }
+        if (!CORE_SOUND_NAMES.has(name) && mutedSoundEvents?.includes(name as ExtendedSoundName)) return
         try {
             if (!audioCtxRef.current) {
                 audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
@@ -693,7 +686,7 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
                 getExtendedSound(pack, name as ExtendedSoundName)(audioCtxRef.current, soundVolume)
             }
         } catch { /* noop — audio not available */ }
-    }, [activeSoundPackId, soundVolume, userLevel])
+    }, [activeSoundPackId, soundVolume, mutedSoundEvents])
 
     // Global click sounds — debounced to reduce spam, passive listener for performance
     React.useEffect(() => {
@@ -787,11 +780,10 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
         setSoundVolume,
         soundPacks: SOUND_PACKS,
         playSound,
-        userLevel,
-        setUserLevel,
-        soundLevelRequirements: SOUND_LEVEL_REQUIREMENTS,
+        mutedSoundEvents: mutedSoundEvents ?? [],
+        setSoundEventMuted,
         extendedSoundLabels: EXTENDED_SOUND_LABELS,
-    }), [activeSoundPackId, setActiveSoundPackId, soundVolume, setSoundVolume, playSound, userLevel, setUserLevel])
+    }), [activeSoundPackId, setActiveSoundPackId, soundVolume, setSoundVolume, playSound, mutedSoundEvents, setSoundEventMuted])
 
     return <SoundContext.Provider value={value}>{children}</SoundContext.Provider>
 }

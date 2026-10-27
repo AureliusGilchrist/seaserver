@@ -1,5 +1,4 @@
 "use client"
-import { useGetMyProfile } from "@/api/hooks/community.hooks"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
@@ -16,12 +15,10 @@ import {
 import { useCursorManifest } from "@/lib/cursors/use-cursor-manifest"
 import { useAtom, useSetAtom } from "jotai"
 import React from "react"
-import { FaLock, FaStar, FaTrash } from "react-icons/fa"
+import { FaStar, FaTrash } from "react-icons/fa"
 
 export function CursorLibraryPage() {
     const { data: manifest, isLoading } = useCursorManifest()
-    const { data: profileData } = useGetMyProfile()
-    const userLevel = profileData?.level?.currentLevel ?? 1
 
     const [activeSlot, setActiveSlot] = useAtom(activeSlotEditAtom)
     const [selected, setSelected] = useAtom(selectedSlotsAtom)
@@ -155,22 +152,18 @@ export function CursorLibraryPage() {
                 ) : (
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
                         {entriesForTab.map(entry => {
-                            const locked =
-                                entry.tab !== "anime" && entry.tab !== "static" && entry.level > userLevel
                             const isSelected = selected[activeSlot] === entry.id
                             return (
                                 <button
                                     key={entry.id}
-                                    onClick={() => !locked && bind(entry)}
-                                    disabled={locked}
-                                    title={locked ? `Reach Lv. ${entry.level} to unlock` : entry.name}
+                                    onClick={() => bind(entry)}
+                                    title={entry.name}
                                     className={cn(
                                         "relative rounded-lg border p-3 flex flex-col items-center gap-2 text-center transition group",
                                         isSelected
                                             ? "border-brand-500 bg-brand-950/30"
                                             : "border-gray-800 bg-gray-900/50 hover:border-gray-600 hover:bg-gray-900",
-                                        locked && "opacity-50 cursor-not-allowed",
-                                        entry.isFinal && !locked && "ring-2 ring-yellow-400/60 shadow-lg shadow-yellow-500/20",
+                                        entry.isFinal && "ring-2 ring-yellow-400/60 shadow-lg shadow-yellow-500/20",
                                     )}
                                 >
                                     {entry.isFinal && (
@@ -187,18 +180,9 @@ export function CursorLibraryPage() {
                                         />
                                     </div>
                                     <div className="text-xs font-medium truncate w-full">{entry.name}</div>
-                                    {entry.tab !== "static" && entry.tab !== "anime" ? (
-                                        <div className="text-[10px] text-[--muted]">Lv. {entry.level}</div>
-                                    ) : null}
                                     {entry.tab === "anime" && entry.seriesSlug ? (
                                         <div className="text-[10px] text-[--muted] truncate w-full">{entry.seriesSlug}</div>
                                     ) : null}
-                                    {locked && (
-                                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 rounded-lg gap-1">
-                                            <FaLock className="text-white text-lg" />
-                                            <span className="text-[10px] text-white font-medium">Lv. {entry.level}</span>
-                                        </div>
-                                    )}
                                 </button>
                             )
                         })}
