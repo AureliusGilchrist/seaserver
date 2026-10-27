@@ -99,7 +99,16 @@ func (h *Handler) HandleGetRawAnimeCollection(c echo.Context) error {
 
 	bypassCache := c.Request().Method == "POST"
 
-	// Get the user's anilist collection
+	// The signed-in profile's own collection, not the app-level one (see the manga equivalent).
+	if profileID := h.GetProfileID(c); profileID > 0 && h.App.AnilistClientManager != nil {
+		if bypassCache {
+			h.App.AnilistClientManager.InvalidateAnimeCollection(profileID)
+		}
+		if col, err := h.App.AnilistClientManager.GetAnimeCollection(profileID); err == nil && col != nil {
+			return h.RespondWithData(c, col)
+		}
+	}
+
 	ctx := enmasse.WithUserInitiated(c.Request().Context())
 	animeCollection, err := h.App.GetRawAnimeCollectionWithCtx(ctx, bypassCache)
 	if err != nil {

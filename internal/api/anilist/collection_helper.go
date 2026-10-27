@@ -215,6 +215,42 @@ func (mc *AnimeCollection_MediaListCollection) AddEntryToList(entry *AnimeCollec
 	mc.Lists = append(mc.Lists, newList)
 }
 
+// Copy returns a copy of the collection that lists and entries can be added to or changed on
+// without touching the original. The lists and the entry structs are copied; the media each entry
+// points at is shared, since it is reference data nothing here writes to.
+//
+// Cached collections must be copied before anything is merged into them: the manga collection
+// handler used to merge the shared library's downloaded series straight into the profile's cached
+// collection, so every request grew the profile's list (by thousands of planning entries), and
+// everything else that read the cache — My List, news filtering, achievements — saw them as the
+// profile's own.
+func (mc *MangaCollection) Copy() *MangaCollection {
+	if mc == nil || mc.MediaListCollection == nil {
+		return mc
+	}
+	lists := make([]*MangaCollection_MediaListCollection_Lists, 0, len(mc.MediaListCollection.Lists))
+	for _, list := range mc.MediaListCollection.Lists {
+		if list == nil {
+			lists = append(lists, nil)
+			continue
+		}
+		entries := make([]*MangaCollection_MediaListCollection_Lists_Entries, 0, len(list.Entries))
+		for _, entry := range list.Entries {
+			if entry == nil {
+				continue
+			}
+			copied := *entry
+			entries = append(entries, &copied)
+		}
+		copiedList := *list
+		copiedList.Entries = entries
+		lists = append(lists, &copiedList)
+	}
+	copiedCollection := *mc.MediaListCollection
+	copiedCollection.Lists = lists
+	return &MangaCollection{MediaListCollection: &copiedCollection}
+}
+
 func (ac *AnimeCollection) Copy() *AnimeCollection {
 	if ac == nil {
 		return nil

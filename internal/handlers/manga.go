@@ -149,7 +149,17 @@ func (h *Handler) HandleGetRawAnilistMangaCollection(c echo.Context) error {
 
 	bypassCache := c.Request().Method == "POST"
 
-	// Get the user's anilist collection
+	// The signed-in profile's own collection. This used to return the app-level one (the server
+	// owner's account) to every profile, so My List showed someone else's manga.
+	if profileID := h.GetProfileID(c); profileID > 0 && h.App.AnilistClientManager != nil {
+		if bypassCache {
+			h.App.AnilistClientManager.InvalidateMangaCollection(profileID)
+		}
+		if col, err := h.App.AnilistClientManager.GetMangaCollection(profileID); err == nil && col != nil {
+			return h.RespondWithData(c, col)
+		}
+	}
+
 	mangaCollection, err := h.App.GetRawMangaCollection(bypassCache)
 	if err != nil {
 		return h.RespondWithError(c, err)
@@ -188,6 +198,8 @@ func (h *Handler) HandleGetMangaCollection(c echo.Context) error {
 	// A status the user just changed has to be on the grid as well as on the entry page, or the two
 	// disagree for as long as AniList takes to catch up.
 	mangaCollection = h.App.AnilistClientManager.ReplayRecentMangaEdits(profileID, mangaCollection)
+	// The merge below adds entries, so it works on a copy: this collection is the cached one.
+	mangaCollection = mangaCollection.Copy()
 
 	// Get media map from manga downloader (downloaded chapters)
 	mediaMap := h.App.MangaDownloader.GetMediaMap()

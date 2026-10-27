@@ -28,7 +28,10 @@ const CurrentXPVersion = 2
 //
 // Version 2: a profile relinked to a new AniList account was measured against the old account's
 // stored lists, so it unlocked list-size achievements it never had.
-const CurrentRulesVersion = 2
+//
+// Version 3: the manga collection handler merged the shared library's downloaded series into the
+// profile's cached list, so a profile was measured with thousands of planning manga it never had.
+const CurrentRulesVersion = 3
 
 // AchievementEvent is carried into the engine from handlers.
 // All fields are optional except ProfileID and Trigger.
