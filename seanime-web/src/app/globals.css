@@ -2334,6 +2334,30 @@ html[data-sea-slider="slider-glow"] .UI-ProgressBar__indicator { box-shadow: 0 0
 html[data-sea-slider="slider-flat"] :is(.UI-ProgressBar__root, .UI-ProgressBar__indicator) { border-radius: 0 !important; }
 html[data-sea-slider]:not([data-sea-slider="slider-default"]) input[type="range"] { accent-color: rgb(var(--color-brand-500)); }
 
+/* The player's seek bar follows the chosen progress-bar style, in the wallpaper's accent (the brand
+   ramp is taken from the wallpaper). The played part moves by transform, so fills here travel with it;
+   Default keeps the player's own white bar. */
+html[data-sea-slider]:not([data-sea-slider="slider-default"]) [data-vc-element="time-range-chapter-bar"][data-vc-for="progress"] {
+    background: rgb(var(--color-brand-400)) !important;
+}
+html[data-sea-slider]:not([data-sea-slider="slider-default"]) [data-vc-element="time-range-chapter-bar"][data-vc-for="seeking-target"] {
+    background: rgb(var(--color-brand-300) / 0.35) !important;
+}
+html[data-sea-slider="slider-thick"] [data-vc-element="time-range-chapter"] { height: 0.4rem !important; }
+html[data-sea-slider="slider-gradient"] [data-vc-element="time-range-chapter-bar"][data-vc-for="progress"] {
+    background: linear-gradient(90deg, rgb(var(--color-brand-700)), rgb(var(--color-brand-400)) 60%, rgb(var(--color-brand-200))) !important;
+}
+html[data-sea-slider="slider-striped"] [data-vc-element="time-range-chapter-bar"][data-vc-for="progress"] {
+    background: repeating-linear-gradient(45deg, rgb(var(--color-brand-500)) 0 6px, rgb(var(--color-brand-300)) 6px 12px) !important;
+    background-size: 24px 24px !important; animation: sea-stripes-player 0.8s linear infinite;
+}
+@keyframes sea-stripes-player { from { background-position: 0 0; } to { background-position: 24px 0; } }
+/* The track clips its bars (they slide in from the left), so the glow is drawn around what shows. */
+html[data-sea-slider="slider-glow"] [data-vc-element="time-range-chapter"] {
+    overflow: hidden; filter: drop-shadow(0 0 4px rgb(var(--color-brand-400) / 0.95)) drop-shadow(0 0 10px rgb(var(--color-brand-500) / 0.6));
+}
+html[data-sea-slider="slider-flat"] [data-vc-element="time-range-chapter"] { border-radius: 0 !important; }
+
 /* ── Notifications (sonner) ──────────────────────────────────────────────── */
 html[data-sea-toast="toast-glass"] [data-sonner-toast] { background: rgb(from var(--background) r g b / 0.6) !important; backdrop-filter: blur(14px); }
 html[data-sea-toast="toast-accent"] [data-sonner-toast] { border-left: 4px solid rgb(var(--color-brand-500)) !important; }
@@ -2416,7 +2440,7 @@ html[data-sea-idle-active] body::after {
 .sea-layout-compact :is(h1) { font-size: 1.5rem !important; }
 
 @media (prefers-reduced-motion: reduce) {
-    .sea-frame::before, html[data-sea-accent] .UI-Button__root, html[data-sea-slider] .UI-ProgressBar__indicator { animation: none !important; }
+    .sea-frame::before, html[data-sea-accent] .UI-Button__root, html[data-sea-slider] .UI-ProgressBar__indicator, html[data-sea-slider] [data-vc-element="time-range-chapter-bar"] { animation: none !important; }
 }
 
 /* ══ Phones: safe areas and the mobile dock ═════════════════════════════════
