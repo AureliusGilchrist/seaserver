@@ -12,7 +12,9 @@
       "Bash(node -e ' *)",
       "Bash(python -)",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(rtk grep *)",
+      "PowerShell(npx tsc --noEmit 2>&1)"
     ]
   }
 }
