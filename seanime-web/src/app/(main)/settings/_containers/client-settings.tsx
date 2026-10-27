@@ -747,6 +747,15 @@ export function ClientSettings(props: ClientSettingsProps) {
                     </PersonalSection>
 
                     <PersonalSection def={section("display")}>
+                        <SettingRow settingKey="smoothScrolling">
+                            <Switch
+                                side="right"
+                                value={personal.smoothScrolling}
+                                onValueChange={v => handleSet("smoothScrolling", v)}
+                                label="Smooth scrolling"
+                                help="Pages glide and ease to a stop when you scroll with the mouse wheel."
+                            />
+                        </SettingRow>
                         <SettingRow settingKey={["animeCardWidth", "mangaCardWidth"]}>
                             <CardSizeSettings />
                         </SettingRow>

@@ -328,6 +328,10 @@ function setupChromiumFlags() {
     // Video-specific optimizations
     app.commandLine.appendSwitch("enable-accelerated-video-decode")
 
+    // Animated wheel scrolling for every scrollable panel (the page itself is eased by the web
+    // app's smooth scroll; drawers, lists and modals scroll natively and get Chromium's own).
+    app.commandLine.appendSwitch("enable-smooth-scrolling")
+
     // Enable advanced features
     app.commandLine.appendSwitch("enable-features", [
         "WebAssemblyLazyCompilation",

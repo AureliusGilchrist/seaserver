@@ -51,6 +51,7 @@ import { DiscordRpcBridge } from "@/lib/discord-rpc/discord-rpc-bridge"
 import { RewardProvider } from "@/lib/rewards/reward-provider"
 import { UICustomizeProvider } from "@/lib/ui-customize/ui-customize-provider"
 import { SoundProvider } from "@/lib/sounds/sound-provider"
+import { SmoothScroll } from "@/lib/smooth-scroll/smooth-scroll"
 import { EasterEggEngine } from "@/lib/easter-eggs/easter-egg-engine"
 import { NakamaManager } from "../nakama/nakama-manager"
 import { WatchPartyManager } from "../watch-party/watch-party-manager"
@@ -96,6 +97,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
             <CursorProvider>
             <SoundProvider>
             <CursorLibraryProvider />
+            <SmoothScroll />
             <GlobalProfileWallpaper />
             <DiscordRpcBridge />
             <RewardParticlesLayer />

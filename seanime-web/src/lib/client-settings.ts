@@ -24,6 +24,8 @@ export const clientSettingsSchema = z.object({
     autoPlayNextEpisode: z.boolean().optional(),
     /** Desktop client: leaving the page while the local player is playing pops it out where it was. */
     autoPopoutOnLeave: z.boolean().optional(),
+    /** Eased, gliding wheel scrolling for the page (see lib/smooth-scroll). */
+    smoothScrolling: z.boolean().optional(),
     stillWatchingChecksEnabled: z.boolean().optional(),
     stillWatchingEpisodes: z.number().optional(),
     // Hours of day (0–23) the still-watching check applies in; the window may cross midnight.

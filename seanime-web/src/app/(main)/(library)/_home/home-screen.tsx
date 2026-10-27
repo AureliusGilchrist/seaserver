@@ -106,7 +106,7 @@ export function HomeScreen() {
     React.useEffect(() => {
         const handler = () => setScrolled(window.scrollY > 60)
         handler()
-        window.addEventListener("scroll", handler)
+        window.addEventListener("scroll", handler, { passive: true })
         return () => window.removeEventListener("scroll", handler)
     }, [])
 
