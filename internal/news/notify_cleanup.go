@@ -75,7 +75,7 @@ func cleanupProfileNews(app *core.App, database *db.Database, profileID uint) (i
 	}
 	removed := 0
 	for _, n := range rows {
-		if filter.Matches(Item{Title: n.Title}) {
+		if filter.Matches(Item{Title: n.Title, Description: n.Body}) {
 			continue
 		}
 		if err := database.DeleteNotification(n.ID); err == nil {

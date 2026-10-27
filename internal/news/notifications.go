@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 	"unicode"
+	"unicode/utf8"
 )
 
 // Notifications for new feed entries.
@@ -223,7 +224,7 @@ func announceToDatabase(app *core.App, database *db.Database, profileID uint, fr
 		n := &models.Notification{
 			Type:     "news",
 			Title:    item.Title,
-			Body:     truncateNewsBody(item),
+			Body:     newsBody(item, match),
 			ImageURL: item.Image,
 			Metadata: string(metaJSON),
 		}
@@ -237,6 +238,36 @@ func announceToDatabase(app *core.App, database *db.Database, profileID uint, fr
 		// Only this profile's clients: another profile's Personal settings decide nothing here.
 		app.WSEventManager.SendEventToProfile(profileID, events.NotificationCreated, n)
 	}
+}
+
+// newsBody is the notification's preview of the post. When the post is what named something on
+// the profile's lists, the preview is cut around that name, so the part in bold is always shown.
+func newsBody(item Item, match NotifyMatch) string {
+	if match.In != "body" || match.Text == "" {
+		return truncateNewsBody(item)
+	}
+	desc := item.Description
+	idx := strings.Index(desc, match.Text)
+	if idx < 0 {
+		return truncateNewsBody(item)
+	}
+	const before, after = 80, 140
+	start := max(0, idx-before)
+	end := min(len(desc), idx+len(match.Text)+after)
+	for start > 0 && !utf8.RuneStart(desc[start]) {
+		start--
+	}
+	for end < len(desc) && !utf8.RuneStart(desc[end]) {
+		end++
+	}
+	out := strings.TrimSpace(desc[start:end])
+	if start > 0 {
+		out = "…" + out
+	}
+	if end < len(desc) {
+		out += "…"
+	}
+	return out
 }
 
 func truncateNewsBody(item Item) string {

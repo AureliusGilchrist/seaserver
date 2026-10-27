@@ -146,27 +146,38 @@ func TestNotifyFilterListMedia(t *testing.T) {
 	}
 }
 
-// Lists mode reads the headline only, as whole words, and says which list title matched.
-func TestNotifyFilterListMatchIsWholeWordsInTheHeadline(t *testing.T) {
+// Lists mode needs an exact name — title or synonym — as whole words, in the headline or the post,
+// and reports the exact text it matched so it can be set in bold.
+func TestNotifyFilterListMatchesExactNamesAndVariants(t *testing.T) {
 	current := anilist.MediaListStatusCurrent
 	col := &anilist.AnimeCollection{MediaListCollection: &anilist.AnimeCollection_MediaListCollection{
 		Lists: []*anilist.AnimeCollection_MediaListCollection_Lists{{Status: &current, Entries: []*anilist.AnimeCollection_MediaListCollection_Lists_Entries{
-			{Media: &anilist.BaseAnime{Title: &anilist.BaseAnime_Title{Romaji: strp("Kill la Kill"), English: strp("Gate")}}},
+			{Media: &anilist.BaseAnime{
+				Title:    &anilist.BaseAnime_Title{Romaji: strp("Kill la Kill"), UserPreferred: strp("Kill la Kill"), Native: strp("キルラキル")},
+				Synonyms: []*string{strp("KLK"), strp("Kiru ra Kiru")},
+			}},
+			{Media: &anilist.BaseAnime{Title: &anilist.BaseAnime_Title{Romaji: strp("Gate"), English: strp("Bleach")}}},
+			{Media: &anilist.BaseAnime{Title: &anilist.BaseAnime_Title{English: strp("Bleach: Thousand-Year Blood War"), UserPreferred: strp("BLEACH: Sennen Kessen-hen")}}},
 		}}},
 	}}
 	f := NewNotifyFilter(&db.ClientSettingsOverrides{NewsNotifyMode: strp(NotifyModeLists)}, func() *anilist.AnimeCollection { return col }, nil)
 
-	m, ok := f.Match(Item{Title: "Kill la Kill gets a 4K remaster"})
-	if !ok || m.Title != "Kill la Kill" || m.List != "Watching" || m.Media != "anime" || m.Mode != NotifyModeLists {
-		t.Fatalf("match = %+v, %v; want Kill la Kill on Watching", m, ok)
+	m, ok := f.Match(Item{Title: "KILL la KILL gets a 4K remaster"})
+	if !ok || m.Title != "Kill la Kill" || m.Text != "KILL la KILL" || m.In != "title" || m.List != "Watching" {
+		t.Fatalf("headline match = %+v, %v", m, ok)
 	}
-	if f.Matches(Item{Title: "Studio news", Description: "From the makers of Kill la Kill"}) {
-		t.Error("a title only in the description notified")
+	if m, ok := f.Match(Item{Title: "Studio Trigger news", Description: "From the makers of Kiru ra Kiru, a new show"}); !ok || m.Text != "Kiru ra Kiru" || m.In != "body" {
+		t.Errorf("synonym in the post = %+v, %v", m, ok)
 	}
-	if f.Matches(Item{Title: "Gatekeepers announced"}) {
-		t.Error("a short title matched inside another word")
+	if m, ok := f.Match(Item{Title: "「キルラキル」新作発表"}); !ok || m.Text != "キルラキル" {
+		t.Errorf("native title = %+v, %v", m, ok)
 	}
-	if !f.Matches(Item{Title: "GATE season 3 confirmed"}) {
-		t.Error("a whole-word title in the headline did not match")
+	if m, ok := f.Match(Item{Title: "Bleach: Thousand-Year Blood War part 4 dated"}); !ok || m.Title != "BLEACH: Sennen Kessen-hen" {
+		t.Errorf("the longest name should win: %+v, %v", m, ok)
+	}
+	for _, h := range []string{"Gatekeepers announced", "Gate opens", "KLK merch sale", "Killed in action", "Bleached hair trend"} {
+		if f.Matches(Item{Title: h}) {
+			t.Errorf("%q matched, but it names nothing on the list exactly", h)
+		}
 	}
 }

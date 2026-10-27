@@ -3,6 +3,7 @@ package news
 import (
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"seanime/internal/api/anilist"
 	"seanime/internal/database/db"
@@ -19,28 +20,38 @@ const (
 type NotifyFilter struct {
 	mode     string
 	keywords []string
-	titles   []listTitle // NotifyModeLists
+	names    []listName // NotifyModeLists
 }
 
-// listTitle is one title from the profile's lists, kept as words so it only ever matches whole
-// words of a headline, with where it came from for the notification's "why".
-type listTitle struct {
-	title string   // as written on AniList
-	words []string // lower-cased words
-	list  string   // "Watching", "Planning", "Completed"
+// listName is one exact name of something on the profile's lists — its English, romaji or native
+// title, or one of its AniList synonyms — kept as words so it only ever matches as a whole name,
+// with the entry it belongs to for the notification's "why".
+type listName struct {
+	title string   // the entry's display title (user-preferred)
+	words []string // the name's lower-cased words
+	list  string   // "Watching", "Reading", "Planning", "Completed"
 	media string   // "anime" or "manga"
 }
 
 // NotifyMatch says why an item notified.
 type NotifyMatch struct {
 	Mode  string `json:"mode"`
-	Title string `json:"matchedTitle,omitempty"`
+	Title string `json:"matchedTitle,omitempty"` // the list entry's display title
 	List  string `json:"matchedList,omitempty"`
 	Media string `json:"matchedMedia,omitempty"`
+	// Text is the exact text that matched, as written in the article, and In says where
+	// ("title" or "body"), so the client can set it in bold where it appears.
+	Text string `json:"matchedText,omitempty"`
+	In   string `json:"matchedIn,omitempty"`
 }
 
-// minListTitleLen keeps very short titles ("K", "Mob") from matching half the headlines.
-const minListTitleLen = 4
+// A name has to be specific enough to mean the show: at least 4 characters, and a name of a single
+// word at least 5 letters. "Mob", "K", "Gate" or a synonym like "Ao" would otherwise match plain
+// words in unrelated headlines.
+const (
+	minNameLen           = 4
+	minSingleWordNameLen = 5
+)
 
 // NewNotifyFilter builds the filter for a profile from its Personal overrides. The collections
 // are only read in "lists" mode; pass whatever is cached (nil is fine — nothing will match).
@@ -64,22 +75,19 @@ func NewNotifyFilter(ovr *db.ClientSettingsOverrides, animeCol func() *anilist.A
 		}
 	case NotifyModeLists:
 		seen := map[string]bool{}
-		add := func(list, media string, titles ...*string) {
-			for _, t := range titles {
-				if t == nil {
+		add := func(display, list, media string, variants []*string) {
+			for _, v := range variants {
+				if v == nil {
 					continue
 				}
-				title := strings.TrimSpace(*t)
-				key := strings.ToLower(title)
-				if len([]rune(key)) < minListTitleLen || seen[key] {
-					continue
-				}
-				words := wordsOf(key)
-				if len(words) == 0 {
+				name := strings.TrimSpace(*v)
+				words := wordsOf(strings.ToLower(name))
+				key := strings.Join(words, " ")
+				if len(words) == 0 || seen[key] || !specificEnough(words) {
 					continue
 				}
 				seen[key] = true
-				f.titles = append(f.titles, listTitle{title: title, words: words, list: list, media: media})
+				f.names = append(f.names, listName{title: display, words: words, list: list, media: media})
 			}
 		}
 		on := func(b *bool) bool { return b == nil || *b }
@@ -90,14 +98,14 @@ func NewNotifyFilter(ovr *db.ClientSettingsOverrides, animeCol func() *anilist.A
 			readAnime = on(ovr.NewsNotifyListAnime)
 			readManga = ovr.NewsNotifyListManga != nil && *ovr.NewsNotifyListManga
 		}
-		listName := func(st *anilist.MediaListStatus) string {
+		listName := func(st *anilist.MediaListStatus, watching string) string {
 			if st == nil {
 				return ""
 			}
 			switch *st {
 			case anilist.MediaListStatusCurrent, anilist.MediaListStatusRepeating:
 				if current {
-					return "Watching"
+					return watching
 				}
 			case anilist.MediaListStatusPlanning:
 				if planning {
@@ -110,17 +118,32 @@ func NewNotifyFilter(ovr *db.ClientSettingsOverrides, animeCol func() *anilist.A
 			}
 			return ""
 		}
+		display := func(t interface {
+			GetUserPreferred() *string
+			GetRomaji() *string
+			GetEnglish() *string
+		}) string {
+			for _, s := range []*string{t.GetUserPreferred(), t.GetRomaji(), t.GetEnglish()} {
+				if s != nil && strings.TrimSpace(*s) != "" {
+					return strings.TrimSpace(*s)
+				}
+			}
+			return ""
+		}
 		if animeCol != nil && readAnime {
 			if col := animeCol(); col != nil {
 				for _, l := range col.GetMediaListCollection().GetLists() {
-					name := listName(l.GetStatus())
+					name := listName(l.GetStatus(), "Watching")
 					if name == "" {
 						continue
 					}
 					for _, e := range l.GetEntries() {
-						if m := e.GetMedia(); m != nil && m.Title != nil {
-							add(name, "anime", m.Title.English, m.Title.Romaji, m.Title.UserPreferred)
+						m := e.GetMedia()
+						if m == nil || m.Title == nil {
+							continue
 						}
+						variants := append([]*string{m.Title.English, m.Title.Romaji, m.Title.Native, m.Title.UserPreferred}, m.GetSynonyms()...)
+						add(display(m.Title), name, "anime", variants)
 					}
 				}
 			}
@@ -128,23 +151,48 @@ func NewNotifyFilter(ovr *db.ClientSettingsOverrides, animeCol func() *anilist.A
 		if mangaCol != nil && readManga {
 			if col := mangaCol(); col != nil {
 				for _, l := range col.GetMediaListCollection().GetLists() {
-					name := listName(l.GetStatus())
-					if name == "Watching" {
-						name = "Reading"
-					}
+					name := listName(l.GetStatus(), "Reading")
 					if name == "" {
 						continue
 					}
 					for _, e := range l.GetEntries() {
-						if m := e.GetMedia(); m != nil && m.Title != nil {
-							add(name, "manga", m.Title.English, m.Title.Romaji, m.Title.UserPreferred)
+						m := e.GetMedia()
+						if m == nil || m.Title == nil {
+							continue
 						}
+						variants := append([]*string{m.Title.English, m.Title.Romaji, m.Title.Native, m.Title.UserPreferred}, m.GetSynonyms()...)
+						add(display(m.Title), name, "manga", variants)
 					}
 				}
 			}
 		}
 	}
 	return f
+}
+
+// specificEnough applies minNameLen / minSingleWordNameLen. CJK names are judged by characters,
+// since a two- or three-character native title is a full name.
+func specificEnough(words []string) bool {
+	joined := strings.Join(words, " ")
+	if hasCJK(joined) {
+		return utf8.RuneCountInString(strings.ReplaceAll(joined, " ", "")) >= 2
+	}
+	if utf8.RuneCountInString(joined) < minNameLen {
+		return false
+	}
+	if len(words) == 1 && utf8.RuneCountInString(words[0]) < minSingleWordNameLen {
+		return false
+	}
+	return true
+}
+
+func hasCJK(s string) bool {
+	for _, r := range s {
+		if unicode.In(r, unicode.Han, unicode.Hiragana, unicode.Katakana, unicode.Hangul) {
+			return true
+		}
+	}
+	return false
 }
 
 // Matches reports whether the item should become a notification for this profile.
@@ -155,18 +203,32 @@ func (f *NotifyFilter) Matches(item Item) bool {
 
 // Match reports whether the item should become a notification for this profile, and why.
 //
-// Lists mode reads the headline only, and a title has to appear there as whole words: the article
-// description routinely names other shows ("from the studio behind…"), and a bare substring let a
-// short title match inside unrelated words.
+// Lists mode looks for an exact name of something on the chosen lists, as whole words, in the
+// headline first and then in the post. The longest name wins, so "Bleach: Thousand-Year Blood War"
+// is reported over "Bleach" when both are on the list.
 func (f *NotifyFilter) Match(item Item) (NotifyMatch, bool) {
 	switch f.mode {
 	case NotifyModeAll:
 		return NotifyMatch{Mode: NotifyModeAll}, true
 	case NotifyModeLists:
-		headline := wordsOf(strings.ToLower(item.Title))
-		for _, t := range f.titles {
-			if containsWords(headline, t.words) {
-				return NotifyMatch{Mode: NotifyModeLists, Title: t.title, List: t.list, Media: t.media}, true
+		for _, where := range []struct{ in, text string }{{"title", item.Title}, {"body", item.Description}} {
+			if where.text == "" {
+				continue
+			}
+			toks := tokenize(where.text)
+			var best *listName
+			var bestText string
+			for i := range f.names {
+				n := &f.names[i]
+				if best != nil && len(n.words) <= len(best.words) {
+					continue
+				}
+				if text, ok := findWords(where.text, toks, n.words); ok {
+					best, bestText = n, text
+				}
+			}
+			if best != nil {
+				return NotifyMatch{Mode: NotifyModeLists, Title: best.title, List: best.list, Media: best.media, Text: bestText, In: where.in}, true
 			}
 		}
 		return NotifyMatch{}, false
@@ -188,24 +250,60 @@ func (f *NotifyFilter) Match(item Item) (NotifyMatch, bool) {
 	}
 }
 
-// wordsOf splits lower-cased text into words: runs of letters and digits.
-func wordsOf(s string) []string {
-	return strings.FieldsFunc(s, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
+// token is one word of a text with its byte span, so a match can be cut out of the original.
+type token struct {
+	word       string // lower-cased
+	start, end int
 }
 
-// containsWords reports whether needle appears as consecutive whole words in haystack.
-func containsWords(haystack, needle []string) bool {
-	if len(needle) == 0 || len(needle) > len(haystack) {
-		return false
+func isWordRune(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }
+
+// tokenize splits text into words: runs of letters and digits, with their positions.
+func tokenize(text string) []token {
+	var toks []token
+	start := -1
+	for i, r := range text {
+		if isWordRune(r) {
+			if start < 0 {
+				start = i
+			}
+			continue
+		}
+		if start >= 0 {
+			toks = append(toks, token{word: strings.ToLower(text[start:i]), start: start, end: i})
+			start = -1
+		}
+	}
+	if start >= 0 {
+		toks = append(toks, token{word: strings.ToLower(text[start:]), start: start, end: len(text)})
+	}
+	return toks
+}
+
+// wordsOf splits lower-cased text into words.
+func wordsOf(s string) []string {
+	toks := tokenize(s)
+	out := make([]string, len(toks))
+	for i, t := range toks {
+		out[i] = t.word
+	}
+	return out
+}
+
+// findWords looks for needle as consecutive whole words in text and returns the matched span of
+// the original text.
+func findWords(text string, toks []token, needle []string) (string, bool) {
+	if len(needle) == 0 || len(needle) > len(toks) {
+		return "", false
 	}
 outer:
-	for i := 0; i+len(needle) <= len(haystack); i++ {
+	for i := 0; i+len(needle) <= len(toks); i++ {
 		for j, w := range needle {
-			if haystack[i+j] != w {
+			if toks[i+j].word != w {
 				continue outer
 			}
 		}
-		return true
+		return text[toks[i].start:toks[i+len(needle)-1].end], true
 	}
-	return false
+	return "", false
 }

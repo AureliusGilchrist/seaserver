@@ -5,6 +5,7 @@ import { IconButton } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { formatNewsDate } from "@/api/hooks/news.hooks"
 import React from "react"
+import { HighlightedNewsText, NewsReason, parseNewsMatch } from "./news-match"
 import { LuArrowUpRight, LuBell, LuRss, LuX } from "react-icons/lu"
 
 type LiveNotification = NotificationCreatedEvent & { liveID: string }
@@ -74,6 +75,7 @@ function LiveNewsNotification({ notification, onDismiss }: {
     onDismiss: (liveID: string) => void
 }) {
     const meta = parseNewsMetadata(notification)
+    const newsMatch = React.useMemo(() => parseNewsMatch(notification.metadata), [notification.metadata])
     const [leaving, setLeaving] = React.useState(false)
 
     // Exit with a beat of motion instead of vanishing — the same reason it enters with one.
@@ -135,13 +137,14 @@ function LiveNewsNotification({ notification, onDismiss }: {
                             )}
                         </div>
                         <p className="mt-1 line-clamp-2 text-sm font-semibold leading-snug text-white">
-                            {notification.title}
+                            <HighlightedNewsText text={notification.title} match={newsMatch} part="title" />
                         </p>
                         {notification.body && (
                             <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-white/55">
-                                {notification.body}
+                                <HighlightedNewsText text={notification.body} match={newsMatch} part="body" />
                             </p>
                         )}
+                        <NewsReason match={newsMatch} />
                         <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[--brand] opacity-80 transition-opacity group-hover:opacity-100">
                             Read article
                             <LuArrowUpRight className="size-3.5 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />

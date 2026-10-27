@@ -51,6 +51,10 @@ type TimelineNewsCard struct {
 }
 
 // ViewerListTitles collects the viewer's anime and manga list titles with their weights.
+
+// minListTitleLen keeps very short titles ("K", "Mob") from matching half the headlines.
+const minListTitleLen = 4
+
 func ViewerListTitles(animeCol *anilist.AnimeCollection, mangaCol *anilist.MangaCollection) map[string]ListMatch {
 	out := map[string]ListMatch{}
 	weightOf := func(st *anilist.MediaListStatus) (string, float64) {
