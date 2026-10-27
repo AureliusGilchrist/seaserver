@@ -201,6 +201,7 @@ func init() {
 	AllDefinitions = append(AllDefinitions, animeDefinitions...)
 	AllDefinitions = append(AllDefinitions, mangaDefinitions...)
 	AllDefinitions = append(AllDefinitions, metaDefinitions...)
+	AllDefinitions = append(AllDefinitions, extraDefinitions...)
 	applyDefinitionOverrides(AllDefinitions)
 
 	// Auto-assign difficulty where not explicitly set

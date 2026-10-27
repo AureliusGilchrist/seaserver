@@ -15,7 +15,7 @@ import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { __isElectronDesktop__ } from "@/types/constants"
 import { useAtom, useAtomValue } from "jotai"
 import React from "react"
-import { LuBookmarkCheck, LuBookOpen, LuDownload, LuEye, LuListChecks, LuMessageCircle, LuMonitorPlay, LuNewspaper, LuPlay, LuRotateCcw, LuRss, LuSearch, LuSettings2, LuTags, LuTv, LuUserCog, LuX } from "react-icons/lu"
+import { LuBookmarkCheck, LuBookOpen, LuDownload, LuEye, LuListChecks, LuMessageCircle, LuMonitorPlay, LuNewspaper, LuPlay, LuRefreshCw, LuRotateCcw, LuRss, LuSearch, LuSettings2, LuTags, LuTv, LuUserCog, LuX } from "react-icons/lu"
 import { toast } from "sonner"
 
 type ClientSettingsProps = {}
@@ -52,21 +52,36 @@ function GitHubFrontendUpdateCard() {
         return () => off?.()
     }, [appendLines])
 
-    async function refresh(checkNow: boolean = true) {
+    const [checkedAt, setCheckedAt] = React.useState<Date | null>(null)
+
+    // `announce` is for a check the user asked for: it says how it went, even when nothing changed.
+    // GitHub often answers in a few hundred milliseconds, and a result identical to the last one
+    // replaced in that time looked like the button did nothing, so the check shows for at least a
+    // moment.
+    async function refresh(checkNow: boolean = true, announce: boolean = false) {
         const liveUpdate = window.electron?.liveUpdate
         if (!liveUpdate?.checkGitHub) return
         if (checkNow) {
             setChecking(true)
+            const started = Date.now()
             try {
                 const res = await liveUpdate.checkGitHub()
+                const elapsed = Date.now() - started
+                if (elapsed < 900) await new Promise(r => setTimeout(r, 900 - elapsed))
                 setResult(res)
+                setCheckedAt(new Date())
                 if (res.ok) {
                     const summary = res.updateAvailable
                         ? `Frontend: update available (${res.current ?? "unknown"} → ${res.latest})`
                         : `Frontend: up to date (${res.current ?? res.latest ?? "unknown"})`
                     appendLines([stamp(summary)])
+                    if (announce) {
+                        if (res.updateAvailable) toast.info(`Version ${res.latest} is available`)
+                        else toast.success("You're on the latest frontend")
+                    }
                 } else {
                     appendLines([stamp(`Frontend check: Failed - ${res.error ?? "unknown error"}`)])
+                    if (announce) toast.error(`Could not reach GitHub: ${res.error ?? "unknown error"}`)
                 }
             } catch (e: any) {
                 toast.error(`Update check failed: ${e?.message ?? "unknown error"}`)
@@ -119,7 +134,19 @@ function GitHubFrontendUpdateCard() {
             title="Frontend updates"
             description="Download the prebuilt frontend from GitHub releases and swap it in live — no git, Node or GitHub account needed on this machine."
         >
-            <p className="text-sm text-[--muted]">
+            {checking ? (
+                <div className="flex items-center gap-3 rounded-xl border border-brand-400/25 bg-brand-500/[0.07] px-3 py-2.5" role="status" aria-live="polite">
+                    <LuRefreshCw className="size-4 shrink-0 animate-spin text-brand-300" />
+                    <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium">Checking GitHub for a newer frontend…</p>
+                        <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/10">
+                            <div className="h-full w-1/3 animate-[sea-update-scan_1.1s_ease-in-out_infinite] rounded-full bg-brand-400" />
+                        </div>
+                    </div>
+                    <style>{`@keyframes sea-update-scan{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}`}</style>
+                </div>
+            ) : (
+            <p className="text-sm text-[--muted]" aria-live="polite">
                 {result && !result.ok && (
                     <span className="text-red-300">Could not reach GitHub: {result.error}</span>
                 )}
@@ -135,8 +162,14 @@ function GitHubFrontendUpdateCard() {
                         {result.currentSource === "bundled" && <>Up to date — running the bundled frontend ({result.current}).</>}
                     </span>
                 )}
-                {!result && <span>Checking GitHub…</span>}
+                {!result && <span>Not checked yet.</span>}
+                {checkedAt && (
+                    <span className="block text-xs text-[--muted] opacity-80">
+                        Last checked {checkedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                    </span>
+                )}
             </p>
+            )}
             <Switch
                 side="right"
                 value={!!settings?.autoUpdateFrontend}
@@ -150,9 +183,9 @@ function GitHubFrontendUpdateCard() {
                     loading={checking}
                     disabled={installing}
                     leftIcon={<LuSearch className="size-4" />}
-                    onClick={() => refresh()}
+                    onClick={() => refresh(true, true)}
                 >
-                    Search for updates
+                    {checking ? "Checking…" : "Search for updates"}
                 </Button>
                 <Button
                     intent="primary"
