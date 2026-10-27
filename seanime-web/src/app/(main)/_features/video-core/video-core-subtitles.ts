@@ -1073,24 +1073,37 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     // steady-state trickle (a few dozen events) still goes out in a single pass, while a
     // full-episode burst takes a few hundred ms without ever blocking a frame.
     private async _injectAssEventsChunked(entries: CachedEvent[], trackNumber: number) {
+        // A fresh renderer is assigned before its worker is ready (see _initOnce), and the first
+        // events of an episode arrive in exactly that window. Injecting then threw on the missing
+        // `renderer` and the batch was lost — already recorded as delivered, so never sent again,
+        // and the episode started without subtitles until the player was rebuilt. Wait first.
+        if (this.libassRenderer && !this.libassRenderer.renderer) {
+            try {
+                await this.libassRenderer.ready
+            }
+            catch {
+                return
+            }
+        }
         const CHUNK_SIZE = 50
         for (let i = 0; i < entries.length; i += CHUNK_SIZE) {
             // Abort if the renderer was destroyed or the user switched tracks mid-injection
-            if (this.isDestroyed || !this.libassRenderer || this.currentTrackNumber !== trackNumber) return
+            if (this.isDestroyed || !this.libassRenderer?.renderer || this.currentTrackNumber !== trackNumber) return
+            const renderer = this.libassRenderer.renderer
             const end = Math.min(i + CHUNK_SIZE, entries.length)
             for (let j = i; j < end; j++) {
                 const cached = entries[j]
                 if (this.shouldTranslate) {
                     if (cached.translatedAssEvent) {
                         // already translated, use it
-                        this.libassRenderer.renderer.createEvent(cached.translatedAssEvent)
+                        renderer.createEvent(cached.translatedAssEvent)
                     } else {
                         // fetch the translation, it will be rendered once returned
                         this._fetchEventTranslationIfNeeded(cached)
                     }
                 } else {
                     // not translating, use the original event
-                    this.libassRenderer.renderer.createEvent(cached.assEvent)
+                    renderer.createEvent(cached.assEvent)
                 }
             }
             if (end < entries.length) {
@@ -1120,9 +1133,9 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             Text: translated,
         }
         cached.isTranslating = false
-        // If the track is still the active one, inject the new event immediately
+        // If the track is still the active one, inject the new event (once the renderer is ready)
         if (this.currentTrackNumber === cached.event.trackNumber && this.libassRenderer) {
-            this.libassRenderer.renderer.createEvent(cached.translatedAssEvent)
+            void this._injectAssEventsChunked([cached], cached.event.trackNumber)
         }
     }
 
