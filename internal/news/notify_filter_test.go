@@ -145,3 +145,28 @@ func TestNotifyFilterListMedia(t *testing.T) {
 		t.Fatalf("anime turned off should drop the anime list")
 	}
 }
+
+// Lists mode reads the headline only, as whole words, and says which list title matched.
+func TestNotifyFilterListMatchIsWholeWordsInTheHeadline(t *testing.T) {
+	current := anilist.MediaListStatusCurrent
+	col := &anilist.AnimeCollection{MediaListCollection: &anilist.AnimeCollection_MediaListCollection{
+		Lists: []*anilist.AnimeCollection_MediaListCollection_Lists{{Status: &current, Entries: []*anilist.AnimeCollection_MediaListCollection_Lists_Entries{
+			{Media: &anilist.BaseAnime{Title: &anilist.BaseAnime_Title{Romaji: strp("Kill la Kill"), English: strp("Gate")}}},
+		}}},
+	}}
+	f := NewNotifyFilter(&db.ClientSettingsOverrides{NewsNotifyMode: strp(NotifyModeLists)}, func() *anilist.AnimeCollection { return col }, nil)
+
+	m, ok := f.Match(Item{Title: "Kill la Kill gets a 4K remaster"})
+	if !ok || m.Title != "Kill la Kill" || m.List != "Watching" || m.Media != "anime" || m.Mode != NotifyModeLists {
+		t.Fatalf("match = %+v, %v; want Kill la Kill on Watching", m, ok)
+	}
+	if f.Matches(Item{Title: "Studio news", Description: "From the makers of Kill la Kill"}) {
+		t.Error("a title only in the description notified")
+	}
+	if f.Matches(Item{Title: "Gatekeepers announced"}) {
+		t.Error("a short title matched inside another word")
+	}
+	if !f.Matches(Item{Title: "GATE season 3 confirmed"}) {
+		t.Error("a whole-word title in the headline did not match")
+	}
+}

@@ -156,6 +156,28 @@ export function NotificationDrawer({ open, onOpenChange }: NotificationDrawerPro
     )
 }
 
+/** Why a news headline notified, as the server recorded it (news.NotifyMatch). */
+function NewsReason({ metadata }: { metadata?: string }) {
+    const reason = React.useMemo(() => {
+        if (!metadata) return null
+        try {
+            const m = JSON.parse(metadata) as { mode?: string, matchedTitle?: string, matchedList?: string, matchedMedia?: string } | null
+            if (!m?.mode) return null
+            if (m.mode === "all") return "You get every article"
+            if (m.mode === "lists" && m.matchedTitle) {
+                return `On your ${m.matchedMedia === "manga" ? "manga " : ""}${m.matchedList ? `${m.matchedList} list` : "list"}: ${m.matchedTitle}`
+            }
+            if (m.mode === "keywords") return m.matchedTitle ? `Keyword: ${m.matchedTitle}` : "Matches your keywords"
+            return null
+        }
+        catch {
+            return null
+        }
+    }, [metadata])
+    if (!reason) return null
+    return <p className="mt-1 truncate text-[11px] font-medium text-brand-300/80">{reason}</p>
+}
+
 type NotificationItemProps = {
     notification: Notification
     onClick: (notification: Notification) => void
@@ -214,6 +236,8 @@ function NotificationItem({ notification, onClick, onDelete }: NotificationItemP
                         {notification.body}
                     </p>
                 )}
+
+                {isNews && <NewsReason metadata={notification.metadata} />}
 
                 <div className="flex items-center gap-2 mt-1">
                     <span className="text-xs text-[--muted] opacity-70">{timeAgo}</span>

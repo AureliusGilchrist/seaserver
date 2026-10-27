@@ -47,7 +47,9 @@ async function fetchFontData(url: string, cacheKey: string = url): Promise<Uint8
     catch (e) {
         subtitleLog.warning("Font fetch error, skipping", url, e)
     }
-    fontDataCache.set(cacheKey, data)
+    // Only a font that loaded is remembered: a failure is often just "not extracted yet", and
+    // caching it made the font missing for the rest of the session.
+    if (data) fontDataCache.set(cacheKey, data)
     return data
 }
 
@@ -60,8 +62,10 @@ async function fetchFontData(url: string, cacheKey: string = url): Promise<Uint8
 // Retry with backoff so auto-applied selections survive the extraction window. External URLs
 // (hotlink-protected CDNs) are fetched once: their failures are permanent, not a race.
 // A definitive server-side failure (e.g. "subtitle extraction failed") is not retried:
-// the outcome is the same every time, so retrying only delays the error toast.
-const EXTRACTION_FAILED_MARKERS = ["extraction failed", "subtitles not ready", "attachments not ready"]
+// the outcome is the same every time, so retrying only delays the error toast. "Not ready" is not
+// definitive — it only means the extraction is still running (the server now waits for it, but a
+// very large file can outlast even that), so it is retried like any other transient failure.
+const EXTRACTION_FAILED_MARKERS = ["extraction failed"]
 
 async function fetchSubtitleTextWithRetry(
     url: string,

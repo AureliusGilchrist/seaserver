@@ -1,11 +1,13 @@
 package mediastream
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"seanime/internal/mediastream/videofile"
 	"seanime/internal/util/result"
 	"sync"
+	"time"
 
 	"github.com/rs/zerolog"
 )
@@ -42,6 +44,9 @@ type (
 		// failure (ffmpeg refusing an unsafe embedded filename, say) must never block
 		// the /subs/ endpoint.
 		subsFailed bool
+		// doneCh closes when the extraction finishes (see BeginExtraction / Wait).
+		doneCh   chan struct{}
+		doneOnce sync.Once
 	}
 
 	PlaybackState struct {
@@ -75,6 +80,33 @@ func (p *PlaybackManager) GetExtractionStatus(hash string) (*ExtractionStatus, b
 	return p.extractionStatuses.Get(hash)
 }
 
+// BeginExtraction records that a background extraction for the file has started, so the
+// /subs/ and /att/ endpoints can wait for it instead of guessing from files on disk.
+func (p *PlaybackManager) BeginExtraction(hash string) {
+	p.extractionStatuses.Set(hash, &ExtractionStatus{doneCh: make(chan struct{})})
+}
+
+// Wait blocks until the extraction has finished, the context ends or maxWait passes, and reports
+// whether it finished. A status recorded without a running extraction counts as finished.
+func (s *ExtractionStatus) Wait(ctx context.Context, maxWait time.Duration) bool {
+	s.mu.Lock()
+	done, ch := s.done, s.doneCh
+	s.mu.Unlock()
+	if done || ch == nil {
+		return true
+	}
+	timer := time.NewTimer(maxWait)
+	defer timer.Stop()
+	select {
+	case <-ch:
+		return true
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return false
+	}
+}
+
 // CompleteExtraction records the outcome of a background attachment extraction.
 // subsErr and attErr are the outcomes of the two independent ffmpeg invocations.
 func (p *PlaybackManager) CompleteExtraction(hash string, subsErr error, attErr error) {
@@ -90,7 +122,11 @@ func (p *PlaybackManager) CompleteExtraction(hash string, subsErr error, attErr 
 		status.err = subsErr
 	}
 	status.subsFailed = subsErr != nil
+	ch := status.doneCh
 	status.mu.Unlock()
+	if ch != nil {
+		status.doneOnce.Do(func() { close(ch) })
+	}
 	p.extractionStatuses.Set(hash, status)
 }
 
@@ -251,6 +287,9 @@ func (p *PlaybackManager) newMediaContainer(filepath string, streamType StreamTy
 	// needed when the player requests them via the /subs/ or /att/ endpoints.
 	p.mediaContainers.Set(hash, ret)
 
+	// Recorded before the goroutine starts, so a subtitle request arriving at once already sees a
+	// running extraction to wait for.
+	p.BeginExtraction(hash)
 	go func() {
 		subsErr, attErr := videofile.ExtractAttachment(p.repository.settings.MustGet().FfmpegPath, filepath, hash, ret.MediaInfo, p.repository.cacheDir, p.logger)
 		p.CompleteExtraction(hash, subsErr, attErr)

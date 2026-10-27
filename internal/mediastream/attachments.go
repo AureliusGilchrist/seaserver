@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"path/filepath"
 	"seanime/internal/events"
 	"seanime/internal/mediastream/videofile"
-	"os"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -40,28 +40,24 @@ func (r *Repository) ServeEchoExtractedSubtitles(c echo.Context, clientId string
 		return errors.New("could not find subtitles")
 	}
 
-	// If the background subtitle extraction already failed, fail fast instead of making
-	// the client wait for files that will never appear. An attachment (font) failure is
-	// deliberately not consulted here — the two are extracted independently, and a
-	// missing font degrades styling rather than removing the subtitles.
+	// Wait for the background extraction to finish. A file on disk proves nothing while it runs:
+	// ffmpeg creates each subtitle file as it starts and fills it as it reads through the whole
+	// video, so serving it early handed the player the first part of the track only. And the
+	// extraction can take far longer than the 10 seconds this used to allow (a large file on a
+	// NAS), after which the request failed and the track stayed empty.
 	if status, ok := r.playbackManager.GetExtractionStatus(mediaContainer.Hash); ok {
+		if !status.Wait(c.Request().Context(), extractionMaxWait) {
+			return errors.New("subtitles not ready")
+		}
+		// An attachment (font) failure is deliberately not consulted here — the two are
+		// extracted independently, and a missing font degrades styling rather than removing
+		// the subtitles.
 		if extractionErr, failed := status.SubsFailure(); failed {
 			return fmt.Errorf("subtitle extraction failed: %w", extractionErr)
 		}
 	}
-
-	// Wait for extraction to complete (files should appear within a few seconds).
-	const maxWait = 10 * time.Second
-	start := time.Now()
-	for {
-		fullPath := filepath.Join(retPath, subFilePath)
-		if _, err := os.Stat(fullPath); err == nil {
-			break
-		}
-		if time.Since(start) > maxWait {
-			return errors.New("subtitles not ready")
-		}
-		time.Sleep(200 * time.Millisecond)
+	if !waitForFile(filepath.Join(retPath, subFilePath), 2*time.Second) {
+		return errors.New("subtitles not ready")
 	}
 
 	r.logger.Trace().Msgf("mediastream: Serving subtitles from %s", retPath)
@@ -95,29 +91,39 @@ func (r *Repository) ServeEchoExtractedAttachments(c echo.Context, clientId stri
 		return errors.New("could not find attachments")
 	}
 
-	// If the background extraction already failed, fail fast instead of making the
-	// client wait for files that will never appear.
+	// Same as the subtitles: wait for the extraction, then fail fast if it failed.
 	if status, ok := r.playbackManager.GetExtractionStatus(mediaContainer.Hash); ok {
+		if !status.Wait(c.Request().Context(), extractionMaxWait) {
+			return errors.New("attachments not ready")
+		}
 		if extractionErr, failed := status.Failure(); failed {
 			return fmt.Errorf("attachment extraction failed: %w", extractionErr)
 		}
 	}
-
-	// Wait for extraction to complete (attachments should appear within a few seconds).
-	const maxWait = 10 * time.Second
-	start := time.Now()
-	for {
-		fullPath := filepath.Join(retPath, subFilePath)
-		if _, err := os.Stat(fullPath); err == nil {
-			break
-		}
-		if time.Since(start) > maxWait {
-			return errors.New("attachments not ready")
-		}
-		time.Sleep(200 * time.Millisecond)
+	if !waitForFile(filepath.Join(retPath, subFilePath), 2*time.Second) {
+		return errors.New("attachments not ready")
 	}
 
 	subFilePath, _ = url.PathUnescape(subFilePath)
 
 	return c.File(filepath.Join(retPath, subFilePath))
+}
+
+// extractionMaxWait bounds how long a /subs/ or /att/ request waits for a running extraction.
+// Reading a whole large file over a NAS can take minutes; the player cancels its own request if
+// the stream is closed first.
+const extractionMaxWait = 3 * time.Minute
+
+// waitForFile reports whether the file exists, checking for up to maxWait.
+func waitForFile(path string, maxWait time.Duration) bool {
+	deadline := time.Now().Add(maxWait)
+	for {
+		if _, err := os.Stat(path); err == nil {
+			return true
+		}
+		if time.Now().After(deadline) {
+			return false
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 }

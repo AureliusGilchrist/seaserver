@@ -85,7 +85,19 @@ func logFfmpegVersion(ffmpegPath string, logger *zerolog.Logger) {
 }
 
 // extractSubtitles stream-copies the subtitle tracks of the file to <subsPath>/<index>.<ext>.
+//
+// ffmpeg writes into a temporary folder and the files move into place only once it has
+// succeeded: it creates each output at the start and fills it while reading the whole video, so
+// writing straight into <subsPath> left half-written tracks there for anything that looked early,
+// and for good when the run was interrupted (a server restart mid-extraction).
 func extractSubtitles(ffmpegPath, path, subsPath string, mediaInfo *MediaInfo) error {
+	partial := subsPath + ".partial"
+	_ = os.RemoveAll(partial)
+	if err := os.MkdirAll(partial, 0755); err != nil {
+		return err
+	}
+	defer os.RemoveAll(partial)
+
 	args := []string{
 		"-nostdin",
 		"-y",
@@ -96,14 +108,32 @@ func extractSubtitles(ffmpegPath, path, subsPath string, mediaInfo *MediaInfo) e
 			args = append(args,
 				"-map", fmt.Sprintf("0:s:%d", sub.Index),
 				"-c:s", "copy",
-				fmt.Sprintf("%s/%d.%s", subsPath, sub.Index, *ext),
+				fmt.Sprintf("%s/%d.%s", partial, sub.Index, *ext),
 			)
 		}
 	}
 
-	_, err := runFfmpeg(ffmpegPath, subsPath, args)
-	return err
+	if _, err := runFfmpeg(ffmpegPath, partial, args); err != nil {
+		return err
+	}
+
+	entries, err := os.ReadDir(partial)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		dst := filepath.Join(subsPath, e.Name())
+		_ = os.Remove(dst) // Windows won't rename over an existing file
+		if err := os.Rename(filepath.Join(partial, e.Name()), dst); err != nil {
+			return fmt.Errorf("could not move extracted subtitle %q into place: %w", e.Name(), err)
+		}
+	}
+	return nil
 }
+
+// extractionMarker is written once a file's subtitles and attachments have all been extracted.
+// Its presence, not the files', is what says a previous run finished.
+const extractionMarker = ".complete"
 
 // isFfmpegSafeFilename mirrors ffmpeg's safe_filename() (fftools/ffmpeg_demux.c):
 // only [A-Za-z0-9_.-] are allowed. Anything else makes ffmpeg refuse to dump an
@@ -214,27 +244,12 @@ func ExtractAttachment(ffmpegPath string, path string, hash string, mediaInfo *M
 	_ = os.MkdirAll(attachmentPath, 0755)
 	_ = os.MkdirAll(subsPath, 0755)
 
-	// Skip extraction if the expected subtitle files are already present.
-	if len(mediaInfo.Subtitles) > 0 {
-		subsDir, err := os.ReadDir(subsPath)
-		if err == nil {
-			expected := make(map[string]bool)
-			for _, sub := range mediaInfo.Subtitles {
-				if sub.Extension != nil && *sub.Extension != "" {
-					expected[fmt.Sprintf("%d.%s", sub.Index, *sub.Extension)] = true
-				}
-			}
-			found := 0
-			for _, entry := range subsDir {
-				if expected[entry.Name()] {
-					found++
-				}
-			}
-			if found == len(expected) {
-				logger.Debug().Str("hash", hash).Msgf("videofile: Attachments already extracted")
-				return nil, nil
-			}
-		}
+	// Skip extraction if a previous run finished. The files alone don't say so: an interrupted run
+	// leaves them behind, half-written.
+	markerPath := filepath.Join(filepath.Dir(subsPath), extractionMarker)
+	if _, err := os.Stat(markerPath); err == nil {
+		logger.Debug().Str("hash", hash).Msgf("videofile: Attachments already extracted")
+		return nil, nil
 	}
 
 	// Extract subtitles and attachments separately: a failure (or unsupported option) in
@@ -262,6 +277,10 @@ func ExtractAttachment(ffmpegPath string, path string, hash string, mediaInfo *M
 		if lastOut != "" {
 			logger.Error().Msgf("videofile: ffmpeg output: %s", lastOut)
 		}
+	}
+
+	if subsErr == nil && attErr == nil {
+		_ = os.WriteFile(markerPath, []byte("ok"), 0644)
 	}
 
 	return subsErr, attErr

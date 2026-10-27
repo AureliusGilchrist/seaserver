@@ -49,6 +49,10 @@ export function NativePlayer() {
     // since), playing there. Otherwise it was this drawer's stream, and the drawer resumes it.
     const setMediastreamReplay = useSetAtom(__mediastream_replayRequestAtom)
     const setEntryPageView = useSetAtom(__anime_entryPageViewAtom)
+    // The latest state and terminate handler, for the return listener below (registered once).
+    const drawerActiveRef = React.useRef(false)
+    drawerActiveRef.current = !!state.active
+    const terminateRef = React.useRef<(() => void) | null>(null)
     React.useEffect(() => {
         if (typeof window === "undefined" || !window.electron?.on || !clientId) return
         const off = window.electron.on("player:return-from-popout", (payload: { path: string, time: number, paused: boolean, from?: string }) => {
@@ -56,6 +60,10 @@ export function NativePlayer() {
             setPendingPopoutResume(payload.time, payload.paused)
             if (payload.from) {
                 log.info("Returning popout playback to the local player", payload.from)
+                // This drawer must not be left covering the page we go back to. The popout has its
+                // own client id now, so its stream no longer opens here — but if one got in by any
+                // route, it is closed rather than shown over the Local Player tab.
+                if (drawerActiveRef.current) terminateRef.current?.()
                 setMediastreamFilePath(payload.path)
                 setMediastreamReplay({ path: payload.path, nonce: Date.now() })
                 if (payload.from.startsWith("/entry")) setEntryPageView("localplayer")
@@ -258,6 +266,8 @@ export function NativePlayer() {
     //
     // Handlers
     //
+
+    terminateRef.current = handleTerminateStream
 
     function handleTerminateStream() {
         const playbackId = state.playbackInfo?.id || ""

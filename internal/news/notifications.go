@@ -79,12 +79,18 @@ type newsMetadata struct {
 	Link        string `json:"link"`
 	FeedTitle   string `json:"feedTitle"`
 	PublishedAt int64  `json:"publishedAt"`
+	// Why it notified (see NotifyFilter.Match): shown under the headline in the drawer.
+	NotifyMatch
 }
 
 func CheckNewItemsNotifications(app *core.App) {
 	if app == nil || app.Settings == nil || app.Settings.Library == nil {
 		return
 	}
+
+	// Once per server run, re-check what earlier filters filed (see notify_cleanup.go). Profiles
+	// whose lists couldn't be read are retried on the next run.
+	cleanupOnce.Do(func() { cleanupStaleNewsNotifications(app) })
 
 	resp := GetResponse(GetFeedUrls(app.Settings.Library.NewsFeeds))
 	if resp == nil {
@@ -199,13 +205,15 @@ func announceToDatabase(app *core.App, database *db.Database, profileID uint, fr
 	)
 
 	for _, item := range fresh {
-		if !filter.Matches(item) {
+		match, ok := filter.Match(item)
+		if !ok {
 			continue
 		}
 		meta := newsMetadata{
 			Link:        item.Link,
 			FeedTitle:   item.FeedTitle,
 			PublishedAt: item.PublishedAt,
+			NotifyMatch: match,
 		}
 		metaJSON, err := json.Marshal(meta)
 		if err != nil {
@@ -224,6 +232,8 @@ func announceToDatabase(app *core.App, database *db.Database, profileID uint, fr
 			app.Logger.Error().Err(err).Str("link", item.Link).Msg("news: failed to save news notification")
 			continue
 		}
+		app.Logger.Info().Uint("profileID", profileID).Str("mode", match.Mode).Str("matched", match.Title).
+			Str("list", match.List).Str("headline", item.Title).Msg("news: Notified about a new article")
 		// Only this profile's clients: another profile's Personal settings decide nothing here.
 		app.WSEventManager.SendEventToProfile(profileID, events.NotificationCreated, n)
 	}
