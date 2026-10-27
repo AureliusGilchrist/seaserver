@@ -1,6 +1,8 @@
 package updater
 
 import (
+	"errors"
+	"strings"
 	"testing"
 	"time"
 )
@@ -62,5 +64,34 @@ func TestNextGitAutoUpdateTime(t *testing.T) {
 				t.Errorf("next run location = %q, want %q", got.Location(), gitUpdateTimeZone)
 			}
 		})
+	}
+}
+
+func TestGitTrustsOnlyTheCheckout(t *testing.T) {
+	args := gitArgs("/srv/seaserver", "fetch", "origin", "main")
+	if len(args) < 3 || args[0] != "-c" || args[1] != "safe.directory=/srv/seaserver" || args[2] != "fetch" {
+		t.Fatalf("git args = %v, want -c safe.directory=<checkout> first", args)
+	}
+}
+
+func TestExplainGitErrorNamesTheCause(t *testing.T) {
+	cases := map[string]string{
+		"git fetch: exit status 128: fatal: detected dubious ownership in repository at '/srv'":                          "owned by another user",
+		"git fetch: exit status 128: fatal: unable to access 'https://github.com/x': Could not resolve host: github.com": "couldn't reach GitHub",
+		"git fetch: exec: \"git\": executable file not found in $PATH":                                                   "isn't installed",
+	}
+	for raw, want := range cases {
+		got := explainGitError(errors.New(raw), "/srv")
+		if !strings.Contains(got.Error(), want) || !strings.Contains(got.Error(), raw) {
+			t.Errorf("explainGitError(%q) = %q, want it to say %q and keep git's message", raw, got, want)
+		}
+	}
+}
+
+func TestParsePendingCommits(t *testing.T) {
+	out := "abc1234\x1f5.2.1-30: news\x1fAurelius\x1f1793100000\nbad line\n"
+	got := parsePendingCommits(out)
+	if len(got) != 1 || got[0].Hash != "abc1234" || got[0].Subject != "5.2.1-30: news" || got[0].Date != 1793100000 {
+		t.Fatalf("parsePendingCommits = %+v", got)
 	}
 }

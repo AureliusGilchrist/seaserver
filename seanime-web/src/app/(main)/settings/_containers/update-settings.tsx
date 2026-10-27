@@ -1,4 +1,8 @@
-import { useCheckBackendUpdate, useUpdateBackend } from "@/api/hooks/update-notice.hooks"
+import { BACKEND_UPDATE_STATUS_KEY, serverErrorMessage, useCheckBackendUpdate, useUpdateBackend } from "@/api/hooks/update-notice.hooks"
+import { ServerUpdateCard } from "@/app/(main)/settings/_containers/server-update-card"
+import { GitHubFrontendUpdateCard } from "@/app/(main)/settings/_containers/client-settings"
+import { useQueryClient } from "@tanstack/react-query"
+import { LuChevronDown, LuScrollText } from "react-icons/lu"
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
 import { WSEvents } from "@/lib/server/ws-events"
 import { SettingsCard } from "@/app/(main)/settings/_components/settings-card"
@@ -231,6 +235,11 @@ function LiveUpdates() {
     const { mutateAsync: updateRemoteBackend } = useUpdateBackend()
     const { mutateAsync: checkRemoteBackend } = useCheckBackendUpdate()
     const [checking, setChecking] = React.useState<Target | null>(null)
+    // The last failure of Update now / Check now, in the server's own words (it used to show
+    // axios's "Request failed with status code 500" and lose the reason).
+    const [errorText, setErrorText] = React.useState<string | null>(null)
+    const [showLog, setShowLog] = React.useState(false)
+    const qc = useQueryClient()
 
     const appendLines = React.useCallback((next: string[]) => {
         if (!next.length) return
@@ -313,6 +322,7 @@ function LiveUpdates() {
 
     async function check(target: Target) {
         setChecking(target)
+        if (target === "backend") setErrorText(null)
         const label = target === "backend" ? "Backend" : "Frontend"
         try {
             let files: { path: string, insertions: number, deletions: number }[] = []
@@ -342,11 +352,14 @@ function LiveUpdates() {
             ])
         }
         catch (e: any) {
-            toast.error(`${label} check failed: ${e?.message ?? "unknown error"}`)
-            appendLines(["", stamp(`${label} check: Failed - ${e?.message ?? "unknown error"}`)])
+            const reason = serverErrorMessage(e)
+            if (target === "backend") setErrorText(reason)
+            toast.error(`${label} check failed: ${reason}`)
+            appendLines(["", stamp(`${label} check: Failed - ${reason}`)])
         }
         finally {
             setChecking(null)
+            if (target === "backend") void qc.invalidateQueries({ queryKey: BACKEND_UPDATE_STATUS_KEY })
         }
     }
 
@@ -363,6 +376,7 @@ function LiveUpdates() {
 
         if (target === "backend" && (remote || !liveUpdate)) {
             setRunning(target)
+            setErrorText(null)
             try {
                 const res = await updateRemoteBackend({})
                 const msg = res?.message ?? "Update requested."
@@ -388,11 +402,16 @@ function LiveUpdates() {
             catch (e: any) {
                 pendingRef.current = false
                 failureReceivedRef.current = true
-                toast.error(`Backend update failed: ${e?.message ?? "unknown error"}`)
-                appendLines(["", stamp(`Backend update: [${String(currentProgressRef.current).padStart(2, "0")}%] Failed - ${e?.message ?? "unknown error"}`)])
+                const reason = serverErrorMessage(e)
+                const already = e?.response?.status === 409
+                setErrorText(already ? null : reason)
+                if (already) toast.info("The backend is already updating")
+                else toast.error(`Backend update failed: ${reason}`)
+                appendLines(["", stamp(`Backend update: [${String(currentProgressRef.current).padStart(2, "0")}%] ${already ? "Already updating" : `Failed - ${reason}`}`)])
             }
             finally {
                 setRunning(null)
+                void qc.invalidateQueries({ queryKey: BACKEND_UPDATE_STATUS_KEY })
             }
             return
         }
@@ -430,57 +449,61 @@ function LiveUpdates() {
         }
     }
 
+    const latest = readProgress(lines)
+    const backendProgress = latest?.target === "backend"
+        ? { percent: latest.percent, step: latest.step, failed: /fail(ed|ure)?|error/i.test(latest.step) }
+        : null
     return (
         <div className="space-y-4">
-            <SettingsCard title="Backend">
-                <p className="text-sm text-[--muted]">
-                    {remote
-                        ? "Asks the remote server to pull the latest commit from its own repository (origin, the seaserver repo it was checked out from), build it, and restart. The server keeps running the old version if the build fails."
-                        : "Pulls the latest changes, builds the server, and only if the build succeeds swaps in the new binary and restarts the backend. If the new backend fails to start, the previous one is restored."}
+            <ServerUpdateCard
+                remote={remote || !liveUpdate}
+                running={running === "backend"}
+                checking={checking === "backend"}
+                progress={running === "backend" || backendProgress?.failed || (backendProgress && backendProgress.percent < 100) ? backendProgress : null}
+                errorText={errorText}
+                onUpdate={() => run("backend")}
+                onCheck={() => check("backend")}
+            />
+            {!remote && liveUpdate && (
+                <p className="px-1 text-xs text-[--muted] break-all">
+                    {detectedRoot
+                        ? `Source repository: ${detectedOrigin ?? detectedRoot}`
+                        : "No source repository was found for this backend."}
                 </p>
-                {!remote && (
-                    <p className="text-xs text-[--muted] break-all">
-                        {detectedRoot
-                            ? `Source repository: ${detectedOrigin ?? detectedRoot}`
-                            : "No source repository was found for this backend."}
-                    </p>
-                )}
-                <div className="flex gap-2">
-                    <Button
-                        intent="primary"
-                        loading={running === "backend"}
-                        disabled={running !== null || checking !== null}
-                        onClick={() => run("backend")}
-                    >
-                        Update backend
-                    </Button>
-                    <Button
-                        intent="gray-outline"
-                        loading={checking === "backend"}
-                        disabled={running !== null || checking !== null}
-                        onClick={() => check("backend")}
-                    >
-                        Check for updates
-                    </Button>
-                </div>
-            </SettingsCard>
+            )}
+
+            <GitHubFrontendUpdateCard />
 
             {lines.length > 0 && (
-                <div className="relative">
-                    <Button
-                        size="sm"
-                        intent="gray-outline"
-                        className="absolute right-2 top-2 z-10"
-                        onClick={() => {
-                            navigator.clipboard.writeText(lines.join("\n")).then(
-                                () => toast.success("Log copied"),
-                                () => toast.error("Could not copy the log"),
-                            )
-                        }}
+                <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02]">
+                    <button
+                        type="button"
+                        onClick={() => setShowLog(v => !v)}
+                        className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-[--muted] hover:text-white"
                     >
-                        Copy log
-                    </Button>
-                    <StructuredLog lines={lines} logRef={logRef} />
+                        <LuScrollText className="size-4" />
+                        Details
+                        <span className="text-xs font-normal opacity-70">— the full update log</span>
+                        <LuChevronDown className={`ml-auto size-4 transition-transform ${showLog ? "rotate-180" : ""}`} />
+                    </button>
+                    {showLog && (
+                        <div className="relative px-3 pb-3">
+                            <Button
+                                size="sm"
+                                intent="gray-outline"
+                                className="absolute right-5 top-2 z-10"
+                                onClick={() => {
+                                    navigator.clipboard.writeText(lines.join("\n")).then(
+                                        () => toast.success("Log copied"),
+                                        () => toast.error("Could not copy the log"),
+                                    )
+                                }}
+                            >
+                                Copy log
+                            </Button>
+                            <StructuredLog lines={lines} logRef={logRef} />
+                        </div>
+                    )}
                 </div>
             )}
         </div>

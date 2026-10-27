@@ -27,7 +27,7 @@ type ClientSettingsProps = {}
 // Frontend updates straight from GitHub releases: the app downloads the prebuilt bundle
 // the CI publishes, swaps it in and reloads — no git, no Node and no account needed on
 // this machine. Settings live on the Electron side (denshiSettings), per machine.
-function GitHubFrontendUpdateCard() {
+export function GitHubFrontendUpdateCard() {
     const [settings, setSettings] = React.useState<DenshiSettings | null>(null)
     const [checking, setChecking] = React.useState(false)
     const [installing, setInstalling] = React.useState(false)
@@ -95,8 +95,12 @@ function GitHubFrontendUpdateCard() {
         }
     }
 
+    // Checked on open and every 5 minutes while shown, like the server. Only checks: installing
+    // reloads the app, so it waits for a click (or the next launch, with auto-update on).
     React.useEffect(() => {
         refresh()
+        const id = window.setInterval(() => refresh(), 5 * 60_000)
+        return () => window.clearInterval(id)
     }, [])
 
     async function handleInstall() {

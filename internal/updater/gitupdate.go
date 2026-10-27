@@ -95,6 +95,10 @@ func StartGitAutoUpdate(logger *zerolog.Logger, wsEventManager *events.WSEventMa
 	}
 	gitUpdaterRef.Set(u)
 
+	// Checking (never installing) runs every few minutes whether or not the nightly install is on,
+	// so the settings page always knows whether an update is waiting.
+	go u.statusLoop()
+
 	if disabled := os.Getenv("SEANIME_AUTO_UPDATE"); disabled == "0" || strings.EqualFold(disabled, "false") {
 		logger.Info().Msg("selfupdate: Auto-update disabled (SEANIME_AUTO_UPDATE=0)")
 		return
@@ -769,6 +773,9 @@ func (u *GitAutoUpdater) writeUpdateNotice(stats updateStats) {
 	if err != nil {
 		return
 	}
+	// Kept apart from the notice (which the user dismisses) so the settings page can always say when
+	// the server last updated.
+	_ = util.WriteFileCrashSafe(filepath.Join(u.appDataDir, lastUpdateFileName), []byte(notice.UpdatedAt), 0o644)
 	if err := util.WriteFileCrashSafe(filepath.Join(u.appDataDir, UpdateNoticeFileName), data, 0o644); err != nil {
 		u.logger.Warn().Err(err).Msg("selfupdate: Could not write the update notice")
 		return
@@ -815,17 +822,49 @@ func (u *GitAutoUpdater) fail(step string, err error, output string) {
 }
 
 // git runs one command inside the checkout.
+//
+// Every command trusts this checkout explicitly (`-c safe.directory=<checkout>`). In a container the
+// server rarely runs as the user that owns the files, and git then refuses to touch the repository
+// at all ("detected dubious ownership"), so every check and update failed at the first command.
+// Only this one directory is trusted, and only for these commands; no global git config changes.
 func (u *GitAutoUpdater) git(args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd := exec.CommandContext(ctx, "git", gitArgs(u.repoDir, args...)...)
 	cmd.Dir = u.repoDir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("git %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
+		return "", explainGitError(fmt.Errorf("git %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(string(out))), u.repoDir)
 	}
 	return string(out), nil
+}
+
+func gitArgs(repoDir string, args ...string) []string {
+	return append([]string{"-c", "safe.directory=" + repoDir}, args...)
+}
+
+// explainGitError puts the common reasons git fails here into plain words, keeping git's own
+// message after them for the log.
+func explainGitError(err error, repoDir string) error {
+	if err == nil {
+		return nil
+	}
+	msg := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(msg, "dubious ownership"):
+		return fmt.Errorf("the checkout at %s is owned by another user and git won't use it: %w", repoDir, err)
+	case strings.Contains(msg, "could not resolve host"), strings.Contains(msg, "timed out"),
+		strings.Contains(msg, "unable to access"), strings.Contains(msg, "connection refused"),
+		strings.Contains(msg, "network is unreachable"), strings.Contains(msg, "signal: killed"):
+		return fmt.Errorf("couldn't reach GitHub to check for updates: %w", err)
+	case strings.Contains(msg, "permission denied") && strings.Contains(msg, ".git"):
+		return fmt.Errorf("the server can't write to the checkout's .git folder (fix once with: sudo chown -R %d:%d %s): %w",
+			os.Getuid(), os.Getgid(), repoDir, err)
+	case strings.Contains(msg, "executable file not found"):
+		return fmt.Errorf("git isn't installed where the server runs: %w", err)
+	}
+	return err
 }
 
 // syscallExec is the process replacement, on its own function so the platforms that do not have it

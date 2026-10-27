@@ -30,6 +30,7 @@ export const enum WSEvents {
     UPDATE_NOTICE_AVAILABLE = "update-notice-available",
     UPDATE_BACKEND_LOG = "update-backend-log",
     UPDATE_BACKEND_PROGRESS = "update-backend-progress",
+    UPDATE_BACKEND_STATUS = "update-backend-status",
     SERVER_GOING_DOWN = "server-going-down",
     ANILIST_OVERWRITE_COMPLETED = "anilist-overwrite-completed",
     MANGA_CHAPTER_MIGRATION_PROGRESS = "manga-chapter-migration-progress",

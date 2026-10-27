@@ -49,6 +49,50 @@ export interface FileDelta {
     deletions: number
 }
 
+export interface PendingCommit {
+    hash: string
+    subject: string
+    author: string
+    /** Unix seconds. */
+    date: number
+}
+
+/** The server's cached update status (internal/updater/gitstatus.go), refreshed every 5 minutes. */
+export interface BackendUpdateStatus {
+    version: string
+    commit: string
+    behind: boolean
+    commitsBehind: number
+    commits: PendingCommit[]
+    files: FileDelta[]
+    blocked?: string
+    updating: boolean
+    checking: boolean
+    lastChecked?: number
+    nextCheck?: number
+    lastError?: string
+    lastUpdated?: string
+}
+
+export const BACKEND_UPDATE_STATUS_KEY = ["update-backend-status"]
+
+export function useBackendUpdateStatus(enabled: boolean = true) {
+    return useServerQuery<BackendUpdateStatus>({
+        endpoint: "/api/v1/update/backend/status",
+        method: "GET",
+        queryKey: BACKEND_UPDATE_STATUS_KEY,
+        staleTime: 0,
+        refetchInterval: 30_000,
+        enabled,
+        muteError: true,
+    })
+}
+
+/** The reason a server request failed, in the server's own words when it sent any. */
+export function serverErrorMessage(e: any): string {
+    return e?.response?.data?.error || e?.message || "unknown error"
+}
+
 export function useCheckBackendUpdate() {
     return useServerMutation<{ behind: boolean, blocked?: string, files: FileDelta[] }, {}>({
         endpoint: "/api/v1/update/backend/check",

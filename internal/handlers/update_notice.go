@@ -3,8 +3,10 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"seanime/internal/updater"
 
@@ -35,7 +37,7 @@ func (h *Handler) HandleUpdateBackend(c echo.Context) error {
 	}
 	started, files, err := u.UpdateNow()
 	if err != nil {
-		return h.RespondWithError(c, err)
+		return h.respondUpdateError(c, "Manual update failed", err)
 	}
 	msg := "Backend is already up to date."
 	if started {
@@ -68,13 +70,43 @@ func (h *Handler) HandleCheckBackendUpdate(c echo.Context) error {
 		return h.RespondWithError(c, errors.New("this server is not running from a git checkout, so it cannot update itself"))
 	}
 	behind, files, blocked, err := u.CheckPending()
+	go func() { _ = u.RefreshStatus() }()
 	if err != nil {
-		return h.RespondWithError(c, err)
+		return h.respondUpdateError(c, "Update check failed", err)
 	}
 	if files == nil {
 		files = []updater.FileChange{}
 	}
 	return h.RespondWithData(c, CheckBackendUpdateResponse{Behind: behind, Blocked: blocked, Files: files})
+}
+
+// HandleGetBackendUpdateStatus
+//
+//	@summary returns the cached backend update status.
+//	@desc Whether the fork has commits this server lacks, which ones and which files they change,
+//	@desc when it last checked and when it checks next (every 5 minutes), and any check error.
+//	@desc Never fetches on request — the server's own check loop keeps it current.
+//	@route /api/v1/update/backend/status [GET]
+//	@returns updater.UpdateStatus
+func (h *Handler) HandleGetBackendUpdateStatus(c echo.Context) error {
+	u := updater.CurrentGitUpdater()
+	if u == nil {
+		return h.RespondWithError(c, errors.New("this server is not running from a git checkout, so it cannot update itself"))
+	}
+	return h.RespondWithData(c, u.Status())
+}
+
+// respondUpdateError logs a failed update or check and answers with a status the client can tell
+// apart: 409 while an update is already running, 502 when git or the network failed. It used to
+// be a bare 500 with nothing in the log, so the reason was lost on both ends.
+func (h *Handler) respondUpdateError(c echo.Context, what string, err error) error {
+	code := http.StatusBadGateway
+	if strings.Contains(err.Error(), "already running") {
+		code = http.StatusConflict
+	} else {
+		h.App.Logger.Error().Err(err).Msg("selfupdate: " + what)
+	}
+	return c.JSON(code, NewErrorResponse(err))
 }
 
 // HandleGetUpdateNotice

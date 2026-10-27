@@ -3,6 +3,7 @@ import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { useOpenInExplorer } from "@/api/hooks/explorer.hooks"
 import { useAnimeListTorrentProviderExtensions } from "@/api/hooks/extensions.hooks"
 import { useCheckForUpdates } from "@/api/hooks/releases.hooks"
+import { useBackendUpdateStatus } from "@/api/hooks/update-notice.hooks"
 import { useSaveSettings } from "@/api/hooks/settings.hooks"
 import { useGetCurrentProfile } from "@/api/hooks/profiles.hooks"
 import { useGetTorrentstreamSettings } from "@/api/hooks/torrentstream.hooks"
@@ -102,6 +103,7 @@ export default function Page() {
     const { mutate: openInExplorer, isPending: isOpening } = useOpenInExplorer()
 
     const { mutate: checkForUpdates, isPending: isCheckingForUpdates } = useCheckForUpdates()
+    const { data: backendUpdateStatus } = useBackendUpdateStatus()
     const setWebUpdateModalOpen = useSetAtom(webUpdateModalOpenAtom)
 
     React.useEffect(() => {
@@ -247,6 +249,9 @@ export default function Page() {
                                     </TabsTrigger>
                                     <TabsTrigger value="updates" className="group">
                                         <LuRefreshCw className="mr-3 text-xl text-[--brand]" /> Updates
+                                        {backendUpdateStatus?.behind && (
+                                            <span className="ml-auto size-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]" title="An update is available" />
+                                        )}
                                     </TabsTrigger>
                                 </Card>
                                 <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 lg:backdrop-blur-md">

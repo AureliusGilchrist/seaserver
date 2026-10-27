@@ -49,30 +49,32 @@ const (
 	SuccessToast = "success-toast"
 
 	// AniList API status events
-	AnilistRateLimited          = "anilist-rate-limited"             // Payload: { retryAfter: number (seconds) }
-	ProgressQueueUpdated        = "progress-queue-updated"           // Payload: { items: [{mediaId, progress, queuedAt}], synced: [{mediaId, progress}] }
-	AnilistAPIOnline            = "anilist-api-online"               // Sent once the client successfully recovers
-	AnilistTokenExpired         = "anilist-token-expired"            // Sent when the profile's AniList token is rejected (401)
+	AnilistRateLimited              = "anilist-rate-limited"                // Payload: { retryAfter: number (seconds) }
+	ProgressQueueUpdated            = "progress-queue-updated"              // Payload: { items: [{mediaId, progress, queuedAt}], synced: [{mediaId, progress}] }
+	AnilistAPIOnline                = "anilist-api-online"                  // Sent once the client successfully recovers
+	AnilistTokenExpired             = "anilist-token-expired"               // Sent when the profile's AniList token is rejected (401)
 	AnilistPlanningSlutTokenExpired = "anilist-planning-slut-token-expired" // Sent when the planning slut AniList token is rejected (401)
 
 	// Kitsu API status events
-	KitsuRateLimited          = "kitsu-rate-limited"             // Payload: { retryAfter: number (seconds) }
-	KitsuAPIOnline            = "kitsu-api-online"               // Sent once the client successfully recovers
-	KitsuTokenExpired         = "kitsu-token-expired"            // Sent when the profile's Kitsu token is rejected (401)
+	KitsuRateLimited              = "kitsu-rate-limited"                // Payload: { retryAfter: number (seconds) }
+	KitsuAPIOnline                = "kitsu-api-online"                  // Sent once the client successfully recovers
+	KitsuTokenExpired             = "kitsu-token-expired"               // Sent when the profile's Kitsu token is rejected (401)
 	KitsuPlanningSlutTokenExpired = "kitsu-planning-slut-token-expired" // Sent when the planning slut Kitsu token is rejected (401)
-	KitsuPlanningSlutTokenUpdated  = "kitsu-planning-slut-token-updated"  // Sent when the admin saves the shared Kitsu token
-	KitsuPlanningSlutTokenDeleted  = "kitsu-planning-slut-token-deleted"  // Sent when the admin unlinks the shared Kitsu token
+	KitsuPlanningSlutTokenUpdated = "kitsu-planning-slut-token-updated" // Sent when the admin saves the shared Kitsu token
+	KitsuPlanningSlutTokenDeleted = "kitsu-planning-slut-token-deleted" // Sent when the admin unlinks the shared Kitsu token
 
 	CheckForUpdates       = "check-for-updates"
 	CheckForAnnouncements = "check-for-announcements"
 
-	RefreshedMangaDownloadData    = "refreshed-manga-download-data"
-	ChapterDownloadQueueUpdated   = "chapter-download-queue-updated"
-	UnmatchedMatchQueueUpdated    = "unmatched-match-queue-updated"
-	TorrentAddQueueUpdated        = "torrent-add-queue-updated"
-	UpdateNoticeAvailable         = "update-notice-available"
-	UpdateBackendLog              = "update-backend-log"
-	UpdateBackendProgress         = "update-backend-progress"
+	RefreshedMangaDownloadData  = "refreshed-manga-download-data"
+	ChapterDownloadQueueUpdated = "chapter-download-queue-updated"
+	UnmatchedMatchQueueUpdated  = "unmatched-match-queue-updated"
+	TorrentAddQueueUpdated      = "torrent-add-queue-updated"
+	UpdateNoticeAvailable       = "update-notice-available"
+	UpdateBackendLog            = "update-backend-log"
+	UpdateBackendProgress       = "update-backend-progress"
+	// UpdateBackendStatus: the cached update status changed (a check finished); clients refetch it.
+	UpdateBackendStatus           = "update-backend-status"
 	ServerGoingDown               = "server-going-down"
 	AnilistOverwriteCompleted     = "anilist-overwrite-completed"
 	MangaChapterMigrationProgress = "manga-chapter-migration-progress"

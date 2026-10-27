@@ -1102,6 +1102,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.GET("/update/notice", h.HandleGetUpdateNotice)
 	v1.POST("/update/backend", h.HandleUpdateBackend, h.RequireProfileAdmin)
 	v1.POST("/update/backend/check", h.HandleCheckBackendUpdate, h.RequireProfileAdmin)
+	v1.GET("/update/backend/status", h.HandleGetBackendUpdateStatus, h.RequireProfileAdmin)
 	v1.POST("/anilist/overwrite", h.HandleOverwriteAnilist, h.RequireProfileAdmin)
 	v1.POST("/anilist/overwrite/preview", h.HandleOverwriteAnilistPreview, h.RequireProfileAdmin)
 	v1.POST("/update/notice/dismiss", h.HandleDismissUpdateNotice)
