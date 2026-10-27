@@ -1080,6 +1080,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Achievements.GET("/showcase", h.HandleGetAchievementShowcase)
 	v1Achievements.POST("/showcase", h.HandleSetAchievementShowcase)
 	v1Achievements.POST("/import", h.HandleImportAchievements)
+	v1Achievements.POST("/reset", h.HandleResetAchievements)
 	v1Achievements.POST("/heartbeat", h.HandleAchievementHeartbeat)
 	v1Achievements.GET("/user/:id", h.HandleGetUserAchievements)
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useGetAchievements } from "@/api/hooks/achievement.hooks"
+import { useGetAchievements, useResetAchievements } from "@/api/hooks/achievement.hooks"
 import {
     Achievement_Category,
     Achievement_CategoryInfo,
@@ -9,13 +9,16 @@ import {
 } from "@/api/generated/types"
 import { AchievementShowcase } from "@/app/(main)/_features/achievement/achievement-showcase"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
+import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { StaticTabs } from "@/components/ui/tabs"
 import React from "react"
-import { LuTrophy, LuLock, LuEye, LuEyeOff } from "react-icons/lu"
+import { LuTrophy, LuLock, LuEye, LuEyeOff, LuRotateCcw } from "react-icons/lu"
+import { toast } from "sonner"
 import { useAnimeTheme } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { formatNumber } from "@/lib/helpers/number"
 
@@ -40,6 +43,17 @@ export default function Page() {
 
     const [selectedCategory, setSelectedCategory] = React.useState<Achievement_Category | "all">("all")
     const [showUnlockedOnly, setShowUnlockedOnly] = React.useState(false)
+
+    const { mutate: resetAchievements, isPending: isResetting } = useResetAchievements()
+    const confirmReset = useConfirmationDialog({
+        title: "Reset achievements?",
+        description: "Every unlock, its progress, your XP and your showcase go back to zero for this profile. What you've watched and read here still counts, so achievements it supports unlock again as you go.",
+        actionText: "Reset",
+        actionIntent: "alert",
+        onConfirm: () => resetAchievements(undefined, {
+            onSuccess: () => toast.success("Achievements reset"),
+        }),
+    })
 
     if (isLoading) {
         return (
@@ -96,10 +110,20 @@ export default function Page() {
                             {formatNumber(unlockedCount)} / {formatNumber(totalCount)} unlocked
                         </p>
                     </div>
-                    <div className="ml-auto">
+                    <div className="ml-auto flex items-center gap-3">
+                        <Button
+                            intent="gray-subtle"
+                            size="sm"
+                            leftIcon={<LuRotateCcw />}
+                            loading={isResetting}
+                            onClick={confirmReset.open}
+                        >
+                            Reset
+                        </Button>
                         <ProgressRing value={totalCount > 0 ? (unlockedCount / totalCount) * 100 : 0} />
                     </div>
                 </div>
+                <ConfirmationDialog {...confirmReset} />
 
                 {/* Showcase */}
                 <AchievementShowcase />

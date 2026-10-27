@@ -212,6 +212,39 @@ func (e *Engine) ResetActivity(profileID uint, kind ActivityKind) {
 	e.activityTracker.Reset(profileID, kind)
 }
 
+// ResetProfile clears a profile's achievements: every unlock, its progress, its XP and the showcase.
+//
+// What the profile did in the app (episodes, chapters, parties) stays in the log, so it keeps
+// counting. The stored list state and everything derived from it go: a list that was misread (another
+// account's, for one) would otherwise be diffed against the real one and logged as changes the user
+// made. The next evaluation takes the lists as they are now, silently, and unlocks only what the
+// real history and lists support.
+func (e *Engine) ResetProfile(profileID uint) error {
+	if e == nil || profileID == 0 {
+		return nil
+	}
+	unlock := e.lockProfile(profileID)
+	defer unlock()
+
+	database, err := e.getDB(profileID)
+	if err != nil {
+		return err
+	}
+	if err := database.ResetAllAchievements(); err != nil {
+		return err
+	}
+	if err := database.ForgetAchievementListState(LogKindStatus, LogKindScore, LogKindComplete); err != nil {
+		return err
+	}
+	_ = database.SetAchievementShowcase(nil)
+	// The re-check has nothing left to check.
+	_ = database.SetAchievementRulesVersion(CurrentRulesVersion)
+	e.ResetActivity(profileID, ActivityKindAnime)
+	e.ResetActivity(profileID, ActivityKindManga)
+	e.logger.Info().Uint("profileID", profileID).Msg("achievement: Reset the profile's achievements")
+	return nil
+}
+
 // ProcessEvent records what happened and schedules an evaluation of the profile.
 //
 // Recording is immediate; evaluation is debounced, so the burst of events one finished episode

@@ -85,6 +85,20 @@ func (db *Database) FavoriteCounts() (anime int, manga int) {
 	return int(a), int(m)
 }
 
+// ForgetAchievementListState drops the stored list state and the log rows of the given kinds, so
+// the next evaluation takes the lists as they are now without reading them as changes.
+func (db *Database) ForgetAchievementListState(kinds ...string) error {
+	return db.gormdb.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("1 = 1").Delete(&models.AchievementListSnapshot{}).Error; err != nil {
+			return err
+		}
+		if len(kinds) == 0 {
+			return nil
+		}
+		return tx.Where("kind IN ?", kinds).Delete(&models.AchievementLogEntry{}).Error
+	})
+}
+
 // UpsertAchievementListSnapshot writes the last-seen state of one entry.
 func (db *Database) UpsertAchievementListSnapshot(row models.AchievementListSnapshot) error {
 	return db.gormdb.Save(&row).Error

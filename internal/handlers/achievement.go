@@ -274,17 +274,9 @@ func (h *Handler) HandleResetAchievements(c echo.Context) error {
 	if profileID == 0 {
 		return h.RespondWithError(c, echo.NewHTTPError(401, "Not authenticated"))
 	}
-	pdb, err := h.App.ProfileDatabaseManager.GetDatabase(profileID)
-	if err != nil {
+	if err := h.App.AchievementEngine.ResetProfile(profileID); err != nil {
 		return h.RespondWithError(c, err)
 	}
-	if err := pdb.ResetAllAchievements(); err != nil {
-		return h.RespondWithError(c, err)
-	}
-	// Also clear any in-flight active-engagement sessions so a stale tracker
-	// state can't immediately repopulate hour progress.
-	h.App.AchievementEngine.ResetActivity(profileID, achievement.ActivityKindAnime)
-	h.App.AchievementEngine.ResetActivity(profileID, achievement.ActivityKindManga)
 	return h.RespondWithData(c, true)
 }
 

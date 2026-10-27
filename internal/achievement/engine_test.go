@@ -133,3 +133,31 @@ func TestSnapshotSeedsThenLogsChanges(t *testing.T) {
 		t.Fatalf("paused-to-done tier I = %+v, want locked with progress 1", a)
 	}
 }
+
+func TestResetProfileClearsUnlocksButKeepsWhatWasWatched(t *testing.T) {
+	e, database := testEngine(t, &anilist.AnimeCollection{})
+	e.ensureInitialized(database)
+	_ = database.AppendAchievementLog(
+		models.AchievementLogEntry{At: time.Now().Unix(), Kind: LogKindEpisode, MediaType: "anime", MediaID: 1, Number: 1, Minutes: 24},
+		models.AchievementLogEntry{At: time.Now().Unix(), Kind: LogKindStatus, MediaType: "manga", MediaID: 2},
+	)
+	_ = database.UpsertAchievementListSnapshot(models.AchievementListSnapshot{MediaType: "manga", MediaID: 2})
+	_ = database.UnlockAchievement("m_manga_collector", 7)
+
+	if err := e.ResetProfile(1); err != nil {
+		t.Fatal(err)
+	}
+	if rows, _ := database.GetUnlockedAchievements(); len(rows) != 0 {
+		t.Errorf("%d unlocks survived the reset", len(rows))
+	}
+	if lp, _ := database.GetLevelProgress(); lp != nil && lp.TotalXP != 0 {
+		t.Errorf("XP after reset = %d", lp.TotalXP)
+	}
+	if snap, _ := database.GetAchievementListSnapshot(); len(snap) != 0 {
+		t.Error("the stored list state survived the reset")
+	}
+	rows, _ := database.GetAchievementLog()
+	if len(rows) != 1 || rows[0].Kind != LogKindEpisode {
+		t.Errorf("log after reset = %+v, want only the watched episode", rows)
+	}
+}
