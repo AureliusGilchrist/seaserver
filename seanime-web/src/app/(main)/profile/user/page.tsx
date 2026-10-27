@@ -4,15 +4,10 @@ import { lookupAvatarFrame, lookupBannerOverlay, lookupProfileLayout } from "@/l
 import { lookupBackground, lookupBorder } from "@/lib/rewards/reward-provider"
 import { profileAvatarBorderStyle, profileHeaderBackgroundStyle, profileNameStyle } from "@/lib/rewards/profile-cosmetics"
 import { useGetUserAchievements } from "@/api/hooks/achievement.hooks"
+import { AchievementsView } from "@/app/(main)/_features/achievement/achievements-view"
 import { useGetMyProfile, useGetUserProfile } from "@/api/hooks/community.hooks"
 import { useGetProfileComments, type ProfileCommentItem } from "@/api/hooks/profile-comments.hooks"
 import { useGetUserProfileStats } from "@/api/hooks/profile-stats.hooks"
-import {
-    Achievement_Category,
-    Achievement_CategoryInfo,
-    Achievement_Definition,
-    Achievement_Entry,
-} from "@/api/generated/types"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
 import { LevelRingAvatar } from "@/app/(main)/_features/level-ring-avatar"
 import { PageWrapper } from "@/components/shared/page-wrapper"
@@ -28,7 +23,7 @@ import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { ActivityTabContent } from "@/app/(main)/_features/profile/activity-tab-content"
 import { LuMessagesSquare } from "react-icons/lu"
 import { ProfileWallpaper } from "@/app/(main)/profile/_components/profile-wallpaper"
-import { ActivityBuffBadge, MyProfilePage, StreakCard, StatsActivityHeatmap, DayOfWeekChart, CategoryPill, AchievementCard, ProgressRing, getLevelColor } from "@/app/(main)/profile/me/page"
+import { ActivityBuffBadge, MyProfilePage, StreakCard, StatsActivityHeatmap, DayOfWeekChart, getLevelColor } from "@/app/(main)/profile/me/page"
 import { getProfileOwnerMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { XPBarFill } from "@/lib/rewards/xp-bar-fill"
 import * as React from "react"
@@ -302,7 +297,7 @@ function UserProfilePage() {
                         <UserStatsTabContent userId={id} xpBarFillCss={xpBarFillCss} />
                     </TabsContent>
                     <TabsContent value="achievements" className="space-y-6 mt-6">
-                        <UserAchievementsTabContent userId={id} />
+                        <UserAchievementsTabContent userId={id} ownerName={profile?.name} />
                     </TabsContent>
                     <TabsContent value="comments" className="space-y-6 mt-6">
                         <ProfileCommentsTabContent userId={id} />
@@ -383,96 +378,15 @@ function UserStatsTabContent({ userId, xpBarFillCss }: { userId: number; xpBarFi
 
 // ─────────────────────── Achievements Tab ───────────────────────
 
-function isDefUnlocked(def: Achievement_Definition, entryMap: Map<string, Achievement_Entry>): boolean {
-    if ((def.MaxTier || 0) === 0) return entryMap.get(`${def.Key}:0`)?.isUnlocked ?? false
-    for (let t = 1; t <= (def.MaxTier || 0); t++) {
-        if (entryMap.get(`${def.Key}:${t}`)?.isUnlocked) return true
-    }
-    return false
-}
-
-function UserAchievementsTabContent({ userId }: { userId: number }) {    const { data, isLoading } = useGetUserAchievements(userId)
-    const [selectedCategory, setSelectedCategory] = React.useState<Achievement_Category | "all">("all")
+function UserAchievementsTabContent({ userId, ownerName }: { userId: number, ownerName?: string }) {
+    const { data, isLoading } = useGetUserAchievements(userId)
 
     if (isLoading) {
         return <div className="flex justify-center py-12"><LoadingSpinner /></div>
     }
-
     if (!data) return null
 
-    const { definitions = [], categories = [], achievements = [], summary } = data
-
-    const entryMap = new Map<string, Achievement_Entry>()
-    for (const a of achievements) {
-        entryMap.set(`${a.key}:${a.tier}`, a)
-    }
-
-    const categoryMap = new Map<Achievement_Category, Achievement_CategoryInfo>()
-    for (const cat of categories) {
-        categoryMap.set(cat.Key, cat)
-    }
-
-    const filteredDefs = selectedCategory === "all"
-        ? definitions
-        : definitions.filter((d: Achievement_Definition) => d.Category === selectedCategory)
-
-    const groupedDefs = new Map<Achievement_Category, Achievement_Definition[]>()
-    for (const def of filteredDefs) {
-        const list = groupedDefs.get(def.Category) || []
-        list.push(def)
-        groupedDefs.set(def.Category, list)
-    }
-
-    const unlockedCount = summary?.unlockedCount ?? 0
-    const totalCount = summary?.totalCount ?? 0
-
-    return (
-        <>
-            <div className="flex items-center gap-4">
-                <LuTrophy className="size-8 text-yellow-500" />
-                <div>
-                    <h2 className="text-xl font-bold">Achievements</h2>
-                    <p className="text-[--muted]">{formatNumber(unlockedCount)} / {formatNumber(totalCount)} unlocked</p>
-                </div>
-                <div className="ml-auto">
-                    <ProgressRing value={totalCount > 0 ? (unlockedCount / totalCount) * 100 : 0} />
-                </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-                <CategoryPill name="All" isActive={selectedCategory === "all"} onClick={() => setSelectedCategory("all")} />
-                {categories.map((cat: Achievement_CategoryInfo) => (
-                    <CategoryPill
-                        key={cat.Key}
-                        name={cat.Name}
-                        svg={cat.IconSVG}
-                        isActive={selectedCategory === cat.Key}
-                        onClick={() => setSelectedCategory(cat.Key)}
-                    />
-                ))}
-            </div>
-
-            {Array.from(groupedDefs.entries()).map(([catKey, defs]) => {
-                const catInfo = categoryMap.get(catKey)
-                return (
-                    <div key={catKey} className="space-y-3">
-                        <div className="flex items-center gap-2">
-                            {catInfo?.IconSVG && (
-                                <span className="size-5 text-[--muted] [&>svg]:size-5" dangerouslySetInnerHTML={{ __html: catInfo.IconSVG }} />
-                            )}
-                            <h3 className="text-lg font-semibold">{catInfo?.Name ?? catKey}</h3>
-                            {catInfo?.Description && <span className="text-sm text-[--muted]">— {catInfo.Description}</span>}
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                            {defs.map((def: Achievement_Definition) => (
-                                <AchievementCard key={def.Key} definition={def} entryMap={entryMap} />
-                            ))}
-                        </div>
-                    </div>
-                )
-            })}
-        </>
-    )
+    return <AchievementsView data={data} variant="profile" ownerName={ownerName} />
 }
 
 // ─────────────────────── Comments Tab ───────────────────────
