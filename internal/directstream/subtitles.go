@@ -12,6 +12,7 @@ import (
 	"seanime/internal/util"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -28,14 +29,58 @@ type SubtitleStream struct {
 
 	cleanupFunc func()
 	stopOnce    sync.Once
+
+	// pos is how far into the file the stream has delivered events (the last event's position),
+	// and stopped is set once it ends; together they say whether a running stream will soon cover
+	// an offset (see coveredByRunningStream).
+	pos     atomic.Int64
+	stopped atomic.Bool
 }
 
 func (s *SubtitleStream) Stop(completed bool) {
 	s.stopOnce.Do(func() {
 		s.logger.Debug().Int64("offset", s.offset).Msg("directstream: Stopping subtitle stream")
 		s.completed = completed
+		s.stopped.Store(true)
 		s.cleanupFunc()
 	})
+}
+
+// runningCoverWindow is how far behind an offset a running stream may be and still be trusted to
+// reach it: it reads far faster than playback, so it gets there long before the player does.
+const runningCoverWindow = 48 * 1024 * 1024
+
+// localSubtitleReadRate caps how fast a subtitle scan reads a local file.
+//
+// A scan reads every byte from its offset to the end of the file, video included, to find the
+// subtitle blocks. Unthrottled, it ran at the disk's full speed (a 7 GB episode in about half a
+// minute) on the same disks the player was reading from. The video's reads queued behind it and
+// playback buffered. 32 MB/s is still several times the bitrate of even a remux, so the subtitles
+// stay far ahead of playback, and the disk keeps room for the video.
+const localSubtitleReadRate = 32 * 1024 * 1024
+
+// throttledReader paces reads to an average rate.
+type throttledReader struct {
+	io.ReadSeekCloser
+	rate    int64
+	started time.Time
+	read    int64
+}
+
+func newThrottledReader(r io.ReadSeekCloser, rate int64) *throttledReader {
+	return &throttledReader{ReadSeekCloser: r, rate: rate, started: time.Now()}
+}
+
+func (t *throttledReader) Read(p []byte) (int, error) {
+	n, err := t.ReadSeekCloser.Read(p)
+	if n > 0 {
+		t.read += int64(n)
+		due := t.started.Add(time.Duration(float64(t.read) / float64(t.rate) * float64(time.Second)))
+		if wait := time.Until(due); wait > 0 {
+			time.Sleep(wait)
+		}
+	}
+	return n, err
 }
 
 // StartSubtitleStreamP starts a subtitle stream for the given stream at the given offset with a specified backoff bytes.
@@ -76,8 +121,23 @@ func (s *BaseStream) StartSubtitleStreamP(stream Stream, playbackCtx context.Con
 	})
 
 	if !shouldContinue {
+		_ = newReader.Close()
 		s.logger.Debug().Int64("offset", offset).Msg("directstream: Skipping subtitle stream, range already fulfilled")
 		return
+	}
+
+	// The player makes a new range request every so often while it plays, and each one used to
+	// start another scan from that point to the end of the file — several full-speed reads of the
+	// same file at once, which is what made playback buffer now and then. A stream that is already
+	// running from before this offset, and is nearly there, will cover it.
+	if s.coveredByRunningStream(offset) {
+		_ = newReader.Close()
+		s.logger.Trace().Int64("offset", offset).Msg("directstream: Skipping subtitle stream, a running stream covers it")
+		return
+	}
+
+	if stream.Type() == nativeplayer.StreamTypeFile {
+		newReader = newThrottledReader(newReader, localSubtitleReadRate)
 	}
 
 	ctx, subtitleCtxCancel := context.WithCancel(playbackCtx)
@@ -236,6 +296,7 @@ func (s *BaseStream) StartSubtitleStreamP(stream Stream, playbackCtx context.Con
 			lastSubtitleEventRWMutex.Lock()
 			lastSubtitleEvent = eventBatch[len(eventBatch)-1]
 			lastSubtitleEventRWMutex.Unlock()
+			subtitleStream.pos.Store(lastSubtitleEvent.HeadPos)
 
 			eventBatch = eventBatch[:0]
 
@@ -324,6 +385,24 @@ func (s *BaseStream) StartSubtitleStreamP(stream Stream, playbackCtx context.Con
 	//		return
 	//	}
 	//}
+}
+
+// coveredByRunningStream reports whether a subtitle stream still running started at or before
+// offset and has already delivered events up to within runningCoverWindow of it.
+func (s *BaseStream) coveredByRunningStream(offset int64) bool {
+	covered := false
+	s.activeSubtitleStreams.Range(func(_ string, v *SubtitleStream) bool {
+		if v.stopped.Load() || v.offset > offset {
+			return true
+		}
+		reached := max(v.pos.Load(), v.offset)
+		if reached >= offset-runningCoverWindow {
+			covered = true
+			return false
+		}
+		return true
+	})
+	return covered
 }
 
 // StartSubtitleStream starts a subtitle stream for the given stream at the given offset.
