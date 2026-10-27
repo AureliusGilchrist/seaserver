@@ -281,7 +281,8 @@ export const BADGE_PRESETS: UIPreset[] = [
     { id: "badge-square",     name: "Square",        description: "Sharp-cornered badges.",                   icon: "⬛", cssVars: {}, previewCss: "background:#374151;border-radius:0", requiredLevel: 2 },
     { id: "badge-outline",    name: "Outlined",      description: "Transparent badges with a rim.",           icon: "⬜", cssVars: {}, previewCss: "background:transparent;border:1px solid #9ca3af", requiredLevel: 4 },
     { id: "badge-glass",      name: "Glass",         description: "Frosted badges.",                          icon: "🔷", cssVars: {}, previewCss: "background:rgba(255,255,255,0.1);backdrop-filter:blur(6px)", requiredLevel: 6 },
-    { id: "badge-caps",       name: "Small Caps",    description: "Uppercase, spaced badge text.",            icon: "🔠", cssVars: {}, previewCss: "background:#374151", requiredLevel: 8 },
+    { id: "badge-dark-glass", name: "Dark Glass",    description: "Frosted near-black badges, card corners included.", icon: "🖤", cssVars: {}, previewCss: "background:rgba(9,9,13,0.6);backdrop-filter:blur(6px);box-shadow:inset 0 0 0 1px rgba(255,255,255,0.12)", requiredLevel: 6 },
+    { id: "badge-caps",      name: "Small Caps",    description: "Uppercase, spaced badge text.",            icon: "🔠", cssVars: {}, previewCss: "background:#374151", requiredLevel: 8 },
 ]
 
 // ─── 18. Idle Dim ────────────────────────────────────────────────────────────
