@@ -3,6 +3,7 @@
 import { CharacterMediaNode, CharacterVoiceActor, useGetAnilistCharacterDetails } from "@/api/hooks/anilist.hooks"
 import { useGetCharacterFavorites, useToggleCharacterFavorite } from "@/api/hooks/favorites.hooks"
 import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-entry-card"
+import { MediaPageHeader, MediaPageHeaderDetailsContainer } from "@/app/(main)/_features/media/_components/media-page-header-components"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { SeaLink } from "@/components/shared/sea-link"
 import { cn } from "@/components/ui/core/styling"
@@ -200,83 +201,82 @@ export default function Page() {
     ].filter(Boolean) as any
 
     return (
-        <PageWrapper className="relative pb-16">
-            {/* Hero */}
-            <div className="relative h-[16rem] overflow-hidden sm:h-[20rem] lg:h-[22rem]">
-                <div
-                    aria-hidden
-                    className={cn("absolute inset-0 scale-105 bg-cover bg-center", !heroImage && "blur-2xl opacity-60")}
-                    style={{ backgroundImage: `url(${heroImage || portrait})`, backgroundPosition: heroImage ? "center 30%" : "center top" }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[--background] via-[--background]/70 to-black/20" />
-                <div className="absolute inset-0 bg-gradient-to-r from-[--background]/80 via-transparent to-transparent" />
-                <button
-                    onClick={() => router.back()}
-                    className="absolute left-4 top-4 z-[2] flex size-10 items-center justify-center rounded-full bg-black/40 text-white/90 backdrop-blur transition hover:bg-black/60 sm:left-8"
-                    aria-label="Back"
-                >
-                    <LuArrowLeft className="size-5" />
-                </button>
+        <div data-character-page>
+            {/* The same hero as the anime and manga pages: full-width banner, black fades, and a
+                fade as you scroll. It sits above the global effects layer (z-[5]), the content at z-[8]. */}
+            <div className="relative z-[6]">
+                <MediaPageHeader backgroundImage={heroImage ?? undefined} coverImage={portrait ?? undefined}>
+                    <MediaPageHeaderDetailsContainer>
+                        <button
+                            onClick={() => router.back()}
+                            className="flex size-10 items-center justify-center rounded-full bg-black/40 text-white/90 backdrop-blur transition hover:bg-black/60"
+                            aria-label="Back"
+                        >
+                            <LuArrowLeft className="size-5" />
+                        </button>
+                        <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-end">
+                            {portrait && (
+                                <div className="w-40 shrink-0 animate-in fade-in zoom-in-95 duration-500 sm:w-52">
+                                    <div className="aspect-[2/3] overflow-hidden rounded-2xl bg-gray-900 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)] ring-1 ring-white/15">
+                                        <img src={portrait} alt={data.name?.full ?? ""} className="size-full object-cover" />
+                                    </div>
+                                </div>
+                            )}
+                            <div className="min-w-0 flex-1 space-y-3 pb-1 text-center animate-in fade-in slide-in-from-bottom-3 duration-500 sm:text-left">
+                                <div>
+                                    <h1 className="text-3xl font-bold leading-tight tracking-tight drop-shadow sm:text-4xl lg:text-5xl">{data.name?.full}</h1>
+                                    {data.name?.native && <p className="mt-1 text-lg text-white/70">{data.name.native}</p>}
+                                </div>
+                                {(altNames.length > 0 || spoilerNames.length > 0) && (
+                                    <div className="flex flex-wrap justify-center gap-1.5 sm:justify-start">
+                                        {altNames.map(alt => (
+                                            <span key={alt} className="rounded-full bg-white/[0.07] px-2.5 py-0.5 text-xs text-white/80 ring-1 ring-white/10">{alt}</span>
+                                        ))}
+                                        {spoilerNames.map(alt => (
+                                            <span key={alt} className="rounded-full bg-white/[0.07] px-2.5 py-0.5 text-xs text-white/80 ring-1 ring-white/10">
+                                                <Spoiler>{alt}</Spoiler>
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                                <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                                    <Tooltip
+                                        trigger={
+                                            <button
+                                                disabled={isTogglingFav || !id}
+                                                onClick={() => id && toggleFav({ characterId: id })}
+                                                className={cn(
+                                                    "inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition active:scale-95",
+                                                    isFav ? "bg-red-500/20 text-red-200 ring-1 ring-red-400/40" : "bg-white/[0.08] text-white ring-1 ring-white/10 hover:bg-white/[0.12]",
+                                                )}
+                                            >
+                                                {isFav ? <AiFillHeart className="size-4 text-red-400" /> : <AiOutlineHeart className="size-4" />}
+                                                {isFav ? "Favourited" : "Favourite"}
+                                            </button>
+                                        }
+                                    >
+                                        {isFav ? "Remove from favorites" : "Add to favorites"}
+                                    </Tooltip>
+                                    {data.siteUrl && (
+                                        <a
+                                            href={data.siteUrl}
+                                            target="_blank"
+                                            rel="noreferrer noopener"
+                                            className="inline-flex items-center gap-2 rounded-full bg-white/[0.08] px-4 py-1.5 text-sm text-white/90 ring-1 ring-white/10 transition hover:bg-white/[0.12]"
+                                        >
+                                            AniList <LuExternalLink className="size-3.5" />
+                                        </a>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </MediaPageHeaderDetailsContainer>
+                </MediaPageHeader>
             </div>
 
-            <div className="relative z-[2] mx-auto -mt-36 max-w-[110rem] px-4 sm:-mt-44 sm:px-8">
-                <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-end">
-                    {portrait && (
-                        <div className="w-40 shrink-0 animate-in fade-in zoom-in-95 duration-500 sm:w-52">
-                            <div className="aspect-[2/3] overflow-hidden rounded-2xl bg-gray-900 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)] ring-1 ring-white/15">
-                                <img src={portrait} alt={data.name?.full ?? ""} className="size-full object-cover" />
-                            </div>
-                        </div>
-                    )}
-                    <div className="min-w-0 flex-1 space-y-3 pb-1 text-center animate-in fade-in slide-in-from-bottom-3 duration-500 sm:text-left">
-                        <div>
-                            <h1 className="text-3xl font-bold leading-tight tracking-tight drop-shadow sm:text-4xl lg:text-5xl">{data.name?.full}</h1>
-                            {data.name?.native && <p className="mt-1 text-lg text-white/70">{data.name.native}</p>}
-                        </div>
-                        {(altNames.length > 0 || spoilerNames.length > 0) && (
-                            <div className="flex flex-wrap justify-center gap-1.5 sm:justify-start">
-                                {altNames.map(alt => (
-                                    <span key={alt} className="rounded-full bg-white/[0.07] px-2.5 py-0.5 text-xs text-white/80 ring-1 ring-white/10">{alt}</span>
-                                ))}
-                                {spoilerNames.map(alt => (
-                                    <span key={alt} className="rounded-full bg-white/[0.07] px-2.5 py-0.5 text-xs text-white/80 ring-1 ring-white/10">
-                                        <Spoiler>{alt}</Spoiler>
-                                    </span>
-                                ))}
-                            </div>
-                        )}
-                        <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-                            <Tooltip
-                                trigger={
-                                    <button
-                                        disabled={isTogglingFav || !id}
-                                        onClick={() => id && toggleFav({ characterId: id })}
-                                        className={cn(
-                                            "inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition active:scale-95",
-                                            isFav ? "bg-red-500/20 text-red-200 ring-1 ring-red-400/40" : "bg-white/[0.08] text-white ring-1 ring-white/10 hover:bg-white/[0.12]",
-                                        )}
-                                    >
-                                        {isFav ? <AiFillHeart className="size-4 text-red-400" /> : <AiOutlineHeart className="size-4" />}
-                                        {isFav ? "Favourited" : "Favourite"}
-                                    </button>
-                                }
-                            >
-                                {isFav ? "Remove from favorites" : "Add to favorites"}
-                            </Tooltip>
-                            {data.siteUrl && (
-                                <a
-                                    href={data.siteUrl}
-                                    target="_blank"
-                                    rel="noreferrer noopener"
-                                    className="inline-flex items-center gap-2 rounded-full bg-white/[0.08] px-4 py-1.5 text-sm text-white/90 ring-1 ring-white/10 transition hover:bg-white/[0.12]"
-                                >
-                                    AniList <LuExternalLink className="size-3.5" />
-                                </a>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
+            <div className="relative z-[8] px-4 md:px-8">
+            <PageWrapper className="relative pb-16">
+            <div className="mx-auto max-w-[110rem]">
                 {/* Facts */}
                 {stats.length > 0 && (
                     <div className="mt-8 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
@@ -432,7 +432,9 @@ export default function Page() {
                     </section>
                 )}
             </div>
-        </PageWrapper>
+            </PageWrapper>
+            </div>
+        </div>
     )
 }
 

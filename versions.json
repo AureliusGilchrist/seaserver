@@ -1,6 +1,6 @@
 {
     "$comment": "Single source of truth for the version. Edit ONLY this file (or use the flags): sync-versions.js propagates \"version\" to seanime-web, seanime-denshi, seanime-denshi-mobile, seanime-denshi-mobile-android and internal/constants/constants.go. Scheme X.Y.Z-N: --bump-test (every test build) -> -N+1; --release-patch (update confirmed working) -> Z+1, -0; --release-minor (huge update confirmed working) -> Y+1, Z=0, -0. X/Y/Z past 15 carry into the number before them. See CLAUDE.md.",
-    "version": "5.2.1-20",
+    "version": "5.2.1-21",
     "seaserver": {
         "codename": "Deus Ex Aeternae",
         "source": "internal/constants/constants.go (Version, VersionName)"
