@@ -289,7 +289,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	// in OptionalAuthMiddleware so the client can check before it has a session)
 	v1.POST("/mobile-frontend/publish", h.HandlePublishMobileFrontend)
 
-	imageProxy := &util.ImageProxy{}
+	imageProxy := &util.ImageProxy{CacheDir: filepath.Join(h.App.Config.Cache.Dir, "image-proxy")}
 	v1.GET("/image-proxy", imageProxy.ProxyImage)
 
 	// Unauthenticated on purpose: it says nothing about the user, and the banner it drives has to

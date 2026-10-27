@@ -53,7 +53,7 @@ import { GiTrophyCup, GiPalette } from "react-icons/gi"
 import { FiLogIn, FiSearch } from "react-icons/fi"
 import { HiOutlineServerStack } from "react-icons/hi2"
 import { IoCloudOfflineOutline, IoHomeOutline } from "react-icons/io5"
-import { LuBook, LuBookOpen, LuBell, LuCalendar, LuCirclePlay, LuClipboardCheck, LuCompass, LuDownload, LuFlag, LuFolderSearch, LuGlobe, LuGitFork, LuHardDriveDownload, LuLayers, LuListVideo, LuLayoutDashboard, LuMonitorPlay, LuNewspaper, LuRefreshCw, LuRss, LuSettings, LuShieldCheck, LuTv, LuUserRound, LuUsers } from "react-icons/lu"
+import { LuBook, LuBookOpen, LuBell, LuCalendar, LuCirclePlay, LuClipboardCheck, LuCompass, LuDownload, LuFlag, LuFolderSearch, LuGlobe, LuGitFork, LuHardDriveDownload, LuLayers, LuLayoutDashboard, LuMonitorPlay, LuNewspaper, LuRefreshCw, LuRss, LuSettings, LuShieldCheck, LuTv, LuUserRound, LuUsers } from "react-icons/lu"
 import { SiAnilist } from "react-icons/si"
 import { MdBackspace, MdOutlineConnectWithoutContact } from "react-icons/md"
 import { RiListCheck3 } from "react-icons/ri"
@@ -223,23 +223,13 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
     // is a play button, the AniList group's is the AniList logo — and they fold: pressing one puts
     // its entries away, in both modes, and the folds are remembered.
     //
-    // Within the groups, the occasional pages fold into one submenu row of their own — Planning,
+    // Within the groups, the occasional pages fold into one submenu row of their own —
     // Download tools, You — so a group is two or three rows however many pages it holds. The
     // per-page badges ride on the submenu parent as their sum.
     // The admin, or anyone on a single-user install (same rule as the Settings entry below).
     const isAdminOrSingleUser = !serverStatus?.profilesEnabled || !serverStatus?.profiles?.length || !!serverStatus?.currentProfile?.isAdmin
 
     const items = React.useMemo(() => {
-        const planningItems = [
-            {
-                id: "to-watch",
-                iconType: LuListVideo,
-                name: "Todo List",
-                href: "/to-watch",
-                isCurrent: pathname === "/to-watch",
-            },
-        ]
-
         const downloadToolItems = [
             {
                 id: "enqueue-future",
@@ -349,13 +339,14 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
             href: "/news",
             isCurrent: pathname === "/news",
         },
+        // Todo List sits in the Watch group directly: a "Planning" fold with one entry in it was
+        // a click for nothing.
         {
-            id: "planning",
+            id: "to-watch",
             iconType: LuClipboardCheck,
-            name: "Planning",
-            isCurrent: planningItems.some(item => item.isCurrent),
-            subContentOpen: planningItems.some(item => item.isCurrent),
-            subContent: <SidebarSubMenu items={planningItems} collapsed={isCollapsed} />,
+            name: "Todo List",
+            href: "/to-watch",
+            isCurrent: pathname === "/to-watch",
         },
 
         // ── AniList ──────────────────────────────────────────────────────

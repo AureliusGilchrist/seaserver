@@ -307,7 +307,9 @@ function setupChromiumFlags() {
     app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required")
     app.commandLine.appendSwitch("force_high_performance_gpu")
 
-    app.commandLine.appendSwitch("disk-cache-size", (400 * 1000 * 1000).toString())
+    // 2 GB: a few thousand anime and manga covers stay cached between sessions. At 400 MB the
+    // cache was full and Chromium kept evicting covers, so they downloaded again on every visit.
+    app.commandLine.appendSwitch("disk-cache-size", (2000 * 1000 * 1000).toString())
     app.commandLine.appendSwitch("force-effective-connection-type", "4g")
 
     // Disable features that can interfere with playback

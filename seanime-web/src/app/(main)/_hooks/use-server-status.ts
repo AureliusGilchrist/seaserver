@@ -87,6 +87,11 @@ export function useServerPassword() {
     }
 }
 
+// Image-proxy tokens are reused for most of their 24-hour life instead of minted per page. A fresh
+// token makes every proxied cover a new URL, so the browser could never serve one from its cache.
+const IMAGE_PROXY_TOKEN_REUSE_MS = 20 * 60 * 60 * 1000
+const imageProxyTokens = new Map<string, { value: string, at: number }>()
+
 export function useServerHMACAuth() {
     const serverStatus = useServerStatus()
     const [password] = useAtom(serverAuthTokenAtom)
@@ -96,9 +101,16 @@ export function useServerHMACAuth() {
         getHMACTokenQueryParam: async (endpoint: string, symbol?: string): Promise<string> => {
             if (!serverStatus?.serverHasPassword || !password) return ""
 
+            const reuseKey = endpoint === "/api/v1/image-proxy" ? `${password}|${symbol ?? ""}` : null
+            if (reuseKey) {
+                const cached = imageProxyTokens.get(reuseKey)
+                if (cached && Date.now() - cached.at < IMAGE_PROXY_TOKEN_REUSE_MS) return cached.value
+            }
             try {
                 const hmacAuth = createServerPasswordHMACAuth(password)
-                return await hmacAuth.generateQueryParam(endpoint, symbol)
+                const value = await hmacAuth.generateQueryParam(endpoint, symbol)
+                if (reuseKey && value) imageProxyTokens.set(reuseKey, { value, at: Date.now() })
+                return value
             }
             catch (error) {
                 console.error("Failed to generate HMAC token:", error)

@@ -32,6 +32,22 @@ function isAnilistUrl(url: string | undefined): boolean {
 // Sliding window: when the server emits a refreshed profile token in the response header,
 // update the in-memory atom and localStorage so the user stays logged in.
 // Also detect expired profile sessions and clear the stale token.
+/**
+ * The profile token a request was sent with.
+ *
+ * After a backend update every token from the previous run is answered "expired". Requests sent
+ * with the old token are still in flight (or are polls already queued) when you sign in again, and
+ * their answers arrive afterwards: clearing the session on those cleared the token you had just
+ * signed in with, and the app went back to the sign-in screen, over and over, until Denshi was
+ * restarted. Only an answer about the token in use now may end the session.
+ */
+function sentProfileToken(config: any): string | undefined {
+    const headers = config?.headers
+    if (!headers) return undefined
+    const v = typeof headers.get === "function" ? headers.get("X-Seanime-Profile-Token") : headers["X-Seanime-Profile-Token"]
+    return typeof v === "string" && v ? v : undefined
+}
+
 axios.interceptors.response.use(response => {
     // Clear outage flag on any successful AniList response
     if (isAnilistUrl(response.config?.url)) {
@@ -56,7 +72,7 @@ axios.interceptors.response.use(response => {
     const expired = response.headers["x-seanime-profile-expired"]
     if (expired === "true") {
         const currentToken = store.get(profileSessionTokenAtom)
-        if (currentToken) {
+        if (currentToken && sentProfileToken(response.config) === currentToken) {
             store.set(profileSessionTokenAtom, undefined)
             // Take the app to the login screen by itself. On the desktop client there is no address
             // bar and no F5, so a message telling you to sign in again with nothing acting on it
@@ -85,8 +101,12 @@ axios.interceptors.response.use(undefined, (error: AxiosError) => {
         const message = `${data?.error ?? ""} ${data?.message ?? ""}`.toLowerCase()
         const expired = error.response.headers?.["x-seanime-profile-expired"] === "true"
 
-        if (expired || message.includes("profile session")) {
-            if (store.get(profileSessionTokenAtom)) {
+        const current = store.get(profileSessionTokenAtom)
+        const sent = sentProfileToken(error.config)
+        // An answer to a request sent with an older token says nothing about the current one.
+        const aboutCurrentSession = !current || !sent || sent === current
+        if ((expired || message.includes("profile session")) && aboutCurrentSession) {
+            if (current) {
                 store.set(profileSessionTokenAtom, undefined)
             }
             store.set(profileSessionEndedAtom, true)

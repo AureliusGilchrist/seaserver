@@ -1,6 +1,7 @@
 "use client"
 
 import { lookupAvatarFrame, lookupBannerOverlay, lookupProfileLayout } from "@/lib/rewards/profile-style-definitions"
+import { EasterEggSecrets } from "@/app/(main)/profile/_components/easter-egg-secrets"
 import { profileAvatarBorderStyle, profileHeaderBackgroundStyle, profileNameStyle } from "@/lib/rewards/profile-cosmetics"
 import { useGetAchievements, useResetAchievements } from "@/api/hooks/achievement.hooks"
 import { AchievementsView } from "@/app/(main)/_features/achievement/achievements-view"
@@ -61,8 +62,6 @@ import { useRewards } from "@/lib/rewards/reward-provider"
 import { XPBarFill } from "@/lib/rewards/xp-bar-fill"
 import { __isDesktop__ } from "@/types/constants"
 import { LuGift, LuImage } from "react-icons/lu"
-import { useEasterEggs } from "@/lib/easter-eggs/easter-egg-engine"
-import { EASTER_EGG_DEFINITIONS } from "@/lib/easter-eggs/easter-egg-definitions"
 import * as React from "react"
 import { profileAccentStyle } from "@/lib/rewards/profile-accent"
 import {
@@ -417,73 +416,6 @@ export function MyProfilePage() {
 }
 
 // ─────────────────────── Activity Buff Badge ───────────────────────
-
-// ─────────────────────── Easter Egg Secrets ────────────────────────
-
-function EasterEggSecrets() {
-    const { discovered } = useEasterEggs()
-    const total = EASTER_EGG_DEFINITIONS.length
-    const found = EASTER_EGG_DEFINITIONS.filter(e => discovered.has(e.id))
-    const missing = EASTER_EGG_DEFINITIONS.filter(e => !discovered.has(e.id))
-
-    return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-white">Secret Discoveries</h3>
-                <span className="text-sm text-gray-400">{formatNumber(found.length)} / {formatNumber(total)} found</span>
-            </div>
-            {/* Progress bar */}
-            <div className="h-2 w-full overflow-hidden rounded-full bg-gray-800">
-                <div
-                    className="h-2 rounded-full bg-gradient-to-r from-yellow-500 to-amber-400 transition-all duration-500"
-                    style={{ width: `${(found.length / total) * 100}%` }}
-                />
-            </div>
-            {/* Found eggs */}
-            {found.length > 0 && (
-                <div className="space-y-2">
-                    <h4 className="text-sm font-semibold text-yellow-400 uppercase tracking-wider">Found</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {found.map(egg => (
-                            <div
-                                key={egg.id}
-                                className="flex items-start gap-3 rounded-lg border border-yellow-500/20 bg-gray-900/60 p-3"
-                            >
-                                <span className="text-2xl">{egg.icon}</span>
-                                <div>
-                                    <p className="font-semibold text-white text-sm">{egg.name}</p>
-                                    <p className="text-xs text-gray-400">{egg.description}</p>
-                                    <p className="text-xs text-yellow-300 font-semibold mt-1">+{egg.xp} XP</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-            {/* Undiscovered eggs — shown as redacted */}
-            {missing.length > 0 && (
-                <div className="space-y-2">
-                    <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Undiscovered</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {missing.map(egg => (
-                            <div
-                                key={egg.id}
-                                className="flex items-start gap-3 rounded-lg border border-gray-700/40 bg-gray-900/30 p-3 opacity-50"
-                            >
-                                <span className="text-2xl grayscale">🥚</span>
-                                <div>
-                                    <p className="font-semibold text-gray-500 text-sm">???</p>
-                                    <p className="text-xs text-gray-600 italic">{egg.hint}</p>
-                                    <p className="text-xs text-gray-600 font-semibold mt-1">+{egg.xp} XP</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-        </div>
-    )
-}
 
 export function ActivityBuffBadge({ multiplier }: { multiplier: number }) {
     const isMax = multiplier >= 2.0
