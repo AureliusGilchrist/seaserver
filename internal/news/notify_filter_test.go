@@ -111,3 +111,37 @@ func TestNotifyFilterListsWithoutCollection(t *testing.T) {
 		t.Fatalf("lists mode with no collection should match nothing")
 	}
 }
+
+// A manga list runs to thousands of titles, so it only notifies when asked for; anime always can.
+func TestNotifyFilterListMedia(t *testing.T) {
+	boolp := func(b bool) *bool { return &b }
+	planning := anilist.MediaListStatusPlanning
+	anime := &anilist.AnimeCollection{MediaListCollection: &anilist.AnimeCollection_MediaListCollection{
+		Lists: []*anilist.AnimeCollection_MediaListCollection_Lists{{Status: &planning, Entries: []*anilist.AnimeCollection_MediaListCollection_Lists_Entries{
+			{Media: &anilist.BaseAnime{Title: &anilist.BaseAnime_Title{Romaji: strp("Frieren")}}},
+		}}},
+	}}
+	manga := &anilist.MangaCollection{MediaListCollection: &anilist.MangaCollection_MediaListCollection{
+		Lists: []*anilist.MangaCollection_MediaListCollection_Lists{{Status: &planning, Entries: []*anilist.MangaCollection_MediaListCollection_Lists_Entries{
+			{Media: &anilist.BaseManga{Title: &anilist.BaseManga_Title{Romaji: strp("Getsuyoubi no Tawawa")}}},
+		}}},
+	}}
+	build := func(ovr *db.ClientSettingsOverrides) *NotifyFilter {
+		ovr.NewsNotifyMode = strp(NotifyModeLists)
+		return NewNotifyFilter(ovr, func() *anilist.AnimeCollection { return anime }, func() *anilist.MangaCollection { return manga })
+	}
+	animeNews, mangaNews := Item{Title: "Frieren news"}, Item{Title: "[DISC] Getsuyoubi no Tawawa - Ep. 610"}
+
+	f := build(&db.ClientSettingsOverrides{})
+	if !f.Matches(animeNews) || f.Matches(mangaNews) {
+		t.Fatalf("by default only the anime list should notify")
+	}
+	f = build(&db.ClientSettingsOverrides{NewsNotifyListManga: boolp(true)})
+	if !f.Matches(animeNews) || !f.Matches(mangaNews) {
+		t.Fatalf("manga turned on should add the manga list")
+	}
+	f = build(&db.ClientSettingsOverrides{NewsNotifyListAnime: boolp(false), NewsNotifyListManga: boolp(true)})
+	if f.Matches(animeNews) || !f.Matches(mangaNews) {
+		t.Fatalf("anime turned off should drop the anime list")
+	}
+}

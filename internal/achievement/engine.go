@@ -25,7 +25,10 @@ const CurrentXPVersion = 2
 // Version 1: the rule registry replaced the category evaluators, under which "streaks" were
 // lifetime episode counts, Score Sniper fired on any rating, and averages compared a 100-point
 // score with 10-point thresholds.
-const CurrentRulesVersion = 1
+//
+// Version 2: a profile relinked to a new AniList account was measured against the old account's
+// stored lists, so it unlocked list-size achievements it never had.
+const CurrentRulesVersion = 2
 
 // AchievementEvent is carried into the engine from handlers.
 // All fields are optional except ProfileID and Trigger.

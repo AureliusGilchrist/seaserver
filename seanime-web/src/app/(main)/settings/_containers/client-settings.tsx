@@ -15,7 +15,7 @@ import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { __isElectronDesktop__ } from "@/types/constants"
 import { useAtom, useAtomValue } from "jotai"
 import React from "react"
-import { LuBookmarkCheck, LuDownload, LuEye, LuListChecks, LuMessageCircle, LuMonitorPlay, LuNewspaper, LuPlay, LuRotateCcw, LuRss, LuSearch, LuSettings2, LuTags, LuUserCog, LuX } from "react-icons/lu"
+import { LuBookmarkCheck, LuBookOpen, LuDownload, LuEye, LuListChecks, LuMessageCircle, LuMonitorPlay, LuNewspaper, LuPlay, LuRotateCcw, LuRss, LuSearch, LuSettings2, LuTags, LuTv, LuUserCog, LuX } from "react-icons/lu"
 import { toast } from "sonner"
 
 type ClientSettingsProps = {}
@@ -286,23 +286,42 @@ function NewsNotifyModePicker({ value, onChange, disabled }: { value: "all" | "l
     )
 }
 
-type NewsListKey = "newsNotifyListCurrent" | "newsNotifyListPlanning" | "newsNotifyListCompleted"
+type NewsListKey =
+    "newsNotifyListCurrent"
+    | "newsNotifyListPlanning"
+    | "newsNotifyListCompleted"
+    | "newsNotifyListAnime"
+    | "newsNotifyListManga"
 
-const NEWS_LISTS: { key: NewsListKey, title: string, description: string, icon: React.ElementType }[] = [
+type NewsListOption = { key: NewsListKey, title: string, description: string, icon: React.ElementType }
+
+const NEWS_LISTS: NewsListOption[] = [
     { key: "newsNotifyListCurrent", title: "Currently watching", description: "Watching, reading or rewatching", icon: LuPlay },
     { key: "newsNotifyListPlanning", title: "Planning to watch", description: "On your Planning list", icon: LuBookmarkCheck },
     { key: "newsNotifyListCompleted", title: "Completed", description: "Already finished", icon: LuListChecks },
 ]
 
-function NewsNotifyListPicker({ values, onToggle }: { values: Record<NewsListKey, boolean>, onToggle: (key: NewsListKey, v: boolean) => void }) {
-    const noneOn = NEWS_LISTS.every(l => !values[l.key])
+// A manga list can run to thousands of titles, and every chapter post names one, so it is opt-in.
+const NEWS_MEDIA: NewsListOption[] = [
+    { key: "newsNotifyListAnime", title: "Anime", description: "Your anime list", icon: LuTv },
+    { key: "newsNotifyListManga", title: "Manga", description: "Your manga list", icon: LuBookOpen },
+]
+
+function NewsNotifyListPicker({ heading, emptyText, options, values, onToggle }: {
+    heading: string,
+    emptyText: string,
+    options: NewsListOption[],
+    values: Partial<Record<NewsListKey, boolean>>,
+    onToggle: (key: NewsListKey, v: boolean) => void,
+}) {
+    const noneOn = options.every(l => !values[l.key])
     return (
         <div className="space-y-2">
-            <p className="text-xs font-medium uppercase tracking-wider text-[--muted]">Lists that notify me</p>
-            <div role="group" aria-label="Lists that notify you" className="grid gap-2 sm:grid-cols-3">
-                {NEWS_LISTS.map(l => {
+            <p className="text-xs font-medium uppercase tracking-wider text-[--muted]">{heading}</p>
+            <div role="group" aria-label={heading} className={cn("grid gap-2", options.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-3")}>
+                {options.map(l => {
                     const Icon = l.icon
-                    const on = values[l.key]
+                    const on = !!values[l.key]
                     return (
                         <button
                             key={l.key}
@@ -345,7 +364,7 @@ function NewsNotifyListPicker({ values, onToggle }: { values: Record<NewsListKey
             </div>
             {noneOn && (
                 <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-200 ring-1 ring-amber-500/25">
-                    No lists picked, so no headline will notify you. Tick at least one.
+                    {emptyText}
                 </p>
             )}
         </div>
@@ -629,7 +648,7 @@ export function ClientSettings(props: ClientSettingsProps) {
                                 moreHelp="The server checks your feeds every 15 minutes."
                             />
                         </SettingRow>
-                        <SettingRow settingKey={["newsNotifyMode", "newsNotifyKeywords", "newsNotifyListCurrent", "newsNotifyListPlanning", "newsNotifyListCompleted"]}>
+                        <SettingRow settingKey={["newsNotifyMode", "newsNotifyKeywords", "newsNotifyListCurrent", "newsNotifyListPlanning", "newsNotifyListCompleted", "newsNotifyListAnime", "newsNotifyListManga"]}>
                             <div className="space-y-3">
                                 <div>
                                     <p className="text-sm font-medium">Which news notifies me</p>
@@ -644,14 +663,29 @@ export function ClientSettings(props: ClientSettingsProps) {
                                     <KeywordEditor value={personal.newsNotifyKeywords} onChange={v => handleSet("newsNotifyKeywords", v)} />
                                 )}
                                 {personal.newsNotifyNewEntries && personal.newsNotifyMode === "lists" && (
-                                    <NewsNotifyListPicker
-                                        values={{
-                                            newsNotifyListCurrent: personal.newsNotifyListCurrent,
-                                            newsNotifyListPlanning: personal.newsNotifyListPlanning,
-                                            newsNotifyListCompleted: personal.newsNotifyListCompleted,
-                                        }}
-                                        onToggle={(key, v) => handleSet(key, v)}
-                                    />
+                                    <>
+                                        <NewsNotifyListPicker
+                                            heading="Lists that notify me"
+                                            emptyText="No lists picked, so no headline will notify you. Tick at least one."
+                                            options={NEWS_LISTS}
+                                            values={{
+                                                newsNotifyListCurrent: personal.newsNotifyListCurrent,
+                                                newsNotifyListPlanning: personal.newsNotifyListPlanning,
+                                                newsNotifyListCompleted: personal.newsNotifyListCompleted,
+                                            }}
+                                            onToggle={(key, v) => handleSet(key, v)}
+                                        />
+                                        <NewsNotifyListPicker
+                                            heading="From my"
+                                            emptyText="Neither picked, so no headline will notify you. Tick at least one."
+                                            options={NEWS_MEDIA}
+                                            values={{
+                                                newsNotifyListAnime: personal.newsNotifyListAnime,
+                                                newsNotifyListManga: personal.newsNotifyListManga,
+                                            }}
+                                            onToggle={(key, v) => handleSet(key, v)}
+                                        />
+                                    </>
                                 )}
                             </div>
                         </SettingRow>

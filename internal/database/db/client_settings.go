@@ -40,6 +40,10 @@ type ClientSettingsOverrides struct {
 	NewsNotifyListCurrent   *bool `json:"newsNotifyListCurrent,omitempty"`
 	NewsNotifyListPlanning  *bool `json:"newsNotifyListPlanning,omitempty"`
 	NewsNotifyListCompleted *bool `json:"newsNotifyListCompleted,omitempty"`
+	// Which media "lists" mode reads: anime defaults to on, manga to off. A manga list runs to
+	// thousands of planned titles, and every chapter post on /r/manga then names one of them.
+	NewsNotifyListAnime *bool `json:"newsNotifyListAnime,omitempty"`
+	NewsNotifyListManga *bool `json:"newsNotifyListManga,omitempty"`
 	// Comma-separated keywords for "keywords" mode. Empty uses the built-in list.
 	NewsNotifyKeywords *string `json:"newsNotifyKeywords,omitempty"`
 	// Whether the community timeline shows paced news cards for this profile (default on).

@@ -106,3 +106,32 @@ func TestAgeDecidesRefreshNotAvailability(t *testing.T) {
 		t.Errorf("age = %v, expected it to read as due a refresh", time.Since(fetchedAt))
 	}
 }
+
+// A profile relinked to another AniList account must not be served the old account's lists.
+func TestStoredCollectionBelongsToItsAccount(t *testing.T) {
+	m := cacheOnlyManager(t)
+	m.mangaColBucket = filecache.NewPermanentBucket("profile-manga-collection")
+	m.usernames = map[uint]string{3: "OldAccount"}
+	m.saveAnimeCollectionToDisk(3, collectionWithLists(4))
+	m.saveMangaCollectionToDisk(3, &anilist.MangaCollection{})
+
+	if col, _ := m.loadAnimeCollectionFromDiskDated(3); col == nil {
+		t.Fatal("the account's own copy was not served")
+	}
+
+	m.usernames[3] = "NewAccount"
+	if col, _ := m.loadAnimeCollectionFromDiskDated(3); col != nil {
+		t.Error("another account's anime lists were served")
+	}
+	if col := m.loadMangaCollectionFromDisk(3); col != nil {
+		t.Error("another account's manga lists were served")
+	}
+
+	// A copy from before accounts were recorded can't be vouched for once the account is known.
+	if err := m.fileCacher.SetPerm(m.animeColBucket, "profile-3", collectionWithLists(2)); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	if col, _ := m.loadAnimeCollectionFromDiskDated(3); col != nil {
+		t.Error("an untagged copy was served while the account is known")
+	}
+}

@@ -12,6 +12,7 @@ import (
 	"seanime/internal/util"
 	"seanime/internal/util/filecache"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -69,7 +70,7 @@ type AnilistClientManager struct {
 
 	// recentMangaEdits is the same defence for manga list edits. See anilist_manga_edits.go.
 	recentMangaEdits map[uint]map[int]*mangaListEdit
-	colMu       sync.RWMutex
+	colMu            sync.RWMutex
 
 	// Singleflight groups collapse concurrent fetches for the same profile
 	// into one in-flight request so we never send duplicates to AniList.
@@ -607,7 +608,12 @@ func (m *AnilistClientManager) UpdateClient(profileID uint, token string) {
 
 	m.mu.Lock()
 	m.clients[profileID] = client
+	// The token may belong to a different account than the last one: forget the old name, or the
+	// next fetch asks AniList for the previous account's lists by username.
+	delete(m.usernames, profileID)
 	m.mu.Unlock()
+	m.InvalidateAnimeCollection(profileID)
+	m.InvalidateMangaCollection(profileID)
 
 	// If this is the admin profile, also update the global client ref
 	// so background subsystems (auto-downloader, playback manager, etc.) use it
@@ -1195,6 +1201,45 @@ func applyEditToCollection(col *anilist.AnimeCollection, edit *animeListEdit) bo
 type datedAnimeCollection struct {
 	Data      *anilist.AnimeCollection `json:"data"`
 	FetchedAt time.Time                `json:"fetchedAt"`
+	// Account is the AniList user the lists belong to. See storedCopyIsTheirs.
+	Account string `json:"account,omitempty"`
+}
+
+// datedMangaCollection is the manga counterpart of datedAnimeCollection.
+type datedMangaCollection struct {
+	Data      *anilist.MangaCollection `json:"data"`
+	FetchedAt time.Time                `json:"fetchedAt"`
+	Account   string                   `json:"account,omitempty"`
+}
+
+// expectedAccount is the AniList user a profile is linked to now, without asking AniList: the
+// username already looked up this run, else the one stored on the profile. Empty when unknown.
+func (m *AnilistClientManager) expectedAccount(profileID uint) string {
+	m.mu.RLock()
+	name := m.usernames[profileID]
+	m.mu.RUnlock()
+	if name != "" {
+		return name
+	}
+	if m.app == nil || m.app.ProfileManager == nil || profileID == 0 {
+		return ""
+	}
+	if p, err := m.app.ProfileManager.GetProfile(profileID); err == nil && p != nil {
+		return p.AniListUsername
+	}
+	return ""
+}
+
+// storedCopyIsTheirs reports whether a stored collection may be served for the profile.
+//
+// The copies are kept per profile, not per account, and a profile can be relinked to another AniList
+// account. A copy taken from the old account then kept being served — first, while the refresh ran
+// behind it, and outright whenever a fetch failed — so a new account with one manga was handed the
+// previous one's thousands: news notifications matched them and achievements counted them. A copy
+// that names another account, or no account at all while the current one is known, is not used.
+func (m *AnilistClientManager) storedCopyIsTheirs(profileID uint, account string) bool {
+	want := m.expectedAccount(profileID)
+	return want == "" || strings.EqualFold(account, want)
 }
 
 // AnimeCollectionRefreshInterval is how old a stored collection may get before the daily pass
@@ -1208,7 +1253,7 @@ func (m *AnilistClientManager) saveAnimeCollectionToDisk(profileID uint, col *an
 		return
 	}
 	diskKey := "profile-" + strconv.FormatUint(uint64(profileID), 10)
-	record := datedAnimeCollection{Data: col, FetchedAt: time.Now()}
+	record := datedAnimeCollection{Data: col, FetchedAt: time.Now(), Account: m.expectedAccount(profileID)}
 	if err := m.fileCacher.SetPerm(m.animeColBucket, diskKey, record); err != nil {
 		m.logger.Warn().Err(err).Uint("profileID", profileID).Msg("anilist_client_manager: Failed to persist anime collection to disk")
 	}
@@ -1225,7 +1270,13 @@ func (m *AnilistClientManager) loadAnimeCollectionFromDiskDated(profileID uint) 
 
 	var record datedAnimeCollection
 	if found, err := m.fileCacher.GetPerm(m.animeColBucket, diskKey, &record); err == nil && found && record.Data != nil {
+		if !m.storedCopyIsTheirs(profileID, record.Account) {
+			return nil, time.Time{}
+		}
 		return record.Data, record.FetchedAt
+	}
+	if !m.storedCopyIsTheirs(profileID, "") {
+		return nil, time.Time{}
 	}
 
 	// A copy from before the date was stored: the same bytes, one level less nesting. Read rather
@@ -1369,7 +1420,8 @@ func (m *AnilistClientManager) saveMangaCollectionToDisk(profileID uint, col *an
 		return
 	}
 	diskKey := "profile-" + strconv.FormatUint(uint64(profileID), 10)
-	if err := m.fileCacher.SetPerm(m.mangaColBucket, diskKey, col); err != nil {
+	record := datedMangaCollection{Data: col, FetchedAt: time.Now(), Account: m.expectedAccount(profileID)}
+	if err := m.fileCacher.SetPerm(m.mangaColBucket, diskKey, record); err != nil {
 		m.logger.Warn().Err(err).Uint("profileID", profileID).Msg("anilist_client_manager: Failed to persist manga collection to disk")
 	}
 }
@@ -1380,6 +1432,17 @@ func (m *AnilistClientManager) loadMangaCollectionFromDisk(profileID uint) *anil
 		return nil
 	}
 	diskKey := "profile-" + strconv.FormatUint(uint64(profileID), 10)
+	var record datedMangaCollection
+	if found, err := m.fileCacher.GetPerm(m.mangaColBucket, diskKey, &record); err == nil && found && record.Data != nil {
+		if !m.storedCopyIsTheirs(profileID, record.Account) {
+			return nil
+		}
+		return record.Data
+	}
+	// Written before the envelope: the collection itself, with no account to check it against.
+	if !m.storedCopyIsTheirs(profileID, "") {
+		return nil
+	}
 	var col anilist.MangaCollection
 	found, err := m.fileCacher.GetPerm(m.mangaColBucket, diskKey, &col)
 	if err != nil || !found {

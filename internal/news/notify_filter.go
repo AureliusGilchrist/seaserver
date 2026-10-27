@@ -60,8 +60,11 @@ func NewNotifyFilter(ovr *db.ClientSettingsOverrides, animeCol func() *anilist.A
 		}
 		on := func(b *bool) bool { return b == nil || *b }
 		current, planning, completed := true, true, true
+		readAnime, readManga := true, false
 		if ovr != nil {
 			current, planning, completed = on(ovr.NewsNotifyListCurrent), on(ovr.NewsNotifyListPlanning), on(ovr.NewsNotifyListCompleted)
+			readAnime = on(ovr.NewsNotifyListAnime)
+			readManga = ovr.NewsNotifyListManga != nil && *ovr.NewsNotifyListManga
 		}
 		wanted := func(st *anilist.MediaListStatus) bool {
 			if st == nil {
@@ -77,7 +80,7 @@ func NewNotifyFilter(ovr *db.ClientSettingsOverrides, animeCol func() *anilist.A
 			}
 			return false
 		}
-		if animeCol != nil {
+		if animeCol != nil && readAnime {
 			if col := animeCol(); col != nil {
 				for _, l := range col.GetMediaListCollection().GetLists() {
 					if !wanted(l.GetStatus()) {
@@ -91,7 +94,7 @@ func NewNotifyFilter(ovr *db.ClientSettingsOverrides, animeCol func() *anilist.A
 				}
 			}
 		}
-		if mangaCol != nil {
+		if mangaCol != nil && readManga {
 			if col := mangaCol(); col != nil {
 				for _, l := range col.GetMediaListCollection().GetLists() {
 					if !wanted(l.GetStatus()) {

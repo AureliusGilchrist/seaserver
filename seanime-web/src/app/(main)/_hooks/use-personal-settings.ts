@@ -35,6 +35,9 @@ export type PersonalSettings = {
     newsNotifyListCurrent: boolean
     newsNotifyListPlanning: boolean
     newsNotifyListCompleted: boolean
+    /** Which media "lists" mode reads (anime on, manga off by default). */
+    newsNotifyListAnime: boolean
+    newsNotifyListManga: boolean
     /** Comma-separated keywords for "keywords" mode; empty = built-in list. */
     newsNotifyKeywords: string
     /** Whether the community timeline shows paced news cards. */
@@ -90,6 +93,8 @@ export function usePersonalSettings(): PersonalSettings {
         newsNotifyListCurrent: clientSettings.newsNotifyListCurrent ?? true,
         newsNotifyListPlanning: clientSettings.newsNotifyListPlanning ?? true,
         newsNotifyListCompleted: clientSettings.newsNotifyListCompleted ?? true,
+        newsNotifyListAnime: clientSettings.newsNotifyListAnime ?? true,
+        newsNotifyListManga: clientSettings.newsNotifyListManga ?? false,
         newsNotifyKeywords: clientSettings.newsNotifyKeywords ?? "",
         communityShowNews: clientSettings.communityShowNews ?? true,
         hideAudienceScore: clientSettings.hideAudienceScore ?? serverStatus?.settings?.anilist?.hideAudienceScore ?? false,

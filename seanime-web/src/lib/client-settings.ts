@@ -50,6 +50,9 @@ export const clientSettingsSchema = z.object({
     newsNotifyListCurrent: z.boolean().optional(),
     newsNotifyListPlanning: z.boolean().optional(),
     newsNotifyListCompleted: z.boolean().optional(),
+    /** Which media "lists" mode reads: anime (on when unset) and manga (off when unset). */
+    newsNotifyListAnime: z.boolean().optional(),
+    newsNotifyListManga: z.boolean().optional(),
     /** Comma-separated keywords for "keywords" mode; empty uses the built-in list. */
     newsNotifyKeywords: z.string().optional(),
     /** Whether the community timeline shows paced news cards. */
