@@ -1943,7 +1943,10 @@ export function VideoCore(props: VideoCoreProps) {
                     const launchId = (window as any)?.electron?.session?.launchId ?? ""
                     // From the local player (mediastream page or the entry page's Local Player
                     // tab), remember the page so "Return" goes back there instead of the drawer.
-                    const from = (inline && mediastreamFilePath && !playbackInfoRef?.localFile?.path)
+                    // `inline` is what tells them apart: only the drawer isn't inline. Direct play
+                    // carries a localFile on its playback info too, so testing for its absence
+                    // dropped `from` there and Return opened the drawer.
+                    const from = inline
                         ? `&from=${encodeURIComponent(window.location.pathname + window.location.search)}`
                         : ""
                     // The exact position, so the popout starts on the same second rather than
