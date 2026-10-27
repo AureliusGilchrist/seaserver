@@ -50,7 +50,7 @@ declare global {
                 popoutDragStart: () => void;
                 popoutDragMove: (dx: number, dy: number) => void;
                 popoutDragEnd: () => void;
-                returnPlayerFromPopout: (state: { path: string; time: number; paused: boolean }) => Promise<void>;
+                returnPlayerFromPopout: (state: { path: string; time: number; paused: boolean; from?: string }) => Promise<void>;
             };
             localServer: {
                 getPort: () => Promise<number>;

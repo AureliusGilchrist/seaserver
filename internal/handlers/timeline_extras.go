@@ -195,11 +195,15 @@ func (h *Handler) timelineNewsItems(c echo.Context) []*TimelineFeedItem {
 		animeCol, _ = h.App.AnilistClientManager.GetAnimeCollection(viewer)
 		mangaCol, _ = h.App.AnilistClientManager.GetMangaCollection(viewer)
 	}
-	if animeCol == nil {
-		animeCol, _ = h.App.GetAnimeCollection(false)
-	}
-	if mangaCol == nil {
-		mangaCol, _ = h.App.GetMangaCollection(false)
+	// Without profiles there is one account, the server's. With them, only the viewer's own
+	// lists rank news: another account's titles must never count as "on your list".
+	if viewer == 0 {
+		if animeCol == nil {
+			animeCol, _ = h.App.GetAnimeCollection(false)
+		}
+		if mangaCol == nil {
+			mangaCol, _ = h.App.GetMangaCollection(false)
+		}
 	}
 
 	cards := news.BuildTimelineNews(resp.Items, &news.RankContext{

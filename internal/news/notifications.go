@@ -168,22 +168,30 @@ func announceToDatabase(app *core.App, database *db.Database, profileID uint, fr
 		return
 	}
 
-	// The profile's own lists (cached reads only) for "lists" mode.
+	// The profile's own lists for "lists" mode — only ever this profile's. When its collection
+	// can't be read (a new account not loaded yet, an AniList error) nothing matches: falling back
+	// to the server's main account matched every headline about *that* account's anime.
 	filter := NewNotifyFilter(ovr,
 		func() *anilist.AnimeCollection {
-			if profileID > 0 && app.AnilistClientManager != nil {
-				if col, err := app.AnilistClientManager.GetAnimeCollection(profileID); err == nil {
-					return col
+			if profileID > 0 {
+				if app.AnilistClientManager != nil {
+					if col, err := app.AnilistClientManager.GetAnimeCollection(profileID); err == nil {
+						return col
+					}
 				}
+				return nil
 			}
 			col, _ := app.GetAnimeCollection(false)
 			return col
 		},
 		func() *anilist.MangaCollection {
-			if profileID > 0 && app.AnilistClientManager != nil {
-				if col, err := app.AnilistClientManager.GetMangaCollection(profileID); err == nil {
-					return col
+			if profileID > 0 {
+				if app.AnilistClientManager != nil {
+					if col, err := app.AnilistClientManager.GetMangaCollection(profileID); err == nil {
+						return col
+					}
 				}
+				return nil
 			}
 			col, _ := app.GetMangaCollection(false)
 			return col

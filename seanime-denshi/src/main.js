@@ -1871,10 +1871,15 @@ app.whenReady().then(async () => {
         if (!state || typeof state.path !== "string") return
 
         const time = Number(state.time)
+        // The page the stream was popped out from; only an app-relative path is passed on.
+        const from = typeof state.from === "string" && state.from.startsWith("/") && !state.from.startsWith("//") && state.from.length <= 512
+            ? state.from
+            : undefined
         mainWindow.webContents.send("player:return-from-popout", {
             path: state.path,
             time: Number.isFinite(time) && time > 0 ? time : 0,
             paused: !!state.paused,
+            from,
         })
 
         if (mainWindow.isMinimized()) mainWindow.restore()

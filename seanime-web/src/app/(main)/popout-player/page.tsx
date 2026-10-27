@@ -204,6 +204,7 @@ function PopoutReturnButton() {
             path,
             time: videoElement?.currentTime ?? 0,
             paused: videoElement?.paused ?? false,
+            from: searchParams.get("from") ?? undefined,
         })
     }
 

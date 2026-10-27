@@ -41,7 +41,9 @@ import { LuMonitorPlay } from "react-icons/lu"
 import { PiMonitorPlayDuotone } from "react-icons/pi"
 import { useUnmount } from "react-use"
 
-export const __anime_entryPageViewAtom = atom<"library" | "torrentstream" | "debridstream" | "onlinestream" | "localplayer">("library")
+// Lives in its own module so the player can switch the view without importing this page.
+export { __anime_entryPageViewAtom } from "@/app/(main)/entry/_lib/entry-page-view.atoms"
+import { __anime_entryPageViewAtom } from "@/app/(main)/entry/_lib/entry-page-view.atoms"
 
 export function useAnimeEntryPageView() {
     const [currentView, setView] = useAtom(__anime_entryPageViewAtom)

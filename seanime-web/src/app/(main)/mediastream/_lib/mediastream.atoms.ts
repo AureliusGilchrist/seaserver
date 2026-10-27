@@ -1,6 +1,7 @@
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { __isTauriDesktop__ } from "@/types/constants"
 import { useAtom } from "jotai/react"
+import { atom } from "jotai"
 import { atomWithStorage, createJSONStorage } from "jotai/utils"
 import React from "react"
 
@@ -8,6 +9,13 @@ import React from "react"
 const sessionStorageAdapter = createJSONStorage<any>(() => sessionStorage)
 
 const __mediastream_filePath = atomWithStorage<string | undefined>("sea-mediastream-filepath", undefined, sessionStorageAdapter, { getOnInit: true })
+
+/**
+ * A one-shot "play this file on the local player" request, filed from outside the player (the
+ * popout window handing playback back). The local player picks it up whether it is already
+ * mounted with the stream stopped or mounts after the navigation, then clears it.
+ */
+export const __mediastream_replayRequestAtom = atom<{ path: string, nonce: number } | null>(null)
 
 export function useMediastreamCurrentFile() {
     const [filePath, setFilePath] = useAtom(__mediastream_filePath)

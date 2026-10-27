@@ -8,10 +8,10 @@ import { VideoCoreChapterCue } from "@/app/(main)/_features/video-core/video-cor
 import { VideoCore_VideoPlaybackInfo, VideoCore_VideoSubtitleTrack, VideoCoreLifecycleState } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { vc_watchContinuityAtom } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
-import { getMediastreamSessionId, useMediastreamCurrentFile } from "@/app/(main)/mediastream/_lib/mediastream.atoms"
+import { __mediastream_replayRequestAtom, getMediastreamSessionId, useMediastreamCurrentFile } from "@/app/(main)/mediastream/_lib/mediastream.atoms"
 import { logger } from "@/lib/helpers/debug"
 import { WSEvents } from "@/lib/server/ws-events"
-import { useAtomValue } from "jotai"
+import { useAtom, useAtomValue } from "jotai"
 import React from "react"
 import { toast } from "sonner"
 
@@ -209,6 +209,17 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
             setTimeout(() => { void refetch() }, 0)
         }
     }, [refetch, mediastreamSettings])
+
+    // Playback handed back from the popout: start it here once settings are known (they decide
+    // direct play vs transcode). The popout's position is restored by the player on canplay.
+    const [replayRequest, setReplayRequest] = useAtom(__mediastream_replayRequestAtom)
+    React.useEffect(() => {
+        if (!replayRequest || !mediastreamSettings || mediastreamSettingsLoading) return
+        setReplayRequest(null)
+        if (episodes.length && !episodes.some(ep => ep.localFile?.path === replayRequest.path)) return
+        log.info("Resuming playback returned from the popout", replayRequest.path)
+        onPlayFile(replayRequest.path)
+    }, [replayRequest, mediastreamSettings, mediastreamSettingsLoading, episodes, onPlayFile])
 
     const playNextEpisode = React.useCallback(() => {
         log.info("Playing next episode")

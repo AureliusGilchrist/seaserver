@@ -100,3 +100,14 @@ func TestNotifyFilterListCheckboxes(t *testing.T) {
 		}
 	}
 }
+
+// A profile whose lists can't be read gets no list-mode news — never another account's.
+func TestNotifyFilterListsWithoutCollection(t *testing.T) {
+	f := NewNotifyFilter(&db.ClientSettingsOverrides{NewsNotifyMode: strp(NotifyModeLists)},
+		func() *anilist.AnimeCollection { return nil },
+		func() *anilist.MangaCollection { return nil },
+	)
+	if f.Matches(Item{Title: "Frieren season 3 announced", Description: "One Piece and Naruto news"}) {
+		t.Fatalf("lists mode with no collection should match nothing")
+	}
+}

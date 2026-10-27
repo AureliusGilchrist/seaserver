@@ -1940,7 +1940,12 @@ export function VideoCore(props: VideoCoreProps) {
                     // The launch id rides along so the popout's session guard recognizes the
                     // window as part of this run and keeps the signed-in profile session.
                     const launchId = (window as any)?.electron?.session?.launchId ?? ""
-                    const url = `${window.location.origin}/popout-player?path=${encoded}&launch=${encodeURIComponent(launchId)}`
+                    // From the local player (mediastream page or the entry page's Local Player
+                    // tab), remember the page so "Return" goes back there instead of the drawer.
+                    const from = (inline && mediastreamFilePath && !playbackInfoRef?.localFile?.path)
+                        ? `&from=${encodeURIComponent(window.location.pathname + window.location.search)}`
+                        : ""
+                    const url = `${window.location.origin}/popout-player?path=${encoded}&launch=${encodeURIComponent(launchId)}${from}`
 
                     window.electron!.window!.openPlayerPopout(url).then(() => {
                         // Hand off: stop this client's stream; the popout resumes from
@@ -1956,7 +1961,7 @@ export function VideoCore(props: VideoCoreProps) {
                 pipManager.setPopoutHandler(null)
             }
         }
-    }, [pipManager, subtitleManager, mediaCaptionsManager, videoRef.current, state.playbackInfo, mediastreamFilePath])
+    }, [pipManager, subtitleManager, mediaCaptionsManager, videoRef.current, state.playbackInfo, mediastreamFilePath, inline])
 
     // Update fullscreen manager
     React.useEffect(() => {

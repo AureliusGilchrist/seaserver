@@ -7,7 +7,8 @@ import { getServerBaseUrl } from "@/api/client/server-url"
 import { vc_miniPlayer, vc_requestTranscodeForAudio, vc_videoElement, vc_directPlayAudioUrl, vc_directPlayAudioLoading } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_subtitleManager, VideoCore } from "@/app/(main)/_features/video-core/video-core"
 import { VideoCoreLifecycleState } from "@/app/(main)/_features/video-core/video-core.atoms"
-import { useMediastreamCurrentFile } from "@/app/(main)/mediastream/_lib/mediastream.atoms"
+import { __mediastream_replayRequestAtom, useMediastreamCurrentFile } from "@/app/(main)/mediastream/_lib/mediastream.atoms"
+import { __anime_entryPageViewAtom } from "@/app/(main)/entry/_lib/entry-page-view.atoms"
 import { useAchievementActivityHeartbeat } from "@/api/hooks/achievement.hooks"
 import { clientIdAtom } from "@/app/websocket-provider"
 import { logger } from "@/lib/helpers/debug"
@@ -44,15 +45,29 @@ export function NativePlayer() {
     const { mutate: playLocalFile } = useDirectstreamPlayLocalFile()
 
     // Fork (Electron): the popout window hands playback back here with its position.
+    // Popped out from the local player: back to that page (even if the main window has moved on
+    // since), playing there. Otherwise it was this drawer's stream, and the drawer resumes it.
+    const setMediastreamReplay = useSetAtom(__mediastream_replayRequestAtom)
+    const setEntryPageView = useSetAtom(__anime_entryPageViewAtom)
     React.useEffect(() => {
         if (typeof window === "undefined" || !window.electron?.on || !clientId) return
-        const off = window.electron.on("player:return-from-popout", (payload: { path: string, time: number, paused: boolean }) => {
+        const off = window.electron.on("player:return-from-popout", (payload: { path: string, time: number, paused: boolean, from?: string }) => {
             if (!payload?.path) return
             setPendingPopoutResume(payload.time, payload.paused)
+            if (payload.from) {
+                log.info("Returning popout playback to the local player", payload.from)
+                setMediastreamFilePath(payload.path)
+                setMediastreamReplay({ path: payload.path, nonce: Date.now() })
+                if (payload.from.startsWith("/entry")) setEntryPageView("localplayer")
+                React.startTransition(() => {
+                    router.push(payload.from!)
+                })
+                return
+            }
             playLocalFile({ path: payload.path, clientId })
         })
         return () => off?.()
-    }, [clientId, playLocalFile])
+    }, [clientId, playLocalFile, router])
     // AniSkip
     const { data: aniSkipData } = useSkipData(state?.playbackInfo?.media?.idMal, state?.playbackInfo?.episode?.progressNumber ?? -1)
 
