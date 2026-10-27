@@ -35,6 +35,23 @@ export const websocketConnectionErrorCountAtom = atom(0)
 
 export const clientIdAtom = atom<string | null>(null)
 
+/**
+ * The id this window's websocket (and its player requests) use.
+ *
+ * The desktop popout player shares the main window's cookies, so it used to share its client id
+ * too — and the server sends a client's events to every connection with that id. The popout's
+ * stream therefore also opened in the main window's full-window player, out of sight behind the
+ * popout, playing the same file a second time; "Return to Denshi" then brought the main window
+ * forward onto that player instead of the page the stream came from. The popout gets its own id;
+ * the cookie (sessions, rate limits) stays the shared one.
+ */
+function socketClientId(cookieId: string): string {
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/popout-player")) {
+        return `${cookieId}-popout`
+    }
+    return cookieId
+}
+
 const isMainTabAtom = atom(false)
 
 export function useIsMainTab() {
@@ -215,7 +232,7 @@ function WebsocketManagement() {
     React.useEffect(() => {
         logger("WebsocketProvider").info("Seanime-Client-Id", cookies["Seanime-Client-Id"])
         if (cookies["Seanime-Client-Id"]) {
-            setClientId(cookies["Seanime-Client-Id"])
+            setClientId(socketClientId(cookies["Seanime-Client-Id"]))
         }
     }, [cookies])
 
@@ -286,7 +303,7 @@ function WebsocketManagement() {
             try {
                 const tokenParam = serverAuthTokenRef.current ? `&token=${encodeURIComponent(serverAuthTokenRef.current)}` : ""
                 const profileTokenParam = profileSessionTokenRef.current ? `&profileToken=${encodeURIComponent(profileSessionTokenRef.current)}` : ""
-                socketRef.current = new WebSocket(`${wsUrl}?id=${clientId}${tokenParam}${profileTokenParam}`)
+                socketRef.current = new WebSocket(`${wsUrl}?id=${socketClientId(clientId)}${tokenParam}${profileTokenParam}`)
 
                 // Reset the last pong timestamp whenever we connect
                 lastPongRef.current = Date.now()
