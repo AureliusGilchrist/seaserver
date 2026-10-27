@@ -9,6 +9,8 @@ import { useAnilistListRecentAiringAnime, useGetAnimeCollection } from "@/api/ho
 import { useGetTorrentAddQueue } from "@/api/hooks/torrent_client.hooks"
 import { useMissingEpisodeCount } from "@/app/(main)/_hooks/missing-episodes-loader"
 import { useGetMangaCollection } from "@/api/hooks/manga.hooks"
+import { useGetMangaDownloadsList } from "@/api/hooks/manga_download.hooks"
+import { useMangaDownloadsSnapshot } from "@/app/(main)/manga/_lib/use-manga-downloads-snapshot"
 import { MangaContinueReading } from "@/app/(main)/manga/_containers/manga-continue-reading"
 import { useMangaContinueReadingList } from "@/app/(main)/manga/_lib/use-manga-continue-reading"
 import { LANDING_QUICK_LINKS, useLandingFolders } from "@/app/(main)/_features/home/landing-widgets"
@@ -241,7 +243,17 @@ export function LandingMangaStatsWidget() {
     const reading = mangaCollection?.lists?.find(list => list.type === "CURRENT")?.entries?.length ?? 0
     const completed = mangaCollection?.lists?.find(list => list.type === "COMPLETED")?.entries?.length ?? 0
     const chaptersRead = entries.reduce((total, entry) => total + (entry.listData?.progress ?? 0), 0)
-    const chaptersDownloaded = entries.reduce((total, entry) => total + (entry.downloadedChapterCount ?? 0), 0)
+
+    // Every chapter on disk, whoever downloaded it: the server's manga library is shared, like the
+    // anime card's downloaded episodes. Counting only the entries above missed nearly all of them:
+    // downloaded series you aren't reading are merged into Planning, which this card leaves out.
+    const { data: liveDownloads } = useGetMangaDownloadsList()
+    const downloadsSnapshot = useMangaDownloadsSnapshot(liveDownloads)
+    const downloads = liveDownloads ?? downloadsSnapshot
+    const chaptersDownloaded = React.useMemo(
+        () => downloads?.reduce((total, d) => total + Object.values(d.downloadData ?? {}).flat().length, 0),
+        [downloads],
+    )
 
     return (
         <StatsDoor
@@ -252,7 +264,7 @@ export function LandingMangaStatsWidget() {
                 { label: "currently reading", value: isLoading ? null : reading },
                 { label: "completed", value: isLoading ? null : completed },
                 { label: "chapters read", value: isLoading ? null : chaptersRead },
-                { label: "chapters downloaded", value: isLoading ? null : chaptersDownloaded },
+                { label: "chapters downloaded", value: chaptersDownloaded ?? null },
             ]}
             href="/manga"
         />
