@@ -27,6 +27,25 @@ func Bytes(size uint64) string {
 	}
 }
 
+// LibrarySize formats a library's total size with two decimals ("17.42 TB", "512.08 GB").
+// The units are binary (1 TB here = 1024^4 bytes), the same figure the library showed before as
+// a rounded "17 TiB".
+func LibrarySize(size uint64) string {
+	const gib = float64(1 << 30)
+	const tib = float64(1 << 40)
+	f := float64(size)
+	if f >= tib {
+		// Always two decimals ("1.00 TB", not "1 TB"), with thousands separators.
+		whole, frac, _ := strings.Cut(fmt.Sprintf("%.2f", f/tib), ".")
+		n, _ := strconv.ParseInt(whole, 10, 64)
+		return humanize.Comma(n) + "." + frac + " TB"
+	}
+	if f >= gib {
+		return fmt.Sprintf("%.2f GB", f/gib)
+	}
+	return Bytes(size)
+}
+
 func Decode(s string) string {
 	decoded, err := base64.StdEncoding.DecodeString(s)
 	if err != nil {

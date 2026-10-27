@@ -51,14 +51,60 @@ func (db *Database) BulkUpsertAchievements(achievements []models.Achievement) er
 
 // UnlockAchievement marks an achievement as unlocked with the current timestamp.
 func (db *Database) UnlockAchievement(key string, tier int) error {
-	now := time.Now()
-	return db.gormdb.Model(&models.Achievement{}).
-		Where("key = ? AND tier = ?", key, tier).
+	_, err := db.UnlockAchievementIfLocked(key, tier)
+	return err
+}
+
+// UnlockAchievementIfLocked unlocks a row only if it is still locked, and reports whether it did.
+//
+// One statement, so two evaluations racing for the same unlock cannot both win it — the loser
+// sees false and awards nothing. The time is stored in UTC: it is serialized as UTC.
+func (db *Database) UnlockAchievementIfLocked(key string, tier int) (bool, error) {
+	now := time.Now().UTC()
+	res := db.gormdb.Model(&models.Achievement{}).
+		Where("key = ? AND tier = ? AND (is_unlocked = ? OR is_unlocked IS NULL)", key, tier, false).
 		Updates(map[string]interface{}{
 			"is_unlocked": true,
 			"unlocked_at": &now,
-			"progress":    1.0,
+		})
+	return res.RowsAffected > 0, res.Error
+}
+
+// RevokeAchievement locks a row again (used when re-checking unlocks against corrected rules).
+func (db *Database) RevokeAchievement(key string, tier int) error {
+	return db.gormdb.Model(&models.Achievement{}).
+		Where("key = ? AND tier = ?", key, tier).
+		Updates(map[string]interface{}{
+			"is_unlocked": false,
+			"unlocked_at": nil,
 		}).Error
+}
+
+// DeleteAchievementRowsNotIn removes rows whose key is no longer defined.
+func (db *Database) DeleteAchievementRowsNotIn(keys []string) error {
+	if len(keys) == 0 {
+		return nil
+	}
+	return db.gormdb.Where("key NOT IN ?", keys).Delete(&models.Achievement{}).Error
+}
+
+// GetAchievementRulesVersion returns the rules version the unlocks were last checked against.
+func (db *Database) GetAchievementRulesVersion() int {
+	lp, err := db.GetLevelProgress()
+	if err != nil || lp == nil {
+		return 0
+	}
+	return lp.AchievementRulesVersion
+}
+
+// SetAchievementRulesVersion records that the unlocks were checked against this rules version.
+func (db *Database) SetAchievementRulesVersion(version int) error {
+	lp, err := db.GetLevelProgress()
+	if err != nil {
+		return err
+	}
+	lp.AchievementRulesVersion = version
+	return db.gormdb.Save(lp).Error
 }
 
 // UpdateAchievementProgress updates the progress and progress data for an achievement.

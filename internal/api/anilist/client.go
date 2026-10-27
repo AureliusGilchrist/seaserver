@@ -423,6 +423,9 @@ func (ac *AnilistClientImpl) logRefusal(err error, userInitiated bool) {
 func (ac *AnilistClientImpl) customDoFunc(ctx context.Context, req *http.Request, gqlInfo *clientv2.GQLRequestInfo, res interface{}) (err error) {
 	// The user goes first. Every AniList request in the server arrives here, which makes this the
 	// one place the ordering can be decided — see priority.go for why it needs deciding at all.
+	if gqlInfo != nil && gqlInfo.Request != nil && isMutation(gqlInfo.Request.Query) {
+		ctx = withWrite(ctx)
+	}
 	release, gateErr := gateRequest(ctx)
 	if gateErr != nil {
 		// Refused rather than queued. Reported here because it is not a failure of AniList's and

@@ -10,34 +10,34 @@ type Category string
 
 const (
 	// Anime categories
-	CategoryAnimeMilestones  Category = "anime_milestones"
-	CategoryAnimeBinge       Category = "anime_binge"
-	CategoryAnimeGenres      Category = "anime_genres"
-	CategoryAnimeCompletion  Category = "anime_completion"
-	CategoryAnimeDedication  Category = "anime_dedication"
-	CategoryAnimeDiscovery   Category = "anime_discovery"
-	CategoryAnimeTime        Category = "anime_time"
-	CategoryAnimeSocial      Category = "anime_social"
-	CategoryAnimeSpecial     Category = "anime_special"
-	CategoryAnimeFormats     Category = "anime_formats"
-	CategoryAnimeStreaks     Category = "anime_streaks"
-	CategoryAnimeScoring     Category = "anime_scoring"
-	CategoryAnimeHoliday     Category = "anime_holiday"
+	CategoryAnimeMilestones Category = "anime_milestones"
+	CategoryAnimeBinge      Category = "anime_binge"
+	CategoryAnimeGenres     Category = "anime_genres"
+	CategoryAnimeCompletion Category = "anime_completion"
+	CategoryAnimeDedication Category = "anime_dedication"
+	CategoryAnimeDiscovery  Category = "anime_discovery"
+	CategoryAnimeTime       Category = "anime_time"
+	CategoryAnimeSocial     Category = "anime_social"
+	CategoryAnimeSpecial    Category = "anime_special"
+	CategoryAnimeFormats    Category = "anime_formats"
+	CategoryAnimeStreaks    Category = "anime_streaks"
+	CategoryAnimeScoring    Category = "anime_scoring"
+	CategoryAnimeHoliday    Category = "anime_holiday"
 
 	// Manga categories
-	CategoryMangaMilestones  Category = "manga_milestones"
-	CategoryMangaBinge       Category = "manga_binge"
-	CategoryMangaGenres      Category = "manga_genres"
-	CategoryMangaCompletion  Category = "manga_completion"
-	CategoryMangaDedication  Category = "manga_dedication"
-	CategoryMangaDiscovery   Category = "manga_discovery"
-	CategoryMangaTime        Category = "manga_time"
-	CategoryMangaSpecial     Category = "manga_special"
-	CategoryMangaFormats     Category = "manga_formats"
-	CategoryMangaStreaks     Category = "manga_streaks"
-	CategoryMangaScoring     Category = "manga_scoring"
-	CategoryMangaCreative    Category = "manga_creative"
-	CategoryMangaHoliday     Category = "manga_holiday"
+	CategoryMangaMilestones Category = "manga_milestones"
+	CategoryMangaBinge      Category = "manga_binge"
+	CategoryMangaGenres     Category = "manga_genres"
+	CategoryMangaCompletion Category = "manga_completion"
+	CategoryMangaDedication Category = "manga_dedication"
+	CategoryMangaDiscovery  Category = "manga_discovery"
+	CategoryMangaTime       Category = "manga_time"
+	CategoryMangaSpecial    Category = "manga_special"
+	CategoryMangaFormats    Category = "manga_formats"
+	CategoryMangaStreaks    Category = "manga_streaks"
+	CategoryMangaScoring    Category = "manga_scoring"
+	CategoryMangaCreative   Category = "manga_creative"
+	CategoryMangaHoliday    Category = "manga_holiday"
 
 	// Meta categories (achievements about the achievement system)
 	CategoryAnimeMeta Category = "anime_meta"
@@ -48,13 +48,13 @@ const (
 type EvalTrigger string
 
 const (
-	TriggerEpisodeProgress   EvalTrigger = "episode_progress"
-	TriggerSeriesComplete    EvalTrigger = "series_complete"
-	TriggerChapterProgress   EvalTrigger = "chapter_progress"
-	TriggerMangaComplete     EvalTrigger = "manga_complete"
-	TriggerRatingChange      EvalTrigger = "rating_change"
-	TriggerStatusChange      EvalTrigger = "status_change"
-	TriggerSessionUpdate     EvalTrigger = "session_update" // DEPRECATED — see TriggerAnimeActivity / TriggerMangaActivity
+	TriggerEpisodeProgress EvalTrigger = "episode_progress"
+	TriggerSeriesComplete  EvalTrigger = "series_complete"
+	TriggerChapterProgress EvalTrigger = "chapter_progress"
+	TriggerMangaComplete   EvalTrigger = "manga_complete"
+	TriggerRatingChange    EvalTrigger = "rating_change"
+	TriggerStatusChange    EvalTrigger = "status_change"
+	TriggerSessionUpdate   EvalTrigger = "session_update" // DEPRECATED — see TriggerAnimeActivity / TriggerMangaActivity
 	// TriggerAnimeActivity fires from server-side ActivityTracker heartbeats
 	// when the user is actively watching anime. Carries metadata
 	// "session_hours" — the current continuous-session duration measured
@@ -82,8 +82,8 @@ type Definition struct {
 	TierThresholds []int         `json:"TierThresholds,omitempty"`
 	TierNames      []string      `json:"TierNames,omitempty"`
 	Triggers       []EvalTrigger `json:"Triggers"`
-	XPReward       int           `json:"XPReward"`     // Base XP per tier unlock (0 = use default)
-	Difficulty     Difficulty    `json:"Difficulty"`    // Difficulty rating for XP multiplier
+	XPReward       int           `json:"XPReward"`   // Base XP per tier unlock (0 = use default)
+	Difficulty     Difficulty    `json:"Difficulty"` // Difficulty rating for XP multiplier
 }
 
 // Difficulty represents how hard an achievement is to earn.
@@ -201,6 +201,7 @@ func init() {
 	AllDefinitions = append(AllDefinitions, animeDefinitions...)
 	AllDefinitions = append(AllDefinitions, mangaDefinitions...)
 	AllDefinitions = append(AllDefinitions, metaDefinitions...)
+	applyDefinitionOverrides(AllDefinitions)
 
 	// Auto-assign difficulty where not explicitly set
 	for i := range AllDefinitions {

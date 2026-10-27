@@ -70,6 +70,13 @@ func customQueryWithContext(ctx context.Context, body []byte, logger *zerolog.Lo
 
 	// Takes its turn and its slot like everything else. See CustomQueryCtx above for what went
 	// wrong while this path was exempt.
+	// Raw mutations (list edits sent as custom GraphQL) take the write lane like the generated ones.
+	var probe struct {
+		Query string `json:"query"`
+	}
+	if json.Unmarshal(body, &probe) == nil && isMutation(probe.Query) {
+		ctx = withWrite(ctx)
+	}
 	release, gateErr := gateRequest(ctx)
 	if gateErr != nil {
 		return nil, gateErr

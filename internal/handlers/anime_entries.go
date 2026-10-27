@@ -945,6 +945,10 @@ func (h *Handler) HandleUpdateAnimeEntryProgress(c echo.Context) error {
 		ProfileID: h.GetProfileID(c),
 		Trigger:   achievement.TriggerEpisodeProgress,
 		MediaID:   b.MediaId,
+		Metadata: map[string]interface{}{
+			"episode_number": b.EpisodeNumber,
+			"total_episodes": b.TotalEpisodes,
+		},
 	})
 
 	// Record activity for stats heatmap/streaks

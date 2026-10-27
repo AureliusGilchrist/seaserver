@@ -11,6 +11,8 @@ import { useHandleMangaCollection } from "@/app/(main)/manga/_lib/handle-manga-c
 import { useMangaCoverProxy } from "@/app/(main)/manga/_lib/use-manga-cover-proxy"
 import { useMangaFavorites } from "@/app/(main)/manga/_lib/use-manga-favorites"
 import { useGetMangaDownloadsList } from "@/api/hooks/manga_download.hooks"
+import { useMangaDownloadsSnapshot } from "@/app/(main)/manga/_lib/use-manga-downloads-snapshot"
+import { formatNumber } from "@/lib/helpers/number"
 import { MangaLibraryView } from "@/app/(main)/manga/_screens/manga-library-view"
 import { MangaCarousel } from "@/app/(main)/(library)/_home/home-screen"
 import { MangaHomeSettingsModal, DEFAULT_MANGA_HOME_ITEMS, normalizeMangaHomeItems } from "@/app/(main)/manga/_components/manga-home-settings"
@@ -72,7 +74,11 @@ export default function Page() {
     // the continue-reading header's and the library header's, which belong to headers, not to
     // whatever the cursor last crossed.
 
-    const { data: downloadedList, isLoading: downloadsLoading, isError: downloadsError } = useGetMangaDownloadsList()
+    const { data: liveDownloadedList, isLoading: liveDownloadsLoading, isError: downloadsError } = useGetMangaDownloadsList()
+    // Last visit's list until the server answers, so the library and its stats paint at once.
+    const downloadsSnapshot = useMangaDownloadsSnapshot(liveDownloadedList)
+    const downloadedList = liveDownloadedList ?? downloadsSnapshot
+    const downloadsLoading = liveDownloadsLoading && !downloadsSnapshot
     const [downloadSearch, setDownloadSearch] = React.useState("")
 
     const downloadedWithMedia = React.useMemo(() => (downloadedList || []).filter(d => !!d.media), [downloadedList])
@@ -355,6 +361,7 @@ export default function Page() {
                                         downloadedChaptersTotal={downloadedChaptersTotal}
                                         downloadedList={downloadedList}
                                         mangaCollection={mangaCollection}
+                                        mangaCollectionLoading={mangaCollectionLoading && !mangaCollection}
                                         filteredMangaCollection={filteredMangaCollection}
                                         mangaCollectionGenres={mangaCollectionGenres}
                                         storedProviders={storedProviders}
@@ -395,6 +402,7 @@ interface MangaHomeScreenItemProps {
     downloadedChaptersTotal: number
     downloadedList: any[] | undefined
     mangaCollection: any
+    mangaCollectionLoading: boolean
     filteredMangaCollection: any
     mangaCollectionGenres: string[]
     storedProviders: any
@@ -419,6 +427,7 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
         downloadedChaptersTotal,
         downloadedList,
         mangaCollection,
+        mangaCollectionLoading,
         filteredMangaCollection,
         mangaCollectionGenres,
         storedProviders,
@@ -578,7 +587,7 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                                                             overlay={
                                                                 <div className="absolute inset-x-0 top-0 flex justify-end pointer-events-none">
                                                                     {/* Badge and synthetic tag come from the card itself. */}
-                                                                    <p className="ml-auto font-semibold text-white bg-gray-950 bg-opacity-90 px-3 py-1 text-xs rounded-bl-lg">{chapters} chapter{chapters === 1 ? "" : "s"}</p>
+                                                                    <p className="ml-auto font-semibold text-white bg-gray-950 bg-opacity-90 px-3 py-1 text-xs rounded-bl-lg">{formatNumber(chapters)} chapter{chapters === 1 ? "" : "s"}</p>
                                                                 </div>
                                                             }
                                                             onHoverImage={onHoverImage}
@@ -628,7 +637,7 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                                                             {/* The state badge and the synthetic tag are drawn by the card
                                                              itself now — see MangaBadge — so every screen marks a series
                                                              the same way. Only the chapter count is local to this shelf. */}
-                                                            <p className="ml-auto font-semibold text-white bg-gray-950 bg-opacity-90 px-3 py-1 text-xs rounded-bl-lg">{chapters} chapter{chapters === 1 ? "" : "s"}</p>
+                                                            <p className="ml-auto font-semibold text-white bg-gray-950 bg-opacity-90 px-3 py-1 text-xs rounded-bl-lg">{formatNumber(chapters)} chapter{chapters === 1 ? "" : "s"}</p>
                                                         </div>
                                                     }
                                                     onHoverImage={onHoverImage}
@@ -673,7 +682,7 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                                                      same source. */}
                                                     <MangaBadge mediaId={dlItem.mediaId} variant="overlay" className="!relative" />
                                                     <p className="ml-auto font-semibold text-white bg-gray-950 bg-opacity-90 px-3 py-1 text-xs rounded-bl-lg">
-                                                        {chapters} chapter{chapters === 1 ? "" : "s"}
+                                                        {formatNumber(chapters)} chapter{chapters === 1 ? "" : "s"}
                                                     </p>
                                                 </div>
                                             </div>
@@ -703,13 +712,17 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
     if (item.type === "local-manga-library-stats") {
         const entries = mangaCollection?.lists?.flatMap((l: any) => l.entries ?? []).filter(Boolean) ?? []
         const countOf = (type: string) => mangaCollection?.lists?.find((l: any) => l.type === type)?.entries?.length ?? 0
-        const stats: [string | number, string][] = [
-            [entries.length, "Entries"],
-            [countOf("CURRENT"), "Reading"],
-            [countOf("COMPLETED"), "Completed"],
-            [downloadedList?.length ?? 0, "Downloaded series"],
-            [downloadedChaptersTotal, "Downloaded chapters"],
-            [downloadedWithMedia.length, "With metadata"],
+        // Nothing to show yet reads as "–", never as a 0 that later turns into the real number.
+        const haveCollection = !!mangaCollection && !mangaCollectionLoading
+        const haveDownloads = !!downloadedList && !downloadsLoading
+        const show = (ready: boolean, n: number) => ready ? formatNumber(n) : "–"
+        const stats: [string, string][] = [
+            [show(haveCollection, entries.length), "Entries"],
+            [show(haveCollection, countOf("CURRENT")), "Reading"],
+            [show(haveCollection, countOf("COMPLETED")), "Completed"],
+            [show(haveDownloads, downloadedList?.length ?? 0), "Downloaded series"],
+            [show(haveDownloads, downloadedChaptersTotal), "Downloaded chapters"],
+            [show(haveDownloads, downloadedWithMedia.length), "With metadata"],
         ]
         return (
             <PageWrapper>

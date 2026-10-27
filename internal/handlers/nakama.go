@@ -127,7 +127,7 @@ func (h *Handler) HandleGetNakamaAnimeLibrary(c echo.Context) error {
 
 	// Hydrate total library size
 	if libraryCollection != nil && libraryCollection.Stats != nil {
-		libraryCollection.Stats.TotalSize = util.Bytes(h.App.TotalLibrarySize)
+		libraryCollection.Stats.TotalSize = util.LibrarySize(h.App.TotalLibrarySize)
 	}
 
 	return h.RespondWithData(c, &nakama.NakamaAnimeLibrary{
@@ -783,6 +783,7 @@ func (h *Handler) HandleNakamaCreateWatchParty(c echo.Context) error {
 		}
 	}
 
+	h.App.NakamaManager.GetWatchPartyManager().SetPartyProfile(h.GetProfileID(c))
 	_, err := h.App.NakamaManager.GetWatchPartyManager().CreateWatchParty(&nakama.CreateWatchOptions{
 		Settings: b.Settings,
 	})
@@ -818,6 +819,7 @@ func (h *Handler) HandleNakamaJoinWatchParty(c echo.Context) error {
 	}
 
 	// Send join request to host
+	h.App.NakamaManager.GetWatchPartyManager().SetPartyProfile(h.GetProfileID(c))
 	err := h.App.NakamaManager.GetWatchPartyManager().JoinWatchParty(b.ClientId)
 	if err != nil {
 		return h.RespondWithError(c, err)

@@ -3,6 +3,7 @@ package anilist
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -41,6 +42,43 @@ func IsUserInitiated(ctx context.Context) bool {
 	return ok && value
 }
 
+type writeKey struct{}
+
+// Writes — saving a score, progress, a status, dates, deleting an entry, toggling a favourite —
+// are a third lane above user reads.
+//
+// Marking every inbound request as user-initiated was right, and it left the requests that change
+// something competing with the ones that only look: a score change queued behind the page loads,
+// detail fetches and prefetches around it for the same handful of reserved slots, waited out
+// maxBudgetWait and was refused — which is what "editing an entry is very slow and sometimes times
+// out" was. An edit is a person waiting on one specific thing to be saved, and there are very few
+// of them, so they get slots nothing else may spend and go to the front of the queue.
+//
+// Set by customDoFunc from the GraphQL operation itself (a mutation), so every write path is
+// covered without each caller having to remember.
+func withWrite(ctx context.Context) context.Context {
+	return context.WithValue(ctx, writeKey{}, true)
+}
+
+func isWrite(ctx context.Context) bool {
+	value, ok := ctx.Value(writeKey{}).(bool)
+	return ok && value
+}
+
+// isMutation reports whether a GraphQL document is a mutation.
+func isMutation(query string) bool {
+	q := strings.TrimLeft(query, " \t\r\n")
+	// Leading comments are allowed before the operation.
+	for strings.HasPrefix(q, "#") {
+		if i := strings.IndexByte(q, '\n'); i >= 0 {
+			q = strings.TrimLeft(q[i+1:], " \t\r\n")
+		} else {
+			return false
+		}
+	}
+	return strings.HasPrefix(q, "mutation")
+}
+
 // backgroundYieldTimeout bounds how long background work will stand aside.
 //
 // Without a bound, a steady stream of user requests would hold background work off indefinitely,
@@ -53,7 +91,16 @@ const backgroundYieldTimeout = 10 * time.Second
 // resumes promptly once the user is served, long enough not to spin.
 const backgroundYieldPoll = 50 * time.Millisecond
 
+// writeYieldTimeout bounds how long reads stand aside for writes. Short: a write needs one slot,
+// and the reserve below means it almost never waits for one.
+const writeYieldTimeout = 5 * time.Second
+
 var (
+	// writesInFlight counts writes currently waiting on or talking to AniList.
+	writesInFlight atomic.Int64
+	writeIdleMu    sync.Mutex
+	writeIdle      = closedChan()
+
 	// userInFlight counts user requests currently waiting on or talking to AniList.
 	userInFlight atomic.Int64
 
@@ -87,6 +134,43 @@ func beginUserRequest() func() {
 				userIdleMu.Unlock()
 			}
 		})
+	}
+}
+
+// beginWrite registers a write and returns the function that ends it.
+func beginWrite() func() {
+	if writesInFlight.Add(1) == 1 {
+		writeIdleMu.Lock()
+		writeIdle = make(chan struct{})
+		writeIdleMu.Unlock()
+	}
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			if writesInFlight.Add(-1) == 0 {
+				writeIdleMu.Lock()
+				close(writeIdle)
+				writeIdleMu.Unlock()
+			}
+		})
+	}
+}
+
+// yieldToWrites holds a read (user or background) while a write is outstanding, so the write takes
+// the next free slot. Bounded by writeYieldTimeout; never an error.
+func yieldToWrites(ctx context.Context) {
+	if writesInFlight.Load() == 0 {
+		return
+	}
+	writeIdleMu.Lock()
+	idle := writeIdle
+	writeIdleMu.Unlock()
+	timer := time.NewTimer(writeYieldTimeout)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+	case <-timer.C:
+	case <-idle:
 	}
 }
 
@@ -130,8 +214,21 @@ func yieldToUserRequests(ctx context.Context) {
 // Every AniList request in the server passes through here — see customDoFunc — so this is the one
 // place both the ordering and the pacing can be got right.
 func gateRequest(ctx context.Context) (func(), error) {
+	if isWrite(ctx) {
+		// A write also counts as the user waiting, so background work keeps standing aside.
+		endWrite := beginWrite()
+		endUser := beginUserRequest()
+		release := func() { endUser(); endWrite() }
+		if !budget.takeLane(ctx, laneWrite) {
+			release()
+			return nil, ErrRateBudgetWait
+		}
+		return release, nil
+	}
+
 	if IsUserInitiated(ctx) {
 		release := beginUserRequest()
+		yieldToWrites(ctx)
 		// A user request still takes a slot from the budget; it simply never queues behind
 		// background work for one. Spending without counting is how the budget gets exceeded by
 		// exactly the requests that matter most.
@@ -142,6 +239,7 @@ func gateRequest(ctx context.Context) (func(), error) {
 		return release, nil
 	}
 
+	yieldToWrites(ctx)
 	yieldToUserRequests(ctx)
 	if !budget.take(ctx, false) {
 		return nil, ErrRateBudgetWait
@@ -179,6 +277,10 @@ var ErrRateBudgetWait = errors.New("anilist: too many requests queued, try again
 // A variable rather than a constant only so tests can shorten it; nothing else assigns to it.
 var maxBudgetWait = 10 * time.Second
 
+// maxWriteBudgetWait is the same bound for writes. Longer, because an edit is worth waiting for and
+// is not one of a crowd — and with writeReserve it should never come close.
+var maxWriteBudgetWait = 30 * time.Second
+
 // AniList allows a fixed number of requests a minute and answers 429 for the rest — and a 429 is
 // not free: it costs a slot, a minute of waiting, and, if enough of them land at once, a stretch
 // where nothing works at all.
@@ -201,6 +303,19 @@ const (
 	// userReserve is how many slots a minute are kept for requests somebody is waiting on.
 	// Background work stops at this line; user requests may spend it.
 	userReserve = 6
+
+	// writeReserve is how many of those are kept for writes alone. User reads stop at this line;
+	// only an edit may spend it, so saving a score always has somewhere to go.
+	writeReserve = 3
+)
+
+// budget lanes, highest first.
+type budgetLane int
+
+const (
+	laneBackground budgetLane = iota
+	laneUser
+	laneWrite
 )
 
 // BackgroundRequestsPerMinute is everything background work may spend in a minute, all of it put
@@ -234,12 +349,27 @@ var budget = &rateBudget{}
 // queue was deeper than maxBudgetWait. It is not an error the caller can fix by waiting longer —
 // that is precisely what it was doing.
 func (b *rateBudget) take(ctx context.Context, userInitiated bool) bool {
+	if userInitiated {
+		return b.takeLane(ctx, laneUser)
+	}
+	return b.takeLane(ctx, laneBackground)
+}
+
+// takeLane is take for one of the three lanes: writes may spend the whole window, user reads all but
+// the write reserve, background all but the user reserve.
+func (b *rateBudget) takeLane(ctx context.Context, lane budgetLane) bool {
 	limit := requestsPerMinute
-	if !userInitiated {
+	wait := maxBudgetWait
+	switch lane {
+	case laneBackground:
 		limit = requestsPerMinute - userReserve
+	case laneUser:
+		limit = requestsPerMinute - writeReserve
+	case laneWrite:
+		wait = maxWriteBudgetWait
 	}
 
-	giveUp := time.After(maxBudgetWait)
+	giveUp := time.After(wait)
 
 	for {
 		b.mu.Lock()

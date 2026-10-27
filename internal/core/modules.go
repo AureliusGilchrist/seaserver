@@ -687,6 +687,23 @@ func (a *App) initModulesOnce() {
 			return a.AnilistClientManager.IsAuthenticated(profileID)
 		},
 	})
+	a.AchievementEngine.SetSources(a.achievementSources())
+	if a.NakamaManager != nil {
+		a.NakamaManager.GetWatchPartyManager().OnPartyEnded(func(rec nakama.PartyRecord) {
+			a.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
+				ProfileID: rec.ProfileID,
+				Trigger:   achievement.TriggerNakamaEvent,
+				Timestamp: rec.Ended,
+				Metadata: map[string]interface{}{
+					"host":          rec.Host,
+					"peers":         rec.Peers,
+					"max_peers":     float64(rec.MaxPeers),
+					"chat_messages": float64(rec.ChatMessages),
+					"minutes":       rec.Ended.Sub(rec.Started).Minutes(),
+				},
+			})
+		})
+	}
 
 	// +---------------------+
 	// | Milestone Engine    |

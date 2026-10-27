@@ -44,6 +44,9 @@ type ClientSettingsOverrides struct {
 	NewsNotifyKeywords *string `json:"newsNotifyKeywords,omitempty"`
 	// Whether the community timeline shows paced news cards for this profile (default on).
 	CommunityShowNews *bool `json:"communityShowNews,omitempty"`
+	// TimeZone is the IANA zone of the profile's device (set automatically by the client), so
+	// "at 4 AM" and "on Christmas" mean the user's 4 AM and Christmas, not the server's.
+	TimeZone *string `json:"timeZone,omitempty"`
 
 	EnableRichPresence                      *bool `json:"enableRichPresence,omitempty"`
 	EnableAnimeRichPresence                 *bool `json:"enableAnimeRichPresence,omitempty"`

@@ -61,6 +61,8 @@ type AnilistClientManager struct {
 	// lastAnimeRefresh is when a background refresh was last started for a profile, so a refresh
 	// that keeps failing is retried at a steady interval rather than on every request.
 	lastAnimeRefresh map[uint]time.Time
+	// lastMangaRefresh is the same for the manga collection (created on first use).
+	lastMangaRefresh map[uint]time.Time
 	// recentEdits holds the list changes made here in the last couple of minutes, so a collection
 	// fetched before AniList has caught up cannot put the old values back. See recentEditTTL.
 	recentEdits map[uint]map[int]*animeListEdit
@@ -1250,14 +1252,59 @@ func (m *AnilistClientManager) loadAnimeCollectionFromDisk(profileID uint) *anil
 func (m *AnilistClientManager) GetMangaCollection(profileID uint) (*anilist.MangaCollection, error) {
 	// Fast path.
 	m.colMu.RLock()
-	if entry, ok := m.mangaColCache[profileID]; ok && time.Since(entry.fetchedAt) < profileMangaCollectionCacheTTL {
-		col := entry.data
-		m.colMu.RUnlock()
-		return col, nil
-	}
+	entry, hasCached := m.mangaColCache[profileID]
 	m.colMu.RUnlock()
+	if hasCached && time.Since(entry.fetchedAt) < profileMangaCollectionCacheTTL {
+		return entry.data, nil
+	}
 
-	// Slow path.
+	// Stale but present: hand it back and refresh behind it — the same rule as the anime
+	// collection. Without it every manga screen (the local library above all) waited on a fresh
+	// AniList fetch each time the cache aged out, behind the rate budget, showing zeros meanwhile.
+	if hasCached && entry.data != nil {
+		m.refreshMangaCollectionInBackground(profileID)
+		return entry.data, nil
+	}
+
+	// Nothing in memory: the disk copy, then a refresh behind it.
+	if diskCol := m.loadMangaCollectionFromDisk(profileID); diskCol != nil {
+		m.colMu.Lock()
+		// Held as already due a refresh (zero time), so the rules above keep refreshing it.
+		m.mangaColCache[profileID] = &profileMangaCache{data: diskCol}
+		m.colMu.Unlock()
+		m.refreshMangaCollectionInBackground(profileID)
+		return diskCol, nil
+	}
+
+	// Nothing anywhere. This one waits for a real answer.
+	return m.fetchMangaCollection(profileID)
+}
+
+// refreshMangaCollectionInBackground refetches a profile's manga collection without anyone waiting
+// on it, at most once per backgroundRefreshInterval.
+func (m *AnilistClientManager) refreshMangaCollectionInBackground(profileID uint) {
+	m.colMu.Lock()
+	if m.lastMangaRefresh == nil {
+		m.lastMangaRefresh = make(map[uint]time.Time)
+	}
+	if last, ok := m.lastMangaRefresh[profileID]; ok && time.Since(last) < backgroundRefreshInterval {
+		m.colMu.Unlock()
+		return
+	}
+	m.lastMangaRefresh[profileID] = time.Now()
+	m.colMu.Unlock()
+
+	go func() {
+		defer util.HandlePanicInModuleThen("core/refreshMangaCollection", func() {})
+		if _, err := m.fetchMangaCollection(profileID); err != nil {
+			m.logger.Debug().Err(err).Uint("profileID", profileID).
+				Msg("anilist_client_manager: Background refresh of the manga collection failed, the cached copy stands")
+		}
+	}()
+}
+
+// fetchMangaCollection does the actual work, deduplicated per profile.
+func (m *AnilistClientManager) fetchMangaCollection(profileID uint) (*anilist.MangaCollection, error) {
 	key := fmt.Sprintf("manga-%d", profileID)
 	result, err, _ := m.mangaSfg.Do(key, func() (interface{}, error) {
 		client := m.GetClient(profileID)

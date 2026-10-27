@@ -18,6 +18,7 @@ import { vc_paused, vc_videoElement } from "@/app/(main)/_features/video-core/vi
 import { nativePlayer_stateAtom } from "@/app/(main)/_features/native-player/native-player.atoms"
 import { NativePlayer } from "@/app/(main)/_features/native-player/native-player"
 import { VideoCoreProvider } from "@/app/(main)/_features/video-core/video-core"
+import { setPendingPopoutResume } from "@/app/(main)/_features/video-core/video-core-popout-resume"
 import { clientIdAtom, websocketConnectedAtom } from "@/app/websocket-provider"
 import { AppLayoutStack } from "@/components/ui/app-layout"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
@@ -303,6 +304,10 @@ function PopoutPlaybackHandoff() {
             log.error("Failed to decode popout path parameter")
         }
         if (!filePath) return
+
+        // The main window's exact position, consumed by the player when the stream can play.
+        const t = Number(searchParams.get("t"))
+        if (Number.isFinite(t) && t > 0) setPendingPopoutResume(t, searchParams.get("paused") === "1")
 
         log.info("Starting popout playback", filePath)
         playLocalFile({ path: filePath, clientId }, {

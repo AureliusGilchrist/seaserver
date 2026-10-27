@@ -12,6 +12,7 @@ import { NumberInput } from "@/components/ui/number-input"
 import { Switch } from "@/components/ui/switch"
 import { type ClientSettings, resetClientSettings, setClientSettings, useClientSettings } from "@/lib/client-settings"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
+import { __isElectronDesktop__ } from "@/types/constants"
 import { useAtom, useAtomValue } from "jotai"
 import React from "react"
 import { LuBookmarkCheck, LuDownload, LuEye, LuListChecks, LuMessageCircle, LuMonitorPlay, LuNewspaper, LuPlay, LuRotateCcw, LuRss, LuSearch, LuSettings2, LuTags, LuUserCog, LuX } from "react-icons/lu"
@@ -519,6 +520,15 @@ export function ClientSettings(props: ClientSettingsProps) {
                                 help="Start the next episode when one ends."
                             />
                         </SettingRow>
+                        {__isElectronDesktop__ && <SettingRow settingKey="autoPopoutOnLeave">
+                            <Switch
+                                side="right"
+                                value={personal.autoPopoutOnLeave}
+                                onValueChange={v => handleSet("autoPopoutOnLeave", v)}
+                                label="Pop out the player when you leave the page"
+                                help="Going to another page while the local player is playing keeps it going in the popout window, right where you were."
+                            />
+                        </SettingRow>}
                     </div>
                     <SettingRow settingKey={["stillWatchingChecksEnabled", "stillWatchingEpisodes", "stillWatchingTimingMode", "stillWatchingStartHour", "stillWatchingEndHour", "stillWatchingSessionGapMinutes", "stillWatchingMouseExtends", "stillWatchingMouseAmount", "stillWatchingMouseMaxExtra"]}>
                         <div className="space-y-4">

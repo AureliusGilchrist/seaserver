@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"seanime/internal/achievement"
 	"seanime/internal/library/playbackmanager"
 
 	"github.com/labstack/echo/v4"
@@ -50,6 +51,12 @@ func (h *Handler) HandlePlaybackPlayVideo(c echo.Context) error {
 //	@route /api/v1/playback-manager/play-random [POST]
 //	@returns bool
 func (h *Handler) HandlePlaybackPlayRandomVideo(c echo.Context) error {
+	// "Start watching a randomly selected anime" (achievement).
+	go h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
+		ProfileID: h.GetProfileID(c),
+		Trigger:   achievement.TriggerPlatformEvent,
+		Metadata:  map[string]interface{}{"action": "random_pick"},
+	})
 
 	err := h.App.PlaybackManager.StartRandomVideo(&playbackmanager.StartRandomVideoOptions{
 		UserAgent: c.Request().Header.Get("User-Agent"),

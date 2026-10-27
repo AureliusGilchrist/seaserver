@@ -8,6 +8,8 @@ export type PersonalSettings = {
     autoUpdateProgress: boolean
     enableWatchContinuity: boolean
     autoPlayNextEpisode: boolean
+    /** Desktop client: leaving the page while the local player is playing pops it out where it was. */
+    autoPopoutOnLeave: boolean
     stillWatchingChecksEnabled: boolean
     stillWatchingEpisodes: number
     /** How the check's active hours are chosen: the default night window, all day, or custom hours. */
@@ -72,6 +74,7 @@ export function usePersonalSettings(): PersonalSettings {
         autoUpdateProgress: clientSettings.autoUpdateProgress ?? serverStatus?.settings?.library?.autoUpdateProgress ?? false,
         enableWatchContinuity: clientSettings.enableWatchContinuity ?? serverStatus?.settings?.library?.enableWatchContinuity ?? false,
         autoPlayNextEpisode: clientSettings.autoPlayNextEpisode ?? serverStatus?.settings?.library?.autoPlayNextEpisode ?? false,
+        autoPopoutOnLeave: clientSettings.autoPopoutOnLeave ?? true,
         stillWatchingChecksEnabled: clientSettings.stillWatchingChecksEnabled ?? serverStatus?.settings?.mediaPlayer?.stillWatchingChecksEnabled ?? true,
         stillWatchingEpisodes: clientSettings.stillWatchingEpisodes ?? serverStatus?.settings?.mediaPlayer?.stillWatchingEpisodes ?? 3,
         stillWatchingTimingMode: clientSettings.stillWatchingTimingMode ?? "night",

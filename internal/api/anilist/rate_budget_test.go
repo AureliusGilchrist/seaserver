@@ -14,7 +14,7 @@ func TestBudgetStopsAtTheCeiling(t *testing.T) {
 	b := freshBudget()
 
 	// Spend everything a user is allowed in this window.
-	for i := 0; i < requestsPerMinute; i++ {
+	for i := 0; i < requestsPerMinute-writeReserve; i++ {
 		b.take(context.Background(), true)
 	}
 
@@ -69,13 +69,13 @@ func TestObservedRemainingIsBelieved(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 80*time.Millisecond)
 	defer cancel()
 
-	// Two more are fine...
-	b.take(ctx, true)
-	b.take(ctx, true)
+	// Two more are fine (for a write, which may spend the whole window)...
+	b.takeLane(ctx, laneWrite)
+	b.takeLane(ctx, laneWrite)
 
 	// ...and the third has to wait, because AniList said so.
 	start := time.Now()
-	b.take(ctx, true)
+	b.takeLane(ctx, laneWrite)
 	if waited := time.Since(start); waited < 40*time.Millisecond {
 		t.Errorf("kept spending past what AniList reported, after %v", waited)
 	}

@@ -66,7 +66,7 @@ func (h *Handler) HandleGetLibraryCollection(c echo.Context) error {
 		lc := anime.NewLightLibraryCollection(animeCollection)
 
 		if lc.Stats != nil {
-			lc.Stats.TotalSize = util.Bytes(h.App.TotalLibrarySize)
+			lc.Stats.TotalSize = util.LibrarySize(h.App.TotalLibrarySize)
 		}
 		return h.RespondWithData(c, lc)
 	}
@@ -311,7 +311,7 @@ func (h *Handler) HandleGetLibraryCollection(c echo.Context) error {
 
 	// Hydrate total library size
 	if libraryCollection != nil && libraryCollection.Stats != nil {
-		libraryCollection.Stats.TotalSize = util.Bytes(h.App.TotalLibrarySize)
+		libraryCollection.Stats.TotalSize = util.LibrarySize(h.App.TotalLibrarySize)
 	}
 
 	return h.RespondWithData(c, libraryCollection)

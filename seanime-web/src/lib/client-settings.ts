@@ -22,6 +22,8 @@ export const clientSettingsSchema = z.object({
     autoUpdateProgress: z.boolean().optional(),
     enableWatchContinuity: z.boolean().optional(),
     autoPlayNextEpisode: z.boolean().optional(),
+    /** Desktop client: leaving the page while the local player is playing pops it out where it was. */
+    autoPopoutOnLeave: z.boolean().optional(),
     stillWatchingChecksEnabled: z.boolean().optional(),
     stillWatchingEpisodes: z.number().optional(),
     // Hours of day (0–23) the still-watching check applies in; the window may cross midnight.
@@ -52,6 +54,9 @@ export const clientSettingsSchema = z.object({
     newsNotifyKeywords: z.string().optional(),
     /** Whether the community timeline shows paced news cards. */
     communityShowNews: z.boolean().optional(),
+    /** The device's IANA time zone, kept current automatically: achievements count "4 AM" and
+     * "Christmas" on the user's clock, not the server's. Not a user-facing setting. */
+    timeZone: z.string().optional(),
     // Display
     hideAudienceScore: z.boolean().optional(),
     blurAdultContent: z.boolean().optional(),
@@ -98,6 +103,19 @@ export function setClientSettings(next: ClientSettings | ((prev: ClientSettings)
     seaStorage.setItem(CLIENT_SETTINGS_KEY, JSON.stringify(value))
     window.dispatchEvent(new Event("sea-client-settings-changed"))
     return value
+}
+
+/** Stores the device's time zone in this profile's settings when it differs (see `timeZone`). */
+export function syncClientTimeZone() {
+    try {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+        if (!tz) return
+        if (readClientSettings().timeZone === tz) return
+        setClientSettings(prev => ({ ...prev, timeZone: tz }))
+    }
+    catch {
+        // No Intl time zone support: the server's zone is used.
+    }
 }
 
 /** Removes every client override, falling back to the server-wide values. */

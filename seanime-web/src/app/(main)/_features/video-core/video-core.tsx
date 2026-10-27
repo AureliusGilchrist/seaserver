@@ -128,6 +128,7 @@ import {
     vc_logGeneralInfo,
 } from "@/app/(main)/_features/video-core/video-core.utils"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
+import { useRouter as useTanstackRouter } from "@tanstack/react-router"
 import { useServerHMACAuth, useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { useMediastreamCurrentFile } from "@/app/(main)/mediastream/_lib/mediastream.atoms"
 import { __torrentSearch_selectedTorrentsAtom } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-container"
@@ -1945,7 +1946,13 @@ export function VideoCore(props: VideoCoreProps) {
                     const from = (inline && mediastreamFilePath && !playbackInfoRef?.localFile?.path)
                         ? `&from=${encodeURIComponent(window.location.pathname + window.location.search)}`
                         : ""
-                    const url = `${window.location.origin}/popout-player?path=${encoded}&launch=${encodeURIComponent(launchId)}${from}`
+                    // The exact position, so the popout starts on the same second rather than
+                    // at the last position the server happened to save.
+                    const v = videoRef.current
+                    const at = v && Number.isFinite(v.currentTime) && v.currentTime > 0
+                        ? `&t=${v.currentTime.toFixed(2)}&paused=${v.paused ? 1 : 0}`
+                        : ""
+                    const url = `${window.location.origin}/popout-player?path=${encoded}&launch=${encodeURIComponent(launchId)}${from}${at}`
 
                     window.electron!.window!.openPlayerPopout(url).then(() => {
                         // Hand off: stop this client's stream; the popout resumes from
@@ -1962,6 +1969,32 @@ export function VideoCore(props: VideoCoreProps) {
             }
         }
     }, [pipManager, subtitleManager, mediaCaptionsManager, videoRef.current, state.playbackInfo, mediastreamFilePath, inline])
+
+    // Desktop: leaving the page while the local player is playing hands it to the popout window,
+    // on the same second, instead of stopping it (Personal → "Pop out the player when you leave").
+    // Only the inline local player: the native-player drawer already stays open across pages.
+    const tanstackRouter = useTanstackRouter()
+    const autoPopoutRef = React.useRef({ enabled: false, active: false })
+    autoPopoutRef.current = {
+        enabled: __isElectronDesktop__ && !!personal.autoPopoutOnLeave && inline && !!mediastreamFilePath && !isWatchPartyParticipant,
+        active: !!state.playbackInfo && !!videoRef.current && !videoRef.current.ended,
+    }
+    React.useEffect(() => {
+        if (!__isElectronDesktop__ || !inline) return
+        return tanstackRouter.subscribe("onBeforeNavigate", (evt) => {
+            const { enabled, active } = autoPopoutRef.current
+            if (!enabled || !active || !pipManager) return
+            const from = evt.fromLocation
+            const to = evt.toLocation
+            if (!from || !to) return
+            const fromId = (from.search as Record<string, unknown> | undefined)?.id
+            const toId = (to.search as Record<string, unknown> | undefined)?.id
+            // Same page (an episode change, a tab or query tweak) is not leaving it.
+            if (from.pathname === to.pathname && String(fromId ?? "") === String(toId ?? "")) return
+            log.info("Leaving the page while playing: popping out", { to: to.pathname })
+            pipManager.togglePip(true)
+        })
+    }, [tanstackRouter, inline, pipManager])
 
     // Update fullscreen manager
     React.useEffect(() => {

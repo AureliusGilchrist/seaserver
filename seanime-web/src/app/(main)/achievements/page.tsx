@@ -293,7 +293,7 @@ function AchievementCard({ definition, entryMap }: {
                     <div className="mt-2">
                         <div className="flex items-center justify-between text-xs text-[--muted] mb-0.5">
                             <span>Progress to {definition.TierNames?.[nextTier - 1] ?? `Tier ${nextTier}`}</span>
-                            <span>{Math.round(progress)} / {nextThreshold}</span>
+                            <span>{formatNumber(Math.floor(progress))} / {formatNumber(nextThreshold)}</span>
                         </div>
                         <div className="h-1.5 rounded-full bg-[--border] overflow-hidden">
                             <div

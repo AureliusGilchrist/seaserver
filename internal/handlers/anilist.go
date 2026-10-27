@@ -79,28 +79,11 @@ func (h *Handler) HandleGetAnimeCollection(c echo.Context) error {
 		}()
 	}
 
-	// Evaluate collection-based achievements only for profiles that have already
-	// recorded in-Seanime activity. This prevents a brand-new profile from
-	// retroactively unlocking hundreds of achievements the moment they first
-	// connect their AniList account.
+	// Re-measure achievements against the refreshed list. The engine itself skips profiles that
+	// have never watched or read anything here, so connecting an account does not unlock its
+	// whole AniList history at once.
 	if profileID > 0 {
-		go func() {
-			pdb, dbErr := h.App.ProfileDatabaseManager.GetDatabase(profileID)
-			if dbErr != nil {
-				return
-			}
-			allLogs, logsErr := pdb.GetAllActivityLogs()
-			if logsErr != nil || len(allLogs) == 0 {
-				return // fresh profile — skip retroactive collection evaluation
-			}
-			profileMangaCol, mangaErr := h.App.AnilistClientManager.GetMangaCollection(profileID)
-			var mangaCol *anilist.MangaCollection
-			if mangaErr == nil {
-				mangaCol = profileMangaCol
-			}
-			stats := buildCollectionStats(animeCollection, mangaCol)
-			h.App.AchievementEngine.EvaluateCollectionStats(profileID, stats)
-		}()
+		h.App.AchievementEngine.RequestEvaluation(profileID)
 	}
 
 	return h.RespondWithData(c, animeCollection)
@@ -215,7 +198,8 @@ func (h *Handler) HandleEditAnilistListEntry(c echo.Context) error {
 			Trigger:   achievement.TriggerRatingChange,
 			MediaID:   *p.MediaId,
 			Metadata: map[string]interface{}{
-				"score": *p.Score,
+				"score": float64(*p.Score),
+				"type":  p.Type,
 			},
 		})
 	}
@@ -226,6 +210,7 @@ func (h *Handler) HandleEditAnilistListEntry(c echo.Context) error {
 			MediaID:   *p.MediaId,
 			Metadata: map[string]interface{}{
 				"status": string(*p.Status),
+				"type":   p.Type,
 			},
 		})
 	}

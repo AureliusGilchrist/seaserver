@@ -19,6 +19,8 @@ func TestUserInitiatedMarkerRoundTrips(t *testing.T) {
 
 // Background work stands aside while the user has a request outstanding — this is the whole point.
 func TestBackgroundYieldsWhileAUserRequestIsInFlight(t *testing.T) {
+	// Earlier tests share the package budget; start from an empty window.
+	resetRateBudget()
 	release := mustGate(t, WithUserInitiated(context.Background()))
 	if UserRequestsInFlight() != 1 {
 		t.Fatalf("in flight = %d, want 1", UserRequestsInFlight())
@@ -170,7 +172,7 @@ func TestGateRefusesRatherThanQueueingForever(t *testing.T) {
 
 	// Spend the whole window, so the next request has to wait for a slot to age out — which takes
 	// a minute, far longer than the bound above.
-	for i := 0; i < requestsPerMinute; i++ {
+	for i := 0; i < requestsPerMinute-writeReserve; i++ {
 		release, err := gateRequest(WithUserInitiated(context.Background()))
 		if err != nil {
 			t.Fatalf("filling the budget: refused at %d: %v", i, err)
@@ -192,5 +194,54 @@ func TestGateRefusesRatherThanQueueingForever(t *testing.T) {
 	}
 	if got := UserRequestsInFlight(); got != 0 {
 		t.Errorf("in flight = %d after a refusal, want 0 — the refused request was not released", got)
+	}
+}
+
+// An edit always has a slot: user reads that have filled their share cannot spend the write reserve.
+func TestWriteGetsTheReserveReadsCannotSpend(t *testing.T) {
+	resetRateBudget()
+	original := maxBudgetWait
+	maxBudgetWait = 50 * time.Millisecond
+	defer func() { maxBudgetWait = original }()
+
+	for i := 0; i < requestsPerMinute-writeReserve; i++ {
+		release, err := gateRequest(WithUserInitiated(context.Background()))
+		if err != nil {
+			t.Fatalf("filling the read share: refused at %d: %v", i, err)
+		}
+		release()
+	}
+
+	// One more read is refused — the rest is held for writes.
+	if release, err := gateRequest(WithUserInitiated(context.Background())); err == nil {
+		release()
+		t.Fatal("a read spent the write reserve")
+	}
+
+	// Every write still goes straight through.
+	for i := 0; i < writeReserve; i++ {
+		start := time.Now()
+		release, err := gateRequest(withWrite(WithUserInitiated(context.Background())))
+		if err != nil {
+			t.Fatalf("write %d refused: %v", i, err)
+		}
+		release()
+		if waited := time.Since(start); waited > 100*time.Millisecond {
+			t.Errorf("write %d waited %v for a slot it had reserved", i, waited)
+		}
+	}
+}
+
+func TestIsMutation(t *testing.T) {
+	cases := map[string]bool{
+		"mutation UpdateMediaListEntry($id: Int) { SaveMediaListEntry(id: $id) { id } }": true,
+		"  \n# comment\nmutation X { a }":                                                  true,
+		"query AnimeCollection { MediaListCollection { lists { name } } }":                false,
+		"{ Viewer { id } }":                                                               false,
+	}
+	for q, want := range cases {
+		if got := isMutation(q); got != want {
+			t.Errorf("isMutation(%q) = %v, want %v", q, got, want)
+		}
 	}
 }

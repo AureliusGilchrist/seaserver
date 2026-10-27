@@ -1,18 +1,31 @@
 package achievement
 
 import (
+	"encoding/json"
 	"math"
+	"strings"
+	"sync"
+	"time"
+
+	"seanime/internal/api/anilist"
 	"seanime/internal/database/db"
 	"seanime/internal/database/models"
 	"seanime/internal/events"
-	"sync"
-	"time"
 
 	"github.com/rs/zerolog"
 )
 
 // CurrentXPVersion is bumped whenever the XP formula changes to trigger retroactive recalculation.
 const CurrentXPVersion = 2
+
+// CurrentRulesVersion is bumped whenever the rules change in a way that makes earlier unlocks
+// suspect. On the first evaluation under a new version every unlock is re-checked: the ones the
+// rules no longer support are revoked along with their XP (see revalidate).
+//
+// Version 1: the rule registry replaced the category evaluators, under which "streaks" were
+// lifetime episode counts, Score Sniper fired on any rating, and averages compared a 100-point
+// score with 10-point thresholds.
+const CurrentRulesVersion = 1
 
 // AchievementEvent is carried into the engine from handlers.
 // All fields are optional except ProfileID and Trigger.
@@ -51,16 +64,32 @@ type BatchUnlockPayload struct {
 	LeveledUp bool `json:"leveledUp,omitempty"`
 }
 
+// Sources is where the engine reads what the rules measure. Every field is optional; a missing
+// source simply measures as nothing.
+type Sources struct {
+	// AnimeCollection / MangaCollection return the profile's own list (cached reads).
+	AnimeCollection func(profileID uint) *anilist.AnimeCollection
+	MangaCollection func(profileID uint) *anilist.MangaCollection
+	// Extras is the shared cache of studios, staff, relations and rankings.
+	Extras *ExtrasCache
+	// Social returns the profile's comment counts and the times it was socially active
+	// (comments, posts, replies).
+	Social func(profileID uint) (animeComments, mangaComments int, times []time.Time)
+	// TimeZone returns the profile's time zone (from its client prefs); nil means server-local.
+	TimeZone func(profileID uint) *time.Location
+}
+
 // Engine evaluates achievement events and unlocks achievements in the profile DB.
 type Engine struct {
-	logger             *zerolog.Logger
-	wsEventManager     events.WSEventManagerInterface
-	getDB              func(profileID uint) (*db.Database, error)
-	isProfileEligible  func(profileID uint) bool
+	logger            *zerolog.Logger
+	wsEventManager    events.WSEventManagerInterface
+	getDB             func(profileID uint) (*db.Database, error)
+	isProfileEligible func(profileID uint) bool
+	sources           Sources
 
-	defMap     map[string]*Definition
-	mu         sync.Mutex
-	initialized bool
+	defMap      map[string]*Definition
+	mu          sync.Mutex
+	initialized map[*db.Database]bool
 
 	// activityTracker is the server-authoritative tracker for active
 	// engagement (anime watching / manga reading). It is the ONLY source
@@ -69,6 +98,16 @@ type Engine struct {
 	// heartbeats (clamped to MaxHeartbeatDelta, reset after
 	// InactivityTimeout). See activity_tracker.go.
 	activityTracker *ActivityTracker
+
+	// Per-profile evaluation: one at a time, debounced, never two passes racing for one unlock.
+	evalMu    sync.Mutex
+	profileMu map[uint]*sync.Mutex
+	timers    map[uint]*time.Timer
+	lastEval  map[uint]time.Time
+
+	// activeSeconds accumulates heartbeat time per profile and kind until it is worth a log row.
+	activeMu      sync.Mutex
+	activeSeconds map[uint]map[ActivityKind]float64
 }
 
 type NewEngineOptions struct {
@@ -78,17 +117,40 @@ type NewEngineOptions struct {
 	// IsProfileEligible returns true if the profile should earn achievements.
 	// When nil, all profiles with ID > 0 are eligible.
 	IsProfileEligible func(profileID uint) bool
+	Sources           Sources
 }
 
 // NewEngine creates a new achievement engine.
 func NewEngine(opts *NewEngineOptions) *Engine {
-	return &Engine{
+	e := &Engine{
 		logger:            opts.Logger,
 		wsEventManager:    opts.WSEventManager,
 		getDB:             opts.GetDB,
 		isProfileEligible: opts.IsProfileEligible,
+		sources:           opts.Sources,
 		defMap:            DefinitionMap(),
+		initialized:       map[*db.Database]bool{},
 		activityTracker:   NewActivityTracker(),
+		profileMu:         map[uint]*sync.Mutex{},
+		timers:            map[uint]*time.Timer{},
+		lastEval:          map[uint]time.Time{},
+		activeSeconds:     map[uint]map[ActivityKind]float64{},
+	}
+	return e
+}
+
+// SetSources wires the data sources after construction (they depend on services created later).
+func (e *Engine) SetSources(s Sources) {
+	if e == nil {
+		return
+	}
+	e.evalMu.Lock()
+	e.sources = s
+	e.evalMu.Unlock()
+	if s.Extras != nil {
+		s.Extras.mu.Lock()
+		s.Extras.onFilled = e.reevaluateRecent
+		s.Extras.mu.Unlock()
 	}
 }
 
@@ -96,12 +158,8 @@ func NewEngine(opts *NewEngineOptions) *Engine {
 // user is ACTIVELY engaged in the given kind (anime watching / manga reading).
 // The tracker measures wall-clock between heartbeats (clamped to prevent abuse
 // and reset after 1h of inactivity), and the resulting continuous-session
-// duration is fed to the achievement evaluator as TriggerAnimeActivity /
-// TriggerMangaActivity with metadata "session_hours".
-//
-// This is the ONLY path that drives continuous-session hour achievements
-// (e.g. "Watch continuously for 24+ hours", "Read for 6+ hours continuously").
-// Client-reported durations are NEVER trusted for these.
+// duration feeds the "watch continuously for N hours" rules; the time itself
+// feeds the hours-per-day/weekend/month rules.
 //
 // Returns the wall-clock delta (in seconds) credited toward the session, so callers
 // can grant passive watch-time XP proportionally. Returns 0 if this is a brand-new
@@ -111,21 +169,34 @@ func (e *Engine) RecordActivity(profileID uint, kind ActivityKind) float64 {
 		return 0
 	}
 	now := time.Now()
-	sessionHours, deltaSeconds, _ := e.activityTracker.Heartbeat(profileID, kind, now)
+	_, deltaSeconds, _ := e.activityTracker.Heartbeat(profileID, kind, now)
+
+	// Time spent is logged in five-minute pieces rather than per heartbeat.
+	e.activeMu.Lock()
+	if e.activeSeconds[profileID] == nil {
+		e.activeSeconds[profileID] = map[ActivityKind]float64{}
+	}
+	e.activeSeconds[profileID][kind] += deltaSeconds
+	flush := e.activeSeconds[profileID][kind] >= 300
+	minutes := 0
+	if flush {
+		minutes = int(e.activeSeconds[profileID][kind] / 60)
+		e.activeSeconds[profileID][kind] -= float64(minutes * 60)
+	}
+	e.activeMu.Unlock()
+	if flush && minutes > 0 {
+		if database, err := e.getDB(profileID); err == nil {
+			_ = database.AppendAchievementLog(models.AchievementLogEntry{
+				At: now.Unix(), Kind: LogKindActive, MediaType: string(kind), Minutes: minutes,
+			})
+		}
+	}
 
 	trigger := TriggerAnimeActivity
 	if kind == ActivityKindManga {
 		trigger = TriggerMangaActivity
 	}
-	e.ProcessEvent(&AchievementEvent{
-		ProfileID: profileID,
-		Trigger:   trigger,
-		Timestamp: now,
-		Metadata: map[string]interface{}{
-			"session_hours": sessionHours,
-			"kind":          string(kind),
-		},
-	})
+	e.ProcessEvent(&AchievementEvent{ProfileID: profileID, Trigger: trigger, Timestamp: now})
 	return deltaSeconds
 }
 
@@ -138,10 +209,12 @@ func (e *Engine) ResetActivity(profileID uint, kind ActivityKind) {
 	e.activityTracker.Reset(profileID, kind)
 }
 
-// ProcessEvent is called from handlers when an actionable event occurs.
-// It evaluates all definitions that match the given trigger and updates progress/unlocks.
+// ProcessEvent records what happened and schedules an evaluation of the profile.
+//
+// Recording is immediate; evaluation is debounced, so the burst of events one finished episode
+// produces (progress, completion, activity) is measured once.
 func (e *Engine) ProcessEvent(event *AchievementEvent) {
-	if event.ProfileID == 0 {
+	if e == nil || event == nil || event.ProfileID == 0 {
 		return
 	}
 	if e.isProfileEligible != nil && !e.isProfileEligible(event.ProfileID) {
@@ -150,198 +223,553 @@ func (e *Engine) ProcessEvent(event *AchievementEvent) {
 	if event.Timestamp.IsZero() {
 		event.Timestamp = time.Now()
 	}
-
 	database, err := e.getDB(event.ProfileID)
 	if err != nil {
 		e.logger.Error().Err(err).Uint("profileID", event.ProfileID).Msg("achievement: failed to get profile DB")
 		return
 	}
-
-	// Lazily initialize achievement rows on first event
 	e.ensureInitialized(database)
-
-	// Everything this pass unlocks is announced together when it finishes. See unlockBatch.
-	batch := &unlockBatch{}
-
-	// Evaluate each definition that matches the trigger
-	for i := range AllDefinitions {
-		def := &AllDefinitions[i]
-		if !e.triggerMatches(def, event.Trigger) {
-			continue
-		}
-		e.evaluateDefinition(database, def, event, batch)
+	if event.Trigger == EvalTrigger("_init") {
+		return
 	}
 
-	e.flushUnlocks(event.ProfileID, batch)
+	e.record(database, event)
+
+	delay := 2 * time.Second
+	if event.Trigger == TriggerAnimeActivity || event.Trigger == TriggerMangaActivity {
+		// Heartbeats arrive every ~30 s; the session rules do not need to be measured that often.
+		e.evalMu.Lock()
+		recent := time.Since(e.lastEval[event.ProfileID]) < 2*time.Minute
+		_, pending := e.timers[event.ProfileID]
+		e.evalMu.Unlock()
+		if recent || pending {
+			return
+		}
+	}
+	e.schedule(event.ProfileID, delay)
 }
 
-// EvaluateCollectionStats is called on collection refresh to evaluate stat-based achievements.
-// It receives aggregate stats and evaluates definitions that use TriggerCollectionRefresh.
-func (e *Engine) EvaluateCollectionStats(profileID uint, stats *CollectionStats) {
-	if profileID == 0 || stats == nil {
+// RequestEvaluation measures a profile soon (e.g. after its collection was refreshed).
+func (e *Engine) RequestEvaluation(profileID uint) {
+	if e == nil || profileID == 0 {
 		return
 	}
 	if e.isProfileEligible != nil && !e.isProfileEligible(profileID) {
 		return
 	}
+	e.schedule(profileID, 2*time.Second)
+}
+
+// EvaluateCollectionStats is kept for callers that used to pass precomputed stats; the engine now
+// measures the lists itself, so this just requests an evaluation.
+func (e *Engine) EvaluateCollectionStats(profileID uint, _ interface{}) {
+	e.RequestEvaluation(profileID)
+}
+
+// EvaluateNow measures a profile synchronously (the import endpoint).
+func (e *Engine) EvaluateNow(profileID uint) {
+	if e == nil || profileID == 0 {
+		return
+	}
+	e.evaluate(profileID)
+}
+
+func (e *Engine) schedule(profileID uint, delay time.Duration) {
+	e.evalMu.Lock()
+	defer e.evalMu.Unlock()
+	if t, ok := e.timers[profileID]; ok {
+		t.Reset(delay)
+		return
+	}
+	e.timers[profileID] = time.AfterFunc(delay, func() {
+		e.evalMu.Lock()
+		delete(e.timers, profileID)
+		e.evalMu.Unlock()
+		e.evaluate(profileID)
+	})
+}
+
+// reevaluateRecent measures again every profile evaluated in the last hour (new media extras landed).
+func (e *Engine) reevaluateRecent() {
+	e.evalMu.Lock()
+	ids := make([]uint, 0, len(e.lastEval))
+	for id, at := range e.lastEval {
+		if time.Since(at) < time.Hour {
+			ids = append(ids, id)
+		}
+	}
+	e.evalMu.Unlock()
+	for _, id := range ids {
+		e.schedule(id, 5*time.Second)
+	}
+}
+
+func (e *Engine) lockProfile(profileID uint) func() {
+	e.evalMu.Lock()
+	m, ok := e.profileMu[profileID]
+	if !ok {
+		m = &sync.Mutex{}
+		e.profileMu[profileID] = m
+	}
+	e.evalMu.Unlock()
+	m.Lock()
+	return m.Unlock
+}
+
+// ── Recording ────────────────────────────────────────────────────────────────────────────────
+
+func (e *Engine) record(database *db.Database, ev *AchievementEvent) {
+	meta := ev.Metadata
+	at := ev.Timestamp
+	window := at.Add(-12 * time.Hour)
+	appendRow := func(r models.AchievementLogEntry) {
+		r.At = at.Unix()
+		if err := database.AppendAchievementLog(r); err != nil {
+			e.logger.Warn().Err(err).Str("kind", r.Kind).Msg("achievement: failed to log event")
+		}
+	}
+
+	switch ev.Trigger {
+	case TriggerEpisodeProgress:
+		ep := int(getMetaFloat(meta, "episode_number"))
+		if ep <= 0 || ev.MediaID <= 0 {
+			return
+		}
+		if database.HasAchievementLogEntry(LogKindEpisode, "anime", ev.MediaID, ep, window) {
+			return
+		}
+		appendRow(models.AchievementLogEntry{Kind: LogKindEpisode, MediaType: "anime", MediaID: ev.MediaID, Number: ep, Minutes: int(getMetaFloat(meta, "duration"))})
+	case TriggerChapterProgress:
+		ch := int(getMetaFloat(meta, "chapter"))
+		if ch <= 0 || ev.MediaID <= 0 {
+			return
+		}
+		if database.HasAchievementLogEntry(LogKindChapter, "manga", ev.MediaID, ch, window) {
+			return
+		}
+		appendRow(models.AchievementLogEntry{Kind: LogKindChapter, MediaType: "manga", MediaID: ev.MediaID, Number: ch, Minutes: int(getMetaFloat(meta, "reading_minutes"))})
+	case TriggerSeriesComplete, TriggerMangaComplete:
+		mt := "anime"
+		if ev.Trigger == TriggerMangaComplete {
+			mt = "manga"
+		}
+		if ev.MediaID <= 0 || database.HasAchievementLogEntry(LogKindComplete, mt, ev.MediaID, 0, window) {
+			return
+		}
+		appendRow(models.AchievementLogEntry{Kind: LogKindComplete, MediaType: mt, MediaID: ev.MediaID})
+	case TriggerRatingChange, TriggerStatusChange:
+		// List edits made here are logged now and written into the snapshot, so the next
+		// snapshot comparison does not log them a second time.
+		mt := getMetaString(meta, "type")
+		if mt != "manga" {
+			mt = "anime"
+		}
+		if ev.MediaID <= 0 {
+			return
+		}
+		e.recordListEdit(database, mt, ev.MediaID, at, meta)
+	case TriggerPlatformEvent:
+		if a := getMetaString(meta, "action"); a == "random_pick" {
+			data, _ := json.Marshal(map[string]string{"action": a})
+			appendRow(models.AchievementLogEntry{Kind: LogKindAction, MediaType: "anime", MediaID: ev.MediaID, Data: string(data)})
+		}
+	case TriggerNakamaEvent:
+		data, _ := json.Marshal(map[string]interface{}{
+			"host":         getMetaBool(meta, "host"),
+			"peers":        getMetaStringSlice(meta, "peers"),
+			"maxPeers":     getMetaFloat(meta, "max_peers"),
+			"chatMessages": getMetaFloat(meta, "chat_messages"),
+		})
+		started := at.Add(-time.Duration(getMetaFloat(meta, "minutes")) * time.Minute)
+		r := models.AchievementLogEntry{Kind: LogKindParty, Minutes: int(getMetaFloat(meta, "minutes")), Data: string(data)}
+		r.At = started.Unix()
+		_ = database.AppendAchievementLog(r)
+	}
+}
+
+// recordListEdit logs a score or status change made through this app and updates the snapshot.
+func (e *Engine) recordListEdit(database *db.Database, mediaType string, mediaID int, at time.Time, meta map[string]interface{}) {
+	snap, _ := database.GetAchievementListSnapshot()
+	key := mediaType + ":" + itoa(mediaID)
+	prev, had := snap[key]
+	next := prev
+	next.MediaType, next.MediaID = mediaType, mediaID
+	var rows []models.AchievementLogEntry
+	if _, ok := meta["score"]; ok {
+		// Handlers send the score on AniList's POINT_100 scale.
+		score := getMetaFloat(meta, "score")
+		if !had || score != prev.Score {
+			data, _ := json.Marshal(map[string]float64{"from": prev.Score})
+			rows = append(rows, models.AchievementLogEntry{At: at.Unix(), Kind: LogKindScore, MediaType: mediaType, MediaID: mediaID, Number: int(score), Data: string(data)})
+			next.Score = score
+		}
+	}
+	if st := getMetaString(meta, "status"); st != "" && (!had || st != prev.Status) {
+		data, _ := json.Marshal(map[string]string{"from": prev.Status, "to": st})
+		rows = append(rows, models.AchievementLogEntry{At: at.Unix(), Kind: LogKindStatus, MediaType: mediaType, MediaID: mediaID, Data: string(data)})
+		if st == "COMPLETED" && !database.HasAchievementLogEntry(LogKindComplete, mediaType, mediaID, 0, at.Add(-12*time.Hour)) {
+			rows = append(rows, models.AchievementLogEntry{At: at.Unix(), Kind: LogKindComplete, MediaType: mediaType, MediaID: mediaID})
+		}
+		next.Status = st
+	}
+	if len(rows) == 0 {
+		return
+	}
+	_ = database.AppendAchievementLog(rows...)
+	if had {
+		_ = database.UpsertAchievementListSnapshot(next)
+	}
+}
+
+// diffSnapshot compares the current lists with the last-seen state and logs what changed —
+// however it changed (this app, the AniList site, another app). The first comparison only records
+// the state: an entire existing list is not a pile of fresh changes.
+func (e *Engine) diffSnapshot(database *db.Database, mediaType string, entries []*entry, now time.Time) {
+	if entries == nil {
+		return
+	}
+	snap, err := database.GetAchievementListSnapshot()
+	if err != nil {
+		return
+	}
+	seeded := false
+	for k := range snap {
+		if strings.HasPrefix(k, mediaType+":") {
+			seeded = true
+			break
+		}
+	}
+	rows := make([]models.AchievementListSnapshot, 0, len(entries))
+	var log []models.AchievementLogEntry
+	window := now.Add(-12 * time.Hour)
+	for _, en := range entries {
+		cur := models.AchievementListSnapshot{
+			MediaType: mediaType, MediaID: en.m.id, Status: en.status,
+			Score: math.Round(en.score * 10), Progress: en.progress, Repeat: en.repeat,
+		}
+		rows = append(rows, cur)
+		if !seeded {
+			continue
+		}
+		prev, had := snap[mediaType+":"+itoa(en.m.id)]
+		if !had {
+			if cur.Status != "" {
+				data, _ := json.Marshal(map[string]string{"from": "", "to": cur.Status})
+				log = append(log, models.AchievementLogEntry{At: now.Unix(), Kind: LogKindStatus, MediaType: mediaType, MediaID: en.m.id, Data: string(data)})
+			}
+			continue
+		}
+		if prev.Status != cur.Status {
+			data, _ := json.Marshal(map[string]string{"from": prev.Status, "to": cur.Status})
+			log = append(log, models.AchievementLogEntry{At: now.Unix(), Kind: LogKindStatus, MediaType: mediaType, MediaID: en.m.id, Data: string(data)})
+			if cur.Status == "COMPLETED" && !database.HasAchievementLogEntry(LogKindComplete, mediaType, en.m.id, 0, window) {
+				log = append(log, models.AchievementLogEntry{At: now.Unix(), Kind: LogKindComplete, MediaType: mediaType, MediaID: en.m.id})
+			}
+		}
+		if prev.Score != cur.Score && cur.Score > 0 {
+			data, _ := json.Marshal(map[string]float64{"from": prev.Score})
+			log = append(log, models.AchievementLogEntry{At: now.Unix(), Kind: LogKindScore, MediaType: mediaType, MediaID: en.m.id, Number: int(cur.Score), Data: string(data)})
+		}
+	}
+	if len(log) > 0 {
+		_ = database.AppendAchievementLog(log...)
+	}
+	_ = database.ReplaceAchievementListSnapshot(mediaType, rows)
+}
+
+// ── Evaluation ───────────────────────────────────────────────────────────────────────────────
+
+func (e *Engine) evaluate(profileID uint) {
+	defer func() {
+		if r := recover(); r != nil {
+			e.logger.Error().Interface("panic", r).Uint("profileID", profileID).Msg("achievement: evaluation panicked")
+		}
+	}()
+	unlock := e.lockProfile(profileID)
+	defer unlock()
+
+	e.evalMu.Lock()
+	e.lastEval[profileID] = time.Now()
+	src := e.sources
+	e.evalMu.Unlock()
+
 	database, err := e.getDB(profileID)
 	if err != nil {
-		e.logger.Error().Err(err).Uint("profileID", profileID).Msg("achievement: failed to get profile DB for stats eval")
 		return
 	}
 	e.ensureInitialized(database)
 
-	event := &AchievementEvent{
-		ProfileID: profileID,
-		Trigger:   TriggerCollectionRefresh,
-		Timestamp: time.Now(),
-		Metadata:  stats.toMetadata(),
+	var animeCol *anilist.AnimeCollection
+	var mangaCol *anilist.MangaCollection
+	if src.AnimeCollection != nil {
+		animeCol = src.AnimeCollection(profileID)
 	}
+	if src.MangaCollection != nil {
+		mangaCol = src.MangaCollection(profileID)
+	}
+
+	now := time.Now()
+	tz := time.Local
+	if src.TimeZone != nil {
+		if loc := src.TimeZone(profileID); loc != nil {
+			tz = loc
+		}
+	}
+
+	dailyTotals, _ := database.GetAllActivityLogs()
+	logRows, _ := database.GetAchievementLog()
+	if len(logRows) == 0 {
+		logRows = e.seedLog(database)
+	}
+
+	// A profile that has never watched or read anything in this app is not handed its whole
+	// AniList history as a wall of unlocks the moment it connects.
+	if len(logRows) == 0 && len(dailyTotals) == 0 {
+		return
+	}
+
+	// Snapshot first, so changes made elsewhere are in the log this pass reads.
+	in := &factsInput{now: now, tz: tz, animeCol: animeCol, mangaCol: mangaCol}
+	pre := buildFacts(in)
+	if animeCol != nil {
+		e.diffSnapshot(database, "anime", pre.Anime.entries, now)
+	}
+	if mangaCol != nil {
+		e.diffSnapshot(database, "manga", pre.Manga.entries, now)
+	}
+	logRows, _ = database.GetAchievementLog()
+
+	ids := make([]int, 0, len(pre.Anime.entries)+len(pre.Manga.entries))
+	for _, s := range []*side{pre.Anime, pre.Manga} {
+		for _, en := range s.entries {
+			ids = append(ids, en.m.id)
+		}
+	}
+	extras := map[int]*MediaExtras{}
+	if src.Extras != nil {
+		extras = src.Extras.Get(ids)
+	}
+
+	in.extras = extras
+	in.log = logRows
+	in.dailyTotals = dailyTotals
+	in.favAnime, in.favManga = database.FavoriteCounts()
+	if src.Social != nil {
+		in.commentAnime, in.commentManga, in.socialTimes = src.Social(profileID)
+	}
+	in.liveAnimeHrs = e.activityTracker.SessionHours(profileID, ActivityKindAnime, now)
+	in.liveMangaHrs = e.activityTracker.SessionHours(profileID, ActivityKindManga, now)
+
+	rows, _ := database.GetAllAchievements()
+	in.achievements = rows
+	facts := buildFacts(in)
 
 	batch := &unlockBatch{}
 
-	for i := range AllDefinitions {
-		def := &AllDefinitions[i]
-		if !e.triggerMatches(def, TriggerCollectionRefresh) {
-			continue
+	if database.GetAchievementRulesVersion() < CurrentRulesVersion {
+		// Re-check only with the data to do it: both lists present (an unreadable list would
+		// "disprove" everything on its side) and most media details fetched.
+		covered := 0
+		for _, id := range ids {
+			if extras[id] != nil {
+				covered++
+			}
 		}
-		e.evaluateDefinition(database, def, event, batch)
+		if animeCol != nil && mangaCol != nil && (len(ids) == 0 || covered*10 >= len(ids)*9) {
+			e.revalidate(database, profileID, facts, rows)
+			rows, _ = database.GetAllAchievements()
+			facts.Achievements = rows
+		}
+	}
+
+	e.applyRules(database, profileID, facts, rows, batch, false)
+	// Meta rules read the unlocks just made: measure them again until nothing new unlocks.
+	for pass := 0; pass < 3 && len(batch.payloads) > 0; pass++ {
+		before := len(batch.payloads)
+		rows, _ = database.GetAllAchievements()
+		facts.Achievements = rows
+		e.applyRules(database, profileID, facts, rows, batch, true)
+		if len(batch.payloads) == before {
+			break
+		}
 	}
 
 	e.flushUnlocks(profileID, batch)
 }
 
-// triggerMatches returns true if the definition should be evaluated for the given trigger.
-func (e *Engine) triggerMatches(def *Definition, trigger EvalTrigger) bool {
-	for _, t := range def.Triggers {
-		if t == trigger || t == TriggerAny {
-			return true
-		}
+// applyRules measures every definition (or only the meta ones) and unlocks what is met.
+func (e *Engine) applyRules(database *db.Database, profileID uint, f *Facts, rows []models.Achievement, batch *unlockBatch, metaOnly bool) {
+	existing := make(map[string]*models.Achievement, len(rows))
+	for i := range rows {
+		existing[rowKey(rows[i].Key, rows[i].Tier)] = &rows[i]
 	}
-	return false
-}
-
-// evaluateDefinition evaluates a single definition against the event and updates the DB.
-func (e *Engine) evaluateDefinition(database *db.Database, def *Definition, event *AchievementEvent, batch *unlockBatch) {
-	if def.MaxTier == 0 {
-		// One-time achievement
-		existing, _ := database.GetAchievement(def.Key, 0)
-		if existing != nil && existing.IsUnlocked {
-			return // Already unlocked
+	for i := range AllDefinitions {
+		def := &AllDefinitions[i]
+		if metaOnly && !isMetaCategory(def.Category) {
+			continue
 		}
-		progress, shouldUnlock := e.computeProgress(def, 0, event, existing)
-		if shouldUnlock {
-			e.unlock(database, def, 0, event.ProfileID, batch)
-		} else if progress > 0 {
-			_ = database.UpdateAchievementProgress(def.Key, 0, progress, "")
+		r := rules[def.Key]
+		if r == nil {
+			continue
 		}
-	} else {
-		// Tiered achievement - check each tier from highest to current
-		for tier := 1; tier <= def.MaxTier; tier++ {
-			existing, _ := database.GetAchievement(def.Key, tier)
-			if existing != nil && existing.IsUnlocked {
-				continue // Already unlocked this tier
-			}
-			progress, shouldUnlock := e.computeProgress(def, tier, event, existing)
-			if shouldUnlock {
-				e.unlock(database, def, tier, event.ProfileID, batch)
-			} else if progress > 0 {
-				_ = database.UpdateAchievementProgress(def.Key, tier, progress, "")
-			}
+		value := safeRule(r, f)
+		if def.MaxTier == 0 {
+			e.applyTier(database, profileID, def, 0, value, 1, existing[rowKey(def.Key, 0)], batch)
+			continue
+		}
+		for tier := 1; tier <= def.MaxTier && tier <= len(def.TierThresholds); tier++ {
+			e.applyTier(database, profileID, def, tier, value, float64(def.TierThresholds[tier-1]), existing[rowKey(def.Key, tier)], batch)
 		}
 	}
 }
 
-// computeProgress evaluates the current state and returns (progress 0-100, shouldUnlock).
-// This is the core evaluation logic — maps each definition key to its tracking logic.
-func (e *Engine) computeProgress(def *Definition, tier int, event *AchievementEvent, existing *models.Achievement) (float64, bool) {
-	meta := event.Metadata
-	if meta == nil {
-		meta = make(map[string]interface{})
+func (e *Engine) applyTier(database *db.Database, profileID uint, def *Definition, tier int, value, target float64, row *models.Achievement, batch *unlockBatch) {
+	if monotonic[def.Key] && row != nil && row.Progress > value {
+		value = row.Progress
 	}
-
-	// Get the threshold for this tier (if tiered)
-	threshold := 0
-	if def.MaxTier > 0 && tier >= 1 && tier <= len(def.TierThresholds) {
-		threshold = def.TierThresholds[tier-1]
-	}
-
-	// Get current progress value from existing record
-	currentProgress := float64(0)
-	if existing != nil {
-		currentProgress = existing.Progress
-	}
-
-	// --- Dispatch to category-specific evaluators ---
-	switch def.Category {
-
-	// Stat-based categories (use collection stats metadata keyed by def.Key)
-	case CategoryAnimeMilestones, CategoryMangaMilestones,
-		CategoryAnimeGenres, CategoryMangaGenres,
-		CategoryAnimeCompletion, CategoryMangaCompletion,
-		CategoryAnimeDedication, CategoryMangaDedication,
-		CategoryAnimeDiscovery, CategoryMangaDiscovery,
-		CategoryAnimeFormats, CategoryMangaFormats,
-		CategoryMangaCreative:
-		return e.evalStatOrFirst(meta, def, threshold, event)
-
-	// Scoring categories
-	case CategoryAnimeScoring, CategoryMangaScoring:
-		return e.evalScoring(def, threshold, meta)
-
-	// Incremental event-based categories
-	case CategoryAnimeBinge, CategoryMangaBinge,
-		CategoryAnimeTime, CategoryMangaTime,
-		CategoryAnimeSocial,
-		CategoryAnimeStreaks, CategoryMangaStreaks:
-		// Activity heartbeats are server-authoritative and ONLY drive the
-		// continuous-session hour tiers. All other defs in these categories
-		// are unaffected by activity events (prevents false-fire from a few
-		// minutes of watching unlocking "72-hour marathon" etc.).
-		if event.Trigger == TriggerAnimeActivity || event.Trigger == TriggerMangaActivity {
-			hours := getMetaFloat(meta, "session_hours")
-			switch def.Key {
-			case "a_non_stop", "m_non_stop_reading":
-				if threshold <= 0 {
-					return currentProgress, false
-				}
-				if hours >= float64(threshold) {
-					return 100, true
-				}
-				return (hours / float64(threshold)) * 100, false
-			}
-			return currentProgress, false
+	if row != nil && row.IsUnlocked {
+		if math.Abs(row.Progress-value) > 1e-6 {
+			_ = database.UpdateAchievementProgress(def.Key, tier, value, "")
 		}
-		return e.evalIncremental(def, threshold, currentProgress, meta)
-
-	// Holiday date-based
-	case CategoryAnimeHoliday, CategoryMangaHoliday:
-		return e.evalHolidaySeasonal(def, event)
-
-	// Special/quirky
-	case CategoryAnimeSpecial, CategoryMangaSpecial:
-		return e.evalObscureFun(def, event, currentProgress)
-
-	case CategoryAnimeMeta, CategoryMangaMeta:
-		return e.evalMeta(def, threshold, event)
+		return
 	}
-
-	return 0, false
+	if value >= target && target > 0 {
+		_ = database.UpdateAchievementProgress(def.Key, tier, value, "")
+		e.unlock(database, def, tier, profileID, batch)
+		return
+	}
+	if row == nil || math.Abs(row.Progress-value) > 1e-6 {
+		_ = database.UpdateAchievementProgress(def.Key, tier, value, "")
+	}
 }
 
-// Awards used to be announced one at a time, as each one happened.
-//
-// One event can unlock a dozen achievements — a collection refresh crosses several thresholds at
-// once, and every unlock re-evaluates the meta achievements, which unlock more. Each of those sent
-// its own message the moment it was written, and the writes in between are not free: a row update,
-// an XP award, an activity-buff computation and an activity-log entry, all against SQLite. So the
-// messages went out spread over seconds, and the client — which batches anything arriving inside a
-// short window — had nothing to batch. What should have been one award became a popup, then a gap,
-// then another popup, for as long as the run took.
-//
-// Now a whole evaluation pass collects what it unlocked and announces it once, at the end, in a
-// single message. Nothing is delayed to achieve that: the pass takes exactly as long as it did, and
-// the announcement goes out the moment the last one is written.
+func rowKey(key string, tier int) string { return key + "#" + itoa(tier) }
+
+func safeRule(r rule, f *Facts) (v float64) {
+	defer func() {
+		if recover() != nil {
+			v = 0
+		}
+	}()
+	v = r(f)
+	if math.IsNaN(v) || math.IsInf(v, 0) {
+		return 0
+	}
+	return v
+}
+
+// revalidate re-checks every unlock against the current rules (one time per rules version):
+// unlocks the rules do not support are revoked with their XP; those that hold keep their date.
+func (e *Engine) revalidate(database *db.Database, profileID uint, f *Facts, rows []models.Achievement) {
+	revoked, kept := 0, 0
+	for _, a := range rows {
+		if !a.IsUnlocked {
+			continue
+		}
+		def := e.defMap[a.Key]
+		r := rules[a.Key]
+		if def == nil || r == nil || canLapse[a.Key] || isMetaCategory(def.Category) {
+			kept++
+			continue
+		}
+		value := safeRule(r, f)
+		target := 1.0
+		if a.Tier > 0 && a.Tier <= len(def.TierThresholds) {
+			target = float64(def.TierThresholds[a.Tier-1])
+		}
+		if monotonic[a.Key] && a.Progress > value {
+			value = a.Progress
+		}
+		if value >= target {
+			kept++
+			continue
+		}
+		_ = database.RevokeAchievement(a.Key, a.Tier)
+		_ = database.UpdateAchievementProgress(a.Key, a.Tier, value, "")
+		revoked++
+	}
+	// Meta unlocks are re-checked after the rest, against what is left.
+	rows, _ = database.GetAllAchievements()
+	f.Achievements = rows
+	for _, a := range rows {
+		def := e.defMap[a.Key]
+		if !a.IsUnlocked || def == nil || !isMetaCategory(def.Category) {
+			continue
+		}
+		target := 1.0
+		if a.Tier > 0 && a.Tier <= len(def.TierThresholds) {
+			target = float64(def.TierThresholds[a.Tier-1])
+		}
+		if safeRule(rules[a.Key], f) >= target {
+			kept++
+			continue
+		}
+		_ = database.RevokeAchievement(a.Key, a.Tier)
+		revoked++
+	}
+	if err := e.RecalculateXP(database); err != nil {
+		e.logger.Warn().Err(err).Msg("achievement: failed to recalculate XP after re-check")
+	}
+	_ = database.SetAchievementRulesVersion(CurrentRulesVersion)
+	e.logger.Info().Uint("profileID", profileID).Int("revoked", revoked).Int("kept", kept).
+		Int("rulesVersion", CurrentRulesVersion).Msg("achievement: Re-checked unlocks against the current rules")
+}
+
+// seedLog builds the first log from the activity events still on record (the last 30 days, with
+// times) so history-based rules have something to start from. Older days are covered by the daily
+// totals.
+func (e *Engine) seedLog(database *db.Database) []models.AchievementLogEntry {
+	events, err := database.GetAllActivityEventsAsc()
+	if err != nil || len(events) == 0 {
+		return nil
+	}
+	var out []models.AchievementLogEntry
+	for _, ev := range events {
+		var meta map[string]interface{}
+		_ = json.Unmarshal([]byte(ev.Metadata), &meta)
+		at := ev.CreatedAt.Unix()
+		switch ev.EventType {
+		case models.ActivityEventEpisodeWatched:
+			out = append(out, models.AchievementLogEntry{At: at, Kind: LogKindEpisode, MediaType: "anime", MediaID: ev.MediaId,
+				Number: int(getMetaFloat(meta, "episode")), Minutes: int(getMetaFloat(meta, "duration"))})
+		case models.ActivityEventMangaChapterRead:
+			out = append(out, models.AchievementLogEntry{At: at, Kind: LogKindChapter, MediaType: "manga", MediaID: ev.MediaId,
+				Number: int(getMetaFloat(meta, "chapter")), Minutes: int(getMetaFloat(meta, "readingMinutes"))})
+		case "series_complete":
+			mt := "anime"
+			if getMetaString(meta, "type") == "manga" {
+				mt = "manga"
+			}
+			out = append(out, models.AchievementLogEntry{At: at, Kind: LogKindComplete, MediaType: mt, MediaID: ev.MediaId})
+		case models.ActivityEventAnilistEntryEdited:
+			mt := "anime"
+			if getMetaString(meta, "type") == "manga" {
+				mt = "manga"
+			}
+			if s, ok := meta["score"].(float64); ok && s > 0 {
+				out = append(out, models.AchievementLogEntry{At: at, Kind: LogKindScore, MediaType: mt, MediaID: ev.MediaId, Number: int(s), Data: `{"from":0}`})
+			}
+			if st := getMetaString(meta, "status"); st != "" {
+				data, _ := json.Marshal(map[string]string{"from": "", "to": st})
+				out = append(out, models.AchievementLogEntry{At: at, Kind: LogKindStatus, MediaType: mt, MediaID: ev.MediaId, Data: string(data)})
+			}
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	if err := database.AppendAchievementLog(out...); err != nil {
+		e.logger.Warn().Err(err).Msg("achievement: failed to seed the achievement log")
+		return nil
+	}
+	e.logger.Info().Int("rows", len(out)).Msg("achievement: Seeded the achievement log from recent activity")
+	return out
+}
+
+// ── Unlocking ────────────────────────────────────────────────────────────────────────────────
+
+// Awards are announced once per evaluation pass: one event can unlock a dozen achievements, and
+// each sent on its own reached the client spread over seconds, as a popup, a gap and another popup.
 
 // unlockBatch collects everything one evaluation pass unlocks, so it can be announced together.
 type unlockBatch struct {
@@ -351,7 +779,7 @@ type unlockBatch struct {
 	leveledUp bool
 }
 
-// add files one unlock. Cascaded meta unlocks land here too — they happen inside the same pass.
+// add files one unlock.
 func (b *unlockBatch) add(payload *UnlockPayload) {
 	if b == nil || payload == nil {
 		return
@@ -360,9 +788,7 @@ func (b *unlockBatch) add(payload *UnlockPayload) {
 	b.totalXP += payload.XPAwarded
 }
 
-// noteLevel keeps the highest level reached during the pass. Several unlocks can each cross a level
-// boundary, and the user has one level at the end of it — announcing each step would be announcing
-// levels they were only briefly at.
+// noteLevel keeps the highest level reached during the pass.
 func (b *unlockBatch) noteLevel(newLevel int) {
 	if b == nil || newLevel <= b.newLevel {
 		return
@@ -392,12 +818,16 @@ func (e *Engine) flushUnlocks(profileID uint, batch *unlockBatch) {
 	}
 }
 
-// unlock marks an achievement as unlocked, awards XP, and sends a WS event.
+// unlock marks an achievement as unlocked (if it still is locked), awards XP and files the
+// announcement.
 func (e *Engine) unlock(database *db.Database, def *Definition, tier int, profileID uint, batch *unlockBatch) {
-	err := database.UnlockAchievement(def.Key, tier)
+	won, err := database.UnlockAchievementIfLocked(def.Key, tier)
 	if err != nil {
 		e.logger.Error().Err(err).Str("key", def.Key).Int("tier", tier).Msg("achievement: failed to unlock")
 		return
+	}
+	if !won {
+		return // already unlocked by another pass: nothing to award twice
 	}
 
 	// Award XP: base × difficulty × current Activity Buff (up to 3x for full daily activity).
@@ -431,7 +861,7 @@ func (e *Engine) unlock(database *db.Database, def *Definition, tier int, profil
 		}
 	}
 
-	payload := &UnlockPayload{
+	batch.add(&UnlockPayload{
 		Key:         def.Key,
 		Name:        def.Name,
 		Description: FormatThreshold(def.Description, def.TierThresholds, tier),
@@ -440,15 +870,7 @@ func (e *Engine) unlock(database *db.Database, def *Definition, tier int, profil
 		Category:    string(def.Category),
 		IconSVG:     iconSVG,
 		XPAwarded:   xp,
-	}
-
-	// Collected rather than announced. The pass that is running announces the lot when it finishes;
-	// a caller that passed no batch is announcing on its own behalf and gets the old behaviour.
-	if batch != nil {
-		batch.add(payload)
-	} else {
-		e.wsEventManager.SendEventToProfile(profileID, events.AchievementUnlocked, payload)
-	}
+	})
 
 	// Record an activity event so this unlock appears in the user's profile activity feed.
 	_ = database.RecordActivityEvent("achievement_unlocked", 0, map[string]interface{}{
@@ -460,79 +882,48 @@ func (e *Engine) unlock(database *db.Database, def *Definition, tier int, profil
 		"xp":       xp,
 	})
 
-	// Level-ups are held for the same reason, and reduced to the one level the user ends the pass
-	// at rather than every level they passed through on the way.
 	if leveledUp && xpErr == nil {
-		if batch != nil {
-			batch.noteLevel(newLevel)
-		} else {
-			e.wsEventManager.SendEventToProfile(profileID, "level-up", map[string]interface{}{
-				"newLevel": newLevel,
-			})
-			e.logger.Info().Int("level", newLevel).Uint("profileID", profileID).Msg("achievement: level up!")
-		}
+		batch.noteLevel(newLevel)
 	}
 
 	e.logger.Info().Str("key", def.Key).Int("tier", tier).Int("xp", xp).Uint("profileID", profileID).Msg("achievement: unlocked")
-
-	// After unlocking a non-meta achievement, fire meta re-evaluation
-	if def.Category != CategoryAnimeMeta && def.Category != CategoryMangaMeta {
-		metaEvent := &AchievementEvent{
-			ProfileID: profileID,
-			Trigger:   TriggerAchievementUnlock,
-			Timestamp: time.Now(),
-			Metadata:  map[string]interface{}{"unlocked_key": def.Key},
-		}
-		for i := range AllDefinitions {
-			metaDef := &AllDefinitions[i]
-			if metaDef.Category != CategoryAnimeMeta && metaDef.Category != CategoryMangaMeta {
-				continue
-			}
-			if !e.triggerMatches(metaDef, TriggerAchievementUnlock) {
-				continue
-			}
-			e.evaluateDefinition(database, metaDef, metaEvent, batch)
-		}
-	}
 }
 
-// ensureInitialized lazily creates missing achievement rows on first access.
-// If the definition count has changed (e.g., after an update), re-syncs rows.
+// ensureInitialized creates the rows of new definitions and removes rows of definitions that no
+// longer exist. Reconciled by key, so a renamed key is noticed even when the count stays the same.
 func (e *Engine) ensureInitialized(database *db.Database) {
-	expectedCount := int64(TotalAchievementCount())
-	count, _ := database.AchievementRowCount()
-
-	if count == expectedCount {
-		return // Already populated with correct count
-	}
-
 	e.mu.Lock()
 	defer e.mu.Unlock()
-
-	// Double-check after lock
-	count, _ = database.AchievementRowCount()
-	if count == expectedCount {
+	if e.initialized[database] {
 		return
 	}
 
+	existing, _ := database.GetAllAchievements()
+	have := make(map[string]bool, len(existing))
+	for _, a := range existing {
+		have[rowKey(a.Key, a.Tier)] = true
+	}
 	var rows []models.Achievement
+	keys := make([]string, 0, len(AllDefinitions))
 	for _, def := range AllDefinitions {
+		keys = append(keys, def.Key)
 		if def.MaxTier == 0 {
-			rows = append(rows, models.Achievement{
-				Key:  def.Key,
-				Tier: 0,
-			})
-		} else {
-			for tier := 1; tier <= def.MaxTier; tier++ {
-				rows = append(rows, models.Achievement{
-					Key:  def.Key,
-					Tier: tier,
-				})
+			if !have[rowKey(def.Key, 0)] {
+				rows = append(rows, models.Achievement{Key: def.Key, Tier: 0})
+			}
+			continue
+		}
+		for tier := 1; tier <= def.MaxTier; tier++ {
+			if !have[rowKey(def.Key, tier)] {
+				rows = append(rows, models.Achievement{Key: def.Key, Tier: tier})
 			}
 		}
 	}
-
-	_ = database.BulkUpsertAchievements(rows)
+	if len(rows) > 0 {
+		_ = database.BulkUpsertAchievements(rows)
+	}
+	_ = database.DeleteAchievementRowsNotIn(keys)
+	e.initialized[database] = true
 }
 
 // RunStartupMigrations checks all given databases for XP version mismatches and recalculates if needed.
@@ -596,545 +987,6 @@ func isNoXPAchievement(key string) bool {
 	}
 }
 
-// --- Evaluator helpers ---
-
-// evalStatOrFirst: for stat-based categories. If metadata has def.Key, use stat threshold.
-// If def is one-time (tier 0) and no stat available, treat as first-event unlock.
-func (e *Engine) evalStatOrFirst(meta map[string]interface{}, def *Definition, threshold int, event *AchievementEvent) (float64, bool) {
-	val := getMetaFloat(meta, def.Key)
-	if val > 0 || threshold > 0 {
-		return e.evalStatThreshold(meta, def, threshold)
-	}
-	// One-time achievement with no matching metadata key: we have no data that confirms this
-	// achievement's specific condition was met, so we must NOT award it. Previously this
-	// blanket-unlocked every keyless one-time stat achievement on any event-driven trigger,
-	// which fired piles of unrelated achievements at "random". If we can't verify it, don't
-	// award it — the proper stat key is evaluated on collection refresh when full context exists.
-	return 0, false
-}
-
-// evalStatThreshold: stat-based achievements evaluated from collection data.
-// The metadata should contain a key matching def.Key with the current count/value.
-func (e *Engine) evalStatThreshold(meta map[string]interface{}, def *Definition, threshold int) (float64, bool) {
-	val := getMetaFloat(meta, def.Key)
-	if threshold <= 0 {
-		// One-time stat check
-		if val > 0 {
-			return 100, true
-		}
-		return 0, false
-	}
-	progress := (val / float64(threshold)) * 100
-	if progress > 100 {
-		progress = 100
-	}
-	if val >= float64(threshold) {
-		return 100, true
-	}
-	return progress, false
-}
-
-// evalIncremental: for achievements where progress accumulates over events.
-// The metadata "count" key carries the increment (default 1).
-func (e *Engine) evalIncremental(def *Definition, threshold int, currentProgress float64, meta map[string]interface{}) (float64, bool) {
-	increment := getMetaFloat(meta, "count")
-	if increment == 0 {
-		increment = 1
-	}
-	// currentProgress stores the raw accumulated count (not percentage)
-	newCount := currentProgress + increment
-	if threshold <= 0 {
-		// No real threshold to compare against — we can't verify the condition is met, so don't
-		// award it (previously this unlocked immediately, firing achievements at "random").
-		return newCount, false
-	}
-	progress := newCount // Store raw count as progress
-	if newCount >= float64(threshold) {
-		return progress, true
-	}
-	return progress, false
-}
-
-// evalHolidaySeasonal: date-based achievements for both anime and manga holidays.
-func (e *Engine) evalHolidaySeasonal(def *Definition, event *AchievementEvent) (float64, bool) {
-	t := event.Timestamp
-	month := t.Month()
-	day := t.Day()
-	weekday := t.Weekday()
-	genres := getMetaStringSlice(event.Metadata, "genres")
-
-	// Strip anime/manga prefix for generic matching
-	// e.g., "a_new_years_resolution" and "m_new_years_resolution" both match the same date
-	key := def.Key
-	if len(key) > 2 && (key[:2] == "a_" || key[:2] == "m_") {
-		key = key[2:]
-	}
-
-	switch key {
-	case "new_years_resolution":
-		return boolResult(month == time.January && day == 1)
-	case "valentines_weeb", "valentines_read":
-		return boolResult(month == time.February && day == 14 && containsString(genres, "Romance"))
-	case "pi_day":
-		return boolResult(month == time.March && day == 14)
-	case "april_fools":
-		return boolResult(month == time.April && day == 1 && containsString(genres, "Comedy"))
-	case "international_anime_day":
-		return boolResult(month == time.April && day == 15)
-	case "international_manga_day":
-		return boolResult(month == time.September && day == 21)
-	case "star_wars_day":
-		return boolResult(month == time.May && day == 4 && (containsString(genres, "Sci-Fi") || containsString(genres, "Mecha")))
-	case "free_comic_day":
-		// First Saturday of May
-		if month == time.May && weekday == time.Saturday && day <= 7 {
-			return 100, true
-		}
-	case "summer_solstice":
-		return boolResult(month == time.June && day == 21)
-	case "tanabata":
-		return boolResult(month == time.July && day == 7 && containsString(genres, "Romance"))
-	case "friday_13th":
-		return boolResult(day == 13 && weekday == time.Friday && (containsString(genres, "Horror") || containsString(genres, "Thriller")))
-	case "halloween_spirit", "halloween_read":
-		return boolResult(month == time.October && day == 31 && containsString(genres, "Horror"))
-	case "thanksgiving_binge":
-		if month == time.November && weekday == time.Thursday {
-			firstDay := time.Date(t.Year(), time.November, 1, 0, 0, 0, 0, t.Location())
-			firstThursday := 1
-			for firstDay.Weekday() != time.Thursday {
-				firstDay = firstDay.AddDate(0, 0, 1)
-				firstThursday = firstDay.Day()
-			}
-			fourthThursday := firstThursday + 21
-			if day == fourthThursday {
-				count := getMetaFloat(event.Metadata, "daily_episodes")
-				chapterCount := getMetaFloat(event.Metadata, "daily_chapters")
-				if count >= 10 || chapterCount >= 50 {
-					return 100, true
-				}
-			}
-		}
-	case "christmas_special", "christmas_read":
-		return boolResult(month == time.December && day == 25)
-	case "new_years_eve":
-		return boolResult(month == time.December && day == 31)
-	case "leap_year", "leap_year_read":
-		return boolResult(month == time.February && day == 29)
-	case "birthday_watch", "birthday_read":
-		isBirthday := getMetaBool(event.Metadata, "is_birthday")
-		return boolResult(isBirthday)
-	case "holiday_marathon":
-		// Check Dec 24-31 streak — tracked via progress accumulation
-		if month == time.December && day >= 24 && day <= 31 {
-			return 100, true // Simplified: each day in range counts, full tracking in handler
-		}
-	}
-	return 0, false
-}
-
-// boolResult converts a bool to achievement progress result.
-func boolResult(ok bool) (float64, bool) {
-	if ok {
-		return 100, true
-	}
-	return 0, false
-}
-
-// evalScoring: rating-based achievements for both anime and manga.
-func (e *Engine) evalScoring(def *Definition, threshold int, meta map[string]interface{}) (float64, bool) {
-	// Strip prefix for generic matching
-	key := def.Key
-	isManga := len(key) > 2 && key[:2] == "m_"
-	if len(key) > 2 && (key[:2] == "a_" || key[:2] == "m_") {
-		key = key[2:]
-	}
-
-	// Helper to pick anime or manga metadata based on prefix
-	avgKey := "average_rating"
-	countKey := "rating_count"
-	bellKey := "bell_curve"
-	allScoresKey := "used_all_scores"
-	allRatedKey := "all_completed_rated"
-	maxSameKey := "max_same_score_count"
-	varianceKey := "score_variance"
-	mediocreKey := "mediocre_count"
-	if isManga {
-		avgKey = "manga_average_rating"
-		countKey = "manga_rating_count"
-		bellKey = "manga_bell_curve"
-		allScoresKey = "manga_used_all_scores"
-		allRatedKey = "manga_all_completed_rated"
-		maxSameKey = "manga_max_same_score_count"
-		varianceKey = "manga_score_variance"
-		mediocreKey = "manga_mediocre_count"
-	}
-
-	switch key {
-	case "fair_judge":
-		avg := getMetaFloat(meta, avgKey)
-		count := getMetaFloat(meta, countKey)
-		if count >= 50 && avg >= 5.0 && avg <= 7.0 {
-			return 100, true
-		}
-		return 0, false
-	case "generous_spirit":
-		avg := getMetaFloat(meta, avgKey)
-		count := getMetaFloat(meta, countKey)
-		if count >= 50 && avg > 8.0 {
-			return 100, true
-		}
-		return 0, false
-	case "picky_watcher", "picky_reader":
-		avg := getMetaFloat(meta, avgKey)
-		count := getMetaFloat(meta, countKey)
-		if count >= 25 && avg < 5.0 {
-			return 100, true
-		}
-		return 0, false
-	case "bell_curve":
-		bellCurve := getMetaBool(meta, bellKey)
-		return boolResult(bellCurve)
-	case "wide_range":
-		usedAllScores := getMetaBool(meta, allScoresKey)
-		return boolResult(usedAllScores)
-	case "score_all":
-		allRated := getMetaBool(meta, allRatedKey)
-		return boolResult(allRated)
-	case "consistent_scorer":
-		maxSameScore := getMetaFloat(meta, maxSameKey)
-		return boolResult(maxSameScore >= 20)
-	case "controversial":
-		scoreDiff := getMetaFloat(meta, "score_diff_from_avg")
-		return boolResult(scoreDiff >= 4)
-	case "score_sniper":
-		scoreDiff := getMetaFloat(meta, "score_diff_from_avg")
-		return boolResult(scoreDiff <= 0.1 && scoreDiff >= 0)
-	case "mean_above_8":
-		avg := getMetaFloat(meta, avgKey)
-		count := getMetaFloat(meta, countKey)
-		if count >= 50 && avg > 8.0 {
-			return 100, true
-		}
-		return 0, false
-	case "mediocre_majority":
-		mediocre := getMetaFloat(meta, mediocreKey)
-		count := getMetaFloat(meta, countKey)
-		if count >= 20 && mediocre > count*0.6 {
-			return 100, true
-		}
-		return 0, false
-	case "score_distributor":
-		usedAll := getMetaBool(meta, allScoresKey)
-		variance := getMetaFloat(meta, varianceKey)
-		// Scores spread relatively evenly (low variance relative to count)
-		if usedAll && variance < 3.0 {
-			return 100, true
-		}
-		return 0, false
-	case "score_variance":
-		variance := getMetaFloat(meta, varianceKey)
-		count := getMetaFloat(meta, countKey)
-		// High variance in scores indicates eclectic taste
-		if count >= 20 && variance >= 4.0 {
-			return 100, true
-		}
-		return 0, false
-	default:
-		// Tiered rating achievements (critic, perfect_ten, harsh_critic, evolving_taste, etc.)
-		val := getMetaFloat(meta, def.Key)
-		if threshold > 0 && val >= float64(threshold) {
-			return 100, true
-		}
-		if threshold > 0 {
-			return (val / float64(threshold)) * 100, false
-		}
-		return 0, false
-	}
-}
-
-// evalObscureFun: quirky/special one-time achievements for both anime and manga.
-func (e *Engine) evalObscureFun(def *Definition, event *AchievementEvent, currentProgress float64) (float64, bool) {
-	t := event.Timestamp
-
-	// Strip prefix for generic matching
-	key := def.Key
-	if len(key) > 2 && (key[:2] == "a_" || key[:2] == "m_") {
-		key = key[2:]
-	}
-
-	switch key {
-	case "palindrome_day":
-		dateStr := t.Format("01022006") // MMDDYYYY
-		return boolResult(isPalindrome(dateStr))
-	case "full_moon", "full_moon_read":
-		return boolResult(isFullMoon(t) && (t.Hour() >= 20 || t.Hour() <= 5))
-	case "round_number":
-		completedCount := getMetaFloat(event.Metadata, "completed_count")
-		return boolResult(completedCount > 0 && int(completedCount)%100 == 0)
-	case "binary_day":
-		return boolResult(isBinaryDate(t))
-	case "fibonacci":
-		completedCount := int(getMetaFloat(event.Metadata, "completed_count"))
-		return boolResult(isFibonacci(completedCount))
-	case "genre_clash":
-		return boolResult(getMetaBool(event.Metadata, "genre_clash"))
-	case "time_traveler":
-		decadeCount := getMetaFloat(event.Metadata, "daily_decade_count")
-		return boolResult(decadeCount >= 5)
-	case "world_record":
-		return boolResult(getMetaBool(event.Metadata, "is_day_record"))
-	case "triple_seven":
-		totalCount := getMetaFloat(event.Metadata, "total_count")
-		return boolResult(int(totalCount) == 777)
-	case "thousand_complete":
-		completedCount := getMetaFloat(event.Metadata, "completed_count")
-		return boolResult(int(completedCount) == 1000)
-	case "pi_episodes":
-		totalEps := getMetaFloat(event.Metadata, "total_episodes")
-		return boolResult(int(totalEps) == 314)
-	case "synchronicity":
-		epNum := getMetaFloat(event.Metadata, "episode_number")
-		return boolResult(int(epNum) == t.Day())
-	case "nice":
-		completedCount := getMetaFloat(event.Metadata, "completed_count")
-		return boolResult(int(completedCount) == 69)
-	case "power_level", "power_level_chapters":
-		totalCount := getMetaFloat(event.Metadata, "total_count")
-		return boolResult(totalCount > 9000)
-	case "leap_year", "leap_year_read":
-		return boolResult(t.Month() == time.February && t.Day() == 29)
-	case "all_tens":
-		// Real condition: complete an anime with exactly 10 episodes and rate it 10. We can't
-		// verify that here, so don't award it on a weak proxy (this previously fired on any
-		// completion). Requires a dedicated metadata flag set by the handler that knows the context.
-		return boolResult(getMetaBool(event.Metadata, "all_tens"))
-	case "answer_42":
-		completedCount := int(getMetaFloat(event.Metadata, "completed_count"))
-		return boolResult(completedCount == 42)
-	case "double_digits":
-		completedCount := int(getMetaFloat(event.Metadata, "completed_count"))
-		return boolResult(completedCount == 11)
-	case "exact_hundred_eps":
-		totalEps := int(getMetaFloat(event.Metadata, "total_episodes"))
-		return boolResult(totalEps == 100)
-	case "exact_hundred_ch":
-		totalCh := int(getMetaFloat(event.Metadata, "total_chapters"))
-		return boolResult(totalCh == 100)
-	case "lucky_seven":
-		completedCount := int(getMetaFloat(event.Metadata, "completed_count"))
-		return boolResult(completedCount == 7)
-	case "one_two_three":
-		completedCount := int(getMetaFloat(event.Metadata, "completed_count"))
-		return boolResult(completedCount == 123)
-	case "prime_count":
-		completedCount := int(getMetaFloat(event.Metadata, "completed_count"))
-		return boolResult(isPrime(completedCount) && completedCount >= 7)
-	case "square_number":
-		completedCount := int(getMetaFloat(event.Metadata, "completed_count"))
-		n := int(math.Sqrt(float64(completedCount)))
-		return boolResult(completedCount >= 4 && n*n == completedCount)
-	case "year_match_count":
-		completedCount := int(getMetaFloat(event.Metadata, "completed_count"))
-		return boolResult(completedCount == t.Year()%100)
-	case "pi_chapters":
-		totalCh := int(getMetaFloat(event.Metadata, "total_chapters"))
-		return boolResult(totalCh == 314)
-	}
-	return 0, false
-}
-
-// evalMeta evaluates meta-achievements by querying the achievement database.
-func (e *Engine) evalMeta(def *Definition, threshold int, event *AchievementEvent) (float64, bool) {
-	database, err := e.getDB(event.ProfileID)
-	if err != nil {
-		return 0, false
-	}
-
-	allAchievements, err := database.GetAllAchievements()
-	if err != nil {
-		return 0, false
-	}
-
-	key := def.Key
-	isManga := len(key) > 2 && key[:2] == "m_"
-	if len(key) > 2 && (key[:2] == "a_" || key[:2] == "m_") {
-		key = key[2:]
-	}
-
-	// Build stats from unlocked achievements
-	var unlocked int
-	var totalXP int
-	categoryUnlocks := make(map[string]int) // category -> unlock count
-	tierMaxCount := 0
-	tier5Count := 0
-	easyCount := 0
-	hardCount := 0
-
-	for _, ach := range allAchievements {
-		if !ach.IsUnlocked {
-			continue
-		}
-		// Find the definition for this achievement
-		achDef := findDefinition(ach.Key)
-		if achDef == nil {
-			continue
-		}
-
-		// Only count anime achievements for anime meta, manga for manga meta
-		isAchManga := len(achDef.Key) > 2 && achDef.Key[:2] == "m_"
-		if isManga != isAchManga {
-			continue
-		}
-
-		// Don't count meta achievements toward their own stats
-		if achDef.Category == CategoryAnimeMeta || achDef.Category == CategoryMangaMeta {
-			continue
-		}
-
-		unlocked++
-		categoryUnlocks[string(achDef.Category)]++
-
-		baseXP := achDef.XPReward
-		if baseXP <= 0 {
-			baseXP = DefaultTierXP(ach.Tier)
-		}
-		totalXP += int(float64(baseXP) * DifficultyMultiplier(achDef.Difficulty))
-
-		if achDef.MaxTier > 0 && ach.Tier >= achDef.MaxTier {
-			tierMaxCount++
-		}
-		if achDef.MaxTier > 0 && ach.Tier >= 5 {
-			tier5Count++
-		}
-
-		switch achDef.Difficulty {
-		case DifficultyEasy:
-			easyCount++
-		case DifficultyHard, DifficultyExtreme:
-			hardCount++
-		}
-	}
-
-	// Count total non-meta definitions to compute percentages
-	totalDefs := 0
-	for i := range AllDefinitions {
-		d := &AllDefinitions[i]
-		if d.Category == CategoryAnimeMeta || d.Category == CategoryMangaMeta {
-			continue
-		}
-		isDefManga := len(d.Key) > 2 && d.Key[:2] == "m_"
-		if isManga == isDefManga {
-			totalDefs++
-		}
-	}
-
-	// Count categories with 10+ unlocks (for diverse)
-	diverseCategories := 0
-	for _, count := range categoryUnlocks {
-		if count >= 10 {
-			diverseCategories++
-		}
-	}
-
-	switch key {
-	case "meta_first_unlock":
-		return boolResult(unlocked >= 1)
-	case "meta_collector":
-		if threshold <= 0 {
-			return boolResult(unlocked > 0)
-		}
-		if unlocked >= threshold {
-			return 100, true
-		}
-		return (float64(unlocked) / float64(threshold)) * 100, false
-	case "meta_category_starter":
-		startedCategories := len(categoryUnlocks)
-		if threshold <= 0 {
-			return boolResult(startedCategories > 0)
-		}
-		if startedCategories >= threshold {
-			return 100, true
-		}
-		return (float64(startedCategories) / float64(threshold)) * 100, false
-	case "meta_tier_climber":
-		if threshold <= 0 {
-			return boolResult(tier5Count > 0)
-		}
-		if tier5Count >= threshold {
-			return 100, true
-		}
-		return (float64(tier5Count) / float64(threshold)) * 100, false
-	case "meta_tier_max":
-		if threshold <= 0 {
-			return boolResult(tierMaxCount > 0)
-		}
-		if tierMaxCount >= threshold {
-			return 100, true
-		}
-		return (float64(tierMaxCount) / float64(threshold)) * 100, false
-	case "meta_xp_earner":
-		if threshold <= 0 {
-			return boolResult(totalXP > 0)
-		}
-		if totalXP >= threshold {
-			return 100, true
-		}
-		return (float64(totalXP) / float64(threshold)) * 100, false
-	case "meta_difficulty_easy":
-		if threshold <= 0 {
-			return boolResult(easyCount > 0)
-		}
-		if easyCount >= threshold {
-			return 100, true
-		}
-		return (float64(easyCount) / float64(threshold)) * 100, false
-	case "meta_difficulty_hard":
-		if threshold <= 0 {
-			return boolResult(hardCount > 0)
-		}
-		if hardCount >= threshold {
-			return 100, true
-		}
-		return (float64(hardCount) / float64(threshold)) * 100, false
-	case "meta_unlock_spree":
-		// Check unlocks from today
-		todayCount := 0
-		today := event.Timestamp.Format("2006-01-02")
-		for _, ach := range allAchievements {
-			if ach.IsUnlocked && ach.UnlockedAt != nil && ach.UnlockedAt.Format("2006-01-02") == today {
-				achDef := findDefinition(ach.Key)
-				if achDef != nil {
-					isAchManga := len(achDef.Key) > 2 && achDef.Key[:2] == "m_"
-					if isManga == isAchManga {
-						todayCount++
-					}
-				}
-			}
-		}
-		return boolResult(todayCount >= 5)
-	case "meta_completionist":
-		if totalDefs == 0 {
-			return 0, false
-		}
-		pct := float64(unlocked) / float64(totalDefs) * 100
-		return boolResult(pct >= 90)
-	case "meta_diverse":
-		if threshold <= 0 {
-			return boolResult(diverseCategories > 0)
-		}
-		if diverseCategories >= threshold {
-			return 100, true
-		}
-		return (float64(diverseCategories) / float64(threshold)) * 100, false
-	case "meta_dominator":
-		return boolResult(totalDefs > 0 && unlocked >= totalDefs)
-	}
-
-	return 0, false
-}
-
-// findDefinition returns the definition for a given key, or nil if not found.
 func findDefinition(key string) *Definition {
 	for i := range AllDefinitions {
 		if AllDefinitions[i].Key == key {
@@ -1150,58 +1002,42 @@ func getMetaFloat(m map[string]interface{}, key string) float64 {
 	if m == nil {
 		return 0
 	}
-	v, ok := m[key]
-	if !ok {
-		return 0
-	}
-	switch val := v.(type) {
+	switch val := m[key].(type) {
 	case float64:
 		return val
+	case float32:
+		return float64(val)
 	case int:
 		return float64(val)
 	case int64:
 		return float64(val)
-	default:
-		return 0
+	case uint:
+		return float64(val)
 	}
+	return 0
 }
 
 func getMetaString(m map[string]interface{}, key string) string {
 	if m == nil {
 		return ""
 	}
-	v, ok := m[key]
-	if !ok {
-		return ""
-	}
-	s, ok := v.(string)
-	if ok {
-		return s
-	}
-	return ""
+	s, _ := m[key].(string)
+	return s
 }
 
 func getMetaBool(m map[string]interface{}, key string) bool {
 	if m == nil {
 		return false
 	}
-	v, ok := m[key]
-	if !ok {
-		return false
-	}
-	b, ok := v.(bool)
-	return ok && b
+	b, _ := m[key].(bool)
+	return b
 }
 
 func getMetaStringSlice(m map[string]interface{}, key string) []string {
 	if m == nil {
 		return nil
 	}
-	v, ok := m[key]
-	if !ok {
-		return nil
-	}
-	switch val := v.(type) {
+	switch val := m[key].(type) {
 	case []string:
 		return val
 	case []interface{}:
@@ -1214,24 +1050,6 @@ func getMetaStringSlice(m map[string]interface{}, key string) []string {
 		return result
 	}
 	return nil
-}
-
-func containsString(slice []string, target string) bool {
-	for _, s := range slice {
-		if s == target {
-			return true
-		}
-	}
-	return false
-}
-
-// boolToFloat converts a bool to a float64 (1.0 = true, 0.0 = false).
-// Used to express boolean conditions as metadata values for stat-based achievements.
-func boolToFloat(b bool) float64 {
-	if b {
-		return 1.0
-	}
-	return 0.0
 }
 
 // --- Math helpers ---
@@ -1265,10 +1083,7 @@ func isPalindrome(s string) bool {
 }
 
 func isBinaryDate(t time.Time) bool {
-	m := t.Month()
-	d := t.Day()
-	// Binary dates: only digits 0 and 1
-	return isBinaryNum(int(m)) && isBinaryNum(d)
+	return isBinaryNum(int(t.Month())) && isBinaryNum(t.Day())
 }
 
 func isBinaryNum(n int) bool {
@@ -1305,384 +1120,5 @@ func isFullMoon(t time.Time) bool {
 		phase += 1
 	}
 	// Full moon at phase ~0 or ~1, allow ±1 day tolerance
-	return phase < (1.0/synodicMonth) || phase > (1.0 - 1.0/synodicMonth)
-}
-
-// CollectionStats contains aggregate stats computed from AniList collection data.
-// This is built by the handler/refresh logic and passed to the engine.
-type CollectionStats struct {
-	// Anime stats
-	TotalEpisodes      int
-	TotalMinutes       int
-	TotalAnime         int
-	CompletedAnime     int
-	DroppedAnime       int
-	WatchingAnime      int
-	PausedAnime        int
-	PTWAnime           int
-	AnimeRewatches     int
-
-	// Manga stats
-	TotalChapters      int
-	TotalManga         int
-	CompletedManga     int
-	DroppedManga       int
-	ReadingManga       int
-	PausedManga        int
-	PTRManga           int
-	MangaRereads       int
-
-	// Common stats
-	GenreCount         int
-	StudioCount        int
-	FormatCount        int
-	DecadeCount        int
-	TagCount           int
-	SeasonCount        int
-	YearCount          int
-
-	// Anime format counts
-	TVCount            int
-	MovieCount         int
-	OVACount           int
-	ONACount           int
-	SpecialCount       int
-	ShortCount         int
-	MusicCount         int
-	TVShortCount       int
-
-	// Manga format counts
-	ManhwaCount        int
-	ManhuaCount        int
-	WebtoonCount       int
-	DoujinCount        int
-	LightNovelCount    int
-	NovelCount         int
-	OneshotCount       int
-
-	// Scoring stats
-	AnimeRatingCount   int
-	MangaRatingCount   int
-	AnimeAverageRating float64
-	MangaAverageRating float64
-	PerfectTenAnime    int
-	PerfectTenManga    int
-	HarshCriticAnime   int
-	HarshCriticManga   int
-
-	// Per-genre counts
-	AnimeGenreCounts   map[string]int
-	MangaGenreCounts   map[string]int
-
-	// Per-tag counts (from AniList media tags)
-	AnimeTagCounts     map[string]int
-	MangaTagCounts     map[string]int
-
-	// Per-format counts
-	AnimeFormatCounts  map[string]int
-	MangaFormatCounts  map[string]int
-
-	// Favourites
-	AnimeFavoriteCount int
-	MangaFavoriteCount int
-
-	// Unique format counts
-	AnimeUniqueFormatCount int
-	MangaUniqueFormatCount int
-
-	// Standard manga format count (not manhwa/manhua)
-	MangaStandardCount int
-
-	// Scoring metadata (pre-computed for evalScoring)
-	BellCurveAnime         bool
-	BellCurveManga         bool
-	UsedAllScoresAnime     bool
-	UsedAllScoresManga     bool
-	AllCompletedRatedAnime bool
-	AllCompletedRatedManga bool
-	MaxSameScoreAnime      int
-	MaxSameScoreManga      int
-	ScoreVarianceAnime     float64
-	ScoreVarianceManga     float64
-	MediocreCountAnime     int // count of anime rated 5-7
-	MediocreCountManga     int // count of manga rated 5-7
-
-	// Per-score histogram
-	AnimeScoreHist [11]int // index 0 unused, 1-10
-	MangaScoreHist [11]int
-}
-
-func (s *CollectionStats) toMetadata() map[string]interface{} {
-	// Pre-compute derived values
-	animeCompletionRate := 0.0
-	if s.TotalAnime > 0 {
-		animeCompletionRate = float64(s.CompletedAnime) / float64(s.TotalAnime) * 100.0
-	}
-	mangaCompletionRate := 0.0
-	if s.TotalManga > 0 {
-		mangaCompletionRate = float64(s.CompletedManga) / float64(s.TotalManga) * 100.0
-	}
-
-	m := map[string]interface{}{
-		// ── Anime milestones ──────────────────────────────────────────────────────
-		// Tiered (raw counts — evalStatThreshold uses tier thresholds)
-		"a_episode_counter": float64(s.TotalEpisodes),
-		"a_episode_titan":   float64(s.TotalEpisodes),
-		"a_hours_invested":  float64(s.TotalMinutes) / 60.0,
-		"a_time_lord":       float64(s.TotalMinutes) / 60.0,
-		"a_anime_collector": float64(s.TotalAnime),
-		"a_library_legend":  float64(s.TotalAnime),
-		"a_season_veteran":  float64(s.SeasonCount),
-		"a_year_explorer":   float64(s.YearCount),
-		"a_ptw_hoarder":     float64(s.PTWAnime),
-		"a_dropped_honesty": float64(s.DroppedAnime),
-		// One-time (boolean: 1.0 when condition met, 0.0 otherwise)
-		"a_first_episode":   boolToFloat(s.TotalEpisodes > 0),
-		"a_first_day":       boolToFloat(s.TotalEpisodes > 0),
-		"a_first_complete":  boolToFloat(s.CompletedAnime > 0),
-		"a_first_rating":    boolToFloat(s.AnimeRatingCount > 0),
-		"a_hundred_club":    boolToFloat(s.CompletedAnime >= 100),
-		"a_ten_thousand_min": boolToFloat(s.TotalMinutes >= 10000),
-		"a_five_hundred_eps": boolToFloat(s.TotalEpisodes >= 500),
-		"a_thousand_eps":    boolToFloat(s.TotalEpisodes >= 1000),
-		"a_watching_ten":    boolToFloat(s.WatchingAnime >= 10),
-		// New milestones
-		"a_five_thousand_eps":      boolToFloat(s.TotalEpisodes >= 5000),
-		"a_ten_completed":          boolToFloat(s.CompletedAnime >= 10),
-		"a_fifty_completed":        boolToFloat(s.CompletedAnime >= 50),
-		"a_five_hundred_completed": boolToFloat(s.CompletedAnime >= 500),
-		"a_mean_score_tracker":     float64(s.AnimeRatingCount),
-		"a_unique_studios":         float64(s.StudioCount),
-		"a_days_spent_watching":    float64(s.TotalMinutes) / 1440.0,
-		"a_all_status":             boolToFloat(s.WatchingAnime > 0 && s.CompletedAnime > 0 && s.PausedAnime > 0 && s.DroppedAnime > 0 && s.PTWAnime > 0),
-		"a_first_favorite":         boolToFloat(s.AnimeFavoriteCount > 0),
-		"a_favorites_collector":    float64(s.AnimeFavoriteCount),
-
-		// ── Anime completion ─────────────────────────────────────────────────────
-		// Tiered
-		"a_completionist":      float64(s.CompletedAnime),
-		"a_mega_completionist": float64(s.CompletedAnime),
-		// a_no_drop: progress only counts when nothing has been dropped
-		"a_no_drop":        boolToFloat(s.DroppedAnime == 0) * float64(s.CompletedAnime),
-		"a_rewatch_master": float64(s.AnimeRewatches),
-		// One-time
-		"a_zero_to_hero":       boolToFloat(s.CompletedAnime >= 100),
-		"a_completion_rate_50": boolToFloat(animeCompletionRate >= 50),
-		"a_completion_rate_75": boolToFloat(animeCompletionRate >= 75),
-		"a_completion_rate_90": boolToFloat(animeCompletionRate >= 90),
-		"a_clean_list":         boolToFloat(s.TotalAnime > 0 && s.PausedAnime == 0),
-
-		// ── Anime genres (tiered) ─────────────────────────────────────────────────
-		"a_genre_action":        float64(s.AnimeGenreCounts["Action"]),
-		"a_genre_adventure":     float64(s.AnimeGenreCounts["Adventure"]),
-		"a_genre_comedy":        float64(s.AnimeGenreCounts["Comedy"]),
-		"a_genre_drama":         float64(s.AnimeGenreCounts["Drama"]),
-		"a_genre_fantasy":       float64(s.AnimeGenreCounts["Fantasy"]),
-		"a_genre_horror":        float64(s.AnimeGenreCounts["Horror"]),
-		"a_genre_mystery":       float64(s.AnimeGenreCounts["Mystery"]),
-		"a_genre_romance":       float64(s.AnimeGenreCounts["Romance"]),
-		"a_genre_scifi":         float64(s.AnimeGenreCounts["Sci-Fi"]),
-		"a_genre_sol":           float64(s.AnimeGenreCounts["Slice of Life"]),
-		"a_genre_sports":        float64(s.AnimeGenreCounts["Sports"]),
-		"a_genre_supernatural":  float64(s.AnimeGenreCounts["Supernatural"]),
-		"a_genre_thriller":      float64(s.AnimeGenreCounts["Thriller"]),
-		"a_genre_mecha":         float64(s.AnimeGenreCounts["Mecha"]),
-		"a_genre_music":         float64(s.AnimeGenreCounts["Music"]),
-		"a_genre_psychological": float64(s.AnimeGenreCounts["Psychological"]),
-
-		// ── Anime discovery (tiered) ──────────────────────────────────────────────
-		"a_genre_explorer": float64(s.GenreCount),
-		"a_studio_hopper":  float64(s.StudioCount),
-		"a_tag_explorer":   float64(s.TagCount),
-		"a_decade_hopper":  float64(s.DecadeCount),
-
-		// ── Anime formats (tiered) ────────────────────────────────────────────────
-		"a_tv_watcher":      float64(s.TVCount),
-		"a_movie_buff":      float64(s.MovieCount),
-		"a_ova_hunter":      float64(s.OVACount),
-		"a_ona_explorer":    float64(s.ONACount),
-		"a_special_watcher": float64(s.SpecialCount),
-		"a_short_king":      float64(s.ShortCount),
-		"a_music_video":     float64(s.MusicCount),
-		"a_tv_short":        float64(s.TVShortCount),
-
-		// ── Anime scoring ─────────────────────────────────────────────────────────
-		"a_critic":       float64(s.AnimeRatingCount),
-		"a_perfect_ten":  float64(s.PerfectTenAnime),
-		"a_harsh_critic": float64(s.HarshCriticAnime),
-		"a_100_rated":    float64(s.AnimeRatingCount),
-		"a_500_rated":    float64(s.AnimeRatingCount),
-		"average_rating": s.AnimeAverageRating,
-		"rating_count":   float64(s.AnimeRatingCount),
-
-		// ── Anime dedication (tiered) ─────────────────────────────────────────────
-		"a_studio_devotee": float64(s.StudioCount),
-		"a_decade_watcher": float64(s.DecadeCount),
-
-		// ── Manga milestones ───────────────────────────────────────────────────────
-		// Tiered
-		"m_chapter_counter":   float64(s.TotalChapters),
-		"m_chapter_titan":     float64(s.TotalChapters),
-		"m_reading_hours":     float64(s.TotalChapters) * 7.0 / 60.0,
-		"m_reading_time_lord": float64(s.TotalChapters) * 7.0 / 60.0,
-		"m_manga_collector":   float64(s.TotalManga),
-		"m_library_legend":    float64(s.TotalManga),
-		"m_year_explorer":     float64(s.YearCount),
-		"m_ptr_hoarder":       float64(s.PTRManga),
-		"m_dropped_honesty":   float64(s.DroppedManga),
-		// One-time
-		"m_first_chapter":    boolToFloat(s.TotalChapters > 0),
-		"m_first_day":        boolToFloat(s.TotalChapters > 0),
-		"m_first_complete":   boolToFloat(s.CompletedManga > 0),
-		"m_first_rating":     boolToFloat(s.MangaRatingCount > 0),
-		"m_hundred_club":     boolToFloat(s.CompletedManga >= 100),
-		"m_ten_thousand_pages": boolToFloat(s.TotalChapters >= 500), // 500 ch × 20 pages = 10 000 pages
-		"m_five_hundred_ch":  boolToFloat(s.TotalChapters >= 500),
-		"m_thousand_ch":      boolToFloat(s.TotalChapters >= 1000),
-		"m_reading_ten":      boolToFloat(s.ReadingManga >= 10),
-
-		// ── Manga completion ───────────────────────────────────────────────────────
-		// Tiered
-		"m_completionist":      float64(s.CompletedManga),
-		"m_mega_completionist": float64(s.CompletedManga),
-		// m_no_drop: progress only counts when nothing has been dropped
-		"m_no_drop":       boolToFloat(s.DroppedManga == 0) * float64(s.CompletedManga),
-		"m_reread_master": float64(s.MangaRereads),
-		// One-time
-		"m_zero_to_hundred":    boolToFloat(s.CompletedManga >= 100),
-		"m_completion_rate_50": boolToFloat(mangaCompletionRate >= 50),
-		"m_completion_rate_75": boolToFloat(mangaCompletionRate >= 75),
-		"m_completion_rate_90": boolToFloat(mangaCompletionRate >= 90),
-		"m_clean_list":         boolToFloat(s.TotalManga > 0 && s.PausedManga == 0),
-
-		// ── Manga genres (tiered) ──────────────────────────────────────────────────
-		"m_genre_action":        float64(s.MangaGenreCounts["Action"]),
-		"m_genre_adventure":     float64(s.MangaGenreCounts["Adventure"]),
-		"m_genre_comedy":        float64(s.MangaGenreCounts["Comedy"]),
-		"m_genre_drama":         float64(s.MangaGenreCounts["Drama"]),
-		"m_genre_fantasy":       float64(s.MangaGenreCounts["Fantasy"]),
-		"m_genre_horror":        float64(s.MangaGenreCounts["Horror"]),
-		"m_genre_mystery":       float64(s.MangaGenreCounts["Mystery"]),
-		"m_genre_romance":       float64(s.MangaGenreCounts["Romance"]),
-		"m_genre_scifi":         float64(s.MangaGenreCounts["Sci-Fi"]),
-		"m_genre_sol":           float64(s.MangaGenreCounts["Slice of Life"]),
-		"m_genre_sports":        float64(s.MangaGenreCounts["Sports"]),
-		"m_genre_supernatural":  float64(s.MangaGenreCounts["Supernatural"]),
-		"m_genre_thriller":      float64(s.MangaGenreCounts["Thriller"]),
-		"m_genre_psychological": float64(s.MangaGenreCounts["Psychological"]),
-		"m_genre_isekai":        float64(s.MangaGenreCounts["Isekai"]),
-		"m_genre_shounen":       float64(s.MangaGenreCounts["Shounen"]),
-
-		// ── Manga discovery (tiered) ───────────────────────────────────────────────
-		"m_genre_explorer": float64(s.GenreCount),
-		"m_tag_explorer":   float64(s.TagCount),
-		"m_decade_hopper":  float64(s.DecadeCount),
-		"m_manhwa_reader":  float64(s.ManhwaCount),
-		"m_manhua_reader":  float64(s.ManhuaCount),
-
-		// ── Manga creative (tiered) ────────────────────────────────────────────────
-		"m_webtoon_reader":     float64(s.WebtoonCount),
-		"m_doujin_reader":      float64(s.DoujinCount),
-		"m_light_novel_reader": float64(s.LightNovelCount),
-		"m_novel_reader":       float64(s.NovelCount),
-		"m_oneshot_reader":     float64(s.OneshotCount),
-
-		// ── Manga scoring ──────────────────────────────────────────────────────────
-		"m_critic":       float64(s.MangaRatingCount),
-		"m_perfect_ten":  float64(s.PerfectTenManga),
-		"m_harsh_critic": float64(s.HarshCriticManga),
-		"m_100_rated":    float64(s.MangaRatingCount),
-		"m_500_rated":    float64(s.MangaRatingCount),
-
-		// ── Manga milestones (new) ─────────────────────────────────────────────────
-		"m_all_status":             boolToFloat(s.ReadingManga > 0 && s.CompletedManga > 0 && s.PausedManga > 0 && s.DroppedManga > 0 && s.PTRManga > 0),
-		"m_fifty_completed":        boolToFloat(s.CompletedManga >= 50),
-		"m_first_favorite":         boolToFloat(s.MangaFavoriteCount > 0),
-		"m_five_hundred_completed": boolToFloat(s.CompletedManga >= 500),
-		"m_five_thousand_ch":       boolToFloat(s.TotalChapters >= 5000),
-		"m_ten_completed":          boolToFloat(s.CompletedManga >= 10),
-		"m_favorites_collector":    float64(s.MangaFavoriteCount),
-		"m_days_spent_reading":     float64(s.TotalChapters) * 7.0 / 1440.0,
-
-		// ── Manga dedication (tiered) ──────────────────────────────────────────────
-		"m_decade_reader": float64(s.DecadeCount),
-
-		// ── Anime tags (tiered) ────────────────────────────────────────────────────
-		"a_tag_isekai":           float64(s.AnimeTagCounts["Isekai"]),
-		"a_tag_harem":            float64(s.AnimeTagCounts["Harem"]),
-		"a_tag_bl":               float64(s.AnimeTagCounts["Boys' Love"]),
-		"a_tag_gl":               float64(s.AnimeTagCounts["Girls' Love"]),
-		"a_tag_historical":       float64(s.AnimeTagCounts["Historical"]),
-		"a_tag_military":         float64(s.AnimeTagCounts["Military"]),
-		"a_tag_school":           float64(s.AnimeTagCounts["School"]),
-		"a_tag_martial_arts":     float64(s.AnimeTagCounts["Martial Arts"]),
-		"a_tag_vampire":          float64(s.AnimeTagCounts["Vampire"]),
-		"a_tag_samurai":          float64(s.AnimeTagCounts["Samurai"]),
-		"a_tag_space":            float64(s.AnimeTagCounts["Space"]),
-		"a_tag_parody":           float64(s.AnimeTagCounts["Parody"]),
-		"a_tag_idol":             float64(s.AnimeTagCounts["Idol"]),
-		"a_tag_post_apocalyptic": float64(s.AnimeTagCounts["Post-Apocalyptic"]),
-		"a_tag_cyberpunk":        float64(s.AnimeTagCounts["Cyberpunk"]),
-		"a_tag_shounen":          float64(s.AnimeTagCounts["Shounen"]),
-		"a_tag_seinen":           float64(s.AnimeTagCounts["Seinen"]),
-		"a_tag_shoujo":           float64(s.AnimeTagCounts["Shoujo"]),
-		"a_tag_josei":            float64(s.AnimeTagCounts["Josei"]),
-		"a_tag_survival":         float64(s.AnimeTagCounts["Survival"]),
-
-		// ── Manga tags (tiered) ────────────────────────────────────────────────────
-		"m_tag_isekai_new":       float64(s.MangaTagCounts["Isekai"]),
-		"m_tag_harem":            float64(s.MangaTagCounts["Harem"]),
-		"m_tag_bl":               float64(s.MangaTagCounts["Boys' Love"]),
-		"m_tag_gl":               float64(s.MangaTagCounts["Girls' Love"]),
-		"m_tag_historical":       float64(s.MangaTagCounts["Historical"]),
-		"m_tag_military":         float64(s.MangaTagCounts["Military"]),
-		"m_tag_school":           float64(s.MangaTagCounts["School"]),
-		"m_tag_martial_arts":     float64(s.MangaTagCounts["Martial Arts"]),
-		"m_tag_vampire":          float64(s.MangaTagCounts["Vampire"]),
-		"m_tag_samurai":          float64(s.MangaTagCounts["Samurai"]),
-		"m_tag_space":            float64(s.MangaTagCounts["Space"]),
-		"m_tag_parody":           float64(s.MangaTagCounts["Parody"]),
-		"m_tag_idol":             float64(s.MangaTagCounts["Idol"]),
-		"m_tag_post_apocalyptic": float64(s.MangaTagCounts["Post-Apocalyptic"]),
-		"m_tag_cyberpunk":        float64(s.MangaTagCounts["Cyberpunk"]),
-		"m_tag_shoujo":           float64(s.MangaTagCounts["Shoujo"]),
-		"m_tag_survival":         float64(s.MangaTagCounts["Survival"]),
-		"m_tag_cooking":          float64(s.MangaTagCounts["Cooking"]),
-		"m_tag_medical":          float64(s.MangaTagCounts["Medicine"]),
-		"m_tag_villainess":       float64(s.MangaTagCounts["Villainess"]),
-
-		// ── Anime simple stat achievements ─────────────────────────────────────────
-		"a_ten_perfect_scores":  boolToFloat(s.PerfectTenAnime >= 10),
-		"a_variety_pack":        float64(s.AnimeUniqueFormatCount),
-		"a_format_balance":      boolToFloat(s.AnimeUniqueFormatCount >= 5),
-		"a_anthology":           float64(s.AnimeFormatCounts["TV"]), // placeholder: anthology not a distinct AniList format
-
-		// ── Manga simple stat achievements ─────────────────────────────────────────
-		"m_ten_perfect_scores":  boolToFloat(s.PerfectTenManga >= 10),
-		"m_format_variety":      float64(s.MangaUniqueFormatCount),
-		"m_anthology_reader":    float64(s.MangaFormatCounts["ONE_SHOT"]), // placeholder
-
-		// ── Scoring support metadata ───────────────────────────────────────────────
-		"manga_average_rating":       s.MangaAverageRating,
-		"manga_rating_count":         float64(s.MangaRatingCount),
-		"bell_curve":                 s.BellCurveAnime,
-		"manga_bell_curve":           s.BellCurveManga,
-		"used_all_scores":            s.UsedAllScoresAnime,
-		"manga_used_all_scores":      s.UsedAllScoresManga,
-		"all_completed_rated":        s.AllCompletedRatedAnime,
-		"manga_all_completed_rated":  s.AllCompletedRatedManga,
-		"max_same_score_count":       float64(s.MaxSameScoreAnime),
-		"manga_max_same_score_count": float64(s.MaxSameScoreManga),
-		"score_variance":             s.ScoreVarianceAnime,
-		"manga_score_variance":       s.ScoreVarianceManga,
-		"mediocre_count":             float64(s.MediocreCountAnime),
-		"manga_mediocre_count":       float64(s.MediocreCountManga),
-
-		// ── Shared metadata ────────────────────────────────────────────────────────
-		"completed_count": float64(s.CompletedAnime + s.CompletedManga),
-		"total_count":     float64(s.TotalEpisodes + s.TotalChapters),
-		"total_episodes":  float64(s.TotalEpisodes),
-		"total_chapters":  float64(s.TotalChapters),
-	}
-	return m
+	return phase < (1.0/synodicMonth) || phase > (1.0-1.0/synodicMonth)
 }

@@ -4,6 +4,7 @@ import React from "react"
 import { useAtomValue } from "jotai"
 import { profileSessionTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { hydrateClientPrefs, resetClientPrefsHydration } from "./sea-storage"
+import { syncClientTimeZone } from "@/lib/client-settings"
 
 /**
  * Hydrates server-side client preferences into localStorage BEFORE rendering children.
@@ -34,7 +35,9 @@ export function ClientPrefsHydrator({ children }: { children: React.ReactNode })
         let cancelled = false
         ;(async () => {
             await hydrateClientPrefs()
-            if (!cancelled) setHydrated(true)
+            if (cancelled) return
+            syncClientTimeZone()
+            setHydrated(true)
         })()
         return () => { cancelled = true }
     }, [tokenSnapshot])

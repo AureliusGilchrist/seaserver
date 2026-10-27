@@ -1266,6 +1266,41 @@ type LevelProgress struct {
 	// It is accumulated outside of achievement unlocks and preserved across achievement XP
 	// recalculations (which only own the achievement-derived portion).
 	WatchTimeXP int `gorm:"column:watch_time_xp;default:0" json:"watchTimeXP"`
+	// AchievementRulesVersion is the version of the achievement rules the unlocks in this profile
+	// were last re-checked against. See achievement.CurrentRulesVersion.
+	AchievementRulesVersion int `gorm:"column:achievement_rules_version;default:0" json:"-"`
+}
+
+// AchievementLogEntry is one thing the profile did, kept for good, for the achievement rules
+// (stored in per-profile DB).
+//
+// ActivityEvent rows are pruned after 30 days and ActivityLog only keeps daily totals; streaks of a
+// year and "at 4 AM" need neither limitation. The rows are small — one per episode or chapter.
+type AchievementLogEntry struct {
+	ID uint `gorm:"primarykey"`
+	// At is the moment in Unix seconds (UTC).
+	At        int64  `gorm:"column:at;index"`
+	Kind      string `gorm:"column:kind;index"` // see achievement.LogKind*
+	MediaType string `gorm:"column:media_type"` // "anime", "manga" or ""
+	MediaID   int    `gorm:"column:media_id;index"`
+	// Number is the episode/chapter number, or the score (0-100) for a score row.
+	Number  int `gorm:"column:number"`
+	Minutes int `gorm:"column:minutes"`
+	// Data is a small JSON object for the kinds that need more (status from/to, party facts).
+	Data string `gorm:"column:data;type:text"`
+	// DayOnly marks rows rebuilt from daily totals: the day is known, the time of day is not.
+	DayOnly bool `gorm:"column:day_only"`
+}
+
+// AchievementListSnapshot is the last-seen state of one list entry, so changes made anywhere
+// (here, the AniList site, another app) are noticed as changes (stored in per-profile DB).
+type AchievementListSnapshot struct {
+	MediaType string  `gorm:"column:media_type;primaryKey"`
+	MediaID   int     `gorm:"column:media_id;primaryKey;autoIncrement:false"`
+	Status    string  `gorm:"column:status"`
+	Score     float64 `gorm:"column:score"`
+	Progress  int     `gorm:"column:progress"`
+	Repeat    int     `gorm:"column:repeat"`
 }
 
 // AdminAnnouncement is a server-local announcement created by an admin, shown as a dismissible banner.

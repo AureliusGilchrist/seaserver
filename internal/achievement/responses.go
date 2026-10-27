@@ -2,10 +2,10 @@ package achievement
 
 // ListResponse is returned by the get-all endpoint.
 type ListResponse struct {
-	Definitions  []Definition      `json:"definitions"`
-	Categories   []CategoryInfo    `json:"categories"`
-	Achievements []Entry           `json:"achievements"`
-	Summary      SummaryResponse   `json:"summary"`
+	Definitions  []Definition    `json:"definitions"`
+	Categories   []CategoryInfo  `json:"categories"`
+	Achievements []Entry         `json:"achievements"`
+	Summary      SummaryResponse `json:"summary"`
 }
 
 // Entry represents a single achievement row with its progress/unlock state.

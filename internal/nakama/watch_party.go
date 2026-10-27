@@ -619,6 +619,8 @@ func (wpm *WatchPartyManager) SendChatMessage(message string) error {
 		username = wpm.manager.username
 	}
 
+	wpm.noteChatMessage()
+
 	// Create chat message payload
 	payload := WatchPartyChatMessagePayload{
 		PeerId:    peerId,

@@ -202,6 +202,8 @@ func migrateTables(db *gorm.DB) error {
 		&models.AchievementShowcase{},
 		&models.ActivityLog{},
 		&models.ActivityEvent{},
+		&models.AchievementLogEntry{},
+		&models.AchievementListSnapshot{},
 		&models.LevelProgress{},
 		&models.AdminAnnouncement{},
 		&models.TrackPreference{},
