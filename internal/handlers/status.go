@@ -140,6 +140,19 @@ func (h *Handler) NewStatus(c echo.Context) *Status {
 		status.PlanningSlutConfigured = true
 	}
 
+	// Secrets in the settings (the shared AniList account's token, torrent-client, VLC and Nakama
+	// passwords, API keys) only go to an admin. This endpoint answers without any session at all —
+	// it is what the sign-in screen reads — so it handed every one of them to anyone who could reach
+	// the server. The settings page that edits them is admin-only, so nobody else needs them.
+	if !h.statusRequestIsAdmin(c) {
+		status.Settings = redactSettingsSecrets(status.Settings)
+		if status.DebridSettings != nil && status.DebridSettings.ApiKey != "" {
+			d := *status.DebridSettings
+			d.ApiKey = ""
+			status.DebridSettings = &d
+		}
+	}
+
 	// Populate profile fields
 	if h.App.ProfileManager != nil {
 		// Multi-profile support is always active
@@ -810,4 +823,48 @@ func (h *Handler) HandleUpdateMangaHomeItems(c echo.Context) error {
 	}
 
 	return nil
+}
+
+// statusRequestIsAdmin reports whether the status request comes from an admin profile session, or
+// from a server with no profiles at all (where there is no one else to keep things from).
+func (h *Handler) statusRequestIsAdmin(c echo.Context) bool {
+	if session := c.Get("profileSession"); session != nil {
+		if payload, ok := session.(*core.ProfileSessionPayload); ok {
+			return payload.IsAdmin
+		}
+	}
+	return h.App.ProfileManager == nil || !h.App.ProfileManager.HasProfiles()
+}
+
+// redactSettingsSecrets returns a copy of the settings with every secret blanked. The original is
+// left alone: it may be a cached copy other code reads.
+func redactSettingsSecrets(settings *models.Settings) *models.Settings {
+	if settings == nil {
+		return nil
+	}
+	out := *settings
+	if settings.Library != nil {
+		lib := *settings.Library
+		lib.PlanningSlutToken = ""
+		out.Library = &lib
+	}
+	if settings.MediaPlayer != nil {
+		mp := *settings.MediaPlayer
+		mp.VlcPassword = ""
+		mp.VcTranslateApiKey = ""
+		out.MediaPlayer = &mp
+	}
+	if settings.Torrent != nil {
+		t := *settings.Torrent
+		t.QBittorrentPassword = ""
+		t.TransmissionPassword = ""
+		out.Torrent = &t
+	}
+	if settings.Nakama != nil {
+		n := *settings.Nakama
+		n.HostPassword = ""
+		n.RemoteServerPassword = ""
+		out.Nakama = &n
+	}
+	return &out
 }

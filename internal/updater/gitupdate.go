@@ -342,7 +342,14 @@ func (u *GitAutoUpdater) shelve(remoteRef string) error {
 	if snap, err := u.git("stash", "create"); err == nil && strings.TrimSpace(snap) != "" {
 		_, _ = u.git("update-ref", "refs/seanime-backup/"+stamp+"-changes", strings.TrimSpace(snap))
 	}
-	out, err := u.git("reset", "--hard", remoteRef)
+	// A git killed halfway (an earlier update that hit its time limit, a restart mid-reset) leaves
+	// its index.lock behind, and every later reset then fails on it — the update stopped at
+	// "Moving the checkout" for good. Nothing else runs git in this checkout while an update holds
+	// the updating flag, so a lock older than a minute is a leftover.
+	u.clearStaleIndexLock()
+	// Long enough for a large checkout on a slow NAS disk: a reset cut off by the usual two-minute
+	// limit is exactly what leaves that lock behind.
+	out, err := u.gitLong(10*time.Minute, "reset", "--hard", remoteRef)
 	// A build run with sudo leaves root-owned files behind that this process cannot overwrite, and
 	// the reset fails on them. Repair what git named — take the files back with passwordless sudo
 	// when it exists, move them aside when it does not, which needs only write access to their
@@ -353,7 +360,8 @@ func (u *GitAutoUpdater) shelve(remoteRef string) error {
 			return fmt.Errorf("%w (files in the checkout are owned by another user, probably root from a sudo build; fix once with: sudo chown -R %d:%d %s)",
 				err, os.Getuid(), os.Getgid(), u.repoDir)
 		}
-		out, err = u.git("reset", "--hard", remoteRef)
+		u.clearStaleIndexLock()
+		out, err = u.gitLong(10*time.Minute, "reset", "--hard", remoteRef)
 	}
 	if err != nil {
 		return fmt.Errorf("%s %w", strings.TrimSpace(out), err)
@@ -828,7 +836,12 @@ func (u *GitAutoUpdater) fail(step string, err error, output string) {
 // at all ("detected dubious ownership"), so every check and update failed at the first command.
 // Only this one directory is trusted, and only for these commands; no global git config changes.
 func (u *GitAutoUpdater) git(args ...string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	return u.gitLong(2*time.Minute, args...)
+}
+
+// gitLong is git with a longer time limit, for the steps that rewrite the working tree.
+func (u *GitAutoUpdater) gitLong(limit time.Duration, args ...string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), limit)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "git", gitArgs(u.repoDir, args...)...)
@@ -1020,4 +1033,16 @@ func copyBinary(src, dst string) error {
 		return err
 	}
 	return nil
+}
+
+// clearStaleIndexLock removes a leftover .git/index.lock (see shelve).
+func (u *GitAutoUpdater) clearStaleIndexLock() {
+	lock := filepath.Join(u.repoDir, ".git", "index.lock")
+	info, err := os.Stat(lock)
+	if err != nil || time.Since(info.ModTime()) < time.Minute {
+		return
+	}
+	if err := os.Remove(lock); err == nil {
+		u.logger.Warn().Str("lock", lock).Msg("selfupdate: Removed a stale git index.lock left by an interrupted git")
+	}
 }
