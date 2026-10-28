@@ -113,5 +113,9 @@ func (r *Repository) ServeEchoDirectPlay(c echo.Context, clientId string) error 
 		return c.NoContent(http.StatusOK)
 	}
 
+	// Counted as in flight while it streams, so a long response isn't mistaken for an idle client.
+	done := r.playbackManager.BeginRequest(clientId)
+	defer done()
+
 	return c.File(mediaContainer.Filepath)
 }

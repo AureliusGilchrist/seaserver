@@ -1,5 +1,6 @@
 import { AL_BaseAnime, AL_BaseManga, AL_MediaStatus, Anime_EntryListData, Manga_EntryListData, Nullish } from "@/api/generated/types"
 import { TRANSPARENT_SIDEBAR_BANNER_IMG_STYLE } from "@/app/(main)/_features/custom-ui/styles"
+import { AnilistSyncIndicator } from "@/app/(main)/_features/media/_components/anilist-sync-indicator"
 import { AnilistMediaEntryModal } from "@/app/(main)/_features/media/_containers/anilist-media-entry-modal"
 import { imageShimmer } from "@/components/shared/image-helpers"
 import { SeaImage } from "@/components/shared/sea-image"
@@ -387,6 +388,8 @@ export function MediaPageHeaderEntryDetails(props: MediaPageHeaderEntryDetailsPr
                             <h4 className="text-gray-200 line-clamp-1 text-center lg:text-left xl:max-w-[50vw]">{englishTitle}</h4>}
                         {(!!romajiTitle && title?.toLowerCase() !== romajiTitle?.toLowerCase()) &&
                             <h4 className="text-gray-200 line-clamp-1 text-center lg:text-left xl:max-w-[50vw]">{romajiTitle}</h4>}
+                        {!!media?.title?.native && title !== media.title.native &&
+                            <p className="text-white/45 line-clamp-1 text-center lg:text-left text-sm tracking-wide xl:max-w-[50vw]" lang="ja">{media.title.native}</p>}
                     </div>
 
                     {/*DATE*/}
@@ -404,7 +407,7 @@ export function MediaPageHeaderEntryDetails(props: MediaPageHeaderEntryDetailsPr
                                 : ""}
                             </p>
 
-                            {((status !== "FINISHED" && type === "anime") || type === "manga") && <Badge
+                            {!!status && <Badge
                                 size="lg"
                                 intent={status === "RELEASING" ? "primary" : "gray"}
                                 className="bg-transparent border-transparent dark:text-brand-200 px-0 rounded-none"
@@ -466,23 +469,11 @@ export function MediaPageHeaderEntryDetails(props: MediaPageHeaderEntryDetailsPr
                                 </Tooltip>}
                             </div>}
 
+                        <AnilistSyncIndicator mediaId={media?.id} />
                     </div>
 
-                    {ts.mediaPageBannerSize !== ThemeMediaPageBannerSize.Small && <Popover
-                        trigger={<div
-                            className={cn(
-                                "cursor-pointer max-h-16 line-clamp-3 col-span-2 left-[-.5rem] text-[--muted] 2xl:max-w-[50vw] hover:text-white transition-colors duration-500 text-sm pr-2",
-                                "bg-transparent rounded-[--radius-md] text-center lg:text-left",
-                            )}
-                            data-media-page-header-details-description-trigger
-                        >
-                            {description?.replace(/(<([^>]+)>)/ig, "")}
-                        </div>}
-                        className="max-w-[40rem] bg-[--background] p-4 w-[20rem] lg:w-[40rem] text-md"
-                        data-media-page-header-details-description-popover
-                    >
-                        <span className="transition-colors">{description?.replace(/(<([^>]+)>)/ig, "")}</span>
-                    </Popover>}
+                    {ts.mediaPageBannerSize !== ThemeMediaPageBannerSize.Small && !!description &&
+                        <MediaPageHeaderDescription description={description} />}
 
                     {children}
 
@@ -530,4 +521,42 @@ export function MediaPageHeaderScoreAndProgress({ score, progress, episodes }: {
         </>
     )
 
+}
+
+
+/** The description in the hero: three lines, then a smooth "Read more" in place. */
+function MediaPageHeaderDescription({ description }: { description: string }) {
+    const [expanded, setExpanded] = React.useState(false)
+    const text = React.useMemo(() => description
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/(<([^>]+)>)/ig, "")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim(), [description])
+    const long = text.length > 260
+    return (
+        <div
+            data-media-page-header-details-description
+            className={cn(
+                "relative max-w-full 2xl:max-w-[50vw] rounded-2xl text-sm leading-relaxed text-white/70 transition-colors",
+                expanded && "bg-black/30 backdrop-blur-md ring-1 ring-white/10 p-4 -mx-1",
+            )}
+        >
+            <motion.div
+                initial={false}
+                animate={{ height: expanded || !long ? "auto" : "4.1rem" }}
+                transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
+                className="overflow-hidden whitespace-pre-line text-center lg:text-left"
+            >
+                {text}
+            </motion.div>
+            {long && !expanded && <div className="pointer-events-none absolute inset-x-0 bottom-6 h-8 bg-gradient-to-t from-[--background]/40 to-transparent" />}
+            {long && <button
+                type="button"
+                onClick={() => setExpanded(e => !e)}
+                className="mx-auto mt-1 block text-xs font-semibold text-brand-200 hover:text-white lg:mx-0"
+            >
+                {expanded ? "Show less" : "Read more"}
+            </button>}
+        </div>
+    )
 }

@@ -1,4 +1,5 @@
 "use client"
+import { MediaDetailsInfoSection, MediaDetailsStaffSection } from "@/app/(main)/_features/media/_components/media-details-sections"
 import { isStillOnPath } from "@/lib/navigation"
 import { useGetMangaEntry, useGetMangaEntryDetails } from "@/api/hooks/manga.hooks"
 import { MediaEntryCharactersSection } from "@/app/(main)/_features/media/_components/media-entry-characters-section"
@@ -156,6 +157,10 @@ export default function Page() {
                     </div>
 
                     <PluginWebviewSlot slot="after-manga-entry-chapter-list" />
+
+                    <MediaDetailsInfoSection mediaId={mangaEntry.mediaId} type="manga" genres={mangaDetails?.genres} nativeTitle={mangaEntry.media?.title?.native} />
+
+                    <MediaDetailsStaffSection mediaId={mangaEntry.mediaId} />
 
                     <MangaRecommendations entry={mangaEntry} details={mangaDetails} />
 

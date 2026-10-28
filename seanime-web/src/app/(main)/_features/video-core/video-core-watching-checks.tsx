@@ -364,7 +364,7 @@ export function VideoCoreSequelPrompt() {
     return (
         <div
             data-vc-element="sequel-prompt"
-            className="absolute inset-0 flex items-center justify-center z-[55]"
+            className="absolute inset-0 flex items-center justify-center z-[55] cursor-auto"
             onClick={e => e.stopPropagation()}
             onPointerMove={e => e.stopPropagation()}
         >
@@ -402,7 +402,7 @@ export function VideoCoreStillWatchingPrompt({ onContinue }: { onContinue?: () =
     return (
         <div
             data-vc-element="still-watching-prompt"
-            className="absolute inset-0 flex items-center justify-center z-[56]"
+            className="absolute inset-0 flex items-center justify-center z-[56] cursor-auto"
             onClick={e => e.stopPropagation()}
             onPointerMove={e => e.stopPropagation()}
         >

@@ -54,6 +54,10 @@ export const vc_busy = atom(true)
 // True only while the user has right-clicked to hide the cursor/controls. The cursor is hidden by
 // this alone — never by idling — so it stays visible until the user asks for it to go.
 export const vc_cursorForceHidden = atom(false)
+// Pop-up state that would otherwise live in local component state; read by vc_popupOpen.
+export const vc_castModalOpen = atom(false)
+// Count, not a boolean: one playlist hover card can open while another is still closing.
+export const vc_playlistHoverCardsOpen = atom(0)
 export const vc_videoElement = atom<HTMLVideoElement | null>(null)
 export const vc_containerElement = atom<HTMLDivElement | null>(null)
 

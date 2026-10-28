@@ -298,7 +298,7 @@ export function VideoCorePreferencesModal({ isWebPlayer }: { isWebPlayer: boolea
             title="Preferences"
             open={open}
             onOpenChange={setOpen}
-            contentClass="max-w-5xl focus:outline-none focus-visible:outline-none outline-none bg-[--background] backdrop-blur-sm z-[101]"
+            contentClass="max-w-5xl cursor-auto focus:outline-none focus-visible:outline-none outline-none bg-[--background] backdrop-blur-sm z-[101]"
             overlayClass="z-[150] bg-black/50"
             portalContainer={isFullscreen ? containerElement || undefined : undefined}
         >

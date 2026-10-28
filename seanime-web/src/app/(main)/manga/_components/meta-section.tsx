@@ -6,6 +6,10 @@ import {
     MediaEntryGenresList,
 } from "@/app/(main)/_features/media/_components/media-entry-metadata-components"
 import { MangaEntryStaff } from "@/app/(main)/_features/media/_components/manga-entry-staff"
+import { MediaCreatorsLine } from "@/app/(main)/_features/media/_components/media-info-panel"
+import { MediaMetaChips, MediaStatsRow } from "@/app/(main)/_features/media/_components/media-meta-chips"
+import { useGetMediaInfo } from "@/api/hooks/anilist.hooks"
+import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import {
     MediaPageHeader,
     MediaPageHeaderDetailsContainer,
@@ -34,6 +38,8 @@ export function MetaSection(props: { entry: Manga_Entry | undefined, details: AL
     const { entry, details } = props
     const ts = useThemeSettings()
     const { isFavorite, toggleFavorite } = useMangaFavorites()
+    const personal = usePersonalSettings()
+    const { data: info } = useGetMediaInfo(entry?.mediaId)
 
     if (!entry?.media) return null
 
@@ -49,9 +55,11 @@ export function MetaSection(props: { entry: Manga_Entry | undefined, details: AL
                     ts.mediaPageBannerInfoBoxSize === ThemeMediaPageInfoBoxSize.Fluid && "justify-center lg:justify-start lg:max-w-[65vw]",
                 )}
             >
-                <MediaEntryAudienceScore meanScore={entry.media?.meanScore} badgeClass="bg-transparent" />
+                <MediaMetaChips media={entry.media as any} info={info} type="manga" className="w-full" />
 
-                <MangaEntryStaff staff={details?.staff} />
+                <MediaStatsRow info={info} meanScore={entry.media?.meanScore} hideScore={personal.hideAudienceScore} />
+
+                {info?.staff?.edges?.length ? <MediaCreatorsLine info={info} className="w-full" /> : <MangaEntryStaff staff={details?.staff} />}
 
                 <MediaEntryGenresList genres={details?.genres} type="manga" />
             </div>

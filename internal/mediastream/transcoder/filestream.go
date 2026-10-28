@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"os"
 	"path/filepath"
 	"seanime/internal/mediastream/videofile"
 	"seanime/internal/util/result"
@@ -28,6 +27,10 @@ type FileStream struct {
 	audios    *result.Map[int32, *AudioStream]   // A map of audio streams.
 	logger    *zerolog.Logger
 	settings  *Settings
+	// ctx stops the keyframe scan when the stream is abandoned (see StopKeyframeScan, Destroy).
+	ctx      context.Context
+	cancel   context.CancelFunc
+	loadedCh chan struct{} // closed once Keyframes is set
 }
 
 // NewFileStream creates a new FileStream.
@@ -46,15 +49,37 @@ func NewFileStream(
 		logger:   logger,
 		settings: settings,
 		Info:     mediaInfo,
+		loadedCh: make(chan struct{}),
 	}
+	ret.ctx, ret.cancel = context.WithCancel(context.Background())
 
 	ret.ready.Add(1)
 	go func() {
 		defer ret.ready.Done()
-		ret.Keyframes = GetKeyframes(path, sha, logger, settings)
+		defer close(ret.loadedCh)
+		ret.Keyframes = GetKeyframes(ret.ctx, path, sha, logger, settings)
+		if err := ret.Keyframes.Err(); err != nil {
+			if length, _ := ret.Keyframes.Length(); length == 0 {
+				ret.err = err
+			}
+		}
 	}()
 
 	return ret
+}
+
+// StopKeyframeScan cancels the keyframe scan if it is still running, and reports whether it was.
+// A stream whose scan was stopped has incomplete keyframes and must not be reused.
+func (fs *FileStream) StopKeyframeScan() bool {
+	select {
+	case <-fs.loadedCh:
+		if _, done := fs.Keyframes.Length(); done {
+			return false
+		}
+	default:
+	}
+	fs.cancel()
+	return true
 }
 
 // Kill stops all streams.
@@ -69,11 +94,26 @@ func (fs *FileStream) Kill() {
 	})
 }
 
-// Destroy stops all streams and removes the output directory.
+// Destroy stops all streams and the keyframe scan, and removes the output directory in the
+// background.
 func (fs *FileStream) Destroy() {
+	fs.stop()
+	removeDirInBackground(fs.Out)
+}
+
+// stop stops all streams and the keyframe scan, and leaves the files.
+func (fs *FileStream) stop() {
 	fs.logger.Debug().Msg("filestream: Destroying streams")
+	fs.cancel()
 	fs.Kill()
-	_ = os.RemoveAll(fs.Out)
+	fs.videos.Range(func(_ Quality, s *VideoStream) bool {
+		s.close()
+		return true
+	})
+	fs.audios.Range(func(_ int32, s *AudioStream) bool {
+		s.close()
+		return true
+	})
 }
 
 // GetMaster generates the master playlist.

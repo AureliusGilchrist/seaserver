@@ -12,6 +12,7 @@ import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { MetaSection } from "@/app/(main)/entry/_components/meta-section"
 import { SyntheticAnimeEntryPage } from "@/app/(main)/entry/_containers/synthetic-anime-entry-page"
 import { CommentSection } from "@/app/(main)/_features/comment/comment-section"
+import { MediaDetailsInfoSection, MediaDetailsStaffSection } from "@/app/(main)/_features/media/_components/media-details-sections"
 import { RelationsRecommendationsSection } from "@/app/(main)/entry/_components/relations-recommendations-section"
 import { AnimeThemesSection } from "@/app/(main)/entry/_components/anime-themes-section"
 import { KitsuInfoSection } from "@/app/(main)/entry/_components/kitsu-info-section"
@@ -387,8 +388,10 @@ export function AnimeEntryPage() {
                                 bottomSection={<>
                                     <PluginWebviewSlot slot="after-anime-entry-episode-list" />
                                     <AnimeThemesSection malId={animeEntry.media?.idMal} />
+                                    <MediaDetailsInfoSection mediaId={animeEntry.mediaId} type="anime" genres={animeDetails?.genres} nativeTitle={animeEntry.media?.title?.native} />
                                     <KitsuInfoSection malId={animeEntry.media?.idMal} />
                                     <MediaEntryCharactersSection details={animeDetails} />
+                                    <MediaDetailsStaffSection mediaId={animeEntry.mediaId} />
                                     <RelationsRecommendationsSection entry={animeEntry} details={animeDetails} />
                                     <CommentSection mediaId={animeEntry.mediaId} mediaType="anime" />
                                 </>}
@@ -401,7 +404,9 @@ export function AnimeEntryPage() {
                                 bottomSection={<>
                                     <PluginWebviewSlot slot="after-anime-entry-episode-list" />
                                     <AnimeThemesSection malId={animeEntry.media?.idMal} />
+                                    <MediaDetailsInfoSection mediaId={animeEntry.mediaId} type="anime" genres={animeDetails?.genres} nativeTitle={animeEntry.media?.title?.native} />
                                     <MediaEntryCharactersSection details={animeDetails} />
+                                    <MediaDetailsStaffSection mediaId={animeEntry.mediaId} />
                                     <RelationsRecommendationsSection entry={animeEntry} details={animeDetails} />
                                     <CommentSection mediaId={animeEntry.mediaId} mediaType="anime" />
                                 </>}
@@ -413,7 +418,9 @@ export function AnimeEntryPage() {
                                 bottomSection={<>
                                     <PluginWebviewSlot slot="after-anime-entry-episode-list" />
                                     <AnimeThemesSection malId={animeEntry.media?.idMal} />
+                                    <MediaDetailsInfoSection mediaId={animeEntry.mediaId} type="anime" genres={animeDetails?.genres} nativeTitle={animeEntry.media?.title?.native} />
                                     <MediaEntryCharactersSection details={animeDetails} />
+                                    <MediaDetailsStaffSection mediaId={animeEntry.mediaId} />
                                     <RelationsRecommendationsSection entry={animeEntry} details={animeDetails} />
                                     <CommentSection mediaId={animeEntry.mediaId} mediaType="anime" />
                                 </>}
@@ -455,7 +462,9 @@ export function AnimeEntryPage() {
                                 {/*    hideBackButton*/}
                                 {/*/>*/}
                                 <AnimeThemesSection malId={animeEntry.media?.idMal} />
+                                    <MediaDetailsInfoSection mediaId={animeEntry.mediaId} type="anime" genres={animeDetails?.genres} nativeTitle={animeEntry.media?.title?.native} />
                                 <MediaEntryCharactersSection details={animeDetails} />
+                                    <MediaDetailsStaffSection mediaId={animeEntry.mediaId} />
                                 <RelationsRecommendationsSection entry={animeEntry} details={animeDetails} />
                                 <CommentSection mediaId={animeEntry.mediaId} mediaType="anime" />
                             </div>
@@ -482,7 +491,9 @@ export function AnimeEntryPage() {
                                 <LocalPlayerPage entry={animeEntry} entryLoading={animeEntryLoading} />
                                 <PluginWebviewSlot slot="after-anime-entry-episode-list" />
                                 <AnimeThemesSection malId={animeEntry.media?.idMal} />
+                                    <MediaDetailsInfoSection mediaId={animeEntry.mediaId} type="anime" genres={animeDetails?.genres} nativeTitle={animeEntry.media?.title?.native} />
                                 <MediaEntryCharactersSection details={animeDetails} />
+                                    <MediaDetailsStaffSection mediaId={animeEntry.mediaId} />
                                 <RelationsRecommendationsSection entry={animeEntry} details={animeDetails} />
                                 <CommentSection mediaId={animeEntry.mediaId} mediaType="anime" />
                             </div>

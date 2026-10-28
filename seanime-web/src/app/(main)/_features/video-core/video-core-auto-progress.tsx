@@ -165,7 +165,7 @@ export function VideoCoreProgressPrompt() {
     return (
         <div
             data-vc-element="progress-prompt"
-            className="absolute inset-0 flex items-center justify-center z-[55]"
+            className="absolute inset-0 flex items-center justify-center z-[55] cursor-auto"
             onClick={e => e.stopPropagation()}
             onPointerMove={e => e.stopPropagation()}
         >

@@ -1,6 +1,7 @@
 package videofile
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"seanime/internal/util"
@@ -34,7 +35,7 @@ func TestExtractAttachment(t *testing.T) {
 
 	util.Spew(mi)
 
-	subsErr, attErr := ExtractAttachment("", testFilePath, "1", mi, testDir, util.NewLogger())
+	subsErr, attErr := ExtractAttachment(context.Background(), "", testFilePath, "1", mi, testDir, util.NewLogger())
 	if subsErr != nil || attErr != nil {
 		t.Fatalf("Error extracting attachment: subs=%v att=%v", subsErr, attErr)
 	}

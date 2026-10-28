@@ -192,7 +192,7 @@ export function VideoCoreInSight() {
     return (
         <div
             id="in-sight-container" data-vc-element="in-sight" className={cn(
-            "absolute z-[50] bottom-32 left-0 w-full flex flex-col gap-2 items-end pointer-events-none",
+            "absolute z-[50] bottom-32 left-0 w-full flex flex-col gap-2 items-end pointer-events-none cursor-auto",
         )}
         >
             <div className="absolute z-[1] -bottom-32 w-full h-full opacity-90 bg-gradient-to-t from-black to-transparent"></div>
@@ -244,7 +244,7 @@ export function VideoCoreInSight() {
                     {characters?.map(character => (
                         <Popover
                             key={character.mal_id}
-                            className="z-[100] bg-gray-950/95 max-h-[14rem] w-[25rem] overflow-y-auto"
+                            className="z-[100] bg-gray-950/95 max-h-[14rem] w-[25rem] overflow-y-auto cursor-auto"
                             side="top"
                             sideOffset={8}
                             trigger={<div

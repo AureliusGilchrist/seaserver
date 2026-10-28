@@ -9,6 +9,7 @@ import { useNakamaStatus, useNakamaWatchParty } from "@/app/(main)/_features/nak
 import { usePlaylistManager } from "@/app/(main)/_features/playlists/_containers/global-playlist-manager"
 import { EpisodePillsGrid } from "@/app/(main)/_features/video-core/_components/episode-pills-grid"
 import { useSkipData } from "@/app/(main)/_features/video-core/_lib/aniskip"
+import { mergeSkipData } from "@/app/(main)/_features/video-core/_lib/aniskip.utils"
 import { VideoCore, VideoCoreProvider } from "@/app/(main)/_features/video-core/video-core"
 import {
     HlsAudioTrack,
@@ -491,20 +492,10 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
         return filtered[0]
     }, [episodeSource, videoSources, server, quality])
 
-    // Merge AniSkip data with provider-supplied skip times.
-    // Provider skip times serve as a fallback when AniSkip has no data for this anime/episode.
+    // Merge AniSkip data with provider-supplied skip times, segment by segment: AniSkip's OP/ED
+    // where it has one, the provider's for whichever is missing.
     const aniSkipData = React.useMemo(() => {
-        if (aniSkipDataRaw?.op?.interval?.endTime) return aniSkipDataRaw
-        const providerSkips = videoSource?.skips
-        if (!providerSkips) return aniSkipDataRaw
-        const op = providerSkips.intro?.end
-            ? { interval: { startTime: providerSkips.intro.start, endTime: providerSkips.intro.end }, skipType: "op" as const, skipId: "provider-intro", episodeLength: 0 }
-            : null
-        const ed = providerSkips.outro?.end
-            ? { interval: { startTime: providerSkips.outro.start, endTime: providerSkips.outro.end }, skipType: "ed" as const, skipId: "provider-outro", episodeLength: 0 }
-            : null
-        if (!op && !ed) return aniSkipDataRaw
-        return { op, ed }
+        return mergeSkipData(aniSkipDataRaw, videoSource?.skips)
     }, [aniSkipDataRaw, videoSource?.skips])
 
     const [previousState, setPreviousState] = React.useState<{ currentTime: number, paused: boolean } | null>(null)

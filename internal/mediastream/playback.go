@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"golang.org/x/sync/singleflight"
 )
 
 const (
@@ -30,6 +31,12 @@ type (
 		// per file hash so that the /subs/ and /att/ endpoints can fail fast instead of
 		// making the client wait when extraction has already failed.
 		extractionStatuses *result.Map[string, *ExtractionStatus]
+		extractions        *extractionTracker
+		// idleStreams holds streams set aside by reapIdle, keyed by clientId.
+		idleStreams *result.Map[string, *MediaContainer]
+		activity    *result.Map[string, *clientActivity]
+		// probeGroup makes concurrent requests for the same file share one stat + ffprobe.
+		probeGroup singleflight.Group
 	}
 
 	ExtractionStatus struct {
@@ -44,6 +51,8 @@ type (
 		// failure (ffmpeg refusing an unsafe embedded filename, say) must never block
 		// the /subs/ endpoint.
 		subsFailed bool
+		// cancelled: stopped because no client plays the file any more; the next request runs it again.
+		cancelled bool
 		// doneCh closes when the extraction finishes (see BeginExtraction / Wait).
 		doneCh   chan struct{}
 		doneOnce sync.Once
@@ -71,6 +80,9 @@ func NewPlaybackManager(repository *Repository) *PlaybackManager {
 		activeStreams:      result.NewMap[string, *MediaContainer](),
 		mediaContainers:    result.NewMap[string, *MediaContainer](),
 		extractionStatuses: result.NewMap[string, *ExtractionStatus](),
+		extractions:        newExtractionTracker(),
+		idleStreams:        result.NewMap[string, *MediaContainer](),
+		activity:           result.NewMap[string, *clientActivity](),
 	}
 }
 
@@ -130,6 +142,23 @@ func (p *PlaybackManager) CompleteExtraction(hash string, subsErr error, attErr 
 	p.extractionStatuses.Set(hash, status)
 }
 
+// cancelExtraction records that an extraction was stopped before it finished. Whoever waits on it is
+// released with err, and the next request for the file starts it again.
+func (p *PlaybackManager) cancelExtraction(hash string, err error) {
+	p.CompleteExtraction(hash, err, err)
+	if status, ok := p.extractionStatuses.Get(hash); ok {
+		status.mu.Lock()
+		status.cancelled = true
+		status.mu.Unlock()
+	}
+}
+
+func (s *ExtractionStatus) wasCancelled() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.cancelled
+}
+
 // WaitOrFailure returns the recorded extraction error, if any. It blocks while the
 // extraction is still running (up to maxWait), then returns whether it failed.
 func (s *ExtractionStatus) Failure() (error, bool) {
@@ -155,33 +184,65 @@ func (s *ExtractionStatus) SubsFailure() (error, bool) {
 func (p *PlaybackManager) KillPlayback(clientId string) {
 	p.logger.Debug().Str("clientId", clientId).Msg("mediastream: Killing playback for client")
 	p.activeStreams.Delete(clientId)
+	p.idleStreams.Delete(clientId)
+	p.activity.Delete(clientId)
+	p.detachClient(clientId)
 }
 
 func (p *PlaybackManager) KillAllPlayback() {
 	p.logger.Debug().Msg("mediastream: Killing all playback")
 	p.activeStreams.Clear()
+	p.idleStreams.Clear()
+	p.activity.Clear()
+	p.detachAllClients()
 }
 
-// GetActiveStream returns the active media container for a given client.
+// GetActiveStream returns the active media container for a given client, and records the request.
+// A stream set aside as idle is brought back.
 func (p *PlaybackManager) GetActiveStream(clientId string) (*MediaContainer, bool) {
-	return p.activeStreams.Get(clientId)
+	mc, ok := p.activeStreams.Get(clientId)
+	if !ok {
+		mc, ok = p.idleStreams.Pop(clientId)
+		if !ok {
+			return nil, false
+		}
+		p.activeStreams.Set(clientId, mc)
+		p.ensureExtraction(mc, clientId)
+	}
+	p.touch(clientId)
+	return mc, true
 }
 
-// RequestPlayback is called by the frontend to stream a media file
-func (p *PlaybackManager) RequestPlayback(filepath string, streamType StreamType, clientId string) (ret *MediaContainer, err error) {
+// lookupStream returns the client's stream, active or idle, without counting it as a request.
+func (p *PlaybackManager) lookupStream(clientId string) (*MediaContainer, bool) {
+	if mc, ok := p.activeStreams.Get(clientId); ok {
+		return mc, true
+	}
+	return p.idleStreams.Get(clientId)
+}
 
-	p.logger.Debug().Str("filepath", filepath).Any("type", streamType).Str("clientId", clientId).Msg("mediastream: Requesting playback")
+// startPlayback makes the container the client's active stream (replacing whatever it played before)
+// and returns the client's copy with its stream URL. The caller holds the repository's reqMu.
+func (p *PlaybackManager) startPlayback(container *MediaContainer, streamType StreamType, clientId string) (ret *MediaContainer) {
+	prev, hadPrev := p.lookupStream(clientId)
 
-	// Create a new media container (or get from cache)
-	container, err := p.newMediaContainer(filepath, streamType)
+	active := &MediaContainer{
+		Filepath:   container.Filepath,
+		Hash:       container.Hash,
+		StreamType: streamType,
+		MediaInfo:  container.MediaInfo,
+	}
+	p.idleStreams.Delete(clientId)
+	p.activeStreams.Set(clientId, active)
+	p.touch(clientId)
 
-	if err != nil {
-		p.logger.Error().Err(err).Msg("mediastream: Failed to create media container")
-		return nil, fmt.Errorf("failed to create media container: %v", err)
+	// The tracker only notices a transcoding client leaving when it asks for another transcoded file;
+	// one that switches to direct play kept its encoders running for an hour.
+	if hadPrev && prev.StreamType == StreamTypeTranscode && (streamType != StreamTypeTranscode || prev.Hash != active.Hash) {
+		p.repository.forgetTranscodeClient(clientId)
 	}
 
-	// Store as active stream for this client
-	p.activeStreams.Set(clientId, container)
+	p.ensureExtraction(active, clientId)
 
 	// Build client-specific stream URL
 	streamUrl := ""
@@ -190,7 +251,7 @@ func (p *PlaybackManager) RequestPlayback(filepath string, streamType StreamType
 		// The file's hash rides along: every episode used to share one URL per client, so a <video>
 		// still alive from the previous episode kept pulling the *new* file's bytes, and the browser
 		// treated a new episode as the same resource. See ServeEchoDirectPlay.
-		streamUrl = fmt.Sprintf("/api/v1/mediastream/direct/%s?h=%s", clientId, url.QueryEscape(container.Hash))
+		streamUrl = fmt.Sprintf("/api/v1/mediastream/direct/%s?h=%s", clientId, url.QueryEscape(active.Hash))
 	case StreamTypeTranscode:
 		streamUrl = fmt.Sprintf("/api/v1/mediastream/transcode/%s/master.m3u8", clientId)
 	case StreamTypeOptimized:
@@ -199,14 +260,14 @@ func (p *PlaybackManager) RequestPlayback(filepath string, streamType StreamType
 
 	// Return a per-client copy with the correct stream URL
 	ret = &MediaContainer{
-		Filepath:   container.Filepath,
-		Hash:       container.Hash,
-		StreamType: container.StreamType,
+		Filepath:   active.Filepath,
+		Hash:       active.Hash,
+		StreamType: active.StreamType,
 		StreamUrl:  streamUrl,
-		MediaInfo:  container.MediaInfo,
+		MediaInfo:  active.MediaInfo,
 	}
 
-	p.logger.Info().Str("filepath", filepath).Str("clientId", clientId).Msg("mediastream: Ready to play media")
+	p.logger.Info().Str("filepath", active.Filepath).Str("clientId", clientId).Msg("mediastream: Ready to play media")
 
 	return
 }
@@ -235,74 +296,78 @@ func (p *PlaybackManager) PreloadPlayback(filepath string, streamType StreamType
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// newMediaContainer returns the file's media container and starts the background extraction.
 func (p *PlaybackManager) newMediaContainer(filepath string, streamType StreamType) (ret *MediaContainer, err error) {
-	p.logger.Debug().Str("filepath", filepath).Any("type", streamType).Msg("mediastream: New media container requested")
-	// Get the hash of the file.
-	hash, err := videofile.GetHashFromPath(filepath)
+	mc, _, err := p.loadMediaContainer(filepath)
 	if err != nil {
 		return nil, err
 	}
-
-	p.logger.Trace().Str("hash", hash).Msg("mediastream: Checking cache")
-
-	// The media info and the extracted subtitles/fonts belong to the file, not to how it is
-	// streamed. A cache hit for another stream type is reused as-is with the type swapped: it used
-	// to count as a miss, so asking for transcode and then direct play (what the player does when
-	// it auto-switches) probed the file twice and ran two background FFmpeg passes over the whole
-	// file at once, right as direct play started reading it — enough disk contention on a NAS to
-	// make playback stutter and stall.
-	if mc, ok := p.mediaContainers.Get(hash); ok {
-		p.logger.Debug().Str("hash", hash).Msg("mediastream: Media container cache HIT")
-		if mc.StreamType == streamType {
-			return mc, nil
-		}
-		return &MediaContainer{
-			Filepath:   mc.Filepath,
-			Hash:       mc.Hash,
-			StreamType: streamType,
-			MediaInfo:  mc.MediaInfo,
-		}, nil
-	}
-
-	p.logger.Trace().Str("hash", hash).Msg("mediastream: Creating media container")
-
-	// Get the media information of the file.
-	ret = &MediaContainer{
-		Filepath:   filepath,
-		Hash:       hash,
+	p.ensureExtraction(mc, "")
+	return &MediaContainer{
+		Filepath:   mc.Filepath,
+		Hash:       mc.Hash,
 		StreamType: streamType,
-	}
+		MediaInfo:  mc.MediaInfo,
+	}, nil
+}
 
-	p.logger.Debug().Msg("mediastream: Extracting media info")
+// containerTimings says where the time of a media container lookup went.
+type containerTimings struct {
+	stat   time.Duration
+	probe  time.Duration
+	cached bool
+	shared bool // joined a lookup another request had already started
+}
 
-	ret.MediaInfo, err = p.repository.mediaInfoExtractor.GetInfo(p.repository.settings.MustGet().FfprobePath, filepath)
+type loadedContainer struct {
+	mc      *MediaContainer
+	timings containerTimings
+}
+
+// loadMediaContainer returns the media container of a file: its hash and media info. It touches the
+// disk (stat, ffprobe), so it runs outside the repository's request lock; concurrent lookups of the
+// same file share one run.
+//
+// The media info belongs to the file, not to how it is streamed, so the cached container has no
+// stream type; callers copy it with theirs. (A cache hit for another stream type used to count as a
+// miss, so asking for transcode and then direct play probed the file twice.)
+func (p *PlaybackManager) loadMediaContainer(filepath string) (*MediaContainer, containerTimings, error) {
+	v, err, shared := p.probeGroup.Do(filepath, func() (any, error) {
+		var t containerTimings
+
+		start := time.Now()
+		hash, err := videofile.GetHashFromPath(filepath)
+		t.stat = time.Since(start)
+		if err != nil {
+			return nil, err
+		}
+
+		if mc, ok := p.mediaContainers.Get(hash); ok {
+			p.logger.Debug().Str("hash", hash).Msg("mediastream: Media container cache HIT")
+			t.cached = true
+			return loadedContainer{mc: mc, timings: t}, nil
+		}
+
+		p.logger.Debug().Str("filepath", filepath).Msg("mediastream: Extracting media info")
+		start = time.Now()
+		mediaInfo, err := p.repository.mediaInfoExtractor.GetInfo(p.repository.settings.MustGet().FfprobePath, filepath)
+		t.probe = time.Since(start)
+		if err != nil {
+			return nil, err
+		}
+
+		mc := &MediaContainer{
+			Filepath:  filepath,
+			Hash:      hash,
+			MediaInfo: mediaInfo,
+		}
+		p.mediaContainers.Set(hash, mc)
+		return loadedContainer{mc: mc, timings: t}, nil
+	})
 	if err != nil {
-		return nil, err
+		return nil, containerTimings{}, err
 	}
-
-	p.logger.Debug().Msg("mediastream: Extracted media info")
-
-	// Store the media container in the cache immediately so the frontend can start playback.
-	// Attachment extraction (subtitles + fonts) runs in the background — they are only
-	// needed when the player requests them via the /subs/ or /att/ endpoints.
-	p.mediaContainers.Set(hash, ret)
-
-	// Recorded before the goroutine starts, so a subtitle request arriving at once already sees a
-	// running extraction to wait for.
-	p.BeginExtraction(hash)
-	go func() {
-		subsErr, attErr := videofile.ExtractAttachment(p.repository.settings.MustGet().FfmpegPath, filepath, hash, ret.MediaInfo, p.repository.cacheDir, p.logger)
-		p.CompleteExtraction(hash, subsErr, attErr)
-		if attErr != nil {
-			p.logger.Error().Err(attErr).Msg("mediastream: Background attachment extraction failed")
-		}
-		if subsErr != nil {
-			p.logger.Error().Err(subsErr).Msg("mediastream: Background subtitle extraction failed")
-		}
-		if subsErr == nil && attErr == nil {
-			p.logger.Debug().Msg("mediastream: Background attachment extraction complete")
-		}
-	}()
-
-	return
+	loaded := v.(loadedContainer)
+	loaded.timings.shared = shared
+	return loaded.mc, loaded.timings, nil
 }

@@ -49,9 +49,16 @@ type Stream struct {
 
 	logger   *zerolog.Logger
 	settings *Settings
-	killCh   chan struct{}
-	ctx      context.Context
-	cancel   context.CancelFunc
+	// killCh is closed by Kill to wake everyone waiting for a segment, then replaced so later
+	// waits are not woken by an old kill. Read it through killSignal.
+	killMu sync.Mutex
+	killCh chan struct{}
+	// ctx ends only when the stream is closed for good (close); each encoder head has its own
+	// context derived from it, so killing one head leaves the others and later ones alone.
+	ctx         context.Context
+	cancel      context.CancelFunc
+	listenerId  int
+	hasListener bool
 }
 
 type Segment struct {
@@ -71,12 +78,17 @@ type Head struct {
 	end     int32
 	command *exec.Cmd
 	stdin   io.WriteCloser
+	cancel  context.CancelFunc // stops this head's ffmpeg
 }
 
 var DeletedHead = Head{
 	segment: -1,
 	end:     -1,
 	command: nil,
+}
+
+func (h Head) isDeleted() bool {
+	return h.segment == -1 && h.end == -1 && h.command == nil
 }
 
 var streamLogger = util.NewLogger()
@@ -105,7 +117,8 @@ func NewStream(
 	}
 
 	if !isDone {
-		file.Keyframes.AddListener(func(keyframes []float64) {
+		ret.hasListener = true
+		ret.listenerId = file.Keyframes.AddListener(func(keyframes []float64) {
 			ret.segmentsLock.Lock()
 			defer ret.segmentsLock.Unlock()
 			oldLength := len(ret.segments)
@@ -119,6 +132,21 @@ func NewStream(
 			}
 		})
 	}
+}
+
+// close stops the stream for good: kills its heads and stops listening for keyframes.
+func (ts *Stream) close() {
+	ts.Kill()
+	ts.cancel()
+	if ts.hasListener {
+		ts.file.Keyframes.RemoveListener(ts.listenerId)
+	}
+}
+
+func (ts *Stream) killSignal() <-chan struct{} {
+	ts.killMu.Lock()
+	defer ts.killMu.Unlock()
+	return ts.killCh
 }
 
 func (ts *Stream) GetIndex() (string, error) {
@@ -150,9 +178,7 @@ func (ts *Stream) GetIndex() (string, error) {
 
 // GetSegment returns the path to the segment and waits for it to be ready.
 func (ts *Stream) GetSegment(segment int32) (string, error) {
-	// DEVNOTE: Reset the kill channel
-	// This is needed because when the segment is needed again, this channel should be open
-	ts.killCh = make(chan struct{})
+	killCh := ts.killSignal()
 	if debugStream {
 		streamLogger.Trace().Msgf("transcoder: Getting segment %d [GetSegment]", segment)
 		defer streamLogger.Trace().Msgf("transcoder: Retrieved segment %d [GetSegment]", segment)
@@ -193,7 +219,7 @@ func (ts *Stream) GetSegment(segment int32) (string, error) {
 		select {
 		// DEVNOTE: This can cause issues if the segment is called again but was "killed" beforehand
 		// It's used to interrupt the waiting process but might not be needed since there's a timeout
-		case <-ts.killCh:
+		case <-killCh:
 			return "", fmt.Errorf("transcoder: Stream killed while waiting for segment %d", segment)
 		case <-readyChan:
 			break
@@ -266,11 +292,16 @@ func (ts *Stream) Kill() {
 	for id := range ts.heads {
 		ts.KillHead(id)
 	}
+
+	ts.killMu.Lock()
+	close(ts.killCh)
+	ts.killCh = make(chan struct{})
+	ts.killMu.Unlock()
 }
 
 func (ts *Stream) IsKilled() bool {
 	select {
-	case <-ts.killCh:
+	case <-ts.killSignal():
 		// if the channel returned, it means it was closed
 		return true
 	default:
@@ -287,12 +318,19 @@ func (ts *Stream) KillHead(encoderId int) {
 		if r := recover(); r != nil {
 		}
 	}()
-	close(ts.killCh)
-	ts.cancel()
-	if ts.heads[encoderId] == DeletedHead || ts.heads[encoderId].command == nil {
+	head := ts.heads[encoderId]
+	if head.isDeleted() {
 		return
 	}
-	ts.heads[encoderId].command.Process.Signal(os.Interrupt)
+	// Only this head's context: cancelling the stream's own context used to abort every encoder
+	// started on the stream afterwards, the moment it started.
+	if head.cancel != nil {
+		head.cancel()
+	}
+	if head.command == nil {
+		return
+	}
+	_ = head.command.Process.Signal(os.Interrupt)
 	//_, _ = ts.heads[encoderId].stdin.Write([]byte("q"))
 	//_ = ts.heads[encoderId].stdin.Close()
 
@@ -361,9 +399,10 @@ func (ts *Stream) run(start int32) error {
 	}
 	ts.unlockSegments()
 
+	headCtx, headCancel := context.WithCancel(ts.ctx)
 	ts.lockHeads()
 	encoderId := len(ts.heads)
-	ts.heads = append(ts.heads, Head{segment: start, end: end, command: nil})
+	ts.heads = append(ts.heads, Head{segment: start, end: end, command: nil, cancel: headCancel})
 	ts.unlockHeads()
 
 	streamLogger.Trace().Any("eid", encoderId).Msgf(
@@ -414,6 +453,8 @@ func (ts *Stream) run(start int32) error {
 	outpath := ts.handle.getOutPath(encoderId)
 	err := os.MkdirAll(filepath.Dir(outpath), 0755)
 	if err != nil {
+		headCancel()
+		ts.markHeadDeleted(encoderId)
 		return err
 	}
 
@@ -494,10 +535,14 @@ func (ts *Stream) run(start int32) error {
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
+		headCancel()
+		ts.markHeadDeleted(encoderId)
 		return err
 	}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
+		headCancel()
+		ts.markHeadDeleted(encoderId)
 		return err
 	}
 	var stderr strings.Builder
@@ -505,6 +550,8 @@ func (ts *Stream) run(start int32) error {
 
 	err = cmd.Start()
 	if err != nil {
+		headCancel()
+		ts.markHeadDeleted(encoderId)
 		return err
 	}
 	ts.lockHeads()
@@ -580,10 +627,10 @@ func (ts *Stream) run(start int32) error {
 		}
 	}(stdin)
 
-	// Listen for kill signal
+	// Listen for kill signal. headCancel also runs when the process exits, so this never outlives it.
 	go func(stdin io.WriteCloser) {
 		select {
-		case <-ts.ctx.Done():
+		case <-headCtx.Done():
 			streamLogger.Trace().Int("eid", encoderId).Msgf("transcoder: Aborting ffmpeg process for %s", ts.kind)
 			_, _ = stdin.Write([]byte("q"))
 			_ = stdin.Close()
@@ -594,6 +641,7 @@ func (ts *Stream) run(start int32) error {
 	// Listen for process termination
 	go func() {
 		err := cmd.Wait()
+		headCancel()
 		var exitErr *exec.ExitError
 		// Check if hardware acceleration was attempted and if stderr indicates a failure to use it
 		if len(ts.settings.HwAccel.DecodeFlags) > 0 {
@@ -619,6 +667,13 @@ func (ts *Stream) run(start int32) error {
 	}()
 
 	return nil
+}
+
+// markHeadDeleted frees the slot of a head whose ffmpeg never started.
+func (ts *Stream) markHeadDeleted(encoderId int) {
+	ts.lockHeads()
+	defer ts.unlockHeads()
+	ts.heads[encoderId] = DeletedHead
 }
 
 const debugLocks = false

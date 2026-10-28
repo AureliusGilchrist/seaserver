@@ -6,6 +6,7 @@ import { getNextBatchFileSelection, useAutoPlaySelectedTorrent, useTorrentstream
 import { useNakamaWatchParty } from "@/app/(main)/_features/nakama/nakama-manager"
 import { usePlaylistManager } from "@/app/(main)/_features/playlists/_containers/global-playlist-manager"
 import { VideoCoreNextButton, VideoCorePreviousButton } from "@/app/(main)/_features/video-core/video-core-control-bar"
+import { vc_playlistHoverCardsOpen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { VideoCoreEpisodeListMenu } from "@/app/(main)/_features/video-core/video-core-episode-list"
 import { VideoCore_PlaybackType, VideoCoreLifecycleState } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { useHandleStartDebridStream } from "@/app/(main)/entry/_containers/debrid-stream/_lib/handle-debrid-stream"
@@ -400,12 +401,22 @@ export function useVideoCorePlaylist() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 function PlaylistEpisodeHoverCard({ episode, children }: { episode?: Anime_Episode, children: React.ReactNode }) {
+    const setHoverCardsOpen = useSetAtom(vc_playlistHoverCardsOpen)
+    const openRef = React.useRef(false)
+    const handleOpenChange = React.useCallback((open: boolean) => {
+        if (openRef.current === open) return
+        openRef.current = open
+        setHoverCardsOpen(n => Math.max(0, n + (open ? 1 : -1)))
+    }, [])
+    React.useEffect(() => () => handleOpenChange(false), [])
+
     return (
         <HoverCard
             data-vc-element="playlist-episode-hover-card"
-            className="max-w-xl w-fit py-2 px-4 ml-4"
+            className="max-w-xl w-fit py-2 px-4 ml-4 cursor-auto"
             sideOffset={38}
             closeDelay={200}
+            onOpenChange={handleOpenChange}
             trigger={<span>
                 {children}
             </span>}

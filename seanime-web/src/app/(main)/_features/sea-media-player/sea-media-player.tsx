@@ -593,12 +593,30 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
 
     const { onMediaEnterFullscreenRequest } = useFullscreenHandler(playerRef)
 
+    // A menu or dialog open inside the player always shows the cursor. Vidstack doesn't report its
+    // menus, so watch the player for an expanded menu button.
+    const [playerPopupOpen, setPlayerPopupOpen] = React.useState(false)
+    React.useEffect(() => {
+        const el = playerRef.current?.el
+        if (!el) return
+        const check = () => setPlayerPopupOpen(!!el.querySelector("[aria-expanded=\"true\"], [role=\"dialog\"]"))
+        const observer = new MutationObserver(check)
+        observer.observe(el, { subtree: true, attributes: true, attributeFilter: ["aria-expanded", "role"] })
+        check()
+        return () => observer.disconnect()
+    }, [url, isLoading, isPlaybackError])
+    const popupOpen = playerPopupOpen || !!smpResumePrompt
+
+    React.useEffect(() => {
+        if (popupOpen) setCursorHidden(false)
+    }, [popupOpen])
+
     return (
         <>
             <div data-sea-media-player-container className="relative w-full h-full self-start mx-auto">
                 {/* Resume prompt overlay */}
                 {smpResumePrompt && (
-                    <div className="absolute inset-0 flex items-center justify-center z-[55]">
+                    <div className="absolute inset-0 flex items-center justify-center z-[55] cursor-auto">
                         <div className="bg-gray-950/80 backdrop-blur-md rounded-xl p-6 text-center shadow-2xl border border-[--border] max-w-sm">
                             <p className="text-white text-lg font-medium mb-1">Resume playback?</p>
                             <p className="text-gray-300 text-sm mb-5">
@@ -641,11 +659,12 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
                 ) : (!!url && !isLoading) ? (
                     <MediaPlayer
                         data-sea-media-player
-                        data-sea-cursor-hidden={cursorHidden || undefined}
+                        data-sea-cursor-hidden={(cursorHidden && !popupOpen) || undefined}
                         onContextMenu={(e: React.MouseEvent) => {
                             // Right-click is the only thing that hides the cursor; it toggles.
+                            // It can't hide it while a menu or dialog is open.
                             e.preventDefault()
-                            setCursorHidden(h => !h)
+                            setCursorHidden(h => !h && !popupOpen)
                         }}
                         onMouseLeave={() => setCursorHidden(false)}
                         streamType="on-demand"

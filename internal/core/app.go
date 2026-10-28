@@ -214,6 +214,7 @@ type (
 		ProfilePathResolver    *ProfilePathResolver
 		ProfileDatabaseManager *ProfileDatabaseManager
 		AnilistClientManager   *AnilistClientManager
+		AnilistEditQueue       *AnilistEditQueue
 		KitsuClientManager     *kitsuplatform.KitsuClientManager
 
 		// Boot UUID — regenerated every server start to invalidate frontend sessions
@@ -580,6 +581,18 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 	// Start the background flusher that replays per-profile progress updates queued while
 	// AniList was unreachable. Picks up queues persisted from previous runs on startup.
 	app.AnilistClientManager.StartPendingFlusher(context.Background())
+	// List edits AniList didn't accept within a Save's few seconds, sent in the background.
+	app.AnilistEditQueue = NewAnilistEditQueue(cfg.Data.AppDataDir, app.sendQueuedListEdit, func(profileID uint, items []*QueuedListEdit) {
+		if app.WSEventManager == nil {
+			return
+		}
+		if profileID > 0 {
+			app.WSEventManager.SendEventToProfile(profileID, AnilistEditQueueUpdatedEvent, items)
+		} else {
+			app.WSEventManager.SendEvent(AnilistEditQueueUpdatedEvent, items)
+		}
+	}, logger)
+	app.AnilistEditQueue.Start()
 
 	// Initialize KitsuClientManager alongside AniList. Hydrates the shared planning-slut account
 	// from the database if one is on file.

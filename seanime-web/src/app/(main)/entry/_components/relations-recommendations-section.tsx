@@ -1,9 +1,10 @@
 import { AL_AnimeDetailsById_Media, Anime_Entry, Nullish } from "@/api/generated/types"
 import { MediaCardGrid } from "@/app/(main)/_features/media/_components/media-card-grid"
+import { MediaFranchiseSection } from "@/app/(main)/_features/media/_components/media-franchise-section"
+import { MediaSectionHeading } from "@/app/(main)/_features/media/_components/media-section-heading"
 import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-entry-card"
-import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
-import capitalize from "lodash/capitalize"
 import React from "react"
+import { LuThumbsUp } from "react-icons/lu"
 
 type RelationsRecommendationsSectionProps = {
     entry: Nullish<Anime_Entry>
@@ -22,19 +23,6 @@ export function RelationsRecommendationsSection(props: RelationsRecommendationsS
         ...rest
     } = props
 
-    const serverStatus = useServerStatus()
-
-    const sourceManga = React.useMemo(() => {
-        return serverStatus?.settings?.library?.enableManga
-            ? details?.relations?.edges?.find(edge => (edge?.relationType === "SOURCE" || edge?.relationType === "ADAPTATION") && edge?.node?.format === "MANGA")?.node
-            : undefined
-    }, [details?.relations?.edges, serverStatus?.settings?.library?.enableManga])
-
-    const relations = React.useMemo(() => (details?.relations?.edges?.map(edge => edge) || [])
-            .filter(Boolean)
-            .filter(n => (n.node?.format !== "MANGA" && n.node?.format !== "ONE_SHOT" && n.node?.format !== "NOVEL" && n.node?.format !== "MUSIC" && n.relationType !== "CHARACTER")),
-        [details?.relations?.edges])
-
     const recommendations = React.useMemo(() => details?.recommendations?.edges?.map(edge => edge?.node?.mediaRecommendation)?.filter(Boolean) || [],
         [details?.recommendations?.edges])
 
@@ -42,39 +30,10 @@ export function RelationsRecommendationsSection(props: RelationsRecommendationsS
 
     return (
         <>
-            {/*{(!!sourceManga || relations.length > 0 || recommendations.length > 0) && <Separator />}*/}
-            {(!!sourceManga || relations.length > 0) && (
-                <>
-                    <h2>Relations</h2>
-                    <MediaCardGrid maxCol={maxCol}>
-                        {!!sourceManga && <div className="col-span-1">
-                            <MediaEntryCard
-                                media={sourceManga!}
-                                overlay={<p
-                                    className="font-semibold text-white bg-gray-950 z-[-1] absolute right-0 w-fit px-4 py-1.5 text-center !bg-opacity-90 text-sm lg:text-base rounded-none rounded-bl-lg"
-                                >Manga</p>}
-                                type="manga"
-                            /></div>}
-                        {relations.slice(0, 4).map(edge => {
-                            return <div key={edge.node?.id} className="col-span-1">
-                                <MediaEntryCard
-                                    media={edge.node!}
-                                    overlay={<p
-                                        className="font-semibold text-white bg-gray-950 z-[-1] absolute right-0 w-fit px-4 py-1.5 text-center !bg-opacity-90 text-sm lg:text-base rounded-none rounded-bl-lg"
-                                    >{edge.node?.format === "MOVIE"
-                                        ? capitalize(edge.relationType || "").replace("_", " ") + " (Movie)"
-                                        : capitalize(edge.relationType || "").replace("_", " ")}</p>}
-                                    showLibraryBadge
-                                    showTrailer
-                                    type="anime"
-                                />
-                            </div>
-                        })}
-                    </MediaCardGrid>
-                </>
-            )}
+            {/* The whole franchise, not only the first few direct relations. */}
+            <MediaFranchiseSection mediaId={entry.mediaId} fallbackRelations={details?.relations?.edges as any} />
             {recommendations.length > 0 && <>
-                <h2>Recommendations</h2>
+                <MediaSectionHeading icon={<LuThumbsUp />} title="Recommendations" count={recommendations.length} />
                 <MediaCardGrid maxCol={maxCol}>
                     {recommendations.map(media => {
                         return <div key={media.id} className="col-span-1">

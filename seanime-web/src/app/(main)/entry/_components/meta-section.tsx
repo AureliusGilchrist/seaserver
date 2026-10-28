@@ -5,6 +5,10 @@ import { AnimeAutoDownloaderButton } from "@/app/(main)/_features/anime/_contain
 import { ToggleLockFilesButton } from "@/app/(main)/_features/anime/_containers/toggle-lock-files-button"
 import { AnimeDownloadingBadge } from "@/app/(main)/_features/media/_components/anime-downloading-badge"
 import { AnimeEntryStudio } from "@/app/(main)/_features/media/_components/anime-entry-studio"
+import { MediaCreatorsLine, MediaStudiosLine } from "@/app/(main)/_features/media/_components/media-info-panel"
+import { MediaMetaChips, MediaStatsRow } from "@/app/(main)/_features/media/_components/media-meta-chips"
+import { useGetMediaInfo } from "@/api/hooks/anilist.hooks"
+import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import {
     AnimeEntryRankings,
     MediaEntryAudienceScore,
@@ -64,6 +68,8 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
     const ts = useThemeSettings()
     const nakamaStatus = useNakamaStatus()
     const { isFavorite, toggleFavorite } = useAnimeFavorites()
+    const personal = usePersonalSettings()
+    const { data: info } = useGetMediaInfo(entry.mediaId)
 
     if (!entry.media) return null
 
@@ -109,12 +115,15 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
                         )}
                     >
 
-                        <MediaEntryAudienceScore meanScore={entry.media?.meanScore} badgeClass="bg-transparent" />
+                        <MediaMetaChips media={entry.media as any} info={info} type="anime" className="w-full" />
+
+                        <MediaStatsRow info={info} meanScore={entry.media?.meanScore} hideScore={personal.hideAudienceScore} />
 
                         <AnimeDownloadingBadge mediaId={entry.mediaId} size="lg" />
 
-
-                        {!isCustomSource(entry.mediaId) ? <AnimeEntryStudio studios={details?.studios} /> : (
+                        {!isCustomSource(entry.mediaId) ? (info?.studios?.edges?.length
+                            ? <MediaStudiosLine info={info} className="w-full" />
+                            : <AnimeEntryStudio studios={details?.studios} />) : (
                             <Badge
                                 size="lg"
                                 intent="gray"
@@ -124,6 +133,8 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
                                 {details?.studios?.nodes?.[0]?.name}
                             </Badge>
                         )}
+
+                        <MediaCreatorsLine info={info} className="w-full" />
 
                         <MediaEntryGenresList genres={details?.genres} />
 

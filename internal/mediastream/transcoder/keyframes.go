@@ -2,6 +2,8 @@ package transcoder
 
 import (
 	"bufio"
+	"context"
+	"errors"
 	"path/filepath"
 	"seanime/internal/mediastream/videofile"
 	"seanime/internal/util"
@@ -22,7 +24,24 @@ type Keyframe struct {
 type KeyframeInfo struct {
 	mutex     sync.RWMutex
 	ready     sync.WaitGroup
-	listeners []func(keyframes []float64)
+	readyOnce sync.Once
+	err       error
+	nextId    int
+	listeners map[int]func(keyframes []float64)
+}
+
+// markReady releases everyone waiting in GetKeyframes. It is safe to call more than once: the scan
+// calls it after its first batch and again, deferred, however it ends, so a failed scan can't
+// leave later callers waiting forever.
+func (kf *Keyframe) markReady() {
+	kf.info.readyOnce.Do(kf.info.ready.Done)
+}
+
+// Err returns why the keyframe scan failed, if it did.
+func (kf *Keyframe) Err() error {
+	kf.info.mutex.RLock()
+	defer kf.info.mutex.RUnlock()
+	return kf.info.err
 }
 
 func (kf *Keyframe) Get(idx int32) float64 {
@@ -51,22 +70,62 @@ func (kf *Keyframe) Length() (int32, bool) {
 
 func (kf *Keyframe) add(values []float64) {
 	kf.info.mutex.Lock()
-	defer kf.info.mutex.Unlock()
 	kf.Keyframes = append(kf.Keyframes, values...)
+	snapshot := make([]float64, len(kf.Keyframes))
+	copy(snapshot, kf.Keyframes)
+	listeners := make([]func([]float64), 0, len(kf.info.listeners))
 	for _, listener := range kf.info.listeners {
-		listener(kf.Keyframes)
+		listeners = append(listeners, listener)
+	}
+	kf.info.mutex.Unlock()
+	// Listeners run outside the lock: a stream's listener takes the stream's segment lock, and
+	// GetSegment holds that lock while reading keyframes, so calling them under this lock could
+	// deadlock the two.
+	for _, listener := range listeners {
+		listener(snapshot)
 	}
 }
 
-func (kf *Keyframe) AddListener(callback func(keyframes []float64)) {
+// AddListener registers a callback run each time keyframes are added, and returns the id to pass
+// to RemoveListener.
+func (kf *Keyframe) AddListener(callback func(keyframes []float64)) int {
 	kf.info.mutex.Lock()
 	defer kf.info.mutex.Unlock()
-	kf.info.listeners = append(kf.info.listeners, callback)
+	if kf.info.listeners == nil {
+		kf.info.listeners = make(map[int]func([]float64))
+	}
+	id := kf.info.nextId
+	kf.info.nextId++
+	kf.info.listeners[id] = callback
+	return id
+}
+
+// RemoveListener drops a callback added with AddListener. Keyframes outlive the streams that
+// listen to them (they're cached per file), so a stream going away must remove its listener.
+func (kf *Keyframe) RemoveListener(id int) {
+	kf.info.mutex.Lock()
+	defer kf.info.mutex.Unlock()
+	delete(kf.info.listeners, id)
+}
+
+func (kf *Keyframe) setDone(err error) {
+	kf.info.mutex.Lock()
+	defer kf.info.mutex.Unlock()
+	kf.info.err = err
+	if err == nil {
+		kf.IsDone = true
+	}
+	// Nothing is added after this, so the listeners have nothing more to hear.
+	kf.info.listeners = nil
 }
 
 var keyframes = result.NewMap[string, *Keyframe]()
 
+// GetKeyframes returns the keyframes of the file, scanning them on first use. It returns once the
+// first batch is known (or the scan has failed: check Err). ctx stops the scan; a scan that fails or
+// is stopped is forgotten so the next caller starts a new one.
 func GetKeyframes(
+	ctx context.Context,
 	path string,
 	hash string,
 	logger *zerolog.Logger,
@@ -80,17 +139,24 @@ func GetKeyframes(
 		}
 		kf.info.ready.Add(1)
 		go func() {
+			defer kf.markReady()
 			keyframesPath := filepath.Join(settings.StreamDir, hash, "keyframes.json")
 			if err := getSavedInfo(keyframesPath, kf); err == nil {
 				logger.Trace().Msgf("transcoder: Keyframes Cache HIT")
-				kf.info.ready.Done()
+				kf.setDone(nil)
 				return
 			}
 
-			err := getKeyframes(settings.FfprobePath, path, kf, hash, logger)
-			if err == nil {
-				saveInfo(keyframesPath, kf)
+			err := getKeyframes(ctx, settings.FfprobePath, path, kf, hash, logger)
+			kf.setDone(err)
+			if err != nil {
+				logger.Error().Err(err).Str("path", path).Msg("transcoder: Keyframe scan failed")
+				if cur, ok := keyframes.Get(hash); ok && cur == kf {
+					keyframes.Delete(hash)
+				}
+				return
 			}
+			_ = saveInfo(keyframesPath, kf)
 		}()
 		return kf, nil
 	})
@@ -98,14 +164,18 @@ func GetKeyframes(
 	return ret
 }
 
-func getKeyframes(ffprobePath string, path string, kf *Keyframe, hash string, logger *zerolog.Logger) error {
+func getKeyframes(ctx context.Context, ffprobePath string, path string, kf *Keyframe, hash string, logger *zerolog.Logger) error {
+	if ffprobePath == "" {
+		ffprobePath = "ffprobe"
+	}
 	defer printExecTime(logger, "ffprobe analysis for %s", path)()
 	// Execute ffprobe to retrieve all IFrames. IFrames are specific points in the video we can divide it into segments.
 	// We instruct ffprobe to return the timestamp and flags of each frame.
 	// Although it's possible to request ffprobe to return only i-frames (keyframes) using the -skip_frame nokey option, this approach is highly inefficient.
 	// The inefficiency arises because when this option is used, ffmpeg processes every single frame, which significantly slows down the operation.
-	cmd := util.NewCmd(
-		"ffprobe",
+	cmd := util.NewCmdCtx(
+		ctx,
+		ffprobePath,
 		"-loglevel", "error",
 		"-select_streams", "v:0",
 		"-show_entries", "packet=pts_time,flags",
@@ -126,6 +196,7 @@ func getKeyframes(ffprobePath string, path string, kf *Keyframe, hash string, lo
 	ret := make([]float64, 0, 1000)
 	max := 100
 	done := 0
+	stoppedEarly := false
 	for scanner.Scan() {
 		frame := scanner.Text()
 		if frame == "" {
@@ -133,20 +204,26 @@ func getKeyframes(ffprobePath string, path string, kf *Keyframe, hash string, lo
 		}
 
 		x := strings.Split(frame, ",")
+		if len(x) < 2 {
+			continue
+		}
 		pts, flags := x[0], x[1]
 
 		// if no video track
 		if pts == "N/A" {
+			stoppedEarly = true
 			break
 		}
 
 		// Only take keyframes
-		if flags[0] != 'K' {
+		if len(flags) == 0 || flags[0] != 'K' {
 			continue
 		}
 
 		fpts, err := strconv.ParseFloat(pts, 64)
 		if err != nil {
+			_ = cmd.Process.Kill()
+			_ = cmd.Wait()
 			return err
 		}
 
@@ -170,7 +247,7 @@ func getKeyframes(ffprobePath string, path string, kf *Keyframe, hash string, lo
 		if len(ret) == max {
 			kf.add(ret)
 			if done == 0 {
-				kf.info.ready.Done()
+				kf.markReady()
 			} else if done >= 500 {
 				max = 500
 			}
@@ -180,8 +257,27 @@ func getKeyframes(ffprobePath string, path string, kf *Keyframe, hash string, lo
 		}
 	}
 
+	// Reap ffprobe; a killed or failed scan must not pass for a finished one. When we stopped
+	// reading early ffprobe may be blocked writing to the pipe, so stop it first.
+	if stoppedEarly {
+		_ = cmd.Process.Kill()
+	}
+	waitErr := cmd.Wait()
+	if stoppedEarly {
+		waitErr = nil
+	}
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return ctxErr
+	}
+	if scanErr := scanner.Err(); scanErr != nil {
+		return scanErr
+	}
+	if waitErr != nil && done == 0 && len(ret) == 0 {
+		return errors.Join(errors.New("ffprobe keyframe scan failed"), waitErr)
+	}
+
 	// If there is less than 2 (i.e. equals 0 or 1 (it happens for audio files with poster))
-	if len(ret) < 2 {
+	if len(ret) < 2 && done == 0 {
 		dummy, err := getDummyKeyframes(ffprobePath, path, hash)
 		if err != nil {
 			return err
@@ -190,10 +286,7 @@ func getKeyframes(ffprobePath string, path string, kf *Keyframe, hash string, lo
 	}
 
 	kf.add(ret)
-	if done == 0 {
-		kf.info.ready.Done()
-	}
-	kf.IsDone = true
+	kf.markReady()
 	return nil
 }
 

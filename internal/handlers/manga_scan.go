@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"seanime/internal/api/anilist"
 	"seanime/internal/events"
 	"seanime/internal/manga"
 	"sync"
@@ -62,10 +61,10 @@ func (h *Handler) HandleScanMangaDirectories(c echo.Context) error {
 		return h.RespondWithError(c, echo.NewHTTPError(400, "No manga directories configured"))
 	}
 
-	// The scan is something the user pressed a button for and is watching a progress bar for, so its
-	// AniList requests are marked as theirs: they go ahead of the prefetcher and the collection
-	// walks rather than queueing behind them. See internal/api/anilist/priority.go.
-	scanCtx := anilist.WithUserInitiated(context.Background())
+	// Background lane, not user-initiated: hundreds of these during a scan or backfill used to take
+	// the rate-limit slots a list Save waits for, so saving a status sat behind them for a minute.
+	// A Save is what someone is actually waiting on. See internal/api/anilist/priority.go.
+	scanCtx := context.Background()
 
 	// Run scan asynchronously
 	go func() {

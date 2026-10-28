@@ -31,14 +31,14 @@ var lastFfmpegOutput struct {
 	output string
 }
 
-func runFfmpeg(ffmpegPath string, dir string, args []string) (string, error) {
+func runFfmpeg(ctx context.Context, ffmpegPath string, dir string, args []string) (string, error) {
 	// Instantiate a new crash logger
 	crashLogger := crashlog.GlobalCrashLogger.InitArea("ffmpeg")
 	defer crashLogger.Close()
 
 	crashLogger.LogInfof("%s %s", ffmpegPath, strings.Join(args, " "))
 
-	cmd := util.NewCmdCtx(context.Background(), ffmpegPath, args...)
+	cmd := util.NewCmdCtx(ctx, ffmpegPath, args...)
 	cmd.Dir = dir
 
 	var output bytes.Buffer
@@ -46,6 +46,10 @@ func runFfmpeg(ffmpegPath string, dir string, args []string) (string, error) {
 	cmd.Stderr = &output
 
 	err := cmd.Run()
+	if ctxErr := ctx.Err(); ctxErr != nil && err != nil {
+		// Stopped on purpose (the client moved on); not an ffmpeg failure worth a crash log.
+		return output.String(), ctxErr
+	}
 	if err != nil {
 		crashlog.GlobalCrashLogger.WriteAreaLogToFile(crashLogger)
 		// Remember the output so ExtractAttachment can surface ffmpeg's own error
@@ -90,7 +94,7 @@ func logFfmpegVersion(ffmpegPath string, logger *zerolog.Logger) {
 // succeeded: it creates each output at the start and fills it while reading the whole video, so
 // writing straight into <subsPath> left half-written tracks there for anything that looked early,
 // and for good when the run was interrupted (a server restart mid-extraction).
-func extractSubtitles(ffmpegPath, path, subsPath string, mediaInfo *MediaInfo) error {
+func extractSubtitles(ctx context.Context, ffmpegPath, path, subsPath string, mediaInfo *MediaInfo) error {
 	partial := subsPath + ".partial"
 	_ = os.RemoveAll(partial)
 	if err := os.MkdirAll(partial, 0755); err != nil {
@@ -113,7 +117,7 @@ func extractSubtitles(ffmpegPath, path, subsPath string, mediaInfo *MediaInfo) e
 		}
 	}
 
-	if _, err := runFfmpeg(ffmpegPath, partial, args); err != nil {
+	if _, err := runFfmpeg(ctx, ffmpegPath, partial, args); err != nil {
 		return err
 	}
 
@@ -160,7 +164,7 @@ func isFfmpegSafeFilename(name string) bool {
 // dumping nothing at all. Explicit names bypass the embedded-name check, and files
 // dumped under a fallback name are renamed back to their embedded names afterwards
 // so the /att/ endpoint keeps serving the original names.
-func extractAttachments(ffmpegPath, path, attachmentPath string, mediaInfo *MediaInfo) error {
+func extractAttachments(ctx context.Context, ffmpegPath, path, attachmentPath string, mediaInfo *MediaInfo) error {
 	// -dump_attachment is an *input* option, so it has to come before the "-i" it applies to.
 	// It used to be placed after it: ffmpeg rejected the whole command ("cannot be applied to
 	// output url ... you are trying to apply an input option to an output file", exit 234), so
@@ -219,7 +223,7 @@ func extractAttachments(ffmpegPath, path, attachmentPath string, mediaInfo *Medi
 	// the output stops at zero seconds instead of copying every stream of the file through.
 	args = append(args, "-t", "0", "-f", "null", os.DevNull)
 
-	_, err := runFfmpeg(ffmpegPath, attachmentPath, args)
+	_, err := runFfmpeg(ctx, ffmpegPath, attachmentPath, args)
 	if err != nil {
 		return err
 	}
@@ -234,7 +238,9 @@ func extractAttachments(ffmpegPath, path, attachmentPath string, mediaInfo *Medi
 	return nil
 }
 
-func ExtractAttachment(ffmpegPath string, path string, hash string, mediaInfo *MediaInfo, cacheDir string, logger *zerolog.Logger) (subsErr error, attErr error) {
+// ExtractAttachment extracts the subtitle tracks and font attachments of a file into the cache.
+// Cancelling ctx stops ffmpeg; both errors are then ctx's error.
+func ExtractAttachment(ctx context.Context, ffmpegPath string, path string, hash string, mediaInfo *MediaInfo, cacheDir string, logger *zerolog.Logger) (subsErr error, attErr error) {
 	logger.Debug().Str("hash", hash).Msgf("videofile: Starting media attachment extraction")
 
 	logFfmpegVersion(ffmpegPath, logger)
@@ -258,12 +264,18 @@ func ExtractAttachment(ffmpegPath string, path string, hash string, mediaInfo *M
 	// failure degrades rendering (libass falls back) but must never remove the subtitles
 	// themselves, so the /subs/ endpoint fails fast only on a subtitle failure.
 	if len(mediaInfo.Subtitles) > 0 {
-		subsErr = extractSubtitles(ffmpegPath, path, subsPath, mediaInfo)
+		subsErr = extractSubtitles(ctx, ffmpegPath, path, subsPath, mediaInfo)
 		if subsErr != nil {
 			logger.Error().Err(subsErr).Msgf("videofile: Failed to extract subtitles")
 		}
 	}
-	attErr = extractAttachments(ffmpegPath, path, attachmentPath, mediaInfo)
+	if err := ctx.Err(); err != nil {
+		return err, err
+	}
+	attErr = extractAttachments(ctx, ffmpegPath, path, attachmentPath, mediaInfo)
+	if err := ctx.Err(); err != nil {
+		return err, err
+	}
 	if attErr != nil {
 		logger.Error().Err(attErr).Msgf("videofile: Failed to extract attachments")
 	}

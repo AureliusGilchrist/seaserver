@@ -11,6 +11,7 @@ import { vc_seekingTargetProgress } from "@/app/(main)/_features/video-core/vide
 import { vc_closestBufferedTime } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_miniPlayer } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_playbackInfo } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_previousPausedState } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_lastKnownProgress } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_skipOpeningTime } from "@/app/(main)/_features/video-core/video-core-atoms"
@@ -124,6 +125,33 @@ export function VideoCoreTimeRange(props: VideoCoreTimeRangeProps) {
     const opEdChapters = React.useMemo(() => vc_getOPEDChapters(chapters), [chapters])
 
     // handle auto skip
+    // Each segment is auto-skipped at most once per stream, so seeking back into it shows the Skip
+    // button instead of bouncing forward again.
+    const playbackInfo = useAtomValue(vc_playbackInfo)
+    const streamKey = playbackInfo?.id || playbackInfo?.streamUrl || ""
+    const autoSkippedRef = React.useRef(new Set<string>())
+    const skipKey = (kind: "op" | "ed", segment: VideoCoreTimeRangeChapter) => `${streamKey}|${kind}|${segment.start}`
+    // Never seek into the last half second: landing on the very end can skip the "ended" handling.
+    const clampSkipTarget = (end: number) => Math.min(end, duration - 0.5)
+
+    const canAutoSkip = (kind: "op" | "ed") => (kind === "op" ? autoSkipOpening : autoSkipEnding) && !restoreProgressTo && !isWatchPartyPeer
+
+    // Returns true if it performed the skip.
+    const autoSkipRef = React.useRef<(kind: "op" | "ed", segment: VideoCoreTimeRangeChapter, time: number) => boolean>(() => false)
+    autoSkipRef.current = (kind, segment, time) => {
+        if (!canAutoSkip(kind)) return false
+        if (time < segment.start || time >= segment.end) return false
+        const key = skipKey(kind, segment)
+        if (autoSkippedRef.current.has(key)) return false
+        autoSkippedRef.current.add(key)
+        const target = clampSkipTarget(segment.end)
+        if (target <= time) return false
+        timeRangeLog.info("Auto skip", kind, target)
+        action({ type: "seekTo", payload: { time: target } })
+        showOverlayFeedback({ message: kind === "op" ? "Skipped OP" : "Skipped ED", duration: 1000 })
+        return true
+    }
+
     React.useEffect(() => {
         if (!opEdChapters.opening?.end && !opEdChapters.ending?.end) return
         if (isNaN(duration) || duration <= 1) return
@@ -133,44 +161,82 @@ export function VideoCoreTimeRange(props: VideoCoreTimeRangeProps) {
             return
         }
 
-        // e.currentTarget.currentTime >= aniSkipData.op.interval.startTime &&
-        //             e.currentTarget.currentTime < aniSkipData.op.interval.endTime
-        if (
-            opEdChapters.opening &&
-            opEdChapters.opening.end &&
-            currentTime >= opEdChapters.opening.start &&
-            currentTime < opEdChapters.opening.end
-        ) {
-            if (autoSkipOpening && !restoreProgressTo) {
-                console.log("auto skip", opEdChapters.opening.end)
-                action({ type: "seekTo", payload: { time: opEdChapters.opening.end } })
-                showOverlayFeedback({ message: "Skipped OP", duration: 1000 })
+        const opening = opEdChapters.opening
+        if (opening?.end && currentTime >= opening.start && currentTime < opening.end) {
+            if (autoSkipRef.current("op", opening, currentTime)) {
+                setSkipOpeningTime(0)
             } else {
-                setSkipOpeningTime(opEdChapters.opening.end)
+                setSkipOpeningTime(clampSkipTarget(opening.end))
             }
         } else {
             setSkipOpeningTime(0)
         }
 
-        if (
-            opEdChapters.ending &&
-            opEdChapters.ending.end &&
-            currentTime >= opEdChapters.ending.start &&
-            currentTime < opEdChapters.ending.end &&
-            currentTime < duration
-        ) {
-            if (autoSkipEnding && !restoreProgressTo) {
-                console.log("auto skip", opEdChapters.ending.end)
-                action({ type: "seekTo", payload: { time: opEdChapters.ending.end } })
-                showOverlayFeedback({ message: "Skipped ED", duration: 1000 })
+        const ending = opEdChapters.ending
+        if (ending?.end && currentTime >= ending.start && currentTime < ending.end && currentTime < duration) {
+            if (autoSkipRef.current("ed", ending, currentTime)) {
+                setSkipEndingTime(0)
             } else {
-                setSkipEndingTime(opEdChapters.ending.end)
+                const target = clampSkipTarget(ending.end)
+                setSkipEndingTime(target > currentTime ? target : 0)
             }
         } else {
             setSkipEndingTime(0)
         }
 
     }, [currentTime, autoSkipOpening, autoSkipEnding, opEdChapters, duration, restoreProgressTo, isWatchPartyPeer])
+
+    // timeupdate only fires every ~250ms, so the skip could land that late. While a segment that
+    // will be auto-skipped starts within the next second, check every frame instead.
+    const upcomingSkip = React.useMemo(() => {
+        const candidates = [
+            ["op", opEdChapters.opening] as const,
+            ["ed", opEdChapters.ending] as const,
+        ]
+        for (const [kind, segment] of candidates) {
+            if (!segment?.end || !canAutoSkip(kind)) continue
+            const lead = segment.start - currentTime
+            if (lead > 0 && lead <= 1 && !autoSkippedRef.current.has(skipKey(kind, segment))) {
+                return { kind, segment, key: skipKey(kind, segment) }
+            }
+        }
+        return null
+    }, [currentTime, opEdChapters, autoSkipOpening, autoSkipEnding, restoreProgressTo, isWatchPartyPeer, streamKey])
+
+    React.useEffect(() => {
+        if (!upcomingSkip || !videoElement) return
+        const { kind, segment } = upcomingSkip
+        let cancelled = false
+
+        if (typeof videoElement.requestVideoFrameCallback === "function") {
+            let handle = 0
+            const onFrame = (_now: number, metadata: VideoFrameCallbackMetadata) => {
+                if (cancelled) return
+                if (metadata.mediaTime >= segment.end) return
+                if (autoSkipRef.current(kind, segment, metadata.mediaTime)) return
+                handle = videoElement.requestVideoFrameCallback(onFrame)
+            }
+            handle = videoElement.requestVideoFrameCallback(onFrame)
+            return () => {
+                cancelled = true
+                videoElement.cancelVideoFrameCallback(handle)
+            }
+        }
+
+        let timer: ReturnType<typeof setTimeout> | undefined
+        const tick = () => {
+            if (cancelled) return
+            const time = videoElement.currentTime
+            if (time >= segment.end) return
+            if (autoSkipRef.current(kind, segment, time)) return
+            timer = setTimeout(tick, 30)
+        }
+        timer = setTimeout(tick, 30)
+        return () => {
+            cancelled = true
+            if (timer) clearTimeout(timer)
+        }
+    }, [upcomingSkip?.key, videoElement])
 
     // start seeking
     function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {

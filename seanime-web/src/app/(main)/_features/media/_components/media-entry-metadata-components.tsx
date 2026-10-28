@@ -163,7 +163,7 @@ export function AnimeEntryRankings(props: AnimeEntryRankingsProps) {
     return (
         <>
             {(!!allTimeHighestRated || !!seasonMostPopular) &&
-                <div className="Sea-AnimeEntryRankings__container flex-wrap gap-2 hidden md:flex" data-anime-entry-rankings>
+                <div className="Sea-AnimeEntryRankings__container flex flex-wrap gap-2" data-anime-entry-rankings>
                 {allTimeHighestRated && <Link
                     href={`/search?sorting=SCORE_DESC${allTimeHighestRated.format ? `&format=${allTimeHighestRated.format}` : ""}`}
                     data-anime-entry-rankings-item

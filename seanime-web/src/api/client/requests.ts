@@ -224,9 +224,11 @@ export async function buildSeaQuery<T, D extends any = any>(
     return response.data
 }
 
-type ServerMutationProps<R, V = void> = UseMutationOptions<R | undefined, SeaError, V, unknown> & {
+type ServerMutationProps<R, V = void, C = unknown> = UseMutationOptions<R | undefined, SeaError, V, C> & {
     endpoint: string
     method: "POST" | "GET" | "PATCH" | "DELETE" | "PUT"
+    /** Request timeout in ms; without one a stalled request leaves the mutation pending forever. */
+    timeout?: number
 }
 
 /**
@@ -234,17 +236,18 @@ type ServerMutationProps<R, V = void> = UseMutationOptions<R | undefined, SeaErr
  * - First generic: Return type
  * - Second generic: Params/Data type
  */
-export function useServerMutation<R = void, V = void>(
+export function useServerMutation<R = void, V = void, C = unknown>(
     {
         endpoint,
         method,
+        timeout,
         ...options
-    }: ServerMutationProps<R, V>) {
+    }: ServerMutationProps<R, V, C>) {
 
     const password = useAtomValue(serverAuthTokenAtom)
     const profileToken = useAtomValue(profileSessionTokenAtom)
 
-    return useMutation<R | undefined, SeaError, V>({
+    return useMutation<R | undefined, SeaError, V, C>({
         onError: error => {
             console.log("Mutation error", error)
             // A request the server never saw is one toast per attempted request if it is announced —
@@ -279,6 +282,7 @@ export function useServerMutation<R = void, V = void>(
                 data: variables,
                 password: password,
                 profileToken: profileToken,
+                timeout,
             })
         },
         ...options,

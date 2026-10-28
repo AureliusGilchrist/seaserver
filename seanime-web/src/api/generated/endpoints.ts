@@ -180,6 +180,33 @@ export const API_ENDPOINTS = {
         },
         /**
          *  @description
+         *  Route returns the list edits waiting to be sent to AniList.
+         */
+        /**
+         *  @description
+         *  Route returns every media in the franchise of a media, oldest first.
+         */
+        GetMediaFamily: {
+            key: "ANILIST-get-media-family",
+            methods: ["GET"],
+            endpoint: "/api/v1/anilist/media/{id}/family",
+        },
+        /**
+         *  @description
+         *  Route returns the extended AniList metadata shown on a details page.
+         */
+        GetMediaInfo: {
+            key: "ANILIST-get-media-info",
+            methods: ["GET"],
+            endpoint: "/api/v1/anilist/media/{id}/info",
+        },
+        GetAnilistEditQueue: {
+            key: "ANILIST-get-anilist-edit-queue",
+            methods: ["GET"],
+            endpoint: "/api/v1/anilist/list-entry/queue",
+        },
+        /**
+         *  @description
          *  Route returns more details about an AniList anime entry.
          *  This fetches more fields omitted from the base queries.
          */

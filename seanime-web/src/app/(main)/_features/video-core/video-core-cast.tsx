@@ -6,6 +6,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Modal } from "@/components/ui/modal"
 import { logger } from "@/lib/helpers/debug"
 import { WSEvents } from "@/lib/server/ws-events"
+import { vc_castModalOpen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { __CAST_ENABLED__, __isElectronDesktop__ } from "@/types/constants"
 import { atom } from "jotai"
 import { useAtom, useAtomValue } from "jotai/react"
@@ -203,7 +204,7 @@ export async function castCurrentMedia(playbackInfo: any) {
 
 // Only visible in Electron when cast dev flag is on
 export function VideoCoreCastButton() {
-    const [modalOpen, setModalOpen] = useState(false)
+    const [modalOpen, setModalOpen] = useAtom(vc_castModalOpen)
     const isCasting = useAtomValue(vc_isCasting)
 
     if (!__CAST_ENABLED__ || !__isElectronDesktop__ || !window.electron?.cast) return null
@@ -232,7 +233,7 @@ function CastDeviceModal({ open, onOpenChange }: { open: boolean; onOpenChange: 
     }, [open])
 
     return (
-        <Modal open={open} onOpenChange={onOpenChange} title="Cast to Device" contentClass="max-w-md">
+        <Modal open={open} onOpenChange={onOpenChange} title="Cast to Device" contentClass="max-w-md cursor-auto">
             <div className="space-y-4">
                 {isCasting && session.device && (
                     <div className="flex items-center justify-between p-3 bg-gray-900 rounded-md border border-brand-700">

@@ -1,7 +1,8 @@
 import { buildSeaQuery, useServerMutation, useServerQuery } from "@/api/client/requests"
 import { serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { useInfiniteQuery } from "@tanstack/react-query"
-import { useAtomValue } from "jotai/react"
+import { AnilistSaveState, anilistSaveStateAtom } from "@/app/(main)/_atoms/anilist-sync.atoms"
+import { useAtomValue, useSetAtom } from "jotai/react"
 import {
     AddAnimeToPlanning_Variables,
     AnilistListAnime_Variables,
@@ -88,26 +89,121 @@ export function useAddAnimeToPlanning(mediaId: Nullish<string | number>) {
     })
 }
 
+type EditListEntryResult = boolean | { queued?: boolean }
+type EditListEntryContext = { previous?: unknown, key: unknown[] }
+
+function fuzzyToString(d: EditAnilistListEntry_Variables["startedAt"]): string | undefined {
+    if (!d?.year) return undefined
+    const pad = (n?: number) => String(n || 1).padStart(2, "0")
+    return `${d.year}-${pad(d.month)}-${pad(d.day)}`
+}
+
+/**
+ * Saves a list entry.
+ *
+ * The page shows the new values the moment Save is pressed (the cached entry is patched here, and
+ * the server writes the same edit into its cached collection before asking AniList), so nothing
+ * waits on AniList. The server gives AniList a few seconds and queues the edit if it isn't
+ * accepted by then; the refetches that follow run in the background. Save used to stay pending
+ * until four full refetches had finished one after another, behind whatever AniList was doing —
+ * the button and the list status spun with the edit long since done.
+ */
 export function useEditAnilistListEntry(id: Nullish<string | number>, type: "anime" | "manga") {
     const queryClient = useQueryClient()
+    const setSaveState = useSetAtom(anilistSaveStateAtom)
 
-    return useServerMutation<boolean, EditAnilistListEntry_Variables>({
+    const setState = (mediaId: number | undefined, state: AnilistSaveState | null) => mediaId && setSaveState(prev => {
+        const next = { ...prev }
+        if (state) next[mediaId] = state
+        else delete next[mediaId]
+        return next
+    })
+
+    return useServerMutation<EditListEntryResult, EditAnilistListEntry_Variables, EditListEntryContext>({
         endpoint: API_ENDPOINTS.ANILIST.EditAnilistListEntry.endpoint,
         method: API_ENDPOINTS.ANILIST.EditAnilistListEntry.methods[0],
         mutationKey: [API_ENDPOINTS.ANILIST.EditAnilistListEntry.key, String(id)],
-        onSuccess: async () => {
-            toast.success("Entry updated")
+        // The server answers within ~10s by design; past this something is stuck.
+        timeout: 30_000,
+        onMutate: async (variables) => {
+            const key = type === "anime"
+                ? [API_ENDPOINTS.ANIME_ENTRIES.GetAnimeEntry.key, String(variables.mediaId)]
+                : [API_ENDPOINTS.MANGA.GetMangaEntry.key, String(variables.mediaId)]
+            await queryClient.cancelQueries({ queryKey: key })
+            const previous = queryClient.getQueryData(key)
+            queryClient.setQueryData(key, (old: any) => {
+                if (!old) return old
+                return {
+                    ...old,
+                    listData: {
+                        ...(old.listData ?? {}),
+                        status: variables.status ?? old.listData?.status,
+                        score: variables.score ?? old.listData?.score,
+                        progress: variables.progress ?? old.listData?.progress,
+                        startedAt: fuzzyToString(variables.startedAt) ?? old.listData?.startedAt,
+                        completedAt: fuzzyToString(variables.completedAt) ?? old.listData?.completedAt,
+                    },
+                }
+            })
+            setState(variables.mediaId, "saving")
+            return { previous, key }
+        },
+        onError: (error, variables, context) => {
+            if (context?.key) queryClient.setQueryData(context.key, context.previous)
+            setState(variables.mediaId, null)
+            toast.error("AniList didn't take that change", { description: error?.response?.data?.error || error?.message })
+        },
+        onSuccess: (data, variables) => {
+            const queued = typeof data === "object" && !!data?.queued
+            if (queued) {
+                toast.info("Saved — AniList is busy, it'll sync in the background")
+                setState(variables.mediaId, "queued")
+                void queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANILIST.GetAnilistEditQueue.key] })
+            } else {
+                toast.success("Entry updated")
+                setState(variables.mediaId, "done")
+                const mediaId = variables.mediaId
+                if (mediaId) setTimeout(() => setSaveState(prev => {
+                    if (prev[mediaId] !== "done") return prev
+                    const next = { ...prev }
+                    delete next[mediaId]
+                    return next
+                }), 1800)
+            }
+            // Not awaited: the page already shows the edit, and these are only catching up.
             if (type === "anime") {
-                await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANIME_ENTRIES.GetAnimeEntry.key, String(id)] })
-                await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANIME_COLLECTION.GetLibraryCollection.key] })
-                await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANILIST.GetAnimeCollection.key] })
-                await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANILIST.GetRawAnimeCollection.key] })
+                void queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANIME_ENTRIES.GetAnimeEntry.key, String(id)] })
+                void queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANIME_COLLECTION.GetLibraryCollection.key] })
+                void queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANILIST.GetAnimeCollection.key] })
+                void queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANILIST.GetRawAnimeCollection.key] })
             } else if (type === "manga") {
-                await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA.GetMangaEntry.key, String(id)] })
-                await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA.GetAnilistMangaCollection.key] })
-                await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA.GetMangaCollection.key] })
+                void queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA.GetMangaEntry.key, String(id)] })
+                void queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA.GetAnilistMangaCollection.key] })
+                void queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA.GetMangaCollection.key] })
             }
         },
+    })
+}
+
+export type AnilistQueuedListEdit = {
+    profileId: number
+    mediaId: number
+    type: string
+    title?: string
+    queuedAt: string
+    attempts: number
+    lastError?: string
+    nextAttempt: string
+}
+
+/** List edits the server is still sending to AniList. Kept current by a websocket event. */
+export function useGetAnilistEditQueue() {
+    return useServerQuery<AnilistQueuedListEdit[]>({
+        endpoint: API_ENDPOINTS.ANILIST.GetAnilistEditQueue.endpoint,
+        method: API_ENDPOINTS.ANILIST.GetAnilistEditQueue.methods[0],
+        queryKey: [API_ENDPOINTS.ANILIST.GetAnilistEditQueue.key],
+        refetchInterval: 60_000,
+        muteError: true,
     })
 }
 
@@ -334,5 +430,99 @@ export function useGetMediaCharacters(mediaId: number | null | undefined, enable
             })
         },
         getNextPageParam: (lastPage) => lastPage?.hasNextPage ? lastPage.page + 1 : undefined,
+    })
+}
+
+export type MediaFuzzyDate = { year?: number, month?: number, day?: number }
+
+/** One media in a franchise, as seen from the media being viewed. */
+export type MediaFamilyMember = {
+    id: number
+    type: "ANIME" | "MANGA"
+    format?: string
+    status?: string
+    title?: { userPreferred?: string, romaji?: string, english?: string, native?: string }
+    coverImage?: { extraLarge?: string, large?: string, medium?: string, color?: string }
+    bannerImage?: string
+    startDate?: MediaFuzzyDate
+    season?: string
+    seasonYear?: number
+    episodes?: number
+    chapters?: number
+    meanScore?: number
+    isAdult?: boolean
+    /** How the viewed media relates to this one: SEQUEL, SIDE_STORY… or CURRENT for itself. */
+    relation: string
+    /** Listed among the viewed media's own relations (rather than found further along). */
+    direct: boolean
+    depth: number
+}
+
+export type MediaFamily = { members: MediaFamilyMember[], truncated: boolean }
+
+/** The whole franchise of a media (every season, film, spin-off, source…), oldest first. */
+export function useGetMediaFamily(id: Nullish<number | string>) {
+    return useServerQuery<MediaFamily>({
+        endpoint: API_ENDPOINTS.ANILIST.GetMediaFamily.endpoint.replace("{id}", String(id)),
+        method: API_ENDPOINTS.ANILIST.GetMediaFamily.methods[0],
+        queryKey: [API_ENDPOINTS.ANILIST.GetMediaFamily.key, String(id)],
+        enabled: !!id && Number(id) > 0,
+        staleTime: 1000 * 60 * 60,
+        retry: 3,
+        retryDelay: attempt => Math.min(2000 * 2 ** attempt, 15000),
+        muteError: true,
+    })
+}
+
+/** The details-page metadata the base queries don't carry. */
+export type MediaInfo = {
+    id: number
+    idMal?: number
+    type?: "ANIME" | "MANGA"
+    format?: string
+    status?: string
+    source?: string
+    favourites?: number
+    hashtag?: string
+    trending?: number
+    popularity?: number
+    averageScore?: number
+    meanScore?: number
+    episodes?: number
+    duration?: number
+    chapters?: number
+    volumes?: number
+    countryOfOrigin?: string
+    isAdult?: boolean
+    isLicensed?: boolean
+    synonyms?: string[]
+    season?: string
+    seasonYear?: number
+    siteUrl?: string
+    startDate?: MediaFuzzyDate
+    endDate?: MediaFuzzyDate
+    externalLinks?: { id: number, site: string, url?: string, type?: "INFO" | "STREAMING" | "SOCIAL", icon?: string, color?: string, language?: string }[]
+    studios?: { edges?: { isMain: boolean, node?: { id: number, name: string, isAnimationStudio?: boolean, siteUrl?: string } }[] }
+    staff?: { edges?: { role?: string, node?: { id: number, name?: { full?: string, native?: string }, image?: { medium?: string }, siteUrl?: string } }[] }
+    rankings?: { id: number, rank: number, type: "RATED" | "POPULAR", allTime?: boolean, season?: string, year?: number, context: string, format?: string }[]
+    tags?: { id: number, name: string, rank?: number, category?: string, isMediaSpoiler?: boolean, isGeneralSpoiler?: boolean }[]
+    trailer?: { id?: string, site?: string, thumbnail?: string }
+    nextAiringEpisode?: { episode: number, airingAt: number, timeUntilAiring: number }
+    stats?: {
+        statusDistribution?: { status: string, amount: number }[]
+        scoreDistribution?: { score: number, amount: number }[]
+    }
+}
+
+export function useGetMediaInfo(id: Nullish<number | string>) {
+    return useServerQuery<MediaInfo>({
+        endpoint: API_ENDPOINTS.ANILIST.GetMediaInfo.endpoint.replace("{id}", String(id)),
+        method: API_ENDPOINTS.ANILIST.GetMediaInfo.methods[0],
+        queryKey: [API_ENDPOINTS.ANILIST.GetMediaInfo.key, String(id)],
+        enabled: !!id && Number(id) > 0,
+        staleTime: 1000 * 60 * 30,
+        retry: 2,
+        retryDelay: attempt => Math.min(2000 * 2 ** attempt, 8000),
+        muteError: true,
     })
 }

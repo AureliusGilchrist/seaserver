@@ -2491,11 +2491,13 @@ html[data-sea-dock] .sea-float-bottom-2.left-5 { left: 50% !important; transform
 }
 /* A grid of cards: fixed-width tracks, as many as fit, spare space shared between the gaps.
    At least two columns on narrow screens. */
+/* Columns at least the card width, as many as fit, sharing the leftover width evenly. It used to be
+   fixed-width columns spread with space-between: in a window that fit three cards, the three sat
+   at the edges and middle of the row with huge gaps between them. */
 .sea-card-grid {
     display: grid;
     gap: var(--sea-card-gap);
-    grid-template-columns: repeat(auto-fill, min(var(--sea-card-w), calc((100% - var(--sea-card-gap)) / 2)));
-    justify-content: space-between;
+    grid-template-columns: repeat(auto-fill, minmax(min(var(--sea-card-w), calc((100% - var(--sea-card-gap)) / 2)), 1fr));
 }
 .sea-card-grid > * { min-width: 0; }
 /* Card titles scale with the card. */

@@ -1,8 +1,8 @@
 package manga
 
 import (
-	"seanime/internal/manga/mangabaka"
 	"context"
+	"seanime/internal/manga/mangabaka"
 	"strings"
 	"sync"
 	"time"
@@ -282,7 +282,8 @@ func (d *Downloader) fetchAndStoreMetadata(platformRef *util.Ref[platform.Platfo
 			// request that was already made and paid for, usually one that was queued behind a rate
 			// limit and about to be served, and files the series as undescribable for its trouble.
 			// Nobody is waiting on this, so there is nothing for a deadline to protect.
-			linked := d.AutoLinkSyntheticManga(anilist.WithUserInitiated(context.Background()), mediaID)
+			// Background lane: see below.
+			linked := d.AutoLinkSyntheticManga(context.Background(), mediaID)
 
 			if linked > 0 {
 				// Linked: the AniList entry has the cover, the description and everything else, and
@@ -304,11 +305,13 @@ func (d *Downloader) fetchAndStoreMetadata(platformRef *util.Ref[platform.Platfo
 		return backfillOutcome{}
 	}
 
-	// Marked user-initiated and given no deadline, both deliberately. The library being able to
-	// describe itself is what the user is looking at, so this goes ahead of the prefetcher rather
-	// than behind it, and a request that has queued behind a rate limit is worth waiting out rather
-	// than cancelling and re-making later. See internal/api/anilist/priority.go.
-	ctx := anilist.WithUserInitiated(context.Background())
+	// No deadline, deliberately: a request that has queued behind a rate limit is worth waiting out
+	// rather than cancelling and re-making later.
+	//
+	// Background lane, not user-initiated: hundreds of these during a scan or backfill used to take
+	// the rate-limit slots a list Save waits for, so saving a status sat behind them for a minute.
+	// A Save is what someone is actually waiting on. See internal/api/anilist/priority.go.
+	ctx := context.Background()
 
 	var title, coverImage string
 	media, err := p.GetManga(ctx, mediaID)

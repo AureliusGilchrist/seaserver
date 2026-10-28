@@ -5,6 +5,7 @@ import { AnilistOverwriteCard } from "@/app/(main)/settings/_containers/anilist-
 import { PlaybackSettings } from "@/app/(main)/settings/_components/playback-settings"
 import { StillWatchingTiming } from "@/app/(main)/settings/_components/still-watching-timing"
 import { CardSizeSettings } from "@/app/(main)/settings/_components/card-size-settings"
+import { FranchiseSettings } from "@/app/(main)/settings/_components/franchise-settings"
 import { MAX_LOG_LINES, stamp, updateSettingsLogAtom } from "@/app/(main)/settings/_containers/update-settings"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
@@ -762,6 +763,9 @@ export function ClientSettings(props: ClientSettingsProps) {
                         </SettingRow>
                         <SettingRow settingKey={["animeCardWidth", "mangaCardWidth"]}>
                             <CardSizeSettings />
+                        </SettingRow>
+                        <SettingRow settingKey={["franchiseRelations", "franchiseMediaKinds", "franchiseInitialCount"]}>
+                            <FranchiseSettings />
                         </SettingRow>
                         <SettingRow settingKey="hideAudienceScore">
                             <Switch

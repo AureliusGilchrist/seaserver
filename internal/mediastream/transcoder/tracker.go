@@ -1,6 +1,7 @@
 package transcoder
 
 import (
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -25,6 +26,7 @@ type Tracker struct {
 	deletedStream chan string
 	logger        *zerolog.Logger
 	killCh        chan struct{} // Close channel to stop tracker
+	stopOnce      sync.Once
 }
 
 func NewTracker(t *Transcoder) *Tracker {
@@ -42,7 +44,7 @@ func NewTracker(t *Transcoder) *Tracker {
 }
 
 func (t *Tracker) Stop() {
-	close(t.killCh)
+	t.stopOnce.Do(func() { close(t.killCh) })
 }
 
 func Abs(x int32) int32 {
@@ -110,28 +112,37 @@ func (t *Tracker) start() {
 				t.KillStreamIfDead(old.path)
 			}
 
+		case client := <-t.transcoder.forgetChan:
+			t.purgeClient(client)
+
 		case <-timer.C:
 			// Purge old clients
 			for client, date := range t.visitDate {
 				if time.Since(date) < inactiveTime {
 					continue
 				}
-
-				info := t.clients[client]
-
-				if !t.KillStreamIfDead(info.path) {
-					audioCleanup := info.audio != -1 && t.KillAudioIfDead(info.path, info.audio)
-					videoCleanup := info.quality != nil && t.KillQualityIfDead(info.path, *info.quality)
-					if !audioCleanup || !videoCleanup {
-						t.KillOrphanedHeads(info.path, info.quality, info.audio)
-					}
-				}
-
-				delete(t.clients, client)
-				delete(t.visitDate, client)
+				t.purgeClient(client)
 			}
 		case path := <-t.deletedStream:
 			t.DestroyStreamIfOld(path)
+		}
+	}
+}
+
+// purgeClient forgets a client and kills whatever it alone was using.
+func (t *Tracker) purgeClient(client string) {
+	info, ok := t.clients[client]
+	delete(t.clients, client)
+	delete(t.visitDate, client)
+	if !ok {
+		return
+	}
+
+	if !t.KillStreamIfDead(info.path) {
+		audioCleanup := info.audio != -1 && t.KillAudioIfDead(info.path, info.audio)
+		videoCleanup := info.quality != nil && t.KillQualityIfDead(info.path, *info.quality)
+		if !audioCleanup || !videoCleanup {
+			t.KillOrphanedHeads(info.path, info.quality, info.audio)
 		}
 	}
 }
@@ -149,6 +160,14 @@ func (t *Tracker) KillStreamIfDead(path string) bool {
 		return false
 	}
 	stream.Kill()
+	// A keyframe scan still reading the file is stopped too (it reads the whole file, which competes
+	// with whatever the client plays next). Its keyframes are incomplete, so the stream is dropped
+	// and a later request starts afresh.
+	if stream.StopKeyframeScan() {
+		t.transcoder.streams.Delete(path)
+		stream.stop()
+		return true
+	}
 	go func() {
 		select {
 		case <-t.killCh:
@@ -242,7 +261,7 @@ func (t *Tracker) killOrphanedHeads(stream *Stream) {
 	defer stream.headsLock.RUnlock()
 
 	for encoderId, head := range stream.heads {
-		if head == DeletedHead {
+		if head.isDeleted() {
 			continue
 		}
 

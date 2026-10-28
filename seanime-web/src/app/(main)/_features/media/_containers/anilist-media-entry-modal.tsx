@@ -128,6 +128,9 @@ export const AnilistMediaEntryModal = (props: AnilistMediaEntryModalProps) => {
             } : undefined,
             type: type,
         })
+        // Closed straight away: the page already shows the new values, and the indicator beside
+        // the list status says when AniList has them.
+        toggle(false)
     }, [repeat, listData?.repeat, media?.id, type, mutate, mutateRepeat])
 
 
@@ -173,7 +176,7 @@ export const AnilistMediaEntryModal = (props: AnilistMediaEntryModalProps) => {
                             icon={<TbEdit />}
                             rounded
                             size="sm"
-                            loading={isEditing || isDeleting}
+                            loading={isDeleting}
                             onClick={toggle}
                         />}
                     </>}

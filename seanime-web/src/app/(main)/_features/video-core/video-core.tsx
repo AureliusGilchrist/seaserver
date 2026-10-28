@@ -37,6 +37,8 @@ import { vc_miniPlayer } from "@/app/(main)/_features/video-core/video-core-atom
 import { vc_cursorPosition } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_cursorBusy } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_busy, vc_cursorForceHidden } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_castModalOpen, vc_playlistHoverCardsOpen } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_popupOpen } from "@/app/(main)/_features/video-core/video-core-popup"
 import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_containerElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_previousPausedState } from "@/app/(main)/_features/video-core/video-core-atoms"
@@ -244,6 +246,8 @@ export function VideoCoreProvider(props: { id: string, children: React.ReactNode
                 vc_cursorPosition,
                 vc_busy,
                 vc_cursorForceHidden,
+                vc_castModalOpen,
+                vc_playlistHoverCardsOpen,
                 vc_videoElement,
                 vc_containerElement,
                 vc_playbackInfo,
@@ -360,6 +364,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
     const isMiniPlayer = useAtomValue(vc_miniPlayer)
     const busy = useAtomValue(vc_busy)
     const cursorForceHidden = useAtomValue(vc_cursorForceHidden)
+    const popupOpen = useAtomValue(vc_popupOpen)
     const paused = useAtomValue(vc_paused)
     const buffering = useAtomValue(vc_buffering)
     const settings = useAtomValue(vc_settings)
@@ -427,7 +432,8 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                 className={cn(
                     "relative w-full h-full bg-black overflow-clip flex items-center justify-center",
                     // Only a right-click hides the cursor; idling never does (see vc_cursorForceHidden).
-                    (cursorForceHidden && !isMiniPlayer) && "cursor-none",
+                    // An open pop-up always shows it.
+                    (cursorForceHidden && !isMiniPlayer && !popupOpen) && "cursor-none",
                 )}
                 onPointerMove={handleContainerPointerMove}
                 onMouseEnter={handleContainerMouseEnter}
@@ -469,48 +475,52 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                             </div>
                         )}
 
-                        {busy && (
-                            <>
-                                {!!skipOpeningTime && !isMiniPlayer && (
-                                    <div
-                                        data-vc-element="skip-oped-button-container"
-                                        data-vc-for="opening"
-                                        className="absolute left-5 bottom-28 z-[60] native-player-hide-on-fullscreen"
-                                    >
-                                        <Button
-                                            size="sm"
-                                            intent="gray-basic"
-                                            onClick={e => {
-                                                e.stopPropagation()
-                                                action({ type: "seekTo", payload: { time: skipOpeningTime || 0 } })
-                                            }}
-                                            onPointerMove={e => e.stopPropagation()}
-                                        >
-                                            Skip Opening
-                                        </Button>
-                                    </div>
+                        {/* Shown for as long as the chapter is active, not only while the pointer moves:
+                            dimmed while idle, full on hover. */}
+                        {!!skipOpeningTime && !isMiniPlayer && (
+                            <div
+                                data-vc-element="skip-oped-button-container"
+                                data-vc-for="opening"
+                                className={cn(
+                                    "absolute left-5 bottom-28 z-[60] native-player-hide-on-fullscreen transition-opacity duration-300 hover:opacity-100",
+                                    !busy && "opacity-40",
                                 )}
+                            >
+                                <Button
+                                    size="sm"
+                                    intent="gray-basic"
+                                    onClick={e => {
+                                        e.stopPropagation()
+                                        action({ type: "seekTo", payload: { time: skipOpeningTime || 0 } })
+                                    }}
+                                    onPointerMove={e => e.stopPropagation()}
+                                >
+                                    Skip Opening
+                                </Button>
+                            </div>
+                        )}
 
-                                {!!skipEndingTime && !isMiniPlayer && (
-                                    <div
-                                        data-vc-element="skip-oped-button-container"
-                                        data-vc-for="ending"
-                                        className="absolute right-5 bottom-28 z-[60] native-player-hide-on-fullscreen"
-                                    >
-                                        <Button
-                                            size="sm"
-                                            intent="gray-basic"
-                                            onClick={e => {
-                                                e.stopPropagation()
-                                                action({ type: "seekTo", payload: { time: skipEndingTime || 0 } })
-                                            }}
-                                            onPointerMove={e => e.stopPropagation()}
-                                        >
-                                            Skip Ending
-                                        </Button>
-                                    </div>
+                        {!!skipEndingTime && !isMiniPlayer && (
+                            <div
+                                data-vc-element="skip-oped-button-container"
+                                data-vc-for="ending"
+                                className={cn(
+                                    "absolute right-5 bottom-28 z-[60] native-player-hide-on-fullscreen transition-opacity duration-300 hover:opacity-100",
+                                    !busy && "opacity-40",
                                 )}
-                            </>
+                            >
+                                <Button
+                                    size="sm"
+                                    intent="gray-basic"
+                                    onClick={e => {
+                                        e.stopPropagation()
+                                        action({ type: "seekTo", payload: { time: skipEndingTime || 0 } })
+                                    }}
+                                    onPointerMove={e => e.stopPropagation()}
+                                >
+                                    Skip Ending
+                                </Button>
+                            </div>
                         )}
 
                         <div
@@ -896,6 +906,7 @@ export function VideoCore(props: VideoCoreProps) {
     const [busy, setBusy] = useAtom(vc_busy)
     const setCursorForceHidden = useSetAtom(vc_cursorForceHidden)
     const cursorBusy = useAtomValue(vc_cursorBusy)
+    const popupOpen = useAtomValue(vc_popupOpen)
     const paused = useAtomValue(vc_paused)
     const [buffering, setBuffering] = useAtom(vc_buffering)
     const duration = useAtomValue(vc_duration)
@@ -2054,6 +2065,15 @@ export function VideoCore(props: VideoCoreProps) {
         cursorBusyRef.current = cursorBusy
     }, [cursorBusy])
 
+    // Opening a pop-up clears a right-click hide, so the cursor is there to use it.
+    React.useEffect(() => {
+        if (!popupOpen || !forceHiddenRef.current) return
+        forceHiddenRef.current = false
+        setCursorForceHidden(false)
+        busyRef.current = true
+        setBusy(true)
+    }, [popupOpen])
+
     React.useEffect(() => {
         return () => {
             if (setNotBusyTimeout.current) {
@@ -2113,6 +2133,8 @@ export function VideoCore(props: VideoCoreProps) {
 
     // Right-click toggles forcing the controls/cursor hidden, overriding the normal hover behavior.
     const handleContainerContextMenu = () => {
+        // Can't hide the cursor while a pop-up needs it.
+        if (popupOpen && !forceHiddenRef.current) return
         forceHiddenRef.current = !forceHiddenRef.current
         setCursorForceHidden(forceHiddenRef.current)
         busyRef.current = !forceHiddenRef.current

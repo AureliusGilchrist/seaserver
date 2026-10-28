@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"seanime/internal/achievement"
 	"seanime/internal/api/anilist"
+	"seanime/internal/core"
 	"seanime/internal/database/models"
 	"seanime/internal/enmasse"
 	"seanime/internal/platforms/shared_platform"
 	"seanime/internal/util/result"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -144,37 +146,47 @@ func (h *Handler) HandleEditAnilistListEntry(c echo.Context) error {
 	}
 
 	profileID := h.GetProfileID(c)
+	if p.MediaId == nil || *p.MediaId <= 0 {
+		return h.RespondWithError(c, errors.New("missing media id"))
+	}
+	if profileID > 0 && !h.GetProfileAnilistClient(c).IsAuthenticated() {
+		return h.RespondWithError(c, errors.New("profile AniList account not authenticated"))
+	}
 
-	// For profile users, use their own AniList client to avoid mutating the admin account.
-	if profileID > 0 {
-		profileClient := h.GetProfileAnilistClient(c)
-		if !profileClient.IsAuthenticated() {
-			return h.RespondWithError(c, errors.New("profile AniList account not authenticated"))
-		}
-		_, err := profileClient.UpdateMediaListEntry(
-			c.Request().Context(),
-			p.MediaId,
-			p.Status,
-			p.Score,
-			p.Progress,
-			p.StartDate,
-			p.EndDate,
-		)
+	// AniList gets a few seconds to accept the edit. If it hasn't by then (a full rate-limit window,
+	// a slow or unreachable AniList) the edit is queued and sent in the background, and the Save
+	// returns now: the edit is written into the cached collection below, so the page shows it either
+	// way. A Save used to wait as long as AniList took — over a minute behind a full rate window —
+	// with the button and the list status spinning the whole time.
+	edit := &core.QueuedListEdit{
+		ProfileID: profileID,
+		MediaID:   *p.MediaId,
+		Type:      p.Type,
+		Status:    p.Status,
+		Score:     p.Score,
+		Progress:  p.Progress,
+		StartDate: p.StartDate,
+		EndDate:   p.EndDate,
+	}
+	queued := false
+	{
+		ctx, cancel := context.WithTimeout(c.Request().Context(), listEditSyncDeadline)
+		err := h.App.SendListEdit(ctx, edit)
+		cancel()
 		if err != nil {
-			return h.RespondWithError(c, err)
-		}
-	} else {
-		err := h.App.AnilistPlatformRef.Get().UpdateEntry(
-			c.Request().Context(),
-			*p.MediaId,
-			p.Status,
-			p.Score,
-			p.Progress,
-			p.StartDate,
-			p.EndDate,
-		)
-		if err != nil {
-			return h.RespondWithError(c, err)
+			if !shouldQueueListEdit(err) || h.App.AnilistEditQueue == nil {
+				return h.RespondWithError(c, err)
+			}
+			h.App.AnilistEditQueue.Enqueue(edit, err)
+			queued = true
+			// Named for the "waiting to sync" list. Looked up afterwards: it can mean reading a
+			// collection, which a Save shouldn't wait on.
+			go func(mediaID int, mediaType string) {
+				h.App.AnilistEditQueue.SetTitle(profileID, mediaID, h.lookupMediaTitle(profileID, mediaType, mediaID))
+			}(*p.MediaId, p.Type)
+		} else if h.App.AnilistEditQueue != nil {
+			// An older queued edit for this media would undo this one when it's finally sent.
+			h.App.AnilistEditQueue.Forget(profileID, *p.MediaId)
 		}
 	}
 
@@ -252,7 +264,10 @@ func (h *Handler) HandleEditAnilistListEntry(c echo.Context) error {
 			// now costs nothing beyond the mutation itself.
 			applied := h.App.AnilistClientManager.ApplyAnimeListEntryUpdate(profileID, *p.MediaId, nil, p.Status, p.Score, p.Progress, p.StartDate, p.EndDate)
 			if !applied {
-				if media, mediaErr := h.App.AnilistPlatformRef.Get().GetAnime(c.Request().Context(), *p.MediaId); mediaErr == nil {
+				mediaCtx, cancelMedia := context.WithTimeout(c.Request().Context(), listEditMediaWait)
+				media, mediaErr := h.App.AnilistPlatformRef.Get().GetAnime(mediaCtx, *p.MediaId)
+				cancelMedia()
+				if mediaErr == nil {
 					applied = h.App.AnilistClientManager.ApplyAnimeListEntryUpdate(profileID, *p.MediaId, media, p.Status, p.Score, p.Progress, p.StartDate, p.EndDate)
 				}
 			}
@@ -266,7 +281,10 @@ func (h *Handler) HandleEditAnilistListEntry(c echo.Context) error {
 				h.App.AnilistClientManager.RefreshAnimeCollectionInBackground(profileID)
 			}
 		} else {
-			_, _ = h.App.RefreshAnimeCollection()
+			// Waited on for a moment, so the refetch that follows usually sees the edit, but never
+			// for long: this was a synchronous full collection refresh that could hold the Save for
+			// over a minute.
+			waitBriefly(listEditRefreshWait, func() { _, _ = h.App.RefreshAnimeCollection() })
 		}
 	case "manga":
 		// Patched into the cached collection rather than thrown away — the same treatment the anime
@@ -283,7 +301,10 @@ func (h *Handler) HandleEditAnilistListEntry(c echo.Context) error {
 		// first-time addition. An edit to something already on the list costs nothing extra.
 		applied := h.App.AnilistClientManager.ApplyMangaListEntryUpdate(profileID, *p.MediaId, nil, p.Status, p.Score, p.Progress, p.StartDate, p.EndDate)
 		if !applied {
-			if media, mediaErr := h.App.AnilistPlatformRef.Get().GetManga(c.Request().Context(), *p.MediaId); mediaErr == nil {
+			mediaCtx, cancelMedia := context.WithTimeout(c.Request().Context(), listEditMediaWait)
+			media, mediaErr := h.App.AnilistPlatformRef.Get().GetManga(mediaCtx, *p.MediaId)
+			cancelMedia()
+			if mediaErr == nil {
 				applied = h.App.AnilistClientManager.ApplyMangaListEntryUpdate(profileID, *p.MediaId, media, p.Status, p.Score, p.Progress, p.StartDate, p.EndDate)
 			}
 		}
@@ -296,7 +317,7 @@ func (h *Handler) HandleEditAnilistListEntry(c echo.Context) error {
 			// shortly after, and the replay above keeps the user's own values on top until it agrees.
 			go func() { _, _ = h.App.RefreshMangaCollection() }()
 		} else {
-			_, _ = h.App.RefreshMangaCollection()
+			waitBriefly(listEditRefreshWait, func() { _, _ = h.App.RefreshMangaCollection() })
 		}
 	default:
 		if profileID > 0 {
@@ -305,12 +326,64 @@ func (h *Handler) HandleEditAnilistListEntry(c echo.Context) error {
 			go func() { _, _ = h.App.RefreshAnimeCollection() }()
 			go func() { _, _ = h.App.RefreshMangaCollection() }()
 		} else {
-			_, _ = h.App.RefreshAnimeCollection()
-			_, _ = h.App.RefreshMangaCollection()
+			go func() { _, _ = h.App.RefreshAnimeCollection() }()
+			go func() { _, _ = h.App.RefreshMangaCollection() }()
 		}
 	}
 
+	if queued {
+		return h.RespondWithData(c, map[string]any{"queued": true})
+	}
 	return h.RespondWithData(c, true)
+}
+
+const (
+	listEditSyncDeadline = 8 * time.Second
+	listEditRefreshWait  = 3 * time.Second
+	listEditMediaWait    = 5 * time.Second // first-time additions only
+)
+
+// waitBriefly runs fn in the background and waits for it at most d.
+func waitBriefly(d time.Duration, fn func()) {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		fn()
+	}()
+	select {
+	case <-done:
+	case <-time.After(d):
+	}
+}
+
+// shouldQueueListEdit reports whether a failed edit is worth sending again later (AniList busy,
+// slow or unreachable) rather than refused outright (bad values, signed out).
+func shouldQueueListEdit(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || errors.Is(err, anilist.ErrRateBudgetWait) {
+		return true
+	}
+	msg := strings.ToLower(err.Error())
+	for _, s := range []string{"429", "too many", "rate limit", "rate budget", "timeout", "deadline", "connection", "eof", "500", "502", "503", "504", "no such host", "i/o", "unreachable", "network", "tls"} {
+		if strings.Contains(msg, s) {
+			return true
+		}
+	}
+	return false
+}
+
+// HandleGetAnilistEditQueue
+//
+//	@summary returns the list edits waiting to be sent to AniList.
+//	@returns []core.QueuedListEdit
+//	@route /api/v1/anilist/list-entry/queue [GET]
+func (h *Handler) HandleGetAnilistEditQueue(c echo.Context) error {
+	if h.App.AnilistEditQueue == nil {
+		return h.RespondWithData(c, []*core.QueuedListEdit{})
+	}
+	return h.RespondWithData(c, h.App.AnilistEditQueue.List(h.GetProfileID(c)))
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------

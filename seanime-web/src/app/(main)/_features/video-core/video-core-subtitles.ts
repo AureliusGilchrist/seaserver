@@ -27,12 +27,23 @@ const DEFAULT_FONT_NAME = "roboto medium"
 // Cached by a stable key (attachment filename / asset URL) so episodes of the same series
 // don't refetch identical fonts.
 const fontDataCache = new Map<string, Uint8Array | null>()
+// Fonts that failed for good (missing, not a font, extraction failed) this session, by the same key.
+// Without this every episode of a series refetched every broken font of it again.
+const failedFontKeys = new Set<string>()
 
-async function fetchFontData(url: string, cacheKey: string = url): Promise<Uint8Array | null> {
+// Font fetches run at most this many at a time: a file can carry hundreds of font attachments, and
+// firing them all at once competed with the video stream itself for the connection.
+const FONT_FETCH_CONCURRENCY = 3
+
+async function fetchFontData(url: string, cacheKey: string = url, signal?: AbortSignal): Promise<Uint8Array | null> {
     if (fontDataCache.has(cacheKey)) return fontDataCache.get(cacheKey) ?? null
+    if (failedFontKeys.has(cacheKey) || signal?.aborted) return null
     let data: Uint8Array | null = null
+    // Only a definitive failure is remembered: one that is just "not extracted yet" (the server
+    // gave up waiting), a network error or an aborted fetch may well work next time.
+    let failedForGood = false
     try {
-        const res = await fetch(url)
+        const res = await fetch(url, { signal })
         const contentType = res.headers.get("content-type") || ""
         if (res.ok && !contentType.includes("text/html") && !contentType.includes("application/json")) {
             const buf = await res.arrayBuffer()
@@ -41,16 +52,50 @@ async function fetchFontData(url: string, cacheKey: string = url): Promise<Uint8
             }
         }
         if (!data) {
+            if (res.ok || res.status === 404) {
+                failedForGood = true
+            } else {
+                const body = (await res.text().catch(() => "")).toLowerCase()
+                failedForGood = EXTRACTION_FAILED_MARKERS.some(marker => body.includes(marker)) && !body.includes("context canceled")
+            }
             subtitleLog.warning("Font failed to load, skipping", url, res.status, contentType)
         }
     }
     catch (e) {
+        if (signal?.aborted) return null
         subtitleLog.warning("Font fetch error, skipping", url, e)
     }
-    // Only a font that loaded is remembered: a failure is often just "not extracted yet", and
-    // caching it made the font missing for the rest of the session.
     if (data) fontDataCache.set(cacheKey, data)
+    else if (failedForGood && !signal?.aborted) failedFontKeys.add(cacheKey)
     return data
+}
+
+// Runs fn over items, at most `limit` at a time. Stops starting new ones once the signal aborts.
+async function forEachLimited<T>(items: T[], limit: number, signal: AbortSignal | undefined, fn: (item: T) => Promise<void>) {
+    let next = 0
+    const worker = async () => {
+        while (next < items.length && !signal?.aborted) {
+            const item = items[next++]
+            await fn(item)
+        }
+    }
+    await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+}
+
+// Resolves after ms, or rejects as soon as the signal aborts.
+function abortableDelay(ms: number, signal?: AbortSignal): Promise<void> {
+    return new Promise((resolve, reject) => {
+        if (signal?.aborted) return reject(new Error("Aborted"))
+        const timer = setTimeout(() => {
+            signal?.removeEventListener("abort", onAbort)
+            resolve()
+        }, ms)
+        const onAbort = () => {
+            clearTimeout(timer)
+            reject(new Error("Aborted"))
+        }
+        signal?.addEventListener("abort", onAbort, { once: true })
+    })
 }
 
 // Subtitle files are extracted in the background on the server right after a stream starts
@@ -70,17 +115,20 @@ const EXTRACTION_FAILED_MARKERS = ["extraction failed"]
 async function fetchSubtitleTextWithRetry(
     url: string,
     isCancelled: () => boolean,
+    signal?: AbortSignal,
 ): Promise<string> {
     const maxAttempts = url.includes("/api/v1/") ? 8 : 1
     let lastStatus: number | string = "network error"
     let definitiveError: string | null = null
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        if (isCancelled()) throw new Error("Track selection changed")
+        // The stream it belongs to was left: stop retrying (each retry used to keep a request open
+        // on the server, waiting on an extraction for an episode nobody watches any more).
+        if (isCancelled() || signal?.aborted) throw new Error("Track selection changed")
         if (attempt > 0) {
-            await new Promise(resolve => setTimeout(resolve, Math.min(500 * attempt, 2000)))
+            await abortableDelay(Math.min(500 * attempt, 2000), signal)
         }
         try {
-            const res = await fetch(url)
+            const res = await fetch(url, { signal })
             if (res.ok) {
                 const text = await res.text()
                 if (text.trim().length > 0) return text
@@ -100,6 +148,7 @@ async function fetchSubtitleTextWithRetry(
             }
         }
         catch {
+            if (signal?.aborted) throw new Error("Track selection changed")
             lastStatus = "network error"
         }
         if (definitiveError) break
@@ -128,6 +177,9 @@ const sharedRendererLoadedFontKeys = new Set<string>()
 // for a long time on a fresh stream); these dedupe concurrent loads per renderer instance.
 let sharedFontLoadRenderer: JASSUB | null = null
 let sharedFontLoadPromise: Promise<void> | null = null
+// The manager whose fonts are loading; its destroy() aborts the load and frees the slot for the
+// next episode's fonts.
+let sharedFontLoadOwner: VideoCoreSubtitleManager | null = null
 
 function hexToASSColor(hex: string, alpha: number = 0): number {
     hex = hex.replace(/^#/, "")
@@ -240,6 +292,8 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     // finished awaits must bail instead of calling into the released JASSUB worker proxy
     // ("Proxy has been released and is not useable").
     private isDestroyed = false
+    // Aborts this manager's font and subtitle fetches on destroy() (episode change, player closed).
+    private readonly abortController = new AbortController()
     private fonts: string[] = []
     private hmacToken: string = ""
 
@@ -532,12 +586,15 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         if (sharedFontLoadPromise && sharedFontLoadRenderer === renderer) return
 
         sharedFontLoadRenderer = renderer
-        sharedFontLoadPromise = this._loadFontsIntoRenderer(renderer).finally(() => {
-            if (sharedFontLoadRenderer === renderer) {
+        sharedFontLoadOwner = this
+        const promise = this._loadFontsIntoRenderer(renderer).finally(() => {
+            if (sharedFontLoadPromise === promise) {
                 sharedFontLoadRenderer = null
                 sharedFontLoadPromise = null
+                sharedFontLoadOwner = null
             }
         })
+        sharedFontLoadPromise = promise
     }
 
     private async _loadFontsIntoRenderer(renderer: JASSUB) {
@@ -567,18 +624,21 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
 
             // Fetch each font on the main thread and validate it, so a failed request
             // (expired token, missing file, SPA HTML fallback) never reaches libass.
+            const signal = this.abortController.signal
             const fontBuffers: Uint8Array[] = []
-            await Promise.all(newEntries.map(async f => {
-                const data = await fetchFontData(f.url, f.key)
+            const loadedKeys: string[] = []
+            await forEachLimited(newEntries, FONT_FETCH_CONCURRENCY, signal, async f => {
+                const data = await fetchFontData(f.url, f.key, signal)
                 if (data) {
                     fontBuffers.push(data)
-                    sharedRendererLoadedFontKeys.add(f.key)
+                    loadedKeys.push(f.key)
                 }
-            }))
+            })
 
-            // The renderer may have been replaced or destroyed while the fonts were in
-            // flight; never feed a stale or dead instance.
-            if (renderer !== sharedRenderer || fontBuffers.length === 0) return
+            // The renderer may have been replaced or destroyed, or the stream left, while the fonts
+            // were in flight; never feed a stale or dead instance. The fetched fonts stay cached.
+            if (signal.aborted || renderer !== sharedRenderer || fontBuffers.length === 0) return
+            loadedKeys.forEach(key => sharedRendererLoadedFontKeys.add(key))
 
             subtitleLog.info(`Adding ${fontBuffers.length}/${newEntries.length} fonts to libass renderer`)
             await renderer.renderer.addFonts(fontBuffers)
@@ -922,6 +982,14 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     destroy() {
         subtitleLog.info("Destroying subtitle manager")
         this.isDestroyed = true
+        this.abortController.abort()
+        // Free the font-load slot now rather than when the aborted load settles, so the next
+        // episode's manager can start loading its own fonts at once.
+        if (sharedFontLoadOwner === this) {
+            sharedFontLoadOwner = null
+            sharedFontLoadRenderer = null
+            sharedFontLoadPromise = null
+        }
         // Any memoised initialisation belongs to the manager being torn down; leaving it set
         // would hand a destroyed manager's promise to whatever asks next.
         this.initPromise = null
@@ -1416,7 +1484,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             // default font whose asset is broken/missing makes libass fail glyph lookup
             // on every event ("failed to find any fallback with glyph ... for font") and
             // renders nothing, while also churning the renderer every frame.
-            const fontData = await fetchFontData(url)
+            const fontData = await fetchFontData(url, url, this.abortController.signal)
             if (this.isDestroyed || !this.libassRenderer) return
 
             if (fontData) {
@@ -1702,7 +1770,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 // not be cached as the track's content
                 let content = fileTrack.info.content || ""
                 if (fileTrack.info.src) {
-                    content = await fetchSubtitleTextWithRetry(fileTrack.info.src, isStale)
+                    content = await fetchSubtitleTextWithRetry(fileTrack.info.src, isStale, this.abortController.signal)
                 }
                 if (isStale()) return
                 this.fileTracks[trackNumber].content = content // cache it
@@ -1727,7 +1795,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 // through the video proxy transport and fails in confusing ways — surfacing as
                 // "failed to detect subtitle format from content".
                 if (url && url.includes("/api/v1/mediastream/subs/")) {
-                    content = await fetchSubtitleTextWithRetry(url, isStale)
+                    content = await fetchSubtitleTextWithRetry(url, isStale, this.abortController.signal)
                     url = undefined
                 }
                 let assContent = await this.fetchAndConvertToASS(url, content, fileTrack.info.headers)

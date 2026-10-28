@@ -1027,8 +1027,11 @@ func (m *AnilistClientManager) ApplyAnimeListEntryUpdate(
 	// Written through, so the change survives the in-memory copy being evicted or the server being
 	// restarted. Without this the patch lived only in memory while the disk copy went on holding
 	// the value the user had just changed.
+	//
+	// Off the request path: this runs inside a Save, and writing a large collection to a NAS disk
+	// is not something the Save button should wait on.
 	if applied {
-		m.saveAnimeCollectionToDisk(profileID, col)
+		go m.saveAnimeCollectionToDisk(profileID, col)
 	}
 	return applied
 }

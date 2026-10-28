@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/samber/mo"
-
 	"github.com/labstack/echo/v4"
 )
 
@@ -142,7 +140,9 @@ func (r *Repository) ServeEchoTranscodeStream(c echo.Context, clientId string) e
 }
 
 // ShutdownTranscodeStream It should be called when unmounting the player (playback is no longer needed).
-// This will also send an events.MediastreamShutdownStream event.
+// It ends the client's session whatever the stream type (the endpoint predates direct play sessions
+// mattering): direct play has to say goodbye too, or its session kept the transcoder from ever being
+// reset. A transcode stream also sends an events.MediastreamShutdownStream event.
 func (r *Repository) ShutdownTranscodeStream(clientId string) {
 	r.reqMu.Lock()
 	defer r.reqMu.Unlock()
@@ -151,31 +151,23 @@ func (r *Repository) ShutdownTranscodeStream(clientId string) {
 		return
 	}
 
-	if !r.TranscoderIsInitialized() {
+	prev, found := r.playbackManager.lookupStream(clientId)
+	if !found {
 		return
 	}
 
-	r.logger.Warn().Str("client_id", clientId).Msg("mediastream: Received shutdown transcode stream request")
-
-	if !r.playbackManager.activeStreams.Has(clientId) {
-		return
-	}
+	r.logger.Debug().Str("client_id", clientId).Str("type", string(prev.StreamType)).Msg("mediastream: Received shutdown stream request")
 
 	// Kill playback for this client
 	r.playbackManager.KillPlayback(clientId)
-
-	// Only destroy and recreate the transcoder if no active streams remain
-	hasActiveStreams := false
-	r.playbackManager.activeStreams.Range(func(_ string, _ *MediaContainer) bool {
-		hasActiveStreams = true
-		return false // stop iteration
-	})
-	if !hasActiveStreams {
-		r.transcoder.MustGet().Destroy()
-		r.transcoder = mo.None[*transcoder.Transcoder]()
-		r.initializeTranscoder(r.settings)
+	if prev.StreamType == StreamTypeTranscode {
+		r.forgetTranscodeClient(clientId)
 	}
 
-	// Send event with clientId so the frontend can filter
-	r.wsEventManager.SendEvent(events.MediastreamShutdownStream, nil)
+	// Only destroy and recreate the transcoder if no active streams remain
+	r.resetTranscoderIfIdle()
+
+	if prev.StreamType == StreamTypeTranscode {
+		r.wsEventManager.SendEvent(events.MediastreamShutdownStream, nil)
+	}
 }

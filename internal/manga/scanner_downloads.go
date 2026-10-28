@@ -196,7 +196,8 @@ func canBeLinked(synthetic *models.SyntheticManga) bool {
 func (d *Downloader) describeAniListDownload(ctx context.Context, client anilist.AnilistClient, mediaID int) bool {
 	// No deadline: the user is watching this scan, and a request that has queued behind a rate limit
 	// is worth waiting out rather than cancelling and leaving the series undescribed.
-	res, err := client.BaseMangaByID(anilist.WithUserInitiated(ctx), &mediaID)
+	// Not marked user-initiated: one of many in a scan, and a list Save shouldn't queue behind it.
+	res, err := client.BaseMangaByID(ctx, &mediaID)
 	if err != nil || res == nil || res.GetMedia() == nil {
 		d.logger.Debug().Err(err).Int("mediaId", mediaID).
 			Msg("manga-scan: AniList had nothing for a downloaded series")

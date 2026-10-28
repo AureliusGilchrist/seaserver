@@ -375,11 +375,14 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
 
     const handleTerminateStream = React.useCallback(() => {
         log.info("Terminating stream")
-        if (mediaContainer?.streamType === "transcode") {
+        // Direct play too: the server keeps a session per client until told it's over, and a
+        // forgotten one kept its subtitle extraction running and the transcoder from ever resetting.
+        // (The endpoint is named for transcoding but ends any stream type's session.)
+        if (mediaContainer) {
             shutdownTranscode({ clientId: mediastreamSessionId })
         }
         changeUrl(undefined)
-    }, [mediaContainer?.streamType, shutdownTranscode, mediastreamSessionId])
+    }, [mediaContainer, shutdownTranscode, mediastreamSessionId])
 
     const handleChangeStreamType = React.useCallback((type: Mediastream_StreamType) => {
         log.info("Changing stream type to", type)

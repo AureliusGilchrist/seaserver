@@ -2,6 +2,7 @@ package mediastream
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"seanime/internal/mediastream/videofile"
 	"seanime/internal/util/filecache"
 	"sync"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/samber/mo"
@@ -54,7 +56,32 @@ func NewRepository(opts *NewRepositoryOptions) *Repository {
 	}
 	ret.playbackManager = NewPlaybackManager(ret)
 
+	go ret.reapIdleStreamsLoop()
+
 	return ret
+}
+
+// reapIdleStreamsLoop sets aside streams that have gone quiet (a closed tab never says goodbye), so
+// they stop counting as active and the transcoder can be reset once nobody is watching.
+func (r *Repository) reapIdleStreamsLoop() {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for range ticker.C {
+		if !r.IsInitialized() {
+			continue
+		}
+		r.reqMu.Lock()
+		reaped := r.playbackManager.reapIdle(idleStreamTimeout)
+		for _, s := range reaped {
+			if s.streamType == StreamTypeTranscode {
+				r.forgetTranscodeClient(s.clientId)
+			}
+		}
+		if len(reaped) > 0 {
+			r.resetTranscoderIfIdle()
+		}
+		r.reqMu.Unlock()
+	}
 }
 
 func (r *Repository) IsInitialized() bool {
@@ -138,6 +165,8 @@ func (r *Repository) warmUp(settings *models.MediastreamSettings) {
 // CacheWasCleared should be called when the cache directory is manually cleared.
 func (r *Repository) CacheWasCleared() {
 	r.playbackManager.mediaContainers.Clear()
+	// The extracted subtitles and fonts went with the cache, so they must be extracted again.
+	r.playbackManager.extractionStatuses.Clear()
 }
 
 func (r *Repository) ClearTranscodeDir() {
@@ -196,13 +225,7 @@ func (r *Repository) StartMediaOptimization(opts *StartMediaOptimizationOptions)
 }
 
 func (r *Repository) RequestOptimizedStream(filepath string, clientId string) (ret *MediaContainer, err error) {
-	if !r.IsInitialized() {
-		return nil, errors.New("module not initialized")
-	}
-
-	ret, err = r.playbackManager.RequestPlayback(filepath, StreamTypeOptimized, clientId)
-
-	return
+	return r.requestPlayback(filepath, StreamTypeOptimized, clientId)
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -214,31 +237,58 @@ func (r *Repository) TranscoderIsInitialized() bool {
 }
 
 func (r *Repository) RequestTranscodeStream(filepath string, clientId string) (ret *MediaContainer, err error) {
-	r.reqMu.Lock()
-	defer r.reqMu.Unlock()
-
 	r.logger.Debug().Str("filepath", filepath).Msg("mediastream: Transcode stream requested")
+	return r.requestPlayback(filepath, StreamTypeTranscode, clientId)
+}
 
+// requestPlayback makes the file the client's stream. Reading the file (stat, ffprobe) happens before
+// taking reqMu: it can take seconds on a NAS, and every other client's request used to queue behind it.
+func (r *Repository) requestPlayback(filepath string, streamType StreamType, clientId string) (ret *MediaContainer, err error) {
 	if !r.IsInitialized() {
 		return nil, errors.New("module not initialized")
 	}
 
-	// Initialize the transcoder if it isn't already running. The transcoder itself supports
-	// multiple concurrent FileStreams (keyed by file path), so it must stay alive across
-	// requests — recreating it here on every request would destroy every other client's
-	// in-flight ffmpeg process (see initializeTranscoder/Transcoder.Destroy), which is what
-	// caused concurrent clients (e.g. web + denshi) to fail to start ffmpeg for each other.
-	// Settings changes are picked up via InitOrRefreshMediastreamSettings -> InitializeModules,
-	// not here.
-	if !r.transcoder.IsPresent() {
-		if ok := r.initializeTranscoder(r.settings); !ok {
-			return nil, errors.New("real-time transcoder not initialized, check your settings")
+	start := time.Now()
+	container, timings, err := r.playbackManager.loadMediaContainer(filepath)
+	if err != nil {
+		r.logger.Error().Err(err).Str("filepath", filepath).Msg("mediastream: Failed to create media container")
+		return nil, fmt.Errorf("failed to create media container: %v", err)
+	}
+
+	lockStart := time.Now()
+	r.reqMu.Lock()
+	defer r.reqMu.Unlock()
+	lockWait := time.Since(lockStart)
+
+	if streamType == StreamTypeTranscode {
+		// Initialize the transcoder if it isn't already running. The transcoder itself supports
+		// multiple concurrent FileStreams (keyed by file path), so it must stay alive across
+		// requests — recreating it here on every request would destroy every other client's
+		// in-flight ffmpeg process (see initializeTranscoder/Transcoder.Destroy), which is what
+		// caused concurrent clients (e.g. web + denshi) to fail to start ffmpeg for each other.
+		// Settings changes are picked up via InitOrRefreshMediastreamSettings -> InitializeModules,
+		// not here.
+		if !r.transcoder.IsPresent() {
+			if ok := r.initializeTranscoder(r.settings); !ok {
+				return nil, errors.New("real-time transcoder not initialized, check your settings")
+			}
 		}
 	}
 
-	ret, err = r.playbackManager.RequestPlayback(filepath, StreamTypeTranscode, clientId)
+	ret = r.playbackManager.startPlayback(container, streamType, clientId)
 
-	return
+	r.logger.Info().
+		Str("clientId", clientId).
+		Str("type", string(streamType)).
+		Dur("stat", timings.stat).
+		Dur("probe", timings.probe).
+		Bool("cached", timings.cached).
+		Bool("shared", timings.shared).
+		Dur("lockWait", lockWait).
+		Dur("total", time.Since(start)).
+		Msg("mediastream: Playback request timing")
+
+	return ret, nil
 }
 
 func (r *Repository) RequestPreloadTranscodeStream(filepath string) (err error) {
@@ -258,18 +308,8 @@ func (r *Repository) RequestPreloadTranscodeStream(filepath string) (err error) 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func (r *Repository) RequestDirectPlay(filepath string, clientId string) (ret *MediaContainer, err error) {
-	r.reqMu.Lock()
-	defer r.reqMu.Unlock()
-
 	r.logger.Debug().Str("filepath", filepath).Msg("mediastream: Direct play requested")
-
-	if !r.IsInitialized() {
-		return nil, errors.New("module not initialized")
-	}
-
-	ret, err = r.playbackManager.RequestPlayback(filepath, StreamTypeDirect, clientId)
-
-	return
+	return r.requestPlayback(filepath, StreamTypeDirect, clientId)
 }
 
 func (r *Repository) RequestPreloadDirectPlay(filepath string) (err error) {
@@ -286,7 +326,7 @@ func (r *Repository) RequestPreloadDirectPlay(filepath string) (err error) {
 
 // GetFilePathByClientId resolves the underlying file path for a given mediastream client session.
 func (r *Repository) GetFilePathByClientId(clientId string) (string, error) {
-	mc, found := r.playbackManager.GetActiveStream(clientId)
+	mc, found := r.playbackManager.lookupStream(clientId)
 	if !found {
 		return "", errors.New("no active stream for client")
 	}
@@ -295,15 +335,49 @@ func (r *Repository) GetFilePathByClientId(clientId string) (string, error) {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
+// initializeTranscoder replaces the transcoder with a new one built from the settings. The old one is
+// shut down in the background; the new one has already moved its segments aside (NewTranscoder).
+// The caller holds reqMu, or is setting the module up.
 func (r *Repository) initializeTranscoder(settings mo.Option[*models.MediastreamSettings]) bool {
-	// Destroy the old transcoder if it exists
-	if r.transcoder.IsPresent() {
-		tc, _ := r.transcoder.Get()
-		tc.Destroy()
+	old, hadOld := r.transcoder.Get()
+
+	// The old transcoder stays in place until the new one is ready, so a segment request arriving
+	// meanwhile doesn't find none.
+	ok := r.createTranscoder(settings)
+	if !ok {
+		r.transcoder = mo.None[*transcoder.Transcoder]()
 	}
+	if hadOld {
+		go func() {
+			if ok {
+				old.Stop()
+			} else {
+				old.Destroy()
+			}
+		}()
+	}
+	return ok
+}
 
-	r.transcoder = mo.None[*transcoder.Transcoder]()
+// resetTranscoderIfIdle replaces the transcoder once no client is streaming anything, so a session's
+// leftover encoders and segments go away. The caller holds reqMu.
+func (r *Repository) resetTranscoderIfIdle() bool {
+	if r.playbackManager.hasActiveStreams() || !r.transcoder.IsPresent() {
+		return false
+	}
+	r.logger.Debug().Msg("mediastream: No active streams, resetting the transcoder")
+	r.initializeTranscoder(r.settings)
+	return true
+}
 
+// forgetTranscodeClient stops the encoders only this client was using. The caller holds reqMu.
+func (r *Repository) forgetTranscodeClient(clientId string) {
+	if tc, ok := r.transcoder.Get(); ok {
+		tc.ForgetClient(clientId)
+	}
+}
+
+func (r *Repository) createTranscoder(settings mo.Option[*models.MediastreamSettings]) bool {
 	// If the transcoder is not enabled, don't initialize the transcoder
 	if !settings.MustGet().TranscodeEnabled {
 		return false

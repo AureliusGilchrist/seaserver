@@ -56,3 +56,19 @@ func printExecTime(logger *zerolog.Logger, message string, args ...any) func() {
 		logger.Trace().Msgf("transcoder: %s finished in %s", msg, time.Since(start))
 	}
 }
+
+// removeDirInBackground deletes dir without making the caller wait. The directory is first renamed
+// out of the way (fast, and the path is free again at once for a new stream of the same file), then
+// deleted; if the rename fails (files still open on Windows) it is deleted in place.
+func removeDirInBackground(dir string) {
+	if _, err := os.Stat(dir); err != nil {
+		return
+	}
+	trash := fmt.Sprintf("%s.trash-%d", dir, time.Now().UnixNano())
+	if err := os.Rename(dir, trash); err != nil {
+		trash = dir
+	}
+	go func() {
+		_ = os.RemoveAll(trash)
+	}()
+}
