@@ -72,6 +72,8 @@ export interface BackendUpdateStatus {
     nextCheck?: number
     lastError?: string
     lastUpdated?: string
+    /** Where a running update is, so a page opened mid-update shows the real step. */
+    progress?: { percent: number, step: string, detail?: string, startedAt: number, stepAt: number }
 }
 
 export const BACKEND_UPDATE_STATUS_KEY = ["update-backend-status"]
@@ -82,7 +84,8 @@ export function useBackendUpdateStatus(enabled: boolean = true) {
         method: "GET",
         queryKey: BACKEND_UPDATE_STATUS_KEY,
         staleTime: 0,
-        refetchInterval: 30_000,
+        // Every few seconds while an update runs, so the progress keeps up.
+        refetchInterval: query => (query.state.data?.updating ? 3_000 : 30_000),
         enabled,
         muteError: true,
     })

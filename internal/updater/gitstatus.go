@@ -50,6 +50,19 @@ type UpdateStatus struct {
 	NextCheck     int64           `json:"nextCheck,omitempty"`   // unix seconds
 	LastError     string          `json:"lastError,omitempty"`
 	LastUpdated   string          `json:"lastUpdated,omitempty"` // RFC3339, from the last update notice
+	// Progress is where a running update is, so a page opened mid-update shows the real step. It
+	// used to be sent only as websocket events, so a page opened after the update started sat at
+	// "Starting the update… 0%" until the server restarted.
+	Progress *UpdateProgress `json:"progress,omitempty"`
+}
+
+// UpdateProgress is the running update's current step.
+type UpdateProgress struct {
+	Percent   int    `json:"percent"`
+	Step      string `json:"step"`
+	Detail    string `json:"detail,omitempty"` // the build's latest output line
+	StartedAt int64  `json:"startedAt"`        // unix seconds
+	StepAt    int64  `json:"stepAt"`           // unix seconds the step began
 }
 
 type statusCache struct {
@@ -69,6 +82,9 @@ func (u *GitAutoUpdater) Status() UpdateStatus {
 	s.Version = constants.Version
 	s.Commit = shortHash(u.headCommit())
 	s.Updating = u.updating.Load()
+	if s.Updating {
+		s.Progress = u.currentProgress()
+	}
 	if s.Commits == nil {
 		s.Commits = []PendingCommit{}
 	}

@@ -77,6 +77,14 @@ export function ServerUpdateCard({ remote, running, checking, progress, errorTex
         return () => window.clearInterval(id)
     }, [])
 
+    // Live events when this page saw them; otherwise the server's own record of where it is (a page
+    // opened mid-update has missed every event so far).
+    const serverProgress = status?.updating ? status.progress : undefined
+    if (!progress && serverProgress) {
+        progress = { percent: serverProgress.percent, step: serverProgress.step, failed: false }
+    }
+    const detail = status?.updating ? serverProgress?.detail : undefined
+    const startedAt = status?.updating ? serverProgress?.startedAt : undefined
     const state = stateOf(status, running, progress)
     const pill = PILL[state]
     const failure = errorText || (progress?.failed ? progress.step : null) || status?.lastError || null
@@ -135,7 +143,11 @@ export function ServerUpdateCard({ remote, running, checking, progress, errorTex
                     <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
                         <div className="h-full rounded-full bg-gradient-to-r from-brand-400 to-cyan-300 transition-[width] duration-1000" style={{ width: `${progress?.percent ?? 3}%` }} />
                     </div>
-                    <p className="mt-2 text-[11px] text-[--muted]">The server restarts when the build is done; this page reconnects by itself.</p>
+                    {!!detail && <p className="mt-2 truncate font-mono text-[11px] text-white/55" title={detail}>{detail}</p>}
+                    <p className="mt-2 text-[11px] text-[--muted]">
+                        {startedAt ? `Running for ${Math.max(1, Math.round((Date.now() / 1000 - startedAt) / 60))} min · ` : ""}
+                        The server restarts when the build is done; this page reconnects by itself.
+                    </p>
                 </div>
             )}
 

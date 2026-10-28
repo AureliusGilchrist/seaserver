@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 	_ "time/tzdata"
@@ -68,6 +69,9 @@ type GitAutoUpdater struct {
 	// directory, not in memory.
 	appDataDir string
 	updating   atomic.Bool
+
+	progressMu sync.Mutex
+	progressAt *UpdateProgress
 }
 
 // gitUpdaterRef holds the updater the server started with, so the API can ask it whether the
@@ -581,10 +585,28 @@ func (u *GitAutoUpdater) runUpdate() {
 	started := time.Now()
 	build.Dir = u.repoDir
 	var buildOut bytes.Buffer
-	build.Stdout = io.MultiWriter(os.Stdout, &buildOut)
-	build.Stderr = io.MultiWriter(os.Stderr, &buildOut)
-	if err := build.Run(); err != nil {
-		u.fail(fmt.Sprintf("running the build script (%s, failed after %s)", strings.Join(build.Args, " "), time.Since(started).Round(time.Millisecond)), err, buildOut.String())
+	tail := &lineTail{}
+	build.Stdout = io.MultiWriter(os.Stdout, &buildOut, tail)
+	build.Stderr = io.MultiWriter(os.Stderr, &buildOut, tail)
+	// The build is most of an update's time; while it runs, its latest output line and an
+	// estimated percentage are published every few seconds, so the page shows it moving.
+	stopTicker := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(3 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stopTicker:
+				return
+			case <-ticker.C:
+				u.buildDetail(tail.Last(), time.Since(started))
+			}
+		}
+	}()
+	buildErr := build.Run()
+	close(stopTicker)
+	if buildErr != nil {
+		u.fail(fmt.Sprintf("running the build script (%s, failed after %s)", strings.Join(build.Args, " "), time.Since(started).Round(time.Millisecond)), buildErr, buildOut.String())
 		return
 	}
 
@@ -802,6 +824,14 @@ func (u *GitAutoUpdater) notify(message string) {
 }
 
 func (u *GitAutoUpdater) progress(percent int, step string) {
+	now := time.Now().Unix()
+	u.progressMu.Lock()
+	started := now
+	if u.progressAt != nil && percent > 5 {
+		started = u.progressAt.StartedAt
+	}
+	u.progressAt = &UpdateProgress{Percent: percent, Step: step, StartedAt: started, StepAt: now}
+	u.progressMu.Unlock()
 	if u.wsEventManager != nil {
 		u.wsEventManager.SendEvent(events.UpdateBackendProgress, struct {
 			Percent int    `json:"percent"`
@@ -1045,4 +1075,78 @@ func (u *GitAutoUpdater) clearStaleIndexLock() {
 	if err := os.Remove(lock); err == nil {
 		u.logger.Warn().Str("lock", lock).Msg("selfupdate: Removed a stale git index.lock left by an interrupted git")
 	}
+}
+
+func (u *GitAutoUpdater) currentProgress() *UpdateProgress {
+	u.progressMu.Lock()
+	defer u.progressMu.Unlock()
+	if u.progressAt == nil {
+		return nil
+	}
+	p := *u.progressAt
+	return &p
+}
+
+// buildDetail records the build's latest output line and, while the build runs, creeps the
+// percentage from 42 towards 68 on a typical build's pace — the build is most of an update's time
+// and used to show one unmoving step for ten minutes or more.
+func (u *GitAutoUpdater) buildDetail(line string, elapsed time.Duration) {
+	u.progressMu.Lock()
+	if u.progressAt == nil {
+		u.progressMu.Unlock()
+		return
+	}
+	u.progressAt.Detail = line
+	pct := 42 + int(26*elapsed.Seconds()/(15*time.Minute).Seconds())
+	if pct > 68 {
+		pct = 68
+	}
+	if pct > u.progressAt.Percent {
+		u.progressAt.Percent = pct
+	}
+	p := *u.progressAt
+	u.progressMu.Unlock()
+	if u.wsEventManager != nil {
+		u.wsEventManager.SendEvent(events.UpdateBackendProgress, struct {
+			Percent int    `json:"percent"`
+			Step    string `json:"step"`
+			Detail  string `json:"detail"`
+		}{Percent: p.Percent, Step: p.Step, Detail: p.Detail})
+	}
+}
+
+// lineTail keeps the last non-empty line written to it.
+type lineTail struct {
+	mu   sync.Mutex
+	buf  []byte
+	last string
+}
+
+func (t *lineTail) Write(p []byte) (int, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.buf = append(t.buf, p...)
+	for {
+		i := bytes.IndexAny(t.buf, "\r\n")
+		if i < 0 {
+			break
+		}
+		if line := strings.TrimSpace(string(t.buf[:i])); line != "" {
+			if len(line) > 200 {
+				line = line[:200] + "…"
+			}
+			t.last = line
+		}
+		t.buf = t.buf[i+1:]
+	}
+	if len(t.buf) > 64*1024 {
+		t.buf = t.buf[len(t.buf)-4096:]
+	}
+	return len(p), nil
+}
+
+func (t *lineTail) Last() string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.last
 }
