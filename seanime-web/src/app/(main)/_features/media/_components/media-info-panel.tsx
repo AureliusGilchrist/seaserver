@@ -271,11 +271,9 @@ export function MediaStaffSection({ info, className }: { info: MediaInfo | undef
             <MediaSectionHeading icon={<LuUsers />} title="Staff" count={staff.length} />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                 {staff.map((e, i) => (
-                    <a
+                    <SeaLink
                         key={`${e.node!.id}-${i}`}
-                        href={e.node!.siteUrl || `https://anilist.co/staff/${e.node!.id}`}
-                        target="_blank"
-                        rel="noreferrer"
+                        href={`/staff?id=${e.node!.id}`}
                         className="group flex items-center gap-3 rounded-2xl bg-white/[0.04] p-2 ring-1 ring-white/[0.08] backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-white/[0.07] hover:ring-white/15"
                     >
                         <span className="relative size-14 shrink-0 overflow-hidden rounded-xl bg-white/[0.05]">
@@ -285,7 +283,7 @@ export function MediaStaffSection({ info, className }: { info: MediaInfo | undef
                             <span className="block truncate text-sm font-semibold text-white group-hover:text-brand-100">{e.node!.name?.full}</span>
                             {e.role && <span className="mt-1 inline-block max-w-full truncate rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] font-medium text-white/65 ring-1 ring-white/10">{e.role}</span>}
                         </span>
-                    </a>
+                    </SeaLink>
                 ))}
             </div>
         </section>

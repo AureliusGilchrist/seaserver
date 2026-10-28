@@ -200,6 +200,15 @@ export const API_ENDPOINTS = {
             methods: ["GET"],
             endpoint: "/api/v1/anilist/media/{id}/info",
         },
+        /**
+         *  @description
+         *  Route returns a studio's filmography, directors and statistics.
+         */
+        GetStudioProfile: {
+            key: "ANILIST-get-studio-profile",
+            methods: ["GET"],
+            endpoint: "/api/v1/anilist/studio/{id}/profile",
+        },
         GetAnilistEditQueue: {
             key: "ANILIST-get-anilist-edit-queue",
             methods: ["GET"],

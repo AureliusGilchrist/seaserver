@@ -526,3 +526,69 @@ export function useGetMediaInfo(id: Nullish<number | string>) {
         muteError: true,
     })
 }
+
+export type StudioWork = {
+    id: number
+    idMal?: number
+    format?: string
+    status?: string
+    episodes?: number
+    duration?: number
+    season?: string
+    seasonYear?: number
+    startDate?: MediaFuzzyDate
+    title?: { userPreferred?: string, romaji?: string, english?: string, native?: string }
+    coverImage?: { extraLarge?: string, large?: string, medium?: string, color?: string }
+    bannerImage?: string
+    meanScore?: number
+    popularity?: number
+    favourites?: number
+    genres?: string[]
+    isAdult?: boolean
+    isMainStudio: boolean
+    directors?: number[]
+}
+
+export type StudioPerson = { id: number, name: string, native?: string, image?: string, role: string, works: number[] }
+export type StudioCount = { key: string, count: number }
+
+export type StudioProfile = {
+    id: number
+    name: string
+    isAnimationStudio: boolean
+    siteUrl?: string
+    favourites: number
+    totalWorks: number
+    works: StudioWork[]
+    directors: StudioPerson[]
+    stats: {
+        mainCount: number
+        supportingCount: number
+        firstYear?: number
+        lastYear?: number
+        meanScore?: number
+        totalEpisodes: number
+        totalMinutes: number
+        totalPopularity: number
+        totalFavourites: number
+        airing: number
+        upcoming: number
+        formats: StudioCount[]
+        genres: StudioCount[]
+        years: StudioCount[]
+    }
+}
+
+/** A studio's filmography, directors and statistics, for the studio page. */
+export function useGetStudioProfile(id: Nullish<number | string>) {
+    return useServerQuery<StudioProfile>({
+        endpoint: API_ENDPOINTS.ANILIST.GetStudioProfile.endpoint.replace("{id}", String(id)),
+        method: API_ENDPOINTS.ANILIST.GetStudioProfile.methods[0],
+        queryKey: [API_ENDPOINTS.ANILIST.GetStudioProfile.key, String(id)],
+        enabled: !!id && Number(id) > 0,
+        staleTime: 1000 * 60 * 30,
+        retry: 2,
+        retryDelay: attempt => Math.min(3000 * 2 ** attempt, 12000),
+        muteError: true,
+    })
+}
