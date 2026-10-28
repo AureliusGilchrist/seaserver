@@ -17,9 +17,21 @@ interface ClientProvidersProps {
     children?: React.ReactNode
 }
 
+// The client talks to its own server — on this machine or the LAN (a NAS) — so whether the operating
+// system thinks the internet is up says nothing about whether a request can be made. React Query's
+// default ("online") mode pauses every new request while the browser reports being offline and
+// only resumes on an "online" event. Electron reports offline whenever a network adapter drops
+// (Wi-Fi blips, a link-local NAS cable with no internet), and the "online" event doesn't always
+// follow: the player then sat on "Setting up stream…" forever and the next episode never started,
+// with the server never asked — until Denshi was restarted. Requests are always sent; a server
+// that really is unreachable fails them, which the app already handles.
 export const queryClient = new QueryClient({
     defaultOptions: {
+        mutations: {
+            networkMode: "always",
+        },
         queries: {
+            networkMode: "always",
             refetchOnWindowFocus: false,
             retry: 0,
             // 30 min stale time — backend syncs every 10 min, persisted cache is the source of truth

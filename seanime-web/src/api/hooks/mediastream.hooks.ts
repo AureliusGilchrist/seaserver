@@ -43,6 +43,9 @@ export function useRequestMediastreamMediaContainer(variables: Partial<RequestMe
         staleTime: 0,
         gcTime: 0,
         refetchOnMount: "always",
+        // The server answers in well under a second; a request that hasn't come back in a minute
+        // is stuck, and showing "Setting up stream…" forever was worse than an error to retry.
+        timeout: 60_000,
     })
 }
 
