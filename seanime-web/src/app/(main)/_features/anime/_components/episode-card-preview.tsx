@@ -5,6 +5,7 @@ import { useGetMediaTrailer } from "@/api/hooks/anilist.hooks"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { useServerHMACAuth } from "@/app/(main)/_hooks/use-server-status"
 import { ElectronYoutubeEmbed } from "@/app/(main)/_electron/electron-embed"
+import { controlYoutubeFrame, TRAILER_FADE_MS } from "@/app/(main)/_electron/youtube-control"
 import { cn } from "@/components/ui/core/styling"
 import { __isElectronDesktop__ } from "@/types/constants"
 import React from "react"
@@ -131,16 +132,12 @@ function TrailerPreview({ trailerId: originalTrailerId, mediaId, hovered, onPlay
                     />
                     : <iframe
                         key={sound ? "sound" : "muted"}
-                        src={`https://www.youtube-nocookie.com/embed/${trailerId}?autoplay=1&controls=0&mute=${sound ? 0 : 1}&disablekb=1&loop=1&playlist=${trailerId}&vq=medium&enablejsapi=1${captions ? `&cc_load_policy=1&cc_lang_pref=${captions}&hl=${captions}` : ""}`}
+                        src={`https://www.youtube-nocookie.com/embed/${trailerId}?autoplay=1&controls=0&mute=1&disablekb=1&loop=1&playlist=${trailerId}&vq=medium&enablejsapi=1${captions ? `&cc_load_policy=1&cc_lang_pref=${captions}&hl=${captions}` : ""}`}
                         className="absolute left-0 top-1/2 aspect-video h-[calc(100%+120px)] w-full -translate-y-1/2"
                         allow="autoplay"
                         onLoad={e => {
-                            const frame = e.currentTarget
-                            if (sound) {
-                                // Volume is set through YouTube's iframe API once its player listens.
-                                for (const ms of [500, 1500, 3000]) setTimeout(() => frame.contentWindow?.postMessage(
-                                    JSON.stringify({ event: "command", func: "setVolume", args: [personal.episodePreviewVolume] }), "*"), ms)
-                            }
+                            // Starts muted (autoplay), then the sound fades in once it plays.
+                            controlYoutubeFrame(e.currentTarget, { sound, volume: personal.episodePreviewVolume, fadeMs: TRAILER_FADE_MS })
                             onLoaded()
                         }}
                         onError={onFailed}

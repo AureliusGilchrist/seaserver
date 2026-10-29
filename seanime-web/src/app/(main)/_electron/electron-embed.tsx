@@ -1,4 +1,5 @@
 import { __isElectronDesktop__ } from "@/types/constants"
+import { TRAILER_FADE_MS, youtubeControlScript } from "@/app/(main)/_electron/youtube-control"
 import React from "react"
 
 export function useElectronYoutubeEmbed() {
@@ -18,20 +19,6 @@ export function useElectronYoutubeEmbed() {
         // trailer played at all.
         electronEmbedAddress: localServerPort ? `http://127.0.0.1:${localServerPort}/player/` : null,
     }
-}
-
-/** Script run inside the trailer page: tells its YouTube player to play with sound at a volume. */
-function youtubeSoundScript(sound: boolean | undefined, volume: number, captions?: string) {
-    const commands = sound === undefined
-        ? []
-        : sound
-            ? [`{"event":"command","func":"unMute","args":[]}`, `{"event":"command","func":"setVolume","args":[${Math.round(volume)}]}`, `{"event":"command","func":"playVideo","args":[]}`]
-            : [`{"event":"command","func":"mute","args":[]}`]
-    if (captions) {
-        commands.push(`{"event":"command","func":"loadModule","args":["captions"]}`)
-        commands.push(`{"event":"command","func":"setOption","args":["captions","track",{"languageCode":"${captions}"}]}`)
-    }
-    return `(() => { const f = document.querySelector("iframe"); if (!f || !f.contentWindow) return false; ${commands.map(c => `f.contentWindow.postMessage('${c}', "*");`).join(" ")} return true })()`
 }
 
 export function ElectronYoutubeEmbed({ trailerId, isCompact, isBanner, sound, volume = 50, captions, ...props }: {
@@ -79,22 +66,30 @@ export function ElectronYoutubeEmbed({ trailerId, isCompact, isBanner, sound, vo
         }
     }, [electronEmbedAddress, trailerId])
 
-    // Sound: sent a few times after load, since YouTube's player takes a moment to listen.
+    // Sound (faded in), mute and captions go to the player inside the trailer page. The script runs
+    // until the player reports playing, so it is sent once the page has its iframe.
     const loadedRef = React.useRef(false)
     React.useEffect(() => {
         const webview = webviewRef.current as any
         if (!webview || (sound === undefined && !captions)) return
         const timers: ReturnType<typeof setTimeout>[] = []
+        let done = false
         const send = () => {
+            if (done) return
             try {
-                void webview.executeJavaScript?.(youtubeSoundScript(sound, volume, captions))
+                Promise.resolve(webview.executeJavaScript?.(youtubeControlScript({ sound, volume, fadeMs: TRAILER_FADE_MS, captions })))
+                    .then((ok: unknown) => {
+                        if (ok === true) done = true
+                    })
+                    .catch(() => {})
             }
             catch {
                 // Not ready yet; a later attempt follows.
             }
         }
         const schedule = () => {
-            for (const ms of [300, 1200, 2500, 4500]) timers.push(setTimeout(send, ms))
+            done = false
+            for (const ms of [200, 800, 1800, 3500]) timers.push(setTimeout(send, ms))
         }
         const onLoad = () => {
             loadedRef.current = true
