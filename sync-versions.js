@@ -123,7 +123,9 @@ function patchGoConstants(relPath, version, codename, roomsVer) {
         return
     }
     writeFileSync(absPath, src)
-    console.log(`  [patch] ${relPath}: Version=${version}, Frontend=${version}, VersionName=${codename}`)
+    // No "file.go: message" shape: CI's Go problem matcher reads that as a compiler error and
+    // flags the (successful) release run with an "Error:" annotation.
+    console.log(`  [patch] ${relPath} → Version ${version}, Frontend ${version}, VersionName ${codename}`)
 }
 
 function main() {
