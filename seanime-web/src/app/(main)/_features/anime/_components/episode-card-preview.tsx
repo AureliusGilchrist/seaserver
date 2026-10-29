@@ -76,7 +76,7 @@ function TrailerPreview({ trailerId: originalTrailerId, mediaId, hovered, onPlay
     const captions = personal.trailerCaptions && (!wantDub || !lookup?.dub) ? "en" : undefined
     const [visible, setVisible] = React.useState(false)
     const [sound, setSound] = React.useState(() => soundOverride ?? personal.episodePreviewSound)
-    const canHover = React.useMemo(() => typeof window !== "undefined" && window.matchMedia?.("(hover: hover)").matches, [])
+    const canHover = useCanHover()
     const enabled = personal.episodePreviewEnabled && canHover && !unpreviewable.has(trailerId)
 
     const stop = React.useCallback(() => {
@@ -186,7 +186,7 @@ function FilePreview({ path, startAt, hovered, onPlayingChange }: EpisodeCardPre
     const [progress, setProgress] = React.useState(0)
     const [sound, setSound] = React.useState(() => soundOverride ?? personal.episodePreviewSound)
 
-    const canHover = React.useMemo(() => typeof window !== "undefined" && window.matchMedia?.("(hover: hover)").matches, [])
+    const canHover = useCanHover()
     const enabled = personal.episodePreviewEnabled && canHover && !!path && !unpreviewable.has(path)
 
     const stop = React.useCallback(() => {
@@ -234,6 +234,8 @@ function FilePreview({ path, startAt, hovered, onPlayingChange }: EpisodeCardPre
     React.useEffect(() => {
         if (!src || visible) return
         const t = setTimeout(() => {
+            const v = videoRef.current
+            previewWarn(`no picture after ${FIRST_FRAME_TIMEOUT_MS / 1000}s (readyState ${v?.readyState}, ${v?.videoWidth}x${v?.videoHeight}, error ${v?.error?.code ?? "none"})`, path)
             unpreviewable.add(path)
             stop()
         }, FIRST_FRAME_TIMEOUT_MS)
@@ -267,7 +269,8 @@ function FilePreview({ path, startAt, hovered, onPlayingChange }: EpisodeCardPre
             ? Math.max(0, startAt - 3)
             : v.duration * 0.1
         v.currentTime = Math.min(target, Math.max(0, v.duration - 5))
-        void v.play().catch(() => {
+        void v.play().catch((err: any) => {
+            previewWarn(`play() refused: ${err?.name ?? ""} ${err?.message ?? ""}`, path)
             unpreviewable.add(path)
             stop()
         })
@@ -294,9 +297,19 @@ function FilePreview({ path, startAt, hovered, onPlayingChange }: EpisodeCardPre
                 }}
                 onTimeUpdate={() => {
                     const v = videoRef.current
-                    if (v?.duration) setProgress(v.currentTime / v.duration)
+                    if (!v) return
+                    if (v.duration) setProgress(v.currentTime / v.duration)
+                    // Frames are playing: show it (the "playing" event can fire before the decoder
+                    // reports a picture size).
+                    if (!visible && v.videoWidth > 0 && !v.paused) {
+                        setVisible(true)
+                        registerActivePreview(path, v)
+                        fadeInAudio(v, sound ? personal.episodePreviewVolume / 100 : 0)
+                    }
                 }}
                 onError={() => {
+                    const e = videoRef.current?.error
+                    previewWarn(`video error ${e?.code ?? "?"} ${e?.message ?? ""}`, path)
                     unpreviewable.add(path)
                     stop()
                 }}
@@ -335,3 +348,21 @@ function fadeInAudio(v: HTMLVideoElement, target: number) {
 }
 
 const FADE_IN_MS = 2500
+
+/** Logged as a warning so it reaches Denshi's log (main.log): why a preview didn't show. */
+function previewWarn(reason: string, what: string) {
+    console.warn(`[EpisodeCardPreview] ${reason} — ${what}`)
+}
+
+/**
+ * Whether the pointer can hover. "(hover: hover)" describes the primary input only, and on a laptop
+ * with a touchscreen that can be the touch screen — which turned every preview off on a machine
+ * with a perfectly good mouse. Any hover-capable pointer counts, and the desktop app always does.
+ */
+function useCanHover() {
+    return React.useMemo(() => {
+        if (typeof window === "undefined") return false
+        if (__isElectronDesktop__) return true
+        return !!window.matchMedia?.("(any-hover: hover)").matches || !!window.matchMedia?.("(hover: hover)").matches
+    }, [])
+}
