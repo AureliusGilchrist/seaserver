@@ -81,6 +81,10 @@ func (h *Handler) HandleGetMediaTrailer(c echo.Context) error {
 			if found := searchDubTrailer(ctx, titles); found != "" {
 				res.ID, res.Dub = found, true
 			}
+		} else if found := searchJapaneseTrailer(ctx, titles); found != "" {
+			// AniList's trailer is not always the Japanese one (some shows list an English promo), so
+			// the original PV is looked for by the show's Japanese and romaji titles.
+			res.ID = found
 		}
 		trailerLookupMu.Lock()
 		trailerLookupCache[key] = &trailerLookupEntry{res: res, at: time.Now()}
@@ -101,7 +105,7 @@ func (h *Handler) HandleGetMediaTrailer(c echo.Context) error {
 // trailerAndTitles reads AniList's trailer and the show's titles (English first) through the paced path.
 func (h *Handler) trailerAndTitles(ctx context.Context, id int) (string, []string, error) {
 	body, _ := json.Marshal(map[string]any{
-		"query":     `query ($id: Int) { Media(id: $id) { title { english romaji } synonyms trailer { id site } } }`,
+		"query":     `query ($id: Int) { Media(id: $id) { title { english romaji native } synonyms trailer { id site } } }`,
 		"variables": map[string]any{"id": id},
 	})
 	data, err := anilist.CustomQueryCtx(ctx, body, h.App.Logger)
@@ -114,6 +118,7 @@ func (h *Handler) trailerAndTitles(ctx context.Context, id int) (string, []strin
 			Title struct {
 				English string `json:"english"`
 				Romaji  string `json:"romaji"`
+				Native  string `json:"native"`
 			} `json:"title"`
 			Trailer *struct {
 				ID   string `json:"id"`
@@ -129,8 +134,9 @@ func (h *Handler) trailerAndTitles(ctx context.Context, id int) (string, []strin
 	if m.Trailer != nil && strings.EqualFold(m.Trailer.Site, "youtube") {
 		trailer = m.Trailer.ID
 	}
+	// English, romaji, native: dub searches use the first two, Japanese searches the last two.
 	var titles []string
-	for _, t := range []string{m.Title.English, m.Title.Romaji} {
+	for _, t := range []string{m.Title.English, m.Title.Romaji, m.Title.Native} {
 		if t = strings.TrimSpace(t); t != "" {
 			titles = append(titles, t)
 		}
@@ -146,6 +152,9 @@ var (
 // searchDubTrailer looks for an English dub trailer of the show on YouTube.
 func searchDubTrailer(ctx context.Context, titles []string) string {
 	for _, title := range titles {
+		if hasJapanese(title) {
+			continue // a native title won't name an English dub
+		}
 		for _, q := range []string{title + " english dub trailer", title + " dub trailer"} {
 			for _, v := range youtubeSearch(ctx, q) {
 				if isDubTrailerFor(v.title, title) {
@@ -249,4 +258,83 @@ func parseYoutubeResults(page []byte) []ytResult {
 	}
 	walk(root)
 	return out
+}
+
+var japaneseScript = regexp.MustCompile(`[\p{Hiragana}\p{Katakana}\p{Han}]`)
+
+func hasJapanese(s string) bool { return japaneseScript.MatchString(s) }
+
+// searchJapaneseTrailer looks for the show's original Japanese trailer (PV) on YouTube: by its
+// native title first ("<title> PV", "<title> 予告"), then its romaji title.
+func searchJapaneseTrailer(ctx context.Context, titles []string) string {
+	var native, romaji string
+	for _, t := range titles {
+		if hasJapanese(t) {
+			if native == "" {
+				native = t
+			}
+		} else if romaji == "" || native == "" {
+			romaji = t // the last non-Japanese title before the native one is the romaji
+		}
+	}
+	type query struct{ q, title string }
+	var queries []query
+	if native != "" {
+		queries = append(queries, query{native + " PV", native}, query{native + " 予告", native})
+	}
+	if romaji != "" {
+		queries = append(queries, query{romaji + " PV", romaji}, query{romaji + " official trailer japanese", romaji})
+	}
+	for _, q := range queries {
+		for _, v := range youtubeSearch(ctx, q.q) {
+			if isJapaneseTrailerFor(v.title, q.title) {
+				return v.id
+			}
+		}
+	}
+	return ""
+}
+
+// isJapaneseTrailerFor reports whether a video title reads as the show's Japanese trailer: it names
+// the show, is a PV/trailer/teaser, and isn't a dub, a reaction or a fan edit.
+func isJapaneseTrailerFor(videoTitle, showTitle string) bool {
+	vt := strings.ToLower(videoTitle)
+	for _, bad := range []string{"dub", "english", "reaction", "review", "fan edit", "fanmade", "amv", "react"} {
+		if strings.Contains(vt, bad) {
+			return false
+		}
+	}
+	isTrailer := false
+	for _, w := range []string{"pv", "予告", "trailer", "teaser", "ティザー", "cm", "promo"} {
+		if strings.Contains(vt, w) {
+			isTrailer = true
+			break
+		}
+	}
+	if !isTrailer {
+		return false
+	}
+	if hasJapanese(showTitle) {
+		// Native titles: the title itself (or its first part) appears in the video's title.
+		st := strings.ToLower(strings.TrimSpace(showTitle))
+		if strings.Contains(vt, st) {
+			return true
+		}
+		if parts := strings.FieldsFunc(st, func(r rune) bool { return r == ' ' || r == '　' || r == '：' || r == ':' }); len(parts) > 0 && len([]rune(parts[0])) >= 2 {
+			return strings.Contains(vt, parts[0])
+		}
+		return false
+	}
+	words := titleWord.FindAllString(strings.ToLower(showTitle), -1)
+	matched, needed := 0, 0
+	for _, w := range words {
+		if len(w) < 3 {
+			continue
+		}
+		needed++
+		if strings.Contains(vt, w) {
+			matched++
+		}
+	}
+	return needed > 0 && matched*3 >= needed*2
 }

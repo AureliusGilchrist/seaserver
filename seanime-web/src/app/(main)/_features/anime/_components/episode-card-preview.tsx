@@ -64,8 +64,10 @@ function TrailerPreview({ trailerId: originalTrailerId, mediaId, hovered, onPlay
     // and when there is none, the original trailer plays. Sub turns English captions on.
     const wantDub = personal.trailerLanguage === "english" || (personal.trailerLanguage === "follow" && personal.audioPreference === "dub")
     const [lookedUp, setLookedUp] = React.useState(false)
-    const { data: lookup, isFetching: lookingUp } = useGetMediaTrailer(mediaId, "dub", wantDub && lookedUp)
-    const trailerId = (wantDub && lookup?.id) || originalTrailerId
+    // Both languages are looked up: English finds the dub trailer, Japanese the original PV (AniList's
+    // trailer isn't always the Japanese one). AniList's trailer plays while it answers or if nothing is found.
+    const { data: lookup, isFetching: lookingUp } = useGetMediaTrailer(mediaId, wantDub ? "dub" : "sub", lookedUp)
+    const trailerId = lookup?.id || originalTrailerId
     // English captions on a Japanese trailer (the original, or the fallback when no dub was found).
     const captions = personal.trailerCaptions && (!wantDub || !lookup?.dub) ? "en" : undefined
     const [visible, setVisible] = React.useState(false)
@@ -83,7 +85,7 @@ function TrailerPreview({ trailerId: originalTrailerId, mediaId, hovered, onPlay
             stop()
             return
         }
-        if (wantDub) setLookedUp(true) // starts the lookup during the hover delay
+        setLookedUp(true) // starts the lookup during the hover delay
         const timer = setTimeout(() => {
             activeStop?.()
             activeStop = stop
@@ -107,7 +109,7 @@ function TrailerPreview({ trailerId: originalTrailerId, mediaId, hovered, onPlay
     }, [visible])
 
     // Wait for the dub lookup rather than starting the original and switching mid-play.
-    if (!enabled || !active || (wantDub && lookingUp && !lookup)) return null
+    if (!enabled || !active || (lookingUp && !lookup)) return null
 
     const onLoaded = () => {
         setTimeout(() => setVisible(true), __isElectronDesktop__ ? 1500 : 1000)
@@ -132,7 +134,7 @@ function TrailerPreview({ trailerId: originalTrailerId, mediaId, hovered, onPlay
                     />
                     : <iframe
                         key={sound ? "sound" : "muted"}
-                        src={`https://www.youtube-nocookie.com/embed/${trailerId}?autoplay=1&controls=0&mute=1&disablekb=1&loop=1&playlist=${trailerId}&vq=medium&enablejsapi=1${captions ? `&cc_load_policy=1&cc_lang_pref=${captions}&hl=${captions}` : ""}`}
+                        src={`https://www.youtube-nocookie.com/embed/${trailerId}?autoplay=1&controls=0&mute=1&disablekb=1&loop=1&playlist=${trailerId}&vq=medium&enablejsapi=1${captions ? `&cc_load_policy=1&cc_lang_pref=${captions}` : ""}`}
                         className="absolute left-0 top-1/2 aspect-video h-[calc(100%+120px)] w-full -translate-y-1/2"
                         allow="autoplay"
                         onLoad={e => {

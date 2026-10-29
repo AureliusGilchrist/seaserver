@@ -28,3 +28,22 @@ func TestParseYoutubeResults(t *testing.T) {
 		t.Fatalf("got %+v", res)
 	}
 }
+
+func TestIsJapaneseTrailerFor(t *testing.T) {
+	cases := []struct {
+		video, show string
+		want        bool
+	}{
+		{"TVアニメ『キルラキル』PV第1弾", "キルラキル KILL la KILL", true},
+		{"「BLEACH」アニメ 予告", "BLEACH", true},
+		{"Kill la Kill - Official English Dub Trailer", "Kill la Kill", false},
+		{"Kill la Kill PV", "Kill la Kill", true},
+		{"Kill la Kill Reaction PV", "Kill la Kill", false},
+		{"キルラキル 第1話 感想", "キルラキル", false}, // not a trailer
+	}
+	for _, c := range cases {
+		if got := isJapaneseTrailerFor(c.video, c.show); got != c.want {
+			t.Errorf("%q / %q: got %v", c.video, c.show, got)
+		}
+	}
+}
