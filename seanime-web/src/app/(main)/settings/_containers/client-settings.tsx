@@ -594,6 +594,7 @@ export function ClientSettings(props: ClientSettingsProps) {
                                 <p className="mt-0.5 text-sm text-[--muted]">
                                     Which audio plays first in every player. Online streams switch to the dubbed version when there is one; library files pick
                                     the English audio track. A sub/dub choice you make for a series in the player still wins for that series.
+                                    Trailer previews follow it too: dub looks for the English dub trailer, sub shows the trailer with English captions.
                                 </p>
                             </div>
                             <div className="flex flex-wrap items-end gap-4">

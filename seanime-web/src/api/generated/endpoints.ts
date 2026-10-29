@@ -195,6 +195,15 @@ export const API_ENDPOINTS = {
          *  @description
          *  Route returns the extended AniList metadata shown on a details page.
          */
+        /**
+         *  @description
+         *  Route returns the YouTube trailer to preview for a media, in sub or dub.
+         */
+        GetMediaTrailer: {
+            key: "ANILIST-get-media-trailer",
+            methods: ["GET"],
+            endpoint: "/api/v1/anilist/media/{id}/trailer",
+        },
         GetMediaInfo: {
             key: "ANILIST-get-media-info",
             methods: ["GET"],

@@ -332,9 +332,13 @@ func NewLibraryCollection(ctx context.Context, opts *NewLibraryCollectionOptions
 //
 // Every list is shown in full now, files or no files, and a full AniList account is a lot of
 // entries — this is what makes that affordable. The three fields dropped here are the ones that do
-// not fit in a card and are the bulk of the payload: the synopsis is a paragraph of HTML, the tags
-// are a couple of dozen objects each, and the trailer is never played from a list. Between them
-// they are most of the weight of a media object, and none of it survives to the screen.
+// not fit in a card and are the bulk of the payload: the synopsis is a paragraph of HTML and the tags
+// are a couple of dozen objects each. Between them they are most of the weight of a media object,
+// and none of it survives to the screen.
+//
+// The trailer stays: it is three short strings, and cards do play it — the hover trailer on anime
+// cards and the trailer preview on Continue Watching. Clearing it here left both silent for every
+// show in the library.
 //
 // Everything a listing does read is kept, deliberately and by name: titles and synonyms (the search
 // box matches on both), cover and banner art, episode count, format, season, year, status, next
@@ -353,7 +357,6 @@ func slimListingMedia(media *anilist.BaseAnime) *anilist.BaseAnime {
 	slim := *media
 	slim.Description = nil
 	slim.Tags = nil
-	slim.Trailer = nil
 	return &slim
 }
 

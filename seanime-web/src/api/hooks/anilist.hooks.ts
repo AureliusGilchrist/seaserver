@@ -592,3 +592,15 @@ export function useGetStudioProfile(id: Nullish<number | string>) {
         muteError: true,
     })
 }
+
+/** The trailer to preview, in the profile's sub or dub (a dub is searched for; AniList's is the fallback). */
+export function useGetMediaTrailer(id: Nullish<number>, lang: "sub" | "dub", enabled: boolean) {
+    return useServerQuery<{ id: string, dub: boolean }>({
+        endpoint: API_ENDPOINTS.ANILIST.GetMediaTrailer.endpoint.replace("{id}", String(id)) + `?lang=${lang}`,
+        method: API_ENDPOINTS.ANILIST.GetMediaTrailer.methods[0],
+        queryKey: [API_ENDPOINTS.ANILIST.GetMediaTrailer.key, String(id), lang],
+        enabled: enabled && !!id && id > 0,
+        staleTime: 1000 * 60 * 60 * 24,
+        muteError: true,
+    })
+}

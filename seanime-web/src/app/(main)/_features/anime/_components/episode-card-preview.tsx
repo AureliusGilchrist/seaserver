@@ -1,6 +1,7 @@
 "use client"
 
 import { getServerBaseUrl } from "@/api/client/server-url"
+import { useGetMediaTrailer } from "@/api/hooks/anilist.hooks"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { useServerHMACAuth } from "@/app/(main)/_hooks/use-server-status"
 import { ElectronYoutubeEmbed } from "@/app/(main)/_electron/electron-embed"
@@ -32,6 +33,8 @@ export type EpisodeCardPreviewProps = {
     path?: string
     /** The anime's YouTube trailer, for "trailer" previews (the default). */
     trailerId?: string
+    /** The anime, so a dubbed trailer can be looked up when the profile watches dubs. */
+    mediaId?: number
     /** Seconds to start at (the resume point); undefined starts a little way in. */
     startAt?: number
     /** Whether the card is hovered (the card owns the hover state). */
@@ -53,9 +56,16 @@ export function EpisodeCardPreview(props: EpisodeCardPreviewProps) {
  * local player page on desktop, youtube-nocookie elsewhere). It fades in once loaded, so the card
  * never flashes an empty player.
  */
-function TrailerPreview({ trailerId, hovered, onPlayingChange }: EpisodeCardPreviewProps & { trailerId: string }) {
+function TrailerPreview({ trailerId: originalTrailerId, mediaId, hovered, onPlayingChange }: EpisodeCardPreviewProps & { trailerId: string }) {
     const personal = usePersonalSettings()
     const [active, setActive] = React.useState(false)
+    // Sub or dub (Personal settings): a dub trailer is looked up on first hover; until it answers,
+    // and when there is none, the original trailer plays. Sub turns English captions on.
+    const wantDub = personal.audioPreference === "dub"
+    const [lookedUp, setLookedUp] = React.useState(false)
+    const { data: lookup, isFetching: lookingUp } = useGetMediaTrailer(mediaId, "dub", wantDub && lookedUp)
+    const trailerId = (wantDub && lookup?.id) || originalTrailerId
+    const captions = !wantDub || !lookup?.dub ? "en" : undefined
     const [visible, setVisible] = React.useState(false)
     const [sound, setSound] = React.useState(() => soundOverride ?? personal.episodePreviewSound)
     const canHover = React.useMemo(() => typeof window !== "undefined" && window.matchMedia?.("(hover: hover)").matches, [])
@@ -71,6 +81,7 @@ function TrailerPreview({ trailerId, hovered, onPlayingChange }: EpisodeCardPrev
             stop()
             return
         }
+        if (wantDub) setLookedUp(true) // starts the lookup during the hover delay
         const timer = setTimeout(() => {
             activeStop?.()
             activeStop = stop
@@ -93,7 +104,8 @@ function TrailerPreview({ trailerId, hovered, onPlayingChange }: EpisodeCardPrev
         onPlayingChange?.(visible)
     }, [visible])
 
-    if (!enabled || !active) return null
+    // Wait for the dub lookup rather than starting the original and switching mid-play.
+    if (!enabled || !active || (wantDub && lookingUp && !lookup)) return null
 
     const onLoaded = () => {
         setTimeout(() => setVisible(true), __isElectronDesktop__ ? 1500 : 1000)
@@ -112,12 +124,13 @@ function TrailerPreview({ trailerId, hovered, onPlayingChange }: EpisodeCardPrev
                         trailerId={trailerId}
                         sound={sound}
                         volume={personal.episodePreviewVolume}
+                        captions={captions}
                         onLoad={onLoaded}
                         onError={onFailed}
                     />
                     : <iframe
                         key={sound ? "sound" : "muted"}
-                        src={`https://www.youtube-nocookie.com/embed/${trailerId}?autoplay=1&controls=0&mute=${sound ? 0 : 1}&disablekb=1&loop=1&playlist=${trailerId}&vq=medium&enablejsapi=1`}
+                        src={`https://www.youtube-nocookie.com/embed/${trailerId}?autoplay=1&controls=0&mute=${sound ? 0 : 1}&disablekb=1&loop=1&playlist=${trailerId}&vq=medium&enablejsapi=1${captions ? `&cc_load_policy=1&cc_lang_pref=${captions}&hl=${captions}` : ""}`}
                         className="absolute left-0 top-1/2 aspect-video h-[calc(100%+120px)] w-full -translate-y-1/2"
                         allow="autoplay"
                         onLoad={e => {

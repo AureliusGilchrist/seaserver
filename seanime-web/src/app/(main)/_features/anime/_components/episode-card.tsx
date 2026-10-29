@@ -274,6 +274,7 @@ export function EpisodeCard(props: EpisodeCardProps) {
                         {(!!previewPath || !!previewTrailerId) && !spoiler.blurImage && !spoiler.replaceImage && <EpisodeCardPreview
                             path={previewPath}
                             trailerId={previewTrailerId}
+                            mediaId={anime?.id ?? episode?.baseAnime?.id}
                             startAt={previewStartAt}
                             hovered={hovered}
                             onPlayingChange={playing => {

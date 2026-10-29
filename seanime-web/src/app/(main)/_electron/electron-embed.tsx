@@ -18,14 +18,18 @@ export function useElectronYoutubeEmbed() {
 }
 
 /** Script run inside the trailer page: tells its YouTube player to play with sound at a volume. */
-function youtubeSoundScript(sound: boolean, volume: number) {
+function youtubeSoundScript(sound: boolean, volume: number, captions?: string) {
     const commands = sound
         ? [`{"event":"command","func":"unMute","args":[]}`, `{"event":"command","func":"setVolume","args":[${Math.round(volume)}]}`, `{"event":"command","func":"playVideo","args":[]}`]
         : [`{"event":"command","func":"mute","args":[]}`]
+    if (captions) {
+        commands.push(`{"event":"command","func":"loadModule","args":["captions"]}`)
+        commands.push(`{"event":"command","func":"setOption","args":["captions","track",{"languageCode":"${captions}"}]}`)
+    }
     return `(() => { const f = document.querySelector("iframe"); if (!f || !f.contentWindow) return false; ${commands.map(c => `f.contentWindow.postMessage('${c}', "*");`).join(" ")} return true })()`
 }
 
-export function ElectronYoutubeEmbed({ trailerId, isCompact, isBanner, sound, volume = 50, ...props }: {
+export function ElectronYoutubeEmbed({ trailerId, isCompact, isBanner, sound, volume = 50, captions, ...props }: {
     isCompact?: boolean,
     isBanner?: boolean,
     trailerId: string | null | undefined
@@ -34,6 +38,8 @@ export function ElectronYoutubeEmbed({ trailerId, isCompact, isBanner, sound, vo
     sound?: boolean
     /** 0–100, with sound on. */
     volume?: number
+    /** Caption language to turn on (e.g. "en"), when the video has it. */
+    captions?: string
 } & React.HTMLAttributes<HTMLWebViewElement>) {
     const { electronEmbedAddress } = useElectronYoutubeEmbed()
 
@@ -76,7 +82,7 @@ export function ElectronYoutubeEmbed({ trailerId, isCompact, isBanner, sound, vo
         const timers: ReturnType<typeof setTimeout>[] = []
         const send = () => {
             try {
-                void webview.executeJavaScript?.(youtubeSoundScript(sound, volume))
+                void webview.executeJavaScript?.(youtubeSoundScript(sound, volume, captions))
             }
             catch {
                 // Not ready yet; a later attempt follows.
@@ -95,7 +101,7 @@ export function ElectronYoutubeEmbed({ trailerId, isCompact, isBanner, sound, vo
             timers.forEach(clearTimeout)
             webview.removeEventListener("did-finish-load", onLoad)
         }
-    }, [electronEmbedAddress, trailerId, sound, volume])
+    }, [electronEmbedAddress, trailerId, sound, volume, captions])
 
     if (!electronEmbedAddress) return null
 
