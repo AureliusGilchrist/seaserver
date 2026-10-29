@@ -3,11 +3,16 @@
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { useServerHMACAuth } from "@/app/(main)/_hooks/use-server-status"
+import { ElectronYoutubeEmbed } from "@/app/(main)/_electron/electron-embed"
 import { cn } from "@/components/ui/core/styling"
+import { __isElectronDesktop__ } from "@/types/constants"
 import React from "react"
 import { LuVolume2, LuVolumeX } from "react-icons/lu"
 
-// A Netflix-style preview of an episode from the library, playing inside its card while the card is
+// A Netflix-style preview on an episode card while it is hovered: the anime's trailer by default,
+// or (Personal settings) the episode itself.
+//
+// The episode preview: an episode from the library, playing inside its card while the card is
 // hovered. The file is streamed straight from the library (GET /mediastream/file, which supports
 // range requests and starts no playback session), so a preview never touches the real player.
 // Files the device can't decode (HEVC without hardware support, say) quietly stay on the image.
@@ -23,7 +28,10 @@ let soundOverride: boolean | null = null
 let activeStop: (() => void) | null = null
 
 export type EpisodeCardPreviewProps = {
-    path: string
+    /** The library file, for "episode" previews. */
+    path?: string
+    /** The anime's YouTube trailer, for "trailer" previews (the default). */
+    trailerId?: string
     /** Seconds to start at (the resume point); undefined starts a little way in. */
     startAt?: number
     /** Whether the card is hovered (the card owns the hover state). */
@@ -32,7 +40,127 @@ export type EpisodeCardPreviewProps = {
     onPlayingChange?: (playing: boolean) => void
 }
 
-export function EpisodeCardPreview({ path, startAt, hovered, onPlayingChange }: EpisodeCardPreviewProps) {
+export function EpisodeCardPreview(props: EpisodeCardPreviewProps) {
+    const personal = usePersonalSettings()
+    if (personal.episodePreviewSource === "trailer") {
+        return props.trailerId ? <TrailerPreview {...props} trailerId={props.trailerId} /> : null
+    }
+    return props.path ? <FilePreview {...props} path={props.path} /> : null
+}
+
+/**
+ * The anime's trailer, playing in the card: the same YouTube embed the anime cards use (Denshi's
+ * local player page on desktop, youtube-nocookie elsewhere). It fades in once loaded, so the card
+ * never flashes an empty player.
+ */
+function TrailerPreview({ trailerId, hovered, onPlayingChange }: EpisodeCardPreviewProps & { trailerId: string }) {
+    const personal = usePersonalSettings()
+    const [active, setActive] = React.useState(false)
+    const [visible, setVisible] = React.useState(false)
+    const [sound, setSound] = React.useState(() => soundOverride ?? personal.episodePreviewSound)
+    const canHover = React.useMemo(() => typeof window !== "undefined" && window.matchMedia?.("(hover: hover)").matches, [])
+    const enabled = personal.episodePreviewEnabled && canHover && !unpreviewable.has(trailerId)
+
+    const stop = React.useCallback(() => {
+        setActive(false)
+        setVisible(false)
+    }, [])
+
+    React.useEffect(() => {
+        if (!hovered || !enabled) {
+            stop()
+            return
+        }
+        const timer = setTimeout(() => {
+            activeStop?.()
+            activeStop = stop
+            setActive(true)
+        }, HOVER_DELAY_MS[personal.episodePreviewDelay] ?? 700)
+        return () => clearTimeout(timer)
+    }, [hovered, enabled])
+
+    React.useEffect(() => () => {
+        if (activeStop === stop) activeStop = null
+    }, [stop])
+
+    React.useEffect(() => {
+        if (!visible || personal.episodePreviewMaxSeconds <= 0) return
+        const t = setTimeout(stop, personal.episodePreviewMaxSeconds * 1000)
+        return () => clearTimeout(t)
+    }, [visible, personal.episodePreviewMaxSeconds, stop])
+
+    React.useEffect(() => {
+        onPlayingChange?.(visible)
+    }, [visible])
+
+    if (!enabled || !active) return null
+
+    const onLoaded = () => {
+        setTimeout(() => setVisible(true), __isElectronDesktop__ ? 1500 : 1000)
+    }
+    const onFailed = () => {
+        unpreviewable.add(trailerId)
+        stop()
+    }
+
+    return (
+        <div className="pointer-events-none absolute inset-0 z-[2] overflow-hidden" data-episode-card-preview="trailer">
+            <div className={cn("absolute inset-0 transition-opacity duration-500", visible ? "opacity-100" : "opacity-0")}>
+                {__isElectronDesktop__
+                    ? <ElectronYoutubeEmbed
+                        isCompact
+                        trailerId={trailerId}
+                        sound={sound}
+                        volume={personal.episodePreviewVolume}
+                        onLoad={onLoaded}
+                        onError={onFailed}
+                    />
+                    : <iframe
+                        key={sound ? "sound" : "muted"}
+                        src={`https://www.youtube-nocookie.com/embed/${trailerId}?autoplay=1&controls=0&mute=${sound ? 0 : 1}&disablekb=1&loop=1&playlist=${trailerId}&vq=medium&enablejsapi=1`}
+                        className="absolute left-0 top-1/2 aspect-video h-[calc(100%+120px)] w-full -translate-y-1/2"
+                        allow="autoplay"
+                        onLoad={e => {
+                            const frame = e.currentTarget
+                            if (sound) {
+                                // Volume is set through YouTube's iframe API once its player listens.
+                                for (const ms of [500, 1500, 3000]) setTimeout(() => frame.contentWindow?.postMessage(
+                                    JSON.stringify({ event: "command", func: "setVolume", args: [personal.episodePreviewVolume] }), "*"), ms)
+                            }
+                            onLoaded()
+                        }}
+                        onError={onFailed}
+                    />}
+            </div>
+            {visible && <SoundButton
+                sound={sound}
+                onToggle={() => {
+                    const next = !sound
+                    soundOverride = next
+                    setSound(next)
+                }}
+            />}
+        </div>
+    )
+}
+
+function SoundButton({ sound, onToggle }: { sound: boolean, onToggle: () => void }) {
+    return <button
+        type="button"
+        className="pointer-events-auto absolute bottom-2 right-2 flex size-7 items-center justify-center rounded-full bg-black/55 text-white ring-1 ring-white/20 backdrop-blur-md transition hover:bg-black/75"
+        aria-label={sound ? "Mute preview" : "Unmute preview"}
+        onClick={e => {
+            e.stopPropagation()
+            e.preventDefault()
+            onToggle()
+        }}
+    >
+        {sound ? <LuVolume2 className="size-3.5" /> : <LuVolumeX className="size-3.5" />}
+    </button>
+}
+
+/** The episode itself, streamed from the library. */
+function FilePreview({ path, startAt, hovered, onPlayingChange }: EpisodeCardPreviewProps & { path: string }) {
     const personal = usePersonalSettings()
     const { getHMACTokenQueryParam } = useServerHMACAuth()
     const videoRef = React.useRef<HTMLVideoElement>(null)
@@ -155,20 +283,11 @@ export function EpisodeCardPreview({ path, startAt, hovered, onPlayingChange }: 
                 <div className="absolute inset-x-0 bottom-0 h-0.5 bg-white/15">
                     <div className="h-full bg-brand-400 transition-[width] duration-300" style={{ width: `${progress * 100}%` }} />
                 </div>
-                <button
-                    type="button"
-                    className="pointer-events-auto absolute bottom-2 right-2 flex size-7 items-center justify-center rounded-full bg-black/55 text-white ring-1 ring-white/20 backdrop-blur-md transition hover:bg-black/75"
-                    aria-label={sound ? "Mute preview" : "Unmute preview"}
-                    onClick={e => {
-                        e.stopPropagation()
-                        e.preventDefault()
-                        const next = !sound
-                        soundOverride = next
-                        setSound(next)
-                    }}
-                >
-                    {sound ? <LuVolume2 className="size-3.5" /> : <LuVolumeX className="size-3.5" />}
-                </button>
+                <SoundButton sound={sound} onToggle={() => {
+                    const next = !sound
+                    soundOverride = next
+                    setSound(next)
+                }} />
             </>}
         </div>
     )

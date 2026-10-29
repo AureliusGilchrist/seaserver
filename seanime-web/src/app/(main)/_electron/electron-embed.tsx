@@ -17,10 +17,23 @@ export function useElectronYoutubeEmbed() {
     }
 }
 
-export function ElectronYoutubeEmbed({ trailerId, isCompact, isBanner, ...props }: {
+/** Script run inside the trailer page: tells its YouTube player to play with sound at a volume. */
+function youtubeSoundScript(sound: boolean, volume: number) {
+    const commands = sound
+        ? [`{"event":"command","func":"unMute","args":[]}`, `{"event":"command","func":"setVolume","args":[${Math.round(volume)}]}`, `{"event":"command","func":"playVideo","args":[]}`]
+        : [`{"event":"command","func":"mute","args":[]}`]
+    return `(() => { const f = document.querySelector("iframe"); if (!f || !f.contentWindow) return false; ${commands.map(c => `f.contentWindow.postMessage('${c}', "*");`).join(" ")} return true })()`
+}
+
+export function ElectronYoutubeEmbed({ trailerId, isCompact, isBanner, sound, volume = 50, ...props }: {
     isCompact?: boolean,
     isBanner?: boolean,
     trailerId: string | null | undefined
+    /** Play with sound. The trailer page starts muted (autoplay needs it); the player is unmuted
+     * through YouTube's iframe API once it has loaded. Left undefined, the page's own muting stays. */
+    sound?: boolean
+    /** 0–100, with sound on. */
+    volume?: number
 } & React.HTMLAttributes<HTMLWebViewElement>) {
     const { electronEmbedAddress } = useElectronYoutubeEmbed()
 
@@ -54,6 +67,35 @@ export function ElectronYoutubeEmbed({ trailerId, isCompact, isBanner, ...props 
             // webview.removeEventListener("dom-ready", handleDomReady)
         }
     }, [electronEmbedAddress, trailerId])
+
+    // Sound: sent a few times after load, since YouTube's player takes a moment to listen.
+    const loadedRef = React.useRef(false)
+    React.useEffect(() => {
+        const webview = webviewRef.current as any
+        if (!webview || sound === undefined) return
+        const timers: ReturnType<typeof setTimeout>[] = []
+        const send = () => {
+            try {
+                void webview.executeJavaScript?.(youtubeSoundScript(sound, volume))
+            }
+            catch {
+                // Not ready yet; a later attempt follows.
+            }
+        }
+        const schedule = () => {
+            for (const ms of [300, 1200, 2500, 4500]) timers.push(setTimeout(send, ms))
+        }
+        const onLoad = () => {
+            loadedRef.current = true
+            schedule()
+        }
+        if (loadedRef.current) schedule()
+        webview.addEventListener("did-finish-load", onLoad)
+        return () => {
+            timers.forEach(clearTimeout)
+            webview.removeEventListener("did-finish-load", onLoad)
+        }
+    }, [electronEmbedAddress, trailerId, sound, volume])
 
     if (!electronEmbedAddress) return null
 

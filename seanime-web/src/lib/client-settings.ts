@@ -78,6 +78,7 @@ export const clientSettingsSchema = z.object({
     disableAnimeCardTrailers: z.boolean().optional(),
     /** Netflix-style previews of an episode while its card is hovered (see episode-card-preview.tsx). */
     episodePreviewEnabled: z.boolean().optional(),
+    episodePreviewSource: z.enum(["trailer", "episode"]).optional(),
     episodePreviewDelay: z.enum(["short", "normal", "long"]).optional(),
     episodePreviewStart: z.enum(["resume", "into"]).optional(),
     episodePreviewSound: z.boolean().optional(),

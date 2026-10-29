@@ -290,6 +290,7 @@ const _EpisodeCard = React.memo(({ episode, mRef, overrideLink, spoilerActive, w
             secondsRemaining={getEpisodeSecondsRemaining(watchHistory, episode.baseAnime?.id || 0, episode.episodeNumber)}
             totalSeconds={getEpisodeTotalSeconds(watchHistory, episode.baseAnime?.id || 0, episode.episodeNumber)}
             previewPath={episode.localFile?.path}
+            previewTrailerId={episode.baseAnime?.trailer?.site === "youtube" ? episode.baseAnime?.trailer?.id : undefined}
             previewStartAt={resumeSeconds(watchHistory, episode)}
             anime={{
                 id: episode?.baseAnime?.id || 0,

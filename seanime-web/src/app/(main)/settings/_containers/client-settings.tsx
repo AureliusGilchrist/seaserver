@@ -880,18 +880,24 @@ export function ClientSettings(props: ClientSettingsProps) {
                                 help="No trailer previews when hovering anime cards."
                             />
                         </SettingRow>
-                        <SettingRow settingKey={["episodePreviewEnabled", "episodePreviewDelay", "episodePreviewStart", "episodePreviewSound", "episodePreviewVolume", "episodePreviewScope", "episodePreviewMaxSeconds"]}>
+                        <SettingRow settingKey={["episodePreviewEnabled", "episodePreviewSource", "episodePreviewDelay", "episodePreviewStart", "episodePreviewSound", "episodePreviewVolume", "episodePreviewScope", "episodePreviewMaxSeconds"]}>
                             <div className="space-y-4">
                                 <Switch
                                     side="right"
                                     value={personal.episodePreviewEnabled}
                                     onValueChange={v => handleSet("episodePreviewEnabled", v)}
-                                    label="Preview episodes on hover"
-                                    help="Hovering a Continue Watching card plays that episode inside the card, straight from your library — like Netflix. Moving off stops it."
+                                    label="Previews on hover"
+                                    help="Hovering a Continue Watching card plays the anime's trailer inside it, with sound — like Netflix. Moving off stops it."
                                 />
                                 {personal.episodePreviewEnabled && (
                                     <div className="space-y-4 rounded-xl bg-black/20 p-4 ring-1 ring-white/[0.06]">
                                         <div className="grid gap-4 sm:grid-cols-2">
+                                            <ChoiceRow
+                                                label="Play"
+                                                value={personal.episodePreviewSource}
+                                                options={[["trailer", "The anime's trailer"], ["episode", "The episode itself"]]}
+                                                onChange={v => handleSet("episodePreviewSource", v as "trailer" | "episode")}
+                                            />
                                             <ChoiceRow
                                                 label="Which cards"
                                                 value={personal.episodePreviewScope}
@@ -904,12 +910,12 @@ export function ClientSettings(props: ClientSettingsProps) {
                                                 options={[["short", "0.4 s"], ["normal", "0.7 s"], ["long", "1.2 s"]]}
                                                 onChange={v => handleSet("episodePreviewDelay", v as "short" | "normal" | "long")}
                                             />
-                                            <ChoiceRow
+                                            {personal.episodePreviewSource === "episode" && <ChoiceRow
                                                 label="Start at"
                                                 value={personal.episodePreviewStart}
                                                 options={[["resume", "Where I left off"], ["into", "A bit into the episode"]]}
                                                 onChange={v => handleSet("episodePreviewStart", v as "resume" | "into")}
-                                            />
+                                            />}
                                             <ChoiceRow
                                                 label="Stop after"
                                                 value={String(personal.episodePreviewMaxSeconds)}
@@ -922,7 +928,7 @@ export function ClientSettings(props: ClientSettingsProps) {
                                             value={personal.episodePreviewSound}
                                             onValueChange={v => handleSet("episodePreviewSound", v)}
                                             label="Play with sound"
-                                            help="Off keeps previews silent. The speaker button on a playing card switches it for the rest of the session."
+                                            help="On by default. The speaker button on a playing card switches it for the rest of the session."
                                         />
                                         {personal.episodePreviewSound && <NumberInput
                                             label="Preview volume (%)"

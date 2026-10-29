@@ -61,6 +61,8 @@ type EpisodeCardProps = {
     episode?: Anime_Episode // Optional, used for plugin actions
     /** A library file to preview while the card is hovered (see episode-card-preview.tsx). */
     previewPath?: string
+    /** The anime's YouTube trailer, previewed instead when Personal settings say so (the default). */
+    previewTrailerId?: string
     /** Where the preview starts (seconds), e.g. the resume point. */
     previewStartAt?: number
     onPreviewPlayingChange?: (playing: boolean) => void
@@ -104,6 +106,7 @@ export function EpisodeCard(props: EpisodeCardProps) {
         additionalContextMenuItems,
         fallbackImage,
         previewPath,
+        previewTrailerId,
         previewStartAt,
         onPreviewPlayingChange,
         onMouseEnter,
@@ -268,8 +271,9 @@ export function EpisodeCard(props: EpisodeCardProps) {
                             data-episode-card-image-bottom-gradient
                             className="h-full block rounded-xl absolute w-full bg-gradient-to-t from-gray-800 to-transparent z-[2]"
                         ></div>}
-                        {!!previewPath && !spoiler.blurImage && !spoiler.replaceImage && <EpisodeCardPreview
+                        {(!!previewPath || !!previewTrailerId) && !spoiler.blurImage && !spoiler.replaceImage && <EpisodeCardPreview
                             path={previewPath}
+                            trailerId={previewTrailerId}
                             startAt={previewStartAt}
                             hovered={hovered}
                             onPlayingChange={playing => {

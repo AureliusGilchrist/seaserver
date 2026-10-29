@@ -65,6 +65,8 @@ export type PersonalSettings = {
     disableAnimeCardTrailers: boolean
     /** Hover previews of episodes from the library on episode cards. */
     episodePreviewEnabled: boolean
+    /** What a hovered card plays: the anime's trailer, or the episode itself from the library. */
+    episodePreviewSource: "trailer" | "episode"
     episodePreviewDelay: "short" | "normal" | "long"
     /** "resume" — where you left off; "into" — a little way into the episode. */
     episodePreviewStart: "resume" | "into"
@@ -141,9 +143,10 @@ export function usePersonalSettings(): PersonalSettings {
         blurAdultContent: clientSettings.blurAdultContent ?? serverStatus?.settings?.anilist?.blurAdultContent ?? false,
         disableAnimeCardTrailers: clientSettings.disableAnimeCardTrailers ?? serverStatus?.settings?.library?.disableAnimeCardTrailers ?? false,
         episodePreviewEnabled: clientSettings.episodePreviewEnabled ?? true,
+        episodePreviewSource: clientSettings.episodePreviewSource ?? "trailer",
         episodePreviewDelay: clientSettings.episodePreviewDelay ?? "normal",
         episodePreviewStart: clientSettings.episodePreviewStart ?? "resume",
-        episodePreviewSound: clientSettings.episodePreviewSound ?? false,
+        episodePreviewSound: clientSettings.episodePreviewSound ?? true,
         episodePreviewVolume: Math.max(0, Math.min(100, clientSettings.episodePreviewVolume ?? 40)),
         episodePreviewScope: clientSettings.episodePreviewScope ?? "resume",
         episodePreviewMaxSeconds: Math.max(0, clientSettings.episodePreviewMaxSeconds ?? 30),
