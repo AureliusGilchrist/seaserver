@@ -217,18 +217,24 @@ func (u *GitAutoUpdater) checkForUpdate() (bool, error) {
 		return false, err
 	}
 
-	// Behind means the fork has commits this checkout lacks. A checkout that merely differs (it is
-	// ahead, or has diverged) is not behind, and reporting it as such made the update look
-	// permanently available while the fast-forward could never succeed.
+	// An update is whatever the fork's latest commit is, whenever this checkout isn't on it: newer
+	// commits, or a checkout that has drifted (a local commit, a rewritten history). The update
+	// resets the checkout onto the fork's commit (local work is kept under refs/seanime-backup/), so
+	// any difference can be applied — there is no fast-forward that could fail. Counting only the
+	// fork's commits this checkout lacks called a drifted checkout "up to date" and never updated it.
 	remoteRef := fmt.Sprintf("%s/%s", gitUpdateRemote, branch)
 	countStr, err := u.git("rev-list", "--count", "HEAD.."+remoteRef)
 	if err != nil {
 		return false, err
 	}
 	count, _ := strconv.Atoi(strings.TrimSpace(countStr))
-	behind := count > 0
-	if behind {
+	remoteHead, _ := u.git("rev-parse", remoteRef)
+	differs := strings.TrimSpace(remoteHead) != "" && strings.TrimSpace(remoteHead) != u.headCommit()
+	behind := count > 0 || differs
+	if count > 0 {
 		u.logger.Info().Int("commits", count).Msg("selfupdate: The fork has new commits")
+	} else if differs {
+		u.logger.Info().Msg("selfupdate: The checkout differs from the fork's latest commit")
 	} else if built := u.builtCommit(); built != "" && built != u.headCommit() {
 		// HEAD already matches the fork, but the last successful build was of an older commit: an
 		// earlier update moved the checkout and then failed to build, so the running binary is old.
