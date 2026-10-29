@@ -34,8 +34,13 @@ function timeUntil(unixSeconds?: number): string {
 type State = "updating" | "failed" | "available" | "checking" | "uptodate" | "unknown"
 
 function stateOf(s: BackendUpdateStatus | undefined, running: boolean, progress: ServerUpdateProgress): State {
-    if (running || s?.updating || (progress && !progress.failed && progress.percent < 100)) return "updating"
-    if (progress?.failed) return "failed"
+    // The server's own status decides whether an update is running. The progress read back from
+    // the saved update log is only a fallback while the status hasn't loaded: its last line is often
+    // the restart step (96%), and the page only marks an update done if it saw the server come back
+    // — so it used to keep the card "updating", and the button disabled, for good.
+    if (running || s?.updating) return "updating"
+    if (!s && progress && !progress.failed && progress.percent < 100) return "updating"
+    if (progress?.failed && (running || !s)) return "failed"
     if (!s) return "unknown"
     if (s.lastError) return "failed"
     if (s.behind) return "available"
@@ -80,7 +85,7 @@ export function ServerUpdateCard({ remote, running, checking, progress, errorTex
     // Live events when this page saw them; otherwise the server's own record of where it is (a page
     // opened mid-update has missed every event so far).
     const serverProgress = status?.updating ? status.progress : undefined
-    if (!progress && serverProgress) {
+    if (serverProgress && !running) {
         progress = { percent: serverProgress.percent, step: serverProgress.step, failed: false }
     }
     const detail = status?.updating ? serverProgress?.detail : undefined

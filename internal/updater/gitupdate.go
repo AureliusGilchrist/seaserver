@@ -236,10 +236,17 @@ func (u *GitAutoUpdater) checkForUpdate() (bool, error) {
 	} else if differs {
 		u.logger.Info().Msg("selfupdate: The checkout differs from the fork's latest commit")
 	} else if built := u.builtCommit(); built != "" && built != u.headCommit() {
-		// HEAD already matches the fork, but the last successful build was of an older commit: an
-		// earlier update moved the checkout and then failed to build, so the running binary is old.
-		u.logger.Info().Msg("selfupdate: The checkout is newer than the last successful build")
-		behind = true
+		// HEAD already matches the fork, but the last successful build recorded is of an older
+		// commit: an earlier update moved the checkout and then failed to build, so the running
+		// binary is old — unless the binary was built after HEAD was committed (a build by hand,
+		// say, which never writes the marker). Then the marker is what's stale: it is corrected
+		// rather than reporting an update that pressing "Update now" would only rebuild, forever.
+		if !u.binaryOlderThanHead() {
+			u.setBuiltCommit(u.headCommit())
+		} else {
+			u.logger.Info().Msg("selfupdate: The checkout is newer than the last successful build")
+			behind = true
+		}
 	} else if built == "" && u.binaryOlderThanHead() {
 		u.logger.Info().Msg("selfupdate: The running binary is older than the checked-out commit")
 		behind = true

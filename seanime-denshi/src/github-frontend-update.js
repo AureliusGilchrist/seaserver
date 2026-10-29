@@ -69,25 +69,30 @@ function createGitHubFrontendUpdater({ app, log, isDevelopment, emitProgress, re
     // Newest release that carries a frontend bundle. The releases endpoint lists prereleases
     // too (the workflow publishes them as prereleases), newest first.
     async function fetchLatestRelease() {
-        const res = await withTimeout(API_TIMEOUT_MS, net.fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=30`, {
+        const res = await withTimeout(API_TIMEOUT_MS, net.fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=100`, {
             headers: { "User-Agent": "seanime-denshi", "Accept": "application/vnd.github+json" },
         }), "Looking up the latest release")
         if (!res.ok) throw new Error(`GitHub API returned HTTP ${res.status}`)
         const releases = await res.json()
+        // The newest by version, not the first listed: GitHub lists releases in tag-name order
+        // ("v5.3.5-9…" before "v5.3.5-14…"), so the first frontend in the list was an old one and
+        // every check said "up to date".
+        let best = null
         for (const release of Array.isArray(releases) ? releases : []) {
+            if (release.draft) continue
             const asset = (release.assets ?? []).find(a => LATEST_ASSET_RE.test(a.name))
-            if (asset) {
-                return {
-                    tag: release.tag_name,
-                    version: String(release.tag_name).replace(/^v/, ""),
-                    assetName: asset.name,
-                    assetSize: asset.size,
-                    releaseUrl: release.html_url,
-                    publishedAt: release.published_at,
-                }
+            if (!asset) continue
+            const candidate = {
+                tag: release.tag_name,
+                version: String(release.tag_name).replace(/^v/, ""),
+                assetName: asset.name,
+                assetSize: asset.size,
+                releaseUrl: release.html_url,
+                publishedAt: release.published_at,
             }
+            if (!best || compareVersions(candidate.version, best.version) > 0) best = candidate
         }
-        return null
+        return best
     }
 
     // Compares dotted versions like "5.0.6-1" and "5.0.6-1.auto.42.1" segment by segment;

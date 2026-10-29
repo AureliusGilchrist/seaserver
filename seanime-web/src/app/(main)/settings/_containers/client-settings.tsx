@@ -33,6 +33,11 @@ export function GitHubFrontendUpdateCard() {
     const [checking, setChecking] = React.useState(false)
     const [installing, setInstalling] = React.useState(false)
     const [result, setResult] = React.useState<LiveUpdateGitHubCheck | null>(null)
+    // What GitHub itself says is newest. Denshi builds before 5.3.5-15 took the first frontend in
+    // GitHub's release list, which is in tag-name order ("…-9…" before "…-14…"), and so reported
+    // "up to date" on an old version. When that happens the card says so and links the Denshi
+    // installer that fixes it.
+    const [missed, setMissed] = React.useState<{ version: string, installerUrl: string | null, releaseUrl: string } | null>(null)
     const [lines, setLines] = useAtom(updateSettingsLogAtom)
 
     const appendLines = React.useCallback((next: string[]) => {
@@ -71,6 +76,7 @@ export function GitHubFrontendUpdateCard() {
                 if (elapsed < 900) await new Promise(r => setTimeout(r, 900 - elapsed))
                 setResult(res)
                 setCheckedAt(new Date())
+                setMissed(res.ok && !res.updateAvailable && res.current ? await findMissedFrontend(res.current) : null)
                 if (res.ok) {
                     const summary = res.updateAvailable
                         ? `Frontend: update available (${res.current ?? "unknown"} → ${res.latest})`
@@ -160,7 +166,21 @@ export function GitHubFrontendUpdateCard() {
                         {result.current ? <> (installed: {result.current})</> : null}.
                     </span>
                 )}
-                {result?.ok && !result.updateAvailable && (
+                {missed && (
+                    <span className="mb-2 block rounded-xl border border-amber-300/25 bg-amber-400/[0.08] px-3 py-2 text-amber-100">
+                        Version <span className="font-medium">{missed.version}</span> is on GitHub, but this copy of Denshi can't see it — its
+                        updater picks releases in the wrong order. Install the new Denshi once and frontend updates work again.{" "}
+                        <a
+                            className="font-semibold text-amber-200 underline underline-offset-2 hover:text-white"
+                            href={missed.installerUrl ?? missed.releaseUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            {missed.installerUrl ? "Download the Denshi installer" : "Open the release"}
+                        </a>
+                    </span>
+                )}
+                {result?.ok && !result.updateAvailable && !missed && (
                     <span>
                         {result.currentSource === "github" && <>Up to date — installed from GitHub: {result.current}</>}
                         {result.currentSource === "local" && <>Running a local build (version unknown). The latest release on GitHub is {result.latest ?? "unavailable"}.</>}
@@ -1190,4 +1210,47 @@ function RecapPreview({ count, descriptions, blurNext, flagDozed }: {
             </div>
         </div>
     )
+}
+
+/** Dotted versions like "5.3.5-14.auto.154.1", segment by segment (the same rule Denshi uses). */
+function compareFrontendVersions(a: string, b: string) {
+    const pa = a.toLowerCase().split(/[.\-_+]/)
+    const pb = b.toLowerCase().split(/[.\-_+]/)
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+        const x = pa[i], y = pb[i]
+        if (x === undefined) return -1
+        if (y === undefined) return 1
+        const nx = /^\d+$/.test(x), ny = /^\d+$/.test(y)
+        if (nx && ny) {
+            if (Number(x) !== Number(y)) return Number(x) < Number(y) ? -1 : 1
+        } else if (nx !== ny) {
+            return nx ? -1 : 1
+        } else if (x !== y) {
+            return x < y ? -1 : 1
+        }
+    }
+    return 0
+}
+
+/** The newest frontend on GitHub when it is newer than `current`, with its Denshi installer. */
+async function findMissedFrontend(current: string) {
+    try {
+        const res = await fetch("https://api.github.com/repos/AureliusGilchrist/seaserver/releases?per_page=100", {
+            headers: { Accept: "application/vnd.github+json" },
+        })
+        if (!res.ok) return null
+        const releases = await res.json() as { tag_name: string, draft?: boolean, html_url: string, assets?: { name: string, browser_download_url: string }[] }[]
+        let best: { version: string, installerUrl: string | null, releaseUrl: string } | null = null
+        for (const r of releases) {
+            if (r.draft || !r.assets?.some(a => /^denshi-frontend-.*\.zip$/i.test(a.name))) continue
+            const version = r.tag_name.replace(/^v/, "")
+            if (best && compareFrontendVersions(version, best.version) <= 0) continue
+            const installer = r.assets.find(a => /^seanime-denshi-.*windows.*\.exe$/i.test(a.name))
+            best = { version, installerUrl: installer?.browser_download_url ?? null, releaseUrl: r.html_url }
+        }
+        return best && compareFrontendVersions(best.version, current) > 0 ? best : null
+    }
+    catch {
+        return null
+    }
 }
