@@ -289,6 +289,8 @@ const _EpisodeCard = React.memo(({ episode, mRef, overrideLink, spoilerActive, w
             percentageComplete={getEpisodePercentageComplete(watchHistory, episode.baseAnime?.id || 0, episode.episodeNumber)}
             secondsRemaining={getEpisodeSecondsRemaining(watchHistory, episode.baseAnime?.id || 0, episode.episodeNumber)}
             totalSeconds={getEpisodeTotalSeconds(watchHistory, episode.baseAnime?.id || 0, episode.episodeNumber)}
+            previewPath={episode.localFile?.path}
+            previewStartAt={resumeSeconds(watchHistory, episode)}
             anime={{
                 id: episode?.baseAnime?.id || 0,
                 image: episode?.baseAnime?.coverImage?.medium,
@@ -322,3 +324,13 @@ const _EpisodeCard = React.memo(({ episode, mRef, overrideLink, spoilerActive, w
         />
     )
 })
+
+/** Where the episode was left off, for the hover preview. */
+function resumeSeconds(watchHistory: Continuity_WatchHistory | undefined, episode: Anime_Episode): number | undefined {
+    const id = episode.baseAnime?.id || 0
+    const total = getEpisodeTotalSeconds(watchHistory, id, episode.episodeNumber)
+    const remaining = getEpisodeSecondsRemaining(watchHistory, id, episode.episodeNumber)
+    if (!total || remaining === undefined || remaining === null) return undefined
+    const at = total - remaining
+    return at > 0 ? at : undefined
+}

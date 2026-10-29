@@ -76,6 +76,14 @@ export const clientSettingsSchema = z.object({
     hideAudienceScore: z.boolean().optional(),
     blurAdultContent: z.boolean().optional(),
     disableAnimeCardTrailers: z.boolean().optional(),
+    /** Netflix-style previews of an episode while its card is hovered (see episode-card-preview.tsx). */
+    episodePreviewEnabled: z.boolean().optional(),
+    episodePreviewDelay: z.enum(["short", "normal", "long"]).optional(),
+    episodePreviewStart: z.enum(["resume", "into"]).optional(),
+    episodePreviewSound: z.boolean().optional(),
+    episodePreviewVolume: z.number().optional(),
+    episodePreviewScope: z.enum(["resume", "all"]).optional(),
+    episodePreviewMaxSeconds: z.number().optional(),
     /** Whether the anime library shows the Completed list. */
     showCompletedInLibrary: z.boolean().optional(),
     /** Card widths in px, one for anime cards and one for manga cards. */

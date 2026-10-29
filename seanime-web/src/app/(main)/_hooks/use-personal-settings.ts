@@ -63,6 +63,18 @@ export type PersonalSettings = {
     hideAudienceScore: boolean
     blurAdultContent: boolean
     disableAnimeCardTrailers: boolean
+    /** Hover previews of episodes from the library on episode cards. */
+    episodePreviewEnabled: boolean
+    episodePreviewDelay: "short" | "normal" | "long"
+    /** "resume" — where you left off; "into" — a little way into the episode. */
+    episodePreviewStart: "resume" | "into"
+    episodePreviewSound: boolean
+    /** 0–100. */
+    episodePreviewVolume: number
+    /** "resume" — Continue Watching only; "all" — every episode card with a library file. */
+    episodePreviewScope: "resume" | "all"
+    /** Seconds before a preview stops on its own; 0 = never. */
+    episodePreviewMaxSeconds: number
     /** Whether the anime library shows the Completed list. */
     showCompletedInLibrary: boolean
     /** Card widths in px (see CardSizeVariables). */
@@ -128,6 +140,13 @@ export function usePersonalSettings(): PersonalSettings {
         hideAudienceScore: clientSettings.hideAudienceScore ?? serverStatus?.settings?.anilist?.hideAudienceScore ?? false,
         blurAdultContent: clientSettings.blurAdultContent ?? serverStatus?.settings?.anilist?.blurAdultContent ?? false,
         disableAnimeCardTrailers: clientSettings.disableAnimeCardTrailers ?? serverStatus?.settings?.library?.disableAnimeCardTrailers ?? false,
+        episodePreviewEnabled: clientSettings.episodePreviewEnabled ?? true,
+        episodePreviewDelay: clientSettings.episodePreviewDelay ?? "normal",
+        episodePreviewStart: clientSettings.episodePreviewStart ?? "resume",
+        episodePreviewSound: clientSettings.episodePreviewSound ?? false,
+        episodePreviewVolume: Math.max(0, Math.min(100, clientSettings.episodePreviewVolume ?? 40)),
+        episodePreviewScope: clientSettings.episodePreviewScope ?? "resume",
+        episodePreviewMaxSeconds: Math.max(0, clientSettings.episodePreviewMaxSeconds ?? 30),
         showCompletedInLibrary: clientSettings.showCompletedInLibrary ?? true,
         animeCardWidth: clampCardWidth(clientSettings.animeCardWidth),
         mangaCardWidth: clampCardWidth(clientSettings.mangaCardWidth),

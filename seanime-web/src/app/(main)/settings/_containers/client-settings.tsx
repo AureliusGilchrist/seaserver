@@ -880,6 +880,63 @@ export function ClientSettings(props: ClientSettingsProps) {
                                 help="No trailer previews when hovering anime cards."
                             />
                         </SettingRow>
+                        <SettingRow settingKey={["episodePreviewEnabled", "episodePreviewDelay", "episodePreviewStart", "episodePreviewSound", "episodePreviewVolume", "episodePreviewScope", "episodePreviewMaxSeconds"]}>
+                            <div className="space-y-4">
+                                <Switch
+                                    side="right"
+                                    value={personal.episodePreviewEnabled}
+                                    onValueChange={v => handleSet("episodePreviewEnabled", v)}
+                                    label="Preview episodes on hover"
+                                    help="Hovering a Continue Watching card plays that episode inside the card, straight from your library — like Netflix. Moving off stops it."
+                                />
+                                {personal.episodePreviewEnabled && (
+                                    <div className="space-y-4 rounded-xl bg-black/20 p-4 ring-1 ring-white/[0.06]">
+                                        <div className="grid gap-4 sm:grid-cols-2">
+                                            <ChoiceRow
+                                                label="Which cards"
+                                                value={personal.episodePreviewScope}
+                                                options={[["resume", "Continue Watching"], ["all", "Every episode card"]]}
+                                                onChange={v => handleSet("episodePreviewScope", v as "resume" | "all")}
+                                            />
+                                            <ChoiceRow
+                                                label="Start after hovering for"
+                                                value={personal.episodePreviewDelay}
+                                                options={[["short", "0.4 s"], ["normal", "0.7 s"], ["long", "1.2 s"]]}
+                                                onChange={v => handleSet("episodePreviewDelay", v as "short" | "normal" | "long")}
+                                            />
+                                            <ChoiceRow
+                                                label="Start at"
+                                                value={personal.episodePreviewStart}
+                                                options={[["resume", "Where I left off"], ["into", "A bit into the episode"]]}
+                                                onChange={v => handleSet("episodePreviewStart", v as "resume" | "into")}
+                                            />
+                                            <ChoiceRow
+                                                label="Stop after"
+                                                value={String(personal.episodePreviewMaxSeconds)}
+                                                options={[["15", "15 s"], ["30", "30 s"], ["60", "60 s"], ["0", "Never"]]}
+                                                onChange={v => handleSet("episodePreviewMaxSeconds", Number(v))}
+                                            />
+                                        </div>
+                                        <Switch
+                                            side="right"
+                                            value={personal.episodePreviewSound}
+                                            onValueChange={v => handleSet("episodePreviewSound", v)}
+                                            label="Play with sound"
+                                            help="Off keeps previews silent. The speaker button on a playing card switches it for the rest of the session."
+                                        />
+                                        {personal.episodePreviewSound && <NumberInput
+                                            label="Preview volume (%)"
+                                            min={0}
+                                            max={100}
+                                            value={personal.episodePreviewVolume}
+                                            onValueChange={v => {
+                                                if (!Number.isNaN(v)) handleSet("episodePreviewVolume", v)
+                                            }}
+                                        />}
+                                    </div>
+                                )}
+                            </div>
+                        </SettingRow>
                     </PersonalSection>
 
                     <PersonalSection def={section("discord")}>

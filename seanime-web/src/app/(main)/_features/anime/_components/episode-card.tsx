@@ -1,3 +1,4 @@
+import { EpisodeCardPreview } from "@/app/(main)/_features/anime/_components/episode-card-preview"
 import { Anime_Episode } from "@/api/generated/types"
 import { formatProgressText } from "@/api/hooks/continuity.hooks"
 import { SeaContextMenu } from "@/app/(main)/_features/context-menu/sea-context-menu"
@@ -58,6 +59,11 @@ type EpisodeCardProps = {
         title?: string
     }
     episode?: Anime_Episode // Optional, used for plugin actions
+    /** A library file to preview while the card is hovered (see episode-card-preview.tsx). */
+    previewPath?: string
+    /** Where the preview starts (seconds), e.g. the resume point. */
+    previewStartAt?: number
+    onPreviewPlayingChange?: (playing: boolean) => void
 } & Omit<React.ComponentPropsWithoutRef<"div">, "title">
 
 export function EpisodeCard(props: EpisodeCardProps) {
@@ -97,8 +103,16 @@ export function EpisodeCard(props: EpisodeCardProps) {
         episode,
         additionalContextMenuItems,
         fallbackImage,
+        previewPath,
+        previewStartAt,
+        onPreviewPlayingChange,
+        onMouseEnter,
+        onMouseLeave,
         ...rest
     } = props
+
+    const [hovered, setHovered] = React.useState(false)
+    const [previewPlaying, setPreviewPlaying] = React.useState(false)
 
     const router = useRouter()
     const pathname = usePathname()
@@ -220,6 +234,14 @@ export function EpisodeCard(props: EpisodeCardProps) {
                     data-progress-total={progressTotal}
                     data-progress-number={progressNumber}
                     {...rest}
+                    onMouseEnter={e => {
+                        setHovered(true)
+                        onMouseEnter?.(e)
+                    }}
+                    onMouseLeave={e => {
+                        setHovered(false)
+                        onMouseLeave?.(e)
+                    }}
                 >
                     <div
                         data-episode-card-image-container
@@ -246,6 +268,15 @@ export function EpisodeCard(props: EpisodeCardProps) {
                             data-episode-card-image-bottom-gradient
                             className="h-full block rounded-xl absolute w-full bg-gradient-to-t from-gray-800 to-transparent z-[2]"
                         ></div>}
+                        {!!previewPath && !spoiler.blurImage && !spoiler.replaceImage && <EpisodeCardPreview
+                            path={previewPath}
+                            startAt={previewStartAt}
+                            hovered={hovered}
+                            onPlayingChange={playing => {
+                                setPreviewPlaying(playing)
+                                onPreviewPlayingChange?.(playing)
+                            }}
+                        />}
                         {/*[CUSTOM UI] BOTTOM GRADIENT*/}
                         <EpisodeItemBottomGradient isSingleContainer={isSingleContainer} className="rounded-b-xl" />
 
@@ -309,6 +340,8 @@ export function EpisodeCard(props: EpisodeCardProps) {
                                 "group-hover/episode-card:opacity-100 text-6xl text-gray-200",
                                 "cursor-pointer opacity-0 transition-opacity bg-gray-950 bg-opacity-60 z-[2] absolute w-[105%] h-[105%] items-center justify-center",
                                 "hidden md:flex",
+                                // The preview is what's worth looking at while it plays.
+                                previewPlaying && "group-hover/episode-card:opacity-0",
                             )}
                         >
                             {actionIcon && actionIcon}
