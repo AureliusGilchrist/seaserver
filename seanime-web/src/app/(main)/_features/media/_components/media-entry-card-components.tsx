@@ -1,3 +1,5 @@
+import { useGetMediaTrailer } from "@/api/hooks/anilist.hooks"
+import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { AL_BaseAnime_NextAiringEpisode, AL_MediaListStatus, AL_MediaStatus } from "@/api/generated/types"
 import { ElectronYoutubeEmbed } from "@/app/(main)/_electron/electron-embed"
 import { MediaCardBodyBottomGradient } from "@/app/(main)/_features/custom-ui/item-bottom-gradients"
@@ -495,7 +497,7 @@ export function MediaEntryCardTitleSection(props: MediaEntryCardTitleSectionProp
 export const __mediaEntryCard_hoveredPopupId = atom<number | undefined>(undefined)
 
 export const MediaEntryCardHoverPopupBanner = memo(({
-    trailerId,
+    trailerId: originalTrailerId,
     showProgressBar,
     mediaId,
     hideDownloadingBadge,
@@ -532,6 +534,14 @@ export const MediaEntryCardHoverPopupBanner = memo(({
     const [trailerLoaded, setTrailerLoaded] = React.useState(false)
     const [actionPopupHoverId] = useAtom(__mediaEntryCard_hoveredPopupId)
     const actionPopupHover = actionPopupHoverId === mediaId
+
+    // Trailer language (Personal settings): English looks up the show's dub trailer while the card is
+    // hovered, falling back to the original; Japanese trailers can carry English captions.
+    const personal = usePersonalSettings()
+    const wantEnglish = personal.trailerLanguage === "english" || (personal.trailerLanguage === "follow" && personal.audioPreference === "dub")
+    const { data: trailerLookup, isFetching: lookingUpTrailer } = useGetMediaTrailer(mediaId, "dub", wantEnglish && actionPopupHover && !!originalTrailerId)
+    const trailerId = (wantEnglish && trailerLookup?.id) || originalTrailerId
+    const trailerCaptions = personal.trailerCaptions && (!wantEnglish || !trailerLookup?.dub) ? "en" : undefined
     const [trailerEnabled, setTrailerEnabled] = React.useState(!!trailerId && !disableAnimeCardTrailers && showTrailer)
 
     const ts = useThemeSettings()
@@ -603,7 +613,7 @@ export const MediaEntryCardHoverPopupBanner = memo(({
                 />
             </div>
 
-            {(trailerEnabled && actionPopupHover) && <div
+            {(trailerEnabled && actionPopupHover && !(wantEnglish && lookingUpTrailer && !trailerLookup)) && <div
                 data-media-entry-card-hover-popup-banner-trailer-container
                 className={cn(
                     "absolute w-full h-full overflow-hidden rounded-[--radius]",
@@ -613,12 +623,13 @@ export const MediaEntryCardHoverPopupBanner = memo(({
                 {__isElectronDesktop__ && <ElectronYoutubeEmbed
                     isCompact
                     trailerId={`${trailerId}`}
+                    captions={trailerCaptions}
                     onLoad={() => setTimeout(() => setTrailerLoaded(true), 1500)}
                     onError={() => setTrailerEnabled(false)}
                 />}
                 {!__isElectronDesktop__ && <iframe
                     data-media-entry-card-hover-popup-banner-trailer
-                    src={`https://www.youtube-nocookie.com/embed/${trailerId}?autoplay=1&controls=0&mute=1&disablekb=1&loop=1&vq=medium&playlist=${trailerId}&cc_lang_pref=ja&enablejsapi=true`}
+                    src={`https://www.youtube-nocookie.com/embed/${trailerId}?autoplay=1&controls=0&mute=1&disablekb=1&loop=1&vq=medium&playlist=${trailerId}&enablejsapi=true${trailerCaptions ? `&cc_load_policy=1&cc_lang_pref=${trailerCaptions}&hl=${trailerCaptions}` : ""}`}
                     className={cn(
                         "aspect-video w-full absolute left-0 h-[calc(100%+120px)] top-[50%] -translate-y-1/2",
                     )}

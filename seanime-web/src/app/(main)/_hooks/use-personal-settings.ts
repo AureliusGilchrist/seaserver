@@ -70,6 +70,10 @@ export type PersonalSettings = {
     episodePreviewEnabled: boolean
     /** What a hovered card plays: the anime's trailer, or the episode itself from the library. */
     episodePreviewSource: "trailer" | "episode"
+    /** "japanese" — the original trailer; "english" — the English dub trailer when one exists;
+     * "follow" — whichever the Sub or dub setting picks. */
+    trailerLanguage: "follow" | "japanese" | "english"
+    trailerCaptions: boolean
     episodePreviewDelay: "short" | "normal" | "long"
     /** "resume" — where you left off; "into" — a little way into the episode. */
     episodePreviewStart: "resume" | "into"
@@ -149,6 +153,8 @@ export function usePersonalSettings(): PersonalSettings {
         disableAnimeCardTrailers: clientSettings.disableAnimeCardTrailers ?? serverStatus?.settings?.library?.disableAnimeCardTrailers ?? false,
         episodePreviewEnabled: clientSettings.episodePreviewEnabled ?? true,
         episodePreviewSource: clientSettings.episodePreviewSource ?? "trailer",
+        trailerLanguage: clientSettings.trailerLanguage ?? "follow",
+        trailerCaptions: clientSettings.trailerCaptions ?? true,
         episodePreviewDelay: clientSettings.episodePreviewDelay ?? "normal",
         episodePreviewStart: clientSettings.episodePreviewStart ?? "resume",
         episodePreviewSound: clientSettings.episodePreviewSound ?? true,

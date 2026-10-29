@@ -61,11 +61,12 @@ function TrailerPreview({ trailerId: originalTrailerId, mediaId, hovered, onPlay
     const [active, setActive] = React.useState(false)
     // Sub or dub (Personal settings): a dub trailer is looked up on first hover; until it answers,
     // and when there is none, the original trailer plays. Sub turns English captions on.
-    const wantDub = personal.audioPreference === "dub"
+    const wantDub = personal.trailerLanguage === "english" || (personal.trailerLanguage === "follow" && personal.audioPreference === "dub")
     const [lookedUp, setLookedUp] = React.useState(false)
     const { data: lookup, isFetching: lookingUp } = useGetMediaTrailer(mediaId, "dub", wantDub && lookedUp)
     const trailerId = (wantDub && lookup?.id) || originalTrailerId
-    const captions = !wantDub || !lookup?.dub ? "en" : undefined
+    // English captions on a Japanese trailer (the original, or the fallback when no dub was found).
+    const captions = personal.trailerCaptions && (!wantDub || !lookup?.dub) ? "en" : undefined
     const [visible, setVisible] = React.useState(false)
     const [sound, setSound] = React.useState(() => soundOverride ?? personal.episodePreviewSound)
     const canHover = React.useMemo(() => typeof window !== "undefined" && window.matchMedia?.("(hover: hover)").matches, [])

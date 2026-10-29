@@ -83,6 +83,10 @@ export const clientSettingsSchema = z.object({
     /** Netflix-style previews of an episode while its card is hovered (see episode-card-preview.tsx). */
     episodePreviewEnabled: z.boolean().optional(),
     episodePreviewSource: z.enum(["trailer", "episode"]).optional(),
+    /** Trailer language: Japanese (the original), English (a dub trailer), or the Sub or dub choice. */
+    trailerLanguage: z.enum(["follow", "japanese", "english"]).optional(),
+    /** English captions on Japanese trailers, when the video has them. */
+    trailerCaptions: z.boolean().optional(),
     episodePreviewDelay: z.enum(["short", "normal", "long"]).optional(),
     episodePreviewStart: z.enum(["resume", "into"]).optional(),
     episodePreviewSound: z.boolean().optional(),

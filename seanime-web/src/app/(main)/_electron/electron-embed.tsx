@@ -21,10 +21,12 @@ export function useElectronYoutubeEmbed() {
 }
 
 /** Script run inside the trailer page: tells its YouTube player to play with sound at a volume. */
-function youtubeSoundScript(sound: boolean, volume: number, captions?: string) {
-    const commands = sound
-        ? [`{"event":"command","func":"unMute","args":[]}`, `{"event":"command","func":"setVolume","args":[${Math.round(volume)}]}`, `{"event":"command","func":"playVideo","args":[]}`]
-        : [`{"event":"command","func":"mute","args":[]}`]
+function youtubeSoundScript(sound: boolean | undefined, volume: number, captions?: string) {
+    const commands = sound === undefined
+        ? []
+        : sound
+            ? [`{"event":"command","func":"unMute","args":[]}`, `{"event":"command","func":"setVolume","args":[${Math.round(volume)}]}`, `{"event":"command","func":"playVideo","args":[]}`]
+            : [`{"event":"command","func":"mute","args":[]}`]
     if (captions) {
         commands.push(`{"event":"command","func":"loadModule","args":["captions"]}`)
         commands.push(`{"event":"command","func":"setOption","args":["captions","track",{"languageCode":"${captions}"}]}`)
@@ -81,7 +83,7 @@ export function ElectronYoutubeEmbed({ trailerId, isCompact, isBanner, sound, vo
     const loadedRef = React.useRef(false)
     React.useEffect(() => {
         const webview = webviewRef.current as any
-        if (!webview || sound === undefined) return
+        if (!webview || (sound === undefined && !captions)) return
         const timers: ReturnType<typeof setTimeout>[] = []
         const send = () => {
             try {

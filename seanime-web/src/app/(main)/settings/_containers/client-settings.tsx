@@ -594,7 +594,7 @@ export function ClientSettings(props: ClientSettingsProps) {
                                 <p className="mt-0.5 text-sm text-[--muted]">
                                     Which audio plays first in every player. Online streams switch to the dubbed version when there is one; library files pick
                                     the English audio track. A sub/dub choice you make for a series in the player still wins for that series.
-                                    Trailer previews follow it too: dub looks for the English dub trailer, sub shows the trailer with English captions.
+                                    Trailer previews follow it too unless Display → Previews on hover sets their own language.
                                 </p>
                             </div>
                             <div className="flex flex-wrap items-end gap-4">
@@ -906,7 +906,7 @@ export function ClientSettings(props: ClientSettingsProps) {
                                 help="No trailer previews when hovering anime cards."
                             />
                         </SettingRow>
-                        <SettingRow settingKey={["episodePreviewEnabled", "episodePreviewSource", "episodePreviewDelay", "episodePreviewStart", "episodePreviewSound", "episodePreviewVolume", "episodePreviewScope", "episodePreviewMaxSeconds"]}>
+                        <SettingRow settingKey={["episodePreviewEnabled", "episodePreviewSource", "trailerLanguage", "trailerCaptions", "episodePreviewDelay", "episodePreviewStart", "episodePreviewSound", "episodePreviewVolume", "episodePreviewScope", "episodePreviewMaxSeconds"]}>
                             <div className="space-y-4">
                                 <Switch
                                     side="right"
@@ -924,6 +924,12 @@ export function ClientSettings(props: ClientSettingsProps) {
                                                 options={[["trailer", "The anime's trailer"], ["episode", "The episode itself"]]}
                                                 onChange={v => handleSet("episodePreviewSource", v as "trailer" | "episode")}
                                             />
+                                            {personal.episodePreviewSource === "trailer" && <ChoiceRow
+                                                label="Trailer language"
+                                                value={personal.trailerLanguage}
+                                                options={[["follow", "Same as Sub or dub"], ["japanese", "Japanese"], ["english", "English"]]}
+                                                onChange={v => handleSet("trailerLanguage", v as "follow" | "japanese" | "english")}
+                                            />}
                                             <ChoiceRow
                                                 label="Which cards"
                                                 value={personal.episodePreviewScope}
@@ -949,6 +955,13 @@ export function ClientSettings(props: ClientSettingsProps) {
                                                 onChange={v => handleSet("episodePreviewMaxSeconds", Number(v))}
                                             />
                                         </div>
+                                        {personal.episodePreviewSource === "trailer" && <Switch
+                                            side="right"
+                                            value={personal.trailerCaptions}
+                                            onValueChange={v => handleSet("trailerCaptions", v)}
+                                            label="English captions on Japanese trailers"
+                                            help="When the video has them. English trailers play without captions. A show with no English trailer plays the Japanese one."
+                                        />}
                                         <Switch
                                             side="right"
                                             value={personal.episodePreviewSound}
