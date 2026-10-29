@@ -176,7 +176,7 @@ export function EpisodeSection({ entry, details, bottomSection, hideCarousel, ma
                                             key={episode.localFile?.path || ""}
                                             episode={episode}
                                             previewPath={personal.episodePreviewScope === "all" ? episode.localFile?.path : undefined}
-                                            previewTrailerId={personal.episodePreviewScope === "all" && episode.baseAnime?.trailer?.site === "youtube" ? episode.baseAnime?.trailer?.id : undefined}
+                                            previewKind="episode"
                                             image={episode.episodeMetadata?.image || episode.baseAnime?.bannerImage || episode.baseAnime?.coverImage?.extraLarge}
                                             topTitle={episode.episodeTitle || displayTitle(episode?.baseAnime?.title)}
                                             title={episode.displayTitle}

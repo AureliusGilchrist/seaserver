@@ -3,6 +3,7 @@
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { useGetMediaTrailer } from "@/api/hooks/anilist.hooks"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
+import { clearActivePreview, registerActivePreview } from "@/app/(main)/_features/anime/_lib/preview-handoff"
 import { useServerHMACAuth } from "@/app/(main)/_hooks/use-server-status"
 import { ElectronYoutubeEmbed } from "@/app/(main)/_electron/electron-embed"
 import { controlYoutubeFrame, TRAILER_FADE_MS } from "@/app/(main)/_electron/youtube-control"
@@ -36,6 +37,9 @@ export type EpisodeCardPreviewProps = {
     trailerId?: string
     /** The anime, so a dubbed trailer can be looked up when the profile watches dubs. */
     mediaId?: number
+    /** What this card previews, overriding Personal settings: episode cards play the episode itself;
+     * Continue Watching follows the setting (the trailer by default). */
+    kind?: "trailer" | "episode"
     /** Seconds to start at (the resume point); undefined starts a little way in. */
     startAt?: number
     /** Whether the card is hovered (the card owns the hover state). */
@@ -46,7 +50,7 @@ export type EpisodeCardPreviewProps = {
 
 export function EpisodeCardPreview(props: EpisodeCardPreviewProps) {
     const personal = usePersonalSettings()
-    if (personal.episodePreviewSource === "trailer") {
+    if ((props.kind ?? personal.episodePreviewSource) === "trailer") {
         return props.trailerId ? <TrailerPreview {...props} trailerId={props.trailerId} /> : null
     }
     return props.path ? <FilePreview {...props} path={props.path} /> : null
@@ -188,6 +192,7 @@ function FilePreview({ path, startAt, hovered, onPlayingChange }: EpisodeCardPre
     const stop = React.useCallback(() => {
         const v = videoRef.current
         if (v) {
+            clearActivePreview(v)
             v.pause()
             // Dropping the source closes the connection to the server at once.
             v.removeAttribute("src")
@@ -246,12 +251,12 @@ function FilePreview({ path, startAt, hovered, onPlayingChange }: EpisodeCardPre
         onPlayingChange?.(visible)
     }, [visible])
 
+    // Sound toggled while it plays fades in (or cuts out); before it plays, the fade on start does it.
     React.useEffect(() => {
         const v = videoRef.current
-        if (!v) return
-        v.muted = !sound
-        v.volume = Math.max(0, Math.min(1, personal.episodePreviewVolume / 100))
-    }, [sound, personal.episodePreviewVolume, src])
+        if (!v || !visible) return
+        fadeInAudio(v, sound ? personal.episodePreviewVolume / 100 : 0)
+    }, [sound, personal.episodePreviewVolume])
 
     if (!enabled || !src) return null
 
@@ -273,7 +278,7 @@ function FilePreview({ path, startAt, hovered, onPlayingChange }: EpisodeCardPre
             <video
                 ref={videoRef}
                 src={src}
-                muted={!sound}
+                muted // starts silent; the sound fades in once it plays
                 playsInline
                 preload="metadata"
                 disablePictureInPicture
@@ -281,7 +286,11 @@ function FilePreview({ path, startAt, hovered, onPlayingChange }: EpisodeCardPre
                 onLoadedMetadata={onLoadedMetadata}
                 onPlaying={() => {
                     const v = videoRef.current
-                    if (v && v.videoWidth > 0) setVisible(true)
+                    if (v && v.videoWidth > 0) {
+                        setVisible(true)
+                        registerActivePreview(path, v)
+                        fadeInAudio(v, sound ? personal.episodePreviewVolume / 100 : 0)
+                    }
                 }}
                 onTimeUpdate={() => {
                     const v = videoRef.current
@@ -305,3 +314,24 @@ function FilePreview({ path, startAt, hovered, onPlayingChange }: EpisodeCardPre
         </div>
     )
 }
+
+/** Eases a video's volume from silent up to `target` (0–1); 0 mutes it. */
+function fadeInAudio(v: HTMLVideoElement, target: number) {
+    const w = v as HTMLVideoElement & { __seaFade?: number }
+    if (w.__seaFade) cancelAnimationFrame(w.__seaFade)
+    if (target <= 0) {
+        v.muted = true
+        return
+    }
+    v.volume = 0
+    v.muted = false
+    const start = performance.now()
+    const step = (now: number) => {
+        const p = Math.min(1, (now - start) / FADE_IN_MS)
+        v.volume = Math.max(0, Math.min(1, target * p * p))
+        if (p < 1) w.__seaFade = requestAnimationFrame(step)
+    }
+    w.__seaFade = requestAnimationFrame(step)
+}
+
+const FADE_IN_MS = 2500

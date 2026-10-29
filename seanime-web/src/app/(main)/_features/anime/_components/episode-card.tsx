@@ -1,4 +1,5 @@
 import { EpisodeCardPreview } from "@/app/(main)/_features/anime/_components/episode-card-preview"
+import { handoffFromPreview } from "@/app/(main)/_features/anime/_lib/preview-handoff"
 import { Anime_Episode } from "@/api/generated/types"
 import { formatProgressText } from "@/api/hooks/continuity.hooks"
 import { SeaContextMenu } from "@/app/(main)/_features/context-menu/sea-context-menu"
@@ -65,6 +66,8 @@ type EpisodeCardProps = {
     previewTrailerId?: string
     /** Where the preview starts (seconds), e.g. the resume point. */
     previewStartAt?: number
+    /** "episode" plays the episode itself whatever the Personal setting says (episode lists). */
+    previewKind?: "trailer" | "episode"
     onPreviewPlayingChange?: (playing: boolean) => void
 } & Omit<React.ComponentPropsWithoutRef<"div">, "title">
 
@@ -108,6 +111,7 @@ export function EpisodeCard(props: EpisodeCardProps) {
         previewPath,
         previewTrailerId,
         previewStartAt,
+        previewKind,
         onPreviewPlayingChange,
         onMouseEnter,
         onMouseLeave,
@@ -230,7 +234,12 @@ export function EpisodeCard(props: EpisodeCardProps) {
                         className,
                         containerClass,
                     )}
-                    onClick={onClick}
+                    onClick={onClick && (() => {
+                        // Clicked while its preview plays: the player picks up where the preview is,
+                        // with a fade from the preview's frame.
+                        if (previewPath) handoffFromPreview(previewPath)
+                        onClick()
+                    })}
                     data-episode-card
                     data-episode-number={episodeNumber}
                     data-media-id={anime?.id}
@@ -274,6 +283,7 @@ export function EpisodeCard(props: EpisodeCardProps) {
                         {(!!previewPath || !!previewTrailerId) && !spoiler.blurImage && !spoiler.replaceImage && <EpisodeCardPreview
                             path={previewPath}
                             trailerId={previewTrailerId}
+                            kind={previewKind}
                             mediaId={anime?.id ?? episode?.baseAnime?.id}
                             startAt={previewStartAt}
                             hovered={hovered}

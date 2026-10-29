@@ -159,7 +159,7 @@ export function usePersonalSettings(): PersonalSettings {
         episodePreviewStart: clientSettings.episodePreviewStart ?? "resume",
         episodePreviewSound: clientSettings.episodePreviewSound ?? true,
         episodePreviewVolume: Math.max(0, Math.min(100, clientSettings.episodePreviewVolume ?? 40)),
-        episodePreviewScope: clientSettings.episodePreviewScope ?? "resume",
+        episodePreviewScope: clientSettings.episodePreviewScope ?? "all",
         episodePreviewMaxSeconds: Math.max(0, clientSettings.episodePreviewMaxSeconds ?? 30),
         showCompletedInLibrary: clientSettings.showCompletedInLibrary ?? true,
         animeCardWidth: clampCardWidth(clientSettings.animeCardWidth),

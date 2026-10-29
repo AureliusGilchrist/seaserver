@@ -1,3 +1,4 @@
+import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { AL_BaseAnime, Anime_Episode, Anime_LocalFileType } from "@/api/generated/types"
 import { useUpdateLocalFileData } from "@/api/hooks/localfiles.hooks"
@@ -48,6 +49,7 @@ export const EpisodeItem = memo(({ episode, media, isWatched, watchedProgress, o
     const { updateLocalFile, isPending } = useUpdateLocalFileData()
     const [_, copyToClipboard] = useCopyToClipboard()
 
+    const personal = usePersonalSettings()
     const { getHMACTokenQueryParam } = useServerHMACAuth()
 
     const { encodePath } = useExternalPlayerLink()
@@ -69,6 +71,7 @@ export const EpisodeItem = memo(({ episode, media, isWatched, watchedProgress, o
                 media={media}
                 image={episode.episodeMetadata?.image}
                 onClick={handleClick}
+                previewPath={personal.episodePreviewEnabled && personal.episodePreviewScope === "all" ? episode.localFile?.path : undefined}
                 isInvalid={episode.isInvalid}
                 title={episode.displayTitle}
                 episodeTitle={episode.episodeTitle}

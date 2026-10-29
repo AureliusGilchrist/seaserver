@@ -1,3 +1,5 @@
+import { EpisodeCardPreview } from "@/app/(main)/_features/anime/_components/episode-card-preview"
+import { handoffFromPreview } from "@/app/(main)/_features/anime/_lib/preview-handoff"
 import { EpisodeRatingStars } from "@/app/(main)/_features/anime/_components/episode-rating-stars"
 import { AL_BaseAnime } from "@/api/generated/types"
 import { formatProgressText } from "@/api/hooks/continuity.hooks"
@@ -44,6 +46,8 @@ type EpisodeGridItemProps = {
     progressNumber?: number
     watchedProgress?: number
     spoilerActive?: boolean
+    /** A library file previewed in the thumbnail while it is hovered (see episode-card-preview.tsx). */
+    previewPath?: string
 }
 
 export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.ComponentPropsWithoutRef<"div">) => {
@@ -64,6 +68,7 @@ export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.C
         isInvalid,
         imageClassName,
         imageContainerClassName,
+        previewPath,
         className,
         disabled,
         isFiller,
@@ -93,6 +98,8 @@ export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.C
         watchedProgress: watchedProgress !== undefined ? queue.effectiveProgress : watchedProgress,
         spoilerActive,
     })
+
+    const [thumbHovered, setThumbHovered] = React.useState(false)
 
     return <>
         <div
@@ -165,8 +172,16 @@ export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.C
 
                         imageContainerClassName,
                     )}
-                    onClick={onClick}
+                    onClick={onClick && (() => {
+                        if (previewPath) handoffFromPreview(previewPath)
+                        onClick()
+                    })}
+                    onMouseEnter={() => setThumbHovered(true)}
+                    onMouseLeave={() => setThumbHovered(false)}
                 >
+                    {!!previewPath && !spoilerActive && <div className="absolute inset-0 z-[2] overflow-hidden rounded-[--radius-md]">
+                        <EpisodeCardPreview path={previewPath} hovered={thumbHovered} kind="episode" />
+                    </div>}
                     <div data-episode-grid-item-image-overlay className="absolute z-[1] rounded-[--radius-md] w-full h-full"></div>
                     <div
                         data-episode-grid-item-image-background

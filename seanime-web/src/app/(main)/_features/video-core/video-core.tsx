@@ -105,6 +105,7 @@ import { VideoCoreSubtitleManager } from "@/app/(main)/_features/video-core/vide
 import { vc_timeRangeElement, VideoCoreTimeRange } from "@/app/(main)/_features/video-core/video-core-time-range"
 import { VideoCoreTopPlaybackInfo, VideoCoreTopSection } from "@/app/(main)/_features/video-core/video-core-top-section"
 import { takePendingPopoutResume } from "@/app/(main)/_features/video-core/video-core-popout-resume"
+import { finishPreviewTransition, takePendingPreviewResume } from "@/app/(main)/_features/anime/_lib/preview-handoff"
 import { VideoCoreWatchPartyChat } from "@/app/(main)/_features/video-core/video-core-watch-party-chat"
 import {
     vc_autoNextAtom,
@@ -1861,8 +1862,13 @@ export function VideoCore(props: VideoCoreProps) {
 
             // Restore the position handed back from the popout, or the previous position if available
             const popoutResume = takePendingPopoutResume()
+            // Opened from an episode card's hover preview: continue where the preview was.
+            const previewResume = popoutResume ? null : takePendingPreviewResume(state.playbackInfo?.localFile?.path || undefined)
             if (popoutResume) {
                 restoreSeekTime(popoutResume.time, false, popoutResume.paused)
+            } else if (previewResume) {
+                restoreSeekTime(previewResume, false, false)
+                finishPreviewTransition()
             } else if (!state.playbackInfo.disableRestoreFromContinuity && !state.playbackInfo.initialState) {
                 if (shouldWaitForWatchHistory && !watchHistory) {
                     // Ready before the saved position arrived: resume once it does.
