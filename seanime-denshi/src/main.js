@@ -391,8 +391,9 @@ function isAllowedLocalEmbedURL(rawURL) {
 
     try {
         const parsed = new URL(rawURL)
+        // localhost is the same loopback address; frontends before 5.3.5-9 used it.
         return parsed.protocol === "http:"
-            && parsed.hostname === LOCAL_EMBED_HOST
+            && (parsed.hostname === LOCAL_EMBED_HOST || parsed.hostname === "localhost")
             && parsed.port === String(localServerPort)
             && parsed.pathname.startsWith("/player/")
     } catch {

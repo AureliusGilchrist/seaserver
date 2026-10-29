@@ -13,7 +13,10 @@ export function useElectronYoutubeEmbed() {
     }, [])
 
     return {
-        electronEmbedAddress: localServerPort ? `http://localhost:${localServerPort}/player/` : null,
+        // 127.0.0.1, not localhost: Denshi only lets a trailer webview attach when its host is exactly
+        // 127.0.0.1 (main.js, isAllowedLocalEmbedURL), and cancelled every localhost one — no card
+        // trailer played at all.
+        electronEmbedAddress: localServerPort ? `http://127.0.0.1:${localServerPort}/player/` : null,
     }
 }
 
