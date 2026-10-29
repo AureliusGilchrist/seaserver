@@ -5,6 +5,7 @@ import { vc_getSubtitleStyle } from "@/app/(main)/_features/video-core/video-cor
 import { PerMediaTrackOverride, VideoCore_VideoPlaybackInfo, VideoCore_VideoSubtitleTrack, VideoCoreSettings } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { logger } from "@/lib/helpers/debug"
 import { detectTrackLanguage, trackMatchesLanguage } from "@/lib/helpers/language"
+import { isSignsTrack } from "@/app/(main)/_features/video-core/_lib/sub-dub-preference"
 import { getAssetUrl } from "@/lib/server/assets"
 import JASSUB from "jassub"
 import type { ASSEvent } from "jassub/dist/worker/util"
@@ -1972,6 +1973,15 @@ export function getDefaultSubtitleTrackNumber(
         .filter(label => label.length > 0)
 
     let tracks = _tracks ?? []
+
+    // Dub with signs & songs only: a signs track in a preferred language, else any signs track,
+    // else nothing — the full subtitles would caption the dub.
+    if (settings.subtitleSignsOnly) {
+        const signs = tracks.filter(isSignsTrack)
+        const inLanguage = preferredLanguages.flatMap(lang => signs.filter(t => trackMatchesLanguage(t, lang)))
+        return (inLanguage[0] ?? signs[0])?.number ?? NO_TRACK_NUMBER
+    }
+
     // remove blacklisted tracks if there are more than one
     if (blacklistLabels.length && tracks.length > 1) {
         tracks = tracks?.filter?.(t => !t.label || !blacklistLabels.includes(t.label?.toLowerCase())) ?? []

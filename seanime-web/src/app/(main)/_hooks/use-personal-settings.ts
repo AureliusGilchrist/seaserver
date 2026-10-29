@@ -12,6 +12,9 @@ export type PersonalSettings = {
     autoPopoutOnLeave: boolean
     /** Eased, gliding wheel scrolling for the page. */
     smoothScrolling: boolean
+    /** Sub or dub, for every player: which audio plays first, and the subtitles with a dub. */
+    audioPreference: "sub" | "dub"
+    dubSubtitles: "off" | "signs" | "full"
     stillWatchingChecksEnabled: boolean
     stillWatchingEpisodes: number
     /** How the check's active hours are chosen: the default night window, all day, or custom hours. */
@@ -111,6 +114,8 @@ export function usePersonalSettings(): PersonalSettings {
         autoPlayNextEpisode: clientSettings.autoPlayNextEpisode ?? serverStatus?.settings?.library?.autoPlayNextEpisode ?? false,
         autoPopoutOnLeave: clientSettings.autoPopoutOnLeave ?? true,
         smoothScrolling: clientSettings.smoothScrolling ?? true,
+        audioPreference: clientSettings.audioPreference ?? "sub",
+        dubSubtitles: clientSettings.dubSubtitles ?? "signs",
         stillWatchingChecksEnabled: clientSettings.stillWatchingChecksEnabled ?? serverStatus?.settings?.mediaPlayer?.stillWatchingChecksEnabled ?? true,
         stillWatchingEpisodes: clientSettings.stillWatchingEpisodes ?? serverStatus?.settings?.mediaPlayer?.stillWatchingEpisodes ?? 3,
         stillWatchingTimingMode: clientSettings.stillWatchingTimingMode ?? "night",

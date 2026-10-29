@@ -1,3 +1,4 @@
+import { applySubDubPreference } from "@/app/(main)/_features/video-core/_lib/sub-dub-preference"
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { useHandleCurrentMediaContinuity } from "@/api/hooks/continuity.hooks"
@@ -898,7 +899,10 @@ export function VideoCore(props: VideoCoreProps) {
 
     // States
     const qc = useQueryClient()
-    const settings = useAtomValue(vc_settings)
+    // The player's language preferences, with the Personal "Sub or dub" setting applied on top.
+    const rawSettings = useAtomValue(vc_settings)
+    const settings = React.useMemo(() => applySubDubPreference(rawSettings, personal.audioPreference, personal.dubSubtitles),
+        [rawSettings, personal.audioPreference, personal.dubSubtitles])
     // Loads per-media (per-series) track preferences from the server and registers the
     // write-through callback so the subtitle menu can persist the user's caption choice.
     useTrackPreferenceSync()

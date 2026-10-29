@@ -587,6 +587,31 @@ export function ClientSettings(props: ClientSettingsProps) {
                             />
                         </SettingRow>}
                     </div>
+                    <SettingRow settingKey={["audioPreference", "dubSubtitles"]}>
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div className="max-w-md">
+                                <p className="font-medium">Sub or dub</p>
+                                <p className="mt-0.5 text-sm text-[--muted]">
+                                    Which audio plays first in every player. Online streams switch to the dubbed version when there is one; library files pick
+                                    the English audio track. A sub/dub choice you make for a series in the player still wins for that series.
+                                </p>
+                            </div>
+                            <div className="flex flex-wrap items-end gap-4">
+                                <ChoiceRow
+                                    label="Watch"
+                                    value={personal.audioPreference}
+                                    options={[["sub", "Sub (Japanese audio)"], ["dub", "Dub (English audio)"]]}
+                                    onChange={v => handleSet("audioPreference", v as "sub" | "dub")}
+                                />
+                                {personal.audioPreference === "dub" && <ChoiceRow
+                                    label="Subtitles with a dub"
+                                    value={personal.dubSubtitles}
+                                    options={[["off", "Off"], ["signs", "Signs & songs"], ["full", "Full"]]}
+                                    onChange={v => handleSet("dubSubtitles", v as "off" | "signs" | "full")}
+                                />}
+                            </div>
+                        </div>
+                    </SettingRow>
                     <SettingRow settingKey={["stillWatchingChecksEnabled", "stillWatchingEpisodes", "stillWatchingTimingMode", "stillWatchingStartHour", "stillWatchingEndHour", "stillWatchingSessionGapMinutes", "stillWatchingMouseExtends", "stillWatchingMouseAmount", "stillWatchingMouseMaxExtra", "stillWatchingRecap", "stillWatchingRecapCount", "stillWatchingRecapDescriptions", "stillWatchingSpoilerGuard", "stillWatchingCountdown", "stillWatchingReplayFrom", "stillWatchingFlagDozed", "stillWatchingDozedFirst", "stillWatchingDoneLeaves"]}>
                         <div className="space-y-4">
                             <Switch

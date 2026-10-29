@@ -1,3 +1,4 @@
+import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { VideoCorePlayEpisodeRequest } from "@/app/(main)/_features/video-core/video-core-playlist"
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { Anime_Entry } from "@/api/generated/types"
@@ -290,11 +291,13 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
     const [quality, setQuality] = useAtom(__onlinestream_qualityAtom)
     const [dubbedPreferenceByMedia, setDubbedPreferenceByMedia] = useAtom(__onlinestream_dubbedPreferenceByMediaAtom)
     const dubbedPreferenceKey = mediaId ? String(mediaId) : null
-    const dubbed = dubbedPreferenceKey ? dubbedPreferenceByMedia[dubbedPreferenceKey] ?? false : false
+    // A choice made for this series wins; otherwise the Personal "Sub or dub" setting.
+    const personalDub = usePersonalSettings().audioPreference === "dub"
+    const dubbed = dubbedPreferenceKey ? dubbedPreferenceByMedia[dubbedPreferenceKey] ?? personalDub : personalDub
     const setDubbed = React.useCallback((update: boolean | ((prev: boolean) => boolean)) => {
         if (!dubbedPreferenceKey) return
         setDubbedPreferenceByMedia(prev => {
-            const current = prev[dubbedPreferenceKey] ?? false
+            const current = prev[dubbedPreferenceKey] ?? personalDub
             const next = typeof update === "function" ? update(current) : update
             if (current === next && Object.prototype.hasOwnProperty.call(prev, dubbedPreferenceKey)) return prev
             return {
@@ -302,7 +305,7 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
                 [dubbedPreferenceKey]: next,
             }
         })
-    }, [dubbedPreferenceKey, setDubbedPreferenceByMedia])
+    }, [dubbedPreferenceKey, setDubbedPreferenceByMedia, personalDub])
     const [provider, setProvider] = useAtom(__onlinestream_selectedProviderAtom)
 
     const [overrideStreamType, setOverrideStreamType] = React.useState<VideoCore_VideoPlaybackInfo["streamType"] | null>(null)

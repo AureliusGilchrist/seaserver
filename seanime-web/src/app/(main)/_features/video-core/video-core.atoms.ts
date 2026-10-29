@@ -19,6 +19,9 @@ export type VideoCoreSettings = {
     preferredSubtitleLanguage: string
     preferredSubtitleBlacklist: string
     preferredAudioLanguage: string
+    /** Set by the Personal "dub, signs & songs only" choice: the default subtitle track is a signs &
+     * songs track (or none), never the full subtitles. Not stored. */
+    subtitleSignsOnly?: boolean
     subtitleDelay: number // in seconds
     audioDelay: number // in seconds, positive = audio ahead, negative = audio behind
     // Video enhancement settings

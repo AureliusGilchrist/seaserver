@@ -26,6 +26,10 @@ export const clientSettingsSchema = z.object({
     autoPopoutOnLeave: z.boolean().optional(),
     /** Eased, gliding wheel scrolling for the page (see lib/smooth-scroll). */
     smoothScrolling: z.boolean().optional(),
+    /** Sub or dub: Japanese audio with subtitles, or English audio. */
+    audioPreference: z.enum(["sub", "dub"]).optional(),
+    /** With dub: subtitles off, signs & songs only, or full. */
+    dubSubtitles: z.enum(["off", "signs", "full"]).optional(),
     stillWatchingChecksEnabled: z.boolean().optional(),
     stillWatchingEpisodes: z.number().optional(),
     // Hours of day (0–23) the still-watching check applies in; the window may cross midnight.
