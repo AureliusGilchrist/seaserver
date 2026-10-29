@@ -8,6 +8,7 @@ import { useServerHMACAuth } from "@/app/(main)/_hooks/use-server-status"
 import { ElectronYoutubeEmbed } from "@/app/(main)/_electron/electron-embed"
 import { controlYoutubeFrame, TRAILER_FADE_MS } from "@/app/(main)/_electron/youtube-control"
 import { cn } from "@/components/ui/core/styling"
+import { releaseVideoElement } from "@/lib/helpers/release-video-element"
 import { __isElectronDesktop__ } from "@/types/constants"
 import React from "react"
 import { LuVolume2, LuVolumeX } from "react-icons/lu"
@@ -50,10 +51,25 @@ export type EpisodeCardPreviewProps = {
 
 export function EpisodeCardPreview(props: EpisodeCardPreviewProps) {
     const personal = usePersonalSettings()
+    // Logged once per session per reason: a preview that never even attempts must say why in
+    // Denshi's log, or "it doesn't work" has nothing to go on (the mid-play failures warn below).
+    if (!personal.episodePreviewEnabled) previewWarnOnce("previews are DISABLED by Personal settings")
+    if (!props.path && !props.trailerId) {
+        previewWarnOnce(`card has neither a file nor a trailer to preview (kind ${props.kind ?? personal.episodePreviewSource})`)
+    }
     if ((props.kind ?? personal.episodePreviewSource) === "trailer") {
         return props.trailerId ? <TrailerPreview {...props} trailerId={props.trailerId} /> : null
     }
     return props.path ? <FilePreview {...props} path={props.path} /> : null
+}
+
+const _previewWarnedOnce = new Set<string>()
+
+/** console.warn that keeps only the first message of each kind (previews render per-card, so the log would flood). */
+function previewWarnOnce(reason: string) {
+    if (_previewWarnedOnce.has(reason)) return
+    _previewWarnedOnce.add(reason)
+    previewWarn(reason, "session")
 }
 
 /**
@@ -180,7 +196,15 @@ function SoundButton({ sound, onToggle }: { sound: boolean, onToggle: () => void
 function FilePreview({ path, startAt, hovered, onPlayingChange }: EpisodeCardPreviewProps & { path: string }) {
     const personal = usePersonalSettings()
     const { getHMACTokenQueryParam } = useServerHMACAuth()
-    const videoRef = React.useRef<HTMLVideoElement>(null)
+    // The element the ref last pointed at. React nulls the ref when the <video> unmounts, *before*
+    // the unmount cleanup below runs, so that cleanup must reach the element through this ref —
+    // otherwise a detached <video> keeps streaming and holds a connection to the server (the same
+    // failure video-core fixed for its own <video>; see video-core.tsx "lastVideoElRef").
+    const videoElRef = React.useRef<HTMLVideoElement | null>(null)
+    const setVideoEl = React.useCallback((el: HTMLVideoElement | null) => {
+        // Never null it out: the unmount call happens before the cleanup effect can read the ref.
+        if (el) videoElRef.current = el
+    }, [])
     const [src, setSrc] = React.useState<string | null>(null)
     const [visible, setVisible] = React.useState(false)
     const [progress, setProgress] = React.useState(0)
@@ -190,13 +214,10 @@ function FilePreview({ path, startAt, hovered, onPlayingChange }: EpisodeCardPre
     const enabled = personal.episodePreviewEnabled && canHover && !!path && !unpreviewable.has(path)
 
     const stop = React.useCallback(() => {
-        const v = videoRef.current
+        const v = videoElRef.current
         if (v) {
             clearActivePreview(v)
-            v.pause()
-            // Dropping the source closes the connection to the server at once.
-            v.removeAttribute("src")
-            v.load()
+            releaseVideoElement(v)
         }
         setSrc(null)
         setVisible(false)
@@ -224,17 +245,19 @@ function FilePreview({ path, startAt, hovered, onPlayingChange }: EpisodeCardPre
         }
     }, [hovered, enabled, path])
 
-    // Unmounting (the card scrolled away, the page changed) stops it too.
+    // Unmounting (the card scrolled away, the page changed, the player opened over the list) stops
+    // it too — and releases the element, which by now React has detached from the document.
     React.useEffect(() => () => {
         if (activeStop === stop) activeStop = null
         stop()
+        videoElRef.current = null
     }, [stop])
 
     // A preview that never shows a frame (unsupported codec, unreachable file) gives up quietly.
     React.useEffect(() => {
         if (!src || visible) return
         const t = setTimeout(() => {
-            const v = videoRef.current
+            const v = videoElRef.current
             previewWarn(`no picture after ${FIRST_FRAME_TIMEOUT_MS / 1000}s (readyState ${v?.readyState}, ${v?.videoWidth}x${v?.videoHeight}, error ${v?.error?.code ?? "none"})`, path)
             unpreviewable.add(path)
             stop()
@@ -255,7 +278,7 @@ function FilePreview({ path, startAt, hovered, onPlayingChange }: EpisodeCardPre
 
     // Sound toggled while it plays fades in (or cuts out); before it plays, the fade on start does it.
     React.useEffect(() => {
-        const v = videoRef.current
+        const v = videoElRef.current
         if (!v || !visible) return
         fadeInAudio(v, sound ? personal.episodePreviewVolume / 100 : 0)
     }, [sound, personal.episodePreviewVolume])
@@ -263,7 +286,7 @@ function FilePreview({ path, startAt, hovered, onPlayingChange }: EpisodeCardPre
     if (!enabled || !src) return null
 
     const onLoadedMetadata = () => {
-        const v = videoRef.current
+        const v = videoElRef.current
         if (!v || !isFinite(v.duration) || v.duration <= 0) return
         const target = personal.episodePreviewStart === "resume" && startAt && startAt > 0
             ? Math.max(0, startAt - 3)
@@ -279,7 +302,7 @@ function FilePreview({ path, startAt, hovered, onPlayingChange }: EpisodeCardPre
     return (
         <div className="pointer-events-none absolute inset-0 z-[2]" data-episode-card-preview>
             <video
-                ref={videoRef}
+                ref={setVideoEl}
                 src={src}
                 muted // starts silent; the sound fades in once it plays
                 playsInline
@@ -288,7 +311,7 @@ function FilePreview({ path, startAt, hovered, onPlayingChange }: EpisodeCardPre
                 className={cn("size-full object-cover transition-opacity duration-500", visible ? "opacity-100" : "opacity-0")}
                 onLoadedMetadata={onLoadedMetadata}
                 onPlaying={() => {
-                    const v = videoRef.current
+                    const v = videoElRef.current
                     if (v && v.videoWidth > 0) {
                         setVisible(true)
                         registerActivePreview(path, v)
@@ -296,7 +319,7 @@ function FilePreview({ path, startAt, hovered, onPlayingChange }: EpisodeCardPre
                     }
                 }}
                 onTimeUpdate={() => {
-                    const v = videoRef.current
+                    const v = videoElRef.current
                     if (!v) return
                     if (v.duration) setProgress(v.currentTime / v.duration)
                     // Frames are playing: show it (the "playing" event can fire before the decoder
@@ -308,7 +331,7 @@ function FilePreview({ path, startAt, hovered, onPlayingChange }: EpisodeCardPre
                     }
                 }}
                 onError={() => {
-                    const e = videoRef.current?.error
+                    const e = videoElRef.current?.error
                     previewWarn(`video error ${e?.code ?? "?"} ${e?.message ?? ""}`, path)
                     unpreviewable.add(path)
                     stop()

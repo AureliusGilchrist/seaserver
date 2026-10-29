@@ -9,6 +9,7 @@ import {
     useExternalPlayerLink,
 } from "@/app/(main)/_atoms/playback.atoms"
 import { useTorrentstreamAutoplay } from "@/app/(main)/_features/autoplay/autoplay"
+import { requestAutoFullscreen } from "@/app/(main)/_features/video-core/video-core-auto-fullscreen"
 import { __mpt_currentExternalPlayerLinkAtom } from "@/app/(main)/_features/progress-tracking/manual-progress-tracking"
 import { useServerHMACAuth, useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { useMediastreamActiveOnDevice, useMediastreamCurrentFile } from "@/app/(main)/mediastream/_lib/mediastream.atoms"
@@ -136,8 +137,10 @@ export function useHandlePlayMedia() {
         // for local files, ahead of the Electron native player.
         if (serverStatus?.mediastreamSettings?.transcodeEnabled && mediastreamActiveOnDevice) {
             setMediastreamFilePath(path)
-            // From the anime page, play inline in the Local Player tab
+            // From the anime page, play inline in the Local Player tab. The flag rides the click
+            // (the only reliable user gesture) so the player enters fullscreen once it can play.
             if (pathname?.startsWith("/entry")) {
+                requestAutoFullscreen()
                 setEntryPageView("localplayer")
                 return
             }

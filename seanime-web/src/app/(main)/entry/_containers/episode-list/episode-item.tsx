@@ -71,7 +71,10 @@ export const EpisodeItem = memo(({ episode, media, isWatched, watchedProgress, o
                 media={media}
                 image={episode.episodeMetadata?.image}
                 onClick={handleClick}
-                previewPath={personal.episodePreviewEnabled && personal.episodePreviewScope === "all" ? episode.localFile?.path : undefined}
+                // Episode lists preview the episode itself whenever previews are on — not gated on
+                // episodePreviewScope, whose stored "resume" value from older builds silently turned
+                // every card here into nothing (no file passed, no trailer either).
+                previewPath={personal.episodePreviewEnabled ? episode.localFile?.path : undefined}
                 isInvalid={episode.isInvalid}
                 title={episode.displayTitle}
                 episodeTitle={episode.episodeTitle}

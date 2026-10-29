@@ -175,7 +175,7 @@ export function EpisodeSection({ entry, details, bottomSection, hideCarousel, ma
                                         <EpisodeCard
                                             key={episode.localFile?.path || ""}
                                             episode={episode}
-                                            previewPath={personal.episodePreviewScope === "all" ? episode.localFile?.path : undefined}
+                                            previewPath={personal.episodePreviewEnabled ? episode.localFile?.path : undefined}
                                             previewKind="episode"
                                             image={episode.episodeMetadata?.image || episode.baseAnime?.bannerImage || episode.baseAnime?.coverImage?.extraLarge}
                                             topTitle={episode.episodeTitle || displayTitle(episode?.baseAnime?.title)}

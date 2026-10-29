@@ -105,6 +105,7 @@ import { VideoCoreSubtitleManager } from "@/app/(main)/_features/video-core/vide
 import { vc_timeRangeElement, VideoCoreTimeRange } from "@/app/(main)/_features/video-core/video-core-time-range"
 import { VideoCoreTopPlaybackInfo, VideoCoreTopSection } from "@/app/(main)/_features/video-core/video-core-top-section"
 import { takePendingPopoutResume } from "@/app/(main)/_features/video-core/video-core-popout-resume"
+import { takePendingAutoFullscreen } from "@/app/(main)/_features/video-core/video-core-auto-fullscreen"
 import { finishPreviewTransition, takePendingPreviewResume } from "@/app/(main)/_features/anime/_lib/preview-handoff"
 import { VideoCoreWatchPartyChat } from "@/app/(main)/_features/video-core/video-core-watch-party-chat"
 import {
@@ -151,6 +152,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Modal } from "@/components/ui/modal"
 import { useDisclosure } from "@/hooks/use-disclosure"
 import { logger } from "@/lib/helpers/debug"
+import { releaseVideoElement } from "@/lib/helpers/release-video-element"
 import { __isDesktop__, __isElectronDesktop__ } from "@/types/constants"
 import { useQueryClient } from "@tanstack/react-query"
 import { ErrorData } from "hls.js"
@@ -1864,10 +1866,16 @@ export function VideoCore(props: VideoCoreProps) {
             const popoutResume = takePendingPopoutResume()
             // Opened from an episode card's hover preview: continue where the preview was.
             const previewResume = popoutResume ? null : takePendingPreviewResume(state.playbackInfo?.localFile?.path || undefined)
+            // Clicked an episode card on the entry page: go fullscreen once this can play.
+            const autoFullscreen = takePendingAutoFullscreen()
             if (popoutResume) {
                 restoreSeekTime(popoutResume.time, false, popoutResume.paused)
             } else if (previewResume) {
                 restoreSeekTime(previewResume, false, false)
+                // Element fullscreen renders in the browser's top layer, above any body-level
+                // element — the handoff overlay (a body-level div, 450 ms fade) would be cut to
+                // black mid-fade. Enter fullscreen after the overlay is gone.
+                if (autoFullscreen) setTimeout(() => fullscreenManager?.enterFullscreen(), 750)
                 finishPreviewTransition()
             } else if (!state.playbackInfo.disableRestoreFromContinuity && !state.playbackInfo.initialState) {
                 if (shouldWaitForWatchHistory && !watchHistory) {
@@ -1894,6 +1902,12 @@ export function VideoCore(props: VideoCoreProps) {
                 }
             } else if (autoPlay && !popoutResume?.paused) {
                 videoRef.current.play().catch()
+            }
+
+            // No preview handoff (clicked without hovering): fullscreen right away — nothing
+            // is fading above the video that top-layer rendering would cut off.
+            if (autoFullscreen && !popoutResume) {
+                void fullscreenManager?.enterFullscreen()
             }
         }
     }
@@ -2465,21 +2479,4 @@ function FloatingButtons(props: { part: "video" | "loading", onTerminateStream: 
     }
 
     return <Content />
-}
-
-/**
- * Stops a <video> from holding a network connection: pause, drop the source, and load() so the
- * browser aborts the in-flight range request. Safe on an element that's already detached.
- */
-function releaseVideoElement(el: HTMLVideoElement) {
-    try {
-        el.pause()
-        if (el.getAttribute("src") || el.currentSrc) {
-            el.removeAttribute("src")
-            el.load()
-        }
-    }
-    catch {
-        // a detached element can throw on load(); nothing left to release then
-    }
 }

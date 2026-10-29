@@ -177,15 +177,20 @@ func (c *Client) Login() error {
 		return err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
+	// qBittorrent 5.2 answers a successful login with 204 No Content (the SID still comes back in
+	// Set-Cookie); older versions answered 200 "Ok.". "Fails." only arrives on the 200 form.
+	if resp.StatusCode != 200 && resp.StatusCode != 204 {
 		return fmt.Errorf("invalid status %s", resp.Status)
 	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	if strings.TrimSpace(string(body)) == "Fails." {
-		return fmt.Errorf("invalid username or password")
+	var body []byte
+	if resp.StatusCode == 200 {
+		body, err = io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		if strings.TrimSpace(string(body)) == "Fails." {
+			return fmt.Errorf("invalid username or password")
+		}
 	}
 	if len(resp.Cookies()) < 1 {
 		return fmt.Errorf("no cookies in login response")
@@ -213,7 +218,8 @@ func (c *Client) Logout() error {
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode != 200 {
+	// 204 No Content is qBittorrent 5.2's empty-success form (see Login).
+	if resp.StatusCode != 200 && resp.StatusCode != 204 {
 		return fmt.Errorf("invalid status %s", resp.Status)
 	}
 	return nil
