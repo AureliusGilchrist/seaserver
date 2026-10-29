@@ -1,6 +1,6 @@
 {
   "name": "seanime-denshi",
-  "version": "5.3.5-18",
+  "version": "5.3.5-19",
   "description": "Electron-based Desktop client for Seaserver",
   "main": "src/main.js",
   "author": "5rahim <talkwithrahim@gmail.com>",
@@ -28,10 +28,6 @@
     "electron-builder": "^25.1.8"
   },
   "build": {
-    "electronDownload": {
-      "mirror": "https://seanime.app/assets/electron/",
-      "customDir": "v39.2.7"
-    },
     "appId": "app.seanime.denshi",
     "productName": "Seaserver Denshi",
     "asar": true,
