@@ -1,3 +1,4 @@
+import { VideoCorePlayEpisodeRequest } from "@/app/(main)/_features/video-core/video-core-playlist"
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { Anime_Entry } from "@/api/generated/types"
 import { useGetContinuityWatchHistory } from "@/api/hooks/continuity.hooks"
@@ -717,10 +718,12 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
         }
     })
 
-    const handlePlayEpisode = useLatestFunction((which: "next" | "previous") => {
+    const handlePlayEpisode = useLatestFunction((which: VideoCorePlayEpisodeRequest) => {
         setUrl(null)
         React.startTransition(() => {
-            if (which === "next") {
+            if (typeof which === "object") {
+                selectEpisodeNumberPreferLocal(which.episodeNumber)
+            } else if (which === "next") {
                 goToNextEpisode()
             } else {
                 goToPreviousEpisode()

@@ -1,3 +1,21 @@
+import { Anime_Episode } from "@/api/generated/types"
+import {
+    finishEntry,
+    looksDozed,
+    noteInput,
+    pushHistory,
+    recapOrder,
+    shortDescription,
+    splitShowMore,
+    startEntry,
+    StillWatchingEpisodeSnapshot,
+    StillWatchingHistoryEntry,
+} from "@/app/(main)/_features/video-core/_lib/still-watching-history"
+import { vc_skipOpeningOnceAtom } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { useVideoCorePlaylist } from "@/app/(main)/_features/video-core/video-core-playlist"
+import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
+import { cn } from "@/components/ui/core/styling"
+import { getImageUrl } from "@/lib/server/assets"
 import { useGetAnimeEntry } from "@/api/hooks/anime_entries.hooks"
 import { useGetAnilistAnimeDetails } from "@/api/hooks/anilist.hooks"
 import { VideoCoreLifecycleState } from "@/app/(main)/_features/video-core/video-core.atoms"
@@ -9,7 +27,7 @@ import { useRouter } from "@/lib/navigation"
 import { atom, useAtomValue, useSetAtom } from "jotai"
 import { useAtom } from "jotai/react"
 import React from "react"
-import { LuArrowRight, LuPlay } from "react-icons/lu"
+import { LuArrowRight, LuChevronDown, LuHistory, LuMoon, LuPlay } from "react-icons/lu"
 
 /**
  * Two things the player asks about rather than assuming.
@@ -85,6 +103,10 @@ export type VideoCoreSequelPromptState = {
 export type VideoCoreStillWatchingState = {
     /** How many episodes have been played since the last check. */
     episodesWatched: number
+    /** What played since the last check (or since watching started), oldest first. */
+    history: StillWatchingHistoryEntry[]
+    /** The episode "Keep watching" plays, when there is one. */
+    next: StillWatchingEpisodeSnapshot | null
 }
 
 /** Settings -> App: whether the still-watching check runs, and how many episodes between checks. */
@@ -126,12 +148,35 @@ const stillWatchingSession = {
     moved: 0,
     /** Extra episodes already granted by mouse movement since the last check. */
     extraUsed: 0,
+    /** Finished episodes since the last check, for the recap. */
+    history: [] as StillWatchingHistoryEntry[],
+    /** The episode playing now, with the input seen while it plays. */
+    current: null as StillWatchingHistoryEntry | null,
+    /** The history the armed check will show, set aside when the check arms. */
+    armed: [] as StillWatchingHistoryEntry[],
 }
 
 function resetStillWatchingSession() {
     stillWatchingSession.played = 0
     stillWatchingSession.moved = 0
     stillWatchingSession.extraUsed = 0
+    stillWatchingSession.history = []
+}
+
+/** What the recap needs to know about an episode, kept apart from the playlist objects. */
+export function snapshotEpisode(ep: Anime_Episode | null | undefined): StillWatchingEpisodeSnapshot | null {
+    if (!ep) return null
+    return {
+        aniDBEpisode: ep.aniDBEpisode,
+        episodeNumber: ep.episodeNumber,
+        progressNumber: ep.progressNumber,
+        displayTitle: ep.displayTitle,
+        episodeTitle: ep.episodeTitle,
+        image: ep.episodeMetadata?.image || ep.baseAnime?.coverImage?.large,
+        description: ep.episodeMetadata?.summary || ep.episodeMetadata?.overview,
+        isFiller: ep.episodeMetadata?.isFiller,
+        length: ep.episodeMetadata?.length,
+    }
 }
 
 // Module-level, like the progress prompt: there is one in-app player at a time.
@@ -193,6 +238,38 @@ export function useVideoCoreWatchingChecks(
         setStillWatchingHold(false)
     }, [state.playbackInfo?.id, setStillWatching, setStillWatchingHold])
 
+    // Each stream starting is an episode the recap may list: note when it started, then the input
+    // seen while it plays (for "you may have dozed off").
+    React.useEffect(() => {
+        const ep = snapshotEpisode(state.playbackInfo?.episode)
+        if (!mediaId || !ep) return
+        stillWatchingSession.current = startEntry(mediaId, ep, Date.now())
+    }, [state.playbackInfo?.id])
+    React.useEffect(() => {
+        let lastMove = 0
+        const note = () => {
+            const cur = stillWatchingSession.current
+            if (cur) noteInput(cur, Date.now())
+        }
+        const onMove = (e: PointerEvent) => {
+            if (e.pointerType === "touch") return
+            const now = Date.now()
+            if (now - lastMove < 1000) return
+            lastMove = now
+            note()
+        }
+        window.addEventListener("pointermove", onMove, { passive: true })
+        window.addEventListener("pointerdown", note, { passive: true })
+        window.addEventListener("keydown", note)
+        window.addEventListener("wheel", note, { passive: true })
+        return () => {
+            window.removeEventListener("pointermove", onMove)
+            window.removeEventListener("pointerdown", note)
+            window.removeEventListener("keydown", note)
+            window.removeEventListener("wheel", note)
+        }
+    }, [])
+
     // A different show is a different end-of-episode key; the session count itself carries on.
     React.useEffect(() => {
         handledEndRef.current = null
@@ -250,8 +327,9 @@ export function useVideoCoreWatchingChecks(
         ? !!playlistState.nextEpisode
         : !(totalEpisodes > 0 && episodeNumber >= totalEpisodes)
 
-    const latestRef = React.useRef({ details, state, mediaId, episodeNumber, totalEpisodes, setSequelPrompt, setStillWatching, setStillWatchingHold, stillWatchingConfig, stillWatchingHold, hasNextEpisode })
-    latestRef.current = { details, state, mediaId, episodeNumber, totalEpisodes, setSequelPrompt, setStillWatching, setStillWatchingHold, stillWatchingConfig, stillWatchingHold, hasNextEpisode }
+    const nextEpisode = playlistState?.nextEpisode ?? null
+    const latestRef = React.useRef({ details, state, mediaId, episodeNumber, totalEpisodes, setSequelPrompt, setStillWatching, setStillWatchingHold, stillWatchingConfig, stillWatchingHold, hasNextEpisode, nextEpisode })
+    latestRef.current = { details, state, mediaId, episodeNumber, totalEpisodes, setSequelPrompt, setStillWatching, setStillWatchingHold, stillWatchingConfig, stillWatchingHold, hasNextEpisode, nextEpisode }
 
     /**
      * Called when an episode reaches the completion threshold. Counts the episode and arms the
@@ -266,6 +344,12 @@ export function useVideoCoreWatchingChecks(
         const key = `${mediaId}:${episodeNumber}`
         if (handledEndRef.current === key) return
         handledEndRef.current = key
+
+        // Into the recap history, whether or not the check is due.
+        const cur = stillWatchingSession.current
+        if (cur && cur.mediaId === mediaId) {
+            stillWatchingSession.history = pushHistory(stillWatchingSession.history, finishEntry(cur, Date.now()))
+        }
 
         // The check intercepts only advances the player would make on its own, and only when on.
         if (stillWatchingConfig?.canAutoAdvance === false) return
@@ -284,6 +368,7 @@ export function useVideoCoreWatchingChecks(
                 session.played = checkInterval - 1 // the next episode checks again
                 return
             }
+            stillWatchingSession.armed = stillWatchingSession.history
             resetStillWatchingSession()
             setStillWatchingHold(true)
         } else {
@@ -318,7 +403,13 @@ export function useVideoCoreWatchingChecks(
         if (!isStillWatchingActiveHour(hour, stillWatchingConfig.timingMode ?? "night", stillWatchingConfig.startHour ?? DEFAULT_CHECK_START_HOUR, stillWatchingConfig.endHour ?? DEFAULT_CHECK_END_HOUR)) return false
 
         const checkInterval = Math.max(1, stillWatchingConfig?.episodes ?? DEFAULT_EPISODES_BETWEEN_CHECKS)
-        setStillWatching({ episodesWatched: checkInterval })
+        const history = stillWatchingSession.armed
+        stillWatchingSession.armed = []
+        setStillWatching({
+            episodesWatched: history.length || checkInterval,
+            history,
+            next: snapshotEpisode(latestRef.current.nextEpisode),
+        })
         return true
     }, [])
 
@@ -391,47 +482,248 @@ export function VideoCoreSequelPrompt() {
 }
 
 /**
- * "Are you still watching?" — every few episodes, between one episode ending and the next
- * starting. The next episode waits until answered.
+ * "Are you still watching?" — every few episodes, between one episode ending and the next starting.
+ * The next episode waits until answered. "I think I missed something" opens a recap of what played
+ * (greyed, newest first, dozed-off ones flagged) where any card replays that episode; the episode
+ * that plays next always sits at the bottom. Personal settings shape all of it.
  */
-export function VideoCoreStillWatchingPrompt({ onContinue }: { onContinue?: () => void }) {
+export function VideoCoreStillWatchingPrompt({ onContinue, onLeave }: { onContinue?: () => void, onLeave?: () => void }) {
     const [prompt, setPrompt] = useAtom(vc_stillWatchingPrompt)
+    const personal = usePersonalSettings()
+    const playlistState = useAtomValue(vc_playlistState)
+    const { playSpecificEpisode } = useVideoCorePlaylist()
+    const setSkipOpeningOnce = useSetAtom(vc_skipOpeningOnceAtom)
+    const [view, setView] = React.useState<"ask" | "recap" | "countdown">("ask")
+    const [showAll, setShowAll] = React.useState(false)
+    const [remaining, setRemaining] = React.useState(0)
+
+    React.useEffect(() => {
+        setView("ask")
+        setShowAll(false)
+    }, [prompt])
+
+    const ordered = React.useMemo(() => recapOrder(prompt?.history ?? [], personal.stillWatchingFlagDozed && personal.stillWatchingDozedFirst),
+        [prompt, personal.stillWatchingFlagDozed, personal.stillWatchingDozedFirst])
+    const dozed = personal.stillWatchingFlagDozed ? ordered.filter(looksDozed) : []
+    const { shown, hidden } = splitShowMore(ordered, personal.stillWatchingRecapCount)
+    const canPickEpisodes = !!playlistState?.episodes?.length
+
+    const close = () => setPrompt(null)
+    const playNext = () => {
+        close()
+        onContinue?.()
+    }
+    const keepWatching = () => {
+        if (!prompt?.next || personal.stillWatchingCountdown <= 0) return playNext()
+        setRemaining(personal.stillWatchingCountdown)
+        setView("countdown")
+    }
+    const done = () => {
+        close()
+        if (personal.stillWatchingDoneLeaves) onLeave?.()
+    }
+    const replay = (entry: StillWatchingHistoryEntry) => {
+        const target = playlistState?.episodes?.find(e =>
+            (!!entry.episode.aniDBEpisode && e.aniDBEpisode === entry.episode.aniDBEpisode) ||
+            e.progressNumber === entry.episode.progressNumber)
+        if (!target) return
+        close()
+        if (personal.stillWatchingReplayFrom === "afterOpening") setSkipOpeningOnce(true)
+        playSpecificEpisode(target)
+    }
+
+    // Countdown after "Keep watching".
+    React.useEffect(() => {
+        if (view !== "countdown") return
+        if (remaining <= 0) {
+            playNext()
+            return
+        }
+        const t = setTimeout(() => setRemaining(r => r - 1), 1000)
+        return () => clearTimeout(t)
+    }, [view, remaining])
+
+    // Enter keeps watching, M opens the recap, Esc is done (or cancels the countdown).
+    React.useEffect(() => {
+        if (!prompt) return
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Enter") {
+                e.preventDefault()
+                e.stopPropagation()
+                if (view === "countdown") playNext()
+                else keepWatching()
+            } else if ((e.key === "m" || e.key === "M") && personal.stillWatchingRecap && view === "ask") {
+                e.stopPropagation()
+                setView("recap")
+            } else if (e.key === "Escape") {
+                e.preventDefault()
+                e.stopPropagation()
+                if (view === "countdown") setView("ask")
+                else done()
+            }
+        }
+        window.addEventListener("keydown", onKey, true)
+        return () => window.removeEventListener("keydown", onKey, true)
+    })
 
     if (!prompt) return null
+
+    const nextCard = prompt.next
+        ? <RecapCard
+            episode={prompt.next}
+            label={view === "countdown" ? `Up next · ${remaining}s` : "Up next"}
+            variant="next"
+            descriptions={personal.stillWatchingRecapDescriptions}
+            spoilerGuard={personal.stillWatchingSpoilerGuard}
+            onClick={playNext}
+            countdown={view === "countdown" ? { remaining, total: personal.stillWatchingCountdown } : undefined}
+        />
+        : <div className="rounded-2xl border border-dashed border-white/15 p-4 text-center text-sm text-white/55">That was the last episode.</div>
+
+    const entryCard = (e: StillWatchingHistoryEntry) => {
+        const isDozed = personal.stillWatchingFlagDozed && looksDozed(e)
+        return <RecapCard
+            key={e.key}
+            episode={e.episode}
+            label={isDozed ? "May have dozed off" : "Watched"}
+            variant={isDozed ? "dozed" : "watched"}
+            descriptions={personal.stillWatchingRecapDescriptions}
+            onClick={canPickEpisodes ? () => replay(e) : undefined}
+        />
+    }
 
     return (
         <div
             data-vc-element="still-watching-prompt"
-            className="absolute inset-0 flex items-center justify-center z-[56] cursor-auto"
+            className="absolute inset-0 z-[56] flex cursor-auto items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]"
             onClick={e => e.stopPropagation()}
             onPointerMove={e => e.stopPropagation()}
         >
-            <div className="bg-gray-950/80 backdrop-blur-md rounded-xl p-6 text-center shadow-2xl border border-[--border] max-w-sm">
-                <p className="text-white text-lg font-medium mb-1">Still watching?</p>
-                <p className="text-gray-300 text-sm mb-5">
-                    That's {prompt.episodesWatched} episodes in a row. The next one starts when you say so.
+            <div
+                className={cn(
+                    "w-full rounded-3xl border border-white/10 bg-gray-950/80 p-6 shadow-2xl backdrop-blur-xl",
+                    view === "ask" ? "max-w-md text-center" : "max-w-2xl",
+                )}
+            >
+                <p className="text-xl font-semibold text-white">Still watching?</p>
+                <p className="mt-1 text-sm text-gray-300">
+                    That's {prompt.episodesWatched} episode{prompt.episodesWatched === 1 ? "" : "s"} in a row. The next one starts when you say so.
                 </p>
-                <div className="flex gap-3 justify-center">
-                    <Button
-                        size="sm"
-                        intent="white"
-                        leftIcon={<LuArrowRight />}
-                        onClick={() => {
-                            setPrompt(null)
-                            onContinue?.()
-                        }}
-                    >
-                        Keep watching
-                    </Button>
-                    <Button
-                        size="sm"
-                        intent="gray-outline"
-                        onClick={() => setPrompt(null)}
-                    >
-                        I'm done for now
-                    </Button>
+                {dozed.length > 0 && view === "ask" && (
+                    <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-amber-200/90">
+                        <LuMoon className="size-3.5" />
+                        Looks like you may have dozed off during {dozed.length === 1
+                        ? `episode ${dozed[0].episode.progressNumber ?? dozed[0].episode.episodeNumber}`
+                        : `${dozed.length} episodes`}.
+                    </p>
+                )}
+
+                {view === "recap" && (
+                    <div className="mt-5 max-h-[55vh] space-y-2.5 overflow-y-auto pr-1 text-left" data-vc-still-watching-recap>
+                        {!canPickEpisodes && <p className="text-xs text-white/50">Replaying an earlier episode isn't available here.</p>}
+                        {shown.map(entryCard)}
+                        {showAll && hidden.map(entryCard)}
+                        {hidden.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => setShowAll(v => !v)}
+                                className="mx-auto flex items-center gap-1.5 rounded-full bg-white/[0.05] px-4 py-1.5 text-xs font-medium text-white/75 ring-1 ring-white/10 hover:text-white"
+                            >
+                                {showAll ? "Show less" : `Show more (${hidden.length})`}
+                                <LuChevronDown className={cn("size-3.5 transition-transform", showAll && "rotate-180")} />
+                            </button>
+                        )}
+                        <div className="pt-1">{nextCard}</div>
+                    </div>
+                )}
+
+                {view === "countdown" && <div className="mt-5 text-left">{nextCard}</div>}
+
+                <div className={cn("mt-6 flex flex-wrap gap-2.5", view === "ask" ? "justify-center" : "justify-end")}>
+                    {view === "countdown" ? <>
+                        <Button size="sm" intent="white" leftIcon={<LuPlay />} onClick={playNext}>Play now</Button>
+                        <Button size="sm" intent="gray-outline" onClick={() => setView("ask")}>Cancel</Button>
+                    </> : <>
+                        <Button size="sm" intent="white" leftIcon={<LuArrowRight />} onClick={keepWatching}>Keep watching</Button>
+                        {personal.stillWatchingRecap && view === "ask" && (prompt.history.length > 0 || !!prompt.next) && (
+                            <Button size="sm" intent="gray-subtle" leftIcon={<LuHistory />} onClick={() => setView("recap")}>
+                                I think I missed something
+                            </Button>
+                        )}
+                        <Button size="sm" intent="gray-outline" onClick={done}>I'm done for now</Button>
+                    </>}
                 </div>
             </div>
         </div>
+    )
+}
+
+function RecapCard({ episode, label, variant, descriptions, spoilerGuard, onClick, countdown }: {
+    episode: StillWatchingEpisodeSnapshot
+    label: string
+    variant: "watched" | "dozed" | "next"
+    descriptions: "full" | "short" | "hidden"
+    spoilerGuard?: boolean
+    onClick?: () => void
+    countdown?: { remaining: number, total: number }
+}) {
+    const number = episode.progressNumber ?? episode.episodeNumber
+    const title = episode.episodeTitle || episode.displayTitle
+    const desc = descriptions === "hidden"
+        ? ""
+        : descriptions === "short" ? shortDescription(episode.description) : (episode.description ?? "").replace(/<[^>]+>/g, "")
+    const greyed = variant !== "next"
+    return (
+        <button
+            type="button"
+            disabled={!onClick}
+            onClick={onClick}
+            className={cn(
+                "group relative flex w-full gap-3 overflow-hidden rounded-2xl p-2.5 text-left ring-1 transition-all",
+                variant === "next" ? "bg-brand-500/[0.08] ring-brand-400/30 hover:bg-brand-500/[0.14]" : "bg-white/[0.03] ring-white/10",
+                greyed && "opacity-60 grayscale hover:opacity-100 hover:grayscale-0",
+                variant === "dozed" && "ring-amber-300/25",
+                !onClick && "cursor-default",
+            )}
+        >
+            <span className="relative aspect-video w-36 shrink-0 overflow-hidden rounded-xl bg-white/[0.05] sm:w-44">
+                {episode.image && <img src={getImageUrl(episode.image)} alt="" className="size-full object-cover" loading="lazy" />}
+                {onClick && (
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                        <LuPlay className="size-6 text-white" />
+                    </span>
+                )}
+                {countdown && (
+                    <span
+                        className="absolute bottom-0 left-0 h-1 bg-brand-300 transition-[width] duration-1000 ease-linear"
+                        style={{ width: `${(1 - countdown.remaining / Math.max(1, countdown.total)) * 100}%` }}
+                    />
+                )}
+            </span>
+            <span className="min-w-0 flex-1 py-0.5">
+                <span className="flex flex-wrap items-center gap-1.5">
+                    <span
+                        className={cn(
+                            "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+                            variant === "next" ? "bg-brand-500/25 text-brand-100" : variant === "dozed" ? "bg-amber-400/15 text-amber-200" : "bg-white/[0.08] text-white/60",
+                        )}
+                    >{label}</span>
+                    {episode.isFiller && <span className="rounded-full bg-orange-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-orange-200">Filler</span>}
+                </span>
+                <span className="mt-1 block truncate text-sm font-semibold text-white">
+                    {number !== undefined ? `Episode ${number}` : ""}{title && title !== `Episode ${number}` ? ` · ${title}` : ""}
+                </span>
+                {!!desc && (
+                    <span
+                        className={cn(
+                            "mt-0.5 block text-xs leading-relaxed text-white/60",
+                            descriptions === "short" && "line-clamp-2",
+                            descriptions === "full" && "line-clamp-5",
+                            spoilerGuard && variant === "next" && "blur-[3px] transition-[filter] group-hover:blur-0",
+                        )}
+                    >{desc}</span>
+                )}
+            </span>
+        </button>
     )
 }

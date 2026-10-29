@@ -587,7 +587,7 @@ export function ClientSettings(props: ClientSettingsProps) {
                             />
                         </SettingRow>}
                     </div>
-                    <SettingRow settingKey={["stillWatchingChecksEnabled", "stillWatchingEpisodes", "stillWatchingTimingMode", "stillWatchingStartHour", "stillWatchingEndHour", "stillWatchingSessionGapMinutes", "stillWatchingMouseExtends", "stillWatchingMouseAmount", "stillWatchingMouseMaxExtra"]}>
+                    <SettingRow settingKey={["stillWatchingChecksEnabled", "stillWatchingEpisodes", "stillWatchingTimingMode", "stillWatchingStartHour", "stillWatchingEndHour", "stillWatchingSessionGapMinutes", "stillWatchingMouseExtends", "stillWatchingMouseAmount", "stillWatchingMouseMaxExtra", "stillWatchingRecap", "stillWatchingRecapCount", "stillWatchingRecapDescriptions", "stillWatchingSpoilerGuard", "stillWatchingCountdown", "stillWatchingReplayFrom", "stillWatchingFlagDozed", "stillWatchingDozedFirst", "stillWatchingDoneLeaves"]}>
                         <div className="space-y-4">
                             <Switch
                                 side="right"
@@ -664,6 +664,83 @@ export function ClientSettings(props: ClientSettingsProps) {
                                                     onValueChange={v => {
                                                         if (!Number.isNaN(v)) handleSet("stillWatchingMouseMaxExtra", v)
                                                     }}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="md:col-span-2 space-y-4 border-t border-white/[0.06] pt-4">
+                                        <Switch
+                                            side="right"
+                                            value={personal.stillWatchingRecap}
+                                            onValueChange={v => handleSet("stillWatchingRecap", v)}
+                                            label="Recap of what played"
+                                            help="Adds “I think I missed something” to the question: the episodes since the last check as cards, greyed out, with the next one at the bottom. Click any of them to play it."
+                                        />
+                                        {personal.stillWatchingRecap && (
+                                            <div className="grid gap-5 lg:grid-cols-[1fr_260px]">
+                                                <div className="space-y-4">
+                                                    <div className="grid gap-4 sm:grid-cols-2">
+                                                        <NumberInput
+                                                            label="Episodes shown before “Show more”"
+                                                            min={1}
+                                                            max={12}
+                                                            value={personal.stillWatchingRecapCount}
+                                                            onValueChange={v => {
+                                                                if (!Number.isNaN(v)) handleSet("stillWatchingRecapCount", v)
+                                                            }}
+                                                        />
+                                                        <ChoiceRow
+                                                            label="Countdown after “Keep watching”"
+                                                            value={String(personal.stillWatchingCountdown)}
+                                                            options={[["0", "Off"], ["3", "3 s"], ["5", "5 s"], ["10", "10 s"]]}
+                                                            onChange={v => handleSet("stillWatchingCountdown", Number(v))}
+                                                        />
+                                                    </div>
+                                                    <ChoiceRow
+                                                        label="Episode descriptions"
+                                                        value={personal.stillWatchingRecapDescriptions}
+                                                        options={[["full", "Full"], ["short", "Short"], ["hidden", "Hidden"]]}
+                                                        onChange={v => handleSet("stillWatchingRecapDescriptions", v as "full" | "short" | "hidden")}
+                                                    />
+                                                    <ChoiceRow
+                                                        label="Replaying an earlier episode starts"
+                                                        value={personal.stillWatchingReplayFrom}
+                                                        options={[["afterOpening", "After the opening"], ["start", "From the beginning"]]}
+                                                        onChange={v => handleSet("stillWatchingReplayFrom", v as "start" | "afterOpening")}
+                                                    />
+                                                    <Switch
+                                                        side="right"
+                                                        value={personal.stillWatchingSpoilerGuard}
+                                                        onValueChange={v => handleSet("stillWatchingSpoilerGuard", v)}
+                                                        label="Blur the next episode's description"
+                                                        help="Hover to read it."
+                                                    />
+                                                    <Switch
+                                                        side="right"
+                                                        value={personal.stillWatchingFlagDozed}
+                                                        onValueChange={v => handleSet("stillWatchingFlagDozed", v)}
+                                                        label="Flag episodes I may have dozed off during"
+                                                        help="An episode that played with no mouse, keyboard or click at all gets a “May have dozed off” tag, and the question mentions it."
+                                                    />
+                                                    {personal.stillWatchingFlagDozed && <Switch
+                                                        side="right"
+                                                        value={personal.stillWatchingDozedFirst}
+                                                        onValueChange={v => handleSet("stillWatchingDozedFirst", v)}
+                                                        label="List those first in the recap"
+                                                    />}
+                                                    <Switch
+                                                        side="right"
+                                                        value={personal.stillWatchingDoneLeaves}
+                                                        onValueChange={v => handleSet("stillWatchingDoneLeaves", v)}
+                                                        label="“I'm done for now” also leaves the player"
+                                                        help="Your place is saved either way."
+                                                    />
+                                                </div>
+                                                <RecapPreview
+                                                    count={personal.stillWatchingRecapCount}
+                                                    descriptions={personal.stillWatchingRecapDescriptions}
+                                                    blurNext={personal.stillWatchingSpoilerGuard}
+                                                    flagDozed={personal.stillWatchingFlagDozed}
                                                 />
                                             </div>
                                         )}
@@ -937,6 +1014,77 @@ export function ClientSettings(props: ClientSettingsProps) {
                         </Button>
                     </div>
                 </PersonalSection>
+            </div>
+        </div>
+    )
+}
+
+/** A label over a row of choice chips. */
+function ChoiceRow({ label, value, options, onChange }: {
+    label: string
+    value: string
+    options: [string, string][]
+    onChange: (v: string) => void
+}) {
+    return (
+        <div>
+            <p className="mb-1.5 text-sm font-medium">{label}</p>
+            <div className="inline-flex flex-wrap rounded-full bg-white/[0.04] p-0.5 ring-1 ring-white/10">
+                {options.map(([v, l]) => (
+                    <button
+                        key={v}
+                        type="button"
+                        onClick={() => onChange(v)}
+                        className={cn(
+                            "rounded-full px-3 py-1 text-xs font-medium transition-all",
+                            value === v ? "bg-white/[0.14] text-white shadow-sm" : "text-white/55 hover:text-white",
+                        )}
+                    >{l}</button>
+                ))}
+            </div>
+        </div>
+    )
+}
+
+/** A miniature of the recap, following the settings above it. */
+function RecapPreview({ count, descriptions, blurNext, flagDozed }: {
+    count: number
+    descriptions: "full" | "short" | "hidden"
+    blurNext: boolean
+    flagDozed: boolean
+}) {
+    const watched = [
+        { n: 14, title: "The Rescue Begins", dozed: false },
+        { n: 13, title: "Ichigo vs. Renji", dozed: flagDozed },
+        { n: 12, title: "Enter the Soul Society", dozed: false },
+    ]
+    const shown = watched.slice(0, Math.max(1, count))
+    const hidden = watched.length - shown.length
+    const line = (n: number) => <span className="mt-1 block h-1.5 rounded-full bg-white/15" style={{ width: `${n}%` }} />
+    return (
+        <div className="rounded-2xl border border-white/10 bg-gray-950/70 p-3 shadow-xl" aria-hidden>
+            <p className="text-center text-xs font-semibold text-white">Still watching?</p>
+            <div className="mt-2 space-y-1.5">
+                {shown.map(w => (
+                    <div key={w.n} className={cn("flex gap-2 rounded-lg bg-white/[0.03] p-1.5 opacity-60 grayscale ring-1", w.dozed ? "ring-amber-300/30" : "ring-white/10")}>
+                        <span className="aspect-video w-14 shrink-0 rounded bg-white/10" />
+                        <span className="min-w-0 flex-1">
+                            <span className={cn("block text-[8px] font-semibold uppercase", w.dozed ? "text-amber-200" : "text-white/50")}>{w.dozed ? "May have dozed off" : "Watched"}</span>
+                            <span className="block truncate text-[10px] text-white">Ep {w.n} · {w.title}</span>
+                            {descriptions !== "hidden" && line(descriptions === "full" ? 95 : 70)}
+                            {descriptions === "full" && line(80)}
+                        </span>
+                    </div>
+                ))}
+                {hidden > 0 && <p className="text-center text-[9px] text-white/50">Show more ({hidden})</p>}
+                <div className="flex gap-2 rounded-lg bg-brand-500/[0.1] p-1.5 ring-1 ring-brand-400/30">
+                    <span className="aspect-video w-14 shrink-0 rounded bg-white/15" />
+                    <span className="min-w-0 flex-1">
+                        <span className="block text-[8px] font-semibold uppercase text-brand-100">Up next</span>
+                        <span className="block truncate text-[10px] text-white">Ep 15 · The Captain's Gambit</span>
+                        {descriptions !== "hidden" && <span className={cn("block", blurNext && "blur-[2px]")}>{line(85)}</span>}
+                    </span>
+                </div>
             </div>
         </div>
     )

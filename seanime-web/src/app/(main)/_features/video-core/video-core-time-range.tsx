@@ -16,6 +16,7 @@ import { vc_previousPausedState } from "@/app/(main)/_features/video-core/video-
 import { vc_lastKnownProgress } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_skipOpeningTime } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_skipEndingTime } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_skipOpeningOnceAtom } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_showOverlayFeedback } from "@/app/(main)/_features/video-core/video-core-overlay-display"
 import { VIDEOCORE_PREVIEW_CAPTURE_INTERVAL_SECONDS, VIDEOCORE_PREVIEW_THUMBNAIL_SIZE } from "@/app/(main)/_features/video-core/video-core-preview"
 import { vc_autoSkipEDAtom, vc_autoSkipOPAtom, vc_highlightOPEDChaptersAtom, vc_showChapterMarkersAtom } from "@/app/(main)/_features/video-core/video-core.atoms"
@@ -134,7 +135,12 @@ export function VideoCoreTimeRange(props: VideoCoreTimeRangeProps) {
     // Never seek into the last half second: landing on the very end can skip the "ended" handling.
     const clampSkipTarget = (end: number) => Math.min(end, duration - 0.5)
 
-    const canAutoSkip = (kind: "op" | "ed") => (kind === "op" ? autoSkipOpening : autoSkipEnding) && !restoreProgressTo && !isWatchPartyPeer
+    const [skipOpeningOnce, setSkipOpeningOnce] = useAtom(vc_skipOpeningOnceAtom)
+    const canAutoSkip = (kind: "op" | "ed") => (kind === "op" ? (autoSkipOpening || skipOpeningOnce) : autoSkipEnding) && !restoreProgressTo && !isWatchPartyPeer
+    // A one-off "skip the opening" that found no opening in the first minutes has nothing left to do.
+    React.useEffect(() => {
+        if (skipOpeningOnce && currentTime > 300) setSkipOpeningOnce(false)
+    }, [skipOpeningOnce, currentTime > 300])
 
     // Returns true if it performed the skip.
     const autoSkipRef = React.useRef<(kind: "op" | "ed", segment: VideoCoreTimeRangeChapter, time: number) => boolean>(() => false)
@@ -147,6 +153,7 @@ export function VideoCoreTimeRange(props: VideoCoreTimeRangeProps) {
         const target = clampSkipTarget(segment.end)
         if (target <= time) return false
         timeRangeLog.info("Auto skip", kind, target)
+        if (kind === "op" && skipOpeningOnce) setSkipOpeningOnce(false)
         action({ type: "seekTo", payload: { time: target } })
         showOverlayFeedback({ message: kind === "op" ? "Skipped OP" : "Skipped ED", duration: 1000 })
         return true
@@ -184,7 +191,7 @@ export function VideoCoreTimeRange(props: VideoCoreTimeRangeProps) {
             setSkipEndingTime(0)
         }
 
-    }, [currentTime, autoSkipOpening, autoSkipEnding, opEdChapters, duration, restoreProgressTo, isWatchPartyPeer])
+    }, [currentTime, autoSkipOpening, autoSkipEnding, skipOpeningOnce, opEdChapters, duration, restoreProgressTo, isWatchPartyPeer])
 
     // timeupdate only fires every ~250ms, so the skip could land that late. While a segment that
     // will be auto-skipped starts within the next second, check every frame instead.
@@ -201,7 +208,7 @@ export function VideoCoreTimeRange(props: VideoCoreTimeRangeProps) {
             }
         }
         return null
-    }, [currentTime, opEdChapters, autoSkipOpening, autoSkipEnding, restoreProgressTo, isWatchPartyPeer, streamKey])
+    }, [currentTime, opEdChapters, autoSkipOpening, autoSkipEnding, skipOpeningOnce, restoreProgressTo, isWatchPartyPeer, streamKey])
 
     React.useEffect(() => {
         if (!upcomingSkip || !videoElement) return

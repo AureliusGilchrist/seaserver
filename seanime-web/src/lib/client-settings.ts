@@ -41,6 +41,16 @@ export const clientSettingsSchema = z.object({
     stillWatchingMouseAmount: z.number().optional(),
     /** The most extra episodes movement can add before the question is asked anyway. */
     stillWatchingMouseMaxExtra: z.number().optional(),
+    // The recap the still-watching prompt can show (see video-core-watching-checks.tsx).
+    stillWatchingRecap: z.boolean().optional(),
+    stillWatchingRecapCount: z.number().optional(),
+    stillWatchingRecapDescriptions: z.enum(["full", "short", "hidden"]).optional(),
+    stillWatchingSpoilerGuard: z.boolean().optional(),
+    stillWatchingCountdown: z.number().optional(),
+    stillWatchingReplayFrom: z.enum(["start", "afterOpening"]).optional(),
+    stillWatchingFlagDozed: z.boolean().optional(),
+    stillWatchingDozedFirst: z.boolean().optional(),
+    stillWatchingDoneLeaves: z.boolean().optional(),
     // News
     /** How many entries the full News page shows (the widget's "Show more" tab). */
     newsFeedShowMoreCount: z.number().optional(),

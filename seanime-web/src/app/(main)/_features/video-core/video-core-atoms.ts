@@ -71,3 +71,10 @@ export const vc_previousPausedState = atom(false)
 export const vc_lastKnownProgress = atom<{ mediaId: number, progressNumber: number, time: number } | null>(null)
 export const vc_skipOpeningTime = atom<number | null>(null)
 export const vc_skipEndingTime = atom<number | null>(null)
+
+/**
+ * Skip the next stream's opening once, whatever the auto-skip setting says: set when an episode is
+ * replayed from the still-watching recap with "start after the opening". Consumed by the first
+ * opening skipped, or dropped once the stream is past the point an opening could be.
+ */
+export const vc_skipOpeningOnceAtom = atom(false)

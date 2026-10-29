@@ -92,6 +92,7 @@ import {
     useVideoCorePlaylistSetup,
     vc_playlistState,
     VideoCorePlaylistControl,
+    VideoCorePlaylistPlayEpisodeFunction,
 } from "@/app/(main)/_features/video-core/video-core-playlist"
 import { isEditableKeyboardTarget, VideoCoreKeybindingController, VideoCorePreferencesModal } from "@/app/(main)/_features/video-core/video-core-preferences"
 import { VideoCorePreviewManager } from "@/app/(main)/_features/video-core/video-core-preview"
@@ -462,7 +463,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
 
                         <VideoCoreProgressPrompt />
                         <VideoCoreSequelPrompt />
-                        <VideoCoreStillWatchingPrompt onContinue={onContinueAfterStillWatching} />
+                        <VideoCoreStillWatchingPrompt onContinue={onContinueAfterStillWatching} onLeave={onTerminateStream} />
 
                         {buffering && (
                             <div
@@ -750,7 +751,7 @@ export interface VideoCoreProps {
     onVideoSourceChange?: ((source: VideoCore_VideoSource) => void) | undefined
     hlsPreferredQuality?: string
     onHlsQualityChange?: (quality: string) => void
-    onPlayEpisode?: (which: "previous" | "next") => void
+    onPlayEpisode?: VideoCorePlaylistPlayEpisodeFunction
     inlineClassName?: string
     onHlsMediaDetached?: () => void
     onHlsFatalError?: (error: ErrorData) => void

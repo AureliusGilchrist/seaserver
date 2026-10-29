@@ -45,7 +45,11 @@ export type VideoCorePlaylistState = {
     onPlayEpisode?: VideoCorePlaylistPlayEpisodeFunction
 }
 
-type VideoCorePlaylistPlayEpisodeFunction = (which: "previous" | "next") => void
+/** What a player is asked to play: the neighbouring episodes, or a given episode number (players
+ * that pick episodes themselves — the online player — handle the number with their own lookup). */
+export type VideoCorePlayEpisodeRequest = "previous" | "next" | { episodeNumber: number }
+
+export type VideoCorePlaylistPlayEpisodeFunction = (which: VideoCorePlayEpisodeRequest) => void
 
 const log = logger("VIDEO CORE PLAYLIST")
 
@@ -383,7 +387,11 @@ export function useVideoCorePlaylist() {
                 startStream(episode)
                 break
             default:
-                toast.error("Episode selection is not supported for this stream type")
+                if (playlistState.onPlayEpisode) {
+                    playlistState.onPlayEpisode({ episodeNumber: episode.progressNumber || episode.episodeNumber })
+                } else {
+                    toast.error("Episode selection is not supported for this stream type")
+                }
         }
     }
 

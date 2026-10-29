@@ -1,4 +1,5 @@
 "use client"
+import { VideoCorePlayEpisodeRequest } from "@/app/(main)/_features/video-core/video-core-playlist"
 import { attachHiddenAudioSync } from "@/app/(main)/_features/video-core/hidden-audio-sync"
 import React from "react"
 import { Anime_Episode, Mediastream_StreamType } from "@/api/generated/types"
@@ -54,7 +55,8 @@ export function MediastreamVideoCore(props: MediastreamVideoCoreProps) {
         episode?.progressNumber ?? -1,
     )
 
-    const handlePlayEpisode = React.useCallback((which: "previous" | "next") => {
+    // A given episode number never comes here: the local player's playlist plays files directly.
+    const handlePlayEpisode = React.useCallback((which: VideoCorePlayEpisodeRequest) => {
         if (which === "next" && hasNextEpisode) {
             playNextEpisode()
         } else if (which === "previous" && hasPreviousEpisode) {

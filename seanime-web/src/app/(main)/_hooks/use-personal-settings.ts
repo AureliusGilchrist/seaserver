@@ -27,6 +27,22 @@ export type PersonalSettings = {
     stillWatchingMouseAmount: number
     /** Most extra episodes movement can add. */
     stillWatchingMouseMaxExtra: number
+    /** The prompt can show what played (behind "I think I missed something"). */
+    stillWatchingRecap: boolean
+    /** Recap cards shown before "Show more". */
+    stillWatchingRecapCount: number
+    stillWatchingRecapDescriptions: "full" | "short" | "hidden"
+    /** Blur the up-next episode's description until hovered. */
+    stillWatchingSpoilerGuard: boolean
+    /** Seconds the up-next card counts down after "Keep watching"; 0 plays at once. */
+    stillWatchingCountdown: number
+    /** Where replaying an earlier episode from the recap starts. */
+    stillWatchingReplayFrom: "start" | "afterOpening"
+    /** Mark episodes that played with no one at the controls. */
+    stillWatchingFlagDozed: boolean
+    stillWatchingDozedFirst: boolean
+    /** "I'm done for now" also leaves the player. */
+    stillWatchingDoneLeaves: boolean
     /** How many entries the full News page shows (the News widget's "Show more" tab). */
     newsFeedShowMoreCount: number
     /** Whether a new RSS entry raises a live notification + drawer entry for this profile. */
@@ -90,6 +106,15 @@ export function usePersonalSettings(): PersonalSettings {
         stillWatchingMouseExtends: clientSettings.stillWatchingMouseExtends ?? false,
         stillWatchingMouseAmount: clientSettings.stillWatchingMouseAmount ?? 20,
         stillWatchingMouseMaxExtra: clientSettings.stillWatchingMouseMaxExtra ?? 2,
+        stillWatchingRecap: clientSettings.stillWatchingRecap ?? true,
+        stillWatchingRecapCount: Math.max(1, Math.min(12, clientSettings.stillWatchingRecapCount ?? 2)),
+        stillWatchingRecapDescriptions: clientSettings.stillWatchingRecapDescriptions ?? "short",
+        stillWatchingSpoilerGuard: clientSettings.stillWatchingSpoilerGuard ?? true,
+        stillWatchingCountdown: Math.max(0, Math.min(30, clientSettings.stillWatchingCountdown ?? 5)),
+        stillWatchingReplayFrom: clientSettings.stillWatchingReplayFrom ?? "afterOpening",
+        stillWatchingFlagDozed: clientSettings.stillWatchingFlagDozed ?? true,
+        stillWatchingDozedFirst: clientSettings.stillWatchingDozedFirst ?? true,
+        stillWatchingDoneLeaves: clientSettings.stillWatchingDoneLeaves ?? false,
         newsFeedShowMoreCount: clientSettings.newsFeedShowMoreCount ?? 40,
         newsNotifyNewEntries: clientSettings.newsNotifyNewEntries ?? true,
         newsNotifyMode: clientSettings.newsNotifyMode ?? "keywords",
