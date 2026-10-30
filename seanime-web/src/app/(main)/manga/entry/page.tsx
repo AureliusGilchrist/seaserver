@@ -1,12 +1,9 @@
 "use client"
-import { MediaDetailsInfoSection, MediaDetailsStaffSection } from "@/app/(main)/_features/media/_components/media-details-sections"
 import { isStillOnPath } from "@/lib/navigation"
 import { useGetMangaEntry, useGetMangaEntryDetails } from "@/api/hooks/manga.hooks"
-import { MediaEntryCharactersSection } from "@/app/(main)/_features/media/_components/media-entry-characters-section"
 import { MediaEntryPageLoadingDisplay } from "@/app/(main)/_features/media/_components/media-entry-page-loading-display"
 import { PluginWebviewSlot } from "@/app/(main)/_features/plugin/webview/plugin-webviews"
-import { CommentSection } from "@/app/(main)/_features/comment/comment-section"
-import { MangaRecommendations } from "@/app/(main)/manga/_components/manga-recommendations"
+import { MangaEntryDetailsTabs } from "@/app/(main)/manga/_components/manga-entry-details-tabs"
 import { MangaReleaseEstimate } from "@/app/(main)/manga/_components/manga-release-estimate"
 import { MetaSection } from "@/app/(main)/manga/_components/meta-section"
 import { ChapterList } from "@/app/(main)/manga/_containers/chapter-list/chapter-list"
@@ -137,34 +134,20 @@ export default function Page() {
                     }}
                 >
 
-                    <div
-                        data-manga-entry-page-grid
-                        className="grid gap-8 xl:grid-cols-[1fr,480px] 2xl:grid-cols-[1fr,650px]"
-                    >
-                        <div className="space-y-2">
-                            <ChapterList
-                                entry={mangaEntry}
-                                mediaId={mediaId}
-                                details={mangaDetails}
-                                downloadData={downloadData}
-                                downloadDataLoading={downloadDataLoading}
-                            />
-                        </div>
-
-                        <div data-manga-entry-page-characters-section-container className="pt-12">
-                            <MediaEntryCharactersSection details={mangaDetails} isMangaPage />
-                        </div>
+                    <div data-manga-entry-page-chapters className="space-y-2">
+                        <ChapterList
+                            entry={mangaEntry}
+                            mediaId={mediaId}
+                            details={mangaDetails}
+                            downloadData={downloadData}
+                            downloadDataLoading={downloadDataLoading}
+                        />
                     </div>
 
                     <PluginWebviewSlot slot="after-manga-entry-chapter-list" />
 
-                    <MediaDetailsInfoSection mediaId={mangaEntry.mediaId} type="manga" genres={mangaDetails?.genres} nativeTitle={mangaEntry.media?.title?.native} />
-
-                    <MediaDetailsStaffSection mediaId={mangaEntry.mediaId} />
-
-                    <MangaRecommendations entry={mangaEntry} details={mangaDetails} />
-
-                    <CommentSection mediaId={Number(mediaId)} mediaType="manga" />
+                    {/* Characters, staff, information, related titles and comments, as tabs. */}
+                    <MangaEntryDetailsTabs entry={mangaEntry} details={mangaDetails} />
 
                     <PluginWebviewSlot slot="manga-entry-screen-bottom" />
 

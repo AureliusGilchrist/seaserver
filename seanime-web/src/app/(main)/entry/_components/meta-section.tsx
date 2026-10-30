@@ -16,8 +16,10 @@ import {
 } from "@/app/(main)/_features/media/_components/media-entry-metadata-components"
 import {
     MediaPageHeader,
+    MediaPageHeaderActions,
     MediaPageHeaderDetailsContainer,
     MediaPageHeaderEntryDetails,
+    MediaPageHeaderMoreDetails,
 } from "@/app/(main)/_features/media/_components/media-page-header-components"
 import { MediaSyncTrackButton } from "@/app/(main)/_features/media/_containers/media-sync-track-button"
 import { ToWatchButton } from "@/app/(main)/_features/media/_components/to-watch-button"
@@ -110,16 +112,17 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
                     <div
                         data-anime-meta-section-details
                         className={cn(
-                            "flex gap-3 flex-wrap items-center",
-                            "justify-center lg:justify-start lg:max-w-[65vw]",
+                            "flex flex-col gap-3 items-center lg:items-start",
+                            "lg:max-w-[65vw]",
                         )}
                     >
 
                         <MediaMetaChips media={entry.media as any} info={info} type="anime" className="w-full" />
 
-                        <MediaStatsRow info={info} meanScore={entry.media?.meanScore} hideScore={personal.hideAudienceScore} />
-
-                        <AnimeDownloadingBadge mediaId={entry.mediaId} size="lg" />
+                        <div className="flex flex-wrap gap-2 items-center justify-center lg:justify-start" data-anime-meta-section-stats>
+                            <MediaStatsRow info={info} meanScore={entry.media?.meanScore} hideScore={personal.hideAudienceScore} />
+                            <AnimeDownloadingBadge mediaId={entry.mediaId} size="lg" />
+                        </div>
 
                         {!isCustomSource(entry.mediaId) ? (info?.studios?.edges?.length
                             ? <MediaStudiosLine info={info} className="w-full" />
@@ -134,83 +137,89 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
                             </Badge>
                         )}
 
-                        <MediaCreatorsLine info={info} className="w-full" />
-
                         <MediaEntryGenresList genres={details?.genres} />
 
-                        <div
-                            data-anime-meta-section-rankings-container
-                            className={cn(
-                                "w-full",
-                            )}
-                        >
-                            <AnimeEntryRankings rankings={details?.rankings} />
-                        </div>
+                        {/* Credits and rankings are folded away to keep the hero calm. */}
+                        {(!!info?.staff?.edges?.length || !!details?.rankings?.length) && <MediaPageHeaderMoreDetails label="Credits & rankings">
+                            <MediaCreatorsLine info={info} className="w-full" />
+                            <div
+                                data-anime-meta-section-rankings-container
+                                className={cn(
+                                    "w-full",
+                                )}
+                            >
+                                <AnimeEntryRankings rankings={details?.rankings} />
+                            </div>
+                        </MediaPageHeaderMoreDetails>}
 
                     </div>
                 </MediaPageHeaderEntryDetails>
 
                 <PluginWebviewSlot slot="after-media-entry-details" />
 
-                <div
+                <MediaPageHeaderActions
                     data-anime-meta-section-buttons-container
-                    className={cn(
-                        "flex flex-row w-full gap-3 items-center justify-center lg:justify-start lg:max-w-[65vw]",
-                        "flex-wrap",
-                    )}
-                >
+                    links={<>
+                        {isCustomSource(entry.mediaId) && (
+                            <Tooltip
+                                trigger={<div>
+                                    <SeaLink href={`/custom-sources?provider=${getCustomSourceExtensionId(entry.media)}`}>
+                                        <IconButton size="sm" intent="gray-link" className="px-0" icon={<BiExtension className="text-lg" />} />
+                                    </SeaLink>
+                                </div>}
+                            >
+                                Custom source
+                            </Tooltip>
+                        )}
 
-                    {isCustomSource(entry.mediaId) && (
-                        <Tooltip
+                        {!isCustomSource(entry.mediaId) && <Tooltip
                             trigger={<div>
-                                <SeaLink href={`/custom-sources?provider=${getCustomSourceExtensionId(entry.media)}`}>
-                                    <IconButton size="sm" intent="gray-link" className="px-0" icon={<BiExtension className="text-lg" />} />
+                                <SeaLink href={`https://anilist.co/anime/${entry.mediaId}`} target="_blank">
+                                    <IconButton size="sm" intent="gray-link" className="px-0" icon={<SiAnilist className="text-lg" />} />
                                 </SeaLink>
                             </div>}
                         >
-                            Custom source
+                            Open on AniList
+                        </Tooltip>}
+
+                        {isCustomSource(entry.mediaId) && !!getCustomSourceMediaSiteUrl(entry.media) && <Tooltip
+                            trigger={<div>
+                                <SeaLink href={getCustomSourceMediaSiteUrl(entry.media)!} target="_blank">
+                                    <IconButton size="sm" intent="gray-link" className="px-0" icon={<LuExternalLink className="text-lg" />} />
+                                </SeaLink>
+                            </div>}
+                        >
+                            Open in website
+                        </Tooltip>}
+
+                        {!!entry?.media?.trailer?.id && <TrailerModal
+                            trailerId={entry?.media?.trailer?.id} trigger={
+                            <Button size="sm" intent="gray-link" className="px-0">
+                                Trailer
+                            </Button>}
+                        />}
+
+                        <Tooltip trigger={
+                            <IconButton
+                                size="sm"
+                                intent="gray-link"
+                                className="px-0"
+                                icon={isFavorite(entry.mediaId)
+                                    ? <AiFillHeart className="text-lg text-red-500" />
+                                    : <AiOutlineHeart className="text-lg" />
+                                }
+                                onClick={() => toggleFavorite(entry.mediaId)}
+                            />
+                        }>
+                            {isFavorite(entry.mediaId) ? "Remove from favorites" : "Add to favorites"}
                         </Tooltip>
-                    )}
-
-                    {!isCustomSource(entry.mediaId) && <SeaLink href={`https://anilist.co/anime/${entry.mediaId}`} target="_blank">
-                        <IconButton size="sm" intent="gray-link" className="px-0" icon={<SiAnilist className="text-lg" />} />
-                    </SeaLink>}
-
-                    {isCustomSource(entry.mediaId) && !!getCustomSourceMediaSiteUrl(entry.media) && <Tooltip
-                        trigger={<div>
-                            <SeaLink href={getCustomSourceMediaSiteUrl(entry.media)!} target="_blank">
-                                <IconButton size="sm" intent="gray-link" className="px-0" icon={<LuExternalLink className="text-lg" />} />
-                            </SeaLink>
-                        </div>}
-                    >
-                        Open in website
-                    </Tooltip>}
-
-                    {!!entry?.media?.trailer?.id && <TrailerModal
-                        trailerId={entry?.media?.trailer?.id} trigger={
-                        <Button size="sm" intent="gray-link" className="px-0">
-                            Trailer
-                        </Button>}
-                    />}
+                    </>}
+                >
 
                     {/* The button the to-watch list is built from, near the front of the row — it
                         is the only place the list is added to, so it has to be findable. The
                         studio rides along, since the snapshot's row shows it. */}
                     <ToWatchButton media={entry.media!} studios={details?.studios?.nodes?.[0]?.name} />
-
-                    <AnimeAutoDownloaderButton entry={entry} size="md" />
-
-                    {isLibraryView && !entry._isNakamaEntry && !!entry.libraryData && <>
-                        <MediaSyncTrackButton mediaId={entry.mediaId} type="anime" size="md" />
-                        <AnimeEntrySilenceToggle mediaId={entry.mediaId} size="md" />
-                        <ToggleLockFilesButton
-                            allFilesLocked={entry.libraryData.allFilesLocked}
-                            mediaId={entry.mediaId}
-                            size="md"
-                        />
-                    </>}
-                    <AnimeEntryDropdownMenu entry={entry} details={details} />
-
 
                     {(
                         entry.media.status !== "NOT_YET_RELEASED"
@@ -236,30 +245,29 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
                         <EnqueueFutureButton entry={entry} details={details} />
                     )}
 
+                    <AnimeAutoDownloaderButton entry={entry} size="md" />
+
+                    {isLibraryView && !entry._isNakamaEntry && !!entry.libraryData && <>
+                        <MediaSyncTrackButton mediaId={entry.mediaId} type="anime" size="md" />
+                        <AnimeEntrySilenceToggle mediaId={entry.mediaId} size="md" />
+                        <ToggleLockFilesButton
+                            allFilesLocked={entry.libraryData.allFilesLocked}
+                            mediaId={entry.mediaId}
+                            size="md"
+                        />
+                    </>}
+
+                    <AnimeEntryDropdownMenu entry={entry} details={details} />
+
                     {entry._isNakamaEntry && currentView === "library" &&
-                        <div className="flex items-center gap-2 h-10 px-4 border rounded-md flex-none">
+                        <div className="flex items-center gap-2 h-10 px-4 rounded-full bg-black/25 ring-1 ring-white/10 backdrop-blur-md flex-none">
                             <MdOutlineConnectWithoutContact className="size-6 animate-pulse text-[--blue]" />
                             <span className="text-sm tracking-wide">Shared by {nakamaStatus?.hostConnectionStatus?.username}</span>
                         </div>}
 
-                    <Tooltip trigger={
-                        <IconButton
-                            size="sm"
-                            intent="gray-link"
-                            className="px-0"
-                            icon={isFavorite(entry.mediaId)
-                                ? <AiFillHeart className="text-lg text-red-500" />
-                                : <AiOutlineHeart className="text-lg" />
-                            }
-                            onClick={() => toggleFavorite(entry.mediaId)}
-                        />
-                    }>
-                        {isFavorite(entry.mediaId) ? "Remove from favorites" : "Add to favorites"}
-                    </Tooltip>
-
                     <PluginAnimePageButtons media={entry.media!} />
 
-                </div>
+                </MediaPageHeaderActions>
 
                 <EntrySectionTabs entry={entry} />
 

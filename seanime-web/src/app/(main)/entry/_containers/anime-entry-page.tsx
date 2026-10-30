@@ -3,19 +3,14 @@ import { Anime_Entry } from "@/api/generated/types"
 import { useGetAnilistAnimeDetails } from "@/api/hooks/anilist.hooks"
 import { useGetAnimeEntry, useResetAnimeEntryMetadata } from "@/api/hooks/anime_entries.hooks"
 import { useGetSyntheticAnimeDetails, SyntheticAnime } from "@/api/hooks/synthetic-anime.hooks"
-import { MediaEntryCharactersSection } from "@/app/(main)/_features/media/_components/media-entry-characters-section"
 import { MediaEntryPageLoadingDisplay } from "@/app/(main)/_features/media/_components/media-entry-page-loading-display"
 import { PluginWebviewSlot } from "@/app/(main)/_features/plugin/webview/plugin-webviews"
 import { useSeaCommandInject } from "@/app/(main)/_features/sea-command/use-inject"
 import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
+import { AnimeEntryDetailsTabs } from "@/app/(main)/entry/_components/anime-entry-details-tabs"
 import { MetaSection } from "@/app/(main)/entry/_components/meta-section"
 import { SyntheticAnimeEntryPage } from "@/app/(main)/entry/_containers/synthetic-anime-entry-page"
-import { CommentSection } from "@/app/(main)/_features/comment/comment-section"
-import { MediaDetailsInfoSection, MediaDetailsStaffSection } from "@/app/(main)/_features/media/_components/media-details-sections"
-import { RelationsRecommendationsSection } from "@/app/(main)/entry/_components/relations-recommendations-section"
-import { AnimeThemesSection } from "@/app/(main)/entry/_components/anime-themes-section"
-import { KitsuInfoSection } from "@/app/(main)/entry/_components/kitsu-info-section"
 import { DebridStreamPage } from "@/app/(main)/entry/_containers/debrid-stream/debrid-stream-page"
 import {
     AnimeEntryRefreshStatsButton,
@@ -387,13 +382,7 @@ export function AnimeEntryPage() {
                                 details={animeDetails}
                                 bottomSection={<>
                                     <PluginWebviewSlot slot="after-anime-entry-episode-list" />
-                                    <AnimeThemesSection malId={animeEntry.media?.idMal} />
-                                    <MediaDetailsInfoSection mediaId={animeEntry.mediaId} type="anime" genres={animeDetails?.genres} nativeTitle={animeEntry.media?.title?.native} />
-                                    <KitsuInfoSection malId={animeEntry.media?.idMal} />
-                                    <MediaEntryCharactersSection details={animeDetails} />
-                                    <MediaDetailsStaffSection mediaId={animeEntry.mediaId} />
-                                    <RelationsRecommendationsSection entry={animeEntry} details={animeDetails} />
-                                    <CommentSection mediaId={animeEntry.mediaId} mediaType="anime" />
+                                    <AnimeEntryDetailsTabs entry={animeEntry} details={animeDetails} />
                                 </>}
                             />
                         </PageWrapper>}
@@ -403,12 +392,7 @@ export function AnimeEntryPage() {
                                 entry={animeEntry}
                                 bottomSection={<>
                                     <PluginWebviewSlot slot="after-anime-entry-episode-list" />
-                                    <AnimeThemesSection malId={animeEntry.media?.idMal} />
-                                    <MediaDetailsInfoSection mediaId={animeEntry.mediaId} type="anime" genres={animeDetails?.genres} nativeTitle={animeEntry.media?.title?.native} />
-                                    <MediaEntryCharactersSection details={animeDetails} />
-                                    <MediaDetailsStaffSection mediaId={animeEntry.mediaId} />
-                                    <RelationsRecommendationsSection entry={animeEntry} details={animeDetails} />
-                                    <CommentSection mediaId={animeEntry.mediaId} mediaType="anime" />
+                                    <AnimeEntryDetailsTabs entry={animeEntry} details={animeDetails} />
                                 </>}
                             />}
 
@@ -417,12 +401,7 @@ export function AnimeEntryPage() {
                                 entry={animeEntry}
                                 bottomSection={<>
                                     <PluginWebviewSlot slot="after-anime-entry-episode-list" />
-                                    <AnimeThemesSection malId={animeEntry.media?.idMal} />
-                                    <MediaDetailsInfoSection mediaId={animeEntry.mediaId} type="anime" genres={animeDetails?.genres} nativeTitle={animeEntry.media?.title?.native} />
-                                    <MediaEntryCharactersSection details={animeDetails} />
-                                    <MediaDetailsStaffSection mediaId={animeEntry.mediaId} />
-                                    <RelationsRecommendationsSection entry={animeEntry} details={animeDetails} />
-                                    <CommentSection mediaId={animeEntry.mediaId} mediaType="anime" />
+                                    <AnimeEntryDetailsTabs entry={animeEntry} details={animeDetails} />
                                 </>}
                             />}
 
@@ -461,12 +440,7 @@ export function AnimeEntryPage() {
                                 {/*    animeEntryLoading={animeEntryLoading}*/}
                                 {/*    hideBackButton*/}
                                 {/*/>*/}
-                                <AnimeThemesSection malId={animeEntry.media?.idMal} />
-                                    <MediaDetailsInfoSection mediaId={animeEntry.mediaId} type="anime" genres={animeDetails?.genres} nativeTitle={animeEntry.media?.title?.native} />
-                                <MediaEntryCharactersSection details={animeDetails} />
-                                    <MediaDetailsStaffSection mediaId={animeEntry.mediaId} />
-                                <RelationsRecommendationsSection entry={animeEntry} details={animeDetails} />
-                                <CommentSection mediaId={animeEntry.mediaId} mediaType="anime" />
+                                <AnimeEntryDetailsTabs entry={animeEntry} details={animeDetails} />
                             </div>
                         </PageWrapper>}
 
@@ -490,12 +464,7 @@ export function AnimeEntryPage() {
                             <div className="space-y-4">
                                 <LocalPlayerPage entry={animeEntry} entryLoading={animeEntryLoading} />
                                 <PluginWebviewSlot slot="after-anime-entry-episode-list" />
-                                <AnimeThemesSection malId={animeEntry.media?.idMal} />
-                                    <MediaDetailsInfoSection mediaId={animeEntry.mediaId} type="anime" genres={animeDetails?.genres} nativeTitle={animeEntry.media?.title?.native} />
-                                <MediaEntryCharactersSection details={animeDetails} />
-                                    <MediaDetailsStaffSection mediaId={animeEntry.mediaId} />
-                                <RelationsRecommendationsSection entry={animeEntry} details={animeDetails} />
-                                <CommentSection mediaId={animeEntry.mediaId} mediaType="anime" />
+                                <AnimeEntryDetailsTabs entry={animeEntry} details={animeDetails} />
                             </div>
                         </PageWrapper>}
 
@@ -545,12 +514,12 @@ export function EntrySectionTabs(props: EntrySectionTabs) {
     return (
         <>
             <div
-                className="w-full max-w-fit rounded-md lg:rounded-full border border-transparent mx-auto lg:mx-0 overflow-hidden"
+                className="w-full max-w-fit rounded-2xl lg:rounded-full mx-auto lg:mx-0 overflow-hidden bg-black/25 p-1 ring-1 ring-white/10 backdrop-blur-md"
                 data-anime-entry-page-tabs-container
             >
                 <StaticTabs
                     className="lg:h-10 flex-wrap lg:flex-nowrap overflow-hidden justify-center lg:justify-start"
-                    triggerClass="px-4 py-1 text-[1.1rem] border border-transparent opacity-80 data-[current=true]:border-[--subtle] data-[current=true]:opacity-100 rounded-full data-[current=false]:scale-95 lg:scale-100 "
+                    triggerClass="px-4 py-1 text-[0.95rem] font-medium border border-transparent opacity-70 hover:opacity-100 transition-all duration-300 data-[current=true]:bg-white/10 data-[current=true]:border-white/15 data-[current=true]:opacity-100 rounded-full data-[current=false]:scale-95 lg:scale-100 "
                     iconClass="size-5 hidden data-[current=true]:block"
                     items={[
                         { name: "Details", iconType: IoLibraryOutline, isCurrent: isLibraryView, onClick: () => setView("library") },

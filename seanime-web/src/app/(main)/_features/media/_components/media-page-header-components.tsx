@@ -14,14 +14,22 @@ import { getScoreColor } from "@/lib/helpers/score"
 import { getImageUrl } from "@/lib/server/assets"
 import { ThemeMediaPageBannerSize, ThemeMediaPageBannerType, ThemeMediaPageInfoBoxSize, useIsMobile, useThemeSettings } from "@/lib/theme/hooks"
 import capitalize from "lodash/capitalize"
-import { motion } from "motion/react"
+import { AnimatePresence, easeInOut, easeOut, motion, useMotionTemplate, useScroll, useSpring, useTransform } from "motion/react"
 import React from "react"
 import { BiCalendarAlt, BiSolidStar, BiStar } from "react-icons/bi"
+import { LuChevronDown } from "react-icons/lu"
 import { MdOutlineSegment } from "react-icons/md"
 import { RiSignalTowerFill } from "react-icons/ri"
-import { useWindowScroll, useWindowSize } from "react-use"
+import { useWindowSize } from "react-use"
 
 const MotionImage = motion.create(SeaImage)
+
+// Every scroll-driven value in the header is a motion value: it follows the scroll position without
+// re-rendering the page, and the spring smooths the steps a mouse wheel makes into one glide.
+const SCROLL_SPRING = { stiffness: 140, damping: 30, mass: 0.5, restDelta: 0.001 }
+
+/** How far down the page the banner takes to fade out. */
+const BANNER_FADE_END = 560
 
 type MediaPageHeaderProps = {
     children?: React.ReactNode
@@ -39,7 +47,6 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
     } = props
 
     const ts = useThemeSettings()
-    const { y } = useWindowScroll()
     const { isMobile } = useIsMobile()
 
     const bannerImage = backgroundImage || coverImage
@@ -60,16 +67,19 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
     const shouldDimBanner = (ts.mediaPageBannerType === ThemeMediaPageBannerType.DimWhenUnavailable && !backgroundImage) ||
         ts.mediaPageBannerType === ThemeMediaPageBannerType.Dim
 
-    // Never shown when a custom wallpaper is set: the wallpaper is the background, and a blurred
-    // banner laid over it is what put the effects on the header instead of on the wallpaper — the
-    // blurred layer sat under the global effects (z-4 under z-5), so scrolling a details page
-    // painted scanlines and vignettes onto a blurred banner and hid the wallpaper behind it.
-    // Without a wallpaper the blurred banner IS the background, and it fills in for a hidden one.
-    const shouldShowBlurredBackground = ts.enableMediaPageBlurredBackground && !ts.libraryScreenCustomBackgroundImage && (
-        y > 100
-        || shouldHideBanner
-    )
+    // With a custom wallpaper the banner scrolls away with the page (it sits on the wallpaper);
+    // otherwise it is fixed behind the content and fades out as the page scrolls over it.
+    const isFixedBanner = !ts.libraryScreenCustomBackgroundImage
 
+    const { scrollY } = useScroll()
+    const bannerOpacity = useSpring(
+        useTransform(scrollY, [0, 90, BANNER_FADE_END], [1, 1, shouldDimBanner ? 0.15 : 0.06], { ease: easeInOut }),
+        SCROLL_SPRING,
+    )
+    const bannerBlurPx = useSpring(useTransform(scrollY, [60, BANNER_FADE_END], [0, 10], { ease: easeOut }), SCROLL_SPRING)
+    const bannerFilter = useMotionTemplate`blur(${bannerBlurPx}px)`
+    const bannerScale = useSpring(useTransform(scrollY, [0, BANNER_FADE_END], [1, 1.06]), SCROLL_SPRING)
+    const bannerY = useSpring(useTransform(scrollY, [0, BANNER_FADE_END], [0, isMobile ? 0 : -70]), SCROLL_SPRING)
 
     return (
         <motion.div
@@ -81,30 +91,21 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
             data-media-page-header
         >
 
-            {/*<div*/}
-            {/*    className={cn(MediaPageHeaderAnatomy.fadeBg({ size }))}*/}
-            {/*/>*/}
-
             {/* The blurred-banner background layer is gone: it was a full-screen opaque layer that
                 faded in after load and covered the wallpaper and its effects. */}
 
             {children}
 
-            <div
+            <motion.div
                 data-media-page-header-banner
                 className={cn(
                     "w-full scroll-locked-offset flex-none object-cover object-center z-[3] bg-[--background] h-[20rem]",
                     ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small ? "lg:h-[28rem]" : "h-[20rem] lg:h-[32rem] 2xl:h-[34rem]",
-                    ts.libraryScreenCustomBackgroundImage ? "absolute -top-[5rem]" : "fixed transition-opacity top-0 duration-1000",
-                    !ts.libraryScreenCustomBackgroundImage && y > 100 && (shouldDimBanner
-                        ? "opacity-15"
-                        : (y > 300 ? "opacity-5" : "opacity-15")),
+                    isFixedBanner ? "fixed top-0 will-change-[opacity]" : "absolute -top-[5rem]",
                     !ts.disableSidebarTransparency && TRANSPARENT_SIDEBAR_BANNER_IMG_STYLE,
                     shouldHideBanner && "bg-transparent",
                 )}
-                // style={{
-                //     opacity: !ts.libraryScreenCustomBackgroundImage && y > 100 ? (ts.enableMediaPageBlurredBackground ? 0 : shouldDimBanner ? 0.15
-                // : 1  - Math.min(y * 0.005, 0.9) ) : 1, }}
+                style={isFixedBanner ? { opacity: bannerOpacity } : undefined}
             >
                 {/*TOP FADE*/}
                 <div
@@ -127,17 +128,10 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
                 <motion.div
                     data-media-page-header-banner-image-container
                     className={cn(
-                        "absolute top-0 left-0 scroll-locked-offset w-full h-full overflow-hidden",
-                        // shouldBlurBanner && "blur-xl",
+                        "absolute top-0 left-0 scroll-locked-offset w-full h-full overflow-hidden will-change-transform",
                         shouldHideBanner && "hidden",
                     )}
-                    initial={{ scale: 1, y: 0 }}
-                    animate={{
-                        scale: !ts.libraryScreenCustomBackgroundImage ? Math.min(1 + y * 0.0002, 1.03) : 1,
-                        y: isMobile ? 0 : Math.max(y * -0.9, -10),
-                    }}
-                    exit={{ scale: 1, y: 0 }}
-                    transition={{ duration: 0.6, ease: "easeOut" }}
+                    style={isFixedBanner ? { scale: bannerScale, y: bannerY, filter: bannerFilter } : undefined}
                 >
                     {!!visibleBannerImage && <MotionImage
                         data-media-page-header-banner-image
@@ -151,11 +145,10 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
                         className={cn(
                             "object-cover object-center scroll-locked-offset z-[1]",
                             shouldBlurBanner && "blur",
-                            // shouldDimBanner && "!opacity-30",
                         )}
                         initial={{ scale: 1.05, x: 0, y: -10, opacity: 0 }}
                         animate={{ scale: 1, x: 0, y: 1, opacity: shouldDimBanner ? 0.3 : 1 }}
-                        transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
+                        transition={{ duration: 0.8, delay: 0.1, ease: [0.2, 0.8, 0.2, 1] }}
                     />}
 
                     {/* Banner scanlines removed: scanlines (and the other anime-theme / effects-preset
@@ -166,16 +159,15 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
                     <div
                         data-media-page-header-banner-left-gradient
                         className={cn(
-                            "hidden lg:block max-w-[60rem] lg:max-w-[100rem] xl:max-w-[90%] w-full z-[2] h-full absolute left-0 bg-gradient-to-r from-[--background]  transition-opacity to-transparent",
-                            "opacity-95 duration-1000",
-                            // y > 300 && "opacity-70",
+                            "hidden lg:block max-w-[60rem] lg:max-w-[100rem] xl:max-w-[90%] w-full z-[2] h-full absolute left-0 bg-gradient-to-r from-[--background] to-transparent",
+                            "opacity-95",
                         )}
                     />
                     <div
                         data-media-page-header-banner-right-gradient
                         className={cn(
-                            "hidden lg:block max-w-[60rem] xl:max-w-[80rem] w-full z-[2] h-full absolute left-0 bg-gradient-to-r from-[--background] from-25% transition-opacity to-transparent",
-                            "opacity-50 duration-500",
+                            "hidden lg:block max-w-[60rem] xl:max-w-[80rem] w-full z-[2] h-full absolute left-0 bg-gradient-to-r from-[--background] from-25% to-transparent",
+                            "opacity-50",
                         )}
                     />
                 </motion.div>
@@ -184,7 +176,6 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
                 <div
                     data-media-page-header-banner-bottom-gradient
                     className={cn(
-                        // "w-full z-[3] absolute bottom-0 h-[50%] bg-gradient-to-t from-[--background] via-transparent via-100% to-transparent",
                         "w-full z-[3] absolute bottom-0 h-[70%] bg-gradient-to-t from-[--background] from-0% via-[--background]/80 via-30% to-transparent to-100%",
                         shouldHideBanner && "hidden",
                     )}
@@ -198,7 +189,7 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
                     )}
                 />
 
-            </div>
+            </motion.div>
         </motion.div>
     )
 }
@@ -217,32 +208,32 @@ export function MediaPageHeaderDetailsContainer(props: MediaPageHeaderDetailsCon
     } = props
 
     const ts = useThemeSettings()
-    const { y } = useWindowScroll()
     const { width } = useWindowSize()
+
+    // On desktop the details drift up and dim as the content scrolls over them, on the same
+    // smoothed curve as the banner instead of a jump once a threshold is crossed.
+    const { scrollY } = useScroll()
+    const detailsOpacity = useSpring(useTransform(scrollY, [160, 640], [1, 0.12], { ease: easeInOut }), SCROLL_SPRING)
+    const detailsY = useSpring(useTransform(scrollY, [0, 640], [0, -40], { ease: easeOut }), SCROLL_SPRING)
 
     return (
         <>
             <motion.div
-                initial={{ opacity: 1, y: 0 }}
-                animate={{
-                    opacity: (width >= 1024 && y > 400) ? Math.max(1 - y * 0.006, 0.1) : 1,
-                    y: (width >= 1024 && y > 200) ? Math.max(y * -0.05, -40) : 0,
-                }}
-                transition={{ duration: 0.4, ease: "easeOut" }}
                 className="relative z-[4]"
+                style={width >= 1024 ? { opacity: detailsOpacity, y: detailsY } : undefined}
             >
                 <motion.div
-                    initial={{ opacity: 0, x: 0 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 0 }}
-                    transition={{ duration: 0.5 }}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.5, ease: [0.2, 0.8, 0.2, 1] }}
                     className="relative z-[4]"
                     data-media-page-header-details-container
                 >
                     <div
                         data-media-page-header-details-inner-container
                         className={cn(
-                            "space-y-8 p-6 sm:p-8 relative",
+                            "space-y-6 p-6 sm:p-8 relative",
                             ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && "p-6 sm:py-4 sm:px-8",
                             ts.mediaPageBannerInfoBoxSize === ThemeMediaPageInfoBoxSize.Fluid
                                 ? "w-full"
@@ -261,7 +252,7 @@ export function MediaPageHeaderDetailsContainer(props: MediaPageHeaderDetailsCon
                                     delay: 0.1,
                                 },
                             }}
-                            className="space-y-4"
+                            className="space-y-5"
                             data-media-page-header-details-motion-container
                         >
 
@@ -324,34 +315,31 @@ export function MediaPageHeaderEntryDetails(props: MediaPageHeaderEntryDetailsPr
     } = props
 
     const ts = useThemeSettings()
-    const { y } = useWindowScroll()
+    const { scrollY } = useScroll()
+    const coverScale = useSpring(useTransform(scrollY, [0, 500], [1, 1.05]), SCROLL_SPRING)
+
+    const showEnglish = !!englishTitle && title?.toLowerCase() !== englishTitle?.toLowerCase()
+    const showRomaji = !!romajiTitle && title?.toLowerCase() !== romajiTitle?.toLowerCase()
+    const showNative = !!media?.title?.native && title !== media.title.native
 
     return (
         <>
-            <div className="flex flex-col lg:flex-row gap-8" data-media-page-header-entry-details>
+            <div className="flex flex-col lg:flex-row gap-6 lg:gap-10" data-media-page-header-entry-details>
 
                 {!!coverImage && <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{
-                        opacity: 1,
-                        // scale: Math.max(1 - y * 0.0002, 0.96),
-                        // y: Math.max(y * -0.1, -10)
-                    }}
-                    transition={{ duration: 0.15 }}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, ease: [0.2, 0.8, 0.2, 1] }}
                     data-media-page-header-entry-details-cover-image-container
                     className={cn(
-                        "flex-none aspect-[6/8] max-w-[150px] mx-auto lg:m-0 h-auto sm:max-w-[200px] lg:max-w-[230px] w-full relative rounded-[--radius-md] overflow-hidden bg-[--background] shadow-md block",
+                        "flex-none aspect-[6/8] max-w-[150px] mx-auto lg:m-0 h-auto sm:max-w-[200px] lg:max-w-[230px] w-full relative rounded-[--radius-md] overflow-hidden bg-[--background] block",
+                        "shadow-[0_20px_50px_-12px_rgb(0_0_0_/_0.7)] ring-1 ring-white/10",
                         ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && "max-w-[150px] lg:m-0 h-auto sm:max-w-[195px] lg:max-w-[210px] -top-1",
                         ts.mediaPageBannerInfoBoxSize === ThemeMediaPageInfoBoxSize.Fluid && "lg:max-w-[270px]",
                         (ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && ts.mediaPageBannerInfoBoxSize === ThemeMediaPageInfoBoxSize.Fluid) && "lg:max-w-[220px]",
                     )}
                 >
-                    <motion.div
-                        // initial={{ scale: 1.1, x: -10 }}
-                        // animate={{ scale: 1, x: 0 }}
-                        // transition={{ duration: 0.3, delay: 0.15, ease: "easeOut" }}
-                        className="w-full h-full"
-                    >
+                    <motion.div className="w-full h-full" style={{ scale: coverScale }}>
                         <MotionImage
                             data-media-page-header-entry-details-cover-image
                             src={getImageUrl(coverImage)}
@@ -361,8 +349,8 @@ export function MediaPageHeaderEntryDetails(props: MediaPageHeaderEntryDetailsPr
                             placeholder={imageShimmer(700, 475)}
                             className="object-cover object-center"
                             initial={{ scale: 1.1, x: 0 }}
-                            animate={{ scale: Math.min(1 + y * 0.0002, 1.05), x: 0 }}
-                            transition={{ duration: 0.15, ease: "easeOut" }}
+                            animate={{ scale: 1, x: 0 }}
+                            transition={{ duration: 0.5, ease: "easeOut" }}
                         />
                     </motion.div>
                 </motion.div>}
@@ -371,105 +359,114 @@ export function MediaPageHeaderEntryDetails(props: MediaPageHeaderEntryDetailsPr
                 <div
                     data-media-page-header-entry-details-content
                     className={cn(
-                        "space-y-2 lg:space-y-4",
+                        "space-y-3 lg:space-y-4 min-w-0 flex-1",
                         (ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small || ts.mediaPageBannerInfoBoxSize === ThemeMediaPageInfoBoxSize.Fluid) && "lg:space-y-3",
                     )}
                 >
-                    {/*TITLE*/}
-                    <div className="space-y-2" data-media-page-header-entry-details-title-container>
-                        <TextGenerateEffect
-                            className={cn(
-                                "[text-shadow:_0_1px_10px_rgb(0_0_0_/_20%)] text-white line-clamp-2 pb-1 text-center lg:text-left text-pretty text-3xl 2xl:text-5xl xl:max-w-[50vw]",
-                                smallerTitle && "text-3xl 2xl:text-3xl",
-                            )}
-                            words={title || ""}
-                        />
-                        {(!!englishTitle && title?.toLowerCase() !== englishTitle?.toLowerCase()) &&
-                            <h4 className="text-gray-200 line-clamp-1 text-center lg:text-left xl:max-w-[50vw]">{englishTitle}</h4>}
-                        {(!!romajiTitle && title?.toLowerCase() !== romajiTitle?.toLowerCase()) &&
-                            <h4 className="text-gray-200 line-clamp-1 text-center lg:text-left xl:max-w-[50vw]">{romajiTitle}</h4>}
-                        {!!media?.title?.native && title !== media.title.native &&
-                            <p className="text-white/45 line-clamp-1 text-center lg:text-left text-sm tracking-wide xl:max-w-[50vw]" lang="ja">{media.title.native}</p>}
-                    </div>
-
-                    {/*DATE*/}
-                    {!!startDate?.year && (
+                    {/*DATE & STATUS — a quiet eyebrow above the title*/}
+                    {(!!startDate?.year || !!status) && (
                         <div
-                            className="flex gap-4 items-center flex-wrap justify-center lg:justify-start"
+                            className="flex gap-x-3 gap-y-1 items-center flex-wrap justify-center lg:justify-start text-xs font-semibold uppercase tracking-[0.14em] text-white/60"
                             data-media-page-header-entry-details-date-container
                         >
-                            <p className="text-lg text-white flex gap-1 items-center">
-                                <BiCalendarAlt /> {new Intl.DateTimeFormat("en-US", {
+                            {!!startDate?.year && <p className="flex gap-1.5 items-center">
+                                <BiCalendarAlt className="text-sm" /> {new Intl.DateTimeFormat("en-US", {
                                 year: "numeric",
                                 month: "short",
                             }).format(new Date(startDate?.year || 0, startDate?.month ? startDate?.month - 1 : 0))}{!!season
-                                ? ` - ${capitalize(season)}`
+                                ? ` · ${capitalize(season)}`
                                 : ""}
-                            </p>
+                            </p>}
+
+                            {!!startDate?.year && !!status && <span className="size-1 rounded-full bg-white/30" />}
 
                             {!!status && <Badge
-                                size="lg"
+                                size="sm"
                                 intent={status === "RELEASING" ? "primary" : "gray"}
-                                className="bg-transparent border-transparent dark:text-brand-200 px-0 rounded-none"
+                                className="bg-transparent border-transparent dark:text-brand-200 px-0 rounded-none text-xs font-semibold uppercase tracking-[0.14em]"
                                 leftIcon={<RiSignalTowerFill />}
                                 data-media-page-header-entry-details-date-badge
                             >
                                 {capitalize(status || "")?.replaceAll("_", " ")}
                             </Badge>}
 
-                            {ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && <Popover
+                            {ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && !!description && <Popover
                                 trigger={
                                     <IconButton
                                         intent="white-subtle"
                                         className="rounded-full"
-                                        size="sm"
+                                        size="xs"
                                         icon={<MdOutlineSegment />}
                                     />
                                 }
-                                className="max-w-[40rem] bg-[--background] p-4 w-[20rem] lg:w-[40rem] text-md"
+                                className="max-w-[40rem] bg-[--background] p-4 w-[20rem] lg:w-[40rem] text-md normal-case tracking-normal font-normal"
                             >
                                 <span className="transition-colors">{description?.replace(/(<([^>]+)>)/ig, "")}</span>
                             </Popover>}
                         </div>
                     )}
 
+                    {/*TITLE*/}
+                    <div className="space-y-1.5" data-media-page-header-entry-details-title-container>
+                        <TextGenerateEffect
+                            className={cn(
+                                "[text-shadow:_0_2px_18px_rgb(0_0_0_/_35%)] text-white line-clamp-2 pb-1 text-center lg:text-left text-pretty text-3xl 2xl:text-5xl font-bold tracking-tight xl:max-w-[50vw]",
+                                smallerTitle && "text-3xl 2xl:text-3xl",
+                            )}
+                            words={title || ""}
+                        />
+                        {showEnglish &&
+                            <h4 className="text-white/85 text-lg font-medium line-clamp-1 text-center lg:text-left xl:max-w-[50vw]">{englishTitle}</h4>}
+                        {(showRomaji || showNative) && <p
+                            className="flex flex-wrap gap-x-2 justify-center lg:justify-start text-sm text-white/50 xl:max-w-[50vw]"
+                            data-media-page-header-entry-details-alt-titles
+                        >
+                            {showRomaji && <span className="line-clamp-1">{romajiTitle}</span>}
+                            {showRomaji && showNative && <span className="text-white/25">·</span>}
+                            {showNative && <span className="line-clamp-1 tracking-wide" lang="ja">{media.title!.native}</span>}
+                        </p>}
+                    </div>
 
                     {/*LIST*/}
-                    <div className="flex gap-2 md:gap-4 items-center justify-center lg:justify-start" data-media-page-header-entry-details-more-info>
+                    <div
+                        className="flex justify-center lg:justify-start"
+                        data-media-page-header-entry-details-more-info
+                    >
+                        <div className="inline-flex flex-wrap gap-2 md:gap-4 items-center justify-center rounded-2xl bg-black/25 px-4 py-1.5 ring-1 ring-white/10 backdrop-blur-md">
+                            <MediaPageHeaderScoreAndProgress
+                                score={listData?.score}
+                                progress={listData?.progress}
+                                episodes={progressTotal}
+                            />
 
-                        <MediaPageHeaderScoreAndProgress
-                            score={listData?.score}
-                            progress={listData?.progress}
-                            episodes={progressTotal}
-                        />
+                            <AnilistMediaEntryModal listData={listData} media={media} type={type} />
 
-                        <AnilistMediaEntryModal listData={listData} media={media} type={type} />
+                            {(listData?.status || listData?.repeat) &&
+                                <div
+                                    data-media-page-header-entry-details-status
+                                    className="text-base text-white md:text-md font-medium tracking-wide flex items-center"
+                                >{capitalize(listData?.status === "CURRENT"
+                                    ? type === "anime" ? "watching" : "reading"
+                                    : listData?.status)}
+                                    {listData?.repeat && <Tooltip
+                                        trigger={<Badge
+                                            size="md"
+                                            intent="gray"
+                                            className="ml-3"
+                                            data-media-page-header-entry-details-repeating-badge
+                                        >
+                                            {listData?.repeat}
 
-                        {(listData?.status || listData?.repeat) &&
-                            <div
-                                data-media-page-header-entry-details-status
-                                className="text-base text-white md:text-md font-medium tracking-wide flex items-center"
-                            >{capitalize(listData?.status === "CURRENT"
-                                ? type === "anime" ? "watching" : "reading"
-                                : listData?.status)}
-                                {listData?.repeat && <Tooltip
-                                    trigger={<Badge
-                                        size="md"
-                                        intent="gray"
-                                        className="ml-3"
-                                        data-media-page-header-entry-details-repeating-badge
+                                        </Badge>}
                                     >
-                                        {listData?.repeat}
+                                        {listData?.repeat} {type === "anime" ? "rewatch" : "reread"}{listData?.repeat > 1
+                                        ? type === "anime" ? "es" : "s"
+                                        : ""}
+                                    </Tooltip>}
+                                </div>}
 
-                                    </Badge>}
-                                >
-                                    {listData?.repeat} {type === "anime" ? "rewatch" : "reread"}{listData?.repeat > 1
-                                    ? type === "anime" ? "es" : "s"
-                                    : ""}
-                                </Tooltip>}
-                            </div>}
-
-                        <AnilistSyncIndicator mediaId={media?.id} />
+                            <AnilistSyncIndicator mediaId={media?.id} />
+                        </div>
                     </div>
 
                     {ts.mediaPageBannerSize !== ThemeMediaPageBannerSize.Small && !!description &&
@@ -481,6 +478,70 @@ export function MediaPageHeaderEntryDetails(props: MediaPageHeaderEntryDetailsPr
 
             </div>
         </>
+    )
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Secondary hero metadata (credits, rankings…) folded behind a toggle so the hero stays calm.
+ * Nothing in it is dropped: it is one click away, and it opens with the same easing as "Read more".
+ */
+export function MediaPageHeaderMoreDetails({ label = "More details", children, className }: {
+    label?: string
+    children: React.ReactNode
+    className?: string
+}) {
+    const [open, setOpen] = React.useState(false)
+    return (
+        <div className={cn("w-full", className)} data-media-page-header-more-details>
+            <button
+                type="button"
+                onClick={() => setOpen(o => !o)}
+                aria-expanded={open}
+                className="mx-auto lg:mx-0 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-white/55 hover:text-white transition-colors"
+            >
+                {label}
+                <LuChevronDown className={cn("size-4 transition-transform duration-300", open && "rotate-180")} />
+            </button>
+            <AnimatePresence initial={false}>
+                {open && <motion.div
+                    key="more"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
+                    className="overflow-hidden"
+                >
+                    <div className="pt-3 space-y-3">{children}</div>
+                </motion.div>}
+            </AnimatePresence>
+        </div>
+    )
+}
+
+/** The hero's action bar: quiet links on the left, a divider, then the actions. */
+export function MediaPageHeaderActions({ links, children, className, ...rest }: {
+    links?: React.ReactNode
+    children?: React.ReactNode
+    className?: string
+} & React.HTMLAttributes<HTMLDivElement>) {
+    return (
+        <div
+            className={cn(
+                "flex flex-row w-full gap-3 items-center justify-center lg:justify-start lg:max-w-[65vw] flex-wrap",
+                className,
+            )}
+            {...rest}
+        >
+            {!!links && <div
+                className="flex items-center gap-3 h-10 px-4 rounded-full bg-black/25 ring-1 ring-white/10 backdrop-blur-md"
+                data-media-page-header-actions-links
+            >
+                {links}
+            </div>}
+            {children}
+        </div>
     )
 }
 

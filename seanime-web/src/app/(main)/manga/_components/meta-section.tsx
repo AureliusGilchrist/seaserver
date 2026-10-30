@@ -12,8 +12,10 @@ import { useGetMediaInfo } from "@/api/hooks/anilist.hooks"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import {
     MediaPageHeader,
+    MediaPageHeaderActions,
     MediaPageHeaderDetailsContainer,
     MediaPageHeaderEntryDetails,
+    MediaPageHeaderMoreDetails,
 } from "@/app/(main)/_features/media/_components/media-page-header-components"
 import { MediaSyncTrackButton } from "@/app/(main)/_features/media/_containers/media-sync-track-button"
 import { ToWatchButton } from "@/app/(main)/_features/media/_components/to-watch-button"
@@ -23,7 +25,7 @@ import { IconButton } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { Tooltip } from "@/components/ui/tooltip"
 import { getCustomSourceExtensionId, getCustomSourceMediaSiteUrl, isCustomSource } from "@/lib/server/utils"
-import { ThemeMediaPageInfoBoxSize, useThemeSettings } from "@/lib/theme/hooks"
+import { useThemeSettings } from "@/lib/theme/hooks"
 import React from "react"
 import { BiExtension } from "react-icons/bi"
 import { AiFillHeart, AiOutlineHeart } from "react-icons/ai"
@@ -47,26 +49,9 @@ export function MetaSection(props: { entry: Manga_Entry | undefined, details: AL
         || entry.media?.title?.english
         || entry.media?.title?.native
 
-    const Details = () => (
-        <>
-            <div
-                className={cn(
-                    "flex gap-2 flex-wrap items-center",
-                    ts.mediaPageBannerInfoBoxSize === ThemeMediaPageInfoBoxSize.Fluid && "justify-center lg:justify-start lg:max-w-[65vw]",
-                )}
-            >
-                <MediaMetaChips media={entry.media as any} info={info} type="manga" className="w-full" />
-
-                <MediaStatsRow info={info} meanScore={entry.media?.meanScore} hideScore={personal.hideAudienceScore} />
-
-                {info?.staff?.edges?.length ? <MediaCreatorsLine info={info} className="w-full" /> : <MangaEntryStaff staff={details?.staff} />}
-
-                <MediaEntryGenresList genres={details?.genres} type="manga" />
-            </div>
-
-            <AnimeEntryRankings rankings={details?.rankings} />
-        </>
-    )
+    // With the AniList staff known, "Story & art by …" is the short credit line; otherwise the
+    // staff badges from the details query stand in for it.
+    const hasCreatorsLine = !!info?.staff?.edges?.length
 
     return (
         <MediaPageHeader
@@ -91,65 +76,88 @@ export function MetaSection(props: { entry: Manga_Entry | undefined, details: AL
                     media={entry.media}
                     type="manga"
                 >
-                    {ts.mediaPageBannerInfoBoxSize === ThemeMediaPageInfoBoxSize.Fluid && <Details />}
+                    <div
+                        data-manga-meta-section-details
+                        className="flex flex-col gap-3 items-center lg:items-start lg:max-w-[65vw]"
+                    >
+                        <MediaMetaChips media={entry.media as any} info={info} type="manga" className="w-full" />
+
+                        <MediaStatsRow info={info} meanScore={entry.media?.meanScore} hideScore={personal.hideAudienceScore} />
+
+                        {hasCreatorsLine && <MediaCreatorsLine info={info} className="w-full" />}
+
+                        <MediaEntryGenresList genres={details?.genres} type="manga" />
+
+                        {/* Staff badges and rankings are folded away to keep the hero calm. */}
+                        {((!hasCreatorsLine && !!details?.staff?.edges?.length) || !!details?.rankings?.length) &&
+                            <MediaPageHeaderMoreDetails label={hasCreatorsLine ? "Rankings" : "Staff & rankings"}>
+                                {!hasCreatorsLine && <div className="flex flex-wrap gap-2 justify-center lg:justify-start">
+                                    <MangaEntryStaff staff={details?.staff} />
+                                </div>}
+                                <AnimeEntryRankings rankings={details?.rankings} />
+                            </MediaPageHeaderMoreDetails>}
+                    </div>
                 </MediaPageHeaderEntryDetails>
 
                 <PluginWebviewSlot slot="after-media-entry-details" />
 
-                {ts.mediaPageBannerInfoBoxSize !== ThemeMediaPageInfoBoxSize.Fluid && <Details />}
+                <MediaPageHeaderActions
+                    data-manga-meta-section-buttons-container
+                    links={<>
+                        {isCustomSource(entry.mediaId) && (
+                            <Tooltip
+                                trigger={<div>
+                                    <SeaLink href={`/custom-sources?provider=${getCustomSourceExtensionId(entry.media)}`}>
+                                        <IconButton size="sm" intent="gray-link" className="px-0" icon={<BiExtension className="text-lg" />} />
+                                    </SeaLink>
+                                </div>}
+                            >
+                                Custom source
+                            </Tooltip>
+                        )}
 
-
-                <div className="w-full flex flex-wrap gap-4 items-center" data-manga-meta-section-buttons-container>
-
-                    {isCustomSource(entry.mediaId) && (
-                        <Tooltip
+                        {!isCustomSource(entry.mediaId) && <Tooltip
                             trigger={<div>
-                                <SeaLink href={`/custom-sources?provider=${getCustomSourceExtensionId(entry.media)}`}>
-                                    <IconButton size="sm" intent="gray-link" className="px-0" icon={<BiExtension className="text-lg" />} />
+                                <SeaLink href={`https://anilist.co/manga/${entry.mediaId}`} target="_blank">
+                                    <IconButton size="sm" intent="gray-link" className="px-0" icon={<SiAnilist className="text-lg" />} />
                                 </SeaLink>
                             </div>}
                         >
-                            Custom source
+                            Open on AniList
+                        </Tooltip>}
+
+                        {isCustomSource(entry.mediaId) && !!getCustomSourceMediaSiteUrl(entry.media) && <Tooltip
+                            trigger={<div>
+                                <SeaLink href={getCustomSourceMediaSiteUrl(entry.media)!} target="_blank">
+                                    <IconButton size="sm" intent="gray-link" className="px-0" icon={<LuExternalLink className="text-lg" />} />
+                                </SeaLink>
+                            </div>}
+                        >
+                            Open in website
+                        </Tooltip>}
+
+                        <Tooltip trigger={
+                            <IconButton
+                                size="sm"
+                                intent="gray-link"
+                                className="px-0"
+                                icon={isFavorite(entry.mediaId)
+                                    ? <AiFillHeart className="text-lg text-red-500" />
+                                    : <AiOutlineHeart className="text-lg" />
+                                }
+                                onClick={() => toggleFavorite(entry.mediaId)}
+                            />
+                        }>
+                            {isFavorite(entry.mediaId) ? "Remove from favorites" : "Add to favorites"}
                         </Tooltip>
-                    )}
-
-                    {!isCustomSource(entry.mediaId) && <SeaLink href={`https://anilist.co/manga/${entry.mediaId}`} target="_blank">
-                        <IconButton size="sm" intent="gray-link" className="px-0" icon={<SiAnilist className="text-lg" />} />
-                    </SeaLink>}
-
-                    {isCustomSource(entry.mediaId) && !!getCustomSourceMediaSiteUrl(entry.media) && <Tooltip
-                        trigger={<div>
-                            <SeaLink href={getCustomSourceMediaSiteUrl(entry.media)!} target="_blank">
-                                <IconButton size="sm" intent="gray-link" className="px-0" icon={<LuExternalLink className="text-lg" />} />
-                            </SeaLink>
-                        </div>}
-                    >
-                        Open in website
-                    </Tooltip>}
-
-                    {ts.mediaPageBannerInfoBoxSize !== ThemeMediaPageInfoBoxSize.Fluid && <div className="flex-1 hidden lg:flex"></div>}
-
-                    <Tooltip trigger={
-                        <IconButton
-                            size="sm"
-                            intent="gray-link"
-                            className="px-0"
-                            icon={isFavorite(entry.mediaId)
-                                ? <AiFillHeart className="text-lg text-red-500" />
-                                : <AiOutlineHeart className="text-lg" />
-                            }
-                            onClick={() => toggleFavorite(entry.mediaId)}
-                        />
-                    }>
-                        {isFavorite(entry.mediaId) ? "Remove from favorites" : "Add to favorites"}
-                    </Tooltip>
+                    </>}
+                >
+                    <ToWatchButton media={entry.media} mediaType="MANGA" />
 
                     <MediaSyncTrackButton mediaId={entry.mediaId} type="manga" size="md" />
 
-                    <ToWatchButton media={entry.media} mediaType="MANGA" />
-
                     <PluginMangaPageButtons media={entry.media} />
-                </div>
+                </MediaPageHeaderActions>
 
             </MediaPageHeaderDetailsContainer>
         </MediaPageHeader>
