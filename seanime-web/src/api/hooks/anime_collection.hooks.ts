@@ -20,6 +20,13 @@ export function useGetLibraryCollection({ enabled, refetchInterval, staleTime, r
         refetchInterval,
         staleTime,
         refetchOnWindowFocus,
+        // Building this can take minutes on a big library, and marking an episode watched invalidates
+        // it. Each invalidation used to leave the previous request running, and a handful of them
+        // held every connection to the server: the next episode's request then never left the
+        // client, and the player sat on "Setting up stream…" until it timed out. At most one
+        // connection now, and never for longer than the server's own lookup deadline plus the build.
+        abortOnCancel: true,
+        timeout: 180_000,
     })
 }
 

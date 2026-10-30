@@ -293,8 +293,14 @@ func (sp *SimulatedPlatform) GetAnime(ctx context.Context, mediaID int) (*anilis
 		return triggeredMedia, nil
 	}
 
-	// Rate-limit before hitting AniList to prevent 429 thundering herd
-	sp.anilistRateLimit.Wait()
+	// Rate-limit before hitting AniList to prevent 429 thundering herd.
+	// Context-bound, as in the AniList platform: a plain Wait() ignores ctx, which let the library
+	// collection's two-minute lookup deadline slide to over half an hour on a big library. Every such
+	// request holds one of the browser's six connections to the server, so a few of them stopped the
+	// next episode from even being requested.
+	if err := sp.anilistRateLimit.WaitContext(ctx); err != nil {
+		return nil, err
+	}
 
 	// Get anime from anilist
 	resp, err := sp.client.BaseAnimeByID(ctx, &mediaID)
@@ -430,7 +436,9 @@ func (sp *SimulatedPlatform) GetManga(ctx context.Context, mediaID int) (*anilis
 	}
 
 	// Rate-limit before hitting AniList to prevent 429 thundering herd
-	sp.anilistRateLimit.Wait()
+	if err := sp.anilistRateLimit.WaitContext(ctx); err != nil {
+		return nil, err
+	}
 
 	// Get manga from anilist
 	resp, err := sp.client.BaseMangaByID(ctx, &mediaID)

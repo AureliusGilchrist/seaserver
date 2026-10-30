@@ -142,6 +142,8 @@ type SeaQuery<D> = {
     background?: boolean
     /** Abort after this many milliseconds instead of waiting forever (axios `timeout`). */
     timeout?: number
+    /** Aborts the request when it fires, releasing its connection. */
+    signal?: AbortSignal
 }
 
 export function useSeaQuery() {
@@ -175,6 +177,7 @@ export async function buildSeaQuery<T, D extends any = any>(
         params,
         background,
         timeout,
+        signal,
     }: SeaQuery<D>): Promise<T | undefined> {
 
     // Resolve auth credentials from the Jotai store at request time rather than trusting the
@@ -197,6 +200,7 @@ export async function buildSeaQuery<T, D extends any = any>(
         data,
         params,
         timeout,
+        signal,
         headers: {
             ...(effectivePassword ? { "X-Seanime-Token": effectivePassword } : {}),
             ...(effectiveProfileToken ? { "X-Seanime-Profile-Token": effectiveProfileToken } : {}),
@@ -299,6 +303,12 @@ type ServerQueryProps<R, V> = UseQueryOptions<R | undefined, SeaError, R | undef
     muteCacheMiss?: boolean
     /** Request timeout in ms; without one a stalled request leaves the query loading forever. */
     timeout?: number
+    /**
+     * Abort the HTTP request when React Query gives up on it. Without this, an invalidation that
+     * replaces a running fetch only forgets it: the old request keeps its connection until the server
+     * answers. For a slow endpoint those pile up to the browser's limit of six per host.
+     */
+    abortOnCancel?: boolean
 }
 
 /**
@@ -315,6 +325,7 @@ export function useServerQuery<R, V = any>(
         muteError,
         muteCacheMiss,
         timeout,
+        abortOnCancel,
         ...options
     }: ServerQueryProps<R | undefined, V>) {
 
@@ -323,7 +334,7 @@ export function useServerQuery<R, V = any>(
     const profileToken = useAtomValue(profileSessionTokenAtom)
 
     const props = useQuery<R | undefined, SeaError>({
-        queryFn: async () => {
+        queryFn: async (context) => {
             return buildSeaQuery<R, V>({
                 endpoint: endpoint,
                 method: method,
@@ -332,6 +343,9 @@ export function useServerQuery<R, V = any>(
                 password: password,
                 profileToken: profileToken,
                 timeout,
+                // Read only when asked for: touching `context.signal` is what tells React Query the
+                // request can be aborted, which changes how it treats every query that does.
+                signal: abortOnCancel ? context.signal : undefined,
             })
         },
         ...options,

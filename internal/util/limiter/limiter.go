@@ -53,6 +53,12 @@ func (l *Limiter) Wait() {
 // must fall back to cached data rather than hang): a plain Wait ignores ctx entirely, so a
 // contended limiter can block a request far longer than any timeout the caller thought it had.
 func (l *Limiter) WaitContext(ctx context.Context) error {
+	// Already over: claim nothing. A batch that outlives its deadline would otherwise book a slot per
+	// remaining item, none of them used, and everyone after it would wait behind those.
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	next, now := l.reserve()
 	if !now.Before(next) {
 		return nil
