@@ -1906,7 +1906,7 @@ export function VideoCore(props: VideoCoreProps) {
 
             // No preview handoff (clicked without hovering): fullscreen right away — nothing
             // is fading above the video that top-layer rendering would cut off.
-            if (autoFullscreen && !popoutResume) {
+            if (autoFullscreen && !popoutResume && !previewResume) {
                 void fullscreenManager?.enterFullscreen()
             }
         }

@@ -85,6 +85,8 @@ function showOverlay(video: HTMLVideoElement) {
         // A frame that can't be drawn leaves a plain black fade.
     }
     document.body.appendChild(el)
+    // Tracked, or finishPreviewTransition() can't find it and the frame stays over the player for good.
+    overlay = el
     requestAnimationFrame(() => {
         el.style.opacity = "1"
     })

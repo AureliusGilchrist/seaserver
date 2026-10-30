@@ -1690,6 +1690,25 @@ app.whenReady().then(async () => {
         senderWindow(event)?.setFullScreen(!!fullscreen)
     })
 
+    // Element fullscreen outside a click: the player enters fullscreen once it can play, seconds
+    // after the episode card was clicked, when Chromium no longer counts a user gesture and refuses
+    // requestFullscreen(). Run as a gesture (executeJavaScript's userGesture flag) it goes through.
+    // Only a selector comes from the renderer; the script is fixed.
+    ipcMain.handle("window:requestElementFullscreen", async (event, selector) => {
+        if (typeof selector !== "string" || selector.length > 200) return false
+        const script = `(async () => {
+            const el = document.querySelector(${JSON.stringify(selector)})
+            if (!el) return false
+            await el.requestFullscreen()
+            return true
+        })()`
+        try {
+            return !!(await event.sender.executeJavaScript(script, true))
+        } catch {
+            return false
+        }
+    })
+
     ipcMain.handle("window:isVisible", (event) => {
         return senderWindow(event)?.isVisible() ?? false
     })

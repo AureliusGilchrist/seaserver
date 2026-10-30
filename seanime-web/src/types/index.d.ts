@@ -36,6 +36,8 @@ declare global {
                 isClosable: () => Promise<boolean>;
                 isFullscreen: () => Promise<boolean>;
                 setFullscreen: (fullscreen: boolean) => void;
+                /** Element fullscreen for the element matching `selector`, run as a user gesture (works outside a click). */
+                requestElementFullscreen?: (selector: string) => Promise<boolean>;
                 toggleMaximize: () => void;
                 hide: () => void;
                 show: () => void;

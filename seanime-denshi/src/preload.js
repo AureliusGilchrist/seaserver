@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld(
             isClosable: () => ipcRenderer.invoke("window:isClosable"),
             isFullscreen: () => ipcRenderer.invoke("window:isFullscreen"),
             setFullscreen: (fullscreen) => ipcRenderer.send("window:setFullscreen", fullscreen),
+            // Fork: element fullscreen run as a user gesture, for fullscreen requested outside a click.
+            requestElementFullscreen: (selector) => ipcRenderer.invoke("window:requestElementFullscreen", selector),
             toggleMaximize: () => ipcRenderer.send("window:toggleMaximize"),
             hide: () => ipcRenderer.send("window:hide"),
             show: () => ipcRenderer.send("window:show"),

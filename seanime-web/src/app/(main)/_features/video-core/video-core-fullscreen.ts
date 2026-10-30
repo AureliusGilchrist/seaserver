@@ -17,6 +17,9 @@ interface VideoCoreFullscreenManagerEventMap {
 
 export const vc_fullscreenManager = atom<VideoCoreFullscreenManager | null>(null)
 
+/** Marks the player container while Denshi is asked to fullscreen it (see _enterElectronFullscreen). */
+const FULLSCREEN_TARGET_ATTR = "data-vc-fullscreen-target"
+
 export class VideoCoreFullscreenManager extends EventTarget {
     private containerElement: HTMLElement | null = null
     private videoElement: HTMLVideoElement | null = null
@@ -251,7 +254,30 @@ export class VideoCoreFullscreenManager extends EventTarget {
                 log.info("Entered element fullscreen (Electron)")
             }
             catch (error) {
-                log.error("Failed to enter element fullscreen in Electron", error)
+                // Outside a click (the auto-fullscreen once the player can play, seconds after the
+                // episode card was clicked) Chromium refuses: no user activation. Denshi can run it
+                // as a gesture instead.
+                log.warning("Element fullscreen refused, retrying through Denshi", error)
+                const requestElementFullscreen = window.electron?.window?.requestElementFullscreen
+                if (requestElementFullscreen) {
+                    this.containerElement.setAttribute(FULLSCREEN_TARGET_ATTR, "")
+                    try {
+                        await requestElementFullscreen(`[${FULLSCREEN_TARGET_ATTR}]`)
+                    }
+                    catch (error) {
+                        log.error("Denshi element fullscreen failed", error)
+                    }
+                    finally {
+                        this.containerElement?.removeAttribute(FULLSCREEN_TARGET_ATTR)
+                    }
+                }
+            }
+
+            // Window fullscreen without the player fullscreen is the half state: the app's normal
+            // layout stretched over the screen, the player still inline. Stay windowed instead.
+            if (!this._elementFullscreenElement()) {
+                log.warning("Element fullscreen unavailable, not making the window fullscreen")
+                return
             }
         }
 
@@ -271,15 +297,18 @@ export class VideoCoreFullscreenManager extends EventTarget {
         }
     }
 
+    private _elementFullscreenElement(): Element | null {
+        return document.fullscreenElement ||
+            (document as any).webkitFullscreenElement ||
+            (document as any).mozFullScreenElement ||
+            (document as any).msFullscreenElement ||
+            null
+    }
+
     private async _exitElectronFullscreen(): Promise<void> {
         // Exit element fullscreen first so the video collapses back into the layout
         // before the OS window leaves fullscreen.
-        if (
-            document.fullscreenElement ||
-            (document as any).webkitFullscreenElement ||
-            (document as any).mozFullScreenElement ||
-            (document as any).msFullscreenElement
-        ) {
+        if (this._elementFullscreenElement()) {
             try {
                 if (document.exitFullscreen) {
                     await document.exitFullscreen()
