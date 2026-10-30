@@ -221,7 +221,10 @@ func extractAttachments(ctx context.Context, ffmpegPath, path, attachmentPath st
 
 	// ffmpeg requires an output file. The attachments are written when the input is opened, so
 	// the output stops at zero seconds instead of copying every stream of the file through.
-	args = append(args, "-t", "0", "-f", "null", os.DevNull)
+	// "-c copy" keeps ffmpeg from setting up decoders: nothing here needs one, and a build without
+	// the video's decoder (Fedora's ffmpeg has none for HEVC or H.264) would fail the whole command
+	// after the fonts were already written.
+	args = append(args, "-t", "0", "-c", "copy", "-f", "null", os.DevNull)
 
 	_, err := runFfmpeg(ctx, ffmpegPath, attachmentPath, args)
 	if err != nil {
