@@ -126,17 +126,21 @@ function clearStyle(styleEl: HTMLStyleElement | null): void {
 
 const STYLE_ID = "sea-custom-cursor-style"
 
+// What a profile starts with: "Plain", the first pack in the shop. "default" stays a choice in the
+// shop, and a stored choice always wins.
+const STARTER_CURSOR_ID = "pack-l1"
+
 export function CursorProvider({ children }: { children: React.ReactNode }) {
     const currentProfile = useAtomValue(currentProfileAtom)
     const profileKey = currentProfile?.id ? String(currentProfile.id) : "default"
     const storageKey = `sea-cursor-${profileKey}`
 
     const [activeCursorId, setActiveCursorIdRaw] = React.useState<string>(() => {
-        if (typeof window === "undefined") return "default"
+        if (typeof window === "undefined") return STARTER_CURSOR_ID
         try {
-            return seaStorage.getItem(storageKey) ?? "default"
+            return seaStorage.getItem(storageKey) ?? STARTER_CURSOR_ID
         } catch {
-            return "default"
+            return STARTER_CURSOR_ID
         }
     })
     const [isApplying, setIsApplying] = React.useState(false)
@@ -145,7 +149,7 @@ export function CursorProvider({ children }: { children: React.ReactNode }) {
     React.useEffect(() => {
         try {
             const stored = seaStorage.getItem(storageKey)
-            setActiveCursorIdRaw(stored ?? "default")
+            setActiveCursorIdRaw(stored ?? STARTER_CURSOR_ID)
         } catch { /* noop */ }
     }, [storageKey])
 

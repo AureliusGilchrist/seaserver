@@ -175,6 +175,22 @@ export function useRewards() {
     return React.useContext(RewardContext)
 }
 
+const PLAYER_BAR_STORAGE_KEY = "sea-player-bar"
+
+/** The equipped bar, for the video player. Falls back to the stored copy outside the provider. */
+export function usePlayerBarSkin(): { fill: string | null, animClass: string | null } {
+    const { activeXPBarSkin, effectiveXPBarFill } = useRewards()
+    const [stored] = React.useState<{ fill?: string | null, animClass?: string | null }>(() => {
+        try {
+            return JSON.parse(localStorage.getItem(PLAYER_BAR_STORAGE_KEY) ?? "{}")
+        } catch {
+            return {}
+        }
+    })
+    if (effectiveXPBarFill) return { fill: effectiveXPBarFill, animClass: activeXPBarSkin?.animClass ?? null }
+    return { fill: stored.fill ?? null, animClass: stored.animClass ?? null }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 function lookupTitle(id: string, milestoneNames?: Record<string, Record<number, string>>): TitleReward | null {
@@ -554,6 +570,10 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
             root.style.removeProperty("--sea-xpbar-fill")
             root.style.removeProperty("--sea-xpbar-track")
         }
+        // The popout player runs outside this provider, so it reads the bar from here.
+        try {
+            localStorage.setItem(PLAYER_BAR_STORAGE_KEY, JSON.stringify({ fill: effectiveXPBarFill, animClass: xpBarDef?.animClass ?? null }))
+        } catch { /* noop */ }
     }, [xpBarDef, effectiveXPBarFill])
 
     const activeParticleSets = React.useMemo(

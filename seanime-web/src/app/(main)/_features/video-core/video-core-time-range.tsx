@@ -25,6 +25,7 @@ import { vc_formatTime, vc_getChapterType, vc_getOPEDChapters } from "@/app/(mai
 import { SeaImage as Image } from "@/components/shared/sea-image"
 import { cn } from "@/components/ui/core/styling"
 import { logger } from "@/lib/helpers/debug"
+import { usePlayerBarSkin } from "@/lib/rewards/reward-provider"
 import { atom, useAtomValue } from "jotai"
 import { useAtom, useSetAtom } from "jotai/react"
 import React from "react"
@@ -407,6 +408,7 @@ function VideoCoreTimeRangeSegment(props: {
     const seekingTargetProgress = useAtomValue(vc_seekingTargetProgress)
     const action = useSetAtom(vc_dispatchAction)
     const highlightOPEDChapters = useAtomValue(vc_highlightOPEDChaptersAtom)
+    const barSkin = usePlayerBarSkin()
 
     const focused = !!seekingTargetProgress && chapter.percentageOffset <= seekingTargetProgress && chapter.percentageOffset + chapter.width >= seekingTargetProgress
 
@@ -447,12 +449,18 @@ function VideoCoreTimeRangeSegment(props: {
                     data-vc-element="time-range-chapter-bar"
                     data-vc-for="progress"
                     className={cn(
-                        "bg-white absolute w-full h-full left-0 transform-gpu z-[10]",
+                        "bg-white absolute w-full h-full left-0 transform-gpu z-[10] overflow-hidden",
                     )}
                     style={{
                         "--tw-translate-x": duration > 1 ? `${getChapterBarPosition(chapter, progressPercentage)}%` : "-100%",
+                        // Read from context, not --sea-xpbar-fill: the PiP window has its own document root.
+                        background: barSkin.fill ?? undefined,
                     } as React.CSSProperties}
-                />
+                >
+                    {!!barSkin.animClass && !!barSkin.fill && (
+                        <div className={cn("sea-xpbar-layer", barSkin.animClass)} style={{ background: barSkin.fill }} />
+                    )}
+                </div>
                 <div
                     data-vc-element="time-range-chapter-bar"
                     data-vc-for="seeking-target"
