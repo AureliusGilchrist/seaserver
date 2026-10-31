@@ -357,7 +357,7 @@ type ScannerStatus struct {
 }
 
 func NewScanner(logger *zerolog.Logger, repository *Repository) *Scanner {
-	return &Scanner{
+	s := &Scanner{
 		logger:            logger,
 		repository:        repository,
 		completedTorrents: make([]string, 0),
@@ -365,6 +365,10 @@ func NewScanner(logger *zerolog.Logger, repository *Repository) *Scanner {
 		verifyDelay:       5 * time.Second,
 		debounceCh:        make(chan struct{}, 1),
 	}
+	if repository != nil {
+		repository.isFinished = s.IsMarkedCompleted
+	}
+	return s
 }
 
 // TriggerScan starts a scan asynchronously. Best-effort and safe to call anytime.
@@ -559,8 +563,9 @@ func (s *Scanner) scanForCompletedDownloads() {
 			continue
 		}
 
-		// Still downloading if temp files present
-		if s.hasTempFiles(path) {
+		// Still downloading if temp files present, unless the client says otherwise. Only the client
+		// can overrule them: a deselected file can leave one behind after the download has finished.
+		if s.hasTempFiles(path) && s.completionState(rel) != CompletionFinished {
 			continue
 		}
 
@@ -576,10 +581,7 @@ func (s *Scanner) scanForCompletedDownloads() {
 			defer s.finishVerifying(torrentRel)
 
 			time.Sleep(s.verifyDelay)
-			if s.hasTempFiles(torrentPath) {
-				return
-			}
-			if s.deepScanForTempFiles(torrentPath) {
+			if s.deepScanForTempFiles(torrentPath) && s.completionState(torrentRel) != CompletionFinished {
 				return
 			}
 

@@ -137,3 +137,73 @@ func TestScanCompletesWhenTheClientSaysFinished(t *testing.T) {
 		t.Error("a download the client reports as finished was not accepted")
 	}
 }
+
+// A leftover temp file used to hide a finished download from the scanner and the listing for good,
+// with nothing in the log to say so.
+func TestLeftoverTempFile(t *testing.T) {
+	leftover := func(t *testing.T, base, name string) {
+		t.Helper()
+		dir := stagedDownload(t, base, name, 3)
+		if err := os.WriteFile(filepath.Join(dir, "extras.mkv.part"), []byte("x"), 0o644); err != nil {
+			t.Fatalf("write temp file: %v", err)
+		}
+	}
+	newScanner := func(states ...TorrentState) *Scanner {
+		logger := zerolog.Nop()
+		s := NewScanner(&logger, nil)
+		s.verifyDelay = 10 * time.Millisecond
+		s.startedAt = time.Now().Add(-2 * clientStartupGrace)
+		s.SetTorrentStateSource(func() ([]TorrentState, bool) { return states, true })
+		return s
+	}
+
+	t.Run("does not hold back a download the client says is finished", func(t *testing.T) {
+		_, base := stageBase(t)
+		leftover(t, base, "Done")
+		s := newScanner(TorrentState{Name: "Done", SavePath: filepath.Join(base, "Done"), Finished: true})
+
+		s.scanForCompletedDownloads()
+
+		if !waitUntilCompleted(t, s, "Done") {
+			t.Error("a finished download was held back by a leftover temp file")
+		}
+	})
+
+	t.Run("still holds back one the client is downloading", func(t *testing.T) {
+		_, base := stageBase(t)
+		leftover(t, base, "Going")
+		s := newScanner(TorrentState{Name: "Going", SavePath: filepath.Join(base, "Going"), Finished: false})
+
+		s.scanForCompletedDownloads()
+		waitForScan()
+
+		if s.IsMarkedCompleted("Going") {
+			t.Error("a running download was accepted")
+		}
+	})
+
+	t.Run("still holds back one the client has no record of", func(t *testing.T) {
+		_, base := stageBase(t)
+		leftover(t, base, "Unknown")
+		s := newScanner()
+
+		s.scanForCompletedDownloads()
+		waitForScan()
+
+		if s.IsMarkedCompleted("Unknown") {
+			t.Error("a download nothing vouches for was accepted")
+		}
+	})
+}
+
+func TestScanDirFlagsSeesVideoPastATempFile(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{"a.part", "z.mkv"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o644); err != nil {
+			t.Fatalf("write: %v", err)
+		}
+	}
+	if hasTemp, hasVideo := scanDirFlags(dir); !hasTemp || !hasVideo {
+		t.Errorf("got hasTemp=%v hasVideo=%v", hasTemp, hasVideo)
+	}
+}

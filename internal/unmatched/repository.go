@@ -48,6 +48,8 @@ type Repository struct {
 	listGroup singleflight.Group
 	// contentCache stores full torrent contents (files + seasons) for instant retrieval
 	contentCache map[string]*UnmatchedTorrent
+	// isFinished reports whether the scanner has accepted a download as finished. Set by NewScanner.
+	isFinished func(dirName string) bool
 
 	// metadataByTorrent memoises the stored records, misses included. Keyed by metadataKey.
 	metadataMu        sync.Mutex
@@ -314,7 +316,9 @@ func (r *Repository) scanUnmatchedTorrents() ([]*UnmatchedTorrent, error) {
 		// network. Same two answers, a third of the disk work, and it is the disk that this
 		// listing is entirely made of.
 		hasTemp, hasVideo := scanDirFlags(fullPath)
-		if hasTemp || !hasVideo {
+		// A temp file means still downloading, unless the torrent client says it is finished: a
+		// deselected file can leave one behind for good, and that download must not stay hidden.
+		if !hasVideo || (hasTemp && (r.isFinished == nil || !r.isFinished(name))) {
 			continue
 		}
 
@@ -406,7 +410,7 @@ func scanDirFlags(path string) (hasTemp bool, hasVideo bool) {
 		name := info.Name()
 		if isTempFileName(name) {
 			hasTemp = true
-			return filepath.SkipAll
+			return nil
 		}
 		if isVideoFile(name) {
 			hasVideo = true
