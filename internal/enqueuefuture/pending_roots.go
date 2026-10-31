@@ -195,6 +195,8 @@ func (r *Repository) startNextPendingRoot() {
 		fromBacklog = true
 	}
 	if !ok {
+		// Nothing anybody asked for, so the catalog gets the worker.
+		r.ensureCatalogRun()
 		return
 	}
 

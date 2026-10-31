@@ -147,6 +147,32 @@ export function useRewalkEnqueueFutureFamilies() {
     })
 }
 
+/** Starts queueing every anime on AniList, or carries on from where it was stopped. */
+export function useStartEnqueueFutureCatalog() {
+    const queryClient = useQueryClient()
+    return useServerMutation<EnqueueFuture_Status>({
+        endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.StartEnqueueFutureCatalog.endpoint,
+        method: API_ENDPOINTS.ENQUEUE_FUTURE.StartEnqueueFutureCatalog.methods[0],
+        mutationKey: [API_ENDPOINTS.ENQUEUE_FUTURE.StartEnqueueFutureCatalog.key],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureStatus.key] })
+        },
+    })
+}
+
+/** Stops queueing every anime on AniList. What is already queued stays. */
+export function useStopEnqueueFutureCatalog() {
+    const queryClient = useQueryClient()
+    return useServerMutation<EnqueueFuture_Status>({
+        endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.StopEnqueueFutureCatalog.endpoint,
+        method: API_ENDPOINTS.ENQUEUE_FUTURE.StopEnqueueFutureCatalog.methods[0],
+        mutationKey: [API_ENDPOINTS.ENQUEUE_FUTURE.StopEnqueueFutureCatalog.key],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureStatus.key] })
+        },
+    })
+}
+
 /** Takes one anime off the waiting list. */
 export function useRemoveEnqueueFuturePendingRoot() {
     const queryClient = useQueryClient()

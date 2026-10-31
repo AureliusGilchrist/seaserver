@@ -34,6 +34,7 @@ const (
 // StartSupervisor begins the background supervision of the walk. Call once, after the repository is
 // wired up (see ResumeIfInterrupted, which it supersedes as the thing that keeps runs alive).
 func (r *Repository) StartSupervisor() {
+	r.resumeCatalogScan()
 	go r.supervise()
 }
 
@@ -63,6 +64,8 @@ func (r *Repository) supervise() {
 
 // superviseOnce starts whatever is waiting, if nothing is running. Returns whether a run was started.
 func (r *Repository) superviseOnce() bool {
+	r.requeueSeaDexDropsOnce()
+
 	r.mu.Lock()
 	running := r.running
 	r.mu.Unlock()
@@ -94,7 +97,12 @@ func (r *Repository) superviseOnce() bool {
 		return started
 	}
 
-	return false
+	// Last of all the catalog, which only ever takes what nothing else wants.
+	r.ensureCatalogRun()
+	r.mu.Lock()
+	started := r.running
+	r.mu.Unlock()
+	return started
 }
 
 // hasWorkWaiting reports whether there is anything the supervisor is trying to start.

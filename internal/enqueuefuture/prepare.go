@@ -210,8 +210,14 @@ func (r *Repository) prepare(ctx context.Context, mediaID int) (*prepared, error
 		return nil, err
 	}
 
+	// No repository means no search happened, which must not read as a search that found nothing:
+	// that answer deletes the row. An error leaves it on the queue to be tried again.
+	if r.torrentRepository == nil {
+		return nil, errors.New("the torrent repository is unavailable")
+	}
+
 	var searchData *torrent.SearchData
-	if r.torrentRepository != nil {
+	{
 		search := func(params SearchParams) (*torrent.SearchData, error) {
 			return r.torrentRepository.SearchAnime(ctx, torrent.AnimeSearchOptions{
 				Provider:      params.Provider,
@@ -232,15 +238,22 @@ func (r *Repository) prepare(ctx context.Context, mediaID int) (*prepared, error
 
 		// A provider error fails the item as before — the run retries it. An empty result is not
 		// an error, and for SeaDex it is the normal answer for anything outside its list, so the
-		// search is repeated against the configured provider before the item is stored with
-		// nothing in it.
+		// search is repeated against another provider before the item is stored with nothing in it.
+		// A fallback that errors is returned too: only a provider that answered can say there is
+		// nothing to download, and a bad minute at one must not cost the anime its place.
 		if len(searchData.Torrents) == 0 {
 			if fallbackID, ok := r.fallbackQueueProvider(providerID); ok {
-				if fallbackParams, fbErr := r.searchParamsFor(entry, fallbackID); fbErr == nil {
-					if fallbackData, fbErr := search(fallbackParams); fbErr == nil && len(fallbackData.Torrents) > 0 {
-						params = fallbackParams
-						searchData = fallbackData
-					}
+				fallbackParams, fbErr := r.searchParamsFor(entry, fallbackID)
+				if fbErr != nil {
+					return nil, fbErr
+				}
+				fallbackData, fbErr := search(fallbackParams)
+				if fbErr != nil {
+					return nil, fbErr
+				}
+				if len(fallbackData.Torrents) > 0 {
+					params = fallbackParams
+					searchData = fallbackData
 				}
 			}
 		}
@@ -455,18 +468,35 @@ func (r *Repository) queueProvider() string {
 	return strings.TrimSpace(r.defaultProviderFunc())
 }
 
-// fallbackQueueProvider returns the provider to retry with when the first search comes back empty:
-// the configured default, as long as it is set, is not the provider already tried, and the user has
-// not asked for the configured provider alone — on that switch, one provider means one provider.
+// queueFallbackProviders are tried, in order, when the configured default cannot serve as a fallback
+// because it is the provider that just came back empty.
+var queueFallbackProviders = []string{"animetosho", "nyaa"}
+
+// fallbackQueueProvider returns the provider to retry with when the first search comes back empty.
+// The configured default, unless the user asked for it alone — on that switch, one provider means
+// one provider.
+//
+// With SeaDex as the saved default there used to be no fallback at all, so a curated list was the
+// only search, and everything outside it was dropped as undownloadable.
 func (r *Repository) fallbackQueueProvider(tried string) (string, bool) {
 	if r.useConfiguredProviderFunc != nil && r.useConfiguredProviderFunc() {
 		return "", false
 	}
 	configured := strings.TrimSpace(r.defaultProviderFunc())
-	if configured == "" || configured == torrent.ProviderNone || configured == tried {
-		return "", false
+	if configured != "" && configured != torrent.ProviderNone && configured != tried {
+		return configured, true
 	}
-	return configured, true
+	if r.torrentRepository != nil {
+		for _, id := range queueFallbackProviders {
+			if id == tried {
+				continue
+			}
+			if _, found := r.torrentRepository.GetAnimeProviderExtension(id); found {
+				return id, true
+			}
+		}
+	}
+	return "", false
 }
 
 // recommendationsFrom flattens the recommendation edges of a details payload.

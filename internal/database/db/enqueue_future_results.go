@@ -100,6 +100,17 @@ func (db *Database) GetEnqueueFutureDroppedItem(mediaID int) (*models.EnqueueFut
 	return &res, nil
 }
 
+// HasEnqueueFutureDroppedItem reports whether a run has dropped this anime.
+func (db *Database) HasEnqueueFutureDroppedItem(mediaID int) bool {
+	var count int64
+	err := retryOnBusy(func() error {
+		return db.gormdb.Model(&models.EnqueueFutureDroppedItem{}).
+			Where("media_id = ?", mediaID).
+			Count(&count).Error
+	})
+	return err == nil && count > 0
+}
+
 // DeleteEnqueueFutureDroppedItem forgets one dropped anime.
 func (db *Database) DeleteEnqueueFutureDroppedItem(mediaID int) error {
 	return retryOnBusy(func() error {

@@ -1356,6 +1356,26 @@ export const API_ENDPOINTS = {
         },
         /**
          *  @description
+         *  Route starts queueing every anime on AniList.
+         *  Continues from where a stopped scan left off. Anything you enqueue by hand goes first.
+         */
+        StartEnqueueFutureCatalog: {
+            key: "ENQUEUE-FUTURE-start-enqueue-future-catalog",
+            methods: ["POST"],
+            endpoint: "/api/v1/enqueue-future/catalog/start",
+        },
+        /**
+         *  @description
+         *  Route stops queueing every anime on AniList.
+         *  What is already queued stays, and starting it again continues from the same place.
+         */
+        StopEnqueueFutureCatalog: {
+            key: "ENQUEUE-FUTURE-stop-enqueue-future-catalog",
+            methods: ["POST"],
+            endpoint: "/api/v1/enqueue-future/catalog/stop",
+        },
+        /**
+         *  @description
          *  Route returns the anime dropped from the queue for having nothing downloadable.
          *  Highest AniList score first. Snapshots are omitted, as they are from the queue.
          */

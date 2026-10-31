@@ -2774,6 +2774,23 @@ export type MangaDownloaderStatus = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
+ * - Filepath: internal/enqueuefuture/catalog.go
+ * - Filename: catalog.go
+ * - Package: enqueuefuture
+ * @description
+ *  CatalogStatus is the scan of the whole AniList catalog, as the frontend sees it.
+ */
+export type EnqueueFuture_CatalogStatus = {
+    active: boolean
+    done: boolean
+    nextId: number
+    maxId: number
+    queued: number
+    waiting: number
+    lastError?: string
+}
+
+/**
  * - Filepath: internal/enqueuefuture/types.go
  * - Filename: types.go
  * - Package: enqueuefuture
@@ -2885,6 +2902,7 @@ export type EnqueueFuture_Snapshot = {
  *  Status is the progress of a running (or the last) Enqueue Future run.
  */
 export type EnqueueFuture_Status = {
+    catalog?: EnqueueFuture_CatalogStatus
     running: boolean
     resumable: boolean
     rootMediaId: number

@@ -145,6 +145,8 @@ type Status struct {
 	// above because it is a different kind of instruction: hundreds of automatic entries would bury
 	// the handful you chose by hand. It is only drawn from when that list is empty.
 	RewalkBacklog int `json:"rewalkBacklog,omitempty"`
+	// Catalog is the scan of the whole AniList catalog, nil when one has never been started.
+	Catalog *CatalogStatus `json:"catalog,omitempty"`
 	// CurrentTitle is the anime being prepared right now, for the progress readout.
 	CurrentTitle string `json:"currentTitle"`
 	// RateLimited and the fields below describe a run that is parked on the backoff ladder.

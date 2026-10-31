@@ -420,6 +420,8 @@ const (
 	StartDefaultMediaPlayerEndpoint                    = "MEDIAPLAYER-start-default-media-player"
 	StartKitsuOAuthEndpoint                            = "KITSU-OAUTH-start-kitsu-o-auth"
 	StartMangaDownloadQueueEndpoint                    = "MANGA-DOWNLOAD-start-manga-download-queue"
+	StartEnqueueFutureCatalogEndpoint                  = "ENQUEUE-FUTURE-start-enqueue-future-catalog"
+	StopEnqueueFutureCatalogEndpoint                   = "ENQUEUE-FUTURE-stop-enqueue-future-catalog"
 	StopEnqueueFutureEndpoint                          = "ENQUEUE-FUTURE-stop-enqueue-future"
 	StopMangaDownloadQueueEndpoint                     = "MANGA-DOWNLOAD-stop-manga-download-queue"
 	StopUnmatchedSweepEndpoint                         = "UNMATCHED-SWEEP-stop-unmatched-sweep"

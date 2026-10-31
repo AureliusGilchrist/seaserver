@@ -325,6 +325,34 @@ func (h *Handler) HandleClearEnqueueFutureRewalkBacklog(c echo.Context) error {
 	return h.RespondWithData(c, true)
 }
 
+// HandleStartEnqueueFutureCatalog
+//
+//	@summary starts queueing every anime on AniList.
+//	@desc Continues from where a stopped scan left off. Anything you enqueue by hand goes first.
+//	@route /api/v1/enqueue-future/catalog/start [POST]
+//	@returns enqueuefuture.Status
+func (h *Handler) HandleStartEnqueueFutureCatalog(c echo.Context) error {
+	if h.App.EnqueueFutureRepository == nil {
+		return h.RespondWithError(c, echo.NewHTTPError(500, "enqueue future is unavailable"))
+	}
+	h.App.EnqueueFutureRepository.StartCatalogWalk()
+	return h.RespondWithData(c, h.App.EnqueueFutureRepository.Status())
+}
+
+// HandleStopEnqueueFutureCatalog
+//
+//	@summary stops queueing every anime on AniList.
+//	@desc What is already queued stays, and starting it again continues from the same place.
+//	@route /api/v1/enqueue-future/catalog/stop [POST]
+//	@returns enqueuefuture.Status
+func (h *Handler) HandleStopEnqueueFutureCatalog(c echo.Context) error {
+	if h.App.EnqueueFutureRepository == nil {
+		return h.RespondWithError(c, echo.NewHTTPError(500, "enqueue future is unavailable"))
+	}
+	h.App.EnqueueFutureRepository.StopCatalogWalk()
+	return h.RespondWithData(c, h.App.EnqueueFutureRepository.Status())
+}
+
 // HandleGetEnqueueFutureDropped
 //
 //	@summary returns the anime dropped from the queue for having nothing downloadable.

@@ -12,6 +12,7 @@ import {
 } from "@/api/hooks/enqueue_future.hooks"
 import { EnqueueFutureAddTorrents } from "@/app/(main)/enqueue-future/_components/enqueue-future-add-torrents"
 import { useGetAnimeEntry } from "@/api/hooks/anime_entries.hooks"
+import { EnqueueFutureCatalog } from "@/app/(main)/enqueue-future/_components/enqueue-future-catalog"
 import { EnqueueFutureCurrentShow } from "@/app/(main)/enqueue-future/_components/enqueue-future-current-show"
 import { EnqueueFutureDropped } from "@/app/(main)/enqueue-future/_components/enqueue-future-dropped"
 import { EnqueueFutureHeader } from "@/app/(main)/enqueue-future/_components/enqueue-future-header"
@@ -443,6 +444,8 @@ export function EnqueueFuturePage() {
             </div>
 
             <EnqueueFutureProgress status={status} />
+
+            <EnqueueFutureCatalog status={status} />
 
             <EnqueueFutureDropped isRunning={!!status?.running} />
 

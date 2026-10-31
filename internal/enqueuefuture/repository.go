@@ -64,6 +64,11 @@ type (
 
 		// pendingRootsMu guards the on-disk list of anime waiting for their turn. See pending_roots.go.
 		pendingRootsMu sync.Mutex
+
+		// catalogMu guards the scan of the whole AniList catalog. See catalog.go.
+		catalogMu      sync.Mutex
+		catalogRunning bool
+		catalogCancel  context.CancelFunc
 	}
 
 	NewRepositoryOptions struct {
@@ -144,6 +149,7 @@ func (r *Repository) Status() Status {
 	status.PendingRootList = r.PendingRoots()
 	status.PendingRoots = len(status.PendingRootList)
 	status.RewalkBacklog = r.RewalkBacklogCount()
+	status.Catalog = r.catalogStatus()
 	return status
 }
 
@@ -344,6 +350,7 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 
 	rootMediaID := progress.RootMediaID
 	profileID := progress.ProfileID
+	isCatalog := rootMediaID == db.EnqueueFutureCatalogRootID
 
 	r.logger.Info().Int("rootMediaId", rootMediaID).Msg("enqueuefuture: Starting run")
 
@@ -407,6 +414,14 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 			return
 		}
 
+		// The catalog is weeks of background work, so it gives way as soon as you ask for something.
+		// Nothing about it is lost: its rows stay pending and it restarts when the waiting list empties.
+		if isCatalog && r.PendingRootCount() > 0 {
+			r.clearProgress()
+			r.finish("")
+			return
+		}
+
 		var mediaID int
 		var depth int
 		var familyID int
@@ -419,7 +434,15 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 		} else {
 			// Take the next item that is actually in the queue rather than trusting the in-memory
 			// frontier, so a restart or a second enqueue does not lose or duplicate work.
-			item, err := r.database.GetNextPendingEnqueueFutureItem()
+			//
+			// A walk you asked for leaves the catalog's rows alone, or it would not end for weeks.
+			var item *models.EnqueueFutureItem
+			var err error
+			if isCatalog {
+				item, err = r.database.GetNextPendingEnqueueFutureItem()
+			} else {
+				item, err = r.database.GetNextPendingEnqueueFutureItemOutsideCatalog()
+			}
 			if err != nil {
 				r.logger.Error().Err(err).Msg("enqueuefuture: Failed to read the queue")
 				r.finish(err.Error())
@@ -607,8 +630,12 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 			familyFrontier = append(familyFrontier, rel)
 		}
 
-		// Then what it recommends, each starting a family of its own.
+		// Then what it recommends, each starting a family of its own. The catalog scan reaches all of
+		// these anyway, so there the only thing worth reading off an item is its family.
 		for _, rec := range result.recommendations {
+			if isCatalog {
+				break
+			}
 			if seen[rec.mediaID] {
 				continue
 			}
@@ -701,6 +728,17 @@ func (r *Repository) drainFrontier(
 		// discards the edge, or the connection is lost with it.
 		if rec.isFamily && r.database.HasEnqueueFutureItem(rec.mediaID) {
 			_ = r.database.LinkEnqueueFutureFamilies(rec.mediaID, familyID)
+		}
+
+		// Reached by a walk you asked for while waiting in the catalog's backlog: it joins this walk,
+		// rather than leaving the walk unfinished for weeks.
+		if rootMediaID != db.EnqueueFutureCatalogRootID {
+			_ = r.database.AdoptEnqueueFutureCatalogItem(rec.mediaID, rootMediaID)
+		}
+
+		if rootMediaID == db.EnqueueFutureCatalogRootID && r.database.HasEnqueueFutureDroppedItem(rec.mediaID) {
+			r.bumpSkipped()
+			continue
 		}
 
 		if skip, reason := r.shouldSkip(rec); skip {

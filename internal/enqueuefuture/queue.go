@@ -204,6 +204,7 @@ func (r *Repository) DeleteItem(mediaID int) error {
 // would rebuild exactly what was just thrown away. What the runs left behind goes with it: the
 // record of what they dropped and of how the last one ended both describe the queue being cleared.
 func (r *Repository) Clear() error {
+	r.resetCatalogWalk()
 	r.Stop()
 	r.clearProgress()
 	if err := r.database.ClearEnqueueFutureDroppedItems(); err != nil {

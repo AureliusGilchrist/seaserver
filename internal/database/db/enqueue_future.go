@@ -86,7 +86,13 @@ var enqueueFutureUnresolvedStatuses = []string{
 	EnqueueFutureStatusSkipped,
 }
 
+// EnqueueFutureCatalogRootID is the root of every row the catalog scan queues. No anime has it.
+const EnqueueFutureCatalogRootID = -1
+
 // GetEnqueueFutureListItems returns everything the queue screen needs, without the snapshot blobs.
+//
+// Catalog rows still waiting to be prepared are left out as well. There can be twenty thousand of
+// them, each nothing but a title, and the screen and the sidebar re-read this list while a run goes.
 //
 // Terminal rows are left out. They are kept in the table forever on purpose — that record is what
 // stops an anime being rediscovered — but they accumulate across every run, and the screen filters
@@ -99,6 +105,7 @@ func (db *Database) GetEnqueueFutureListItems() ([]*models.EnqueueFutureItem, er
 			Model(&models.EnqueueFutureItem{}).
 			Select(enqueueFutureListColumns).
 			Where("status IN ?", enqueueFutureUnresolvedStatuses).
+			Where("NOT (status = ? AND root_media_id = ?)", EnqueueFutureStatusPending, EnqueueFutureCatalogRootID).
 			Order("position ASC, id ASC").
 			Find(&res).Error
 	})
@@ -408,6 +415,46 @@ func (db *Database) GetNextPendingEnqueueFutureItem() (*models.EnqueueFutureItem
 		return nil, err
 	}
 	return &res, nil
+}
+
+// GetNextPendingEnqueueFutureItemOutsideCatalog is GetNextPendingEnqueueFutureItem without the rows
+// the catalog scan queued.
+func (db *Database) GetNextPendingEnqueueFutureItemOutsideCatalog() (*models.EnqueueFutureItem, error) {
+	var res models.EnqueueFutureItem
+	err := retryOnBusy(func() error {
+		return db.gormdb.
+			Where("status = ? AND root_media_id <> ?", EnqueueFutureStatusPending, EnqueueFutureCatalogRootID).
+			Order("position ASC, id ASC").
+			First(&res).Error
+	})
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &res, nil
+}
+
+// CountPendingEnqueueFutureCatalogItems returns how many catalog rows are waiting to be prepared.
+func (db *Database) CountPendingEnqueueFutureCatalogItems() (int, error) {
+	var count int64
+	err := retryOnBusy(func() error {
+		return db.gormdb.Model(&models.EnqueueFutureItem{}).
+			Where("status = ? AND root_media_id = ?", EnqueueFutureStatusPending, EnqueueFutureCatalogRootID).
+			Count(&count).Error
+	})
+	return int(count), err
+}
+
+// AdoptEnqueueFutureCatalogItem hands a catalog row still waiting to be prepared over to a run.
+func (db *Database) AdoptEnqueueFutureCatalogItem(mediaID int, rootMediaID int) error {
+	return retryOnBusy(func() error {
+		return db.gormdb.Model(&models.EnqueueFutureItem{}).
+			Where("media_id = ? AND status = ? AND root_media_id = ?",
+				mediaID, EnqueueFutureStatusPending, EnqueueFutureCatalogRootID).
+			Update("root_media_id", rootMediaID).Error
+	})
 }
 
 // SetEnqueueFutureItemStatus updates an item's status and error text, leaving its snapshot alone.
