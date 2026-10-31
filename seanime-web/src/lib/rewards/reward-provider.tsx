@@ -182,7 +182,7 @@ export function usePlayerBarSkin(): { fill: string | null, animClass: string | n
     const { activeXPBarSkin, effectiveXPBarFill } = useRewards()
     const [stored] = React.useState<{ fill?: string | null, animClass?: string | null }>(() => {
         try {
-            return JSON.parse(localStorage.getItem(PLAYER_BAR_STORAGE_KEY) ?? "{}")
+            return JSON.parse(localStorage.getItem(PLAYER_BAR_STORAGE_KEY) ?? "{}") as { fill?: string | null, animClass?: string | null }
         } catch {
             return {}
         }
