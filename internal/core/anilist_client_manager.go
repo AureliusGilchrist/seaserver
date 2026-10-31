@@ -210,7 +210,12 @@ func (m *AnilistClientManager) RecordProgressWrite(profileID uint, mediaID int, 
 	m.ensureAnimeCollectionInMemory(profileID)
 
 	var status *anilist.MediaListStatus
-	if completed {
+	m.colMu.RLock()
+	kept := anilist.KeepsStatusOnProgress(m.cachedEntryStatusLocked(profileID, mediaID))
+	m.colMu.RUnlock()
+	if kept {
+		// The player asks about these; the write left the status alone, so the cache does too.
+	} else if completed {
 		s := anilist.MediaListStatusCompleted
 		status = &s
 	} else {

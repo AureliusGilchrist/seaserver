@@ -1,6 +1,7 @@
 "use client"
 import { AL_MangaDetailsById_Media, Manga_Entry } from "@/api/generated/types"
 import { CommentSection } from "@/app/(main)/_features/comment/comment-section"
+import { KitsuDetailsCard } from "@/app/(main)/_features/media/_components/media-kitsu-card"
 import { MediaDetailsInfoSection, MediaDetailsStaffSection } from "@/app/(main)/_features/media/_components/media-details-sections"
 import { MediaEntryCharactersSection } from "@/app/(main)/_features/media/_components/media-entry-characters-section"
 import { MediaEntryDetailsTabs } from "@/app/(main)/_features/media/_components/media-entry-details-tabs"
@@ -22,7 +23,9 @@ export function MangaEntryDetailsTabs({ entry, details }: { entry: Manga_Entry, 
                         type="manga"
                         genres={details?.genres}
                         nativeTitle={entry.media?.title?.native}
-                    />,
+                    >
+                        <KitsuDetailsCard malId={entry.media?.idMal} type="manga" />
+                    </MediaDetailsInfoSection>,
                 },
                 {
                     value: "cast",

@@ -1037,21 +1037,22 @@ func (pm *PlaybackManager) updateProgress() (err error) {
 	// showing AniList's real progress, so the UI can tell queued episodes from synced ones.
 	queued := false
 	if resolvedClient != nil && resolvedClient.IsAuthenticated() {
-		status := anilist.MediaListStatusCurrent
 		isCompleted := totalEpisodes > 0 && epNum >= totalEpisodes
-		if isCompleted {
-			status = anilist.MediaListStatusCompleted
+		entry, listRead := pm.listEntryFor(mediaId, resolvedProfileID)
+		status, write := anilist.ProgressStatus(entry, isCompleted)
+		if !write {
+			pm.Logger.Debug().Int("mediaId", mediaId).Msg("playback manager: Completed series, leaving progress as it is")
+			return nil
 		}
 		// Dates are filled in when empty and never changed, on a rewatch too. See
 		// anilist.FirstWatchDates.
-		entry, listRead := pm.listEntryFor(mediaId, resolvedProfileID)
 		startedAt, completedAt := anilist.FirstWatchDatesFromList(entry, listRead, isCompleted, time.Now())
-		_, err = resolvedClient.UpdateMediaListEntryProgress(context.Background(), &mediaId, &epNum, &status, startedAt, completedAt)
+		_, err = resolvedClient.UpdateMediaListEntryProgress(context.Background(), &mediaId, &epNum, status, startedAt, completedAt)
 		// If AniList is unreachable, queue the update so the user's true progress is never
 		// lost; it is replayed automatically when the API is available again. We then treat
 		// this as a (locally) successful update so activity/achievements still advance.
 		if err != nil && shared_platform.IsOutageError(err) && pm.enqueueProfilePendingProgressFunc != nil {
-			pm.enqueueProfilePendingProgressFunc(resolvedProfileID, mediaId, epNum, &status, startedAt, completedAt)
+			pm.enqueueProfilePendingProgressFunc(resolvedProfileID, mediaId, epNum, status, startedAt, completedAt)
 			pm.Logger.Warn().Int("mediaId", mediaId).Int("episode", epNum).Msg("playback manager: AniList unreachable; queued progress update for later sync")
 			err = nil
 			queued = true

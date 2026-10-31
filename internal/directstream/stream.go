@@ -328,14 +328,14 @@ func (m *Manager) handlePlayerEvent(event videocore.VideoEvent) {
 					}
 				}
 				if client != nil && client.IsAuthenticated() {
-					status := anilist.MediaListStatusCurrent
 					isCompleted := totalEpisodes > 0 && epNum >= totalEpisodes
-					if isCompleted {
-						status = anilist.MediaListStatusCompleted
+					entry, listRead := baseStream.manager.listEntryFor(mediaId, resolvedProfileID)
+					status, write := anilist.ProgressStatus(entry, isCompleted)
+					if !write {
+						return
 					}
 					// Dates are filled in when empty and never changed, on a rewatch too. See
 					// anilist.FirstWatchDates.
-					entry, listRead := baseStream.manager.listEntryFor(mediaId, resolvedProfileID)
 					startedAt, completedAt := anilist.FirstWatchDatesFromList(entry, listRead, isCompleted, time.Now())
 					m := baseStream.manager
 					if m.hasRecentProgressWriteFunc != nil && m.hasRecentProgressWriteFunc(resolvedProfileID, mediaId, epNum) {
@@ -343,9 +343,9 @@ func (m *Manager) handlePlayerEvent(event videocore.VideoEvent) {
 						m.Logger.Debug().Int("mediaId", mediaId).Int("episode", epNum).Msg("directstream: Progress already written, skipping duplicate")
 						return
 					}
-					_, updateErr = client.UpdateMediaListEntryProgress(anilist.WithUserInitiated(context.Background()), &mediaId, &epNum, &status, startedAt, completedAt)
+					_, updateErr = client.UpdateMediaListEntryProgress(anilist.WithUserInitiated(context.Background()), &mediaId, &epNum, status, startedAt, completedAt)
 					if updateErr != nil && shared_platform.IsOutageError(updateErr) && m.enqueuePendingProgressFunc != nil {
-						m.enqueuePendingProgressFunc(resolvedProfileID, mediaId, epNum, &status, startedAt, completedAt)
+						m.enqueuePendingProgressFunc(resolvedProfileID, mediaId, epNum, status, startedAt, completedAt)
 						m.Logger.Warn().Err(updateErr).Int("mediaId", mediaId).Int("episode", epNum).Msg("directstream: AniList unavailable; queued progress update")
 						updateErr = nil
 						queued = true

@@ -13,7 +13,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// KitsuAnimeInfo is supplementary metadata for an anime pulled from Kitsu.
+// KitsuAnimeInfo is supplementary metadata for an anime or manga pulled from Kitsu.
 type KitsuAnimeInfo struct {
 	Found          bool              `json:"found"`
 	ID             string            `json:"id"`
@@ -39,9 +39,13 @@ type KitsuAnimeInfo struct {
 	YoutubeVideoID string            `json:"youtubeVideoId"`
 	PosterImage    string            `json:"posterImage"`
 	CoverImage     string            `json:"coverImage"`
+	ChapterCount   int               `json:"chapterCount"`
+	VolumeCount    int               `json:"volumeCount"`
+	Serialization  string            `json:"serialization"`
 }
 
 var kitsuAnimeCache = result.NewMap[int, *KitsuAnimeInfo]()
+var kitsuMangaCache = result.NewMap[int, *KitsuAnimeInfo]()
 
 // HandleGetKitsuAnimeInfo
 //
@@ -64,7 +68,7 @@ func (h *Handler) HandleGetKitsuAnimeInfo(c echo.Context) error {
 		return h.RespondWithData(c, cached)
 	}
 
-	info, err := fetchKitsuAnimeInfo(malID)
+	info, err := fetchKitsuInfo("anime", malID)
 	if err != nil {
 		h.App.Logger.Warn().Err(err).Int("malId", malID).Msg("kitsu: Failed to fetch anime info")
 		// Kitsu is supplementary, so return an empty result instead of an error
@@ -76,9 +80,43 @@ func (h *Handler) HandleGetKitsuAnimeInfo(c echo.Context) error {
 	return h.RespondWithData(c, info)
 }
 
-func fetchKitsuAnimeInfo(malID int) (*KitsuAnimeInfo, error) {
+// HandleGetKitsuMangaInfo
+//
+//	@summary returns supplementary metadata for a manga from Kitsu.
+//	@desc This queries the Kitsu API using the manga's MAL ID. Returns found=false when there is no match.
+//	@param id - int - true - "The MyAnimeList ID"
+//	@returns handlers.KitsuAnimeInfo
+//	@route /api/v1/kitsu/manga/{id} [GET]
+func (h *Handler) HandleGetKitsuMangaInfo(c echo.Context) error {
+	malID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	if malID <= 0 {
+		return h.RespondWithData(c, &KitsuAnimeInfo{})
+	}
+
+	if cached, ok := kitsuMangaCache.Get(malID); ok {
+		return h.RespondWithData(c, cached)
+	}
+
+	info, err := fetchKitsuInfo("manga", malID)
+	if err != nil {
+		h.App.Logger.Warn().Err(err).Int("malId", malID).Msg("kitsu: Failed to fetch manga info")
+		// Kitsu is supplementary, so return an empty result instead of an error
+		return h.RespondWithData(c, &KitsuAnimeInfo{})
+	}
+
+	kitsuMangaCache.Set(malID, info)
+
+	return h.RespondWithData(c, info)
+}
+
+// fetchKitsuInfo looks up a MyAnimeList ID on Kitsu. kind is "anime" or "manga".
+func fetchKitsuInfo(kind string, malID int) (*KitsuAnimeInfo, error) {
 	q := url.Values{}
-	q.Set("filter[externalSite]", "myanimelist/anime")
+	q.Set("filter[externalSite]", "myanimelist/"+kind)
 	q.Set("filter[externalId]", strconv.Itoa(malID))
 	q.Set("include", "item")
 	endpoint := "https://kitsu.io/api/edge/mappings?" + q.Encode()
@@ -129,6 +167,9 @@ func fetchKitsuAnimeInfo(malID int) (*KitsuAnimeInfo, error) {
 				EpisodeLength  int               `json:"episodeLength"`
 				TotalLength    int               `json:"totalLength"`
 				YoutubeVideoID string            `json:"youtubeVideoId"`
+				ChapterCount   int               `json:"chapterCount"`
+				VolumeCount    int               `json:"volumeCount"`
+				Serialization  string            `json:"serialization"`
 				PosterImage    *struct {
 					Large string `json:"large"`
 				} `json:"posterImage"`
@@ -144,7 +185,7 @@ func fetchKitsuAnimeInfo(malID int) (*KitsuAnimeInfo, error) {
 	}
 
 	for _, item := range apiResp.Included {
-		if item.Type != "anime" {
+		if item.Type != kind {
 			continue
 		}
 		a := item.Attributes
@@ -152,7 +193,7 @@ func fetchKitsuAnimeInfo(malID int) (*KitsuAnimeInfo, error) {
 			Found:          true,
 			ID:             item.ID,
 			Slug:           a.Slug,
-			URL:            "https://kitsu.io/anime/" + a.Slug,
+			URL:            "https://kitsu.io/" + kind + "/" + a.Slug,
 			CanonicalTitle: a.CanonicalTitle,
 			Titles:         a.Titles,
 			Synopsis:       a.Synopsis,
@@ -171,6 +212,9 @@ func fetchKitsuAnimeInfo(malID int) (*KitsuAnimeInfo, error) {
 			EpisodeLength:  a.EpisodeLength,
 			TotalLength:    a.TotalLength,
 			YoutubeVideoID: a.YoutubeVideoID,
+			ChapterCount:   a.ChapterCount,
+			VolumeCount:    a.VolumeCount,
+			Serialization:  a.Serialization,
 		}
 		if a.PosterImage != nil {
 			info.PosterImage = a.PosterImage.Large

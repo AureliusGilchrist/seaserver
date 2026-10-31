@@ -876,12 +876,7 @@ func (h *Handler) HandleUpdateAnimeEntryProgress(c echo.Context) error {
 			return h.RespondWithError(c, errors.New("profile AniList account not authenticated"))
 		}
 
-		// Determine status based on progress
-		status := anilist.MediaListStatusCurrent
 		isCompleted := b.TotalEpisodes > 0 && b.EpisodeNumber >= b.TotalEpisodes
-		if isCompleted {
-			status = anilist.MediaListStatusCompleted
-		}
 
 		// Another player (the server-side stream tracker) already wrote or queued this episode.
 		// Don't spend a rate-limit slot sending it again.
@@ -892,13 +887,17 @@ func (h *Handler) HandleUpdateAnimeEntryProgress(c echo.Context) error {
 		// Dates are filled in when empty and never changed, on a rewatch too. See
 		// anilist.FirstWatchDates.
 		entry, listRead := h.profileListEntry(profileID, b.MediaId)
+		status, write := anilist.ProgressStatus(entry, isCompleted)
+		if !write {
+			return h.RespondWithData(c, true)
+		}
 		startedAt, completedAt := anilist.FirstWatchDatesFromList(entry, listRead, isCompleted, time.Now())
 
 		_, err := profileClient.UpdateMediaListEntryProgress(
 			c.Request().Context(),
 			&b.MediaId,
 			&b.EpisodeNumber,
-			&status,
+			status,
 			startedAt,
 			completedAt,
 		)
@@ -907,7 +906,7 @@ func (h *Handler) HandleUpdateAnimeEntryProgress(c echo.Context) error {
 			// progress is never lost; it syncs as soon as AniList takes it. Treat as success to the
 			// client so achievements/activity below still record the episode as watched.
 			if h.App.AnilistClientManager != nil && shared_platform.IsOutageError(err) {
-				h.App.AnilistClientManager.EnqueueProgressUpdate(profileID, b.MediaId, b.EpisodeNumber, &status, startedAt, completedAt)
+				h.App.AnilistClientManager.EnqueueProgressUpdate(profileID, b.MediaId, b.EpisodeNumber, status, startedAt, completedAt)
 				h.App.Logger.Warn().Err(err).Int("mediaId", b.MediaId).Int("episode", b.EpisodeNumber).Msg("handler: AniList unavailable; queued progress update for later sync")
 			} else {
 				return h.RespondWithError(c, err)

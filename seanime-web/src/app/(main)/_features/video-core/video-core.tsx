@@ -84,6 +84,7 @@ import { vc_overlayFeedback } from "@/app/(main)/_features/video-core/video-core
 import { vc_overlayFeedbackTimeout } from "@/app/(main)/_features/video-core/video-core-overlay-display"
 import { vc_showOverlayFeedback } from "@/app/(main)/_features/video-core/video-core-overlay-display"
 import { VideoCoreOverlayDisplay } from "@/app/(main)/_features/video-core/video-core-overlay-display"
+import { WatchStatusPrompt } from "@/app/(main)/_features/progress-tracking/_components/watch-status-prompt"
 import { vc_pip } from "@/app/(main)/_features/video-core/video-core-pip"
 import { vc_pipElement, vc_pipManager, VideoCorePipManager } from "@/app/(main)/_features/video-core/video-core-pip"
 import { vc_docPipWindow } from "@/app/(main)/_features/video-core/video-core-pip"
@@ -466,6 +467,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                         <VideoCoreOverlayDisplay />
 
                         <VideoCoreProgressPrompt />
+                        <WatchStatusPrompt mediaId={state.playbackInfo?.media?.id} className="absolute right-4 top-16 z-[60]" />
                         <VideoCoreSequelPrompt />
                         <VideoCoreStillWatchingPrompt onContinue={onContinueAfterStillWatching} onLeave={onTerminateStream} />
 

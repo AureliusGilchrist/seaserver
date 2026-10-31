@@ -26,6 +26,9 @@ export type KitsuAnimeInfo = {
     youtubeVideoId: string
     posterImage: string
     coverImage: string
+    chapterCount?: number
+    volumeCount?: number
+    serialization?: string
 }
 
 export function useGetKitsuAnimeInfo(malId: number | null | undefined) {
@@ -34,5 +37,15 @@ export function useGetKitsuAnimeInfo(malId: number | null | undefined) {
         method: API_ENDPOINTS.KITSU.GetKitsuAnimeInfo.methods[0],
         queryKey: [API_ENDPOINTS.KITSU.GetKitsuAnimeInfo.key, String(malId)],
         enabled: !!malId && malId > 0,
+    })
+}
+
+export function useGetKitsuInfo(malId: number | null | undefined, type: "anime" | "manga") {
+    return useServerQuery<KitsuAnimeInfo>({
+        endpoint: `/api/v1/kitsu/${type}/${malId ?? 0}`,
+        method: "GET",
+        queryKey: ["KITSU-get-info", type, String(malId)],
+        enabled: !!malId && malId > 0,
+        muteError: true,
     })
 }

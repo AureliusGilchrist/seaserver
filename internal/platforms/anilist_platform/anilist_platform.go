@@ -179,6 +179,19 @@ func (ap *AnilistPlatform) UpdateEntryProgress(ctx context.Context, mediaID int,
 			*event.Progress = realTotalCount
 		}
 
+		// Planning, Paused and Completed are the player's to ask about. See anilist.ProgressStatus.
+		if ap.rawAnimeCollection.IsPresent() {
+			if entry, found := ap.rawAnimeCollection.MustGet().GetListEntryFromAnimeId(mediaID); found {
+				status, write := anilist.ProgressStatus(entry, finishing)
+				if !write {
+					return nil
+				}
+				if status == nil {
+					event.Status = nil
+				}
+			}
+		}
+
 		// Fill in the dates the entry does not have, and never touch the ones it does.
 		//
 		// A date already on the entry is a fact about when you actually watched something — typed in

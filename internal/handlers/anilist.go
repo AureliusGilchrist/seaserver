@@ -120,6 +120,44 @@ func (h *Handler) HandleGetRawAnimeCollection(c echo.Context) error {
 	return h.RespondWithData(c, animeCollection)
 }
 
+// HandleSetAnilistRewatches
+//
+//	@summary sets how many times an anime has been rewatched.
+//	@route /api/v1/anilist/list-entry/rewatch [POST]
+//	@returns bool
+func (h *Handler) HandleSetAnilistRewatches(c echo.Context) error {
+	type body struct {
+		MediaId int `json:"mediaId"`
+		Repeat  int `json:"repeat"`
+	}
+
+	var b body
+	if err := c.Bind(&b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+	if b.MediaId <= 0 || b.Repeat < 0 {
+		return h.RespondWithError(c, errors.New("invalid media id or rewatch count"))
+	}
+
+	profileID := h.GetProfileID(c)
+	if profileID > 0 {
+		client := h.GetProfileAnilistClient(c)
+		if !client.IsAuthenticated() {
+			return h.RespondWithError(c, errors.New("profile AniList account not authenticated"))
+		}
+		if _, err := client.UpdateMediaListEntryRepeat(c.Request().Context(), &b.MediaId, &b.Repeat); err != nil {
+			return h.RespondWithError(c, err)
+		}
+		h.App.AnilistClientManager.InvalidateAnimeCollection(profileID)
+		return h.RespondWithData(c, true)
+	}
+
+	if err := h.App.AnilistPlatformRef.Get().UpdateEntryRepeat(c.Request().Context(), b.MediaId, b.Repeat); err != nil {
+		return h.RespondWithError(c, err)
+	}
+	return h.RespondWithData(c, true)
+}
+
 // HandleEditAnilistListEntry
 //
 //	@summary updates the user's list entry on Anilist.

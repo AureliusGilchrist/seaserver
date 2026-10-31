@@ -9,6 +9,8 @@ import { useGetAnimeEntry } from "@/api/hooks/anime_entries.hooks"
 import { useAutoplay, useNextEpisodeResolver } from "@/app/(main)/_features/autoplay/autoplay"
 import { usePlaylistManager } from "@/app/(main)/_features/playlists/_containers/global-playlist-manager"
 import { AutoplayCountdownModal } from "@/app/(main)/_features/progress-tracking/_components/autoplay-countdown-modal"
+import { WatchStatusPrompt } from "@/app/(main)/_features/progress-tracking/_components/watch-status-prompt"
+import { vc_playbackInfo } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { PlaybackManager_PlaybackState, PlaybackManager_PlaylistState } from "@/app/(main)/_features/progress-tracking/_lib/playback-manager.types"
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
@@ -95,6 +97,7 @@ export function PlaybackManagerProgressTracking() {
      * - 'False' when tracking has stopped
      */
     const [isTracking, setIsTracking] = useAtom(__pt_isTrackingAtom)
+    const videoCorePlayback = useAtomValue(vc_playbackInfo)
     /**
      * Video completion state
      * - 'True' when the video has been completed
@@ -395,6 +398,8 @@ export function PlaybackManagerProgressTracking() {
 
     return (
         <>
+            {/* The in-app player draws its own, inside the fullscreen element. */}
+            {isTracking && !videoCorePlayback && <WatchStatusPrompt mediaId={state?.mediaId} className="fixed bottom-4 right-4 z-[100]" />}
             <Modal
                 data-progress-tracking-modal
                 open={showModal && shouldBeDisplayed}

@@ -311,6 +311,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 
 	v1.GET("/anime-themes/:id", h.HandleGetAnimeThemes)
 	v1.GET("/kitsu/anime/:id", h.HandleGetKitsuAnimeInfo)
+	v1.GET("/kitsu/manga/:id", h.HandleGetKitsuMangaInfo)
 
 	v1.GET("/theme-backgrounds", h.HandleListThemeBackgrounds)
 	v1.POST("/theme-backgrounds/download", h.HandleDownloadThemeBackground)
@@ -986,6 +987,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 
 	v1.GET("/profile/comments", h.HandleGetProfileComments)
 	v1.GET("/home/counts", h.HandleGetHomeCounts)
+	v1.POST("/anilist/list-entry/rewatch", h.HandleSetAnilistRewatches)
 
 	//
 	// Custom Source

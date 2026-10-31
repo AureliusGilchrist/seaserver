@@ -5,7 +5,7 @@ import { MediaDetailsInfoSection, MediaDetailsStaffSection } from "@/app/(main)/
 import { MediaEntryCharactersSection } from "@/app/(main)/_features/media/_components/media-entry-characters-section"
 import { MediaEntryDetailsTabs } from "@/app/(main)/_features/media/_components/media-entry-details-tabs"
 import { AnimeThemesSection } from "@/app/(main)/entry/_components/anime-themes-section"
-import { KitsuInfoSection } from "@/app/(main)/entry/_components/kitsu-info-section"
+import { KitsuDetailsCard } from "@/app/(main)/_features/media/_components/media-kitsu-card"
 import { RelationsRecommendationsSection } from "@/app/(main)/entry/_components/relations-recommendations-section"
 import React from "react"
 import { LuInfo, LuLayers, LuMessageSquare, LuUsers } from "react-icons/lu"
@@ -25,9 +25,10 @@ export function AnimeEntryDetailsTabs({ entry, details }: { entry: Anime_Entry, 
                             type="anime"
                             genres={details?.genres}
                             nativeTitle={entry.media?.title?.native}
-                        />
+                        >
+                            <KitsuDetailsCard malId={entry.media?.idMal} type="anime" />
+                        </MediaDetailsInfoSection>
                         <AnimeThemesSection malId={entry.media?.idMal} />
-                        <KitsuInfoSection malId={entry.media?.idMal} />
                     </>,
                 },
                 {
