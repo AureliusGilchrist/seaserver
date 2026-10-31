@@ -695,6 +695,34 @@ func (h *Handler) HandleAnilistListManga(c echo.Context) error {
 	return h.RespondWithData(c, ret)
 }
 
+// profileMangaListEntry finds a profile's manga list entry as it stands before a progress update.
+// listRead is false when the collection could not be read, which is not the same as the collection
+// not holding the media. See anilist.FirstReadDates.
+func (h *Handler) profileMangaListEntry(profileID uint, mediaID int) (entry *anilist.MangaListEntry, listRead bool) {
+	if h.App.AnilistClientManager == nil {
+		return nil, false
+	}
+	collection, err := h.App.AnilistClientManager.GetMangaCollection(profileID)
+	if err != nil || collection == nil {
+		return nil, false
+	}
+	entry, _ = collection.GetListEntryFromMangaId(mediaID)
+	return entry, true
+}
+
+// mangaProgressUpdate decides the status and dates to send when a chapter is read. The chapter
+// number only decides completion: starting at chapter 5 starts the manga, and re-reading chapter 1
+// of one that has a start date changes nothing.
+func mangaProgressUpdate(chapter int, totalChapters int, entry *anilist.MangaListEntry, listRead bool, now time.Time) (anilist.MediaListStatus, *anilist.FuzzyDateInput, *anilist.FuzzyDateInput) {
+	status := anilist.MediaListStatusCurrent
+	isCompleted := totalChapters > 0 && chapter >= totalChapters
+	if isCompleted {
+		status = anilist.MediaListStatusCompleted
+	}
+	startedAt, completedAt := anilist.FirstReadDates(entry, listRead, isCompleted, now)
+	return status, startedAt, completedAt
+}
+
 // HandleUpdateMangaProgress
 //
 //	@summary updates the progress of a manga entry.
@@ -726,22 +754,8 @@ func (h *Handler) HandleUpdateMangaProgress(c echo.Context) error {
 			return h.RespondWithError(c, errors.New("profile AniList account not authenticated"))
 		}
 
-		// Determine status based on progress
-		status := anilist.MediaListStatusCurrent
-		isCompleted := b.TotalChapters > 0 && b.ChapterNumber >= b.TotalChapters
-		if isCompleted {
-			status = anilist.MediaListStatusCompleted
-		}
-
-		now := time.Now()
-		year, monthVal, day := now.Year(), int(now.Month()), now.Day()
-		var startedAt, completedAt *anilist.FuzzyDateInput
-		if b.ChapterNumber == 1 {
-			startedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
-		}
-		if isCompleted {
-			completedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
-		}
+		entry, listRead := h.profileMangaListEntry(profileID, b.MediaId)
+		status, startedAt, completedAt := mangaProgressUpdate(b.ChapterNumber, b.TotalChapters, entry, listRead, time.Now())
 
 		_, err := profileClient.UpdateMediaListEntry(
 			c.Request().Context(),

@@ -155,7 +155,7 @@ func (sp *SimulatedPlatform) UpdateEntryProgress(ctx context.Context, mediaID in
 		defer sp.mu.Unlock()
 
 		status := anilist.MediaListStatusCurrent
-		if event.TotalCount != nil && *event.Progress >= *event.TotalCount {
+		if reachedTotal(*event.Progress, event.TotalCount) {
 			status = anilist.MediaListStatusCompleted
 			*event.Status = status
 		}

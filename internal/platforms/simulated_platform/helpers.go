@@ -42,31 +42,36 @@ func (cw *CollectionWrapper) UpdateEntry(mediaId int, status *anilist.MediaListS
 // UpdateEntryProgress updates the progress of an entry
 func (cw *CollectionWrapper) UpdateEntryProgress(mediaId int, progress int, totalCount *int) error {
 	status := anilist.MediaListStatusCurrent
-	isCompleted := totalCount != nil && progress >= *totalCount
+	isCompleted := reachedTotal(progress, totalCount)
 	if isCompleted {
 		status = anilist.MediaListStatusCompleted
 	}
 
 	// The offline account gets the same first-watch dates a linked AniList account does: filled in
-	// when empty, never changed, nothing at all for a rewatch. It used to record none at all — this
-	// call passed nil for both — which meant an offline library remembered what you had watched but
-	// not when, and the gap only showed up later, once the dates could no longer be recovered.
+	// when empty and never changed, on a rewatch or a re-read too. It used to record none at all —
+	// this call passed nil for both — which meant an offline library remembered what you had watched
+	// but not when, and the gap only showed up later, once the dates could no longer be recovered.
 	//
-	// Anime only. The manga wrapper shares this method but not the rule, which was written for the
-	// anime paths; passing an anime helper a manga entry would need a second lookup and a second set
-	// of types for a question nobody has asked yet.
+	// Not found is not a failure here: UpdateEntry below reports it, and a date rule with nothing to
+	// read simply contributes nothing.
 	var startedAt, completedAt *anilist.FuzzyDateInput
 	if cw.isAnime {
-		entry, err := cw.findAnimeEntry(mediaId)
-		if err != nil {
-			// Not found is not a failure here: UpdateEntry below reports it, and a date rule with
-			// nothing to read simply contributes nothing.
-			entry = nil
+		if entry, err := cw.findAnimeEntry(mediaId); err == nil {
+			startedAt, completedAt = anilist.FirstWatchDates(entry, isCompleted, time.Now())
 		}
-		startedAt, completedAt = anilist.FirstWatchDates(entry, isCompleted, time.Now())
+	} else {
+		if entry, err := cw.findMangaEntry(mediaId); err == nil {
+			startedAt, completedAt = anilist.FirstReadDates(entry, true, isCompleted, time.Now())
+		}
 	}
 
 	return cw.UpdateEntry(mediaId, &status, nil, &progress, startedAt, completedAt)
+}
+
+// reachedTotal reports whether progress finishes the media. A total of -1 or 0 means the count is
+// unknown, as it is for anything still releasing, and every progress is past that.
+func reachedTotal(progress int, totalCount *int) bool {
+	return totalCount != nil && *totalCount > 0 && progress >= *totalCount
 }
 
 // DeleteEntry removes an entry from the collection

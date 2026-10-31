@@ -823,13 +823,14 @@ func (h *Handler) HandleToggleAnimeEntrySilenceStatus(c echo.Context) error {
 
 // profileListEntry finds a profile's list entry for a media as it stands before a progress update,
 // which is what the start/completion date rule reads: whether a date is already recorded, and
-// whether this is a rewatch. See anilist.FirstWatchDates.
+// whether this is a rewatch. See anilist.FirstWatchDatesFromList.
 //
 // Cached collection only — this sits in the middle of a progress update, and a round trip to AniList
-// to read a date would cost the update its responsiveness and the budget a request. Nil when the
-// collection cannot be read or does not hold the media, which the rule reads as "nothing recorded
-// yet": it fills a date in rather than losing one.
-func (h *Handler) profileListEntry(profileID uint, mediaID int) *anilist.AnimeListEntry {
+// to read a date would cost the update its responsiveness and the budget a request. Nil entry when
+// the collection does not hold the media, which the rule reads as "nothing recorded yet". listRead
+// is false when the collection cannot be read, and then no date is sent: today could replace a real
+// one.
+func (h *Handler) profileListEntry(profileID uint, mediaID int) (entry *anilist.AnimeListEntry, listRead bool) {
 	var collection *anilist.AnimeCollection
 	var err error
 	if profileID > 0 && h.App.AnilistClientManager != nil {
@@ -838,13 +839,10 @@ func (h *Handler) profileListEntry(profileID uint, mediaID int) *anilist.AnimeLi
 		collection, err = h.App.GetAnimeCollection(false)
 	}
 	if err != nil || collection == nil {
-		return nil
+		return nil, false
 	}
-	entry, ok := collection.GetListEntryFromAnimeId(mediaID)
-	if !ok {
-		return nil
-	}
-	return entry
+	entry, _ = collection.GetListEntryFromAnimeId(mediaID)
+	return entry, true
 }
 
 // HandleUpdateAnimeEntryProgress
@@ -891,9 +889,10 @@ func (h *Handler) HandleUpdateAnimeEntryProgress(c echo.Context) error {
 			return h.RespondWithData(c, true)
 		}
 
-		// Dates for a first watch only: filled in when empty, never changed, nothing at all for a
-		// rewatch. See anilist.FirstWatchDates.
-		startedAt, completedAt := anilist.FirstWatchDates(h.profileListEntry(profileID, b.MediaId), isCompleted, time.Now())
+		// Dates are filled in when empty and never changed, on a rewatch too. See
+		// anilist.FirstWatchDates.
+		entry, listRead := h.profileListEntry(profileID, b.MediaId)
+		startedAt, completedAt := anilist.FirstWatchDatesFromList(entry, listRead, isCompleted, time.Now())
 
 		_, err := profileClient.UpdateMediaListEntryProgress(
 			c.Request().Context(),
@@ -929,10 +928,14 @@ func (h *Handler) HandleUpdateAnimeEntryProgress(c echo.Context) error {
 		if err != nil {
 			if h.App.AnilistClientManager != nil && shared_platform.IsOutageError(err) {
 				status := anilist.MediaListStatusCurrent
-				if b.TotalEpisodes > 0 && b.EpisodeNumber >= b.TotalEpisodes {
+				isCompleted := b.TotalEpisodes > 0 && b.EpisodeNumber >= b.TotalEpisodes
+				if isCompleted {
 					status = anilist.MediaListStatusCompleted
 				}
-				h.App.AnilistClientManager.EnqueueProgressUpdate(0, b.MediaId, b.EpisodeNumber, &status, nil, nil)
+				// The platform's dates went down with its write, so work them out again for the queue.
+				entry, listRead := h.profileListEntry(0, b.MediaId)
+				startedAt, completedAt := anilist.FirstWatchDatesFromList(entry, listRead, isCompleted, time.Now())
+				h.App.AnilistClientManager.EnqueueProgressUpdate(0, b.MediaId, b.EpisodeNumber, &status, startedAt, completedAt)
 				h.App.Logger.Warn().Err(err).Int("mediaId", b.MediaId).Int("episode", b.EpisodeNumber).Msg("handler: AniList unavailable; queued progress update for later sync")
 			} else {
 				return h.RespondWithError(c, err)

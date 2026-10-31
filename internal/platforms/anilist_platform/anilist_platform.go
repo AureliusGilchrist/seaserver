@@ -121,9 +121,7 @@ func (ap *AnilistPlatform) UpdateEntry(ctx context.Context, mediaID int, status 
 		// Moving an entry to Watching is starting it, with or without progress.
 		startingSeries := event.Status != nil && *event.Status == anilist.MediaListStatusCurrent
 		if event.StartedAt == nil && (startingSeries || (event.Progress != nil && *event.Progress >= 1)) {
-			if hasStartedAt, _ := ap.entryHasDates(mediaID); !hasStartedAt {
-				event.StartedAt = todayFuzzyDate()
-			}
+			event.StartedAt, _ = ap.datesToFill(mediaID, false)
 		}
 
 		_, err := ap.anilistClient.UpdateMediaListEntry(ctx, event.MediaID, event.Status, event.ScoreRaw, event.Progress, event.StartedAt, event.CompletedAt)
@@ -195,15 +193,7 @@ func (ap *AnilistPlatform) UpdateEntryProgress(ctx context.Context, mediaID int,
 		// show, and an entry with no start date has no answer to protect. So: an episode was
 		// watched and no start date is recorded, therefore the start date is today. Which episode
 		// it was decides nothing.
-		hasStartedAt, hasCompletedAt := ap.entryHasDates(mediaID)
-
-		var startedAt, completedAt *anilist.FuzzyDateInput
-		if !hasStartedAt {
-			startedAt = todayFuzzyDate()
-		}
-		if realTotalCount > 0 && *event.Progress >= realTotalCount && !hasCompletedAt {
-			completedAt = todayFuzzyDate()
-		}
+		startedAt, completedAt := ap.datesToFill(mediaID, realTotalCount > 0 && *event.Progress >= realTotalCount)
 
 		// Use UpdateMediaListEntryProgress (no scoreRaw field) to avoid AniList
 		// validation errors when scoreRaw is null. Dates are passed directly.
@@ -230,37 +220,42 @@ func (ap *AnilistPlatform) UpdateEntryProgress(ctx context.Context, mediaID int,
 	})
 }
 
-// todayFuzzyDate is today, in the shape AniList takes a date in.
-func todayFuzzyDate() *anilist.FuzzyDateInput {
-	now := time.Now()
-	year, month, day := now.Year(), int(now.Month()), now.Day()
-	return &anilist.FuzzyDateInput{Year: &year, Month: &month, Day: &day}
+// datesToFill decides the dates to send with an update: the ones the entry lacks, and none at all
+// when its dates cannot be known.
+func (ap *AnilistPlatform) datesToFill(mediaID int, isCompleted bool) (startedAt *anilist.FuzzyDateInput, completedAt *anilist.FuzzyDateInput) {
+	hasStartedAt, hasCompletedAt, known := ap.entryHasDates(mediaID)
+	if !known {
+		return nil, nil
+	}
+	return anilist.FillEmptyDates(hasStartedAt, hasCompletedAt, isCompleted, time.Now())
 }
 
-// entryHasDates reports whether the entry already carries a start date and a completion date.
+// entryHasDates reports whether the entry already carries a start date and a completion date. known
+// is false when the answer could not be read, which callers must not take for an empty date.
 //
-// A fuzzy date with no year is AniList's way of saying "unset" — the object is present but empty —
-// so the year is what decides, not the pointer.
+// Anime and manga share one id space and a progress update does not say which it is, so both
+// collections are asked. An entry in either one settles it. An entry in neither is only known to
+// have no dates when both were loaded: with the manga collection missing, a manga looks like an
+// unlisted anime, and today would replace its real start date.
 //
 // Read from the collection already in memory rather than fetched: this runs on the path that marks
 // an episode watched, which must not wait on a round trip, and a collection that is a few minutes
 // stale can only be wrong about a date set from another device in that window. The cost of being
 // wrong is one date left as it was, which is the safe direction.
-func (ap *AnilistPlatform) entryHasDates(mediaID int) (hasStartedAt bool, hasCompletedAt bool) {
-	if ap.rawAnimeCollection.IsAbsent() {
-		return false, false
+func (ap *AnilistPlatform) entryHasDates(mediaID int) (hasStartedAt bool, hasCompletedAt bool, known bool) {
+	if collection, ok := ap.rawAnimeCollection.Get(); ok {
+		if entry, found := collection.GetListEntryFromAnimeId(mediaID); found {
+			hasStartedAt, hasCompletedAt = anilist.RecordedAnimeDates(entry)
+			return hasStartedAt, hasCompletedAt, true
+		}
 	}
-	entry, found := ap.rawAnimeCollection.MustGet().GetListEntryFromAnimeId(mediaID)
-	if !found || entry == nil {
-		return false, false
+	if collection, ok := ap.rawMangaCollection.Get(); ok {
+		if entry, found := collection.GetListEntryFromMangaId(mediaID); found {
+			hasStartedAt, hasCompletedAt = anilist.RecordedMangaDates(entry)
+			return hasStartedAt, hasCompletedAt, true
+		}
 	}
-	if sa := entry.GetStartedAt(); sa != nil && sa.GetYear() != nil && *sa.GetYear() > 0 {
-		hasStartedAt = true
-	}
-	if ca := entry.GetCompletedAt(); ca != nil && ca.GetYear() != nil && *ca.GetYear() > 0 {
-		hasCompletedAt = true
-	}
-	return hasStartedAt, hasCompletedAt
+	return false, false, ap.rawAnimeCollection.IsPresent() && ap.rawMangaCollection.IsPresent()
 }
 
 func (ap *AnilistPlatform) UpdateEntryRepeat(ctx context.Context, mediaID int, repeat int) error {

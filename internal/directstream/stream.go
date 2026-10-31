@@ -333,10 +333,10 @@ func (m *Manager) handlePlayerEvent(event videocore.VideoEvent) {
 					if isCompleted {
 						status = anilist.MediaListStatusCompleted
 					}
-					// Dates for a first watch only: filled in when empty, never changed, nothing at
-					// all for a rewatch. See anilist.FirstWatchDates.
-					startedAt, completedAt := anilist.FirstWatchDates(
-						baseStream.manager.listEntryFor(mediaId, resolvedProfileID), isCompleted, time.Now())
+					// Dates are filled in when empty and never changed, on a rewatch too. See
+					// anilist.FirstWatchDates.
+					entry, listRead := baseStream.manager.listEntryFor(mediaId, resolvedProfileID)
+					startedAt, completedAt := anilist.FirstWatchDatesFromList(entry, listRead, isCompleted, time.Now())
 					m := baseStream.manager
 					if m.hasRecentProgressWriteFunc != nil && m.hasRecentProgressWriteFunc(resolvedProfileID, mediaId, epNum) {
 						// The client (or an earlier pass) already wrote or queued this episode.

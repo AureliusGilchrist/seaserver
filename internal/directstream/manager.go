@@ -190,34 +190,32 @@ func (m *Manager) GetHMACTokenQueryParam(endpoint string, symbol string) string 
 // Read from the cached collection only. This runs in the middle of a progress update, where a
 // network round trip would hold the update up, and a collection stale enough to be missing the entry
 // means the rule falls back to "nothing recorded yet" — which fills a date in rather than losing
-// one, the harmless direction.
+// one. listRead is false when no list could be read at all, and then no date is sent: today could
+// replace a real one.
 //
 // profileID names the account being written to, and it decides which list is asked. The shared
 // collection belongs to whoever the server is signed in as, and on a multi-profile install that is
 // the admin, whose dates say nothing about whether a profile user has started something. See the same
 // reasoning in the playback manager.
-func (m *Manager) listEntryFor(mediaId int, profileID uint) *anilist.AnimeListEntry {
+func (m *Manager) listEntryFor(mediaId int, profileID uint) (entry *anilist.AnimeListEntry, listRead bool) {
 	if profileID > 0 && m.getProfileAnimeCollectionFunc != nil {
-		if collection := m.getProfileAnimeCollectionFunc(profileID); collection != nil {
-			entry, found := collection.GetListEntryFromAnimeId(mediaId)
-			if !found {
-				// Readable, and it does not hold this anime: nothing is recorded for it on that
-				// account, which is exactly the case a start date is for.
-				return nil
-			}
-			return entry
+		collection := m.getProfileAnimeCollectionFunc(profileID)
+		if collection == nil {
+			// The shared collection would answer the question about the wrong list.
+			return nil, false
 		}
+		// Readable, and not holding this anime means nothing is recorded for it on that account,
+		// which is exactly the case a start date is for.
+		entry, _ = collection.GetListEntryFromAnimeId(mediaId)
+		return entry, true
 	}
 
 	animeCollection, ok := m.animeCollection.Get()
 	if !ok || animeCollection == nil {
-		return nil
+		return nil, false
 	}
-	entry, found := animeCollection.GetListEntryFromAnimeId(mediaId)
-	if !found {
-		return nil
-	}
-	return entry
+	entry, _ = animeCollection.GetListEntryFromAnimeId(mediaId)
+	return entry, true
 }
 
 func (m *Manager) getAnime(ctx context.Context, mediaId int) (*anilist.BaseAnime, error) {

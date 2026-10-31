@@ -15,14 +15,23 @@ import "time"
 // than this server's.
 //
 // A nil FuzzyDateInput means "leave this field as it is" — the mutation sends null, which AniList
-// treats as no change, and it is what every progress update that is not a first watch now sends.
+// treats as no change, and it is what every update sends for a date that is already recorded.
+//
+// The same rule covers manga: reading a chapter is to a manga entry what watching an episode is to an
+// anime entry, and which chapter it was decides nothing.
+//
+// One thing is not known to be empty: a date on a list that could not be read. "Not in the list" and
+// "the list was not available" are different answers. The first means nothing is recorded, so today
+// is right. The second says nothing about the entry, and today could replace a real date, so nothing
+// is sent; the next update, with the list back, fills the date in. FirstWatchDatesFromList and
+// FirstReadDates take that distinction as listRead.
 
 // FirstWatchDates decides the startedAt and completedAt to send with a progress update.
 //
-// entry is the list entry as it stands *before* this update, or nil when nothing is known about it —
-// an entry the server has never seen, or a collection that could not be read. Nil is deliberately
-// treated as "no dates recorded, not a rewatch", because the alternative is never recording a first
-// watch for anything the collection happens not to hold yet.
+// entry is the list entry as it stands *before* this update, or nil when the list was read and does
+// not hold it. Nil is deliberately treated as "no dates recorded, not a rewatch", because the
+// alternative is never recording a first watch for anything new. A caller that could not read the
+// list at all wants FirstWatchDatesFromList.
 //
 // isCompleted says whether this update finishes the series; the caller has already worked that out
 // from the episode count, and reproducing that here would be a second place for it to be wrong.
@@ -34,12 +43,37 @@ func FirstWatchDates(entry *AnimeListEntry, isCompleted bool, now time.Time) (st
 	// and refusing to write one meant a series you had watched years ago, before any of this existed,
 	// stayed blank forever no matter how many times you came back to it. The rule that matters is the
 	// other one: an existing date is never touched.
+	hasStartedAt, hasCompletedAt := RecordedAnimeDates(entry)
+	return FillEmptyDates(hasStartedAt, hasCompletedAt, isCompleted, now)
+}
+
+// FirstWatchDatesFromList is FirstWatchDates for a caller whose list may not have been readable.
+// listRead false sends no dates at all.
+func FirstWatchDatesFromList(entry *AnimeListEntry, listRead bool, isCompleted bool, now time.Time) (startedAt *FuzzyDateInput, completedAt *FuzzyDateInput) {
+	if !listRead {
+		return nil, nil
+	}
+	return FirstWatchDates(entry, isCompleted, now)
+}
+
+// FirstReadDates is FirstWatchDatesFromList for a manga entry: nil entry means the list does not hold
+// it, and listRead false sends no dates at all.
+func FirstReadDates(entry *MangaListEntry, listRead bool, isCompleted bool, now time.Time) (startedAt *FuzzyDateInput, completedAt *FuzzyDateInput) {
+	if !listRead {
+		return nil, nil
+	}
+	hasStartedAt, hasCompletedAt := RecordedMangaDates(entry)
+	return FillEmptyDates(hasStartedAt, hasCompletedAt, isCompleted, now)
+}
+
+// FillEmptyDates is the rule itself, for a caller that already knows which dates are recorded.
+func FillEmptyDates(hasStartedAt bool, hasCompletedAt bool, isCompleted bool, now time.Time) (startedAt *FuzzyDateInput, completedAt *FuzzyDateInput) {
 	today := fuzzyDateFor(now)
 
-	if !hasStartedAt(entry) {
+	if !hasStartedAt {
 		startedAt = today
 	}
-	if isCompleted && !hasCompletedAt(entry) {
+	if isCompleted && !hasCompletedAt {
 		completedAt = today
 	}
 	return startedAt, completedAt
@@ -50,22 +84,39 @@ func fuzzyDateFor(now time.Time) *FuzzyDateInput {
 	return &FuzzyDateInput{Year: &year, Month: &month, Day: &day}
 }
 
-// hasStartedAt reports whether the entry already carries a start date.
+// RecordedAnimeDates reports whether the entry already carries a start date and a completion date.
+func RecordedAnimeDates(entry *AnimeListEntry) (hasStartedAt bool, hasCompletedAt bool) {
+	if entry == nil {
+		return false, false
+	}
+	if entry.StartedAt != nil {
+		hasStartedAt = isRecordedYear(entry.StartedAt.Year)
+	}
+	if entry.CompletedAt != nil {
+		hasCompletedAt = isRecordedYear(entry.CompletedAt.Year)
+	}
+	return hasStartedAt, hasCompletedAt
+}
+
+// RecordedMangaDates is RecordedAnimeDates for a manga entry.
+func RecordedMangaDates(entry *MangaListEntry) (hasStartedAt bool, hasCompletedAt bool) {
+	if entry == nil {
+		return false, false
+	}
+	if entry.StartedAt != nil {
+		hasStartedAt = isRecordedYear(entry.StartedAt.Year)
+	}
+	if entry.CompletedAt != nil {
+		hasCompletedAt = isRecordedYear(entry.CompletedAt.Year)
+	}
+	return hasStartedAt, hasCompletedAt
+}
+
+// isRecordedYear decides whether a fuzzy date is a date.
 //
 // AniList sends a fuzzy date as a present object with null parts rather than as a missing one, so
 // "is there an object here" is not the question — a date with no year is no date at all. The year is
 // what makes it one; a month and day without it cannot be placed on a calendar.
-func hasStartedAt(entry *AnimeListEntry) bool {
-	if entry == nil || entry.StartedAt == nil {
-		return false
-	}
-	return entry.StartedAt.Year != nil && *entry.StartedAt.Year > 0
-}
-
-// hasCompletedAt reports whether the entry already carries a completion date. See hasStartedAt.
-func hasCompletedAt(entry *AnimeListEntry) bool {
-	if entry == nil || entry.CompletedAt == nil {
-		return false
-	}
-	return entry.CompletedAt.Year != nil && *entry.CompletedAt.Year > 0
+func isRecordedYear(year *int) bool {
+	return year != nil && *year > 0
 }

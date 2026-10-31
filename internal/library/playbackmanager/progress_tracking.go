@@ -922,33 +922,32 @@ func (pm *PlaybackManager) SyncCurrentProgress() error {
 //
 // Within the shared account the entry being played is checked first — it is already loaded and is the
 // same record — and the cached collection second, which covers the stream and manual-tracking paths
-// where there is no current entry. Returns nil when nothing knows the media, which FirstWatchDates
-// reads as "nothing recorded yet"; the alternative is never recording a first watch for anything the
-// collection has not caught up with.
-func (pm *PlaybackManager) listEntryFor(mediaId int, profileID uint) *anilist.AnimeListEntry {
+// where there is no current entry. A nil entry means the list was read and does not hold the media,
+// which FirstWatchDates reads as "nothing recorded yet". listRead is false when no list could be
+// read, and then no date is sent: today could replace a real one.
+func (pm *PlaybackManager) listEntryFor(mediaId int, profileID uint) (entry *anilist.AnimeListEntry, listRead bool) {
 	if profileID > 0 && pm.getProfileAnimeCollectionFunc != nil {
-		if collection := pm.getProfileAnimeCollectionFunc(profileID); collection != nil {
-			if entry, ok := collection.GetListEntryFromAnimeId(mediaId); ok {
-				return entry
-			}
-			// The profile's collection was readable and does not hold this anime: nothing has been
-			// recorded for it on that account, which is exactly the case a start date is for. Falling
-			// through to the shared collection here would answer the question about the wrong list.
-			return nil
+		collection := pm.getProfileAnimeCollectionFunc(profileID)
+		if collection == nil {
+			// The shared collection would answer the question about the wrong list.
+			return nil, false
 		}
+		// A readable collection that does not hold this anime means nothing has been recorded for it
+		// on that account, which is exactly the case a start date is for.
+		entry, _ = collection.GetListEntryFromAnimeId(mediaId)
+		return entry, true
 	}
 
 	if pm.currentMediaListEntry.IsPresent() {
 		if entry := pm.currentMediaListEntry.MustGet(); entry != nil && entry.GetMedia().GetID() == mediaId {
-			return entry
+			return entry, true
 		}
 	}
-	if pm.animeCollection.IsPresent() {
-		if entry, ok := pm.animeCollection.MustGet().GetListEntryFromAnimeId(mediaId); ok {
-			return entry
-		}
+	if collection, ok := pm.animeCollection.Get(); ok && collection != nil {
+		entry, _ = collection.GetListEntryFromAnimeId(mediaId)
+		return entry, true
 	}
-	return nil
+	return nil, false
 }
 
 // updateProgress updates the progress of the current video playback on AniList and MyAnimeList.
@@ -1043,9 +1042,10 @@ func (pm *PlaybackManager) updateProgress() (err error) {
 		if isCompleted {
 			status = anilist.MediaListStatusCompleted
 		}
-		// Dates for a first watch only: filled in when empty, never changed, nothing at all for a
-		// rewatch. See anilist.FirstWatchDates.
-		startedAt, completedAt := anilist.FirstWatchDates(pm.listEntryFor(mediaId, resolvedProfileID), isCompleted, time.Now())
+		// Dates are filled in when empty and never changed, on a rewatch too. See
+		// anilist.FirstWatchDates.
+		entry, listRead := pm.listEntryFor(mediaId, resolvedProfileID)
+		startedAt, completedAt := anilist.FirstWatchDatesFromList(entry, listRead, isCompleted, time.Now())
 		_, err = resolvedClient.UpdateMediaListEntryProgress(context.Background(), &mediaId, &epNum, &status, startedAt, completedAt)
 		// If AniList is unreachable, queue the update so the user's true progress is never
 		// lost; it is replayed automatically when the API is available again. We then treat
