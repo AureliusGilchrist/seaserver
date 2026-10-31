@@ -19,17 +19,26 @@ import (
 
 // The studio page: the studio's whole filmography with the people who directed it, and the numbers
 // that describe a studio — how long it has worked, what it makes, how well it is received. Fetched
-// through the paced raw-query path (CustomQueryCtx) in the background lane and cached, since a large
-// studio is several pages of AniList.
+// through the paced raw-query path (CustomQueryCtx) and cached, since a large studio is several pages
+// of AniList. Someone is waiting on the page, so it runs in the user lane: the background lane is often
+// full for minutes at a time, and every studio then came back refused.
 
 const (
 	studioProfileTTL      = 12 * time.Hour
-	studioProfileMaxPages = 12 // 300 titles (AniList pages a studio's media 25 at a time)
+	studioPartialTTL      = 5 * time.Minute // a filmography cut short by a busy AniList is soon asked for again
+	studioProfileMaxPages = 12              // 300 titles (AniList pages a studio's media 25 at a time)
 )
 
 type studioProfileEntry struct {
 	data *StudioProfile
 	at   time.Time
+}
+
+func (e *studioProfileEntry) fresh() bool {
+	if e.data.Partial {
+		return time.Since(e.at) < studioPartialTTL
+	}
+	return time.Since(e.at) < studioProfileTTL
 }
 
 var (
@@ -80,7 +89,8 @@ type StudioProfile struct {
 	IsAnimationStudio bool            `json:"isAnimationStudio"`
 	SiteURL           string          `json:"siteUrl,omitempty"`
 	Favourites        int             `json:"favourites"`
-	TotalWorks        int             `json:"totalWorks"` // AniList's count, which may exceed Works
+	TotalWorks        int             `json:"totalWorks"`        // AniList's count, which may exceed Works
+	Partial           bool            `json:"partial,omitempty"` // AniList stopped answering before the last page
 	Works             []*StudioWork   `json:"works"`
 	Directors         []*StudioPerson `json:"directors"`
 	Stats             StudioStats     `json:"stats"`
@@ -135,12 +145,12 @@ func (h *Handler) HandleGetStudioProfile(c echo.Context) error {
 	studioProfileMu.Lock()
 	cached := studioProfileCache[id]
 	studioProfileMu.Unlock()
-	if cached != nil && time.Since(cached.at) < studioProfileTTL {
+	if cached != nil && cached.fresh() {
 		return h.RespondWithData(c, cached.data)
 	}
 
 	ch := studioProfileFlight.DoChan(strconv.Itoa(id), func() (any, error) {
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+		ctx, cancel := context.WithTimeout(anilist.WithUserInitiated(context.Background()), 3*time.Minute)
 		defer cancel()
 		profile, err := h.fetchStudioProfile(ctx, id)
 		if err != nil {
@@ -242,7 +252,8 @@ func (h *Handler) fetchStudioProfile(ctx context.Context, id int) (*StudioProfil
 		data, err := anilist.CustomQueryCtx(ctx, body, h.App.Logger)
 		if err != nil {
 			if page > 1 {
-				break // what arrived is still worth showing
+				profile.Partial = true // what arrived is still worth showing
+				break
 			}
 			return nil, err
 		}

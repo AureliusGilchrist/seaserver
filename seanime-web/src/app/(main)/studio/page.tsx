@@ -2,6 +2,8 @@
 
 import { StudioPerson, StudioProfile, StudioWork, useGetStudioProfile } from "@/api/hooks/anilist.hooks"
 import { useGetStudioFavorites, useToggleStudioFavorite } from "@/api/hooks/favorites.hooks"
+import { serverErrorMessage } from "@/api/hooks/update-notice.hooks"
+import { Button } from "@/components/ui/button"
 import { GlassCard } from "@/app/(main)/_features/media/_components/media-info-panel"
 import { compact, MEDIA_FORMAT_LABELS } from "@/app/(main)/_features/media/_components/media-meta-chips"
 import { MediaSectionHeading } from "@/app/(main)/_features/media/_components/media-section-heading"
@@ -47,7 +49,7 @@ type Credit = "all" | "main" | "supporting"
 export default function Page() {
     const searchParams = useSearchParams()
     const id = Number(searchParams.get("id")) || 0
-    const { data, isLoading, isError } = useGetStudioProfile(id)
+    const { data, isLoading, isError, error, refetch, isFetching } = useGetStudioProfile(id)
 
     if (isLoading) {
         return <PageWrapper className="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-8 text-[--muted]">
@@ -56,7 +58,15 @@ export default function Page() {
         </PageWrapper>
     }
     if (!data || isError) {
-        return <PageWrapper className="p-8 text-center text-[--muted]">Studio not found</PageWrapper>
+        // A refused or slow AniList is not a missing studio, and says so: the same id usually works
+        // moments later.
+        const reason = error ? serverErrorMessage(error) : ""
+        const missing = !error || /not found/i.test(reason)
+        return <PageWrapper className="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-8 text-center text-[--muted]">
+            <p className="text-base font-medium text-white">{missing ? "Studio not found" : "Couldn't load this studio"}</p>
+            {!missing && <p className="max-w-md text-sm">{reason}</p>}
+            {!missing && <Button intent="gray-outline" loading={isFetching} onClick={() => void refetch()}>Try again</Button>}
+        </PageWrapper>
     }
     return <StudioView studio={data} />
 }
