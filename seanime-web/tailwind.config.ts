@@ -1,4 +1,14 @@
 import type { Config } from "tailwindcss"
+import defaultTheme from "tailwindcss/defaultTheme"
+
+// Layout Density in the shop: every padding, margin and gap in the app scales with --sea-spacing, at
+// every breakpoint. Widths and heights use the same scale and are left out on purpose: density moves
+// things apart, it does not resize covers and icons. 1 when no preset is set, which is the plain scale.
+const densitySpacing = Object.fromEntries(
+    Object.entries(defaultTheme.spacing)
+        .filter(([key]) => key !== "0" && key !== "px")
+        .map(([key, value]) => [key, `calc(${value} * var(--sea-spacing, 1))`]),
+)
 
 const config: Config = {
     darkMode: "class",
@@ -183,6 +193,10 @@ const config: Config = {
             highlighted: "highlighted",
         },
         extend: {
+            padding: densitySpacing,
+            margin: densitySpacing,
+            gap: densitySpacing,
+            space: densitySpacing,
             screens: {
                 "3xl": "1600px",
                 "4xl": "1800px",

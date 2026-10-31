@@ -2264,16 +2264,7 @@ html:is([data-sea-effects="fx-neon-haze"], [data-sea-effects="fx-hologram"]) .UI
     box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5), 0 0 22px rgb(var(--color-brand-500) / 0.18);
 }
 
-/* ── Layout Density ──────────────────────────────────────────────────────── */
-html[data-sea-layout]:not([data-sea-layout="layout-default"]) :is(.gap-2) { gap: calc(0.5rem * var(--sea-spacing, 1)); }
-html[data-sea-layout]:not([data-sea-layout="layout-default"]) :is(.gap-3) { gap: calc(0.75rem * var(--sea-spacing, 1)); }
-html[data-sea-layout]:not([data-sea-layout="layout-default"]) :is(.gap-4) { gap: calc(1rem * var(--sea-spacing, 1)); }
-html[data-sea-layout]:not([data-sea-layout="layout-default"]) :is(.gap-6) { gap: calc(1.5rem * var(--sea-spacing, 1)); }
-html[data-sea-layout]:not([data-sea-layout="layout-default"]) :is(.space-y-4) > :not([hidden]) ~ :not([hidden]) { margin-top: calc(1rem * var(--sea-spacing, 1)); }
-html[data-sea-layout]:not([data-sea-layout="layout-default"]) :is(.space-y-6) > :not([hidden]) ~ :not([hidden]) { margin-top: calc(1.5rem * var(--sea-spacing, 1)); }
-html[data-sea-layout]:not([data-sea-layout="layout-default"]) :is(.p-4) { padding: calc(1rem * var(--sea-spacing, 1)); }
-html[data-sea-layout]:not([data-sea-layout="layout-default"]) :is(.p-8) { padding: calc(2rem * var(--sea-spacing, 1)); }
-html[data-sea-layout]:not([data-sea-layout="layout-default"]) .UI-Card__root { padding: calc(1rem * var(--sea-spacing, 1)); }
+/* Layout Density is in the Tailwind theme: see densitySpacing in tailwind.config.ts. */
 
 /* ── Sidebar ─────────────────────────────────────────────────────────────── */
 html[data-sea-sidebar]:not([data-sea-sidebar="sidebar-default"]) .UI-AppSidebar__sidebar {
@@ -2470,7 +2461,7 @@ html[data-sea-dock] .sea-float-bottom-2.left-5 { left: 50% !important; transform
 @property --sea-card-w-anime { syntax: "<length>"; inherits: true; initial-value: 220px; }
 @property --sea-card-w-manga { syntax: "<length>"; inherits: true; initial-value: 220px; }
 :root {
-    --sea-card-gap: 1rem;
+    --sea-card-gap: calc(1rem * var(--sea-spacing, 1));
     --sea-card-w: var(--sea-card-w-anime);
     transition: --sea-card-w-anime 0.45s cubic-bezier(0.2, 0.8, 0.2, 1), --sea-card-w-manga 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
