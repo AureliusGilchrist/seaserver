@@ -73,22 +73,21 @@ export function MetaSection(props: { entry: Manga_Entry | undefined, details: AL
                     listData={entry.listData}
                     media={entry.media}
                     type="manga"
+                    aside={<MediaHeroInsights info={info} meanScore={entry.media?.meanScore} hideScore={personal.hideAudienceScore} type="manga" />}
                 >
                     <div
                         data-manga-meta-section-details
                         className="flex flex-col gap-3 items-center lg:items-start lg:max-w-[65vw]"
                     >
-                        <MediaMetaChips media={entry.media as any} info={info} type="manga" className="w-full" />
+                        <MediaMetaChips media={entry.media as any} info={info} type="manga" hideStatus />
 
-                        {hasCreatorsLine && <MediaCreatorsLine info={info} className="w-full" />}
+                        {hasCreatorsLine && <MediaCreatorsLine info={info} />}
 
                         <MediaEntryGenresList genres={details?.genres} type="manga" />
 
                         {!hasCreatorsLine && !!details?.staff?.edges?.length && <div className="flex flex-wrap gap-2 justify-center lg:justify-start">
                             <MangaEntryStaff staff={details?.staff} />
                         </div>}
-
-                        <MediaHeroInsights info={info} meanScore={entry.media?.meanScore} hideScore={personal.hideAudienceScore} type="manga" />
                     </div>
                 </MediaPageHeaderEntryDetails>
 

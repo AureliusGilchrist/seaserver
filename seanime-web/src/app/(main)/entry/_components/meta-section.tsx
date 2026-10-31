@@ -53,8 +53,9 @@ export function AnimeMetaActionButton({ className, ...rest }: ButtonProps) {
     const ts = useThemeSettings()
     return <Button
         className={cn(
-            "w-full",
-            "lg:w-full lg:max-w-[280px]",
+            "w-full lg:w-auto lg:min-w-[11rem]",
+            // Subtle buttons are see-through, which over a banner reads as disabled.
+            rest.intent !== "white" && "bg-black/55 text-white ring-1 ring-white/15 backdrop-blur-md hover:bg-black/70",
             className,
         )}
         {...rest}
@@ -106,6 +107,7 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
                     listData={entry.listData}
                     media={entry.media}
                     type="anime"
+                    aside={<MediaHeroInsights info={info} meanScore={entry.media?.meanScore} hideScore={personal.hideAudienceScore} type="anime" />}
                 >
                     <div
                         data-anime-meta-section-details
@@ -115,12 +117,13 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
                         )}
                     >
 
-                        <MediaMetaChips media={entry.media as any} info={info} type="anime" className="w-full" />
-
-                        <AnimeDownloadingBadge mediaId={entry.mediaId} size="lg" />
+                        <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-start" data-anime-meta-section-stats>
+                            <MediaMetaChips media={entry.media as any} info={info} type="anime" hideStatus />
+                            <AnimeDownloadingBadge mediaId={entry.mediaId} size="lg" />
+                        </div>
 
                         {!isCustomSource(entry.mediaId) ? (info?.studios?.edges?.length
-                            ? <MediaStudiosLine info={info} className="w-full" />
+                            ? <MediaStudiosLine info={info} />
                             : <AnimeEntryStudio studios={details?.studios} />) : (
                             <Badge
                                 size="lg"
@@ -132,11 +135,9 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
                             </Badge>
                         )}
 
-                        <MediaCreatorsLine info={info} className="w-full" />
+                        <MediaCreatorsLine info={info} />
 
                         <MediaEntryGenresList genres={details?.genres} />
-
-                        <MediaHeroInsights info={info} meanScore={entry.media?.meanScore} hideScore={personal.hideAudienceScore} type="anime" />
 
                     </div>
                 </MediaPageHeaderEntryDetails>

@@ -222,7 +222,7 @@ export function MediaPageHeaderDetailsContainer(props: MediaPageHeaderDetailsCon
                             ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && "p-6 sm:py-4 sm:px-8",
                             ts.mediaPageBannerInfoBoxSize === ThemeMediaPageInfoBoxSize.Fluid
                                 ? "w-full"
-                                : "lg:max-w-[100%] xl:max-w-[80%] 2xl:max-w-[65rem] 5xl:max-w-[80rem]",
+                                : "lg:max-w-[100%] 2xl:max-w-[96rem] 5xl:max-w-[112rem]",
                         )}
                     >
                         <motion.div
@@ -258,6 +258,8 @@ export function MediaPageHeaderDetailsContainer(props: MediaPageHeaderDetailsCon
 
 type MediaPageHeaderEntryDetailsProps = {
     children?: React.ReactNode
+    /** A third column beside the details on wide screens, and a row under them on narrower ones. */
+    aside?: React.ReactNode
     coverImage?: string
     color?: string
     title?: string
@@ -280,6 +282,7 @@ export function MediaPageHeaderEntryDetails(props: MediaPageHeaderEntryDetailsPr
 
     const {
         children,
+        aside,
         coverImage,
         title,
         englishTitle,
@@ -309,7 +312,7 @@ export function MediaPageHeaderEntryDetails(props: MediaPageHeaderEntryDetailsPr
 
     return (
         <>
-            <div className="flex flex-col lg:flex-row gap-6 lg:gap-10" data-media-page-header-entry-details>
+            <div className="flex flex-col lg:flex-row lg:flex-wrap xl:flex-nowrap gap-6 lg:gap-x-10" data-media-page-header-entry-details>
 
                 {!!coverImage && <motion.div
                     initial={{ opacity: 0, y: 8 }}
@@ -345,7 +348,7 @@ export function MediaPageHeaderEntryDetails(props: MediaPageHeaderEntryDetailsPr
                 <div
                     data-media-page-header-entry-details-content
                     className={cn(
-                        "space-y-3 lg:space-y-4 min-w-0 flex-1",
+                        "space-y-3 lg:space-y-4 min-w-0 flex-1 lg:basis-0",
                         (ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small || ts.mediaPageBannerInfoBoxSize === ThemeMediaPageInfoBoxSize.Fluid) && "lg:space-y-3",
                     )}
                 >
@@ -461,6 +464,8 @@ export function MediaPageHeaderEntryDetails(props: MediaPageHeaderEntryDetailsPr
                     {children}
 
                 </div>
+
+                {!!aside && <div className="w-full min-w-0 xl:w-[23rem] xl:flex-none" data-media-page-header-entry-details-aside>{aside}</div>}
 
             </div>
         </>
@@ -584,7 +589,7 @@ function MediaPageHeaderDescription({ description }: { description: string }) {
         <div
             data-media-page-header-details-description
             className={cn(
-                "relative max-w-full 2xl:max-w-[50vw] rounded-2xl text-sm leading-relaxed text-white/70 transition-colors",
+                "relative max-w-full rounded-2xl text-sm leading-relaxed text-white/90 [text-shadow:_0_1px_10px_rgb(0_0_0_/_85%)] transition-colors",
                 expanded && "bg-black/30 backdrop-blur-md ring-1 ring-white/10 p-4 -mx-1",
             )}
         >

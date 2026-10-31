@@ -71,10 +71,12 @@ export function formatFuzzyDate(d: BaseMediaLike["startDate"], withDay = true): 
     return new Intl.DateTimeFormat("en-US", withDay && d.day ? { year: "numeric", month: "short", day: "numeric" } : { year: "numeric", month: "short" }).format(date)
 }
 
-export function MediaMetaChips({ media, info, type, className }: {
+export function MediaMetaChips({ media, info, type, hideStatus, className }: {
     media: BaseMediaLike | null | undefined
     info?: MediaInfo
     type: "anime" | "manga"
+    /** For a hero that already says the status above the title. */
+    hideStatus?: boolean
     className?: string
 }) {
     if (!media) return null
@@ -99,7 +101,7 @@ export function MediaMetaChips({ media, info, type, className }: {
     return (
         <div className={cn("flex flex-wrap items-center justify-center gap-2 lg:justify-start", className)} data-media-meta-chips>
             {format && <Chip icon={type === "anime" ? <LuFilm /> : <LuBookOpen />}>{MEDIA_FORMAT_LABELS[format] ?? capitalize(format)}</Chip>}
-            {st && <Chip icon={<span className={cn("size-2 rounded-full", st.dot)} />}>{st.label}</Chip>}
+            {st && !hideStatus && <Chip icon={<span className={cn("size-2 rounded-full", st.dot)} />}>{st.label}</Chip>}
             {!!length && (
                 totalMinutes >= 60
                     ? <Tooltip trigger={<span><Chip icon={<LuClock />}>{length}</Chip></span>}>

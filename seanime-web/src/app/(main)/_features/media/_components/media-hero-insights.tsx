@@ -45,8 +45,11 @@ export function MediaHeroInsights({ info, meanScore, hideScore, type, className 
     const ageRating = [kitsu?.ageRating, kitsu?.ageRatingGuide].filter(Boolean).join(" · ")
 
     return (
-        <div className={cn("w-full space-y-3", className)} data-media-hero-insights>
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap lg:max-w-5xl">
+        <div
+            className={cn("w-full space-y-3 rounded-3xl border border-white/10 bg-black/55 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl", className)}
+            data-media-hero-insights
+        >
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-6 xl:grid-cols-2">
                 {!hideScore && !!mean && <ScoreTile mean={mean} average={info?.averageScore} info={info} />}
                 {!hideScore && !!topRated && <Tile icon={<LuAward className="text-amber-300" />} value={`#${topRated.rank.toLocaleString()}`} label="Highest rated" />}
                 {!!topPopular && <Tile icon={<LuMedal className="text-sky-300" />} value={`#${topPopular.rank.toLocaleString()}`} label="Most popular" />}
@@ -56,7 +59,7 @@ export function MediaHeroInsights({ info, meanScore, hideScore, type, className 
             </div>
 
             {(!!seasonal.length || !!ageRating || !!info?.trending) && (
-                <div className="flex flex-wrap items-center justify-center gap-1.5 lg:justify-start" data-media-hero-rankings>
+                <div className="flex flex-wrap items-center justify-center gap-1.5 xl:justify-start" data-media-hero-rankings>
                     {!!info?.trending && <Pill className="bg-orange-400/10 text-orange-100 ring-orange-300/20"><LuFlame className="size-3" />+{compact(info.trending)} this week</Pill>}
                     {!!ageRating && <Pill className="bg-white/[0.07] text-white/85 ring-white/15"><LuShieldAlert className="size-3" />{ageRating}</Pill>}
                     {seasonal.map(r => (
@@ -69,14 +72,14 @@ export function MediaHeroInsights({ info, meanScore, hideScore, type, className 
             )}
 
             {!!tags.length && (
-                <div className="flex flex-wrap items-center justify-center gap-1.5 lg:justify-start" data-media-hero-tags>
+                <div className="flex flex-wrap items-center justify-center gap-1.5 xl:justify-start" data-media-hero-tags>
                     {tags.map(t => (
                         <a
                             key={t.id}
                             href={`https://anilist.co/search/${type}?genres=${encodeURIComponent(t.name)}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="flex items-center gap-1.5 rounded-full bg-black/25 px-2.5 py-1 text-xs text-white/75 ring-1 ring-white/10 backdrop-blur-md transition-colors hover:bg-white/10 hover:text-white"
+                            className="flex items-center gap-1.5 rounded-full bg-white/[0.05] px-2.5 py-1 text-xs text-white/80 ring-1 ring-white/10 transition-colors hover:bg-white/10 hover:text-white"
                         >
                             {t.name}<span className="tabular-nums text-white/40">{t.rank ?? 0}%</span>
                         </a>
@@ -85,7 +88,7 @@ export function MediaHeroInsights({ info, meanScore, hideScore, type, className 
             )}
 
             {!!streams.length && (
-                <div className="flex flex-wrap items-center justify-center gap-1.5 lg:justify-start" data-media-hero-streams>
+                <div className="flex flex-wrap items-center justify-center gap-1.5 xl:justify-start" data-media-hero-streams>
                     <span className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-white/45"><LuPlay className="size-3" />Watch on</span>
                     {streams.map(l => (
                         <a
@@ -93,7 +96,7 @@ export function MediaHeroInsights({ info, meanScore, hideScore, type, className 
                             href={l.url}
                             target="_blank"
                             rel="noreferrer"
-                            className="flex items-center gap-1.5 rounded-full bg-black/25 px-2.5 py-1 text-xs font-medium text-white/80 ring-1 ring-white/10 backdrop-blur-md transition-colors hover:bg-white/10 hover:text-white"
+                            className="flex items-center gap-1.5 rounded-full bg-white/[0.05] px-2.5 py-1 text-xs font-medium text-white/85 ring-1 ring-white/10 transition-colors hover:bg-white/10 hover:text-white"
                         >
                             {l.icon
                                 ? <span className="flex size-4 items-center justify-center rounded" style={{ backgroundColor: l.color || undefined }}>
@@ -111,7 +114,7 @@ export function MediaHeroInsights({ info, meanScore, hideScore, type, className 
 
 function Tile({ icon, value, label, sub }: { icon: React.ReactNode, value: string, label: string, sub?: string }) {
     return (
-        <div className="min-w-0 rounded-2xl bg-black/30 px-3 py-2.5 text-left sm:min-w-[8.25rem] sm:flex-1 ring-1 ring-white/10 backdrop-blur-md transition-transform hover:-translate-y-0.5" data-media-hero-tile>
+        <div className="min-w-0 rounded-2xl bg-white/[0.05] px-3 py-2.5 text-left ring-1 ring-white/[0.08] xl:[&:last-child:nth-child(even)]:col-span-2" data-media-hero-tile>
             <p className="flex items-center gap-1.5 text-xl font-bold leading-none tabular-nums text-white [&>svg]:size-4 [&>svg]:shrink-0">{icon}{value}</p>
             <p className="mt-1.5 truncate text-[10px] font-semibold uppercase tracking-wider text-white/55">{label}</p>
             {sub && <p className="mt-0.5 truncate text-[11px] text-white/45">{sub}</p>}
@@ -125,7 +128,7 @@ function ScoreTile({ mean, average, info }: { mean: number, average?: number, in
     const max = Math.max(1, ...scores.map(s => s.amount))
     return (
         <Tooltip
-            trigger={<div className="col-span-2 flex min-w-0 items-center justify-between gap-3 rounded-2xl bg-amber-300/10 px-3 py-2.5 ring-1 ring-amber-300/25 backdrop-blur-md sm:min-w-[13rem] sm:flex-[1.5]" data-media-hero-score>
+            trigger={<div className="col-span-2 flex min-w-0 items-center justify-between gap-3 rounded-2xl bg-amber-300/10 px-3 py-2.5 ring-1 ring-amber-300/25" data-media-hero-score>
                 <div className="min-w-0 text-left">
                     <p className="flex items-center gap-1.5 text-2xl font-black leading-none tabular-nums text-amber-50"><LuStar className="size-4 shrink-0 fill-amber-300 text-amber-300" />{(mean / 10).toFixed(1)}</p>
                     <p className="mt-1.5 truncate text-[10px] font-semibold uppercase tracking-wider text-amber-100/60">{average ? `${average}% weighted` : "Mean score"}</p>
@@ -143,5 +146,5 @@ function ScoreTile({ mean, average, info }: { mean: number, average?: number, in
 }
 
 function Pill({ children, className }: { children: React.ReactNode, className?: string }) {
-    return <span className={cn("flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs ring-1 backdrop-blur-md", className)}>{children}</span>
+    return <span className={cn("flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs ring-1", className)}>{children}</span>
 }
