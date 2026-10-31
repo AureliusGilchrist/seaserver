@@ -1,3 +1,4 @@
+import { HomeSections } from "@/app/(main)/_features/home/home-sections"
 import { HomeStatsStrip } from "@/app/(main)/_features/home/home-stats-strip"
 import { LuFiles, LuFilm, LuHardDrive, LuLibrary, LuSparkles, LuTriangleAlert, LuTv } from "react-icons/lu"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
@@ -413,38 +414,34 @@ export function HomeScreen() {
                         },
                     }}
                 >
-                    {homeItems.filter(n => n.type !== "discover-header" && n.type !== "anime-continue-watching-header").map((item, index) => {
-                        return (
-                            <div key={item.id} data-sea-home-item style={{ animationDelay: `${Math.min(index, 6) * 50}ms` }}>
-                                {(index !== 0 &&
-                                    !(item?.type === "manga-library" || item?.type === "anime-library" || item?.type === "anime-continue-watching" || item.type === "anime-library-stats")
-                                ) && <div data-home-screen-item-divider={index} className="pt-10" />}
-                                <HomeScreenItem
-                                    item={item}
-                                    index={homeItems.findIndex(n => n.id === item.id)}
-                                    libraryCollectionProps={{
-                                        libraryGenres,
-                                        libraryCollectionList,
-                                        allLibraryCollectionList,
-                                        filteredLibraryCollectionList,
-                                        statusCollectionList,
-                                        filteredStatusCollectionList,
-                                        isLoading,
-                                        continueWatchingList,
-                                        unmatchedLocalFiles,
-                                        ignoredLocalFiles,
-                                        unmatchedGroups,
-                                        unknownGroups,
-                                        streamingMediaIds,
-                                        hasEntries,
-                                        isStreamingOnly,
-                                        isNakamaLibrary,
-                                    }}
-                                    onHoverImage={setHoverImage}
-                                />
-                            </div>
-                        )
-                    })}
+                    <HomeSections
+                        items={homeItems.filter(n => n.type !== "discover-header" && n.type !== "anime-continue-watching-header")}
+                        renderItem={item => (
+                            <HomeScreenItem
+                                item={item}
+                                index={homeItems.findIndex(n => n.id === item.id)}
+                                libraryCollectionProps={{
+                                    libraryGenres,
+                                    libraryCollectionList,
+                                    allLibraryCollectionList,
+                                    filteredLibraryCollectionList,
+                                    statusCollectionList,
+                                    filteredStatusCollectionList,
+                                    isLoading,
+                                    continueWatchingList,
+                                    unmatchedLocalFiles,
+                                    ignoredLocalFiles,
+                                    unmatchedGroups,
+                                    unknownGroups,
+                                    streamingMediaIds,
+                                    hasEntries,
+                                    isStreamingOnly,
+                                    isNakamaLibrary,
+                                }}
+                                onHoverImage={setHoverImage}
+                            />
+                        )}
+                    />
 
                     <div data-home-screen-item-divider className="h-8" />
 

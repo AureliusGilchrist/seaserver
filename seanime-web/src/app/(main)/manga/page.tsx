@@ -15,6 +15,7 @@ import { useMangaDownloadsSnapshot } from "@/app/(main)/manga/_lib/use-manga-dow
 import { formatNumber } from "@/lib/helpers/number"
 import { MangaLibraryView } from "@/app/(main)/manga/_screens/manga-library-view"
 import { MangaCarousel, MyLists } from "@/app/(main)/(library)/_home/home-screen"
+import { HomeSections } from "@/app/(main)/_features/home/home-sections"
 import { HomeStatsStrip } from "@/app/(main)/_features/home/home-stats-strip"
 import { MangaHomeSettingsModal, DEFAULT_MANGA_HOME_ITEMS, normalizeMangaHomeItems } from "@/app/(main)/manga/_components/manga-home-settings"
 import { MangaContinueReading } from "@/app/(main)/manga/_containers/manga-continue-reading"
@@ -335,44 +336,34 @@ export default function Page() {
                             },
                         }}
                     >
-                        {/* The stats bar the anime home screen has, as the same optional item —
-                            an arrangement choice, not a fixture. The numbers read from the same
-                            downloads list either way. */}
-                        {homeItems.filter(n => n.type !== "manga-discover-header" && n.type !== "manga-continue-reading-header").map((item, index) => {
-                            // Divider between items (except for certain types) — the same rule the
-                            // anime home screen applies to its items.
-                            const showDivider = index !== 0 &&
-                                !(item?.type === "manga-library" || item?.type === "manga-continue-reading" || item?.type === "local-manga-library-stats")
-
-                            return (
-                                <div key={item.id} data-sea-home-item style={{ animationDelay: `${Math.min(index, 6) * 50}ms` }}>
-                                    {showDivider && <div data-manga-home-item-divider={index} className="pt-10" />}
-                                    <MangaHomeScreenItem
-                                        item={item}
-                                        index={homeItems.findIndex(n => n.id === item.id)}
-                                        onHoverImage={handleHoverImage}
-                                        continueReadingList={continueReadingList}
-                                        downloadSearch={downloadSearch}
-                                        setDownloadSearch={setDownloadSearch}
-                                        sourceFilteredDownloadsMap={sourceFilteredDownloadsMap}
-                                        filteredDownloads={filteredDownloads}
-                                        downloadsLoading={downloadsLoading}
-                                        downloadsError={downloadsError}
-                                        downloadedWithMedia={downloadedWithMedia}
-                                        downloadedChaptersTotal={downloadedChaptersTotal}
-                                        downloadedList={downloadedList}
-                                        mangaCollection={mangaCollection}
-                                        mangaCollectionLoading={mangaCollectionLoading && !mangaCollection}
-                                        filteredMangaCollection={filteredMangaCollection}
-                                        mangaCollectionGenres={mangaCollectionGenres}
-                                        storedProviders={storedProviders}
-                                        hasManga={hasManga}
-                                        favoritesMedia={favoritesMedia}
-                                        cardSizeClass={cardSizeClass}
-                                    />
-                                </div>
-                            )
-                        })}
+                        <HomeSections
+                            items={homeItems.filter(n => n.type !== "manga-discover-header" && n.type !== "manga-continue-reading-header")}
+                            renderItem={item => (
+                                <MangaHomeScreenItem
+                                    item={item}
+                                    index={homeItems.findIndex(n => n.id === item.id)}
+                                    onHoverImage={handleHoverImage}
+                                    continueReadingList={continueReadingList}
+                                    downloadSearch={downloadSearch}
+                                    setDownloadSearch={setDownloadSearch}
+                                    sourceFilteredDownloadsMap={sourceFilteredDownloadsMap}
+                                    filteredDownloads={filteredDownloads}
+                                    downloadsLoading={downloadsLoading}
+                                    downloadsError={downloadsError}
+                                    downloadedWithMedia={downloadedWithMedia}
+                                    downloadedChaptersTotal={downloadedChaptersTotal}
+                                    downloadedList={downloadedList}
+                                    mangaCollection={mangaCollection}
+                                    mangaCollectionLoading={mangaCollectionLoading && !mangaCollection}
+                                    filteredMangaCollection={filteredMangaCollection}
+                                    mangaCollectionGenres={mangaCollectionGenres}
+                                    storedProviders={storedProviders}
+                                    hasManga={hasManga}
+                                    favoritesMedia={favoritesMedia}
+                                    cardSizeClass={cardSizeClass}
+                                />
+                            )}
+                        />
 
                         <div data-manga-home-item-divider className="h-8" />
                     </PageWrapper>

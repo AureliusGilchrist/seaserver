@@ -1,3 +1,4 @@
+import { HomeListTabs, useHomeListTab } from "@/app/(main)/_features/home/home-sections"
 import { AL_MediaListStatus, Manga_Collection, Manga_CollectionList } from "@/api/generated/types"
 import { useGetMangaReadingHistory, useGetRecentlyReadSyntheticManga, useRefetchMangaChapterContainers } from "@/api/hooks/manga.hooks"
 import { PaginatedMediaGrid } from "@/app/(main)/_features/media/_components/paginated-media-grid"
@@ -130,9 +131,11 @@ export function CollectionLists({ collectionList, genres, storedProviders, showS
 }) {
 
     const lists = collectionList?.lists?.filter(list => {
+        if (!list.entries?.length) return false
         if (!showStatuses) return true
         return list.type && showStatuses.includes(list.type)
-    })
+    }) ?? []
+    const [activeList, setActiveList] = useHomeListTab("manga", lists.map(list => list.type!))
 
     return (
         <PageWrapper
@@ -147,23 +150,32 @@ export function CollectionLists({ collectionList, genres, storedProviders, showS
                 },
             }}
         >
-            {lists?.map(collection => {
-                if (!collection.entries?.length) return null
-                return (
-                    <React.Fragment key={collection.type}>
-                        <CollectionListItem
-                            list={collection}
-                            storedProviders={storedProviders}
-                            showStatuses={showStatuses}
-                            type={type}
-                            withTitle={withTitle}
-                            onHoverImage={onHoverImage}
-                        />
+            {!!genres?.length && <GenreSelector genres={genres} className="!my-0" />}
 
-                        {(collection.type === "CURRENT" && !!genres?.length) && <GenreSelector genres={genres} className="!my-0" />}
-                    </React.Fragment>
-                )
-            })}
+            <HomeListTabs
+                tabs={lists.map(list => ({
+                    id: list.type!,
+                    label: list.type === "CURRENT" ? "Currently reading" : getMangaCollectionTitle(list.type),
+                    count: list.entries?.length ?? 0,
+                }))}
+                value={activeList}
+                onChange={setActiveList}
+            />
+
+            {lists.map(collection => (
+                // Kept mounted when hidden: the reading list feeds the header and the command palette.
+                <div key={collection.type} hidden={collection.type !== activeList} className="space-y-4">
+                    <CollectionListItem
+                        list={collection}
+                        storedProviders={storedProviders}
+                        showStatuses={showStatuses}
+                        type={type}
+                        withTitle={withTitle}
+                        onHoverImage={onHoverImage}
+                        hideTitle={lists.length > 1}
+                    />
+                </div>
+            ))}
         </PageWrapper>
     )
 
@@ -266,13 +278,15 @@ type UnifiedMangaItem = {
     }
 }
 
-const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, withTitle, onHoverImage }: {
+const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, withTitle, onHoverImage, hideTitle }: {
     list: Manga_CollectionList,
     storedProviders: Record<string, string>,
     showStatuses?: AL_MediaListStatus[],
     type?: "carousel" | "grid",
     withTitle?: boolean,
     onHoverImage?: (imageUrl: string | null) => void
+    /** The tabs above already name this list. */
+    hideTitle?: boolean
 }) => {
 
     const ts = useThemeSettings()
@@ -403,9 +417,9 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
     return (
         <React.Fragment>
 
-            <div className="flex gap-3 items-center" data-manga-library-view-collection-list-item-header-container>
-                <h2 data-manga-library-view-collection-list-item-header-title>{list.type === "CURRENT" ? "Currently reading" : getMangaCollectionTitle(
-                    list.type)}</h2>
+            <div className={cn("flex gap-3 items-center", hideTitle && list.type !== "CURRENT" && "hidden")} data-manga-library-view-collection-list-item-header-container>
+                {!hideTitle && <h2 data-manga-library-view-collection-list-item-header-title>{list.type === "CURRENT" ? "Currently reading" : getMangaCollectionTitle(
+                    list.type)}</h2>}
                 <div className="flex flex-1" data-manga-library-view-collection-list-item-header-spacer></div>
 
                 {list.type === "CURRENT" && params.unreadOnly && (

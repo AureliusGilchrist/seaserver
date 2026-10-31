@@ -1,5 +1,6 @@
 import { AL_MediaListStatus, Anime_LibraryCollectionEntry, Anime_LibraryCollectionList } from "@/api/generated/types"
 import { __mainLibrary_paramsAtom } from "@/app/(main)/(library)/_lib/handle-library-collection"
+import { HomeListTabs, useHomeListTab } from "@/app/(main)/_features/home/home-sections"
 import { PaginatedMediaGrid } from "@/app/(main)/_features/media/_components/paginated-media-grid"
 import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-entry-card"
 import { PageWrapper } from "@/components/shared/page-wrapper"
@@ -33,6 +34,9 @@ export function LibraryCollectionLists({ collectionList, isLoading, streamingMed
     type: "carousel" | "grid"
 }) {
 
+    const lists = collectionList.filter(list => !!list.entries?.length && !!list.type && (!showStatuses || showStatuses.includes(list.type)))
+    const [activeList, setActiveList] = useHomeListTab("anime", lists.map(list => list.type!))
+
     return (
         <PageWrapper
             key="library-collection-lists"
@@ -46,16 +50,22 @@ export function LibraryCollectionLists({ collectionList, isLoading, streamingMed
                     duration: 0.25,
                 },
             }}>
-            {collectionList.map(collection => {
-                if (!collection.entries?.length) return null
-                return <LibraryCollectionListItem
-                    key={collection.type}
-                    list={collection}
-                    streamingMediaIds={streamingMediaIds}
-                    showStatuses={showStatuses}
-                    type={type}
-                />
-            })}
+            <HomeListTabs
+                tabs={lists.map(list => ({ id: list.type!, label: getLibraryCollectionTitle(list.type), count: list.entries?.length ?? 0 }))}
+                value={activeList}
+                onChange={setActiveList}
+            />
+            {lists.map(collection => (
+                <div key={collection.type} hidden={collection.type !== activeList} className="space-y-4">
+                    <LibraryCollectionListItem
+                        list={collection}
+                        streamingMediaIds={streamingMediaIds}
+                        showStatuses={showStatuses}
+                        type={type}
+                        hideTitle={lists.length > 1}
+                    />
+                </div>
+            ))}
         </PageWrapper>
     )
 
@@ -117,11 +127,13 @@ export function LibraryCollectionFilteredLists({ collectionList, isLoading, stre
 
 }
 
-export const LibraryCollectionListItem = React.memo(({ list, streamingMediaIds, showStatuses, type }: {
+export const LibraryCollectionListItem = React.memo(({ list, streamingMediaIds, showStatuses, type, hideTitle }: {
     list: Anime_LibraryCollectionList,
     streamingMediaIds: number[],
     showStatuses?: AL_MediaListStatus[],
     type: "carousel" | "grid"
+    /** The tabs above already name this list. */
+    hideTitle?: boolean
 }) => {
 
     const isCurrentlyWatching = list.type === "CURRENT"
@@ -132,13 +144,13 @@ export const LibraryCollectionListItem = React.memo(({ list, streamingMediaIds, 
 
     return (
         <React.Fragment key={list.type}>
-            <div className="flex gap-3 items-center" data-library-collection-list-item-header data-list-type={list.type}>
-                <h2
+            <div className={cn("flex gap-3 items-center", hideTitle && !isCurrentlyWatching && "hidden")} data-library-collection-list-item-header data-list-type={list.type}>
+                {!hideTitle && <h2
                     className={cn(
                         "p-0 m-0",
                     )}
-                >{getLibraryCollectionTitle(list.type)}</h2>
-                {type === "grid" && <div className="flex flex-1"></div>}
+                >{getLibraryCollectionTitle(list.type)}</h2>}
+                {(type === "grid" || hideTitle) && <div className="flex flex-1"></div>}
                 {isCurrentlyWatching && <DropdownMenu
                     trigger={<IconButton
                         intent="white-basic"

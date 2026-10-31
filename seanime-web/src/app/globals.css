@@ -2268,15 +2268,6 @@ html:is([data-sea-effects="fx-neon-haze"], [data-sea-effects="fx-hologram"]) .UI
 
 /* ── Home screens ────────────────────────────────────────────────────────── */
 /* One look for every section the home settings can place, on the anime and manga homes. */
-@keyframes sea-home-rise {
-    from { opacity: 0; transform: translateY(12px); }
-}
-[data-sea-home-item] {
-    animation: sea-home-rise 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
-}
-@media (prefers-reduced-motion: reduce) {
-    [data-sea-home-item] { animation: none; }
-}
 [data-sea-home-item] h2:not(.text-center) {
     display: flex;
     flex-wrap: wrap;
