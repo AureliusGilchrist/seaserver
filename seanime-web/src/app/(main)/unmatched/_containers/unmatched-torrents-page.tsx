@@ -351,7 +351,7 @@ export function UnmatchedTorrentsPage() {
                         is clear the last match is still being carried out while the next download
                         is being dealt with. */}
                     {queueActive && (
-                        <div className="flex items-center gap-3 flex-wrap border border-gray-800 rounded-xl px-4 py-2.5 bg-gray-900/40">
+                        <div className="flex items-center gap-3 flex-wrap border border-gray-800 rounded-xl px-4 py-2.5 bg-gray-900/40 backdrop-blur-md">
                             {queueStatus!.matching || (queueStatus!.holding && !queueStatus!.paused)
                                 ? <LoadingSpinner className="h-4 w-4 flex-shrink-0 text-brand-300" />
                                 : <LuListTodo className="h-4 w-4 flex-shrink-0 text-brand-300" />}

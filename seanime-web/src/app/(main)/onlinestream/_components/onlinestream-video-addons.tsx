@@ -88,6 +88,7 @@ export function OnlinestreamParametersButton({ mediaId }: { mediaId: number }) {
     return (
         <>
             <Select
+                contentClass="backdrop-blur-none"
                 value={provider || ""}
                 options={[
                     ...providerExtensionOptions,
@@ -111,6 +112,7 @@ export function OnlinestreamParametersButton({ mediaId }: { mediaId: number }) {
                 addonClass="rounded-full rounded-r-none"
             />
             {!!servers.length && <Select
+                contentClass="backdrop-blur-none"
                 size="sm"
                 value={selectedServer}
                 options={servers.map((server) => ({ label: server, value: server }))}
@@ -157,7 +159,7 @@ function IsomorphicPopover(props: PopoverProps & ModalProps) {
     if (width && width > 1024) {
         return <Popover
             {...rest}
-            className="max-w-xl !w-full overflow-hidden space-y-2"
+            className="max-w-xl !w-full overflow-hidden space-y-2 backdrop-blur-none"
         >
             {children}
         </Popover>

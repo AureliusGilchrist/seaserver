@@ -207,7 +207,7 @@ export function AdminAnnouncementsPage() {
                             Share timely updates with everyone using your server. Announcements disappear when dismissed or when their duration ends.
                         </p>
                     </div>
-                    <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-center">
+                    <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-center backdrop-blur-md">
                         <p className="text-xl font-bold tabular-nums text-white">{activeAnnouncements}</p>
                         <p className="text-[10px] font-semibold uppercase tracking-wider text-white/50">Active</p>
                     </div>
@@ -256,7 +256,7 @@ export function AdminAnnouncementsPage() {
                             </div>
                         </label>
 
-                        <div className="space-y-4 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4">
+                        <div className="space-y-4 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4 backdrop-blur-md">
                             <label className="block space-y-2">
                                 <span className="text-sm font-semibold text-white/85">Duration</span>
                                 <div className="relative">
@@ -338,7 +338,7 @@ export function AdminAnnouncementsPage() {
                         {message.trim() ? (
                             <AnnouncementCard message={message.trim()} expiresAt={previewExpiresAt} preview />
                         ) : (
-                            <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-center">
+                            <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-center backdrop-blur-md">
                                 <LuMegaphone className="mx-auto size-6 text-white/25" />
                                 <p className="mt-3 text-sm font-medium text-white/65">Your preview will appear here</p>
                                 <p className="mt-1 text-xs text-white/40">Type a message to see how it looks as a banner.</p>
@@ -359,7 +359,7 @@ export function AdminAnnouncementsPage() {
                         {isLoadingAnnouncements ? (
                             <p className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 text-sm text-[--muted]">Loading announcements…</p>
                         ) : !sortedAnnouncements.length ? (
-                            <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-center">
+                            <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-center backdrop-blur-md">
                                 <LuBellRing className="mx-auto size-6 text-white/25" />
                                 <p className="mt-3 text-sm font-medium text-white/65">No announcements yet</p>
                                 <p className="mt-1 text-xs text-white/40">Published messages and their expiration dates will show up here.</p>

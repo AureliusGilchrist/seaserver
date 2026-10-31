@@ -100,6 +100,7 @@ declare global {
                     version: string | null;
                     source: "github" | "local" | "bundled";
                     installedAt?: string | null;
+                    marker?: { version: string; tag?: string; asset?: string; installedAt?: string } | null;
                 }>;
             };
             discord?: {

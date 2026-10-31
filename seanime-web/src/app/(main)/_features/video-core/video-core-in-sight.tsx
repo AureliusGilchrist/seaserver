@@ -244,7 +244,7 @@ export function VideoCoreInSight() {
                     {characters?.map(character => (
                         <Popover
                             key={character.mal_id}
-                            className="z-[100] bg-gray-950/95 max-h-[14rem] w-[25rem] overflow-y-auto cursor-auto"
+                            className="z-[100] bg-gray-950/95 max-h-[14rem] w-[25rem] overflow-y-auto cursor-auto backdrop-blur-none"
                             side="top"
                             sideOffset={8}
                             trigger={<div

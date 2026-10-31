@@ -700,7 +700,7 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                 )}
 
                 {!downloadsLoading && !downloadsError && !downloadedWithMedia.length && (
-                    <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-300">
+                    <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-300 backdrop-blur-md">
                         No downloaded series found. Use Manga Downloads to add offline chapters.
                     </div>
                 )}

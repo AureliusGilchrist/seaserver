@@ -576,7 +576,7 @@ export default function Page() {
         >
             {isDragging && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/80 backdrop-blur-sm">
-                    <div className="flex flex-col items-center gap-3 p-8 border-2 border-dashed border-indigo-500 rounded-xl bg-gray-900/50">
+                    <div className="flex flex-col items-center gap-3 p-8 border-2 border-dashed border-indigo-500 rounded-xl bg-gray-900/50 backdrop-blur-md">
                         <BiUpload className="text-4xl text-indigo-400" />
                         <p className="text-lg font-medium text-indigo-300">Drop report file</p>
                     </div>

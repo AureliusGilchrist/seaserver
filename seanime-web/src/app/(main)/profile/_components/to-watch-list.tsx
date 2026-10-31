@@ -166,7 +166,7 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
             )}
 
             {visibleItems.length === 0 ? (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.025] px-6 py-12 text-center">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.025] px-6 py-12 text-center backdrop-blur-md">
                     <p className="font-semibold">No {filter} on this todo list yet</p>
                     <p className="mt-1 text-sm text-[--muted]">
                         Add {filter === "anime" ? "anime" : "manga"} from its page, or choose another filter.

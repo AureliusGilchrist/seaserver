@@ -182,7 +182,7 @@ function Segmented<T extends string>({ items, value, onChange, className }: {
 }
 
 function Panel({ children, className }: { children: React.ReactNode, className?: string }) {
-    return <div className={cn("rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4", className)}>{children}</div>
+    return <div className={cn("rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 backdrop-blur-md", className)}>{children}</div>
 }
 
 function GroupLabel({ children, hint }: { children: React.ReactNode, hint?: React.ReactNode }) {
@@ -315,7 +315,7 @@ function NameColorsTab({ currentLevel }: { currentLevel: number }) {
                 </div>
 
                 <div
-                    className={cn("rounded-xl bg-black/30 px-3 py-3 text-center text-2xl font-bold ring-1 ring-white/[0.05]", shineEnabled && "sea-name-shine")}
+                    className={cn("rounded-xl bg-black/30 px-3 py-3 text-center text-2xl font-bold ring-1 ring-white/[0.05] backdrop-blur-md", shineEnabled && "sea-name-shine")}
                     style={{ backgroundImage: sampleGradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}
                 >
                     {activeNameColor?.name ?? "Preview"}

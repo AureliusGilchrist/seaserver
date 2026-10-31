@@ -475,7 +475,7 @@ export function AchievementsView({ data, variant = "page", own = false, ownerNam
                     {summary.closest.length > 0 && (
                         <Strip title="Almost there" icon={<LuFlame />}>
                             {summary.closest.map(s => (
-                                <div key={s.def.Key} className="w-56 shrink-0 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-2.5">
+                                <div key={s.def.Key} className="w-56 shrink-0 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-2.5 backdrop-blur-md">
                                     <div className="flex items-center gap-3">
                                         <AchievementBadge s={s} size="sm" />
                                         <div className="min-w-0">
@@ -595,7 +595,7 @@ export function AchievementsView({ data, variant = "page", own = false, ownerNam
 
 function HeroStat({ icon, label, value }: { icon: React.ReactNode, label: string, value: string }) {
     return (
-        <div className="rounded-2xl border border-white/[0.07] bg-black/25 px-3 py-2.5">
+        <div className="rounded-2xl border border-white/[0.07] bg-black/25 px-3 py-2.5 backdrop-blur-md">
             <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[--muted] [&>svg]:size-3">{icon}{label}</p>
             <p className="mt-1 text-lg font-bold tabular-nums">{value}</p>
         </div>
@@ -604,7 +604,7 @@ function HeroStat({ icon, label, value }: { icon: React.ReactNode, label: string
 
 function Strip({ title, icon, children }: { title: string, icon: React.ReactNode, children: React.ReactNode }) {
     return (
-        <div className="min-w-0 rounded-3xl border border-white/[0.07] bg-white/[0.02] p-4">
+        <div className="min-w-0 rounded-3xl border border-white/[0.07] bg-white/[0.02] p-4 backdrop-blur-md">
             <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-[--muted] [&>svg]:size-3.5">{icon}{title}</p>
             <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 hide-scrollbar">{children}</div>
         </div>

@@ -98,7 +98,7 @@ export const DataGridAnatomy = defineStyleAnatomy({
     ]),
     filterDropdownButton: cva([
         "UI-DataGrid__filterDropdownButton",
-        "flex gap-2 items-center bg-[--paper] border rounded-[--radius] h-10 py-1 px-3 cursor-pointer hover:bg-[--subtle]",
+        "flex gap-2 items-center bg-[--paper] border rounded-[--radius] h-10 py-1 px-3 cursor-pointer hover:bg-[--subtle] backdrop-blur-md",
         "select-none focus-visible:ring-2 outline-none ring-[--ring]",
     ]),
     editingCard: cva([

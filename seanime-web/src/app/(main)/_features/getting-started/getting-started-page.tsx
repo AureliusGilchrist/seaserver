@@ -326,7 +326,7 @@ function PlayerStep({ form, status }: { form: any, status: Status }) {
                                     initial={{ opacity: 0, height: 0 }}
                                     animate={{ opacity: 1, height: "auto" }}
                                     exit={{ opacity: 0, height: 0 }}
-                                    className="space-y-4 p-4 rounded-lg bg-gray-800/30"
+                                    className="space-y-4 p-4 rounded-lg bg-gray-800/30 backdrop-blur-md"
                                 >
                                     <div className="flex items-center space-x-3">
                                         <SiMpv className="w-6 h-6 text-indigo-400" />
@@ -347,7 +347,7 @@ function PlayerStep({ form, status }: { form: any, status: Status }) {
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: "auto" }}
                                 exit={{ opacity: 0, height: 0 }}
-                                className="space-y-4 p-4 rounded-lg bg-gray-800/30"
+                                className="space-y-4 p-4 rounded-lg bg-gray-800/30 backdrop-blur-md"
                             >
                                 <div className="flex items-center space-x-3">
                                     <IoPlayForwardCircleSharp className="w-6 h-6 text-blue-400" />
@@ -377,7 +377,7 @@ function PlayerStep({ form, status }: { form: any, status: Status }) {
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: "auto" }}
                                 exit={{ opacity: 0, height: 0 }}
-                                className="space-y-4 p-4 rounded-lg bg-gray-800/30"
+                                className="space-y-4 p-4 rounded-lg bg-gray-800/30 backdrop-blur-md"
                             >
                                 <div className="flex items-center space-x-3">
                                     <SiVlcmediaplayer className="w-6 h-6 text-orange-500" />
@@ -401,7 +401,7 @@ function PlayerStep({ form, status }: { form: any, status: Status }) {
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: "auto" }}
                                 exit={{ opacity: 0, height: 0 }}
-                                className="space-y-4 p-4 rounded-lg bg-gray-800/30"
+                                className="space-y-4 p-4 rounded-lg bg-gray-800/30 backdrop-blur-md"
                             >
                                 <div className="flex items-center space-x-3">
                                     <HiOutlineDesktopComputer className="w-6 h-6 text-blue-500" />
@@ -555,7 +555,7 @@ function DebridStep({ form }: { form: any }) {
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: "auto" }}
                                 exit={{ opacity: 0, height: 0 }}
-                                className="space-y-4 p-4 rounded-lg bg-gray-800/30"
+                                className="space-y-4 p-4 rounded-lg bg-gray-800/30 backdrop-blur-md"
                             >
                                 <Field.Text
                                     name="debridApiKey"

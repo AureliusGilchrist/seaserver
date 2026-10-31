@@ -1,4 +1,3 @@
-import { SettingsCard } from "@/app/(main)/settings/_components/settings-card"
 import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { WidgetErrorBoundary } from "@/components/shared/widget-error-boundary"
 import { AnilistOverwriteCard } from "@/app/(main)/settings/_containers/anilist-overwrite-settings"
@@ -6,7 +5,7 @@ import { PlaybackSettings } from "@/app/(main)/settings/_components/playback-set
 import { StillWatchingTiming } from "@/app/(main)/settings/_components/still-watching-timing"
 import { CardSizeSettings } from "@/app/(main)/settings/_components/card-size-settings"
 import { FranchiseSettings } from "@/app/(main)/settings/_components/franchise-settings"
-import { MAX_LOG_LINES, stamp, updateSettingsLogAtom } from "@/app/(main)/settings/_containers/update-settings"
+import { FrontendUpdateCard } from "@/app/(main)/settings/_containers/frontend-update-card"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { NumberInput } from "@/components/ui/number-input"
@@ -14,7 +13,7 @@ import { Switch } from "@/components/ui/switch"
 import { type ClientSettings, resetClientSettings, setClientSettings, useClientSettings } from "@/lib/client-settings"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { __isElectronDesktop__ } from "@/types/constants"
-import { useAtom, useAtomValue } from "jotai"
+import { useAtomValue } from "jotai"
 import React from "react"
 import { LuBookmarkCheck, LuBookOpen, LuDownload, LuEye, LuListChecks, LuMessageCircle, LuMonitorPlay, LuNewspaper, LuPlay, LuRefreshCw, LuRotateCcw, LuRss, LuSearch, LuSettings2, LuTags, LuTv, LuUserCog, LuX } from "react-icons/lu"
 import { toast } from "sonner"
@@ -25,207 +24,6 @@ type ClientSettingsProps = {}
 // server under the current profile, so they follow the profile across devices and survive
 // reinstalls — while never affecting any other profile. Each switch applies immediately; a
 // field left unset (see "Reset") inherits the server-wide value an admin configured.
-// Frontend updates straight from GitHub releases: the app downloads the prebuilt bundle
-// the CI publishes, swaps it in and reloads — no git, no Node and no account needed on
-// this machine. Settings live on the Electron side (denshiSettings), per machine.
-export function GitHubFrontendUpdateCard() {
-    const [settings, setSettings] = React.useState<DenshiSettings | null>(null)
-    const [checking, setChecking] = React.useState(false)
-    const [installing, setInstalling] = React.useState(false)
-    const [result, setResult] = React.useState<LiveUpdateGitHubCheck | null>(null)
-    // What GitHub itself says is newest. Denshi builds before 5.3.5-15 took the first frontend in
-    // GitHub's release list, which is in tag-name order ("…-9…" before "…-14…"), and so reported
-    // "up to date" on an old version. When that happens the card says so and links the Denshi
-    // installer that fixes it.
-    const [missed, setMissed] = React.useState<{ version: string, installerUrl: string | null, releaseUrl: string } | null>(null)
-    const [lines, setLines] = useAtom(updateSettingsLogAtom)
-
-    const appendLines = React.useCallback((next: string[]) => {
-        if (!next.length) return
-        setLines(prev => [...prev, ...next].slice(-MAX_LOG_LINES))
-    }, [setLines])
-
-    React.useEffect(() => {
-        window.electron?.denshiSettings.get().then(setSettings)
-    }, [])
-
-    // Surface progress in the shared update log (the Updates tab renders it in full).
-    React.useEffect(() => {
-        const off = window.electron?.on("live-update:progress", (p: { target: string, line: string }) => {
-            if (p.target !== "frontend") return
-            appendLines([stamp(p.line)])
-        })
-        return () => off?.()
-    }, [appendLines])
-
-    const [checkedAt, setCheckedAt] = React.useState<Date | null>(null)
-
-    // `announce` is for a check the user asked for: it says how it went, even when nothing changed.
-    // GitHub often answers in a few hundred milliseconds, and a result identical to the last one
-    // replaced in that time looked like the button did nothing, so the check shows for at least a
-    // moment.
-    async function refresh(checkNow: boolean = true, announce: boolean = false) {
-        const liveUpdate = window.electron?.liveUpdate
-        if (!liveUpdate?.checkGitHub) return
-        if (checkNow) {
-            setChecking(true)
-            const started = Date.now()
-            try {
-                const res = await liveUpdate.checkGitHub()
-                const elapsed = Date.now() - started
-                if (elapsed < 900) await new Promise(r => setTimeout(r, 900 - elapsed))
-                setResult(res)
-                setCheckedAt(new Date())
-                setMissed(res.ok && !res.updateAvailable && res.current ? await findMissedFrontend(res.current) : null)
-                if (res.ok) {
-                    const summary = res.updateAvailable
-                        ? `Frontend: update available (${res.current ?? "unknown"} → ${res.latest})`
-                        : `Frontend: up to date (${res.current ?? res.latest ?? "unknown"})`
-                    appendLines([stamp(summary)])
-                    if (announce) {
-                        if (res.updateAvailable) toast.info(`Version ${res.latest} is available`)
-                        else toast.success("You're on the latest frontend")
-                    }
-                } else {
-                    appendLines([stamp(`Frontend check: Failed - ${res.error ?? "unknown error"}`)])
-                    if (announce) toast.error(`Could not reach GitHub: ${res.error ?? "unknown error"}`)
-                }
-            } catch (e: any) {
-                toast.error(`Update check failed: ${e?.message ?? "unknown error"}`)
-            } finally {
-                setChecking(false)
-            }
-        } else {
-            liveUpdate.getGitHubInfo?.().then((info) => {
-                setResult(prev => prev ? { ...prev, current: info.version, currentSource: info.source } : prev)
-            })
-        }
-    }
-
-    // Checked on open and every 5 minutes while shown, like the server. Only checks: installing
-    // reloads the app, so it waits for a click (or the next launch, with auto-update on).
-    React.useEffect(() => {
-        refresh()
-        const id = window.setInterval(() => refresh(), 5 * 60_000)
-        return () => window.clearInterval(id)
-    }, [])
-
-    async function handleInstall() {
-        const liveUpdate = window.electron?.liveUpdate
-        if (!liveUpdate?.updateGitHub) return
-        setInstalling(true)
-        setLines([stamp("Frontend update: [00%] Checking GitHub for the latest frontend")])
-        try {
-            const res = await liveUpdate.updateGitHub()
-            if (res.ok) {
-                toast.success(res.message ?? `Frontend updated to ${res.version}`)
-                appendLines(["", stamp(`Frontend update: [100%] Succeeded (${res.version})`)])
-            } else {
-                toast.error(`Frontend update failed: ${res.error ?? "unknown error"}`)
-            }
-        } catch (e: any) {
-            toast.error(`Frontend update failed: ${e?.message ?? "unknown error"}`)
-            appendLines(["", stamp(`Frontend update: Failed - ${e?.message ?? "unknown error"}`)])
-        } finally {
-            setInstalling(false)
-        }
-    }
-
-    function setAutoUpdate(value: boolean) {
-        if (!window.electron?.denshiSettings) return
-        const next = { ...(settings ?? ({} as DenshiSettings)), autoUpdateFrontend: value }
-        setSettings(next)
-        window.electron.denshiSettings.set(next)
-    }
-
-    if (!window.electron?.liveUpdate?.checkGitHub) return null
-
-    return (
-        <SettingsCard
-            title="Frontend updates"
-            description="Download the prebuilt frontend from GitHub releases and swap it in live — no git, Node or GitHub account needed on this machine."
-        >
-            {checking ? (
-                <div className="flex items-center gap-3 rounded-xl border border-brand-400/25 bg-brand-500/[0.07] px-3 py-2.5" role="status" aria-live="polite">
-                    <LuRefreshCw className="size-4 shrink-0 animate-spin text-brand-300" />
-                    <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium">Checking GitHub for a newer frontend…</p>
-                        <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/10">
-                            <div className="h-full w-1/3 animate-[sea-update-scan_1.1s_ease-in-out_infinite] rounded-full bg-brand-400" />
-                        </div>
-                    </div>
-                    <style>{`@keyframes sea-update-scan{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}`}</style>
-                </div>
-            ) : (
-            <p className="text-sm text-[--muted]" aria-live="polite">
-                {result && !result.ok && (
-                    <span className="text-red-300">Could not reach GitHub: {result.error}</span>
-                )}
-                {result?.ok && result.updateAvailable && (
-                    <span>Version <span className="text-[--brand] font-medium">{result.latest}</span> is available
-                        {result.current ? <> (installed: {result.current})</> : null}.
-                    </span>
-                )}
-                {missed && (
-                    <span className="mb-2 block rounded-xl border border-amber-300/25 bg-amber-400/[0.08] px-3 py-2 text-amber-100">
-                        Version <span className="font-medium">{missed.version}</span> is on GitHub, but this copy of Denshi can't see it — its
-                        updater picks releases in the wrong order. Install the new Denshi once and frontend updates work again.{" "}
-                        <a
-                            className="font-semibold text-amber-200 underline underline-offset-2 hover:text-white"
-                            href={missed.installerUrl ?? missed.releaseUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                        >
-                            {missed.installerUrl ? "Download the Denshi installer" : "Open the release"}
-                        </a>
-                    </span>
-                )}
-                {result?.ok && !result.updateAvailable && !missed && (
-                    <span>
-                        {result.currentSource === "github" && <>Up to date — installed from GitHub: {result.current}</>}
-                        {result.currentSource === "local" && <>Running a local build (version unknown). The latest release on GitHub is {result.latest ?? "unavailable"}.</>}
-                        {result.currentSource === "bundled" && <>Up to date — running the bundled frontend ({result.current}).</>}
-                    </span>
-                )}
-                {!result && <span>Not checked yet.</span>}
-                {checkedAt && (
-                    <span className="block text-xs text-[--muted] opacity-80">
-                        Last checked {checkedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-                    </span>
-                )}
-            </p>
-            )}
-            <Switch
-                side="right"
-                value={!!settings?.autoUpdateFrontend}
-                onValueChange={setAutoUpdate}
-                label="Update the frontend automatically"
-                help="When enabled, the app checks GitHub on launch and installs a newer frontend before you start watching. Only applies after the first update has been installed from here."
-            />
-            <div className="flex gap-2">
-                <Button
-                    intent="gray-outline"
-                    loading={checking}
-                    disabled={installing}
-                    leftIcon={<LuSearch className="size-4" />}
-                    onClick={() => refresh(true, true)}
-                >
-                    {checking ? "Checking…" : "Search for updates"}
-                </Button>
-                <Button
-                    intent="primary"
-                    loading={installing}
-                    disabled={checking || !result?.canInstall}
-                    leftIcon={<LuDownload className="size-4" />}
-                    onClick={handleInstall}
-                >
-                    Install update
-                </Button>
-            </div>
-        </SettingsCard>
-    )
-}
-
 // ─── Personal page layout ───────────────────────────────────────────────────────────────────────
 
 type SectionDef = { id: string, title: string, description: string, icon: React.ElementType, accent: string }
@@ -441,7 +239,7 @@ function KeywordEditor({ value, onChange }: { value: string, onChange: (v: strin
     }
     return (
         <div className="space-y-2">
-            <div className="flex flex-wrap gap-1.5 min-h-[2rem] rounded-xl border border-white/10 bg-black/20 p-2">
+            <div className="flex flex-wrap gap-1.5 min-h-[2rem] rounded-xl border border-white/10 bg-black/20 p-2 backdrop-blur-md">
                 {words.map(w => (
                     <span key={w} className="flex items-center gap-1 rounded-full bg-sky-500/15 px-2.5 py-1 text-xs text-sky-100 ring-1 ring-sky-400/20">
                         {w}
@@ -643,7 +441,7 @@ export function ClientSettings(props: ClientSettingsProps) {
                                 help="After a few episodes in a row, the player checks before starting the next one."
                             />
                             {personal.stillWatchingChecksEnabled && (
-                                <div className="grid gap-4 md:grid-cols-[240px_1fr] rounded-xl bg-black/20 p-4 ring-1 ring-white/[0.06]">
+                                <div className="grid gap-4 md:grid-cols-[240px_1fr] rounded-xl bg-black/20 p-4 ring-1 ring-white/[0.06] backdrop-blur-md">
                                     <div className="space-y-4">
                                         <NumberInput
                                             label="Episodes before asking"
@@ -936,7 +734,7 @@ export function ClientSettings(props: ClientSettingsProps) {
                                     help="Hovering a Continue Watching card plays the anime's trailer inside it, with sound — like Netflix. Moving off stops it."
                                 />
                                 {personal.episodePreviewEnabled && (
-                                    <div className="space-y-4 rounded-xl bg-black/20 p-4 ring-1 ring-white/[0.06]">
+                                    <div className="space-y-4 rounded-xl bg-black/20 p-4 ring-1 ring-white/[0.06] backdrop-blur-md">
                                         <div className="grid gap-4 sm:grid-cols-2">
                                             <ChoiceRow
                                                 label="Play"
@@ -1111,7 +909,7 @@ export function ClientSettings(props: ClientSettingsProps) {
 
                 <PersonalSection def={section("app")} wide>
                     <div className="p-3 [&_.UI-Card__root]:bg-transparent [&_.UI-Card__root]:border-0 [&_.UI-Card__root]:shadow-none">
-                        <GitHubFrontendUpdateCard />
+                        <FrontendUpdateCard />
                     </div>
                     <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                         <div>
@@ -1184,7 +982,7 @@ function RecapPreview({ count, descriptions, blurNext, flagDozed }: {
     const hidden = watched.length - shown.length
     const line = (n: number) => <span className="mt-1 block h-1.5 rounded-full bg-white/15" style={{ width: `${n}%` }} />
     return (
-        <div className="rounded-2xl border border-white/10 bg-gray-950/70 p-3 shadow-xl" aria-hidden>
+        <div className="rounded-2xl border border-white/10 bg-gray-950/70 p-3 shadow-xl backdrop-blur-md" aria-hidden>
             <p className="text-center text-xs font-semibold text-white">Still watching?</p>
             <div className="mt-2 space-y-1.5">
                 {shown.map(w => (
@@ -1210,47 +1008,4 @@ function RecapPreview({ count, descriptions, blurNext, flagDozed }: {
             </div>
         </div>
     )
-}
-
-/** Dotted versions like "5.3.5-14.auto.154.1", segment by segment (the same rule Denshi uses). */
-function compareFrontendVersions(a: string, b: string) {
-    const pa = a.toLowerCase().split(/[.\-_+]/)
-    const pb = b.toLowerCase().split(/[.\-_+]/)
-    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-        const x = pa[i], y = pb[i]
-        if (x === undefined) return -1
-        if (y === undefined) return 1
-        const nx = /^\d+$/.test(x), ny = /^\d+$/.test(y)
-        if (nx && ny) {
-            if (Number(x) !== Number(y)) return Number(x) < Number(y) ? -1 : 1
-        } else if (nx !== ny) {
-            return nx ? -1 : 1
-        } else if (x !== y) {
-            return x < y ? -1 : 1
-        }
-    }
-    return 0
-}
-
-/** The newest frontend on GitHub when it is newer than `current`, with its Denshi installer. */
-async function findMissedFrontend(current: string) {
-    try {
-        const res = await fetch("https://api.github.com/repos/AureliusGilchrist/seaserver/releases?per_page=100", {
-            headers: { Accept: "application/vnd.github+json" },
-        })
-        if (!res.ok) return null
-        const releases = await res.json() as { tag_name: string, draft?: boolean, html_url: string, assets?: { name: string, browser_download_url: string }[] }[]
-        let best: { version: string, installerUrl: string | null, releaseUrl: string } | null = null
-        for (const r of releases) {
-            if (r.draft || !r.assets?.some(a => /^denshi-frontend-.*\.zip$/i.test(a.name))) continue
-            const version = r.tag_name.replace(/^v/, "")
-            if (best && compareFrontendVersions(version, best.version) <= 0) continue
-            const installer = r.assets.find(a => /^seanime-denshi-.*windows.*\.exe$/i.test(a.name))
-            best = { version, installerUrl: installer?.browser_download_url ?? null, releaseUrl: r.html_url }
-        }
-        return best && compareFrontendVersions(best.version, current) > 0 ? best : null
-    }
-    catch {
-        return null
-    }
 }

@@ -146,7 +146,7 @@ function ServerDownModal() {
 
     return (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 backdrop-blur-sm">
-            <div className="max-w-md mx-4 rounded-2xl border border-white/10 bg-gray-950/90 p-6 text-center space-y-3 shadow-2xl">
+            <div className="max-w-md mx-4 rounded-2xl border border-white/10 bg-gray-950/90 p-6 text-center space-y-3 shadow-2xl backdrop-blur-md">
                 <ImSpinner2 className="animate-spin text-2xl mx-auto" />
                 <p className="text-lg font-semibold">
                     Server is down due to {reason || "an unexpected problem"}, please wait or contact Aurelius.

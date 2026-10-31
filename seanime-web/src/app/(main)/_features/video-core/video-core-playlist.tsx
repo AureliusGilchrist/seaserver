@@ -421,7 +421,7 @@ function PlaylistEpisodeHoverCard({ episode, children }: { episode?: Anime_Episo
     return (
         <HoverCard
             data-vc-element="playlist-episode-hover-card"
-            className="max-w-xl w-fit py-2 px-4 ml-4 cursor-auto"
+            className="max-w-xl w-fit py-2 px-4 ml-4 cursor-auto backdrop-blur-none"
             sideOffset={38}
             closeDelay={200}
             onOpenChange={handleOpenChange}

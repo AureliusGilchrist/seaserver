@@ -391,7 +391,7 @@ function OptionField({ option, value, onChange }: OptionFieldProps) {
             return (
                 <div className="space-y-2">
                     <label className="text-sm font-medium text-white">{label}</label>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-3 bg-gray-900/30 rounded-lg border border-gray-800">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-3 bg-gray-900/30 rounded-lg border border-gray-800 backdrop-blur-md">
                         {options.map((opt: any) => (
                             <button
                                 key={opt.value}
@@ -631,7 +631,7 @@ export function MangaHomeSettingsModal() {
                                 onDragEnd={handleDragEnd}
                             >
                                 <SortableContext items={currentItems.map(item => item.id)} strategy={verticalListSortingStrategy}>
-                                    <div className="space-y-2 bg-gray-900/30 rounded-xl p-4 border border-gray-800">
+                                    <div className="space-y-2 bg-gray-900/30 rounded-xl p-4 border border-gray-800 backdrop-blur-md">
                                         {currentItems.length === 0 ? (
                                             <div className="text-center py-8 text-gray-400">
                                                 No items added yet. Add some items below to customize your home screen.

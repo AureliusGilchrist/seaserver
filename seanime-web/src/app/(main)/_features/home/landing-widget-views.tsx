@@ -443,7 +443,7 @@ export function LandingLibraryInsightsWidget() {
             </header>
             <div className="relative mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
                 {metrics.map(metric => (
-                    <div key={metric.label} className="min-w-0 rounded-2xl border border-white/[0.08] bg-black/25 p-3.5 shadow-lg shadow-black/10">
+                    <div key={metric.label} className="min-w-0 rounded-2xl border border-white/[0.08] bg-black/25 p-3.5 shadow-lg shadow-black/10 backdrop-blur-md">
                         <p className="text-2xl font-extrabold tabular-nums text-white sm:text-3xl">
                             {metric.value === null ? "—" : formatNumber(metric.value)}
                         </p>

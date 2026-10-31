@@ -23,7 +23,7 @@ export function timeAgo(unixSeconds?: number): string {
     return `${Math.round(diff / 86400)} d ago`
 }
 
-function timeUntil(unixSeconds?: number): string {
+export function timeUntil(unixSeconds?: number): string {
     if (!unixSeconds) return "—"
     const diff = Math.round(unixSeconds - Date.now() / 1000)
     if (diff <= 30) return "any moment"
@@ -31,9 +31,9 @@ function timeUntil(unixSeconds?: number): string {
     return `in ${Math.round(diff / 3600)} h`
 }
 
-type State = "updating" | "failed" | "available" | "checking" | "uptodate" | "unknown"
+export type UpdateState = "updating" | "failed" | "available" | "checking" | "uptodate" | "unknown"
 
-function stateOf(s: BackendUpdateStatus | undefined, running: boolean, progress: ServerUpdateProgress): State {
+function stateOf(s: BackendUpdateStatus | undefined, running: boolean, progress: ServerUpdateProgress): UpdateState {
     // The server's own status decides whether an update is running. The progress read back from
     // the saved update log is only a fallback while the status hasn't loaded: its last line is often
     // the restart step (96%), and the page only marks an update done if it saw the server come back
@@ -48,7 +48,7 @@ function stateOf(s: BackendUpdateStatus | undefined, running: boolean, progress:
     return "uptodate"
 }
 
-const PILL: Record<State, { label: string, className: string, icon: React.ReactNode }> = {
+export const PILL: Record<UpdateState, { label: string, className: string, icon: React.ReactNode }> = {
     updating: { label: "Updating", className: "bg-brand-500/15 text-brand-200 ring-brand-400/30", icon: <LuLoaderCircle className="size-3 animate-spin" /> },
     failed: { label: "Failed", className: "bg-red-500/15 text-red-300 ring-red-400/30", icon: <LuCircleAlert className="size-3" /> },
     available: { label: "Update available", className: "bg-amber-400/15 text-amber-200 ring-amber-300/30", icon: <LuCircleArrowUp className="size-3" /> },
@@ -101,7 +101,7 @@ export function ServerUpdateCard({ remote, running, checking, progress, errorTex
     const unsupported = isError && !status
 
     return (
-        <section className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-br from-white/[0.05] via-black/25 to-black/40 p-5 shadow-xl shadow-black/20 sm:p-6">
+        <section className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-br from-white/[0.05] via-black/25 to-black/40 p-5 shadow-xl shadow-black/20 backdrop-blur-md sm:p-6">
             {state === "available" && <div className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-amber-400/10 blur-3xl" />}
             {state === "updating" && <div className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-brand-500/15 blur-3xl" />}
 
@@ -246,12 +246,12 @@ export function ServerUpdateCard({ remote, running, checking, progress, errorTex
     )
 }
 
-function Fact({ label, value, sub }: { label: string, value: string, sub?: string }) {
+export function Fact({ label, value, sub }: { label: string, value: string, sub?: string }) {
     return (
         <div className="rounded-2xl bg-black/25 px-3 py-2.5 ring-1 ring-white/[0.06]">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-[--muted]">{label}</p>
-            <p className="mt-0.5 truncate text-sm font-semibold tabular-nums">{value}</p>
-            {sub && <p className="truncate font-mono text-[10px] text-[--muted]">{sub}</p>}
+            <p className="mt-0.5 truncate text-sm font-semibold tabular-nums" title={value}>{value}</p>
+            {sub && <p className="truncate font-mono text-[10px] text-[--muted]" title={sub}>{sub}</p>}
         </div>
     )
 }

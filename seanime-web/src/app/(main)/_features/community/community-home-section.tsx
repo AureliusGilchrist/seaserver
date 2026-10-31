@@ -62,7 +62,7 @@ export function CommunityHomeSection() {
 
 function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
     return (
-        <div className="bg-white/5 border border-white/5 rounded-2xl p-3.5 flex items-center gap-3">
+        <div className="bg-white/5 border border-white/5 rounded-2xl p-3.5 flex items-center gap-3 backdrop-blur-md">
             <div className="flex items-center justify-center size-9 rounded-xl bg-gradient-to-br from-brand-400/40 to-brand-600/30 text-white">{icon}</div>
             <div>
                 <p className="text-xl font-extrabold leading-none">{value}</p>

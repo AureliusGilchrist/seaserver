@@ -1,6 +1,6 @@
 import { BACKEND_UPDATE_STATUS_KEY, serverErrorMessage, useCheckBackendUpdate, useUpdateBackend } from "@/api/hooks/update-notice.hooks"
 import { ServerUpdateCard } from "@/app/(main)/settings/_containers/server-update-card"
-import { GitHubFrontendUpdateCard } from "@/app/(main)/settings/_containers/client-settings"
+import { FrontendUpdateCard } from "@/app/(main)/settings/_containers/frontend-update-card"
 import { useQueryClient } from "@tanstack/react-query"
 import { LuChevronDown, LuScrollText } from "react-icons/lu"
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
@@ -24,7 +24,7 @@ export function stamp(line: string) {
     return line === "" ? line : `[${new Date().toLocaleTimeString([], { hour12: false })}] ${line}`
 }
 
-function readProgress(lines: string[]) {
+export function readProgress(lines: string[]) {
     for (let i = lines.length - 1; i >= 0; i--) {
         const text = lines[i].replace(/^\[[\d:]+\]\s?/, "")
         const match = text.match(/^(Backend|Frontend) update:\s*\[(\d{1,3})%\]\s*(.*)$/i)
@@ -311,7 +311,8 @@ function LiveUpdates() {
             const progress = readProgress([p.line])
             if (p.target === "backend" && progress) currentProgressRef.current = progress.percent
             if (p.target === "frontend" && progress) currentFrontendProgressRef.current = progress.percent
-            appendLines([stamp(p.line)])
+            // The Frontend card logs its own lines; logging them here too printed each one twice.
+            if (p.target === "backend") appendLines([stamp(p.line)])
         })
         return () => off?.()
     }, [appendLines, refreshInfo])
@@ -472,7 +473,7 @@ function LiveUpdates() {
                 </p>
             )}
 
-            <GitHubFrontendUpdateCard />
+            <FrontendUpdateCard />
 
             {lines.length > 0 && (
                 <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02]">

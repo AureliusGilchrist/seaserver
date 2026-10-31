@@ -11,7 +11,7 @@ import { cn, defineStyleAnatomy } from "../core/styling"
 export const CardAnatomy = defineStyleAnatomy({
     root: cva([
         "UI-Card__root",
-        "rounded-xl border bg-[--paper] shadow-sm",
+        "rounded-xl border bg-[--paper] shadow-sm backdrop-blur-md",
     ]),
     header: cva([
         "UI-Card__header",

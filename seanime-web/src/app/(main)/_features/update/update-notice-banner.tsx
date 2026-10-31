@@ -86,14 +86,14 @@ function UpdateNoticeBannerInner({ notice, onDismiss }: { notice: UpdateNotice, 
 
                     <div className="flex flex-wrap items-center gap-2 text-xs text-gray-300">
                         {notice.updatedAt && (
-                            <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5">
+                            <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5 backdrop-blur-md">
                                 <LuClock3 className="size-3.5 text-gray-400" />
                                 {new Date(notice.updatedAt).toLocaleString()}
                             </span>
                         )}
                         {!!notice.filesChanged && (
                             <>
-                                <span className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5">
+                                <span className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5 backdrop-blur-md">
                                     {notice.filesChanged} file{notice.filesChanged === 1 ? "" : "s"} changed
                                 </span>
                                 <span className="rounded-lg border border-emerald-400/15 bg-emerald-400/[0.07] px-2.5 py-1.5 font-medium text-emerald-300">

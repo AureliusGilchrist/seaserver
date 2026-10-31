@@ -14,7 +14,7 @@ import { Modal, ModalProps } from "../modal"
 export const CommandAnatomy = defineStyleAnatomy({
     root: cva([
         "UI-Command__root",
-        "flex h-full w-full flex-col overflow-hidden rounded-[--radius-md] bg-[--paper] text-[--foreground]",
+        "flex h-full w-full flex-col overflow-hidden rounded-[--radius-md] bg-[--paper] text-[--foreground] backdrop-blur-md",
     ]),
     inputContainer: cva([
         "UI-Command__input",

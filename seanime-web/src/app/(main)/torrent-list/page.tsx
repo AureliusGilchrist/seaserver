@@ -127,7 +127,7 @@ function OfflineAddQueuePanel() {
     if (!queue || queue.total === 0) return null
 
     return (
-        <div className="flex items-center gap-3 flex-wrap border border-gray-800 rounded-xl px-4 py-3 bg-gray-900/40 mb-4">
+        <div className="flex items-center gap-3 flex-wrap border border-gray-800 rounded-xl px-4 py-3 bg-gray-900/40 mb-4 backdrop-blur-md">
             <LoadingSpinner className="h-4 w-4 flex-shrink-0 text-brand-300" />
             <p className="text-sm">
                 <span className="font-medium text-gray-200">{queue.waiting}</span> torrent{queue.waiting === 1 ? "" : "s"} waiting for the client

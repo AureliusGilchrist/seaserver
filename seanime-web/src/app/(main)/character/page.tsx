@@ -286,7 +286,7 @@ export default function Page() {
                                 <div
                                     key={`${s.label}-${i}`}
                                     className={cn(
-                                        "flex min-w-0 items-center gap-3 rounded-xl bg-white/[0.03] px-3 py-2.5 ring-1 ring-white/[0.07] animate-in fade-in slide-in-from-bottom-2 fill-mode-both",
+                                        "flex min-w-0 items-center gap-3 rounded-xl bg-white/[0.03] px-3 py-2.5 ring-1 ring-white/[0.07] animate-in fade-in slide-in-from-bottom-2 fill-mode-both backdrop-blur-md",
                                         s.accent,
                                     )}
                                     style={{ animationDelay: `${80 + i * 35}ms` }}
@@ -306,7 +306,7 @@ export default function Page() {
 
                 {/* About */}
                 {body && (
-                    <section className="mt-8 rounded-2xl bg-white/[0.02] p-5 ring-1 ring-white/[0.06] sm:p-6">
+                    <section className="mt-8 rounded-2xl bg-white/[0.02] p-5 ring-1 ring-white/[0.06] sm:p-6 backdrop-blur-md">
                         <h2 className="mb-3 text-lg font-semibold">About</h2>
                         <div className={cn("relative overflow-hidden text-[0.95rem] leading-relaxed text-white/75", longDescription && !descOpen && "max-h-56")}>
                             <AnilistMarkdown text={body} />

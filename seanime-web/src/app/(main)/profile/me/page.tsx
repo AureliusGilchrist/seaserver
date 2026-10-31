@@ -839,7 +839,7 @@ function FavoritesTabContent() {
                             <p className="mt-1 text-sm text-white/60">The anime, manga, characters, creators, and studios you love.</p>
                         </div>
                     </div>
-                    <div className="min-w-28 rounded-2xl border border-white/10 bg-black/25 px-5 py-3 text-center">
+                    <div className="min-w-28 rounded-2xl border border-white/10 bg-black/25 px-5 py-3 text-center backdrop-blur-md">
                         <p className="text-2xl font-extrabold tabular-nums text-white">
                             {favoritesLoading ? "…" : formatNumber(totalCount)}
                         </p>
@@ -848,7 +848,7 @@ function FavoritesTabContent() {
                 </div>
                 <div className="relative mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
                     {sections.map(section => (
-                        <div key={section.type} className="flex items-center justify-between gap-2 rounded-xl border border-white/[0.08] bg-black/20 px-3 py-2.5">
+                        <div key={section.type} className="flex items-center justify-between gap-2 rounded-xl border border-white/[0.08] bg-black/20 px-3 py-2.5 backdrop-blur-md">
                             <span className="truncate text-xs font-medium text-white/65">{section.label}</span>
                             <span className="shrink-0 text-sm font-bold tabular-nums text-white">
                                 {favoritesLoading ? "—" : formatNumber(section.ids?.length ?? 0)}

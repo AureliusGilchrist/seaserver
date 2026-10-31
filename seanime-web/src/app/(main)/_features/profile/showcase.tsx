@@ -20,7 +20,7 @@ export function ShowcaseCard({ entry, editable }: { entry?: any; editable?: bool
 export function RecentAchievementRow({ entry }: { entry: any }) {
   if (!entry) return null
   return (
-    <div className="flex flex-col items-center min-w-[90px] bg-gray-800/60 rounded-lg p-2 shadow">
+    <div className="flex flex-col items-center min-w-[90px] bg-gray-800/60 rounded-lg p-2 shadow backdrop-blur-md">
       <div className="w-8 h-8 rounded-full bg-yellow-400/30 flex items-center justify-center mb-1">
         {/* TODO: Render achievement icon */}
         <span className="text-lg">🏆</span>

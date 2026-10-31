@@ -1057,7 +1057,7 @@ export default function ThemeManagerPage() {
 
                         {/* Fixed-height scrollable grid */}
                         <div
-                            className="overflow-y-auto rounded-xl border border-[--border] bg-[--background]/60 p-2"
+                            className="overflow-y-auto rounded-xl border border-[--border] bg-[--background]/60 p-2 backdrop-blur-md"
                             style={{ maxHeight: "320px", scrollbarWidth: "thin" }}
                         >
                             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">

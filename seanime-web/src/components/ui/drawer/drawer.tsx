@@ -49,7 +49,7 @@ export const DrawerAnatomy = defineStyleAnatomy({
     ]),
     content: cva([
         "UI-Drawer__content",
-        "fixed z-50 w-full gap-4 bg-[--background] p-6 shadow-lg overflow-y-auto backdrop-blur",
+        "fixed z-50 w-full gap-4 bg-[--background] p-6 shadow-lg overflow-y-auto backdrop-blur-md",
         "transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-500 data-[state=open]:duration-500",
         "focus:outline-none focus-visible:outline-none",
         __isDesktop__ && "select-none",
