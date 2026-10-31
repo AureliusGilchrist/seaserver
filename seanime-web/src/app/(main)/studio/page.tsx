@@ -6,6 +6,7 @@ import { serverErrorMessage } from "@/api/hooks/update-notice.hooks"
 import { Button } from "@/components/ui/button"
 import { GlassCard } from "@/app/(main)/_features/media/_components/media-info-panel"
 import { compact, MEDIA_FORMAT_LABELS } from "@/app/(main)/_features/media/_components/media-meta-chips"
+import { MediaPageHeader } from "@/app/(main)/_features/media/_components/media-page-header-components"
 import { MediaSectionHeading } from "@/app/(main)/_features/media/_components/media-section-heading"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { SeaLink } from "@/components/shared/sea-link"
@@ -15,7 +16,7 @@ import { Tooltip } from "@/components/ui/tooltip"
 import { useSearchParams } from "@/lib/navigation"
 import { getImageUrl } from "@/lib/server/assets"
 import { capitalize } from "lodash"
-import { motion, useScroll, useTransform } from "motion/react"
+import { motion, useScroll, useSpring, useTransform } from "motion/react"
 import React from "react"
 import { AiFillHeart, AiOutlineHeart } from "react-icons/ai"
 import {
@@ -91,7 +92,12 @@ function StudioView({ studio }: { studio: StudioProfile }) {
 
     return (
         <div className="relative" data-studio-page>
-            <StudioHero studio={studio} signature={signature} isFav={isFav} onFav={() => toggleFav({ studioId: studio.id })} favPending={isTogglingFav} />
+            <MediaPageHeader
+                backgroundImage={signature.find(w => w.bannerImage)?.bannerImage || undefined}
+                coverImage={signature[0]?.coverImage?.extraLarge || undefined}
+            />
+
+            <StudioHero studio={studio} isFav={isFav} onFav={() => toggleFav({ studioId: studio.id })} favPending={isTogglingFav} />
 
             <PageWrapper className="relative z-[5] space-y-14 px-4 pb-16 md:px-8">
                 {/* Stats */}
@@ -127,49 +133,18 @@ function StudioView({ studio }: { studio: StudioProfile }) {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-function StudioHero({ studio, signature, isFav, onFav, favPending }: {
+function StudioHero({ studio, isFav, onFav, favPending }: {
     studio: StudioProfile
-    signature: StudioWork[]
     isFav: boolean
     onFav: () => void
     favPending: boolean
 }) {
     const { scrollY } = useScroll()
-    const fade = useTransform(scrollY, [0, 420], [1, 0.15])
-    const lift = useTransform(scrollY, [0, 420], [0, -60])
-    const backdrop = signature.find(w => w.bannerImage)?.bannerImage || signature[0]?.coverImage?.extraLarge
-    const wall = React.useMemo(() => {
-        const covers = [...studio.works]
-            .filter(w => w.coverImage?.large && w.status !== "NOT_YET_RELEASED")
-            .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))
-            .slice(0, 18)
-        return covers
-    }, [studio.works])
+    const lift = useSpring(useTransform(scrollY, [0, 420], [0, -60]), { stiffness: 140, damping: 30, mass: 0.5, restDelta: 0.001 })
     const st = studio.stats
 
     return (
-        <header className="relative isolate overflow-hidden" data-studio-hero>
-            <motion.div className="absolute inset-0 -z-10" style={{ opacity: fade }}>
-                {backdrop && <img src={getImageUrl(backdrop)} alt="" className="absolute inset-0 size-full scale-110 object-cover opacity-50 blur-2xl" />}
-                {/* Poster wall: the studio's best-known covers, tilted and drifting. */}
-                <div className="absolute -right-24 -top-16 hidden w-[62%] rotate-[-8deg] md:block">
-                    <motion.div
-                        className="grid grid-cols-6 gap-3"
-                        animate={{ y: [0, -40, 0] }}
-                        transition={{ duration: 40, repeat: Infinity, ease: "easeInOut" }}
-                    >
-                        {wall.map((w, i) => (
-                            <div key={w.id} className={cn("aspect-[6/8] overflow-hidden rounded-xl ring-1 ring-white/10 shadow-2xl", i % 2 === 1 && "translate-y-8")}>
-                                <img src={getImageUrl(w.coverImage!.large!)} alt="" loading="lazy" className="size-full object-cover" />
-                            </div>
-                        ))}
-                    </motion.div>
-                </div>
-                <div className="absolute inset-0 bg-gradient-to-r from-[--background] via-[--background]/85 to-[--background]/20" />
-                <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-[--background] via-[--background]/70 to-transparent" />
-                <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[--background]/80 to-transparent" />
-            </motion.div>
-
+        <header className="relative z-[4]" data-studio-hero>
             <motion.div className="relative px-4 pb-16 pt-10 md:px-8 md:pb-24 md:pt-16" style={{ y: lift }}>
                 <SeaLink href="/" className="mb-8 inline-flex items-center gap-2 rounded-full bg-black/30 px-3 py-1.5 text-sm text-white/70 ring-1 ring-white/10 backdrop-blur-md transition hover:text-white">
                     <LuArrowLeft /> Back
