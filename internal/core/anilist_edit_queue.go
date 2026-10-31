@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -201,7 +202,13 @@ func (q *AnilistEditQueue) RunDue(ctx context.Context) time.Duration {
 			q.mu.Unlock()
 			continue
 		}
-		if err == nil {
+		if err != nil && isRejectedEdit(err) {
+			// AniList read this edit and refused it, and it will say the same every time.
+			delete(q.items, key)
+			if q.logger != nil {
+				q.logger.Error().Err(err).Int("mediaId", edit.MediaID).Msg("anilist: AniList rejected a queued list edit, dropping it")
+			}
+		} else if err == nil {
 			delete(q.items, key)
 			if q.logger != nil {
 				q.logger.Info().Int("mediaId", edit.MediaID).Int("attempts", edit.Attempts).Msg("anilist: Queued list edit synced")
@@ -284,9 +291,80 @@ func (q *AnilistEditQueue) saveLocked() {
 	}
 }
 
+// isRejectedEdit reports whether AniList refused an edit as invalid, rather than failing to take it.
+func isRejectedEdit(err error) bool {
+	return strings.Contains(err.Error(), "\"validation\"")
+}
+
+// completeListEdit fills in the score and progress an edit leaves out. AniList's mutation sends both,
+// and it refuses a null for either, so changing only the status has to repeat what is already there.
+// Scores are POINT_100 in the collection, which is the scale scoreRaw takes.
+func completeListEdit(edit *QueuedListEdit, score *float64, progress *int) *QueuedListEdit {
+	completed := *edit
+	if completed.Score == nil {
+		s := 0
+		if score != nil {
+			s = int(*score)
+		}
+		completed.Score = &s
+	}
+	if completed.Progress == nil {
+		p := 0
+		if progress != nil {
+			p = *progress
+		}
+		completed.Progress = &p
+	}
+	return &completed
+}
+
+// withListEntryValues is completeListEdit with the values on the list. A list that cannot be read is
+// an error, so the edit waits for it: guessing here would write a score of 0 over a real one.
+func (a *App) withListEntryValues(edit *QueuedListEdit) (*QueuedListEdit, error) {
+	if edit.Score != nil && edit.Progress != nil {
+		return edit, nil
+	}
+	useProfile := edit.ProfileID > 0 && a.AnilistClientManager != nil
+	if edit.Type == "manga" {
+		var collection *anilist.MangaCollection
+		var err error
+		if useProfile {
+			collection, err = a.AnilistClientManager.GetMangaCollection(edit.ProfileID)
+		} else {
+			collection, err = a.GetRawMangaCollection(false)
+		}
+		if err != nil {
+			return nil, err
+		}
+		if entry, found := collection.GetListEntryFromMangaId(edit.MediaID); found {
+			return completeListEdit(edit, entry.Score, entry.Progress), nil
+		}
+		return completeListEdit(edit, nil, nil), nil
+	}
+
+	var collection *anilist.AnimeCollection
+	var err error
+	if useProfile {
+		collection, err = a.AnilistClientManager.GetAnimeCollection(edit.ProfileID)
+	} else {
+		collection, err = a.GetAnimeCollection(false)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if entry, found := collection.GetListEntryFromAnimeId(edit.MediaID); found {
+		return completeListEdit(edit, entry.Score, entry.Progress), nil
+	}
+	return completeListEdit(edit, nil, nil), nil
+}
+
 // sendQueuedListEdit sends one queued edit with the profile's own client (the app's for the
 // owner), the same way a Save would have.
 func (a *App) sendQueuedListEdit(ctx context.Context, edit *QueuedListEdit) error {
+	edit, err := a.withListEntryValues(edit)
+	if err != nil {
+		return err
+	}
 	mediaID := edit.MediaID
 	if edit.ProfileID > 0 && a.AnilistClientManager != nil {
 		client := a.AnilistClientManager.GetClient(edit.ProfileID)

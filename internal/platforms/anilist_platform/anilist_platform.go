@@ -186,9 +186,7 @@ func (ap *AnilistPlatform) UpdateEntryProgress(ctx context.Context, mediaID int,
 				if !write {
 					return nil
 				}
-				if status == nil {
-					event.Status = nil
-				}
+				event.Status = status
 			}
 		}
 

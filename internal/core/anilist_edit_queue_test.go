@@ -85,3 +85,41 @@ func TestAnilistEditQueue(t *testing.T) {
 		t.Fatal("forget did not drop the edit")
 	}
 }
+
+func TestCompleteListEdit(t *testing.T) {
+	score, progress := 85.0, 7
+
+	got := completeListEdit(&QueuedListEdit{MediaID: 1}, &score, &progress)
+	if *got.Score != 85 || *got.Progress != 7 {
+		t.Fatalf("a status change must repeat the entry's values, got %d and %d", *got.Score, *got.Progress)
+	}
+
+	zero := 0
+	got = completeListEdit(&QueuedListEdit{MediaID: 1, Progress: &zero}, &score, &progress)
+	if *got.Score != 85 || *got.Progress != 0 {
+		t.Fatalf("values on the edit win, got %d and %d", *got.Score, *got.Progress)
+	}
+
+	got = completeListEdit(&QueuedListEdit{MediaID: 1}, nil, nil)
+	if got.Score == nil || got.Progress == nil {
+		t.Fatal("an entry not on the list still has to send integers")
+	}
+}
+
+func TestAnilistEditQueueDropsRejectedEdits(t *testing.T) {
+	exec := func(context.Context, *QueuedListEdit) error {
+		return errors.New(`{"errors":[{"message":"validation","status":400}]}`)
+	}
+	q := NewAnilistEditQueue("", exec, nil, nil)
+	q.Enqueue(&QueuedListEdit{ProfileID: 1, MediaID: 5}, nil)
+	q.mu.Lock()
+	for _, e := range q.items {
+		e.NextAttempt = time.Time{}
+	}
+	q.mu.Unlock()
+
+	q.RunDue(context.Background())
+	if got := q.List(1); len(got) != 0 {
+		t.Fatalf("a rejected edit would be retried forever, got %+v", got)
+	}
+}

@@ -15,9 +15,9 @@ func TestProgressStatus(t *testing.T) {
 		{"not on the list", nil, false, ptrStatus(MediaListStatusCurrent), true},
 		{"watching", entry(MediaListStatusCurrent), false, ptrStatus(MediaListStatusCurrent), true},
 		{"last episode", entry(MediaListStatusCurrent), true, ptrStatus(MediaListStatusCompleted), true},
-		{"planning stays", entry(MediaListStatusPlanning), false, nil, true},
-		{"paused stays on the last episode", entry(MediaListStatusPaused), true, nil, true},
-		{"completed is not wound back", entry(MediaListStatusCompleted), false, nil, false},
+		{"planning stays", entry(MediaListStatusPlanning), false, ptrStatus(MediaListStatusPlanning), true},
+		{"paused stays on the last episode", entry(MediaListStatusPaused), true, ptrStatus(MediaListStatusPaused), true},
+		{"completed is not wound back", entry(MediaListStatusCompleted), false, ptrStatus(MediaListStatusCompleted), false},
 		{"dropped behaves as before", entry(MediaListStatusDropped), false, ptrStatus(MediaListStatusCurrent), true},
 	}
 	for _, tt := range tests {

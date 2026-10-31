@@ -17,13 +17,14 @@ func KeepsStatusOnProgress(status *MediaListStatus) bool {
 }
 
 // ProgressStatus decides what a progress update sends for entry, the list entry before the update,
-// or nil when it is not on the list. A nil status leaves the entry's status as it is.
+// or nil when it is not on the list. Keeping a status means sending it back: AniList refuses nulls on
+// this mutation's fields.
 //
 // write is false for a Completed entry: without a yes to the rewatch, sending the episode would wind
 // a finished series back to it.
 func ProgressStatus(entry *AnimeListEntry, isCompleted bool) (status *MediaListStatus, write bool) {
 	if entry != nil && KeepsStatusOnProgress(entry.Status) {
-		return nil, *entry.Status != MediaListStatusCompleted
+		return entry.Status, *entry.Status != MediaListStatusCompleted
 	}
 	s := MediaListStatusCurrent
 	if isCompleted {
