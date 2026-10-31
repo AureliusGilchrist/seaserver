@@ -5,7 +5,6 @@ import { MediaDetailsInfoSection, MediaDetailsStaffSection } from "@/app/(main)/
 import { MediaEntryCharactersSection } from "@/app/(main)/_features/media/_components/media-entry-characters-section"
 import { MediaEntryDetailsTabs } from "@/app/(main)/_features/media/_components/media-entry-details-tabs"
 import { AnimeThemesSection } from "@/app/(main)/entry/_components/anime-themes-section"
-import { KitsuDetailsCard } from "@/app/(main)/_features/media/_components/media-kitsu-card"
 import { RelationsRecommendationsSection } from "@/app/(main)/entry/_components/relations-recommendations-section"
 import React from "react"
 import { LuInfo, LuLayers, LuMessageSquare, LuUsers } from "react-icons/lu"
@@ -17,19 +16,15 @@ export function AnimeEntryDetailsTabs({ entry, details }: { entry: Anime_Entry, 
             tabs={[
                 {
                     value: "overview",
-                    label: "Overview",
+                    label: "Details",
                     icon: <LuInfo />,
-                    content: <>
-                        <MediaDetailsInfoSection
-                            mediaId={entry.mediaId}
-                            type="anime"
-                            genres={details?.genres}
-                            nativeTitle={entry.media?.title?.native}
-                        >
-                            <KitsuDetailsCard malId={entry.media?.idMal} type="anime" />
-                        </MediaDetailsInfoSection>
+                    content: <MediaDetailsInfoSection
+                        mediaId={entry.mediaId}
+                        type="anime"
+                        nativeTitle={entry.media?.title?.native}
+                    >
                         <AnimeThemesSection malId={entry.media?.idMal} />
-                    </>,
+                    </MediaDetailsInfoSection>,
                 },
                 {
                     value: "cast",

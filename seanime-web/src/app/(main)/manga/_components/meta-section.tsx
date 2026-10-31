@@ -1,13 +1,12 @@
 "use client"
 import { AL_MangaDetailsById_Media, Manga_Entry } from "@/api/generated/types"
 import {
-    AnimeEntryRankings,
-    MediaEntryAudienceScore,
     MediaEntryGenresList,
 } from "@/app/(main)/_features/media/_components/media-entry-metadata-components"
 import { MangaEntryStaff } from "@/app/(main)/_features/media/_components/manga-entry-staff"
 import { MediaCreatorsLine } from "@/app/(main)/_features/media/_components/media-info-panel"
-import { MediaMetaChips, MediaStatsRow } from "@/app/(main)/_features/media/_components/media-meta-chips"
+import { MediaHeroInsights } from "@/app/(main)/_features/media/_components/media-hero-insights"
+import { MediaMetaChips } from "@/app/(main)/_features/media/_components/media-meta-chips"
 import { useGetMediaInfo } from "@/api/hooks/anilist.hooks"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import {
@@ -15,7 +14,6 @@ import {
     MediaPageHeaderActions,
     MediaPageHeaderDetailsContainer,
     MediaPageHeaderEntryDetails,
-    MediaPageHeaderMoreDetails,
 } from "@/app/(main)/_features/media/_components/media-page-header-components"
 import { MediaSyncTrackButton } from "@/app/(main)/_features/media/_containers/media-sync-track-button"
 import { ToWatchButton } from "@/app/(main)/_features/media/_components/to-watch-button"
@@ -82,20 +80,15 @@ export function MetaSection(props: { entry: Manga_Entry | undefined, details: AL
                     >
                         <MediaMetaChips media={entry.media as any} info={info} type="manga" className="w-full" />
 
-                        <MediaStatsRow info={info} meanScore={entry.media?.meanScore} hideScore={personal.hideAudienceScore} />
-
                         {hasCreatorsLine && <MediaCreatorsLine info={info} className="w-full" />}
 
                         <MediaEntryGenresList genres={details?.genres} type="manga" />
 
-                        {/* Staff badges and rankings are folded away to keep the hero calm. */}
-                        {((!hasCreatorsLine && !!details?.staff?.edges?.length) || !!details?.rankings?.length) &&
-                            <MediaPageHeaderMoreDetails label={hasCreatorsLine ? "Rankings" : "Staff & rankings"}>
-                                {!hasCreatorsLine && <div className="flex flex-wrap gap-2 justify-center lg:justify-start">
-                                    <MangaEntryStaff staff={details?.staff} />
-                                </div>}
-                                <AnimeEntryRankings rankings={details?.rankings} />
-                            </MediaPageHeaderMoreDetails>}
+                        {!hasCreatorsLine && !!details?.staff?.edges?.length && <div className="flex flex-wrap gap-2 justify-center lg:justify-start">
+                            <MangaEntryStaff staff={details?.staff} />
+                        </div>}
+
+                        <MediaHeroInsights info={info} meanScore={entry.media?.meanScore} hideScore={personal.hideAudienceScore} type="manga" />
                     </div>
                 </MediaPageHeaderEntryDetails>
 

@@ -6,12 +6,11 @@ import { ToggleLockFilesButton } from "@/app/(main)/_features/anime/_containers/
 import { AnimeDownloadingBadge } from "@/app/(main)/_features/media/_components/anime-downloading-badge"
 import { AnimeEntryStudio } from "@/app/(main)/_features/media/_components/anime-entry-studio"
 import { MediaCreatorsLine, MediaStudiosLine } from "@/app/(main)/_features/media/_components/media-info-panel"
-import { MediaMetaChips, MediaStatsRow } from "@/app/(main)/_features/media/_components/media-meta-chips"
+import { MediaHeroInsights } from "@/app/(main)/_features/media/_components/media-hero-insights"
+import { MediaMetaChips } from "@/app/(main)/_features/media/_components/media-meta-chips"
 import { useGetMediaInfo } from "@/api/hooks/anilist.hooks"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import {
-    AnimeEntryRankings,
-    MediaEntryAudienceScore,
     MediaEntryGenresList,
 } from "@/app/(main)/_features/media/_components/media-entry-metadata-components"
 import {
@@ -19,7 +18,6 @@ import {
     MediaPageHeaderActions,
     MediaPageHeaderDetailsContainer,
     MediaPageHeaderEntryDetails,
-    MediaPageHeaderMoreDetails,
 } from "@/app/(main)/_features/media/_components/media-page-header-components"
 import { MediaSyncTrackButton } from "@/app/(main)/_features/media/_containers/media-sync-track-button"
 import { ToWatchButton } from "@/app/(main)/_features/media/_components/to-watch-button"
@@ -119,10 +117,7 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
 
                         <MediaMetaChips media={entry.media as any} info={info} type="anime" className="w-full" />
 
-                        <div className="flex flex-wrap gap-2 items-center justify-center lg:justify-start" data-anime-meta-section-stats>
-                            <MediaStatsRow info={info} meanScore={entry.media?.meanScore} hideScore={personal.hideAudienceScore} />
-                            <AnimeDownloadingBadge mediaId={entry.mediaId} size="lg" />
-                        </div>
+                        <AnimeDownloadingBadge mediaId={entry.mediaId} size="lg" />
 
                         {!isCustomSource(entry.mediaId) ? (info?.studios?.edges?.length
                             ? <MediaStudiosLine info={info} className="w-full" />
@@ -137,20 +132,11 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
                             </Badge>
                         )}
 
+                        <MediaCreatorsLine info={info} className="w-full" />
+
                         <MediaEntryGenresList genres={details?.genres} />
 
-                        {/* Credits and rankings are folded away to keep the hero calm. */}
-                        {(!!info?.staff?.edges?.length || !!details?.rankings?.length) && <MediaPageHeaderMoreDetails label="Credits & rankings">
-                            <MediaCreatorsLine info={info} className="w-full" />
-                            <div
-                                data-anime-meta-section-rankings-container
-                                className={cn(
-                                    "w-full",
-                                )}
-                            >
-                                <AnimeEntryRankings rankings={details?.rankings} />
-                            </div>
-                        </MediaPageHeaderMoreDetails>}
+                        <MediaHeroInsights info={info} meanScore={entry.media?.meanScore} hideScore={personal.hideAudienceScore} type="anime" />
 
                     </div>
                 </MediaPageHeaderEntryDetails>

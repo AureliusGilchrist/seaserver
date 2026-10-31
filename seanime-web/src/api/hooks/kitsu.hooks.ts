@@ -1,5 +1,4 @@
 import { useServerQuery } from "@/api/client/requests"
-import { API_ENDPOINTS } from "@/api/generated/endpoints"
 
 export type KitsuAnimeInfo = {
     found: boolean
@@ -29,15 +28,6 @@ export type KitsuAnimeInfo = {
     chapterCount?: number
     volumeCount?: number
     serialization?: string
-}
-
-export function useGetKitsuAnimeInfo(malId: number | null | undefined) {
-    return useServerQuery<KitsuAnimeInfo>({
-        endpoint: API_ENDPOINTS.KITSU.GetKitsuAnimeInfo.endpoint.replace("{id}", String(malId ?? 0)),
-        method: API_ENDPOINTS.KITSU.GetKitsuAnimeInfo.methods[0],
-        queryKey: [API_ENDPOINTS.KITSU.GetKitsuAnimeInfo.key, String(malId)],
-        enabled: !!malId && malId > 0,
-    })
 }
 
 export function useGetKitsuInfo(malId: number | null | undefined, type: "anime" | "manga") {

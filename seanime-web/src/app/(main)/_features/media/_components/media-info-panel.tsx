@@ -1,23 +1,18 @@
 "use client"
 
 import { MediaInfo } from "@/api/hooks/anilist.hooks"
+import { useGetKitsuInfo } from "@/api/hooks/kitsu.hooks"
 import { MediaSectionHeading } from "@/app/(main)/_features/media/_components/media-section-heading"
-import {
-    compact,
-    formatFuzzyDate,
-    MEDIA_COUNTRY,
-    MEDIA_FORMAT_LABELS,
-    MEDIA_SOURCE_LABELS,
-} from "@/app/(main)/_features/media/_components/media-meta-chips"
+import { compact } from "@/app/(main)/_features/media/_components/media-meta-chips"
 import { SeaLink } from "@/components/shared/sea-link"
 import { cn } from "@/components/ui/core/styling"
 import { getImageUrl } from "@/lib/server/assets"
 import { capitalize } from "lodash"
 import React from "react"
-import { LuAward, LuChartBar, LuEye, LuEyeOff, LuInfo, LuLink, LuTags, LuUsers } from "react-icons/lu"
+import { LuAward, LuChartBar, LuExternalLink, LuEye, LuEyeOff, LuInfo, LuLink, LuTags, LuUsers } from "react-icons/lu"
 
-// The "Information" panel of a details page: everything AniList knows about the media, in glass
-// cards — the facts, rankings, tags, how people score and track it, and where to find it.
+// The Details tab: what the hero has no room for. The story of the numbers on the left, in the room
+// charts need, and a slim rail of facts on the right, where AniList and Kitsu read as one list.
 
 const STATUS_DIST_STYLE: Record<string, { label: string, color: string }> = {
     CURRENT: { label: "Current", color: "bg-sky-400" },
@@ -28,72 +23,81 @@ const STATUS_DIST_STYLE: Record<string, { label: string, color: string }> = {
     REPEATING: { label: "Repeating", color: "bg-teal-300" },
 }
 
-export function MediaInfoPanel({ info, type, genres, nativeTitle, className, children }: {
+export function MediaInfoPanel({ info, type, nativeTitle, className, children }: {
     info: MediaInfo | undefined
     type: "anime" | "manga"
-    genres?: (string | null | undefined)[] | null
     nativeTitle?: string | null
     className?: string
-    /** Extra cards (e.g. the Kitsu facts) appended to the grid. */
+    /** More for the main column, such as the theme songs. */
     children?: React.ReactNode
 }) {
-    if (!info) return null
+    const { data: kitsu } = useGetKitsuInfo(info?.idMal, type)
+
+    if (!info) return <>{children}</>
 
     const studios = (info.studios?.edges ?? []).filter(e => e.node)
     const mainStudios = studios.filter(e => e.isMain).map(e => e.node!)
     const producers = studios.filter(e => !e.isMain).map(e => e.node!)
-    const start = formatFuzzyDate(info.startDate)
-    const end = formatFuzzyDate(info.endDate)
+    const runtime = type === "anime" && info.episodes && info.duration ? info.episodes * info.duration : (kitsu?.totalLength ?? 0)
 
+    // What the chips and stat tiles above already say is left out, so this list only ever adds.
     const facts: [string, React.ReactNode][] = []
-    if (info.format) facts.push(["Format", MEDIA_FORMAT_LABELS[info.format] ?? capitalize(info.format)])
-    if (type === "anime") {
-        if (info.episodes) facts.push(["Episodes", info.episodes])
-        if (info.duration) facts.push(["Episode length", `${info.duration} min`])
-    } else {
-        if (info.chapters) facts.push(["Chapters", info.chapters])
-        if (info.volumes) facts.push(["Volumes", info.volumes])
-    }
-    if (info.status) facts.push(["Status", capitalize(info.status.replace(/_/g, " ").toLowerCase())])
-    if (start) facts.push([type === "anime" ? "Aired" : "Published", <>{start}{end && end !== start ? <> → {end}</> : info.status === "RELEASING" ? " → now" : ""}</>])
-    if (info.season && info.seasonYear) facts.push(["Season", `${capitalize(info.season)} ${info.seasonYear}`])
-    if (info.source) facts.push(["Source", MEDIA_SOURCE_LABELS[info.source] ?? capitalize(info.source.replace(/_/g, " "))])
     if (mainStudios.length) facts.push([mainStudios.length > 1 ? "Studios" : "Studio", <LinkList key="studios" items={mainStudios.map(s => ({ label: s.name, href: `/studio?id=${s.id}` }))} />])
     if (producers.length) facts.push(["Producers", <LinkList key="producers" items={producers.map(s => ({ label: s.name, href: s.siteUrl }))} external />])
-    if (info.countryOfOrigin) facts.push(["Country", MEDIA_COUNTRY[info.countryOfOrigin] ? `${MEDIA_COUNTRY[info.countryOfOrigin].flag} ${MEDIA_COUNTRY[info.countryOfOrigin].name}` : info.countryOfOrigin])
-    if (genres?.length) facts.push(["Genres", <LinkList key="genres" items={genres.filter(Boolean).map(g => ({ label: g!, href: `/search?genre=${encodeURIComponent(g!)}&sorting=TRENDING_DESC${type === "manga" ? "&format=MANGA" : ""}` }))} />])
+    if (runtime >= 60) facts.push(["Total runtime", `${Math.round(runtime / 60).toLocaleString()} hours`])
+    if (kitsu?.serialization) facts.push(["Serialized in", kitsu.serialization])
+    if (!info.chapters && kitsu?.chapterCount) facts.push(["Chapters", kitsu.chapterCount])
+    if (!info.volumes && kitsu?.volumeCount) facts.push(["Volumes", kitsu.volumeCount])
+    if (kitsu?.averageRating) facts.push(["Kitsu score", `${(Number(kitsu.averageRating) / 10).toFixed(1)} / 10`])
+    if (kitsu?.ratingRank) facts.push(["Kitsu rating rank", `#${kitsu.ratingRank.toLocaleString()}`])
+    if (kitsu?.popularityRank) facts.push(["Kitsu popularity", `#${kitsu.popularityRank.toLocaleString()}`])
+    if (kitsu?.userCount) facts.push(["Kitsu members", compact(kitsu.userCount)])
     if (info.hashtag) facts.push(["Hashtag", info.hashtag])
     if (info.isLicensed !== undefined) facts.push(["Licensed", info.isLicensed ? "Yes" : "No"])
-    if (nativeTitle) facts.push(["Native title", nativeTitle])
-    if (info.synonyms?.length) facts.push(["Also known as", <span key="syn" className="block space-y-0.5">{info.synonyms.slice(0, 8).map(s => <span key={s} className="block">{s}</span>)}</span>])
-    facts.push(["IDs", <span key="ids" className="flex flex-wrap gap-x-3 gap-y-1">
-        <a className="hover:text-white hover:underline" href={info.siteUrl || `https://anilist.co/${type}/${info.id}`} target="_blank" rel="noreferrer">AniList {info.id}</a>
-        {!!info.idMal && <a className="hover:text-white hover:underline" href={`https://myanimelist.net/${type}/${info.idMal}`} target="_blank" rel="noreferrer">MAL {info.idMal}</a>}
-    </span>])
+
+    const titles = Array.from(new Set([
+        nativeTitle,
+        ...(info.synonyms ?? []),
+        ...Object.values(kitsu?.titles ?? {}),
+    ].filter(Boolean) as string[]))
 
     return (
-        <section className={cn("space-y-4", className)} data-media-info-panel>
-            <MediaSectionHeading icon={<LuInfo />} title="Information" />
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
-                <GlassCard title="Details" icon={<LuInfo />} className="lg:row-span-2">
+        <section className={cn("grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr),minmax(17rem,21rem)]", className)} data-media-info-panel>
+            <div className="min-w-0 space-y-5">
+                <ScoresCard info={info} type={type} />
+                <RankingsCard info={info} />
+                <TagsCard info={info} type={type} />
+                {children}
+            </div>
+
+            <aside className="min-w-0 space-y-5 lg:sticky lg:top-16" data-media-info-rail>
+                <GlassCard title="Details" icon={<LuInfo />}>
                     <dl className="divide-y divide-white/[0.06]">
                         {facts.map(([k, v]) => (
-                            <div key={k} className="grid grid-cols-[8.5rem,1fr] gap-3 py-2 text-sm">
-                                <dt className="text-[--muted]">{k}</dt>
-                                <dd className="min-w-0 break-words font-medium text-white/90">{v}</dd>
+                            <div key={k} className="flex items-baseline justify-between gap-4 py-1.5 text-sm">
+                                <dt className="shrink-0 text-[--muted]">{k}</dt>
+                                <dd className="min-w-0 break-words text-right font-medium text-white/90">{v}</dd>
                             </div>
                         ))}
                     </dl>
+                    {!!titles.length && <div className="mt-3 border-t border-white/[0.06] pt-3">
+                        <p className="mb-1 text-[11px] text-white/40">Also known as</p>
+                        <p className="text-sm leading-relaxed text-white/80">{titles.slice(0, 10).join(" · ")}</p>
+                    </div>}
+                    <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 border-t border-white/[0.06] pt-3 text-xs text-white/60">
+                        <ExternalId href={info.siteUrl || `https://anilist.co/${type}/${info.id}`} label="AniList" />
+                        {!!info.idMal && <ExternalId href={`https://myanimelist.net/${type}/${info.idMal}`} label="MyAnimeList" />}
+                        {!!kitsu?.url && <ExternalId href={kitsu.url} label="Kitsu" />}
+                    </div>
                 </GlassCard>
-
-                <RankingsCard info={info} />
-                <TagsCard info={info} type={type} />
-                <ScoresCard info={info} />
                 <LinksCard info={info} />
-                {children}
-            </div>
+            </aside>
         </section>
     )
+}
+
+function ExternalId({ href, label }: { href: string, label: string }) {
+    return <a href={href} target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-white">{label}<LuExternalLink className="size-3" /></a>
 }
 
 export function GlassCard({ title, icon, className, children, aside }: {
@@ -134,20 +138,14 @@ function RankingsCard({ info }: { info: MediaInfo }) {
     if (!rankings.length) return null
     return (
         <GlassCard title="Rankings" icon={<LuAward />}>
-            <div className="flex flex-wrap gap-2">
-                {rankings.slice(0, 8).map(r => (
-                    <span
-                        key={r.id}
-                        className={cn(
-                            "flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-medium ring-1",
-                            r.type === "RATED" ? "bg-amber-300/[0.08] text-amber-100 ring-amber-300/20" : "bg-rose-300/[0.08] text-rose-100 ring-rose-300/20",
-                        )}
-                    >
-                        <span className="text-sm font-bold tabular-nums">#{r.rank}</span>
-                        <span className="capitalize text-white/75">
-                            {r.context.replace(/^(highest|most) /, m => m)}{!r.allTime && (r.season || r.year) ? ` · ${[r.season ? capitalize(r.season) : null, r.year].filter(Boolean).join(" ")}` : ""}
+            <div className="grid gap-x-6 sm:grid-cols-2">
+                {rankings.map(r => (
+                    <div key={r.id} className="flex items-baseline gap-2.5 border-b border-white/[0.05] py-1.5 text-sm last:border-b-0">
+                        <span className={cn("w-12 shrink-0 text-right font-bold tabular-nums", r.type === "RATED" ? "text-amber-200" : "text-rose-200")}>#{r.rank.toLocaleString()}</span>
+                        <span className="min-w-0 capitalize text-white/75">
+                            {r.context}{!r.allTime && (r.season || r.year) ? ` · ${[r.season ? capitalize(r.season) : null, r.year].filter(Boolean).join(" ")}` : ""}
                         </span>
-                    </span>
+                    </div>
                 ))}
             </div>
         </GlassCard>
@@ -172,8 +170,8 @@ function TagsCard({ info, type }: { info: MediaInfo, type: "anime" | "manga" }) 
                 {showSpoilers ? "Hide" : "Show"} {spoilerCount} spoiler{spoilerCount === 1 ? "" : "s"}
             </button>}
         >
-            <div className="space-y-1.5">
-                {tags.slice(0, 12).map(t => (
+            <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2 xl:grid-cols-3">
+                {tags.map(t => (
                     <a key={t.id} href={`https://anilist.co/search/${type}?genres=${encodeURIComponent(t.name)}`} target="_blank" rel="noreferrer" className="group block">
                         <div className="flex items-center justify-between gap-2 text-xs">
                             <span className={cn("truncate text-white/80 group-hover:text-white", (t.isMediaSpoiler || t.isGeneralSpoiler) && "text-red-200/80")}>{t.name}</span>
@@ -189,36 +187,49 @@ function TagsCard({ info, type }: { info: MediaInfo, type: "anime" | "manga" }) 
     )
 }
 
-function ScoresCard({ info }: { info: MediaInfo }) {
+function ScoresCard({ info, type }: { info: MediaInfo, type: "anime" | "manga" }) {
     const scores = info.stats?.scoreDistribution ?? []
     const statuses = info.stats?.statusDistribution ?? []
     if (!scores.length && !statuses.length) return null
     const maxScore = Math.max(1, ...scores.map(s => s.amount))
+    const totalVotes = scores.reduce((n, s) => n + s.amount, 0)
     const totalStatus = statuses.reduce((n, s) => n + s.amount, 0)
     return (
-        <GlassCard title="Community" icon={<LuChartBar />}>
-            {!!scores.length && <div className="flex h-24 items-end gap-1" aria-label="Score distribution">
-                {scores.map(s => (
-                    <div key={s.score} className="group flex flex-1 flex-col items-center gap-1" title={`${s.score}: ${s.amount.toLocaleString()} users`}>
-                        <div
-                            className="w-full rounded-t-md bg-gradient-to-t from-brand-500/50 to-brand-300/80 transition-opacity group-hover:opacity-100"
-                            style={{ height: `${Math.max(3, (s.amount / maxScore) * 80)}px`, opacity: 0.55 + (s.score / 100) * 0.45 }}
-                        />
-                        <span className="text-[10px] tabular-nums text-white/40">{s.score}</span>
+        <GlassCard title="How people rate and follow it" icon={<LuChartBar />}>
+            <div className="grid gap-6 md:grid-cols-[minmax(0,1.3fr),minmax(0,1fr)]">
+                {!!scores.length && <div>
+                    <div className="flex h-36 items-end gap-1.5" aria-label="Score distribution">
+                        {scores.map(s => (
+                            <div key={s.score} className="group flex h-full flex-1 flex-col items-center justify-end gap-1.5" title={`${s.score}: ${s.amount.toLocaleString()} votes`}>
+                                <span className="text-[10px] tabular-nums text-white/0 transition-colors group-hover:text-white/70">{compact(s.amount)}</span>
+                                <div className="flex min-h-0 w-full flex-1 items-end">
+                                    <div
+                                        className="w-full rounded-t-lg bg-gradient-to-t from-brand-500/50 to-brand-300/90 transition-opacity group-hover:opacity-100"
+                                        style={{ height: `${Math.max(3, (s.amount / maxScore) * 100)}%`, opacity: 0.5 + (s.score / 100) * 0.5 }}
+                                    />
+                                </div>
+                                <span className="text-[11px] tabular-nums text-white/50">{s.score}</span>
+                            </div>
+                        ))}
                     </div>
-                ))}
-            </div>}
-            {totalStatus > 0 && <div className="mt-4 space-y-2">
-                <div className="flex h-2 overflow-hidden rounded-full bg-white/[0.06]">
-                    {statuses.map(s => <div key={s.status} className={STATUS_DIST_STYLE[s.status]?.color ?? "bg-white/30"} style={{ width: `${(s.amount / totalStatus) * 100}%` }} />)}
-                </div>
-                <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-white/60">
-                    {statuses.map(s => <span key={s.status} className="flex items-center gap-1.5">
-                        <span className={cn("size-2 rounded-full", STATUS_DIST_STYLE[s.status]?.color ?? "bg-white/30")} />
-                        {STATUS_DIST_STYLE[s.status]?.label ?? s.status} <span className="tabular-nums text-white/40">{compact(s.amount)}</span>
-                    </span>)}
-                </div>
-            </div>}
+                    <p className="mt-2 text-xs text-white/45">{totalVotes.toLocaleString()} votes</p>
+                </div>}
+                {totalStatus > 0 && <div className="space-y-2.5">
+                    {[...statuses].sort((a, b) => b.amount - a.amount).map(s => {
+                        const share = (s.amount / totalStatus) * 100
+                        const label = (type === "manga" && s.status === "CURRENT") ? "Reading" : (STATUS_DIST_STYLE[s.status]?.label ?? s.status)
+                        return <div key={s.status}>
+                            <div className="flex items-baseline justify-between gap-2 text-xs">
+                                <span className="text-white/75">{label}</span>
+                                <span className="tabular-nums text-white/45">{compact(s.amount)} · {Math.round(share)}%</span>
+                            </div>
+                            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                                <div className={cn("h-full rounded-full", STATUS_DIST_STYLE[s.status]?.color ?? "bg-white/30")} style={{ width: `${share}%` }} />
+                            </div>
+                        </div>
+                    })}
+                </div>}
+            </div>
         </GlassCard>
     )
 }
