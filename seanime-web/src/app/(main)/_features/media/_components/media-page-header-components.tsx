@@ -317,7 +317,8 @@ export function MediaPageHeaderEntryDetails(props: MediaPageHeaderEntryDetailsPr
                     transition={{ duration: 0.4, ease: [0.2, 0.8, 0.2, 1] }}
                     data-media-page-header-entry-details-cover-image-container
                     className={cn(
-                        "flex-none aspect-[6/8] max-w-[150px] mx-auto lg:m-0 h-auto sm:max-w-[200px] lg:max-w-[230px] w-full relative rounded-[--radius-md] overflow-hidden bg-[--background] block",
+                        // self-start: the row would otherwise stretch the cover to the height of the details beside it.
+                        "flex-none self-center lg:self-start aspect-[6/8] max-w-[150px] mx-auto lg:m-0 h-auto sm:max-w-[200px] lg:max-w-[230px] w-full relative rounded-[--radius-md] overflow-hidden bg-[--background] block",
                         "shadow-[0_20px_50px_-12px_rgb(0_0_0_/_0.7)] ring-1 ring-white/10",
                         ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && "max-w-[150px] lg:m-0 h-auto sm:max-w-[195px] lg:max-w-[210px] -top-1",
                         ts.mediaPageBannerInfoBoxSize === ThemeMediaPageInfoBoxSize.Fluid && "lg:max-w-[270px]",
