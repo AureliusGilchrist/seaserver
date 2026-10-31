@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"seanime/internal/achievement"
 	"seanime/internal/core"
+	"seanime/internal/torrent_clients/torrent_client"
 	"seanime/internal/unmatched"
 	coreutil "seanime/internal/util"
 	util "seanime/internal/util/proxies"
@@ -1174,6 +1175,9 @@ func (h *Handler) RespondWithError(c echo.Context, err error) error {
 	var he *echo.HTTPError
 	if errors.As(err, &he) {
 		code = he.Code
+	}
+	if errors.Is(err, torrent_client.ErrTorrentAlreadyInClient) {
+		code = http.StatusConflict
 	}
 	return c.JSON(code, NewErrorResponse(err))
 }

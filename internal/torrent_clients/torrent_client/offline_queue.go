@@ -2,6 +2,7 @@ package torrent_client
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 	"sync"
 	"time"
@@ -194,6 +195,13 @@ func (q *torrentAddQueue) tick() {
 		_ = q.db.DeleteTorrentAddQueueItem(item.ID)
 		q.repo.logger.Info().Strs("magnets", magnets).Str("destination", item.Destination).
 			Msg("torrent client queue: Imported a torrent that was waiting for the client")
+		q.sendQueueEvent()
+		return
+	}
+
+	if errors.Is(err, ErrTorrentAlreadyInClient) {
+		// The client already has it, so there is nothing left to wait for.
+		_ = q.db.DeleteTorrentAddQueueItem(item.ID)
 		q.sendQueueEvent()
 		return
 	}

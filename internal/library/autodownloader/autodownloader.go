@@ -3,9 +3,9 @@ package autodownloader
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
-	"strconv"
 	"seanime/internal/api/anilist"
 	"seanime/internal/api/metadata"
 	"seanime/internal/api/metadata_provider"
@@ -26,6 +26,7 @@ import (
 	"seanime/internal/util/comparison"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -1240,7 +1241,7 @@ downloadScope:
 			}
 			// Add the torrent to torrent client
 			err := ad.torrentClientRepository.AddMagnets([]string{magnet}, destination)
-			if err != nil {
+			if err != nil && !errors.Is(err, torrent_client.ErrTorrentAlreadyInClient) {
 				ad.logger.Error().Err(err).Str("link", t.Link).Str("name", t.Name).Msg("autodownloader: Failed to add torrent to torrent client")
 				downloadImmediately = false
 				ad.logger.Warn().Str("link", t.Link).Str("name", t.Name).Msg("autodownloader: Torrent will be queued.")

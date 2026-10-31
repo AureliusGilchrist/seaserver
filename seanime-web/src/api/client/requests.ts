@@ -264,6 +264,8 @@ export function useServerMutation<R = void, V = void, C = unknown>(
             // showing the AniList token modal). Showing a generic toast on top of that causes
             // duplicate noise, so bail out early and let the caller deal with it.
             if (error?.response?.status === 401) return
+            // A 409 says the thing is already so (already running, already in the client). Never toasted.
+            if (error?.response?.status === 409) return
             // AniList didn't answer and nothing was cached: one shared, friendly toast.
             if (isCacheMissError(error)) {
                 showCacheMissToast()
@@ -365,6 +367,7 @@ export function useServerQuery<R, V = any>(
             // Suppress 401 and "not authenticated" errors — these are expected during the
             // startup / login flow when queries fire before auth is fully established.
             if (props.error?.response?.status === 401) return
+            if (props.error?.response?.status === 409) return
             const serverErrMsg = props.error?.response?.data?.error ?? ""
             if (serverErrMsg === "not authenticated" || serverErrMsg === "unauthorized") return
             if (isCacheMissError(props.error)) {

@@ -9,6 +9,7 @@ import (
 	"seanime/internal/torrent_clients/builtin_client"
 	"seanime/internal/torrent_clients/qbittorrent"
 	"seanime/internal/torrent_clients/qbittorrent/model"
+	qbittorrent_util "seanime/internal/torrent_clients/qbittorrent/util"
 	"seanime/internal/torrent_clients/transmission"
 	"seanime/internal/torrents/torrent"
 	"seanime/internal/util"
@@ -17,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/anacrolix/torrent/metainfo"
 	"github.com/hekmon/transmissionrpc/v3"
 	"github.com/rs/zerolog"
 )
@@ -27,6 +29,11 @@ const (
 	NoneClient         = "none"
 	BuiltinClient      = "builtin"
 )
+
+// ErrTorrentAlreadyInClient means the client refused the add and nothing was added, which qBittorrent
+// answers with a 409, typically because it already has the torrent. It is neither a failure to
+// report nor a new download: callers skip the torrent, and claim nothing about it.
+var ErrTorrentAlreadyInClient = errors.New("torrent client: torrent was not added, the client already has it")
 
 type (
 	Repository struct {
@@ -366,6 +373,9 @@ func (r *Repository) AddMagnets(magnets []string, dest string) error {
 
 	err := r.addToClient(magnets, dest)
 	if err != nil {
+		if errors.Is(err, ErrTorrentAlreadyInClient) {
+			return err
+		}
 		if offlineAddError(err) {
 			r.enqueueForLater(magnets, dest)
 			return nil
@@ -404,6 +414,10 @@ func (r *Repository) addToClient(magnets []string, dest string) error {
 				})
 			}
 		}
+		if isAddConflict(err) {
+			r.logger.Warn().Err(err).Strs("magnets", magnets).Msg("torrent client: qBittorrent did not add the torrent")
+			return ErrTorrentAlreadyInClient
+		}
 	case TransmissionClient:
 		for _, magnet := range magnets {
 			_, err = r.transmission.Client.TorrentAdd(context.Background(), transmissionrpc.TorrentAddPayload{
@@ -425,6 +439,21 @@ func (r *Repository) addToClient(magnets []string, dest string) error {
 	}
 
 	return err
+}
+
+// isAddConflict reports whether qBittorrent answered an add with a 409.
+func isAddConflict(err error) bool {
+	var statusErr *qbittorrent_util.StatusError
+	return errors.As(err, &statusErr) && statusErr.Code == 409
+}
+
+// MagnetInfoHash returns the hex info hash of a magnet link, or "" if it has none that can be read.
+func MagnetInfoHash(magnet string) string {
+	m, err := metainfo.ParseMagnetUri(magnet)
+	if err != nil {
+		return ""
+	}
+	return m.InfoHash.HexString()
 }
 
 func (r *Repository) RemoveTorrents(hashes []string) error {

@@ -625,7 +625,7 @@ func (h *Handler) HandleTorrentClientGetFiles(c echo.Context) error {
 		h.App.Logger.Info().Msgf("torrent client: Torrent %s does not exist, adding", b.Torrent.InfoHash)
 		// Add the torrent
 		err = repo.AddMagnets([]string{magnet}, tempDir)
-		if err != nil {
+		if err != nil && !errors.Is(err, torrent_client.ErrTorrentAlreadyInClient) {
 			return err
 		}
 	}
@@ -736,6 +736,8 @@ func (h *Handler) HandleTorrentClientDownload(c echo.Context) error {
 		h.App.UnmatchedRepository.EnrichMetadata(&queuedMetadata)
 	}
 
+	added := 0
+
 	// OVERRIDE: Always download to unmatched directory
 	// Each torrent goes to /zroot/torrents/Anime/Unmatched/$TorrentName
 	for _, t := range b.Torrents {
@@ -752,6 +754,13 @@ func (h *Handler) HandleTorrentClientDownload(c echo.Context) error {
 		magnet, err := providerExtension.GetProvider().GetTorrentMagnetLink(&t)
 		if err != nil {
 			return h.RespondWithError(c, err)
+		}
+
+		// Already in the client: nothing new is downloading, so nothing here may claim otherwise,
+		// and the metadata of the download that is already there stays as it is.
+		if hash := torrent_client.MagnetInfoHash(magnet); hash != "" && repo.TorrentExists(hash) {
+			h.App.Logger.Warn().Str("torrent", t.Name).Msg("torrent client: Torrent is already in the client, skipping")
+			continue
 		}
 
 		// Save anime metadata BEFORE queueing the download.
@@ -782,9 +791,13 @@ func (h *Handler) HandleTorrentClientDownload(c echo.Context) error {
 
 		// Add torrent to client with unmatched destination
 		err = repo.AddMagnets([]string{magnet}, destination)
+		if errors.Is(err, torrent_client.ErrTorrentAlreadyInClient) {
+			continue
+		}
 		if err != nil {
 			return h.RespondWithError(c, err)
 		}
+		added++
 
 		// The badge goes up here, at the moment the download exists, and stays up until something
 		// says it has moved on. Written after the torrent is accepted so a failed add leaves no
@@ -795,6 +808,12 @@ func (h *Handler) HandleTorrentClientDownload(c echo.Context) error {
 		}
 
 		h.App.Logger.Info().Str("torrent", t.Name).Str("destination", destination).Bool("autoMatch", autoMatch && b.Media != nil).Msg("torrent client: Added torrent to unmatched directory")
+	}
+
+	// Nothing was added, so answer with the conflict: the page says nothing rather than "Download
+	// started", and the series is not added to the planning list.
+	if added == 0 {
+		return h.RespondWithError(c, torrent_client.ErrTorrentAlreadyInClient)
 	}
 
 	// NOTE: We do NOT add the media to the collection automatically anymore
@@ -883,7 +902,7 @@ func (h *Handler) HandleTorrentClientAddMagnetFromRule(c echo.Context) error {
 
 	// try to add torrents to client, on error return error
 	err = repo.AddMagnets([]string{b.MagnetUrl}, rule.Destination)
-	if err != nil {
+	if err != nil && !errors.Is(err, torrent_client.ErrTorrentAlreadyInClient) {
 		return h.RespondWithError(c, err)
 	}
 

@@ -12,6 +12,26 @@ import (
 	"strings"
 )
 
+// StatusError is a non-OK answer to an add request. It keeps the status code, so a caller can tell
+// the answers apart, and whatever qBittorrent said about it.
+type StatusError struct {
+	Code   int
+	Status string
+	Body   string
+}
+
+func (e *StatusError) Error() string {
+	if e.Body == "" {
+		return fmt.Sprintf("invalid status %s", e.Status)
+	}
+	return fmt.Sprintf("invalid status %s: %s", e.Status, e.Body)
+}
+
+func addStatusError(resp *http.Response) error {
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+	return &StatusError{Code: resp.StatusCode, Status: resp.Status, Body: strings.TrimSpace(string(body))}
+}
+
 func GetInto(client *http.Client, target interface{}, url string, body interface{}) (err error) {
 	var buffer bytes.Buffer
 	if body != nil {
@@ -119,7 +139,7 @@ func PostMultipartLinks(client *http.Client, url string, options *qbittorrent_mo
 		}
 	}()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("invalid status %s", resp.Status)
+		return addStatusError(resp)
 	}
 	return nil
 }
@@ -171,7 +191,7 @@ func PostMultipartFiles(client *http.Client, url string, options *qbittorrent_mo
 		}
 	}()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("invalid status %s", resp.Status)
+		return addStatusError(resp)
 	}
 	return nil
 }
