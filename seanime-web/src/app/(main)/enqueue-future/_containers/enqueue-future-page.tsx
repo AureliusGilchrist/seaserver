@@ -5,6 +5,7 @@ import {
     ENQUEUE_FUTURE_STATUS,
     useClearEnqueueFuture,
     useGetEnqueueFutureItem,
+    useGetEnqueueFutureCatalogWaiting,
     useGetEnqueueFutureQueue,
     useGetEnqueueFutureStatus,
     useRewalkEnqueueFutureFamilies,
@@ -18,7 +19,6 @@ import { EnqueueFutureDropped } from "@/app/(main)/enqueue-future/_components/en
 import { EnqueueFutureHeader } from "@/app/(main)/enqueue-future/_components/enqueue-future-header"
 import { EnqueueFutureList, FamilyOrdering, groupIntoFamilies } from "@/app/(main)/enqueue-future/_components/enqueue-future-list"
 import { EnqueueFutureProgress } from "@/app/(main)/enqueue-future/_components/enqueue-future-progress"
-import { EnqueueFutureWaiting } from "@/app/(main)/enqueue-future/_components/enqueue-future-waiting"
 import { TorrentSearchSnapshot } from "@/app/(main)/entry/_containers/torrent-search/_lib/handle-torrent-search"
 import { __torrentDownload_autoMatchAtom } from "@/app/(main)/entry/_containers/torrent-search/torrent-download-auto-match"
 import { __torrentSearch_selectedTorrentsAtom, TorrentSearchContainer } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-container"
@@ -32,7 +32,9 @@ import { Button } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { useAtomValue, useSetAtom } from "jotai/react"
 import React from "react"
-import { LuArrowDownUp, LuEye, LuEyeOff, LuGitBranch, LuLayers, LuList, LuRotateCcw } from "react-icons/lu"
+import { TextInput } from "@/components/ui/text-input"
+import { useDebounce } from "@/hooks/use-debounce"
+import { LuArrowDownUp, LuEye, LuEyeOff, LuGitBranch, LuLayers, LuList, LuRotateCcw, LuSearch } from "react-icons/lu"
 import { toast } from "sonner"
 
 /**
@@ -69,6 +71,23 @@ export function EnqueueFuturePage() {
 
     const { data: status } = useGetEnqueueFutureStatus()
     const { data: queue, isLoading } = useGetEnqueueFutureQueue({ isRunning: !!status?.running })
+
+    const [search, setSearch] = React.useState("")
+    const debouncedSearch = useDebounce(search.trim(), 300)
+
+    // The catalog rows nothing has got to yet. There can be twenty thousand, so they are not part of
+    // the polled queue above: they join the list a page at a time as it is scrolled.
+    const {
+        data: waitingPages,
+        hasNextPage: hasMoreWaiting,
+        isFetchingNextPage: isFetchingWaiting,
+        fetchNextPage: fetchWaiting,
+    } = useGetEnqueueFutureCatalogWaiting({ search: debouncedSearch, enabled: true, isActive: !!status?.catalog?.active })
+    const waitingTotal = waitingPages?.pages[0]?.total ?? 0
+    const waitingItems = React.useMemo(() => (waitingPages?.pages ?? []).flatMap(page => page?.items ?? []), [waitingPages])
+    const loadMoreWaiting = React.useCallback(() => {
+        if (hasMoreWaiting && !isFetchingWaiting) void fetchWaiting()
+    }, [hasMoreWaiting, isFetchingWaiting, fetchWaiting])
     const { mutate: clearQueue, isPending: isClearing } = useClearEnqueueFuture()
     const { mutate: rewalk, isPending: isRewalking } = useRewalkEnqueueFutureFamilies()
 
@@ -145,7 +164,14 @@ export function EnqueueFuturePage() {
         // and a queue you are working down should show its own history: what is left, and what is
         // already downloading, downloaded or matched. Those arrive greyed out with their badge —
         // see the list — so "done" is visible rather than inferred from an absence.
-        const visible = (queue ?? [])
+        //
+        // Waiting rows come last and the queue's copy wins: the worker takes a row out of the waiting
+        // pages by putting it in the queue, and a page loaded before that still holds the old one.
+        // With no seeder figure yet they sort below everything prepared, in the order the worker
+        // will reach them.
+        const lowered = debouncedSearch.toLowerCase()
+        const prepared = (queue ?? []).filter(item => !lowered || (item.title ?? "").toLowerCase().includes(lowered))
+        const visible = [...waitingItems, ...prepared]
         // Keyed by media id, so an anime the queue happens to return twice — a run writing to it
         // while it is read can do that — collapses to one row here rather than being drawn twice.
         const byId = new Map(visible.map(item => [item.mediaId, item]))
@@ -167,7 +193,7 @@ export function EnqueueFuturePage() {
 
         orderRef.current = held.concat(appended)
         return orderRef.current.map(id => byId.get(id)!)
-    }, [queue])
+    }, [queue, waitingItems, debouncedSearch])
 
     // Bundling franchise members reorders rows, so this — not items — is the order actually drawn.
     // The list draws it and Next/Previous walk it, which has to be the same order, hence orderedItems
@@ -287,18 +313,7 @@ export function EnqueueFuturePage() {
         }
     }, [index, listItem, activeMediaId])
 
-    // A row opened from the Waiting panel, which has no place in the list above. The worker can reach
-    // it while it is open, and then the queue carries it, with the status that decides what is drawn.
-    const [waitingItem, setWaitingItem] = React.useState<EnqueueFuture_Item | undefined>(undefined)
-    const shownWaitingItem = React.useMemo(
-        () => waitingItem && ((queue ?? []).find(item => item.mediaId === waitingItem.mediaId) ?? waitingItem),
-        [waitingItem, queue])
-    const activeItem = shownWaitingItem ?? listItem
-
-    const bodyRef = React.useRef<HTMLDivElement | null>(null)
-    React.useEffect(() => {
-        if (waitingItem) bodyRef.current?.scrollIntoView({ block: "start", behavior: "smooth" })
-    }, [waitingItem?.mediaId])
+    const activeItem = listItem
 
     const { data: detail, isLoading: isLoadingDetail } = useGetEnqueueFutureItem(activeItem?.mediaId)
 
@@ -347,24 +362,17 @@ export function EnqueueFuturePage() {
 
     function goTo(nextIndex: number) {
         if (nextIndex < 0 || nextIndex >= orderedItems.length) return
-        setWaitingItem(undefined)
         setActiveMediaId(orderedItems[nextIndex].mediaId)
     }
 
     // Stable, so the memoised rows in the list actually stay memoised — a fresh arrow on every
     // render would defeat it and re-render all several hundred of them on every step.
     const handleSelect = React.useCallback((item: EnqueueFuture_Item) => {
-        setWaitingItem(undefined)
         setActiveMediaId(item.mediaId)
-    }, [])
-
-    const handleWaitingDone = React.useCallback((mediaId: number) => {
-        setWaitingItem(current => current?.mediaId === mediaId ? undefined : current)
     }, [])
 
     function handleDownloadStarted() {
         if (!activeItem) return
-        setWaitingItem(undefined)
 
         // The row stays. It is not marked downloaded here any more.
         //
@@ -469,14 +477,7 @@ export function EnqueueFuturePage() {
 
             <EnqueueFutureDropped isRunning={!!status?.running} />
 
-            <EnqueueFutureWaiting
-                status={status}
-                activeMediaId={shownWaitingItem?.mediaId}
-                onSelect={setWaitingItem}
-                onDone={handleWaitingDone}
-            />
-
-            {!orderedItems.length && !activeItem ? (
+            {!orderedItems.length && !activeItem && !debouncedSearch ? (
                 <div className="text-center py-16 space-y-3 border rounded-[--radius-md] bg-gray-950" data-enqueue-future-empty>
                     <div
                         className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border bg-gray-900"
@@ -568,22 +569,30 @@ export function EnqueueFuturePage() {
                             </Button>
                         </div>
 
+                        <TextInput
+                            value={search}
+                            onValueChange={setSearch}
+                            leftIcon={<LuSearch />}
+                            placeholder="Search the queue by title"
+                            data-enqueue-future-search
+                        />
+
                         <EnqueueFutureList
                             families={families}
-                            activeMediaId={shownWaitingItem ? undefined : activeMediaId}
+                            activeMediaId={activeMediaId}
                             onSelect={handleSelect}
                             flat={queueView}
+                            moreWaiting={hasMoreWaiting ? Math.max(0, waitingTotal - waitingItems.length) : 0}
+                            onLoadMoreWaiting={loadMoreWaiting}
                         />
                     </div>
 
-                    <div className="min-w-0 scroll-mt-4" ref={bodyRef}>
+                    <div className="min-w-0 scroll-mt-4">
                     <AppLayoutStack className="min-w-0">
                         <EnqueueFutureHeader
                             item={activeItem}
-                            index={shownWaitingItem ? -1 : index}
-                            total={orderedItems.length}
-                            isWaitingRow={!!shownWaitingItem}
-                            onItemDone={() => setWaitingItem(undefined)}
+                            index={index}
+                            total={orderedItems.length + (hasMoreWaiting ? Math.max(0, waitingTotal - waitingItems.length) : 0)}
                             onPrevious={() => goTo(index - 1)}
                             onNext={() => goTo(index + 1)}
                             autoMatch={activeAutoMatch}

@@ -278,12 +278,15 @@ export function groupIntoFamilies(
  * The queue at a glance, so Next is not the only way to get somewhere. Jumping straight to an anime
  * you recognise is usually what you want after the first dozen.
  */
-export function EnqueueFutureList({ families, activeMediaId, onSelect, flat }: {
+export function EnqueueFutureList({ families, activeMediaId, onSelect, flat, moreWaiting = 0, onLoadMoreWaiting }: {
     families: EnqueueFutureFamily[]
     activeMediaId: number | undefined
     onSelect: (item: EnqueueFuture_Item) => void
     /** Every row on its own rather than gathered into franchises, as the queue view draws them. */
     flat?: boolean
+    /** Waiting rows the server holds that have not been loaded into the list yet. */
+    moreWaiting?: number
+    onLoadMoreWaiting?: () => void
 }) {
 
     const activeRef = React.useRef<HTMLDivElement | null>(null)
@@ -292,8 +295,6 @@ export function EnqueueFutureList({ families, activeMediaId, onSelect, flat }: {
     React.useEffect(() => {
         activeRef.current?.scrollIntoView({ block: "nearest" })
     }, [activeMediaId])
-
-    if (!families.length) return null
 
     // Drawn a chunk at a time.
     //
@@ -307,6 +308,9 @@ export function EnqueueFutureList({ families, activeMediaId, onSelect, flat }: {
     // throw them back up the list, which is worse than the lag.
     const [visibleFamilies, setVisibleFamilies] = React.useState(FAMILY_PAGE_SIZE)
     const sentinelRef = React.useRef<HTMLDivElement | null>(null)
+    const loadMore = React.useRef({ atEnd: false, onLoadMoreWaiting })
+    loadMore.current = { atEnd: visibleFamilies >= families.length, onLoadMoreWaiting }
+    const hasMore = visibleFamilies < families.length || moreWaiting > 0
 
     // The selection has to be drawn wherever it is, or Next walks past the end of the window and the
     // screen goes blank while the list insists everything is fine.
@@ -325,17 +329,21 @@ export function EnqueueFutureList({ families, activeMediaId, onSelect, flat }: {
 
         const observer = new IntersectionObserver(entries => {
             if (entries.some(entry => entry.isIntersecting)) {
-                setVisibleFamilies(current => Math.min(current + FAMILY_PAGE_SIZE, families.length))
+                setVisibleFamilies(current => Math.max(current, Math.min(current + FAMILY_PAGE_SIZE, families.length)))
+                // Everything loaded is drawn, so the next rows have to come from the server.
+                if (loadMore.current.atEnd) loadMore.current.onLoadMoreWaiting?.()
             }
         }, { rootMargin: "400px" })
 
         observer.observe(sentinel)
         return () => observer.disconnect()
-    }, [families.length])
+    }, [families.length, hasMore, visibleFamilies >= families.length])
 
     const shown = React.useMemo(
         () => families.slice(0, Math.min(visibleFamilies, families.length)),
         [families, visibleFamilies])
+
+    if (!families.length) return null
 
     return (
         // Tall as the screen allows, not a fixed 70% of it.
@@ -368,9 +376,11 @@ export function EnqueueFutureList({ families, activeMediaId, onSelect, flat }: {
 
             {/* Crossing this asks for the next chunk. Sized generously by rootMargin above, so the
                 next rows exist before they are scrolled to rather than after. */}
-            {shown.length < families.length && (
+            {hasMore && (
                 <div ref={sentinelRef} className="px-3 py-4 text-center text-xs text-[--muted]">
-                    {families.length - shown.length} more franchise{families.length - shown.length === 1 ? "" : "s"}…
+                    {shown.length < families.length
+                        ? <>{families.length - shown.length} more franchise{families.length - shown.length === 1 ? "" : "s"}…</>
+                        : <>{moreWaiting.toLocaleString()} more waiting…</>}
                 </div>
             )}
         </div>

@@ -101,7 +101,7 @@ type Item struct {
 	DownloadState string `json:"downloadState,omitempty"`
 }
 
-// MaxWaitingPageSize is the most catalog rows one page of the Waiting panel carries.
+// MaxWaitingPageSize is the most catalog rows one page of waiting rows carries.
 const MaxWaitingPageSize = 200
 
 // WaitingPage is one page of the catalog rows still waiting to be prepared.

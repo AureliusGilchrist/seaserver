@@ -17,15 +17,12 @@ import { LuChevronLeft, LuChevronRight, LuExternalLink } from "react-icons/lu"
  * the same button in the same place, not a hundred dialogs to open and dismiss.
  */
 export function EnqueueFutureHeader({
-    item, index, total, isWaitingRow, onItemDone, onPrevious, onNext, isBusy, autoMatch, onAutoMatchChange,
+    item, index, total, onPrevious, onNext, isBusy, autoMatch, onAutoMatchChange,
     useConfiguredProvider, onUseConfiguredProviderChange,
 }: {
     item: EnqueueFuture_Item | undefined
     index: number
     total: number
-    /** Opened from the Waiting panel, so it has no place in the queue to count from. */
-    isWaitingRow?: boolean
-    onItemDone?: () => void
     onPrevious: () => void
     onNext: () => void
     isBusy?: boolean
@@ -64,7 +61,7 @@ export function EnqueueFutureHeader({
                 <div className="flex-1 min-w-[12rem] space-y-1">
                     <div className="flex items-center gap-2">
                         <span className="text-sm text-[--muted] tabular-nums flex-none">
-                            {isWaitingRow ? "Waiting" : total > 0 ? `${formatNumber(index + 1)} / ${formatNumber(total)}` : "0 / 0"}
+                            {total > 0 ? `${formatNumber(index + 1)} / ${formatNumber(total)}` : "0 / 0"}
                         </span>
                         <h4 className="truncate">{item?.title || "Nothing queued"}</h4>
                         {item?.status === ENQUEUE_FUTURE_STATUS.NO_RESULTS && (
@@ -85,7 +82,7 @@ export function EnqueueFutureHeader({
                 </div>
 
                 <div className="flex items-center gap-2 flex-none">
-                    <EnqueueFutureItemActions item={item} onDone={onItemDone} />
+                    <EnqueueFutureItemActions item={item} />
                     <IconButton
                         icon={<LuChevronRight />}
                         intent="white"

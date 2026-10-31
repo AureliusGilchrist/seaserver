@@ -264,7 +264,8 @@ const WAITING_PAGE_SIZE = 100
 const WAITING_MAX_POLLED_PAGES = 3
 
 /**
- * The catalog rows waiting to be prepared, a page at a time. These stay out of the queue above, which
+ * The catalog rows waiting to be prepared, a page at a time. These join the list on the page, not the
+ * queue above, which
  * is polled whole and counted by the sidebar.
  *
  * A refetch asks for every page again, so this only refreshes by itself near the top of the list.
