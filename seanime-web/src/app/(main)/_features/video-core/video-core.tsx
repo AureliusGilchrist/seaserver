@@ -1820,6 +1820,12 @@ export function VideoCore(props: VideoCoreProps) {
 
     const handleWaiting = (e: React.SyntheticEvent<HTMLVideoElement>) => {
         setBuffering(true)
+
+        // A warning so it reaches Denshi's main.log, where it can be lined up with the server's log.
+        const video = e.currentTarget
+        if (!video.seeking) {
+            log.warning(`Buffering at ${video.currentTime.toFixed(1)}s, readyState ${video.readyState}, networkState ${video.networkState}`)
+        }
     }
 
     function restoreSeekTime(time: number, showMessage: boolean, paused?: boolean) {

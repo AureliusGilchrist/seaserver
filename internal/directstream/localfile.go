@@ -203,11 +203,12 @@ func ServeLocalFile(w http.ResponseWriter, r *http.Request, lfStream *LocalFileS
 		return
 	}
 
-	reader, err := lfStream.newReader()
+	file, err := lfStream.newReader()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	reader := newReadAheadReader(file, lfStream.logger)
 	defer reader.Close()
 
 	ra, ok := handleRange(w, r, reader, lfStream.localFile.Path, size)
