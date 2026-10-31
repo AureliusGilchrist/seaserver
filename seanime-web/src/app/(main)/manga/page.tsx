@@ -14,7 +14,8 @@ import { useGetMangaDownloadsList } from "@/api/hooks/manga_download.hooks"
 import { useMangaDownloadsSnapshot } from "@/app/(main)/manga/_lib/use-manga-downloads-snapshot"
 import { formatNumber } from "@/lib/helpers/number"
 import { MangaLibraryView } from "@/app/(main)/manga/_screens/manga-library-view"
-import { MangaCarousel } from "@/app/(main)/(library)/_home/home-screen"
+import { MangaCarousel, MyLists } from "@/app/(main)/(library)/_home/home-screen"
+import { HomeStatsStrip } from "@/app/(main)/_features/home/home-stats-strip"
 import { MangaHomeSettingsModal, DEFAULT_MANGA_HOME_ITEMS, normalizeMangaHomeItems } from "@/app/(main)/manga/_components/manga-home-settings"
 import { MangaContinueReading } from "@/app/(main)/manga/_containers/manga-continue-reading"
 import { MangaContinueReadingHeader } from "@/app/(main)/manga/_containers/manga-continue-reading-header"
@@ -27,7 +28,7 @@ import { PageWrapper } from "@/components/shared/page-wrapper"
 import { SeaLink } from "@/components/shared/sea-link"
 import { Alert } from "@/components/ui/alert/alert"
 import { Button } from "@/components/ui/button"
-import { LuBookMarked } from "react-icons/lu"
+import { LuBookMarked, LuBookOpen, LuBookOpenCheck, LuDownload, LuFiles, LuImage, LuLibrary } from "react-icons/lu"
 import { cn } from "@/components/ui/core/styling"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Carousel, CarouselContent, CarouselDotButtons, CarouselItem } from "@/components/ui/carousel"
@@ -344,8 +345,8 @@ export default function Page() {
                                 !(item?.type === "manga-library" || item?.type === "manga-continue-reading" || item?.type === "local-manga-library-stats")
 
                             return (
-                                <React.Fragment key={item.id}>
-                                    {showDivider && <div data-manga-home-item-divider={index} className="h-8" />}
+                                <div key={item.id} data-sea-home-item style={{ animationDelay: `${Math.min(index, 6) * 50}ms` }}>
+                                    {showDivider && <div data-manga-home-item-divider={index} className="pt-10" />}
                                     <MangaHomeScreenItem
                                         item={item}
                                         index={homeItems.findIndex(n => n.id === item.id)}
@@ -369,7 +370,7 @@ export default function Page() {
                                         favoritesMedia={favoritesMedia}
                                         cardSizeClass={cardSizeClass}
                                     />
-                                </React.Fragment>
+                                </div>
                             )
                         })}
 
@@ -512,9 +513,8 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
         )
     }
 
-    // My Lists - handled by shared component, skip for now
     if (item.type === "my-lists") {
-        return null
+        return <MyLists item={{ ...item, options: { ...item.options, type: item.options?.type ?? "manga" } }} />
     }
 
     // Manga Continue Reading
@@ -554,7 +554,7 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                                 value={downloadSearch}
                                 onChange={(e) => setDownloadSearch(e.target.value)}
                                 placeholder="Search downloaded manga"
-                                className="w-full rounded-lg bg-gray-900/70 border border-gray-800 px-3 py-2 text-sm text-white focus:border-brand-400 focus:outline-none"
+                                className="w-full rounded-full bg-black/25 px-4 py-2 text-sm text-white ring-1 ring-white/10 backdrop-blur-md placeholder:text-white/40 focus:outline-none focus:ring-brand-400/50"
                             />
                         </div>
 
@@ -716,27 +716,19 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
         const haveCollection = !!mangaCollection && !mangaCollectionLoading
         const haveDownloads = !!downloadedList && !downloadsLoading
         const show = (ready: boolean, n: number) => ready ? formatNumber(n) : "–"
-        const stats: [string, string][] = [
-            [show(haveCollection, entries.length), "Entries"],
-            [show(haveCollection, countOf("CURRENT")), "Reading"],
-            [show(haveCollection, countOf("COMPLETED")), "Completed"],
-            [show(haveDownloads, downloadedList?.length ?? 0), "Downloaded series"],
-            [show(haveDownloads, downloadedChaptersTotal), "Downloaded chapters"],
-            [show(haveDownloads, downloadedWithMedia.length), "With metadata"],
-        ]
         return (
             <PageWrapper>
-                <div
-                    className="grid grid-cols-3 lg:grid-cols-6 gap-4 [&>div]:text-center [&>div>p]:text-[--muted] py-4"
+                <HomeStatsStrip
                     data-manga-library-stats-container
-                >
-                    {stats.map(([value, label]) => (
-                        <div key={label}>
-                            <h3>{value}</h3>
-                            <p>{label}</p>
-                        </div>
-                    ))}
-                </div>
+                    stats={[
+                        { label: "Entries", value: show(haveCollection, entries.length), icon: <LuLibrary />, tone: "text-emerald-300" },
+                        { label: "Reading", value: show(haveCollection, countOf("CURRENT")), icon: <LuBookOpen />, tone: "text-sky-300" },
+                        { label: "Completed", value: show(haveCollection, countOf("COMPLETED")), icon: <LuBookOpenCheck />, tone: "text-brand-200" },
+                        { label: "Downloaded series", value: show(haveDownloads, downloadedList?.length ?? 0), icon: <LuDownload />, tone: "text-violet-300" },
+                        { label: "Downloaded chapters", value: show(haveDownloads, downloadedChaptersTotal), icon: <LuFiles />, tone: "text-amber-300" },
+                        { label: "With metadata", value: show(haveDownloads, downloadedWithMedia.length), icon: <LuImage />, tone: "text-rose-300" },
+                    ]}
+                />
             </PageWrapper>
         )
     }

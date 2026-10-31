@@ -1,3 +1,5 @@
+import { HomeStatsStrip } from "@/app/(main)/_features/home/home-stats-strip"
+import { LuFiles, LuFilm, LuHardDrive, LuLibrary, LuSparkles, LuTriangleAlert, LuTv } from "react-icons/lu"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { AL_ListRecentAnime_Page_AiringSchedules, Anime_LibraryCollectionEntry, Anime_LibraryCollectionList, Anime_ScheduleItem, Models_HomeItem } from "@/api/generated/types"
 import { useAnilistListAnime, useAnilistListRecentAiringAnime } from "@/api/hooks/anilist.hooks"
@@ -413,10 +415,10 @@ export function HomeScreen() {
                 >
                     {homeItems.filter(n => n.type !== "discover-header" && n.type !== "anime-continue-watching-header").map((item, index) => {
                         return (
-                            <React.Fragment key={item.id}>
+                            <div key={item.id} data-sea-home-item style={{ animationDelay: `${Math.min(index, 6) * 50}ms` }}>
                                 {(index !== 0 &&
                                     !(item?.type === "manga-library" || item?.type === "anime-library" || item?.type === "anime-continue-watching" || item.type === "anime-library-stats")
-                                ) && <div data-home-screen-item-divider={index} className="h-8" />}
+                                ) && <div data-home-screen-item-divider={index} className="pt-10" />}
                                 <HomeScreenItem
                                     item={item}
                                     index={homeItems.findIndex(n => n.id === item.id)}
@@ -440,7 +442,7 @@ export function HomeScreen() {
                                     }}
                                     onHoverImage={setHoverImage}
                                 />
-                            </React.Fragment>
+                            </div>
                         )
                     })}
 
@@ -498,6 +500,10 @@ export type HomeScreenItemProps = {
     libraryCollectionProps: HandleLibraryCollectionProps
     index: number
     onHoverImage?: (imageUrl: string | null) => void
+}
+
+function statValue(n: number | null | undefined) {
+    return n == null ? "–" : formatNumber(n)
 }
 
 export function HomeScreenItem(props: HomeScreenItemProps) {
@@ -702,49 +708,26 @@ export function HomeScreenItem(props: HomeScreenItemProps) {
     if (item.type === "local-anime-library-stats") {
         return (
             <PageWrapper>
-                <div
-                    className={cn(
-                        "grid grid-cols-3 gap-4 [&>div]:text-center [&>div>p]:text-[--muted] py-4",
-                        // Widens only when there is an unresolved tile to hold — see the same row in
-                        // detailed-library-view.
-                        isNakamaLibrary
-                            ? ((data?.stats?.unresolvedItems ?? 0) > 0 ? "lg:grid-cols-6" : "lg:grid-cols-5")
-                            : ((data?.stats?.unresolvedItems ?? 0) > 0 ? "lg:grid-cols-7" : "lg:grid-cols-6"),
-                    )}
+                <HomeStatsStrip
                     data-detailed-library-view-stats-container
-                >
-                    {!isNakamaLibrary && <div>
-                        <h3>{data?.stats?.totalSize ?? "-"}</h3>
-                        <p>Library</p>
-                    </div>}
-                    <div>
-                        <h3>{data?.stats?.totalFiles == null ? "-" : formatNumber(data.stats.totalFiles)}</h3>
-                        <p>Files</p>
-                    </div>
-                    <div>
-                        <h3>{data?.stats?.totalEntries == null ? "-" : formatNumber(data.stats.totalEntries)}</h3>
-                        <p>Entries</p>
-                    </div>
-                    <div>
-                        <h3>{data?.stats?.totalShows == null ? "-" : formatNumber(data.stats.totalShows)}</h3>
-                        <p>TV Shows</p>
-                    </div>
-                    <div>
-                        <h3>{data?.stats?.totalMovies == null ? "-" : formatNumber(data.stats.totalMovies)}</h3>
-                        <p>Movies</p>
-                    </div>
-                    <div>
-                        <h3>{data?.stats?.totalSpecials == null ? "-" : formatNumber(data.stats.totalSpecials)}</h3>
-                        <p>Specials</p>
-                    </div>
-                    {/* What the scan found and the library cannot show. Absent when there is none. */}
-                    {(data?.stats?.unresolvedItems ?? 0) > 0 && <div data-detailed-library-view-unresolved>
-                        <h3 className="text-orange-300">{formatNumber(data?.stats?.unresolvedItems ?? 0)}</h3>
-                        <p title={`${formatNumber(data?.stats?.unresolvedFiles ?? 0)} files that are matched to anime missing from your AniList collection, or that matched nothing at all. Resolve them from the Unknown and Unmatched sections.`}>
-                            Unresolved
-                        </p>
-                    </div>}
-                </div>
+                    stats={[
+                        ...(!isNakamaLibrary ? [{ label: "Library", value: data?.stats?.totalSize || "–", icon: <LuHardDrive />, tone: "text-sky-300" }] : []),
+                        { label: "Files", value: statValue(data?.stats?.totalFiles), icon: <LuFiles />, tone: "text-violet-300" },
+                        { label: "Entries", value: statValue(data?.stats?.totalEntries), icon: <LuLibrary />, tone: "text-emerald-300" },
+                        { label: "Shows", value: statValue(data?.stats?.totalShows), icon: <LuTv />, tone: "text-brand-200" },
+                        { label: "Movies", value: statValue(data?.stats?.totalMovies), icon: <LuFilm />, tone: "text-amber-300" },
+                        { label: "Specials", value: statValue(data?.stats?.totalSpecials), icon: <LuSparkles />, tone: "text-rose-300" },
+                        // What the scan found and the library cannot show. Absent when there is none.
+                        ...((data?.stats?.unresolvedItems ?? 0) > 0 ? [{
+                            label: "Unresolved",
+                            value: formatNumber(data?.stats?.unresolvedItems ?? 0),
+                            icon: <LuTriangleAlert />,
+                            tone: "text-orange-300",
+                            alert: true,
+                            title: `${formatNumber(data?.stats?.unresolvedFiles ?? 0)} files that are matched to anime missing from your AniList collection, or that matched nothing at all. Resolve them from the Unknown and Unmatched sections.`,
+                        }] : []),
+                    ]}
+                />
             </PageWrapper>
         )
     }
@@ -1223,7 +1206,7 @@ export function AnimeCarousel(props: { libraryCollectionProps: HandleLibraryColl
     )
 }
 
-function MyLists(props: { item: Models_HomeItem }) {
+export function MyLists(props: { item: Models_HomeItem }) {
     const { item } = props
     const { showCompletedInLibrary } = usePersonalSettings()
 

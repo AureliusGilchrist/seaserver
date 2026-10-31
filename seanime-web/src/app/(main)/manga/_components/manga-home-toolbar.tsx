@@ -39,6 +39,7 @@ export function MangaHomeToolbar(props: MangaHomeToolbarProps) {
         <>
             <div className={cn("flex flex-wrap w-full justify-end gap-1 p-4 relative z-[120]", className)} data-manga-home-toolbar-container>
                 <div className="flex flex-1 pointer-events-none" data-manga-home-toolbar-spacer></div>
+                <div className="flex flex-wrap items-center justify-end gap-1 rounded-full bg-black/25 p-1 ring-1 ring-white/10 backdrop-blur-md empty:hidden" data-home-toolbar-actions>
 
                 {hasManga && (
                     <>
@@ -117,6 +118,7 @@ export function MangaHomeToolbar(props: MangaHomeToolbarProps) {
                             </DropdownMenuItem>
                         </SeaLink>
                     </DropdownMenu>}
+                </div>
             </div>
         </>
     )

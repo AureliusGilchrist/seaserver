@@ -86,6 +86,7 @@ export function HomeToolbar(props: HomeToolbarProps) {
         <>
             <div className={cn("flex flex-wrap w-full justify-end gap-1 p-4 relative z-[10]", className)} data-home-toolbar-container>
                 <div className="flex flex-1 pointer-events-none" data-home-toolbar-spacer></div>
+                <div className="flex flex-wrap items-center justify-end gap-1 rounded-full bg-black/25 p-1 ring-1 ring-white/10 backdrop-blur-md empty:hidden" data-home-toolbar-actions>
                 
                 {isNakamaLibrary && <Tooltip
                     trigger={<div className="flex items-center px-2 h-10">
@@ -294,6 +295,7 @@ export function HomeToolbar(props: HomeToolbarProps) {
 
                         <PluginAnimeLibraryDropdownItems />
                     </DropdownMenu>}
+                </div>
 
             </div>
         </>
