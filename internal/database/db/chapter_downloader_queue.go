@@ -95,12 +95,13 @@ func (db *Database) InsertChapterDownloadQueueItem(item *models.ChapterDownloadQ
 		if !mediaAlreadyInQueue {
 			var uniqueSeriesCount int64
 			retryOnBusy(func() error {
-				// Count distinct en masse media_ids in the queue regardless of status.
+				// Count distinct en masse media_ids with work left: a series with only errored chapters
+				// is on its way out (see CleanupErroredOnlySeries) and does not hold a place.
 				// Hand-queued series are excluded so they never eat into the budget.
 				return db.gormdb.Raw(`
 					SELECT COUNT(DISTINCT media_id)
 					FROM chapter_download_queue_items
-					WHERE en_masse = 1
+					WHERE en_masse = 1 AND status != 'errored'
 				`).Count(&uniqueSeriesCount).Error
 			})
 			if uniqueSeriesCount >= MaxQueuedSeries {

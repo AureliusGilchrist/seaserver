@@ -15,6 +15,7 @@ func TestChapterDownloadQueueSeriesLimitWithErrored(t *testing.T) {
 	tempDir := t.TempDir()
 	logger := util.NewLogger()
 	database, err := NewDatabase(tempDir, test_utils.ConfigData.Database.Name, logger)
+	t.Cleanup(func() { _ = database.Close() })
 	if err != nil {
 		t.Fatalf("Failed to create database: %v", err)
 	}
@@ -86,6 +87,7 @@ func TestChapterDownloadQueueMixedStatusSeries(t *testing.T) {
 	tempDir := t.TempDir()
 	logger := util.NewLogger()
 	database, err := NewDatabase(tempDir, test_utils.ConfigData.Database.Name, logger)
+	t.Cleanup(func() { _ = database.Close() })
 	if err != nil {
 		t.Fatalf("Failed to create database: %v", err)
 	}
@@ -158,6 +160,7 @@ func TestChapterDownloadQueueManualSeriesAreUnlimited(t *testing.T) {
 	tempDir := t.TempDir()
 	logger := util.NewLogger()
 	database, err := NewDatabase(tempDir, test_utils.ConfigData.Database.Name, logger)
+	t.Cleanup(func() { _ = database.Close() })
 	if err != nil {
 		t.Fatalf("Failed to create database: %v", err)
 	}

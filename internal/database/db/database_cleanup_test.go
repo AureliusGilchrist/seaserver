@@ -17,6 +17,7 @@ func TestDatabaseCleanupManager(t *testing.T) {
 	logger := util.NewLogger()
 
 	database, err := NewDatabase(tempDir, "cleanup_test", logger)
+	t.Cleanup(func() { _ = database.Close() })
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}

@@ -19,6 +19,8 @@ import (
 // the mediastream extracted-subtitle endpoint the frontend hands back to convert-subs.
 // Matched by loopback hostnames and by the exact Host header the request arrived with, so
 // LAN-IP deployments are covered too.
+var isSelfHostedSubtitle = isSelfHostedSubtitleURL
+
 func isSelfHostedSubtitleURL(u *url.URL, requestHost string) bool {
 	host := strings.ToLower(u.Hostname())
 	switch host {
@@ -295,7 +297,7 @@ func (h *Handler) HandleDirectstreamConvertSubs(c echo.Context) error {
 	// that can't reach loopback turned the self-fetch into garbage that then failed subtitle
 	// detection ("failed to detect subtitle format from content"). Serve those with a plain
 	// client in a single pass — hotlink referers are meaningless for our own endpoint.
-	if parsed, parseErr := url.Parse(subtitleURL); parseErr == nil && isSelfHostedSubtitleURL(parsed, c.Request().Host) {
+	if parsed, parseErr := url.Parse(subtitleURL); parseErr == nil && isSelfHostedSubtitle(parsed, c.Request().Host) {
 		resp, fetchErr := fetchSelfHostedSubtitle(subtitleURL)
 		if fetchErr != nil {
 			return h.RespondWithError(c, fmt.Errorf("could not fetch the subtitle file from %s: %w", subtitleURL, fetchErr))

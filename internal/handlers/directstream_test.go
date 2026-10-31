@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"reflect"
 	"strings"
 	"testing"
@@ -42,6 +43,10 @@ func TestDirectstreamSubtitleRefererCandidatesPreserveProviderRefererOrder(t *te
 }
 
 func TestHandleDirectstreamConvertSubsRetriesUnconvertibleSuccess(t *testing.T) {
+	// httptest only listens on loopback, which would otherwise count as this server itself.
+	isSelfHostedSubtitle = func(*url.URL, string) bool { return false }
+	t.Cleanup(func() { isSelfHostedSubtitle = isSelfHostedSubtitleURL })
+
 	var referers []string
 	var origins []string
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

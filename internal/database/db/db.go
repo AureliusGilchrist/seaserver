@@ -24,6 +24,19 @@ type Database struct {
 	accountCache     *models.Account
 }
 
+// Close releases the database file. The server keeps it open for its whole life, so this is for tests:
+// Windows will not delete an open file, which fails t.TempDir cleanup.
+func (db *Database) Close() error {
+	if db == nil {
+		return nil
+	}
+	sqlDB, err := db.gormdb.DB()
+	if err != nil {
+		return err
+	}
+	return sqlDB.Close()
+}
+
 func (db *Database) Gorm() *gorm.DB {
 	return db.gormdb
 }

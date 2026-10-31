@@ -17,6 +17,7 @@ import (
 
 func TestComparison(t *testing.T) {
 	database, _ := db.NewDatabase(t.TempDir(), "test", util.NewLogger())
+	t.Cleanup(func() { _ = database.Close() })
 	ad := AutoDownloader{
 		metadataProviderRef: util.NewRef(metadata_provider.GetFakeProvider(t, database)),
 		settings: &models.AutoDownloaderSettings{
@@ -142,6 +143,7 @@ func TestComparison(t *testing.T) {
 
 func TestComparison2(t *testing.T) {
 	database, _ := db.NewDatabase(t.TempDir(), "test", util.NewLogger())
+	t.Cleanup(func() { _ = database.Close() })
 	ad := AutoDownloader{
 		metadataProviderRef: util.NewRef(metadata_provider.GetFakeProvider(t, database)),
 		settings: &models.AutoDownloaderSettings{
@@ -239,6 +241,7 @@ func TestComparison2(t *testing.T) {
 
 func TestComparison3(t *testing.T) {
 	database, _ := db.NewDatabase(t.TempDir(), "test", util.NewLogger())
+	t.Cleanup(func() { _ = database.Close() })
 	ad := AutoDownloader{
 		metadataProviderRef: util.NewRef(metadata_provider.GetFakeProvider(t, database)),
 		settings: &models.AutoDownloaderSettings{
