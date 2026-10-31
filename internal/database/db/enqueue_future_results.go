@@ -29,7 +29,7 @@ const (
 var enqueueFutureDroppedColumns = []string{
 	"id", "created_at", "updated_at", "profile_id", "media_id", "root_media_id", "family_id", "depth",
 	"relation_type", "parent_media_id", "title", "cover_image", "reason", "torrents", "best_seeders",
-	"total_seeders", "aired_at", "provider_id",
+	"total_seeders", "aired_at", "score", "provider_id",
 }
 
 // SaveEnqueueFutureDroppedItem records a dropped anime, replacing what an earlier run recorded for
@@ -67,14 +67,15 @@ func (db *Database) pruneEnqueueFutureDroppedItems() error {
 	})
 }
 
-// GetEnqueueFutureDroppedItems returns the dropped anime newest first, without their snapshots.
+// GetEnqueueFutureDroppedItems returns the dropped anime highest rated first, without their snapshots.
+// Unscored anime sit at the bottom, and ties read newest first.
 func (db *Database) GetEnqueueFutureDroppedItems() ([]*models.EnqueueFutureDroppedItem, error) {
 	var res []*models.EnqueueFutureDroppedItem
 	err := retryOnBusy(func() error {
 		return db.gormdb.
 			Model(&models.EnqueueFutureDroppedItem{}).
 			Select(enqueueFutureDroppedColumns).
-			Order("updated_at DESC, id DESC").
+			Order("score DESC, updated_at DESC, id DESC").
 			Find(&res).Error
 	})
 	if err != nil {

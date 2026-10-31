@@ -79,6 +79,7 @@ function DroppedRow({ item }: { item: EnqueueFuture_DroppedItem }) {
                     {item.title || `#${item.mediaId}`}
                 </SeaLink>
                 <p className="text-xs text-[--muted] truncate">
+                    {item.score > 0 ? `★ ${item.score} · ` : ""}
                     {item.reason}
                     {item.torrents > 0 ? ` · ${item.torrents} torrent${item.torrents === 1 ? "" : "s"}` : ""}
                     {item.providerId ? ` · ${item.providerId}` : ""}

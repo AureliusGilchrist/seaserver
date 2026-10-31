@@ -111,10 +111,12 @@ type DroppedItem struct {
 	CoverImage  string `json:"coverImage"`
 	Reason      string `json:"reason"`
 	// Torrents is how many the search found, and BestSeeders how many seeders the healthiest had.
-	Torrents    int       `json:"torrents"`
-	BestSeeders int       `json:"bestSeeders"`
-	ProviderID  string    `json:"providerId"`
-	DroppedAt   time.Time `json:"droppedAt"`
+	Torrents    int `json:"torrents"`
+	BestSeeders int `json:"bestSeeders"`
+	// Score is AniList's mean score out of 100, 0 when it has none.
+	Score      int       `json:"score"`
+	ProviderID string    `json:"providerId"`
+	DroppedAt  time.Time `json:"droppedAt"`
 }
 
 // Status is the progress of a running (or the last) Enqueue Future run.

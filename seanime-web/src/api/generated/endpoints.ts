@@ -1357,7 +1357,7 @@ export const API_ENDPOINTS = {
         /**
          *  @description
          *  Route returns the anime dropped from the queue for having nothing downloadable.
-         *  Newest first. Snapshots are omitted, as they are from the queue.
+         *  Highest AniList score first. Snapshots are omitted, as they are from the queue.
          */
         GetEnqueueFutureDropped: {
             key: "ENQUEUE-FUTURE-get-enqueue-future-dropped",

@@ -636,11 +636,13 @@ type EnqueueFutureDroppedItem struct {
 	// Reason says why it was dropped, in the words the log uses.
 	Reason string `gorm:"column:reason" json:"reason"`
 	// Torrents is how many the search found, and BestSeeders how many seeders the healthiest had.
-	Torrents     int    `gorm:"column:torrents" json:"torrents"`
-	BestSeeders  int    `gorm:"column:best_seeders" json:"bestSeeders"`
-	TotalSeeders int    `gorm:"column:total_seeders" json:"totalSeeders"`
-	AiredAt      int    `gorm:"column:aired_at" json:"airedAt"`
-	ProviderID   string `gorm:"column:provider_id" json:"providerId"`
+	Torrents     int `gorm:"column:torrents" json:"torrents"`
+	BestSeeders  int `gorm:"column:best_seeders" json:"bestSeeders"`
+	TotalSeeders int `gorm:"column:total_seeders" json:"totalSeeders"`
+	AiredAt      int `gorm:"column:aired_at" json:"airedAt"`
+	// Score is AniList's mean score out of 100, 0 when it has none. The list is ranked by it.
+	Score      int    `gorm:"column:score;index" json:"score"`
+	ProviderID string `gorm:"column:provider_id" json:"providerId"`
 	// Value is the snapshot, the same blob a queue row holds. Nil when the search found no torrents,
 	// and cleared from all but the newest rows — see EnqueueFutureDroppedSnapshotLimit.
 	Value []byte `gorm:"column:value" json:"-"`

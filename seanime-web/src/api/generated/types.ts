@@ -2790,6 +2790,7 @@ export type EnqueueFuture_DroppedItem = {
     reason: string
     torrents: number
     bestSeeders: number
+    score: number
     providerId: string
     droppedAt?: string
 }

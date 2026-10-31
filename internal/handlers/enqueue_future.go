@@ -328,7 +328,7 @@ func (h *Handler) HandleClearEnqueueFutureRewalkBacklog(c echo.Context) error {
 // HandleGetEnqueueFutureDropped
 //
 //	@summary returns the anime dropped from the queue for having nothing downloadable.
-//	@desc Newest first. Snapshots are omitted, as they are from the queue.
+//	@desc Highest AniList score first. Snapshots are omitted, as they are from the queue.
 //	@route /api/v1/enqueue-future/dropped [GET]
 //	@returns []*enqueuefuture.DroppedItem
 func (h *Handler) HandleGetEnqueueFutureDropped(c echo.Context) error {

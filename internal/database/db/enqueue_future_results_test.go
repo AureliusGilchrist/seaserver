@@ -190,3 +190,27 @@ func TestEnqueueFutureLastRun(t *testing.T) {
 		t.Fatalf("expected nothing after clear")
 	}
 }
+
+func TestEnqueueFutureDroppedItemsRankByScore(t *testing.T) {
+	db, _ := enqueueFutureResultsTestDatabase(t)
+
+	for id, score := range map[int]int{1: 60, 2: 0, 3: 85, 4: 72} {
+		if err := db.SaveEnqueueFutureDroppedItem(&models.EnqueueFutureDroppedItem{MediaID: id, Score: score}); err != nil {
+			t.Fatalf("save: %v", err)
+		}
+	}
+
+	items, err := db.GetEnqueueFutureDroppedItems()
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	want := []int{3, 4, 1, 2}
+	if len(items) != len(want) {
+		t.Fatalf("expected %d rows, got %d", len(want), len(items))
+	}
+	for i, id := range want {
+		if items[i].MediaID != id {
+			t.Fatalf("position %d: expected %d, got %d", i, id, items[i].MediaID)
+		}
+	}
+}

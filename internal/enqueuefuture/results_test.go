@@ -4,8 +4,10 @@ import (
 	"testing"
 	"time"
 
+	"seanime/internal/api/anilist"
 	"seanime/internal/database/db"
 	hibiketorrent "seanime/internal/extension/hibike/torrent"
+	"seanime/internal/library/anime"
 	"seanime/internal/torrents/torrent"
 
 	"github.com/rs/zerolog"
@@ -182,5 +184,23 @@ func TestClearTakesTheRecordsWithIt(t *testing.T) {
 	}
 	if status := r.Status(); status.RootMediaID != 0 {
 		t.Fatalf("expected a blank status: %+v", status)
+	}
+}
+
+func TestDroppedKeepsTheAniListScore(t *testing.T) {
+	r := repositoryWithDB(t)
+	queueItem(t, r, 10, "Quiet Show")
+
+	score := 78
+	result := preparedWithSeeders("Quiet Show", 3)
+	result.snapshot.Entry = &anime.Entry{Media: &anilist.BaseAnime{MeanScore: &score}}
+	r.storeSnapshot(10, result)
+
+	dropped, err := r.ListDropped()
+	if err != nil || len(dropped) != 1 {
+		t.Fatalf("list: %v, %d rows", err, len(dropped))
+	}
+	if dropped[0].Score != 78 {
+		t.Fatalf("expected the score kept, got %d", dropped[0].Score)
 	}
 }

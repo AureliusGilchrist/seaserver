@@ -23,6 +23,9 @@ func (r *Repository) recordDropped(mediaID int, result *prepared, reason string,
 	if result.snapshot != nil {
 		dropped.ProviderID = result.snapshot.ProviderID
 		dropped.TotalSeeders = totalSeeders(result.snapshot.SearchData)
+		if entry := result.snapshot.Entry; entry != nil && entry.Media != nil && entry.Media.GetMeanScore() != nil {
+			dropped.Score = *entry.Media.GetMeanScore()
+		}
 	}
 	if torrents > 0 {
 		dropped.Value = value
@@ -40,7 +43,7 @@ func (r *Repository) recordDropped(mediaID int, result *prepared, reason string,
 	}
 }
 
-// ListDropped returns the anime dropped for having nothing downloadable, newest first.
+// ListDropped returns the anime dropped for having nothing downloadable, highest rated first.
 func (r *Repository) ListDropped() ([]*DroppedItem, error) {
 	records, err := r.database.GetEnqueueFutureDroppedItems()
 	if err != nil {
@@ -57,6 +60,7 @@ func (r *Repository) ListDropped() ([]*DroppedItem, error) {
 			Reason:      record.Reason,
 			Torrents:    record.Torrents,
 			BestSeeders: record.BestSeeders,
+			Score:       record.Score,
 			ProviderID:  record.ProviderID,
 			DroppedAt:   record.UpdatedAt,
 		})
