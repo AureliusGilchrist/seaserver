@@ -219,6 +219,8 @@ func migrateTables(db *gorm.DB) error {
 		&models.UnmatchedTorrentMetadata{},
 		&models.AnimeDownloadState{},
 		&models.EnqueueFutureItem{},
+		&models.EnqueueFutureDroppedItem{},
+		&models.EnqueueFutureLastRun{},
 		// Kitsu integration: cross-platform id map, shared Kitsu account (data grabber), per-profile
 		// Kitsu login, and the lightweight synthetic-id resolver table requested as "where the anime
 		// db is", since the answer was to extend the existing seanime.db rather than add a new file.

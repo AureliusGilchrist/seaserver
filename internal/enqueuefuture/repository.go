@@ -930,6 +930,8 @@ func (r *Repository) storeSnapshot(mediaID int, result *prepared) {
 			Str("title", result.title).
 			Str("reason", reason).
 			Msg("enqueuefuture: Nothing downloadable, dropping it from the queue")
+		// Recorded before the row goes, because the row is what says where it sat in its franchise.
+		r.recordDropped(mediaID, result, reason, count, best, value)
 		if err := r.database.DeleteEnqueueFutureItem(mediaID); err != nil {
 			r.logger.Warn().Err(err).Int("mediaId", mediaID).
 				Msg("enqueuefuture: Could not drop an entry with nothing downloadable")
@@ -944,6 +946,11 @@ func (r *Repository) storeSnapshot(mediaID int, result *prepared) {
 	); err != nil {
 		r.logger.Error().Err(err).Int("mediaId", mediaID).Msg("enqueuefuture: Failed to store snapshot")
 		return
+	}
+
+	// Dropped by an earlier run and downloadable now, so the old record no longer says anything true.
+	if err := r.database.DeleteEnqueueFutureDroppedItem(mediaID); err != nil {
+		r.logger.Warn().Err(err).Int("mediaId", mediaID).Msg("enqueuefuture: Could not clear an old drop record")
 	}
 }
 
@@ -1041,6 +1048,8 @@ func (r *Repository) clearRateLimited() {
 		s.RetryAt = time.Time{}
 		s.BackoffRung = 0
 		s.BackoffAttempt = 0
+		// The wait is over, so a run that goes on to finish cleanly does not end on this message.
+		s.LastError = ""
 	})
 }
 
@@ -1063,7 +1072,9 @@ func (r *Repository) finish(lastError string) {
 	if lastError != "" {
 		r.status.LastError = lastError
 	}
+	status := r.status
 	r.mu.Unlock()
+	r.saveLastRun(status)
 	r.broadcast()
 
 	// Straight on to the next anime somebody queued behind this one. In its own goroutine because

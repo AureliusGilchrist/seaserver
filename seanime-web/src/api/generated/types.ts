@@ -2778,6 +2778,27 @@ export type MangaDownloaderStatus = {
  * - Filename: types.go
  * - Package: enqueuefuture
  * @description
+ *  DroppedItem is an anime taken off the queue for having nothing downloadable, as the frontend sees
+ *  it: what the search found and why that was not enough. The results themselves stay on the server
+ *  until the anime is put back.
+ */
+export type EnqueueFuture_DroppedItem = {
+    mediaId: number
+    rootMediaId: number
+    title: string
+    coverImage: string
+    reason: string
+    torrents: number
+    bestSeeders: number
+    providerId: string
+    droppedAt?: string
+}
+
+/**
+ * - Filepath: internal/enqueuefuture/types.go
+ * - Filename: types.go
+ * - Package: enqueuefuture
+ * @description
  *  Item is one queue row as the frontend sees it. The snapshot is only present on the single-item
  *  endpoint; the list endpoint leaves it nil.
  */

@@ -615,6 +615,53 @@ type EnqueueFutureItem struct {
 	Value []byte `gorm:"column:value" json:"-"`
 }
 
+// EnqueueFutureDroppedItem is what a search found for an anime that was taken off the queue for
+// having nothing downloadable.
+//
+// Its own table rather than a status on EnqueueFutureItem, because the two mean opposite things to a
+// run: a queue row stops an anime being discovered again, and a dropped anime has to stay
+// discoverable, since a later run may find it seeded. It carries the row's place in its franchise so
+// putting it back restores the entry rather than a stray copy of it.
+type EnqueueFutureDroppedItem struct {
+	BaseModel
+	ProfileID     uint   `gorm:"column:profile_id" json:"profileId"`
+	MediaID       int    `gorm:"column:media_id;uniqueIndex" json:"mediaId"`
+	RootMediaID   int    `gorm:"column:root_media_id" json:"rootMediaId"`
+	FamilyID      int    `gorm:"column:family_id" json:"familyId"`
+	Depth         int    `gorm:"column:depth" json:"depth"`
+	RelationType  string `gorm:"column:relation_type" json:"relationType"`
+	ParentMediaID int    `gorm:"column:parent_media_id" json:"parentMediaId"`
+	Title         string `gorm:"column:title" json:"title"`
+	CoverImage    string `gorm:"column:cover_image" json:"coverImage"`
+	// Reason says why it was dropped, in the words the log uses.
+	Reason string `gorm:"column:reason" json:"reason"`
+	// Torrents is how many the search found, and BestSeeders how many seeders the healthiest had.
+	Torrents     int    `gorm:"column:torrents" json:"torrents"`
+	BestSeeders  int    `gorm:"column:best_seeders" json:"bestSeeders"`
+	TotalSeeders int    `gorm:"column:total_seeders" json:"totalSeeders"`
+	AiredAt      int    `gorm:"column:aired_at" json:"airedAt"`
+	ProviderID   string `gorm:"column:provider_id" json:"providerId"`
+	// Value is the snapshot, the same blob a queue row holds. Nil when the search found no torrents,
+	// and cleared from all but the newest rows — see EnqueueFutureDroppedSnapshotLimit.
+	Value []byte `gorm:"column:value" json:"-"`
+}
+
+// EnqueueFutureLastRun is the outcome of the most recent run. One row, id 1, replaced each time a
+// run ends: the progress file only describes a run still in flight, and is deleted when it finishes.
+type EnqueueFutureLastRun struct {
+	BaseModel
+	RootMediaID int       `gorm:"column:root_media_id" json:"rootMediaId"`
+	RootTitle   string    `gorm:"column:root_title" json:"rootTitle"`
+	Discovered  int       `gorm:"column:discovered" json:"discovered"`
+	Prepared    int       `gorm:"column:prepared" json:"prepared"`
+	Failed      int       `gorm:"column:failed" json:"failed"`
+	Skipped     int       `gorm:"column:skipped" json:"skipped"`
+	Families    int       `gorm:"column:families" json:"families"`
+	LastError   string    `gorm:"column:last_error" json:"lastError"`
+	StartedAt   time.Time `gorm:"column:started_at" json:"startedAt"`
+	FinishedAt  time.Time `gorm:"column:finished_at" json:"finishedAt"`
+}
+
 // +---------------------+
 // |        Theme        |
 // +---------------------+

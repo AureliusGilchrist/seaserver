@@ -132,7 +132,22 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
     // A stopped run that still has a progress record can be picked up exactly where it was — worth
     // offering plainly, since otherwise the only obvious move is to enqueue from scratch.
     if (!status?.running) {
-        if (!status?.resumable) return null
+        if (!status?.resumable) {
+            // The server keeps this across a restart, so it reads the same whenever you come back.
+            if (!status?.rootMediaId) return null
+            return (
+                <div className="rounded-[--radius-md] border bg-gray-950 p-4 space-y-0.5" data-enqueue-future-progress>
+                    <p className="font-semibold">Finished{status.rootTitle ? ` — ${status.rootTitle}` : ""}</p>
+                    <p className="text-sm text-[--muted]">
+                        {status.prepared} of {status.discovered} ready
+                        {status.families ? ` · ${status.families} series` : ""}
+                        {status.skipped ? ` · ${status.skipped} skipped` : ""}
+                        {status.failed ? ` · ${status.failed} failed` : ""}
+                        {status.finishedAt ? ` · ${new Date(status.finishedAt).toLocaleString()}` : ""}
+                    </p>
+                </div>
+            )
+        }
         return (
             <div className="rounded-[--radius-md] border p-4 flex items-center justify-between gap-4" data-enqueue-future-progress>
                 <div className="space-y-0.5">

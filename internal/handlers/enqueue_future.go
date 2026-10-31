@@ -324,3 +324,83 @@ func (h *Handler) HandleClearEnqueueFutureRewalkBacklog(c echo.Context) error {
 	h.App.EnqueueFutureRepository.ClearRewalkBacklog()
 	return h.RespondWithData(c, true)
 }
+
+// HandleGetEnqueueFutureDropped
+//
+//	@summary returns the anime dropped from the queue for having nothing downloadable.
+//	@desc Newest first. Snapshots are omitted, as they are from the queue.
+//	@route /api/v1/enqueue-future/dropped [GET]
+//	@returns []*enqueuefuture.DroppedItem
+func (h *Handler) HandleGetEnqueueFutureDropped(c echo.Context) error {
+	if h.App.EnqueueFutureRepository == nil {
+		return h.RespondWithData(c, []*enqueuefuture.DroppedItem{})
+	}
+
+	items, err := h.App.EnqueueFutureRepository.ListDropped()
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	return h.RespondWithData(c, items)
+}
+
+// HandleRestoreEnqueueFutureDropped
+//
+//	@summary puts a dropped anime back on the queue.
+//	@desc It comes back ready, with the torrent results it was dropped with when those were kept.
+//	@param mediaId - int - true - "AniList ID of the dropped anime"
+//	@route /api/v1/enqueue-future/dropped/{mediaId}/restore [POST]
+//	@returns bool
+func (h *Handler) HandleRestoreEnqueueFutureDropped(c echo.Context) error {
+	mediaID, err := strconv.Atoi(c.Param("mediaId"))
+	if err != nil {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "invalid media id"))
+	}
+
+	if h.App.EnqueueFutureRepository == nil {
+		return h.RespondWithError(c, echo.NewHTTPError(500, "enqueue future is unavailable"))
+	}
+
+	restored, err := h.App.EnqueueFutureRepository.RestoreDropped(mediaID)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	return h.RespondWithData(c, restored)
+}
+
+// HandleDeleteEnqueueFutureDropped
+//
+//	@summary forgets one dropped anime.
+//	@param mediaId - int - true - "AniList ID of the dropped anime"
+//	@route /api/v1/enqueue-future/dropped/{mediaId} [DELETE]
+//	@returns bool
+func (h *Handler) HandleDeleteEnqueueFutureDropped(c echo.Context) error {
+	mediaID, err := strconv.Atoi(c.Param("mediaId"))
+	if err != nil {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "invalid media id"))
+	}
+
+	if h.App.EnqueueFutureRepository == nil {
+		return h.RespondWithError(c, echo.NewHTTPError(500, "enqueue future is unavailable"))
+	}
+
+	if err := h.App.EnqueueFutureRepository.DeleteDropped(mediaID); err != nil {
+		return h.RespondWithError(c, err)
+	}
+	return h.RespondWithData(c, true)
+}
+
+// HandleClearEnqueueFutureDropped
+//
+//	@summary forgets every dropped anime, leaving the queue as it is.
+//	@route /api/v1/enqueue-future/dropped/clear [POST]
+//	@returns bool
+func (h *Handler) HandleClearEnqueueFutureDropped(c echo.Context) error {
+	if h.App.EnqueueFutureRepository == nil {
+		return h.RespondWithError(c, echo.NewHTTPError(500, "enqueue future is unavailable"))
+	}
+
+	if err := h.App.EnqueueFutureRepository.ClearDropped(); err != nil {
+		return h.RespondWithError(c, err)
+	}
+	return h.RespondWithData(c, true)
+}

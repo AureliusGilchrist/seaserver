@@ -201,10 +201,25 @@ func (r *Repository) DeleteItem(mediaID int) error {
 
 // Clear empties the queue. Stops any run first, so the worker does not immediately refill what was
 // just cleared out from under it, and drops the progress record — resuming into an emptied queue
-// would rebuild exactly what was just thrown away.
+// would rebuild exactly what was just thrown away. What the runs left behind goes with it: the
+// record of what they dropped and of how the last one ended both describe the queue being cleared.
 func (r *Repository) Clear() error {
 	r.Stop()
 	r.clearProgress()
+	if err := r.database.ClearEnqueueFutureDroppedItems(); err != nil {
+		return err
+	}
+	if err := r.database.ClearEnqueueFutureLastRun(); err != nil {
+		return err
+	}
+	r.mu.Lock()
+	if !r.running {
+		r.status = Status{
+			BackoffRungs:    len(backoffLadder),
+			BackoffAttempts: MaxBackoffAttempts,
+		}
+	}
+	r.mu.Unlock()
 	return r.database.ClearEnqueueFutureItems()
 }
 

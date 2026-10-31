@@ -1354,6 +1354,44 @@ export const API_ENDPOINTS = {
             methods: ["POST"],
             endpoint: "/api/v1/enqueue-future/rewalk/clear",
         },
+        /**
+         *  @description
+         *  Route returns the anime dropped from the queue for having nothing downloadable.
+         *  Newest first. Snapshots are omitted, as they are from the queue.
+         */
+        GetEnqueueFutureDropped: {
+            key: "ENQUEUE-FUTURE-get-enqueue-future-dropped",
+            methods: ["GET"],
+            endpoint: "/api/v1/enqueue-future/dropped",
+        },
+        /**
+         *  @description
+         *  Route puts a dropped anime back on the queue.
+         *  It comes back ready, with the torrent results it was dropped with when those were kept.
+         */
+        RestoreEnqueueFutureDropped: {
+            key: "ENQUEUE-FUTURE-restore-enqueue-future-dropped",
+            methods: ["POST"],
+            endpoint: "/api/v1/enqueue-future/dropped/{mediaId}/restore",
+        },
+        /**
+         *  @description
+         *  Route forgets one dropped anime.
+         */
+        DeleteEnqueueFutureDropped: {
+            key: "ENQUEUE-FUTURE-delete-enqueue-future-dropped",
+            methods: ["DELETE"],
+            endpoint: "/api/v1/enqueue-future/dropped/{mediaId}",
+        },
+        /**
+         *  @description
+         *  Route forgets every dropped anime, leaving the queue as it is.
+         */
+        ClearEnqueueFutureDropped: {
+            key: "ENQUEUE-FUTURE-clear-enqueue-future-dropped",
+            methods: ["POST"],
+            endpoint: "/api/v1/enqueue-future/dropped/clear",
+        },
     },
     ENTITY_FAVORITE: {
         /**

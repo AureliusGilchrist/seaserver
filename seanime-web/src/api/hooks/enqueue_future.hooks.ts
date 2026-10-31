@@ -2,7 +2,7 @@ import React from "react"
 import { useServerMutation, useServerQuery } from "@/api/client/requests"
 import { EnqueueFuture_Variables, SetEnqueueFutureItemStatus_Variables } from "@/api/generated/endpoint.types"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
-import { EnqueueFuture_Item, EnqueueFuture_Status } from "@/api/generated/types"
+import { EnqueueFuture_DroppedItem, EnqueueFuture_Item, EnqueueFuture_Status } from "@/api/generated/types"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
@@ -274,6 +274,61 @@ export function useClearEnqueueFuture() {
             toast.success("Queue cleared")
             await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureQueue.key] })
             await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureStatus.key] })
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureDropped.key] })
+        },
+    })
+}
+
+/**
+ * What runs took off the queue for having nothing downloadable. Refetched while a run can be adding
+ * to it, more slowly than the queue: nothing on this list is waiting on you.
+ */
+export function useGetEnqueueFutureDropped({ isRunning }: { isRunning?: boolean } = {}) {
+    return useServerQuery<EnqueueFuture_DroppedItem[]>({
+        endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureDropped.endpoint,
+        method: API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureDropped.methods[0],
+        queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureDropped.key],
+        enabled: true,
+        refetchInterval: isRunning ? 15_000 : false,
+    })
+}
+
+export function useRestoreEnqueueFutureDropped(mediaId: number) {
+    const queryClient = useQueryClient()
+
+    return useServerMutation<boolean>({
+        endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.RestoreEnqueueFutureDropped.endpoint.replace("{mediaId}", String(mediaId)),
+        method: API_ENDPOINTS.ENQUEUE_FUTURE.RestoreEnqueueFutureDropped.methods[0],
+        mutationKey: [API_ENDPOINTS.ENQUEUE_FUTURE.RestoreEnqueueFutureDropped.key, String(mediaId)],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureDropped.key] })
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureQueue.key] })
+        },
+    })
+}
+
+export function useDeleteEnqueueFutureDropped(mediaId: number) {
+    const queryClient = useQueryClient()
+
+    return useServerMutation<boolean>({
+        endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.DeleteEnqueueFutureDropped.endpoint.replace("{mediaId}", String(mediaId)),
+        method: API_ENDPOINTS.ENQUEUE_FUTURE.DeleteEnqueueFutureDropped.methods[0],
+        mutationKey: [API_ENDPOINTS.ENQUEUE_FUTURE.DeleteEnqueueFutureDropped.key, String(mediaId)],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureDropped.key] })
+        },
+    })
+}
+
+export function useClearEnqueueFutureDropped() {
+    const queryClient = useQueryClient()
+
+    return useServerMutation<boolean>({
+        endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.ClearEnqueueFutureDropped.endpoint,
+        method: API_ENDPOINTS.ENQUEUE_FUTURE.ClearEnqueueFutureDropped.methods[0],
+        mutationKey: [API_ENDPOINTS.ENQUEUE_FUTURE.ClearEnqueueFutureDropped.key],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureDropped.key] })
         },
     })
 }

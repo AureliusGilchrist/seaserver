@@ -602,6 +602,9 @@ func (a *App) initModulesOnce() {
 	// worker is alive. Nothing survived the restart, so neither should that claim.
 	a.EnqueueFutureRepository.ResetStaleItems()
 
+	// The status is otherwise in memory, so the queue screen would forget how the last run ended.
+	a.EnqueueFutureRepository.RestoreLastRun()
+
 	// A run is meant to outlive the page that started it, which has to include the server going
 	// away — so one that was cut off mid-walk picks itself back up here, from its saved progress.
 	a.EnqueueFutureRepository.ResumeIfInterrupted()

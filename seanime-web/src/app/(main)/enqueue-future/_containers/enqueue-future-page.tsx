@@ -13,6 +13,7 @@ import {
 import { EnqueueFutureAddTorrents } from "@/app/(main)/enqueue-future/_components/enqueue-future-add-torrents"
 import { useGetAnimeEntry } from "@/api/hooks/anime_entries.hooks"
 import { EnqueueFutureCurrentShow } from "@/app/(main)/enqueue-future/_components/enqueue-future-current-show"
+import { EnqueueFutureDropped } from "@/app/(main)/enqueue-future/_components/enqueue-future-dropped"
 import { EnqueueFutureHeader } from "@/app/(main)/enqueue-future/_components/enqueue-future-header"
 import { EnqueueFutureList, FamilyOrdering, groupIntoFamilies } from "@/app/(main)/enqueue-future/_components/enqueue-future-list"
 import { EnqueueFutureProgress } from "@/app/(main)/enqueue-future/_components/enqueue-future-progress"
@@ -442,6 +443,8 @@ export function EnqueueFuturePage() {
             </div>
 
             <EnqueueFutureProgress status={status} />
+
+            <EnqueueFutureDropped isRunning={!!status?.running} />
 
             {!orderedItems.length ? (
                 <div className="text-center py-16 space-y-3 border rounded-[--radius-md] bg-gray-950" data-enqueue-future-empty>

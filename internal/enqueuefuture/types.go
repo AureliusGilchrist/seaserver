@@ -101,6 +101,22 @@ type Item struct {
 	DownloadState string `json:"downloadState,omitempty"`
 }
 
+// DroppedItem is an anime taken off the queue for having nothing downloadable, as the frontend sees
+// it: what the search found and why that was not enough. The results themselves stay on the server
+// until the anime is put back.
+type DroppedItem struct {
+	MediaID     int    `json:"mediaId"`
+	RootMediaID int    `json:"rootMediaId"`
+	Title       string `json:"title"`
+	CoverImage  string `json:"coverImage"`
+	Reason      string `json:"reason"`
+	// Torrents is how many the search found, and BestSeeders how many seeders the healthiest had.
+	Torrents    int       `json:"torrents"`
+	BestSeeders int       `json:"bestSeeders"`
+	ProviderID  string    `json:"providerId"`
+	DroppedAt   time.Time `json:"droppedAt"`
+}
+
 // Status is the progress of a running (or the last) Enqueue Future run.
 type Status struct {
 	Running bool `json:"running"`
