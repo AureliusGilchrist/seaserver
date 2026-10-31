@@ -372,11 +372,11 @@ function BannerImage({ manga, isTransitioning, shouldBlurBanner }: BannerImagePr
     ], `${manga?.id ?? "none"}:${customBannerImage ?? ""}`)
     const isPrimaryBanner = !!bannerImage && (bannerImage === customBannerImage || bannerImage === manga?.bannerImage)
 
-    // Same scroll fade as the anime home and media page heroes. Fade only: the banner keeps its size.
+    // Same scroll fade as the anime home and media page heroes.
     const heroFade = useHeroScrollFade()
 
     return (
-        <div
+        <motion.div
             data-continue-watching-header-banner-image
             className={cn(
                 "lg:h-[35rem] w-full flex-none object-cover object-center top-0 bg-[--background]",
@@ -385,6 +385,7 @@ function BannerImage({ manga, isTransitioning, shouldBlurBanner }: BannerImagePr
                 __isDesktop__ && "top-[-2rem]",
                 ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && "lg:h-[30rem]",
             )}
+            style={heroFade.containerStyle}
         >
             <div className="w-full z-[2] absolute bottom-[-10rem] h-[10rem] bg-gradient-to-b from-[--background] via-transparent via-100% to-transparent" />
             <div className="w-full absolute z-[2] top-0 h-[10rem] opacity-50 bg-gradient-to-b from-[--background] to-transparent" />
@@ -396,7 +397,7 @@ function BannerImage({ manga, isTransitioning, shouldBlurBanner }: BannerImagePr
             />
 
             <AnimatePresence>
-                <div className="w-full h-full absolute z-[1] overflow-hidden scroll-locked-offset-width">
+                <motion.div className="w-full h-full absolute z-[1] overflow-hidden scroll-locked-offset-width" style={heroFade.imageStyle}>
                     {bannerImage && (
                         <MotionImage
                             src={bannerImage}
@@ -413,7 +414,7 @@ function BannerImage({ manga, isTransitioning, shouldBlurBanner }: BannerImagePr
                             onError={handleBannerError}
                         />
                     )}
-                </div>
+                </motion.div>
             </AnimatePresence>
 
             {shouldBlurBanner && (
@@ -444,7 +445,7 @@ function BannerImage({ manga, isTransitioning, shouldBlurBanner }: BannerImagePr
             )}
 
             <div className="w-full z-[2] absolute bottom-0 h-[20rem] bg-gradient-to-t from-[--background] via-[--background] via-opacity-50 via-10% to-transparent" />
-        </div>
+        </motion.div>
     )
 }
 

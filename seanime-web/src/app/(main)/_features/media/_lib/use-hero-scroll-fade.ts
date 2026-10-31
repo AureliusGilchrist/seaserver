@@ -1,38 +1,49 @@
 import { useIsMobile, useThemeSettings } from "@/lib/theme/hooks"
-import { useWindowScroll } from "react-use"
+import { easeInOut, easeOut, useMotionTemplate, useScroll, useSpring, useTransform } from "motion/react"
+
+// Every scroll-driven value in a hero is a motion value: it follows the scroll position without
+// re-rendering the page, and the spring smooths the steps a mouse wheel makes into one glide.
+export const SCROLL_SPRING = { stiffness: 140, damping: 30, mass: 0.5, restDelta: 0.001 }
+
+/** How far down the page the banner takes to fade out. */
+export const BANNER_FADE_END = 560
 
 /**
- * The anime/manga page hero's scroll behaviour, as one rule every hero banner shares
- * (MediaPageHeader is the reference; the anime and manga home heroes use the same thing).
+ * The anime/manga page hero's scroll behaviour, as one rule every hero banner shares.
  *
- *  - No custom wallpaper: the banner stays fixed behind the page and fades as you scroll —
- *    to 15% past 100px, to 5% past 300px — over a slow one-second transition.
+ *  - No custom wallpaper: the banner stays fixed behind the page and fades and blurs as you scroll,
+ *    while the image zooms in slightly and lifts (the lift is desktop only).
  *  - Custom wallpaper: the banner scrolls away with the page instead, so the wallpaper (the true
  *    background) is what remains.
- *  - The image itself zooms in very slightly and lifts a few pixels as you scroll (not on mobile).
+ *
+ * `containerStyle` goes on the banner's motion container, `imageStyle` on the motion element that
+ * holds the image. `restOpacity` is the banner's opacity at the top of the page, for banners that
+ * are never shown at full strength.
  */
-export function useHeroScrollFade(opts?: { dim?: boolean }) {
+export function useHeroScrollFade(opts?: { dim?: boolean, restOpacity?: number }) {
     const ts = useThemeSettings()
-    const { y } = useWindowScroll()
     const { isMobile } = useIsMobile()
     const hasWallpaper = !!ts.libraryScreenCustomBackgroundImage
 
-    const opacityClass = !hasWallpaper && y > 100
-        ? (opts?.dim ? "opacity-15" : (y > 300 ? "opacity-5" : "opacity-15"))
-        : undefined
+    const restOpacity = opts?.restOpacity ?? 1
+
+    const { scrollY } = useScroll()
+    const opacity = useSpring(
+        useTransform(scrollY, [0, 90, BANNER_FADE_END], [restOpacity, restOpacity, opts?.dim ? 0.15 : 0.06], { ease: easeInOut }),
+        SCROLL_SPRING,
+    )
+    const blurPx = useSpring(useTransform(scrollY, [60, BANNER_FADE_END], [0, 10], { ease: easeOut }), SCROLL_SPRING)
+    const filter = useMotionTemplate`blur(${blurPx}px)`
+    const scale = useSpring(useTransform(scrollY, [0, BANNER_FADE_END], [1, 1.06]), SCROLL_SPRING)
+    const y = useSpring(useTransform(scrollY, [0, BANNER_FADE_END], [0, isMobile ? 0 : -70]), SCROLL_SPRING)
 
     return {
-        y,
         hasWallpaper,
-        /** Positioning + fade classes for the banner container. */
-        containerClass: [
-            hasWallpaper ? "absolute" : "fixed transition-opacity duration-1000",
-            opacityClass,
-        ].filter(Boolean).join(" "),
-        /** framer-motion `animate` target for the banner image (container). */
-        imageAnimate: {
-            scale: !hasWallpaper ? Math.min(1 + y * 0.0002, 1.03) : 1,
-            y: isMobile ? 0 : Math.max(y * -0.9, -10),
-        },
+        /** Positioning classes for the banner container. */
+        containerClass: hasWallpaper ? "absolute" : "fixed will-change-[opacity]",
+        /** Fade for the banner container. */
+        containerStyle: hasWallpaper ? undefined : { opacity },
+        /** Zoom, lift and blur for the banner image (container). */
+        imageStyle: hasWallpaper ? undefined : { scale, y, filter },
     }
 }

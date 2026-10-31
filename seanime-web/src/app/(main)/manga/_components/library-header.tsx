@@ -11,7 +11,6 @@ import { atom, useAtomValue } from "jotai"
 import { useSetAtom } from "jotai/react"
 import { AnimatePresence, motion } from "motion/react"
 import React, { useEffect, useState } from "react"
-import { useWindowScroll } from "react-use"
 
 export const __mangaLibraryHeaderImageAtom = atom<string | null>(null)
 export const __mangaLibraryHeaderMangaAtom = atom<AL_BaseManga | null>(null)
@@ -25,7 +24,6 @@ export function MangaLibraryHeader({ manga }: { manga: AL_BaseManga[] }) {
     const image = useAtomValue(__mangaLibraryHeaderImageAtom)
     const [actualImage, setActualImage] = useState<string | null>(null)
     const [prevImage, setPrevImage] = useState<string | null>(null)
-    const [dimmed, setDimmed] = useState(false)
 
     const setHeaderManga = useSetAtom(__mangaLibraryHeaderMangaAtom)
 
@@ -66,7 +64,7 @@ export function MangaLibraryHeader({ manga }: { manga: AL_BaseManga[] }) {
 
     return (
         <>
-            <div
+            <motion.div
                 data-library-header-container
                 className={cn(
                     "LIB_HEADER_CONTAINER __header h-[25rem] z-0 top-0 w-full group/library-header pointer-events-none",
@@ -74,6 +72,7 @@ export function MangaLibraryHeader({ manga }: { manga: AL_BaseManga[] }) {
                     heroFade.containerClass,
                     !!ts.libraryScreenCustomBackgroundImage && __isDesktop__ && "top-[-2rem]",
                 )}
+                style={heroFade.containerStyle}
             >
                 <div
                     data-library-header-banner-top-gradient
@@ -128,13 +127,7 @@ export function MangaLibraryHeader({ manga }: { manga: AL_BaseManga[] }) {
                                     className={cn(
                                         "object-cover object-center z-[1] opacity-100 transition-opacity duration-700 scroll-locked-offset",
                                     )}
-                                    initial={{ scale: 1.01, y: 0 }}
-                                    animate={{
-                                        ...heroFade.imageAnimate,
-                                        // y: Math.max(y * -0.9, -10)
-                                    }}
-                                    exit={{ scale: 1.01, y: 0 }}
-                                    transition={{ duration: 0.6, ease: "easeOut" }}
+                                    style={heroFade.imageStyle}
                                 />
                             </motion.div>
                         )}
@@ -160,7 +153,7 @@ export function MangaLibraryHeader({ manga }: { manga: AL_BaseManga[] }) {
                         className="LIB_HEADER_IMG_BOTTOM_FADE w-full z-[2] absolute bottom-0 h-[20rem] lg:h-[15rem] bg-gradient-to-t from-[--background] lg:via-opacity-50 lg:via-10% to-transparent pointer-events-none"
                     />
                 </motion.div>
-            </div>
+            </motion.div>
         </>
     )
 

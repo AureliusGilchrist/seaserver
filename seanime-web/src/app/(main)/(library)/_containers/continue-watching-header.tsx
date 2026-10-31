@@ -352,7 +352,7 @@ function BannerImage({ episode, isTransitioning, shouldBlurBanner }: BannerImage
     const heroFade = useHeroScrollFade()
 
     return (
-        <div
+        <motion.div
             data-continue-watching-header-banner-image
             className={cn(
                 "lg:h-[35rem] w-full flex-none object-cover object-center top-0 bg-[--background]",
@@ -361,6 +361,7 @@ function BannerImage({ episode, isTransitioning, shouldBlurBanner }: BannerImage
                 __isDesktop__ && "top-[-2rem]",
                 ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && "lg:h-[30rem]",
             )}
+            style={heroFade.containerStyle}
         >
             <div className="w-full z-[2] absolute bottom-[-10rem] h-[10rem] bg-gradient-to-b from-[--background] via-transparent via-100% to-transparent" />
             <div className="w-full absolute z-[2] top-0 h-[10rem] opacity-50 bg-gradient-to-b from-[--background] to-transparent" />
@@ -374,9 +375,7 @@ function BannerImage({ episode, isTransitioning, shouldBlurBanner }: BannerImage
             <AnimatePresence>
                 <motion.div
                     className="w-full h-full absolute z-[1] overflow-hidden scroll-locked-offset-width"
-                    initial={{ scale: 1, y: 0 }}
-                    animate={heroFade.imageAnimate}
-                    transition={{ duration: 0.6, ease: "easeOut" }}
+                    style={heroFade.imageStyle}
                 >
                     {bannerImage && (
                         <MotionImage
@@ -424,7 +423,7 @@ function BannerImage({ episode, isTransitioning, shouldBlurBanner }: BannerImage
             )}
 
             <div className="w-full z-[2] absolute bottom-0 h-[20rem] bg-gradient-to-t from-[--background] via-[--background] via-opacity-50 via-10% to-transparent" />
-        </div>
+        </motion.div>
     )
 }
 

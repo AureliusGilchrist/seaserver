@@ -2,6 +2,7 @@ import { AL_BaseAnime, AL_BaseManga, AL_MediaStatus, Anime_EntryListData, Manga_
 import { TRANSPARENT_SIDEBAR_BANNER_IMG_STYLE } from "@/app/(main)/_features/custom-ui/styles"
 import { AnilistSyncIndicator } from "@/app/(main)/_features/media/_components/anilist-sync-indicator"
 import { AnilistMediaEntryModal } from "@/app/(main)/_features/media/_containers/anilist-media-entry-modal"
+import { SCROLL_SPRING, useHeroScrollFade } from "@/app/(main)/_features/media/_lib/use-hero-scroll-fade"
 import { imageShimmer } from "@/components/shared/image-helpers"
 import { SeaImage } from "@/components/shared/sea-image"
 import { TextGenerateEffect } from "@/components/shared/text-generate-effect"
@@ -12,9 +13,9 @@ import { Popover } from "@/components/ui/popover"
 import { Tooltip } from "@/components/ui/tooltip"
 import { getScoreColor } from "@/lib/helpers/score"
 import { getImageUrl } from "@/lib/server/assets"
-import { ThemeMediaPageBannerSize, ThemeMediaPageBannerType, ThemeMediaPageInfoBoxSize, useIsMobile, useThemeSettings } from "@/lib/theme/hooks"
+import { ThemeMediaPageBannerSize, ThemeMediaPageBannerType, ThemeMediaPageInfoBoxSize, useThemeSettings } from "@/lib/theme/hooks"
 import capitalize from "lodash/capitalize"
-import { AnimatePresence, easeInOut, easeOut, motion, useMotionTemplate, useScroll, useSpring, useTransform } from "motion/react"
+import { AnimatePresence, easeInOut, easeOut, motion, useScroll, useSpring, useTransform } from "motion/react"
 import React from "react"
 import { BiCalendarAlt, BiSolidStar, BiStar } from "react-icons/bi"
 import { LuChevronDown } from "react-icons/lu"
@@ -23,13 +24,6 @@ import { RiSignalTowerFill } from "react-icons/ri"
 import { useWindowSize } from "react-use"
 
 const MotionImage = motion.create(SeaImage)
-
-// Every scroll-driven value in the header is a motion value: it follows the scroll position without
-// re-rendering the page, and the spring smooths the steps a mouse wheel makes into one glide.
-const SCROLL_SPRING = { stiffness: 140, damping: 30, mass: 0.5, restDelta: 0.001 }
-
-/** How far down the page the banner takes to fade out. */
-const BANNER_FADE_END = 560
 
 type MediaPageHeaderProps = {
     children?: React.ReactNode
@@ -47,7 +41,6 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
     } = props
 
     const ts = useThemeSettings()
-    const { isMobile } = useIsMobile()
 
     const bannerImage = backgroundImage || coverImage
     const [failedBannerImage, setFailedBannerImage] = React.useState<string | null>(null)
@@ -71,15 +64,7 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
     // otherwise it is fixed behind the content and fades out as the page scrolls over it.
     const isFixedBanner = !ts.libraryScreenCustomBackgroundImage
 
-    const { scrollY } = useScroll()
-    const bannerOpacity = useSpring(
-        useTransform(scrollY, [0, 90, BANNER_FADE_END], [1, 1, shouldDimBanner ? 0.15 : 0.06], { ease: easeInOut }),
-        SCROLL_SPRING,
-    )
-    const bannerBlurPx = useSpring(useTransform(scrollY, [60, BANNER_FADE_END], [0, 10], { ease: easeOut }), SCROLL_SPRING)
-    const bannerFilter = useMotionTemplate`blur(${bannerBlurPx}px)`
-    const bannerScale = useSpring(useTransform(scrollY, [0, BANNER_FADE_END], [1, 1.06]), SCROLL_SPRING)
-    const bannerY = useSpring(useTransform(scrollY, [0, BANNER_FADE_END], [0, isMobile ? 0 : -70]), SCROLL_SPRING)
+    const heroFade = useHeroScrollFade({ dim: shouldDimBanner })
 
     return (
         <motion.div
@@ -105,7 +90,7 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
                     !ts.disableSidebarTransparency && TRANSPARENT_SIDEBAR_BANNER_IMG_STYLE,
                     shouldHideBanner && "bg-transparent",
                 )}
-                style={isFixedBanner ? { opacity: bannerOpacity } : undefined}
+                style={heroFade.containerStyle}
             >
                 {/*TOP FADE*/}
                 <div
@@ -131,7 +116,7 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
                         "absolute top-0 left-0 scroll-locked-offset w-full h-full overflow-hidden will-change-transform",
                         shouldHideBanner && "hidden",
                     )}
-                    style={isFixedBanner ? { scale: bannerScale, y: bannerY, filter: bannerFilter } : undefined}
+                    style={heroFade.imageStyle}
                 >
                     {!!visibleBannerImage && <MotionImage
                         data-media-page-header-banner-image

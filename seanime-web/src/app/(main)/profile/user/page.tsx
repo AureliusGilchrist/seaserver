@@ -9,6 +9,8 @@ import { useGetMyProfile, useGetUserProfile } from "@/api/hooks/community.hooks"
 import { ProfileCommentsTab } from "@/app/(main)/_features/profile/profile-comments-tab"
 import { useGetUserProfileStats } from "@/api/hooks/profile-stats.hooks"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
+import { useHeroScrollFade } from "@/app/(main)/_features/media/_lib/use-hero-scroll-fade"
+import { motion } from "motion/react"
 import { LevelRingAvatar } from "@/app/(main)/_features/level-ring-avatar"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { tabsTriggerClass, tabsListClass } from "@/components/shared/classnames"
@@ -51,6 +53,8 @@ export default function Page() {
 }
 
 function UserProfilePage() {
+    // The banner sits in the page and scrolls with it, on the same fade as the anime/manga hero.
+    const heroFade = useHeroScrollFade()
     const searchParams = useSearchParams()
     const router = useRouter()
     const id = Number(searchParams.get("id")) || 0
@@ -129,15 +133,16 @@ function UserProfilePage() {
         >
             <ProfileWallpaper url={profile!.wallpaperUrl} effects={profile!.wallpaperEffects} />
             {profile!.bannerImage ? (
-                <div
+                <motion.div
                     className={cn(
                         "relative h-[190px] sm:-mt-20 sm:h-[300px] w-full overflow-hidden lg:mt-0 lg:-ml-20 lg:w-[calc(100%+5rem)]",
                         __isDesktop__ && "lg:-mt-4",
                     )}
+                    style={heroFade.containerStyle}
                 >
-                    <div
+                    <motion.div
                         className="absolute inset-0 bg-no-repeat bg-cover"
-                        style={{ backgroundImage: `url(${profile!.bannerImage})`, backgroundPosition: "center center", backgroundSize: "cover" }}
+                        style={{ ...heroFade.imageStyle, backgroundImage: `url(${profile!.bannerImage})`, backgroundPosition: "center center", backgroundSize: "cover" }}
                     />
                     {bannerOverlay?.overlayCss && (
                         <div
@@ -152,7 +157,7 @@ function UserProfilePage() {
                     <div className="hidden lg:block absolute left-0 top-0 w-[20rem] h-full bg-gradient-to-r from-[--background] to-transparent z-[2] opacity-50" />
                     {/* Bottom gradient - lighter so the banner image stays clear */}
                     <div className="absolute bottom-0 left-0 right-0 h-[40%] bg-gradient-to-t from-[--background] from-0% to-transparent to-100% z-[3]" />
-                </div>
+                </motion.div>
             ) : (
                 <CustomLibraryBanner discrete />
             )}

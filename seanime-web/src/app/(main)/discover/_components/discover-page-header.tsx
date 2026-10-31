@@ -120,7 +120,7 @@ function BannerImage({ media, isTransitioning, shouldBlurBanner, showTrailer, tr
     const heroFade = useHeroScrollFade()
 
     return (
-        <div
+        <motion.div
             data-discover-page-header-banner-image
             className={cn(
                 "lg:h-[35rem] w-full flex-none object-cover object-center top-0 bg-[--background]",
@@ -129,6 +129,7 @@ function BannerImage({ media, isTransitioning, shouldBlurBanner, showTrailer, tr
                 __isDesktop__ && "top-[-2rem]",
                 ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && "lg:h-[30rem]",
             )}
+            style={heroFade.containerStyle}
         >
             {/* Gradients */}
             <div className="w-full z-[2] absolute bottom-[-10rem] h-[10rem] bg-gradient-to-b from-[--background] via-transparent via-100% to-transparent" />
@@ -144,9 +145,7 @@ function BannerImage({ media, isTransitioning, shouldBlurBanner, showTrailer, tr
             <AnimatePresence>
                 <motion.div
                     className="w-full h-full absolute z-[1] overflow-hidden"
-                    initial={{ scale: 1, y: 0 }}
-                    animate={heroFade.imageAnimate}
-                    transition={{ duration: 0.6, ease: "easeOut" }}
+                    style={heroFade.imageStyle}
                 >
                     {bannerImage && (
                         <MotionImage
@@ -229,7 +228,7 @@ function BannerImage({ media, isTransitioning, shouldBlurBanner, showTrailer, tr
             )}
 
             <div className="w-full z-[2] absolute bottom-0 h-[20rem] bg-gradient-to-t from-[--background] via-[--background] via-opacity-50 via-10% to-transparent" />
-        </div>
+        </motion.div>
     )
 }
 

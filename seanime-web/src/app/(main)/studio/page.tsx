@@ -8,6 +8,7 @@ import { GlassCard } from "@/app/(main)/_features/media/_components/media-info-p
 import { compact, MEDIA_FORMAT_LABELS } from "@/app/(main)/_features/media/_components/media-meta-chips"
 import { MediaPageHeader } from "@/app/(main)/_features/media/_components/media-page-header-components"
 import { MediaSectionHeading } from "@/app/(main)/_features/media/_components/media-section-heading"
+import { SCROLL_SPRING } from "@/app/(main)/_features/media/_lib/use-hero-scroll-fade"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { SeaLink } from "@/components/shared/sea-link"
 import { cn } from "@/components/ui/core/styling"
@@ -140,7 +141,7 @@ function StudioHero({ studio, isFav, onFav, favPending }: {
     favPending: boolean
 }) {
     const { scrollY } = useScroll()
-    const lift = useSpring(useTransform(scrollY, [0, 420], [0, -60]), { stiffness: 140, damping: 30, mass: 0.5, restDelta: 0.001 })
+    const lift = useSpring(useTransform(scrollY, [0, 420], [0, -60]), SCROLL_SPRING)
     const st = studio.stats
 
     return (

@@ -6,8 +6,7 @@ import { getAssetUrl } from "@/lib/server/assets"
 import { ThemeLibraryScreenBannerType, useThemeSettings } from "@/lib/theme/hooks"
 import { __isDesktop__, HIDE_IMAGES } from "@/types/constants"
 import { motion } from "motion/react"
-import React, { useEffect } from "react"
-import { useWindowScroll } from "react-use"
+import React from "react"
 
 type CustomLibraryBannerProps = {
     discrete?: boolean
@@ -24,8 +23,8 @@ export function CustomLibraryBanner(props: CustomLibraryBannerProps) {
     const ts = useThemeSettings()
     const image = React.useMemo(() => ts.libraryScreenCustomBannerImage ? getAssetUrl(ts.libraryScreenCustomBannerImage) : "",
         [ts.libraryScreenCustomBannerImage])
-    // Same scroll fade as the anime/manga page hero.
-    const heroFade = useHeroScrollFade()
+    // Same scroll fade as the anime/manga page hero. A discrete banner starts faint and fades from there.
+    const heroFade = useHeroScrollFade({ restOpacity: discrete ? 0.2 : 1 })
 
     if (isLibraryScreen && ts.libraryScreenBannerType !== ThemeLibraryScreenBannerType.Custom) return null
     if (discrete && !!ts.libraryScreenCustomBackgroundImage) return null
@@ -40,17 +39,17 @@ export function CustomLibraryBanner(props: CustomLibraryBannerProps) {
                     ts.hideTopNavbar && "py-28",
                 )}
             ></div>}
-            <div
+            <motion.div
                 data-custom-library-banner-container
                 className={cn(
                     "__header h-[30rem] z-[1] top-0 w-full group/library-header",
                     // Same scroll fade as the anime/manga page hero.
                     heroFade.containerClass,
-                    discrete && "opacity-20",
                     !ts.disableSidebarTransparency && TRANSPARENT_SIDEBAR_BANNER_IMG_STYLE,
                     __isDesktop__ && "top-[-2rem]",
                     !ts.disableSidebarTransparency ? "scroll-locked-offset-width" : "scroll-locked-offset-fixed",
                 )}
+                style={heroFade.containerStyle}
             >
                 {(!ts.disableSidebarTransparency && !discrete) && <div
                     data-custom-library-banner-top-gradient
@@ -79,13 +78,14 @@ export function CustomLibraryBanner(props: CustomLibraryBannerProps) {
                             discrete && "opacity-70",
                         )}
                     />
-                    <div
+                    <motion.div
                         data-custom-library-banner-image
                         className={cn(
                             "CUSTOM_LIB_BANNER_IMG z-[1] absolute inset-0 w-full h-full bg-cover bg-no-repeat transition-opacity duration-1000",
                             "scroll-locked-offset",
                         )}
                         style={{
+                            ...heroFade.imageStyle,
                             backgroundImage: `url(${HIDE_IMAGES ? "/no-cover.png" : image})`,
                             backgroundPosition: ts.libraryScreenCustomBannerPosition || "50% 50%",
                             opacity: (ts.libraryScreenCustomBannerOpacity || 100) / 100,
@@ -101,7 +101,7 @@ export function CustomLibraryBanner(props: CustomLibraryBannerProps) {
                         )}
                     />
                 </motion.div>
-            </div>
+            </motion.div>
         </>
     )
 
