@@ -91,6 +91,38 @@ func (h *Handler) HandleGetActiveTorrentList(c echo.Context) error {
 
 }
 
+// HandleGetTorrentClientTorrentFiles
+//
+//	@summary returns the files inside a torrent already in the client.
+//	@desc Answers right away: a torrent with no metadata yet has an empty list.
+//	@route /api/v1/torrent-client/files [POST]
+//	@returns []torrent_client.TorrentFile
+func (h *Handler) HandleGetTorrentClientTorrentFiles(c echo.Context) error {
+	type body struct {
+		Hash string `json:"hash"`
+	}
+
+	var b body
+	if err := c.Bind(&b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+	if b.Hash == "" {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "hash is required"))
+	}
+
+	repo, err := h.torrentClientRepo()
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	files, err := repo.GetTorrentFiles(b.Hash)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	return h.RespondWithData(c, files)
+}
+
 // DownloadingMediaStatus is what the client needs in order to decide which of the three download
 // badges an anime gets — downloading, downloaded, or matched. A media ID appears in at most one of
 // these lists, so a card can never show two.

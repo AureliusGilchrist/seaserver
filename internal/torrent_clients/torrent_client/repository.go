@@ -185,6 +185,7 @@ type GetListOptions struct {
 var transmissionTorrentFields = []string{
 	"name", "hashString", "peersSendingToUs", "rateUpload", "rateDownload",
 	"percentDone", "totalSize", "eta", "status", "downloadDir", "addedDate", "isFinished",
+	"peersConnected", "uploadRatio", "metadataPercentComplete",
 }
 
 // GetList will return all torrents from the torrent client.
@@ -646,6 +647,40 @@ func (r *Repository) GetFiles(hash string) (filenames []string, err error) {
 	return
 }
 
+// GetTorrentFiles returns the files inside a torrent as they stand right now, without waiting.
+// A torrent that has no metadata yet has an empty list. GetFiles is the one that waits for it.
+func (r *Repository) GetTorrentFiles(hash string) ([]*TorrentFile, error) {
+	switch r.provider {
+	case QbittorrentClient:
+		contents, err := r.qBittorrentClient.Torrent.GetContents(hash)
+		if err != nil {
+			return nil, err
+		}
+		return filesFromQbit(contents), nil
+	case TransmissionClient:
+		torrents, err := r.transmission.Client.TorrentGetHashes(context.Background(), []string{"files", "fileStats"}, []string{hash})
+		if err != nil {
+			return nil, err
+		}
+		if len(torrents) == 0 {
+			return []*TorrentFile{}, nil
+		}
+		return filesFromTransmission(torrents[0].Files, torrents[0].FileStats), nil
+	case BuiltinClient:
+		if r.builtinClient == nil {
+			return nil, errors.New("torrent client: Built-in client not initialized")
+		}
+		files := r.builtinClient.GetFileDetails(hash)
+		ret := make([]*TorrentFile, 0, len(files))
+		for _, f := range files {
+			ret = append(ret, &TorrentFile{Index: f.Index, Path: f.Path, Size: f.Size, Progress: f.Progress, Wanted: f.Wanted})
+		}
+		return ret, nil
+	default:
+		return nil, errors.New("torrent client: No torrent client provider found")
+	}
+}
+
 func (r *Repository) FromBuiltinTorrents(torrents []*builtin_client.TorrentInfo) []*Torrent {
 	ret := make([]*Torrent, 0, len(torrents))
 	for _, t := range torrents {
@@ -660,9 +695,29 @@ func (r *Repository) FromBuiltinTorrents(torrents []*builtin_client.TorrentInfo)
 			Eta:         t.Eta,
 			Status:      fromBuiltinTorrentStatus(t.Status),
 			ContentPath: t.ContentPath,
+
+			SizeBytes:      t.SizeBytes,
+			DownSpeedBytes: t.DownSpeedBytes,
+			UpSpeedBytes:   t.UpSpeedBytes,
+			Ratio:          t.Ratio,
+			Peers:          t.Peers,
+			State:          fromBuiltinTorrentState(t),
 		})
 	}
 	return ret
+}
+
+func fromBuiltinTorrentState(t *builtin_client.TorrentInfo) TorrentState {
+	status := fromBuiltinTorrentStatus(t.Status)
+	if status == TorrentStatusDownloading {
+		if !t.HasMetadata {
+			return TorrentStateMetadata
+		}
+		if t.DownSpeedBytes == 0 {
+			return TorrentStateStalled
+		}
+	}
+	return stateFromStatus(status)
 }
 
 func fromBuiltinTorrentStatus(status string) TorrentStatus {

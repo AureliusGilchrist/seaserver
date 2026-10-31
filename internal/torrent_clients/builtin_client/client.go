@@ -38,6 +38,22 @@ type TorrentInfo struct {
 	Eta         string  `json:"eta"`
 	Status      string  `json:"status"`
 	ContentPath string  `json:"contentPath"`
+
+	SizeBytes      int64   `json:"sizeBytes"`
+	DownSpeedBytes int64   `json:"downSpeedBytes"`
+	UpSpeedBytes   int64   `json:"upSpeedBytes"`
+	Ratio          float64 `json:"ratio"`
+	Peers          int     `json:"peers"`
+	HasMetadata    bool    `json:"hasMetadata"`
+}
+
+// FileDetails is one file of a torrent as it stands right now.
+type FileDetails struct {
+	Index    int
+	Path     string
+	Size     int64
+	Progress float64
+	Wanted   bool
 }
 
 type Client struct {
@@ -49,6 +65,7 @@ type Client struct {
 	mu               sync.RWMutex
 	torrentClient    *torrent.Client
 	activeTorrents   map[string]*torrent.Torrent // hash -> active torrent handle
+	destinations     map[string]string           // hash -> where an active torrent's files are
 	inactiveTorrents map[string]inactiveEntry    // hash -> paused/stopped entry
 	speedTracker     map[string]*speedEntry
 	seedTimerCancels map[string]context.CancelFunc
@@ -83,6 +100,7 @@ func NewClient(opts *NewClientOptions) *Client {
 		inactiveTorrents: make(map[string]inactiveEntry),
 		speedTracker:     make(map[string]*speedEntry),
 		seedTimerCancels: make(map[string]context.CancelFunc),
+		destinations:     make(map[string]string),
 	}
 	if opts.OnComplete != nil {
 		c.onComplete = opts.OnComplete
@@ -170,6 +188,7 @@ func (c *Client) restoreFromDB() {
 			continue
 		}
 		c.activeTorrents[item.Hash] = t
+		c.destinations[item.Hash] = dest
 		go c.watchAndStopSeeding(t, item.Hash)
 		c.logger.Debug().Str("hash", item.Hash).Msg("builtin torrent client: Restored torrent")
 	}
@@ -269,6 +288,7 @@ func (c *Client) doStopSeeding(hash string) {
 
 	t.Drop()
 	delete(c.activeTorrents, hash)
+	delete(c.destinations, hash)
 	delete(c.speedTracker, hash)
 	delete(c.seedTimerCancels, hash)
 
@@ -306,9 +326,18 @@ func (c *Client) TorrentExists(hash string) bool {
 	return false
 }
 
+// destinationOf returns where an active torrent's files are.
+func (c *Client) destinationOf(hash string) string {
+	if dest := c.destinations[hash]; dest != "" {
+		return dest
+	}
+	return c.downloadDir
+}
+
+// GetList takes the write lock because reading a torrent updates its speed tracker.
 func (c *Client) GetList() []*TorrentInfo {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	list := make([]*TorrentInfo, 0, len(c.activeTorrents)+len(c.inactiveTorrents))
 
@@ -349,14 +378,16 @@ func (c *Client) torrentToInfo(hash string, t *torrent.Torrent) *TorrentInfo {
 	elapsed := now.Sub(tracker.lastCheck).Seconds()
 	downSpeed := "0 B/s"
 	upSpeed := "0 B/s"
+	downBPS := 0.0
+	upBPS := 0.0
 
 	if elapsed > 0 {
-		downBPS := float64(bytesCompleted-tracker.lastBytes) / elapsed
+		downBPS = float64(bytesCompleted-tracker.lastBytes) / elapsed
 		if downBPS > 0 {
 			downSpeed = fmt.Sprintf("%s/s", util.Bytes(uint64(downBPS)))
 		}
 		stats := t.Stats()
-		upBPS := float64(stats.BytesWrittenData.Int64()-tracker.lastUpBytes) / elapsed
+		upBPS = float64(stats.BytesWrittenData.Int64()-tracker.lastUpBytes) / elapsed
 		if upBPS > 0 {
 			upSpeed = fmt.Sprintf("%s/s", util.Bytes(uint64(upBPS)))
 		}
@@ -377,13 +408,8 @@ func (c *Client) torrentToInfo(hash string, t *torrent.Torrent) *TorrentInfo {
 	}
 
 	eta := "???"
-	if elapsed > 0 && bytesCompleted > 0 {
-		remaining := totalLength - bytesCompleted
-		downBPS := float64(bytesCompleted-tracker.lastBytes) / elapsed
-		if downBPS > 0 && remaining > 0 {
-			etaSecs := int(float64(remaining) / downBPS)
-			eta = util.FormatETA(etaSecs)
-		}
+	if remaining := totalLength - bytesCompleted; downBPS > 0 && remaining > 0 {
+		eta = util.FormatETA(int(float64(remaining) / downBPS))
 	}
 	if status == StatusSeeding {
 		eta = "N/A"
@@ -399,17 +425,30 @@ func (c *Client) torrentToInfo(hash string, t *torrent.Torrent) *TorrentInfo {
 		size = util.Bytes(uint64(totalLength))
 	}
 
+	peers := len(t.PeerConns())
+	ratio := 0.0
+	if bytesCompleted > 0 {
+		ratio = float64(tracker.lastUpBytes) / float64(bytesCompleted)
+	}
+
 	return &TorrentInfo{
 		Hash:        hash,
 		Name:        name,
-		Seeds:       len(t.PeerConns()),
+		Seeds:       peers,
 		DownSpeed:   downSpeed,
 		UpSpeed:     upSpeed,
 		Progress:    progress,
 		Size:        size,
 		Eta:         eta,
 		Status:      status,
-		ContentPath: c.downloadDir,
+		ContentPath: c.destinationOf(hash),
+
+		SizeBytes:      totalLength,
+		DownSpeedBytes: int64(max(downBPS, 0)),
+		UpSpeedBytes:   int64(max(upBPS, 0)),
+		Ratio:          ratio,
+		Peers:          peers,
+		HasMetadata:    t.Info() != nil,
 	}
 }
 
@@ -437,6 +476,7 @@ func (c *Client) AddMagnets(magnets []string, dest string) error {
 		}
 
 		c.activeTorrents[hash] = t
+		c.destinations[hash] = dest
 
 		name := t.Name()
 		if name == "" {
@@ -493,7 +533,7 @@ func (c *Client) RemoveTorrents(hashes []string, deleteData bool) error {
 				var paths []string
 				if info := t.Info(); info != nil {
 					for _, f := range t.Files() {
-						paths = append(paths, filepath.Join(c.downloadDir, f.Path()))
+						paths = append(paths, filepath.Join(c.destinationOf(hash), f.Path()))
 					}
 				}
 				t.Drop()
@@ -504,6 +544,7 @@ func (c *Client) RemoveTorrents(hashes []string, deleteData bool) error {
 				t.Drop()
 			}
 			delete(c.activeTorrents, hash)
+			delete(c.destinations, hash)
 			delete(c.speedTracker, hash)
 		}
 		delete(c.inactiveTorrents, hash)
@@ -542,6 +583,7 @@ func (c *Client) PauseTorrents(hashes []string) error {
 
 			t.Drop()
 			delete(c.activeTorrents, hash)
+			delete(c.destinations, hash)
 			delete(c.speedTracker, hash)
 
 			c.inactiveTorrents[hash] = inactiveEntry{
@@ -584,6 +626,7 @@ func (c *Client) ResumeTorrents(hashes []string) error {
 			}
 
 			c.activeTorrents[hash] = t
+			c.destinations[hash] = entry.downloadDir
 			delete(c.inactiveTorrents, hash)
 
 			if c.db != nil {
@@ -624,6 +667,35 @@ func (c *Client) GetFiles(hash string) ([]string, error) {
 	}
 
 	return result, nil
+}
+
+// GetFileDetails returns a torrent's files without waiting. It is empty for a torrent with no metadata
+// yet, and for a paused or stopped one, whose handle is dropped.
+func (c *Client) GetFileDetails(hash string) []*FileDetails {
+	c.mu.RLock()
+	t, ok := c.activeTorrents[hash]
+	c.mu.RUnlock()
+
+	if !ok || t.Info() == nil {
+		return []*FileDetails{}
+	}
+
+	files := t.Files()
+	result := make([]*FileDetails, 0, len(files))
+	for i, f := range files {
+		details := &FileDetails{
+			Index:  i,
+			Path:   filepath.ToSlash(f.Path()),
+			Size:   f.Length(),
+			Wanted: f.Priority() != torrent.PiecePriorityNone,
+		}
+		if f.Length() > 0 {
+			details.Progress = float64(f.BytesCompleted()) / float64(f.Length())
+		}
+		result = append(result, details)
+	}
+
+	return result
 }
 
 func (c *Client) Shutdown() {

@@ -1,12 +1,13 @@
 import { useServerMutation, useServerQuery } from "@/api/client/requests"
 import {
+    GetTorrentClientTorrentFiles_Variables,
     TorrentClientAction_Variables,
     TorrentClientAddMagnetFromRule_Variables,
     TorrentClientDownload_Variables,
     TorrentClientGetFiles_Variables,
 } from "@/api/generated/endpoint.types"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
-import { HibikeTorrent_AnimeTorrent, Nullish, TorrentClient_Torrent } from "@/api/generated/types"
+import { HibikeTorrent_AnimeTorrent, Nullish, TorrentClient_Torrent, TorrentClient_TorrentFile } from "@/api/generated/types"
 import { DOWNLOADING_MEDIA_QUERY_KEY, useDownloadingAnime } from "@/app/(main)/_atoms/downloading.atoms"
 import { useQueryClient } from "@tanstack/react-query"
 import React from "react"
@@ -52,6 +53,23 @@ export function useGetActiveTorrentList(enabled: boolean, category: string, sort
         refetchInterval: 1500,
         gcTime: 0,
         enabled: enabled,
+    })
+}
+
+/**
+ * The files inside a torrent. Only asked for while `enabled`, and kept afterwards so a closed card can
+ * still say what it holds. `live` refreshes the progress while the torrent is moving.
+ */
+export function useGetTorrentClientFiles(hash: string, enabled: boolean, live: boolean) {
+    return useServerQuery<Array<TorrentClient_TorrentFile>, GetTorrentClientTorrentFiles_Variables>({
+        endpoint: API_ENDPOINTS.TORRENT_CLIENT.GetTorrentClientTorrentFiles.endpoint,
+        method: API_ENDPOINTS.TORRENT_CLIENT.GetTorrentClientTorrentFiles.methods[0],
+        queryKey: [API_ENDPOINTS.TORRENT_CLIENT.GetTorrentClientTorrentFiles.key, hash],
+        data: { hash },
+        enabled: enabled,
+        staleTime: 0,
+        refetchInterval: enabled && live ? 3_000 : false,
+        muteError: true,
     })
 }
 

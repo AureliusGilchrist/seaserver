@@ -2998,6 +2998,10 @@ export type TorrentClientAction_Variables = {
  * @description
  * Route gets the files of a torrent.
  */
+export type GetTorrentClientTorrentFiles_Variables = {
+    hash: string
+}
+
 export type TorrentClientGetFiles_Variables = {
     torrent?: HibikeTorrent_AnimeTorrent
     provider: string

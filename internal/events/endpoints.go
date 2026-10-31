@@ -237,6 +237,7 @@ const (
 	GetToWatchEndpoint                                 = "PROFILE-TOWATCH-get-to-watch"
 	GetToWatchForUserEndpoint                          = "PROFILE-TOWATCH-get-to-watch-for-user"
 	GetTorrentAddQueueEndpoint                         = "TORRENT-CLIENT-get-torrent-add-queue"
+	GetTorrentClientTorrentFilesEndpoint               = "TORRENT-CLIENT-get-torrent-client-torrent-files"
 	GetTorrentContentsEndpoint                         = "TORRENT-CONTENTS-get-torrent-contents"
 	GetTorrentstreamBatchHistoryEndpoint               = "TORRENTSTREAM-get-torrentstream-batch-history"
 	GetTorrentstreamSettingsEndpoint                   = "TORRENTSTREAM-get-torrentstream-settings"

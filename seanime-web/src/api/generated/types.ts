@@ -6696,7 +6696,42 @@ export type TorrentClient_Torrent = {
     eta: string
     status: TorrentClient_TorrentStatus
     contentPath: string
+    sizeBytes: number
+    downSpeedBytes: number
+    upSpeedBytes: number
+    addedOn: number
+    ratio: number
+    peers: number
+    state: TorrentClient_TorrentState
 }
+
+/**
+ * - Filepath: internal/torrent_clients/torrent_client/torrent.go
+ * - Filename: torrent.go
+ * - Package: torrent_client
+ */
+export type TorrentClient_TorrentFile = {
+    index: number
+    path: string
+    size: number
+    progress: number
+    wanted: boolean
+}
+
+/**
+ * - Filepath: internal/torrent_clients/torrent_client/torrent.go
+ * - Filename: torrent.go
+ * - Package: torrent_client
+ */
+export type TorrentClient_TorrentState = "downloading" |
+    "stalled" |
+    "metadata" |
+    "checking" |
+    "queued" |
+    "seeding" |
+    "paused" |
+    "stopped" |
+    "other"
 
 /**
  * - Filepath: internal/torrent_clients/torrent_client/offline_queue.go

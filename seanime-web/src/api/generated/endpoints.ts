@@ -3939,6 +3939,11 @@ export const API_ENDPOINTS = {
          *  Route gets the files of a torrent.
          *  This handler is used to get the files of a torrent.
          */
+        GetTorrentClientTorrentFiles: {
+            key: "TORRENT-CLIENT-get-torrent-client-torrent-files",
+            methods: ["POST"],
+            endpoint: "/api/v1/torrent-client/files",
+        },
         TorrentClientGetFiles: {
             key: "TORRENT-CLIENT-torrent-client-get-files",
             methods: ["POST"],
