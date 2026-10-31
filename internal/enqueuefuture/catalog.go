@@ -49,6 +49,8 @@ type catalogState struct {
 	Queued    int       `json:"queued"`
 	Done      bool      `json:"done"`
 	LastError string    `json:"lastError,omitempty"`
+	// RetryAt is when the scan next asks AniList after being refused.
+	RetryAt   time.Time `json:"retryAt,omitempty"`
 	StartedAt time.Time `json:"startedAt"`
 }
 
@@ -59,10 +61,15 @@ type CatalogStatus struct {
 	Done   bool `json:"done"`
 	NextID int  `json:"nextId"`
 	MaxID  int  `json:"maxId"`
-	// Queued is how many this scan has added, and Waiting how many rows are yet to be prepared.
+	// Queued is how many this scan has added, Waiting how many rows are yet to be prepared, and
+	// Prepared how many have been.
 	Queued    int    `json:"queued"`
 	Waiting   int    `json:"waiting"`
+	Prepared  int    `json:"prepared"`
 	LastError string `json:"lastError,omitempty"`
+	// RetryAt is when the scan next asks AniList after being refused. Past or zero when it is not
+	// waiting on anything.
+	RetryAt time.Time `json:"retryAt,omitempty"`
 }
 
 func (r *Repository) catalogStatePath() string {
@@ -104,6 +111,7 @@ func (r *Repository) catalogStatus() *CatalogStatus {
 		return nil
 	}
 	waiting, _ := r.database.CountPendingEnqueueFutureCatalogItems()
+	prepared, _ := r.database.CountPreparedEnqueueFutureCatalogItems()
 	return &CatalogStatus{
 		Active:    state.Enabled,
 		Done:      state.Done,
@@ -111,7 +119,9 @@ func (r *Repository) catalogStatus() *CatalogStatus {
 		MaxID:     state.MaxID,
 		Queued:    state.Queued,
 		Waiting:   waiting,
+		Prepared:  prepared,
 		LastError: state.LastError,
+		RetryAt:   state.RetryAt,
 	}
 }
 
@@ -198,7 +208,7 @@ func (r *Repository) catalogScan(ctx context.Context) {
 	}
 	// Written under the lock and re-read each time, so a stop that lands mid-window is not undone by
 	// this goroutine saving its own older copy over it.
-	update := func(fn func(state *catalogState)) bool {
+	save := func(fn func(state *catalogState)) bool {
 		r.catalogMu.Lock()
 		defer r.catalogMu.Unlock()
 		state := r.loadCatalogState()
@@ -209,9 +219,21 @@ func (r *Repository) catalogScan(ctx context.Context) {
 		r.saveCatalogState(state)
 		return true
 	}
+	// The scan moves far more slowly than a run does, and with no run going nothing else would tell
+	// the screen. Sent outside the lock, because reading the status back touches the disk.
+	update := func(fn func(state *catalogState)) bool {
+		saved := save(fn)
+		if saved {
+			r.broadcast()
+		}
+		return saved
+	}
 	fail := func(err error) bool {
 		r.logger.Warn().Err(err).Msg("enqueuefuture: Catalog scan refused, waiting before trying again")
-		update(func(state *catalogState) { state.LastError = err.Error() })
+		update(func(state *catalogState) {
+			state.LastError = err.Error()
+			state.RetryAt = time.Now().Add(catalogRetryInterval)
+		})
 		return sleep(catalogRetryInterval)
 	}
 
@@ -226,7 +248,10 @@ func (r *Repository) catalogScan(ctx context.Context) {
 		}
 		maxID = id
 	}
-	update(func(state *catalogState) { state.MaxID = maxID })
+	update(func(state *catalogState) {
+		state.MaxID = maxID
+		state.RetryAt = time.Time{}
+	})
 
 	for {
 		state := r.loadCatalogState()
@@ -269,6 +294,7 @@ func (r *Repository) catalogScan(ctx context.Context) {
 			state.NextID += catalogWindow
 			state.Queued += queued
 			state.LastError = ""
+			state.RetryAt = time.Time{}
 		})
 		r.ensureCatalogRun()
 	}
@@ -295,12 +321,18 @@ func (r *Repository) queueCatalogMedia(m catalogMedia) bool {
 		return false
 	}
 
+	coverImage := ""
+	if m.CoverImage.Large != nil {
+		coverImage = *m.CoverImage.Large
+	}
+
 	inserted, err := r.database.InsertEnqueueFutureItem(&models.EnqueueFutureItem{
 		MediaID:     m.ID,
 		RootMediaID: db.EnqueueFutureCatalogRootID,
 		FamilyID:    m.ID,
 		Status:      db.EnqueueFutureStatusPending,
 		Title:       title,
+		CoverImage:  coverImage,
 	})
 	return err == nil && inserted
 }
@@ -345,6 +377,9 @@ type catalogMedia struct {
 		English *string `json:"english"`
 		Romaji  *string `json:"romaji"`
 	} `json:"title"`
+	CoverImage struct {
+		Large *string `json:"large"`
+	} `json:"coverImage"`
 }
 
 func (m catalogMedia) title() string {
@@ -363,6 +398,7 @@ const catalogWindowQuery = `query ($ids: [Int], $page: Int, $perPage: Int) {
     media(type: ANIME, id_in: $ids, sort: ID) {
       id type format status episodes
       title { english romaji }
+      coverImage { large }
     }
   }
 }`

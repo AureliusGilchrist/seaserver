@@ -263,69 +263,6 @@
     }
   },
   {
-    "name": "buildCollectionStats",
-    "trimmedName": "buildCollectionStats",
-    "comments": [
-      "buildCollectionStats computes achievement-relevant stats from the anime and manga collections.",
-      ""
-    ],
-    "filepath": "internal/handlers/achievement_stats.go",
-    "filename": "achievement_stats.go",
-    "api": {
-      "summary": "",
-      "descriptions": [],
-      "endpoint": "",
-      "methods": null,
-      "params": [],
-      "bodyFields": [],
-      "returns": "bool",
-      "returnGoType": "bool",
-      "returnTypescriptType": "boolean"
-    }
-  },
-  {
-    "name": "normalizeScore",
-    "trimmedName": "normalizeScore",
-    "comments": [
-      "normalizeScore converts AniList scores (which can be on different scales) to 1-10.",
-      ""
-    ],
-    "filepath": "internal/handlers/achievement_stats.go",
-    "filename": "achievement_stats.go",
-    "api": {
-      "summary": "",
-      "descriptions": [],
-      "endpoint": "",
-      "methods": null,
-      "params": [],
-      "bodyFields": [],
-      "returns": "bool",
-      "returnGoType": "bool",
-      "returnTypescriptType": "boolean"
-    }
-  },
-  {
-    "name": "computeScoringMeta",
-    "trimmedName": "computeScoringMeta",
-    "comments": [
-      "computeScoringMeta derives scoring-related boolean/aggregate stats from histograms.",
-      ""
-    ],
-    "filepath": "internal/handlers/achievement_stats.go",
-    "filename": "achievement_stats.go",
-    "api": {
-      "summary": "",
-      "descriptions": [],
-      "endpoint": "",
-      "methods": null,
-      "params": [],
-      "bodyFields": [],
-      "returns": "bool",
-      "returnGoType": "bool",
-      "returnTypescriptType": "boolean"
-    }
-  },
-  {
     "name": "HandleBackfillActivity",
     "trimmedName": "BackfillActivity",
     "comments": [
@@ -763,6 +700,76 @@
       "returns": "true",
       "returnGoType": "true",
       "returnTypescriptType": "true"
+    }
+  },
+  {
+    "name": "waitBriefly",
+    "trimmedName": "waitBriefly",
+    "comments": [
+      "waitBriefly runs fn in the background and waits for it at most d.",
+      ""
+    ],
+    "filepath": "internal/handlers/anilist.go",
+    "filename": "anilist.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "shouldQueueListEdit",
+    "trimmedName": "shouldQueueListEdit",
+    "comments": [
+      "shouldQueueListEdit reports whether a failed edit is worth sending again later (AniList busy,",
+      "slow or unreachable) rather than refused outright (bad values, signed out).",
+      ""
+    ],
+    "filepath": "internal/handlers/anilist.go",
+    "filename": "anilist.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetAnilistEditQueue",
+    "trimmedName": "GetAnilistEditQueue",
+    "comments": [
+      "HandleGetAnilistEditQueue",
+      "",
+      "\t@summary returns the list edits waiting to be sent to AniList.",
+      "\t@returns []core.QueuedListEdit",
+      "\t@route /api/v1/anilist/list-entry/queue [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/anilist.go",
+    "filename": "anilist.go",
+    "api": {
+      "summary": "returns the list edits waiting to be sent to AniList.",
+      "descriptions": [],
+      "endpoint": "/api/v1/anilist/list-entry/queue",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]core.QueuedListEdit",
+      "returnGoType": "core.QueuedListEdit",
+      "returnTypescriptType": "Array\u003cINTERNAL_QueuedListEdit\u003e"
     }
   },
   {
@@ -2212,12 +2219,13 @@
     "comments": [
       "profileListEntry finds a profile's list entry for a media as it stands before a progress update,",
       "which is what the start/completion date rule reads: whether a date is already recorded, and",
-      "whether this is a rewatch. See anilist.FirstWatchDates.",
+      "whether this is a rewatch. See anilist.FirstWatchDatesFromList.",
       "",
       "Cached collection only — this sits in the middle of a progress update, and a round trip to AniList",
-      "to read a date would cost the update its responsiveness and the budget a request. Nil when the",
-      "collection cannot be read or does not hold the media, which the rule reads as \"nothing recorded",
-      "yet\": it fills a date in rather than losing one.",
+      "to read a date would cost the update its responsiveness and the budget a request. Nil entry when",
+      "the collection does not hold the media, which the rule reads as \"nothing recorded yet\". listRead",
+      "is false when the collection cannot be read, and then no date is sent: today could replace a real",
+      "one.",
       ""
     ],
     "filepath": "internal/handlers/anime_entries.go",
@@ -3260,6 +3268,28 @@
     }
   },
   {
+    "name": "anilistDataQuery",
+    "trimmedName": "anilistDataQuery",
+    "comments": [
+      "anilistDataQuery runs a raw AniList query with the request's context and the account token, and",
+      "decodes `data` into out.",
+      ""
+    ],
+    "filepath": "internal/handlers/character.go",
+    "filename": "character.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleGetAnilistCharacterDetails",
     "trimmedName": "GetAnilistCharacterDetails",
     "comments": [
@@ -3300,6 +3330,49 @@
       "returns": "CharacterDetailsResponse",
       "returnGoType": "CharacterDetailsResponse",
       "returnTypescriptType": "CharacterDetailsResponse"
+    }
+  },
+  {
+    "name": "HandleGetAnilistMediaCharacters",
+    "trimmedName": "GetAnilistMediaCharacters",
+    "comments": [
+      "HandleGetAnilistMediaCharacters",
+      "",
+      "\t@summary returns one page of a media's characters.",
+      "\t@desc Every character of an anime or manga, 25 per page, main roles first, with Japanese voice actors.",
+      "\t@param id - int - true - \"The AniList media ID\"",
+      "\t@returns MediaCharactersResponse",
+      "\t@route /api/v1/anilist/media-characters/{id} [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/character.go",
+    "filename": "character.go",
+    "api": {
+      "summary": "returns one page of a media's characters.",
+      "descriptions": [
+        "Every character of an anime or manga, 25 per page, main roles first, with Japanese voice actors."
+      ],
+      "endpoint": "/api/v1/anilist/media-characters/{id}",
+      "methods": [
+        "GET"
+      ],
+      "params": [
+        {
+          "name": "id",
+          "jsonName": "id",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": [
+            "The AniList media ID"
+          ]
+        }
+      ],
+      "bodyFields": [],
+      "returns": "MediaCharactersResponse",
+      "returnGoType": "MediaCharactersResponse",
+      "returnTypescriptType": "MediaCharactersResponse"
     }
   },
   {
@@ -4742,15 +4815,15 @@
     "comments": [
       "HandleDirectstreamGetAudio extracts and serves an audio track from a direct-play stream.",
       "",
-      "\t@summary extracts a specific audio track from an MKV file and serves it as AAC.",
+      "\t@summary extracts a specific audio track from an MKV file and serves it as AAC in an MP4 (M4A) container.",
       "\t@route /api/v1/directstream/audio [GET]",
-      "\t@returns audio/aac file",
+      "\t@returns audio/mp4 file",
       ""
     ],
     "filepath": "internal/handlers/directstream_audio.go",
     "filename": "directstream_audio.go",
     "api": {
-      "summary": "extracts a specific audio track from an MKV file and serves it as AAC.",
+      "summary": "extracts a specific audio track from an MKV file and serves it as AAC in an MP4 (M4A) container.",
       "descriptions": [],
       "endpoint": "/api/v1/directstream/audio",
       "methods": [
@@ -4758,9 +4831,9 @@
       ],
       "params": [],
       "bodyFields": [],
-      "returns": "audio/aac file",
-      "returnGoType": "audio/aac file",
-      "returnTypescriptType": "audio/aac file"
+      "returns": "audio/mp4 file",
+      "returnGoType": "audio/mp4 file",
+      "returnTypescriptType": "audio/mp4 file"
     }
   },
   {
@@ -4769,15 +4842,15 @@
     "comments": [
       "HandleMediastreamGetAudio extracts and serves an audio track from a mediastream direct-play session.",
       "",
-      "\t@summary extracts a specific audio track from a mediastream file and serves it as AAC.",
+      "\t@summary extracts a specific audio track from a mediastream file and serves it as AAC in an MP4 (M4A) container.",
       "\t@route /api/v1/mediastream/audio/:clientId [GET]",
-      "\t@returns audio/aac file",
+      "\t@returns audio/mp4 file",
       ""
     ],
     "filepath": "internal/handlers/directstream_audio.go",
     "filename": "directstream_audio.go",
     "api": {
-      "summary": "extracts a specific audio track from a mediastream file and serves it as AAC.",
+      "summary": "extracts a specific audio track from a mediastream file and serves it as AAC in an MP4 (M4A) container.",
       "descriptions": [],
       "endpoint": "/api/v1/mediastream/audio/:clientId",
       "methods": [
@@ -4785,9 +4858,37 @@
       ],
       "params": [],
       "bodyFields": [],
-      "returns": "audio/aac file",
-      "returnGoType": "audio/aac file",
-      "returnTypescriptType": "audio/aac file"
+      "returns": "audio/mp4 file",
+      "returnGoType": "audio/mp4 file",
+      "returnTypescriptType": "audio/mp4 file"
+    }
+  },
+  {
+    "name": "serveExtractedAudio",
+    "trimmedName": "serveExtractedAudio",
+    "comments": [
+      "serveExtractedAudio extracts one audio track of a file with FFmpeg (once, cached on disk) and",
+      "serves it with range support.",
+      "",
+      "The track is written as AAC in an MP4 container with the index at the front (M4A, faststart).",
+      "It used to be raw ADTS AAC, which has no seek index: the browser guessed where a time lands from",
+      "the bitrate, so every seek of the hidden audio element landed slightly off, differently each time",
+      "and worse the further into the episode — the audio drifted against the picture and the sync loop",
+      "kept seeking it, which sounded like a record being scratched. An indexed file seeks exactly.",
+      ""
+    ],
+    "filepath": "internal/handlers/directstream_audio.go",
+    "filename": "directstream_audio.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
     }
   },
   {
@@ -6166,6 +6267,238 @@
     }
   },
   {
+    "name": "HandleStartEnqueueFutureCatalog",
+    "trimmedName": "StartEnqueueFutureCatalog",
+    "comments": [
+      "HandleStartEnqueueFutureCatalog",
+      "",
+      "\t@summary starts queueing every anime on AniList.",
+      "\t@desc Continues from where a stopped scan left off. Anything you enqueue by hand goes first.",
+      "\t@route /api/v1/enqueue-future/catalog/start [POST]",
+      "\t@returns enqueuefuture.Status",
+      ""
+    ],
+    "filepath": "internal/handlers/enqueue_future.go",
+    "filename": "enqueue_future.go",
+    "api": {
+      "summary": "starts queueing every anime on AniList.",
+      "descriptions": [
+        "Continues from where a stopped scan left off. Anything you enqueue by hand goes first."
+      ],
+      "endpoint": "/api/v1/enqueue-future/catalog/start",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "enqueuefuture.Status",
+      "returnGoType": "enqueuefuture.Status",
+      "returnTypescriptType": "EnqueueFuture_Status"
+    }
+  },
+  {
+    "name": "HandleStopEnqueueFutureCatalog",
+    "trimmedName": "StopEnqueueFutureCatalog",
+    "comments": [
+      "HandleStopEnqueueFutureCatalog",
+      "",
+      "\t@summary stops queueing every anime on AniList.",
+      "\t@desc What is already queued stays, and starting it again continues from the same place.",
+      "\t@route /api/v1/enqueue-future/catalog/stop [POST]",
+      "\t@returns enqueuefuture.Status",
+      ""
+    ],
+    "filepath": "internal/handlers/enqueue_future.go",
+    "filename": "enqueue_future.go",
+    "api": {
+      "summary": "stops queueing every anime on AniList.",
+      "descriptions": [
+        "What is already queued stays, and starting it again continues from the same place."
+      ],
+      "endpoint": "/api/v1/enqueue-future/catalog/stop",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "enqueuefuture.Status",
+      "returnGoType": "enqueuefuture.Status",
+      "returnTypescriptType": "EnqueueFuture_Status"
+    }
+  },
+  {
+    "name": "HandleGetEnqueueFutureCatalogWaiting",
+    "trimmedName": "GetEnqueueFutureCatalogWaiting",
+    "comments": [
+      "HandleGetEnqueueFutureCatalogWaiting",
+      "",
+      "\t@summary returns one page of the catalog rows waiting to be prepared.",
+      "\t@desc These are left out of the queue, which is polled and counted by the sidebar. Takes the",
+      "\t@desc query parameters \"after\" (the previous page's nextPosition), \"search\" and \"limit\".",
+      "\t@route /api/v1/enqueue-future/catalog/waiting [GET]",
+      "\t@returns enqueuefuture.WaitingPage",
+      ""
+    ],
+    "filepath": "internal/handlers/enqueue_future.go",
+    "filename": "enqueue_future.go",
+    "api": {
+      "summary": "returns one page of the catalog rows waiting to be prepared.",
+      "descriptions": [
+        "These are left out of the queue, which is polled and counted by the sidebar. Takes the",
+        "query parameters \"after\" (the previous page's nextPosition), \"search\" and \"limit\"."
+      ],
+      "endpoint": "/api/v1/enqueue-future/catalog/waiting",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "enqueuefuture.WaitingPage",
+      "returnGoType": "enqueuefuture.WaitingPage",
+      "returnTypescriptType": "EnqueueFuture_WaitingPage"
+    }
+  },
+  {
+    "name": "HandleGetEnqueueFutureDropped",
+    "trimmedName": "GetEnqueueFutureDropped",
+    "comments": [
+      "HandleGetEnqueueFutureDropped",
+      "",
+      "\t@summary returns the anime dropped from the queue for having nothing downloadable.",
+      "\t@desc Highest AniList score first. Snapshots are omitted, as they are from the queue.",
+      "\t@route /api/v1/enqueue-future/dropped [GET]",
+      "\t@returns []*enqueuefuture.DroppedItem",
+      ""
+    ],
+    "filepath": "internal/handlers/enqueue_future.go",
+    "filename": "enqueue_future.go",
+    "api": {
+      "summary": "returns the anime dropped from the queue for having nothing downloadable.",
+      "descriptions": [
+        "Highest AniList score first. Snapshots are omitted, as they are from the queue."
+      ],
+      "endpoint": "/api/v1/enqueue-future/dropped",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]*enqueuefuture.DroppedItem",
+      "returnGoType": "enqueuefuture.DroppedItem",
+      "returnTypescriptType": "Array\u003cEnqueueFuture_DroppedItem\u003e"
+    }
+  },
+  {
+    "name": "HandleRestoreEnqueueFutureDropped",
+    "trimmedName": "RestoreEnqueueFutureDropped",
+    "comments": [
+      "HandleRestoreEnqueueFutureDropped",
+      "",
+      "\t@summary puts a dropped anime back on the queue.",
+      "\t@desc It comes back ready, with the torrent results it was dropped with when those were kept.",
+      "\t@param mediaId - int - true - \"AniList ID of the dropped anime\"",
+      "\t@route /api/v1/enqueue-future/dropped/{mediaId}/restore [POST]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/enqueue_future.go",
+    "filename": "enqueue_future.go",
+    "api": {
+      "summary": "puts a dropped anime back on the queue.",
+      "descriptions": [
+        "It comes back ready, with the torrent results it was dropped with when those were kept."
+      ],
+      "endpoint": "/api/v1/enqueue-future/dropped/{mediaId}/restore",
+      "methods": [
+        "POST"
+      ],
+      "params": [
+        {
+          "name": "mediaId",
+          "jsonName": "mediaId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": [
+            "AniList ID of the dropped anime"
+          ]
+        }
+      ],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleDeleteEnqueueFutureDropped",
+    "trimmedName": "DeleteEnqueueFutureDropped",
+    "comments": [
+      "HandleDeleteEnqueueFutureDropped",
+      "",
+      "\t@summary forgets one dropped anime.",
+      "\t@param mediaId - int - true - \"AniList ID of the dropped anime\"",
+      "\t@route /api/v1/enqueue-future/dropped/{mediaId} [DELETE]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/enqueue_future.go",
+    "filename": "enqueue_future.go",
+    "api": {
+      "summary": "forgets one dropped anime.",
+      "descriptions": [],
+      "endpoint": "/api/v1/enqueue-future/dropped/{mediaId}",
+      "methods": [
+        "DELETE"
+      ],
+      "params": [
+        {
+          "name": "mediaId",
+          "jsonName": "mediaId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": [
+            "AniList ID of the dropped anime"
+          ]
+        }
+      ],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleClearEnqueueFutureDropped",
+    "trimmedName": "ClearEnqueueFutureDropped",
+    "comments": [
+      "HandleClearEnqueueFutureDropped",
+      "",
+      "\t@summary forgets every dropped anime, leaving the queue as it is.",
+      "\t@route /api/v1/enqueue-future/dropped/clear [POST]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/enqueue_future.go",
+    "filename": "enqueue_future.go",
+    "api": {
+      "summary": "forgets every dropped anime, leaving the queue as it is.",
+      "descriptions": [],
+      "endpoint": "/api/v1/enqueue-future/dropped/clear",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleGetCharacterFavorites",
     "trimmedName": "GetCharacterFavorites",
     "comments": [
@@ -7327,6 +7660,36 @@
     }
   },
   {
+    "name": "HandleGetHomeCounts",
+    "trimmedName": "GetHomeCounts",
+    "comments": [
+      "HandleGetHomeCounts",
+      "",
+      "\t@summary returns the number of anime files and manga chapters on the server.",
+      "\t@desc Used by the landing page, which only needs the totals and not a whole collection.",
+      "\t@returns handlers.HomeCounts",
+      "\t@route /api/v1/home/counts [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/home_counts.go",
+    "filename": "home_counts.go",
+    "api": {
+      "summary": "returns the number of anime files and manga chapters on the server.",
+      "descriptions": [
+        "Used by the landing page, which only needs the totals and not a whole collection."
+      ],
+      "endpoint": "/api/v1/home/counts",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "handlers.HomeCounts",
+      "returnGoType": "handlers.HomeCounts",
+      "returnTypescriptType": "HomeCounts"
+    }
+  },
+  {
     "name": "HandleGetKitsuAnimeInfo",
     "trimmedName": "GetKitsuAnimeInfo",
     "comments": [
@@ -7367,76 +7730,6 @@
       "returns": "handlers.KitsuAnimeInfo",
       "returnGoType": "handlers.KitsuAnimeInfo",
       "returnTypescriptType": "KitsuAnimeInfo"
-    }
-  },
-  {
-    "name": "buildCollectionStatsFromKitsu",
-    "trimmedName": "buildCollectionStatsFromKitsu",
-    "comments": [
-      "buildCollectionStatsFromKitsu builds an achievement.CollectionStats from the Kitsu",
-      "planning-slut-library, mirroring the AniList-side builder as closely as Kitsu's data shape",
-      "allows.",
-      "",
-      "On any error or empty library, returns (nil, false) so the caller falls back to the AniList",
-      "builder — exactly the user's stated preference: Kitsu-first, AniList if Kitsu fails.",
-      ""
-    ],
-    "filepath": "internal/handlers/kitsu_achievement_stats.go",
-    "filename": "kitsu_achievement_stats.go",
-    "api": {
-      "summary": "",
-      "descriptions": [],
-      "endpoint": "",
-      "methods": null,
-      "params": [],
-      "bodyFields": [],
-      "returns": "bool",
-      "returnGoType": "bool",
-      "returnTypescriptType": "boolean"
-    }
-  },
-  {
-    "name": "BuildCollectionStatsKitsuFirst",
-    "trimmedName": "BuildCollectionStatsKitsuFirst",
-    "comments": [
-      "BuildCollectionStatsKitsuFirst is the entry point the achievement refresh handler uses: it",
-      "tries the Kitsu planning-slut first, and if that fails (or returns empty) it builds from",
-      "AniList instead. Mirrors the user-facing instruction: \"try Kitsu, fall back to AniList\".",
-      ""
-    ],
-    "filepath": "internal/handlers/kitsu_achievement_stats.go",
-    "filename": "kitsu_achievement_stats.go",
-    "api": {
-      "summary": "",
-      "descriptions": [],
-      "endpoint": "",
-      "methods": null,
-      "params": [],
-      "bodyFields": [],
-      "returns": "bool",
-      "returnGoType": "bool",
-      "returnTypescriptType": "boolean"
-    }
-  },
-  {
-    "name": "parseIntSafe",
-    "trimmedName": "parseIntSafe",
-    "comments": [
-      "parseIntSafe parses an int without exposing strconv everywhere.",
-      ""
-    ],
-    "filepath": "internal/handlers/kitsu_achievement_stats.go",
-    "filename": "kitsu_achievement_stats.go",
-    "api": {
-      "summary": "",
-      "descriptions": [],
-      "endpoint": "",
-      "methods": null,
-      "params": [],
-      "bodyFields": [],
-      "returns": "bool",
-      "returnGoType": "bool",
-      "returnTypescriptType": "boolean"
     }
   },
   {
@@ -9785,6 +10078,52 @@
     }
   },
   {
+    "name": "profileMangaListEntry",
+    "trimmedName": "profileMangaListEntry",
+    "comments": [
+      "profileMangaListEntry finds a profile's manga list entry as it stands before a progress update.",
+      "listRead is false when the collection could not be read, which is not the same as the collection",
+      "not holding the media. See anilist.FirstReadDates.",
+      ""
+    ],
+    "filepath": "internal/handlers/manga.go",
+    "filename": "manga.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "mangaProgressUpdate",
+    "trimmedName": "mangaProgressUpdate",
+    "comments": [
+      "mangaProgressUpdate decides the status and dates to send when a chapter is read. The chapter",
+      "number only decides completion: starting at chapter 5 starts the manga, and re-reading chapter 1",
+      "of one that has a start date changes nothing.",
+      ""
+    ],
+    "filepath": "internal/handlers/manga.go",
+    "filename": "manga.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleUpdateMangaProgress",
     "trimmedName": "UpdateMangaProgress",
     "comments": [
@@ -11268,6 +11607,96 @@
       "returns": "bool",
       "returnGoType": "bool",
       "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetMediaFamily",
+    "trimmedName": "GetMediaFamily",
+    "comments": [
+      "HandleGetMediaFamily",
+      "",
+      "\t@summary returns every media in the franchise of a media, oldest first.",
+      "\t@desc Walks the relation graph (all relations but CHARACTER) breadth first, up to 150 media.",
+      "\t@desc Each member says how the requested media relates to it, directly or through the walk.",
+      "\t@returns handlers.MediaFamilyResponse",
+      "\t@param id - int - true - \"The AniList media ID\"",
+      "\t@route /api/v1/anilist/media/{id}/family [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/media_info.go",
+    "filename": "media_info.go",
+    "api": {
+      "summary": "returns every media in the franchise of a media, oldest first.",
+      "descriptions": [
+        "Walks the relation graph (all relations but CHARACTER) breadth first, up to 150 media.",
+        "Each member says how the requested media relates to it, directly or through the walk."
+      ],
+      "endpoint": "/api/v1/anilist/media/{id}/family",
+      "methods": [
+        "GET"
+      ],
+      "params": [
+        {
+          "name": "id",
+          "jsonName": "id",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": [
+            "The AniList media ID"
+          ]
+        }
+      ],
+      "bodyFields": [],
+      "returns": "handlers.MediaFamilyResponse",
+      "returnGoType": "handlers.MediaFamilyResponse",
+      "returnTypescriptType": "MediaFamilyResponse"
+    }
+  },
+  {
+    "name": "HandleGetMediaInfo",
+    "trimmedName": "GetMediaInfo",
+    "comments": [
+      "HandleGetMediaInfo",
+      "",
+      "\t@summary returns the extended AniList metadata shown on a details page.",
+      "\t@desc Source, favourites, hashtag, trending, external links, studios, staff with images, every",
+      "\t@desc ranking, tags, status and score distributions. Anime and manga alike. Cached for 6 hours.",
+      "\t@returns any",
+      "\t@param id - int - true - \"The AniList media ID\"",
+      "\t@route /api/v1/anilist/media/{id}/info [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/media_info.go",
+    "filename": "media_info.go",
+    "api": {
+      "summary": "returns the extended AniList metadata shown on a details page.",
+      "descriptions": [
+        "Source, favourites, hashtag, trending, external links, studios, staff with images, every",
+        "ranking, tags, status and score distributions. Anime and manga alike. Cached for 6 hours."
+      ],
+      "endpoint": "/api/v1/anilist/media/{id}/info",
+      "methods": [
+        "GET"
+      ],
+      "params": [
+        {
+          "name": "id",
+          "jsonName": "id",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": [
+            "The AniList media ID"
+          ]
+        }
+      ],
+      "bodyFields": [],
+      "returns": "any",
+      "returnGoType": "any",
+      "returnTypescriptType": "any"
     }
   },
   {
@@ -15120,6 +15549,49 @@
     }
   },
   {
+    "name": "HandleAdminClearProfileAniListToken",
+    "trimmedName": "AdminClearProfileAniListToken",
+    "comments": [
+      "HandleAdminClearProfileAniListToken",
+      "",
+      "\t@summary clears a profile's AniList token (admin only).",
+      "\t@desc The profile keeps everything else; it just stops talking to AniList until a token is set again.",
+      "\t@param id - int - true - \"The profile ID\"",
+      "\t@route /api/v1/profiles/{id}/anilist-token [DELETE]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/profile.go",
+    "filename": "profile.go",
+    "api": {
+      "summary": "clears a profile's AniList token (admin only).",
+      "descriptions": [
+        "The profile keeps everything else; it just stops talking to AniList until a token is set again."
+      ],
+      "endpoint": "/api/v1/profiles/{id}/anilist-token",
+      "methods": [
+        "DELETE"
+      ],
+      "params": [
+        {
+          "name": "id",
+          "jsonName": "id",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": [
+            "The profile ID"
+          ]
+        }
+      ],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleGetProfilesActivity",
     "trimmedName": "GetProfilesActivity",
     "comments": [
@@ -15251,7 +15723,7 @@
     "name": "resolveCommentTitles",
     "trimmedName": "resolveCommentTitles",
     "comments": [
-      "resolveCommentTitles fills in the media title of each comment from the comment",
+      "resolveCommentTitles fills in the media title and cover of each comment from the comment",
       "author's cached AniList collection (memory or disk copy — never blocks on a",
       "fresh fetch). Comments are left from a media page, so the author's collection",
       "almost always contains the media. Unresolved titles stay empty and the client",
@@ -15688,6 +16160,55 @@
           "typescriptType": "string",
           "required": true,
           "descriptions": []
+        },
+        {
+          "name": "ProfileBorderID",
+          "jsonName": "profileBorderId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": false,
+          "descriptions": [
+            "Optional: only written when sent, so older clients that don't know them never clear them.",
+            "",
+            "Optional: only written when sent, so older clients that don't know them never clear them."
+          ]
+        },
+        {
+          "name": "ProfileBgID",
+          "jsonName": "profileBgId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": false,
+          "descriptions": []
+        },
+        {
+          "name": "AvatarFrameID",
+          "jsonName": "avatarFrameId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": false,
+          "descriptions": []
+        },
+        {
+          "name": "BannerOverlayID",
+          "jsonName": "bannerOverlayId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": false,
+          "descriptions": []
+        },
+        {
+          "name": "ProfileLayoutID",
+          "jsonName": "profileLayoutId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": false,
+          "descriptions": []
         }
       ],
       "returns": "core.ProfileSummary",
@@ -15801,6 +16322,459 @@
       "returns": "achievement.ExpBarProgressionEntry",
       "returnGoType": "achievement.ExpBarProgressionEntry",
       "returnTypescriptType": "Achievement_ExpBarProgressionEntry"
+    }
+  },
+  {
+    "name": "HandleGetProfileTimelineFeed",
+    "trimmedName": "GetProfileTimelineFeed",
+    "comments": [
+      "HandleGetProfileTimelineFeed",
+      "",
+      "\t@summary returns a profile's timeline: wall posts merged with its watch activity.",
+      "\t@param profileId - int - false - \"Profile to read (default: the current profile)\"",
+      "\t@param page - int - false - \"Page number (default 1)\"",
+      "\t@returns handlers.TimelineFeedResponse",
+      "\t@route /api/v1/profile/timeline-feed [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_posts.go",
+    "filename": "profile_posts.go",
+    "api": {
+      "summary": "returns a profile's timeline: wall posts merged with its watch activity.",
+      "descriptions": [],
+      "endpoint": "/api/v1/profile/timeline-feed",
+      "methods": [
+        "GET"
+      ],
+      "params": [
+        {
+          "name": "profileId",
+          "jsonName": "profileId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": false,
+          "descriptions": [
+            "Profile to read (default: the current profile)"
+          ]
+        },
+        {
+          "name": "page",
+          "jsonName": "page",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": false,
+          "descriptions": [
+            "Page number (default 1)"
+          ]
+        }
+      ],
+      "bodyFields": [],
+      "returns": "handlers.TimelineFeedResponse",
+      "returnGoType": "handlers.TimelineFeedResponse",
+      "returnTypescriptType": "TimelineFeedResponse"
+    }
+  },
+  {
+    "name": "HandleGetCommunityTimelineFeed",
+    "trimmedName": "GetCommunityTimelineFeed",
+    "comments": [
+      "HandleGetCommunityTimelineFeed",
+      "",
+      "\t@summary returns the global timeline: every profile's posts and watch activity.",
+      "\t@param page - int - false - \"Page number (default 1)\"",
+      "\t@returns handlers.TimelineFeedResponse",
+      "\t@route /api/v1/community/timeline-feed [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_posts.go",
+    "filename": "profile_posts.go",
+    "api": {
+      "summary": "returns the global timeline: every profile's posts and watch activity.",
+      "descriptions": [],
+      "endpoint": "/api/v1/community/timeline-feed",
+      "methods": [
+        "GET"
+      ],
+      "params": [
+        {
+          "name": "page",
+          "jsonName": "page",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": false,
+          "descriptions": [
+            "Page number (default 1)"
+          ]
+        }
+      ],
+      "bodyFields": [],
+      "returns": "handlers.TimelineFeedResponse",
+      "returnGoType": "handlers.TimelineFeedResponse",
+      "returnTypescriptType": "TimelineFeedResponse"
+    }
+  },
+  {
+    "name": "HandleCreateProfilePost",
+    "trimmedName": "CreateProfilePost",
+    "comments": [
+      "HandleCreateProfilePost",
+      "",
+      "\t@summary posts on a profile's timeline (your own status, or a message on someone else's wall).",
+      "\t@route /api/v1/profile/posts [POST]",
+      "\t@returns handlers.TimelineFeedItem",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_posts.go",
+    "filename": "profile_posts.go",
+    "api": {
+      "summary": "posts on a profile's timeline (your own status, or a message on someone else's wall).",
+      "descriptions": [],
+      "endpoint": "/api/v1/profile/posts",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "WallProfileID",
+          "jsonName": "wallProfileId",
+          "goType": "uint",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "Content",
+          "jsonName": "content",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "MediaID",
+          "jsonName": "mediaId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "MediaType",
+          "jsonName": "mediaType",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "IsSpoiler",
+          "jsonName": "isSpoiler",
+          "goType": "bool",
+          "usedStructType": "",
+          "typescriptType": "boolean",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "handlers.TimelineFeedItem",
+      "returnGoType": "handlers.TimelineFeedItem",
+      "returnTypescriptType": "TimelineFeedItem"
+    }
+  },
+  {
+    "name": "HandleUpdateProfilePost",
+    "trimmedName": "UpdateProfilePost",
+    "comments": [
+      "HandleUpdateProfilePost",
+      "",
+      "\t@summary edits a post (author only).",
+      "\t@route /api/v1/profile/posts/:id [PATCH]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_posts.go",
+    "filename": "profile_posts.go",
+    "api": {
+      "summary": "edits a post (author only).",
+      "descriptions": [],
+      "endpoint": "/api/v1/profile/posts/:id",
+      "methods": [
+        "PATCH"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "Content",
+          "jsonName": "content",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "IsSpoiler",
+          "jsonName": "isSpoiler",
+          "goType": "bool",
+          "usedStructType": "",
+          "typescriptType": "boolean",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleDeleteProfilePost",
+    "trimmedName": "DeleteProfilePost",
+    "comments": [
+      "HandleDeleteProfilePost",
+      "",
+      "\t@summary deletes a post (author, wall owner, or admin), with its likes and replies.",
+      "\t@route /api/v1/profile/posts/:id [DELETE]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_posts.go",
+    "filename": "profile_posts.go",
+    "api": {
+      "summary": "deletes a post (author, wall owner, or admin), with its likes and replies.",
+      "descriptions": [],
+      "endpoint": "/api/v1/profile/posts/:id",
+      "methods": [
+        "DELETE"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleToggleTimelineLike",
+    "trimmedName": "ToggleTimelineLike",
+    "comments": [
+      "HandleToggleTimelineLike",
+      "",
+      "\t@summary likes or unlikes a timeline item.",
+      "\t@route /api/v1/profile/timeline/like [POST]",
+      "\t@returns map",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_posts.go",
+    "filename": "profile_posts.go",
+    "api": {
+      "summary": "likes or unlikes a timeline item.",
+      "descriptions": [],
+      "endpoint": "/api/v1/profile/timeline/like",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "TargetKey",
+          "jsonName": "targetKey",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "map",
+      "returnGoType": "map",
+      "returnTypescriptType": "map"
+    }
+  },
+  {
+    "name": "HandleGetTimelineReplies",
+    "trimmedName": "GetTimelineReplies",
+    "comments": [
+      "HandleGetTimelineReplies",
+      "",
+      "\t@summary lists replies under a timeline item, oldest first.",
+      "\t@param targetKey - string - true - \"Timeline item key\"",
+      "\t@route /api/v1/profile/timeline/replies [GET]",
+      "\t@returns []handlers.TimelineReplyItem",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_posts.go",
+    "filename": "profile_posts.go",
+    "api": {
+      "summary": "lists replies under a timeline item, oldest first.",
+      "descriptions": [],
+      "endpoint": "/api/v1/profile/timeline/replies",
+      "methods": [
+        "GET"
+      ],
+      "params": [
+        {
+          "name": "targetKey",
+          "jsonName": "targetKey",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": [
+            "Timeline item key"
+          ]
+        }
+      ],
+      "bodyFields": [],
+      "returns": "[]handlers.TimelineReplyItem",
+      "returnGoType": "handlers.TimelineReplyItem",
+      "returnTypescriptType": "Array\u003cTimelineReplyItem\u003e"
+    }
+  },
+  {
+    "name": "HandleCreateTimelineReply",
+    "trimmedName": "CreateTimelineReply",
+    "comments": [
+      "HandleCreateTimelineReply",
+      "",
+      "\t@summary replies under a timeline item.",
+      "\t@route /api/v1/profile/timeline/replies [POST]",
+      "\t@returns handlers.TimelineReplyItem",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_posts.go",
+    "filename": "profile_posts.go",
+    "api": {
+      "summary": "replies under a timeline item.",
+      "descriptions": [],
+      "endpoint": "/api/v1/profile/timeline/replies",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "TargetKey",
+          "jsonName": "targetKey",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "Content",
+          "jsonName": "content",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "handlers.TimelineReplyItem",
+      "returnGoType": "handlers.TimelineReplyItem",
+      "returnTypescriptType": "TimelineReplyItem"
+    }
+  },
+  {
+    "name": "HandleDeleteTimelineReply",
+    "trimmedName": "DeleteTimelineReply",
+    "comments": [
+      "HandleDeleteTimelineReply",
+      "",
+      "\t@summary deletes a reply (author or admin).",
+      "\t@route /api/v1/profile/timeline/replies/:id [DELETE]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_posts.go",
+    "filename": "profile_posts.go",
+    "api": {
+      "summary": "deletes a reply (author or admin).",
+      "descriptions": [],
+      "endpoint": "/api/v1/profile/timeline/replies/:id",
+      "methods": [
+        "DELETE"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "buildTimelineFeed",
+    "trimmedName": "buildTimelineFeed",
+    "comments": [
+      "buildTimelineFeed merges posts (all, or those on one wall) with the activity of the given",
+      "profiles, newest first, and returns one page.",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_posts.go",
+    "filename": "profile_posts.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "groupActivity",
+    "trimmedName": "groupActivity",
+    "comments": [
+      "groupActivity turns a profile's resolved events (newest first) into feed items, collapsing runs",
+      "of episode_watched for the same media into one \"episodes a – b\" item.",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_posts.go",
+    "filename": "profile_posts.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "fillTimelineCounts",
+    "trimmedName": "fillTimelineCounts",
+    "comments": [
+      "fillTimelineCounts sets like/reply counts and the viewer's own like on a page of items.",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_posts.go",
+    "filename": "profile_posts.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
     }
   },
   {
@@ -18372,6 +19346,117 @@
     }
   },
   {
+    "name": "statusRequestIsAdmin",
+    "trimmedName": "statusRequestIsAdmin",
+    "comments": [
+      "statusRequestIsAdmin reports whether the status request comes from an admin profile session, or",
+      "from a server with no profiles at all (where there is no one else to keep things from).",
+      ""
+    ],
+    "filepath": "internal/handlers/status.go",
+    "filename": "status.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "redactSettingsSecrets",
+    "trimmedName": "redactSettingsSecrets",
+    "comments": [
+      "redactSettingsSecrets returns a copy of the settings with every secret blanked. The original is",
+      "left alone: it may be a cached copy other code reads.",
+      ""
+    ],
+    "filepath": "internal/handlers/status.go",
+    "filename": "status.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetStudioProfile",
+    "trimmedName": "GetStudioProfile",
+    "comments": [
+      "HandleGetStudioProfile",
+      "",
+      "\t@summary returns a studio's filmography, directors and statistics.",
+      "\t@desc Every title the studio worked on (main or supporting), newest first, with the directors",
+      "\t@desc credited on each, plus totals: years active, formats, genres, scores, episodes.",
+      "\t@returns handlers.StudioProfile",
+      "\t@param id - int - true - \"The AniList studio ID\"",
+      "\t@route /api/v1/anilist/studio/{id}/profile [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/studio_profile.go",
+    "filename": "studio_profile.go",
+    "api": {
+      "summary": "returns a studio's filmography, directors and statistics.",
+      "descriptions": [
+        "Every title the studio worked on (main or supporting), newest first, with the directors",
+        "credited on each, plus totals: years active, formats, genres, scores, episodes."
+      ],
+      "endpoint": "/api/v1/anilist/studio/{id}/profile",
+      "methods": [
+        "GET"
+      ],
+      "params": [
+        {
+          "name": "id",
+          "jsonName": "id",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": [
+            "The AniList studio ID"
+          ]
+        }
+      ],
+      "bodyFields": [],
+      "returns": "handlers.StudioProfile",
+      "returnGoType": "handlers.StudioProfile",
+      "returnTypescriptType": "StudioProfile"
+    }
+  },
+  {
+    "name": "isDirectorCredit",
+    "trimmedName": "isDirectorCredit",
+    "comments": [
+      "isDirectorCredit is a directing credit for the work as a whole — not \"Director of Photography\",",
+      "and not a single episode's \"Director (ep 3)\", which is an episode director by another name.",
+      ""
+    ],
+    "filepath": "internal/handlers/studio_profile.go",
+    "filename": "studio_profile.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleSearchSyntheticAnime",
     "trimmedName": "SearchSyntheticAnime",
     "comments": [
@@ -19458,6 +20543,28 @@
     }
   },
   {
+    "name": "resolveTimelineEvents",
+    "trimmedName": "resolveTimelineEvents",
+    "comments": [
+      "resolveTimelineEvents enriches raw activity events with media titles/images (from the profile's",
+      "cached collections) and achievement details. Shared by the Activity tab and the merged timeline feed.",
+      ""
+    ],
+    "filepath": "internal/handlers/timeline.go",
+    "filename": "timeline.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleRecordEpisodeWatched",
     "trimmedName": "RecordEpisodeWatched",
     "comments": [
@@ -19585,6 +20692,73 @@
     }
   },
   {
+    "name": "withAchievements",
+    "trimmedName": "withAchievements",
+    "comments": [
+      "withAchievements gives a profile's achievement items their unlock details, adds unlocks that",
+      "predate activity-event tracking (from the achievement table), and folds bursts into one card.",
+      "Other items pass through untouched.",
+      ""
+    ],
+    "filepath": "internal/handlers/timeline_extras.go",
+    "filename": "timeline_extras.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "timelineNewsItems",
+    "trimmedName": "timelineNewsItems",
+    "comments": [
+      "timelineNewsItems scores and paces the cached news for the viewer. It never fetches: a cold",
+      "cache starts a background refresh and the feed simply has no news this time.",
+      ""
+    ],
+    "filepath": "internal/handlers/timeline_extras.go",
+    "filename": "timeline_extras.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "separateNewsCards",
+    "trimmedName": "separateNewsCards",
+    "comments": [
+      "separateNewsCards folds a news card into the one before it whenever two would sit next to each",
+      "other in the (sorted) feed, so news never runs in a block.",
+      ""
+    ],
+    "filepath": "internal/handlers/timeline_extras.go",
+    "filename": "timeline_extras.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "torrentClientRepo",
     "trimmedName": "torrentClientRepo",
     "comments": [
@@ -19674,6 +20848,46 @@
       "returns": "[]torrent_client.Torrent",
       "returnGoType": "torrent_client.Torrent",
       "returnTypescriptType": "Array\u003cTorrentClient_Torrent\u003e"
+    }
+  },
+  {
+    "name": "HandleGetTorrentClientTorrentFiles",
+    "trimmedName": "GetTorrentClientTorrentFiles",
+    "comments": [
+      "HandleGetTorrentClientTorrentFiles",
+      "",
+      "\t@summary returns the files inside a torrent already in the client.",
+      "\t@desc Answers right away: a torrent with no metadata yet has an empty list.",
+      "\t@route /api/v1/torrent-client/files [POST]",
+      "\t@returns []torrent_client.TorrentFile",
+      ""
+    ],
+    "filepath": "internal/handlers/torrent_client.go",
+    "filename": "torrent_client.go",
+    "api": {
+      "summary": "returns the files inside a torrent already in the client.",
+      "descriptions": [
+        "Answers right away: a torrent with no metadata yet has an empty list."
+      ],
+      "endpoint": "/api/v1/torrent-client/files",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "Hash",
+          "jsonName": "hash",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "[]torrent_client.TorrentFile",
+      "returnGoType": "torrent_client.TorrentFile",
+      "returnTypescriptType": "Array\u003cTorrentClient_TorrentFile\u003e"
     }
   },
   {
@@ -20420,6 +21634,9 @@
       "\t@desc nothing is added to a download queue to answer this. Torrents with no download URL (magnet",
       "\t@desc only) are absent from the result rather than reported as zero — unless the search already",
       "\t@desc answered them from the SeaDex list, whose releases are counted ahead of time.",
+      "\t@desc When mediaId is given, the SeaDex list is asked for that anime first, so a release the list",
+      "\t@desc has curated is answered from its own records even when the .torrent file cannot be fetched",
+      "\t@desc — no download URL, a tracker that is down, a server restarted since the search ran.",
       "\t@route /api/v1/torrent/contents [POST]",
       "\t@returns map[string]handlers.TorrentContents",
       ""
@@ -20432,7 +21649,10 @@
         "Reads the .torrent file itself over HTTP and parses it — no torrent client involved, so",
         "nothing is added to a download queue to answer this. Torrents with no download URL (magnet",
         "only) are absent from the result rather than reported as zero — unless the search already",
-        "answered them from the SeaDex list, whose releases are counted ahead of time."
+        "answered them from the SeaDex list, whose releases are counted ahead of time.",
+        "When mediaId is given, the SeaDex list is asked for that anime first, so a release the list",
+        "has curated is answered from its own records even when the .torrent file cannot be fetched",
+        "— no download URL, a tracker that is down, a server restarted since the search ran."
       ],
       "endpoint": "/api/v1/torrent/contents",
       "methods": [
@@ -20446,6 +21666,15 @@
           "goType": "[]torrent.TorrentContentsRequestItem",
           "usedStructType": "torrent.TorrentContentsRequestItem",
           "typescriptType": "Array\u003cTorrent_TorrentContentsRequestItem\u003e",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "MediaId",
+          "jsonName": "mediaId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
           "required": true,
           "descriptions": []
         }
@@ -21188,6 +22417,180 @@
           "descriptions": []
         }
       ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetMediaTrailer",
+    "trimmedName": "GetMediaTrailer",
+    "comments": [
+      "HandleGetMediaTrailer",
+      "",
+      "\t@summary returns the YouTube trailer to preview for a media, in sub or dub.",
+      "\t@desc With lang=dub, an English dub trailer is searched for on YouTube and AniList's trailer is",
+      "\t@desc the fallback. With lang=sub (default) it is AniList's trailer.",
+      "\t@returns handlers.TrailerLookup",
+      "\t@param id - int - true - \"The AniList media ID\"",
+      "\t@route /api/v1/anilist/media/{id}/trailer [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/trailer_lookup.go",
+    "filename": "trailer_lookup.go",
+    "api": {
+      "summary": "returns the YouTube trailer to preview for a media, in sub or dub.",
+      "descriptions": [
+        "With lang=dub, an English dub trailer is searched for on YouTube and AniList's trailer is",
+        "the fallback. With lang=sub (default) it is AniList's trailer."
+      ],
+      "endpoint": "/api/v1/anilist/media/{id}/trailer",
+      "methods": [
+        "GET"
+      ],
+      "params": [
+        {
+          "name": "id",
+          "jsonName": "id",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": [
+            "The AniList media ID"
+          ]
+        }
+      ],
+      "bodyFields": [],
+      "returns": "handlers.TrailerLookup",
+      "returnGoType": "handlers.TrailerLookup",
+      "returnTypescriptType": "TrailerLookup"
+    }
+  },
+  {
+    "name": "trailerAndTitles",
+    "trimmedName": "trailerAndTitles",
+    "comments": [
+      "trailerAndTitles reads AniList's trailer and the show's titles (English first) through the paced path.",
+      ""
+    ],
+    "filepath": "internal/handlers/trailer_lookup.go",
+    "filename": "trailer_lookup.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "searchDubTrailer",
+    "trimmedName": "searchDubTrailer",
+    "comments": [
+      "searchDubTrailer looks for an English dub trailer of the show on YouTube.",
+      ""
+    ],
+    "filepath": "internal/handlers/trailer_lookup.go",
+    "filename": "trailer_lookup.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "isDubTrailerFor",
+    "trimmedName": "isDubTrailerFor",
+    "comments": [
+      "isDubTrailerFor reports whether a video title reads as an English dub trailer of the show: it says",
+      "\"dub\" and contains the show's significant title words.",
+      ""
+    ],
+    "filepath": "internal/handlers/trailer_lookup.go",
+    "filename": "trailer_lookup.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "parseYoutubeResults",
+    "trimmedName": "parseYoutubeResults",
+    "comments": [
+      "parseYoutubeResults pulls (videoId, title) pairs out of a YouTube results page, in order.",
+      ""
+    ],
+    "filepath": "internal/handlers/trailer_lookup.go",
+    "filename": "trailer_lookup.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "searchJapaneseTrailer",
+    "trimmedName": "searchJapaneseTrailer",
+    "comments": [
+      "searchJapaneseTrailer looks for the show's original Japanese trailer (PV) on YouTube: by its",
+      "native title first (\"\u003ctitle\u003e PV\", \"\u003ctitle\u003e 予告\"), then its romaji title.",
+      ""
+    ],
+    "filepath": "internal/handlers/trailer_lookup.go",
+    "filename": "trailer_lookup.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "isJapaneseTrailerFor",
+    "trimmedName": "isJapaneseTrailerFor",
+    "comments": [
+      "isJapaneseTrailerFor reports whether a video title reads as the show's Japanese trailer: it names",
+      "the show, is a PV/trailer/teaser, and isn't a dub, a reaction or a fan edit.",
+      ""
+    ],
+    "filepath": "internal/handlers/trailer_lookup.go",
+    "filename": "trailer_lookup.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
       "returns": "bool",
       "returnGoType": "bool",
       "returnTypescriptType": "boolean"
@@ -22765,6 +24168,63 @@
       "returns": "handlers.CheckBackendUpdateResponse",
       "returnGoType": "handlers.CheckBackendUpdateResponse",
       "returnTypescriptType": "CheckBackendUpdateResponse"
+    }
+  },
+  {
+    "name": "HandleGetBackendUpdateStatus",
+    "trimmedName": "GetBackendUpdateStatus",
+    "comments": [
+      "HandleGetBackendUpdateStatus",
+      "",
+      "\t@summary returns the cached backend update status.",
+      "\t@desc Whether the fork has commits this server lacks, which ones and which files they change,",
+      "\t@desc when it last checked and when it checks next (every 5 minutes), and any check error.",
+      "\t@desc Never fetches on request — the server's own check loop keeps it current.",
+      "\t@route /api/v1/update/backend/status [GET]",
+      "\t@returns updater.UpdateStatus",
+      ""
+    ],
+    "filepath": "internal/handlers/update_notice.go",
+    "filename": "update_notice.go",
+    "api": {
+      "summary": "returns the cached backend update status.",
+      "descriptions": [
+        "Whether the fork has commits this server lacks, which ones and which files they change,",
+        "when it last checked and when it checks next (every 5 minutes), and any check error.",
+        "Never fetches on request — the server's own check loop keeps it current."
+      ],
+      "endpoint": "/api/v1/update/backend/status",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "updater.UpdateStatus",
+      "returnGoType": "updater.UpdateStatus",
+      "returnTypescriptType": "Updater_UpdateStatus"
+    }
+  },
+  {
+    "name": "respondUpdateError",
+    "trimmedName": "respondUpdateError",
+    "comments": [
+      "respondUpdateError logs a failed update or check and answers with a status the client can tell",
+      "apart: 409 while an update is already running, 502 when git or the network failed. It used to",
+      "be a bare 500 with nothing in the log, so the reason was lost on both ends.",
+      ""
+    ],
+    "filepath": "internal/handlers/update_notice.go",
+    "filename": "update_notice.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
     }
   },
   {

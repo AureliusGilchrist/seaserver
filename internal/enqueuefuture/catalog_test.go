@@ -1,6 +1,7 @@
 package enqueuefuture
 
 import (
+	"context"
 	"testing"
 
 	"seanime/internal/api/anilist"
@@ -92,6 +93,121 @@ func TestListLeavesOutWaitingCatalogRows(t *testing.T) {
 	items, err = r.database.GetEnqueueFutureListItems()
 	if err != nil || len(items) != 1 {
 		t.Fatalf("expected it listed once prepared, got %d, %v", len(items), err)
+	}
+}
+
+func TestCatalogStatusCountsPreparedRows(t *testing.T) {
+	r := catalogRepository(t)
+	r.saveCatalogState(&catalogState{Enabled: true, NextID: 1})
+	r.queueCatalogMedia(catalogAnime(1, "One"))
+	r.queueCatalogMedia(catalogAnime(2, "Two"))
+	r.queueCatalogMedia(catalogAnime(3, "Three"))
+
+	if err := r.database.SetEnqueueFutureItemStatus(1, db.EnqueueFutureStatusReady, ""); err != nil {
+		t.Fatalf("set status: %v", err)
+	}
+	// Given up on, so neither waiting nor prepared.
+	if err := r.database.SetEnqueueFutureItemStatus(2, db.EnqueueFutureStatusFailed, "no"); err != nil {
+		t.Fatalf("set status: %v", err)
+	}
+
+	if status := r.catalogStatus(); status == nil || status.Waiting != 1 || status.Prepared != 1 {
+		t.Fatalf("got %+v", status)
+	}
+}
+
+func TestQueueCatalogMediaKeepsTheCover(t *testing.T) {
+	r := catalogRepository(t)
+
+	cover := "https://example.test/cover.jpg"
+	m := catalogAnime(1, "Show")
+	m.CoverImage.Large = &cover
+	r.queueCatalogMedia(m)
+
+	item, _ := r.database.GetEnqueueFutureItem(1)
+	if item == nil || item.CoverImage != cover {
+		t.Fatalf("expected the cover on the row: %+v", item)
+	}
+}
+
+func TestListWaitingCatalogItems(t *testing.T) {
+	r := repositoryWithDB(t)
+	for id := 1; id <= 3; id++ {
+		r.queueCatalogMedia(catalogAnime(id, "Show"))
+	}
+	if err := r.database.SetAnimeDownloadState(2, db.AnimeDownloadStateDownloading); err != nil {
+		t.Fatalf("set state: %v", err)
+	}
+
+	first, err := r.ListWaitingCatalogItems(0, "", 2)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(first.Items) != 2 || first.Total != 3 || first.NextPosition != first.Items[1].Position {
+		t.Fatalf("first page: %+v", first)
+	}
+	if first.Items[1].DownloadState != db.AnimeDownloadStateDownloading {
+		t.Fatalf("expected the download state on the row: %+v", first.Items[1])
+	}
+
+	last, err := r.ListWaitingCatalogItems(first.NextPosition, "", 2)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(last.Items) != 1 || last.Items[0].MediaID != 3 || last.NextPosition != 0 {
+		t.Fatalf("last page: %+v", last)
+	}
+}
+
+// A row you downloaded while it waited is passed over. Nothing behind this repository can prepare
+// anything, so a row the worker did take would come back failed or pending, never ready.
+func TestRunSkipsRowsThatAlreadyHaveADownload(t *testing.T) {
+	r := repositoryWithDB(t)
+	r.queueCatalogMedia(catalogAnime(1, "Downloading"))
+	r.queueCatalogMedia(catalogAnime(2, "Downloaded"))
+	if err := r.database.SetAnimeDownloadState(1, db.AnimeDownloadStateDownloading); err != nil {
+		t.Fatalf("set state: %v", err)
+	}
+	if err := r.database.SetAnimeDownloadState(2, db.AnimeDownloadStateDownloaded); err != nil {
+		t.Fatalf("set state: %v", err)
+	}
+
+	r.mu.Lock()
+	r.running = true
+	r.mu.Unlock()
+	r.run(context.Background(), &RunProgress{RootMediaID: db.EnqueueFutureCatalogRootID, RootWalked: true})
+
+	for _, id := range []int{1, 2} {
+		item, _ := r.database.GetEnqueueFutureItem(id)
+		if item == nil || item.Status != db.EnqueueFutureStatusReady || len(item.Value) != 0 {
+			t.Fatalf("media %d: expected ready with nothing prepared: %+v", id, item)
+		}
+	}
+}
+
+func TestSettleDownloadedItem(t *testing.T) {
+	r := repositoryWithDB(t)
+	r.queueCatalogMedia(catalogAnime(1, "Untouched"))
+	r.queueCatalogMedia(catalogAnime(2, "Downloading"))
+	if err := r.database.SetAnimeDownloadState(2, db.AnimeDownloadStateDownloading); err != nil {
+		t.Fatalf("set state: %v", err)
+	}
+
+	untouched, _ := r.database.GetEnqueueFutureItem(1)
+	if r.settleDownloadedItem(untouched) {
+		t.Fatalf("expected a row with no download to be left to the worker")
+	}
+
+	// A family edge is walked whether you own it or not, or the franchise ends there.
+	edge, _ := r.database.GetEnqueueFutureItem(2)
+	edge.ParentMediaID = 1
+	if r.settleDownloadedItem(edge) {
+		t.Fatalf("expected a family edge to be left to the worker")
+	}
+
+	edge.ParentMediaID = 0
+	if !r.settleDownloadedItem(edge) {
+		t.Fatalf("expected a downloading row to be settled")
 	}
 }
 

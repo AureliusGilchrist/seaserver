@@ -220,6 +220,15 @@
 //     })
 // }
 
+// export function useGetAnilistEditQueue() {
+//     return useServerQuery<Array<INTERNAL_QueuedListEdit>>({
+//         endpoint: API_ENDPOINTS.ANILIST.GetAnilistEditQueue.endpoint,
+//         method: API_ENDPOINTS.ANILIST.GetAnilistEditQueue.methods[0],
+//         queryKey: [API_ENDPOINTS.ANILIST.GetAnilistEditQueue.key],
+//         enabled: true,
+//     })
+// }
+
 // export function useGetAnilistAnimeDetails(id: number) {
 //     return useServerQuery<AL_AnimeDetailsById_Media>({
 //         endpoint: API_ENDPOINTS.ANILIST.GetAnilistAnimeDetails.endpoint.replace("{id}", String(id)),
@@ -843,6 +852,15 @@
 //     })
 // }
 
+// export function useGetAnilistMediaCharacters(id: number) {
+//     return useServerQuery<MediaCharactersResponse>({
+//         endpoint: API_ENDPOINTS.CHARACTER.GetAnilistMediaCharacters.endpoint.replace("{id}", String(id)),
+//         method: API_ENDPOINTS.CHARACTER.GetAnilistMediaCharacters.methods[0],
+//         queryKey: [API_ENDPOINTS.CHARACTER.GetAnilistMediaCharacters.key],
+//         enabled: true,
+//     })
+// }
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // client_prefs
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1183,7 +1201,7 @@
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // export function useDirectstreamGetAudio() {
-//     return useServerQuery<audio/aac file>({
+//     return useServerQuery<audio/mp4 file>({
 //         endpoint: API_ENDPOINTS.DIRECTSTREAM_AUDIO.DirectstreamGetAudio.endpoint,
 //         method: API_ENDPOINTS.DIRECTSTREAM_AUDIO.DirectstreamGetAudio.methods[0],
 //         queryKey: [API_ENDPOINTS.DIRECTSTREAM_AUDIO.DirectstreamGetAudio.key],
@@ -1192,7 +1210,7 @@
 // }
 
 // export function useMediastreamGetAudio() {
-//     return useServerQuery<audio/aac file>({
+//     return useServerQuery<audio/mp4 file>({
 //         endpoint: API_ENDPOINTS.DIRECTSTREAM_AUDIO.MediastreamGetAudio.endpoint,
 //         method: API_ENDPOINTS.DIRECTSTREAM_AUDIO.MediastreamGetAudio.methods[0],
 //         queryKey: [API_ENDPOINTS.DIRECTSTREAM_AUDIO.MediastreamGetAudio.key],
@@ -1523,6 +1541,79 @@
 //         endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.ClearEnqueueFutureRewalkBacklog.endpoint,
 //         method: API_ENDPOINTS.ENQUEUE_FUTURE.ClearEnqueueFutureRewalkBacklog.methods[0],
 //         mutationKey: [API_ENDPOINTS.ENQUEUE_FUTURE.ClearEnqueueFutureRewalkBacklog.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useStartEnqueueFutureCatalog() {
+//     return useServerMutation<EnqueueFuture_Status>({
+//         endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.StartEnqueueFutureCatalog.endpoint,
+//         method: API_ENDPOINTS.ENQUEUE_FUTURE.StartEnqueueFutureCatalog.methods[0],
+//         mutationKey: [API_ENDPOINTS.ENQUEUE_FUTURE.StartEnqueueFutureCatalog.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useStopEnqueueFutureCatalog() {
+//     return useServerMutation<EnqueueFuture_Status>({
+//         endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.StopEnqueueFutureCatalog.endpoint,
+//         method: API_ENDPOINTS.ENQUEUE_FUTURE.StopEnqueueFutureCatalog.methods[0],
+//         mutationKey: [API_ENDPOINTS.ENQUEUE_FUTURE.StopEnqueueFutureCatalog.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useGetEnqueueFutureCatalogWaiting() {
+//     return useServerQuery<EnqueueFuture_WaitingPage>({
+//         endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureCatalogWaiting.endpoint,
+//         method: API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureCatalogWaiting.methods[0],
+//         queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureCatalogWaiting.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useGetEnqueueFutureDropped() {
+//     return useServerQuery<Array<EnqueueFuture_DroppedItem>>({
+//         endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureDropped.endpoint,
+//         method: API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureDropped.methods[0],
+//         queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureDropped.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useRestoreEnqueueFutureDropped(mediaId: number) {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.RestoreEnqueueFutureDropped.endpoint.replace("{mediaId}", String(mediaId)),
+//         method: API_ENDPOINTS.ENQUEUE_FUTURE.RestoreEnqueueFutureDropped.methods[0],
+//         mutationKey: [API_ENDPOINTS.ENQUEUE_FUTURE.RestoreEnqueueFutureDropped.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useDeleteEnqueueFutureDropped(mediaId: number) {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.DeleteEnqueueFutureDropped.endpoint.replace("{mediaId}", String(mediaId)),
+//         method: API_ENDPOINTS.ENQUEUE_FUTURE.DeleteEnqueueFutureDropped.methods[0],
+//         mutationKey: [API_ENDPOINTS.ENQUEUE_FUTURE.DeleteEnqueueFutureDropped.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useClearEnqueueFutureDropped() {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.ClearEnqueueFutureDropped.endpoint,
+//         method: API_ENDPOINTS.ENQUEUE_FUTURE.ClearEnqueueFutureDropped.methods[0],
+//         mutationKey: [API_ENDPOINTS.ENQUEUE_FUTURE.ClearEnqueueFutureDropped.key],
 //         onSuccess: async () => {
 // 
 //         },
@@ -1884,6 +1975,19 @@
 //         onSuccess: async () => {
 // 
 //         },
+//     })
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// home_counts
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// export function useGetHomeCounts() {
+//     return useServerQuery<HomeCounts>({
+//         endpoint: API_ENDPOINTS.HOME_COUNTS.GetHomeCounts.endpoint,
+//         method: API_ENDPOINTS.HOME_COUNTS.GetHomeCounts.methods[0],
+//         queryKey: [API_ENDPOINTS.HOME_COUNTS.GetHomeCounts.key],
+//         enabled: true,
 //     })
 // }
 
@@ -2817,6 +2921,28 @@
 // }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// media_info
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// export function useGetMediaFamily(id: number) {
+//     return useServerQuery<MediaFamilyResponse>({
+//         endpoint: API_ENDPOINTS.MEDIA_INFO.GetMediaFamily.endpoint.replace("{id}", String(id)),
+//         method: API_ENDPOINTS.MEDIA_INFO.GetMediaFamily.methods[0],
+//         queryKey: [API_ENDPOINTS.MEDIA_INFO.GetMediaFamily.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useGetMediaInfo(id: number) {
+//     return useServerQuery<any>({
+//         endpoint: API_ENDPOINTS.MEDIA_INFO.GetMediaInfo.endpoint.replace("{id}", String(id)),
+//         method: API_ENDPOINTS.MEDIA_INFO.GetMediaInfo.methods[0],
+//         queryKey: [API_ENDPOINTS.MEDIA_INFO.GetMediaInfo.key],
+//         enabled: true,
+//     })
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // mediaplayer
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -3717,6 +3843,17 @@
 //     })
 // }
 
+// export function useAdminClearProfileAniListToken(id: number) {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.PROFILE.AdminClearProfileAniListToken.endpoint.replace("{id}", String(id)),
+//         method: API_ENDPOINTS.PROFILE.AdminClearProfileAniListToken.methods[0],
+//         mutationKey: [API_ENDPOINTS.PROFILE.AdminClearProfileAniListToken.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // profile_activity
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3833,6 +3970,103 @@
 //         method: API_ENDPOINTS.PROFILE_PAGE.GetExpBarForLevel.methods[0],
 //         queryKey: [API_ENDPOINTS.PROFILE_PAGE.GetExpBarForLevel.key],
 //         enabled: true,
+//     })
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// profile_posts
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// export function useGetProfileTimelineFeed(profileId: number, page: number) {
+//     return useServerQuery<TimelineFeedResponse>({
+//         endpoint: API_ENDPOINTS.PROFILE_POSTS.GetProfileTimelineFeed.endpoint.replace("{profileId}", String(profileId)).replace("{page}", String(page)),
+//         method: API_ENDPOINTS.PROFILE_POSTS.GetProfileTimelineFeed.methods[0],
+//         queryKey: [API_ENDPOINTS.PROFILE_POSTS.GetProfileTimelineFeed.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useGetCommunityTimelineFeed(page: number) {
+//     return useServerQuery<TimelineFeedResponse>({
+//         endpoint: API_ENDPOINTS.PROFILE_POSTS.GetCommunityTimelineFeed.endpoint.replace("{page}", String(page)),
+//         method: API_ENDPOINTS.PROFILE_POSTS.GetCommunityTimelineFeed.methods[0],
+//         queryKey: [API_ENDPOINTS.PROFILE_POSTS.GetCommunityTimelineFeed.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useCreateProfilePost() {
+//     return useServerMutation<TimelineFeedItem, CreateProfilePost_Variables>({
+//         endpoint: API_ENDPOINTS.PROFILE_POSTS.CreateProfilePost.endpoint,
+//         method: API_ENDPOINTS.PROFILE_POSTS.CreateProfilePost.methods[0],
+//         mutationKey: [API_ENDPOINTS.PROFILE_POSTS.CreateProfilePost.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useUpdateProfilePost() {
+//     return useServerMutation<boolean, UpdateProfilePost_Variables>({
+//         endpoint: API_ENDPOINTS.PROFILE_POSTS.UpdateProfilePost.endpoint,
+//         method: API_ENDPOINTS.PROFILE_POSTS.UpdateProfilePost.methods[0],
+//         mutationKey: [API_ENDPOINTS.PROFILE_POSTS.UpdateProfilePost.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useDeleteProfilePost() {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.PROFILE_POSTS.DeleteProfilePost.endpoint,
+//         method: API_ENDPOINTS.PROFILE_POSTS.DeleteProfilePost.methods[0],
+//         mutationKey: [API_ENDPOINTS.PROFILE_POSTS.DeleteProfilePost.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useToggleTimelineLike() {
+//     return useServerMutation<map, ToggleTimelineLike_Variables>({
+//         endpoint: API_ENDPOINTS.PROFILE_POSTS.ToggleTimelineLike.endpoint,
+//         method: API_ENDPOINTS.PROFILE_POSTS.ToggleTimelineLike.methods[0],
+//         mutationKey: [API_ENDPOINTS.PROFILE_POSTS.ToggleTimelineLike.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useGetTimelineReplies(targetKey: string) {
+//     return useServerQuery<Array<TimelineReplyItem>>({
+//         endpoint: API_ENDPOINTS.PROFILE_POSTS.GetTimelineReplies.endpoint.replace("{targetKey}", String(targetKey)),
+//         method: API_ENDPOINTS.PROFILE_POSTS.GetTimelineReplies.methods[0],
+//         queryKey: [API_ENDPOINTS.PROFILE_POSTS.GetTimelineReplies.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useCreateTimelineReply() {
+//     return useServerMutation<TimelineReplyItem, CreateTimelineReply_Variables>({
+//         endpoint: API_ENDPOINTS.PROFILE_POSTS.CreateTimelineReply.endpoint,
+//         method: API_ENDPOINTS.PROFILE_POSTS.CreateTimelineReply.methods[0],
+//         mutationKey: [API_ENDPOINTS.PROFILE_POSTS.CreateTimelineReply.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useDeleteTimelineReply() {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.PROFILE_POSTS.DeleteTimelineReply.endpoint,
+//         method: API_ENDPOINTS.PROFILE_POSTS.DeleteTimelineReply.methods[0],
+//         mutationKey: [API_ENDPOINTS.PROFILE_POSTS.DeleteTimelineReply.key],
+//         onSuccess: async () => {
+// 
+//         },
 //     })
 // }
 
@@ -4388,6 +4622,19 @@
 // }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// studio_profile
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// export function useGetStudioProfile(id: number) {
+//     return useServerQuery<StudioProfile>({
+//         endpoint: API_ENDPOINTS.STUDIO_PROFILE.GetStudioProfile.endpoint.replace("{id}", String(id)),
+//         method: API_ENDPOINTS.STUDIO_PROFILE.GetStudioProfile.methods[0],
+//         queryKey: [API_ENDPOINTS.STUDIO_PROFILE.GetStudioProfile.key],
+//         enabled: true,
+//     })
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // synthetic_anime
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -4544,6 +4791,17 @@
 //         method: API_ENDPOINTS.TORRENT_CLIENT.GetActiveTorrentList.methods[0],
 //         queryKey: [API_ENDPOINTS.TORRENT_CLIENT.GetActiveTorrentList.key],
 //         enabled: true,
+//     })
+// }
+
+// export function useGetTorrentClientTorrentFiles() {
+//     return useServerMutation<Array<TorrentClient_TorrentFile>, GetTorrentClientTorrentFiles_Variables>({
+//         endpoint: API_ENDPOINTS.TORRENT_CLIENT.GetTorrentClientTorrentFiles.endpoint,
+//         method: API_ENDPOINTS.TORRENT_CLIENT.GetTorrentClientTorrentFiles.methods[0],
+//         mutationKey: [API_ENDPOINTS.TORRENT_CLIENT.GetTorrentClientTorrentFiles.key],
+//         onSuccess: async () => {
+// 
+//         },
 //     })
 // }
 
@@ -4825,6 +5083,19 @@
 //         onSuccess: async () => {
 // 
 //         },
+//     })
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// trailer_lookup
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// export function useGetMediaTrailer(id: number) {
+//     return useServerQuery<TrailerLookup>({
+//         endpoint: API_ENDPOINTS.TRAILER_LOOKUP.GetMediaTrailer.endpoint.replace("{id}", String(id)),
+//         method: API_ENDPOINTS.TRAILER_LOOKUP.GetMediaTrailer.methods[0],
+//         queryKey: [API_ENDPOINTS.TRAILER_LOOKUP.GetMediaTrailer.key],
+//         enabled: true,
 //     })
 // }
 
@@ -5134,6 +5405,15 @@
 //         onSuccess: async () => {
 // 
 //         },
+//     })
+// }
+
+// export function useGetBackendUpdateStatus() {
+//     return useServerQuery<Updater_UpdateStatus>({
+//         endpoint: API_ENDPOINTS.UPDATE_NOTICE.GetBackendUpdateStatus.endpoint,
+//         method: API_ENDPOINTS.UPDATE_NOTICE.GetBackendUpdateStatus.methods[0],
+//         queryKey: [API_ENDPOINTS.UPDATE_NOTICE.GetBackendUpdateStatus.key],
+//         enabled: true,
 //     })
 // }
 

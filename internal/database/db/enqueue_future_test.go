@@ -3,6 +3,7 @@ package db
 import (
 	"path/filepath"
 	"seanime/internal/database/models"
+	"slices"
 	"testing"
 
 	"github.com/glebarez/sqlite"
@@ -40,6 +41,98 @@ func insertItem(t *testing.T, db *Database, mediaID int) bool {
 		t.Fatalf("insert %d: %v", mediaID, err)
 	}
 	return inserted
+}
+
+func insertCatalogItem(t *testing.T, db *Database, mediaID int, title string) int {
+	t.Helper()
+	item := &models.EnqueueFutureItem{
+		MediaID:     mediaID,
+		RootMediaID: EnqueueFutureCatalogRootID,
+		Status:      EnqueueFutureStatusPending,
+		Title:       title,
+	}
+	if inserted, err := db.InsertEnqueueFutureItem(item); err != nil || !inserted {
+		t.Fatalf("insert %d: inserted=%v err=%v", mediaID, inserted, err)
+	}
+	return item.Position
+}
+
+func TestEnqueueFutureCatalogPage(t *testing.T) {
+	mediaIDs := func(t *testing.T, items []*models.EnqueueFutureItem) []int {
+		t.Helper()
+		ids := make([]int, 0, len(items))
+		for _, item := range items {
+			if len(item.Value) != 0 {
+				t.Errorf("media %d came with its snapshot blob", item.MediaID)
+			}
+			ids = append(ids, item.MediaID)
+		}
+		return ids
+	}
+
+	t.Run("walks the catalog from a cursor, past rows the worker took meanwhile", func(t *testing.T) {
+		db := enqueueFutureTestDatabase(t)
+		for id := 1; id <= 5; id++ {
+			insertCatalogItem(t, db, id, "Show")
+		}
+		// Neither of these belongs to the catalog's waiting list.
+		insertItem(t, db, 90)
+		insertCatalogItem(t, db, 91, "Taken")
+		if err := db.SetEnqueueFutureItemStatus(91, EnqueueFutureStatusPreparing, ""); err != nil {
+			t.Fatalf("set status: %v", err)
+		}
+
+		first, err := db.GetEnqueueFutureCatalogItems(0, "", 2)
+		if err != nil {
+			t.Fatalf("read page: %v", err)
+		}
+		if got := mediaIDs(t, first); !slices.Equal(got, []int{1, 2}) {
+			t.Fatalf("first page = %v", got)
+		}
+
+		// With an offset, losing the front of the list here would skip media 3.
+		if err := db.SetEnqueueFutureItemStatus(1, EnqueueFutureStatusPreparing, ""); err != nil {
+			t.Fatalf("set status: %v", err)
+		}
+
+		second, err := db.GetEnqueueFutureCatalogItems(first[1].Position, "", 10)
+		if err != nil {
+			t.Fatalf("read page: %v", err)
+		}
+		if got := mediaIDs(t, second); !slices.Equal(got, []int{3, 4, 5}) {
+			t.Fatalf("second page = %v", got)
+		}
+
+		if total, err := db.CountEnqueueFutureCatalogItems(""); err != nil || total != 4 {
+			t.Fatalf("total = %d, %v", total, err)
+		}
+	})
+
+	t.Run("searches titles whatever the case, taking wildcards literally", func(t *testing.T) {
+		db := enqueueFutureTestDatabase(t)
+		insertCatalogItem(t, db, 1, "Cowboy Bebop")
+		insertCatalogItem(t, db, 2, "Trigun")
+		insertCatalogItem(t, db, 3, "100% Perfect Girl")
+		insertCatalogItem(t, db, 4, "100 Perfect Girls")
+
+		for search, want := range map[string][]int{
+			" bebop ": {1},
+			"100%":    {3},
+			"1_0":     {},
+			"":        {1, 2, 3, 4},
+		} {
+			items, err := db.GetEnqueueFutureCatalogItems(0, search, 10)
+			if err != nil {
+				t.Fatalf("search %q: %v", search, err)
+			}
+			if got := mediaIDs(t, items); !slices.Equal(got, want) {
+				t.Errorf("search %q = %v, want %v", search, got, want)
+			}
+			if total, err := db.CountEnqueueFutureCatalogItems(search); err != nil || total != len(want) {
+				t.Errorf("search %q total = %d, %v", search, total, err)
+			}
+		}
+	})
 }
 
 func TestEnqueueFutureQueue(t *testing.T) {
@@ -291,12 +384,13 @@ func TestEnqueueFutureQueue(t *testing.T) {
 			1: EnqueueFutureStatusPending,
 			2: EnqueueFutureStatusPreparing,
 			3: EnqueueFutureStatusReady,
+			// Nothing else would say the worker gave up on it.
+			8: EnqueueFutureStatusFailed,
+			6: EnqueueFutureStatusSkipped,
 		}
 		terminal := map[int]string{
 			5: EnqueueFutureStatusDownloaded,
-			6: EnqueueFutureStatusSkipped,
 			7: EnqueueFutureStatusIgnored,
-			8: EnqueueFutureStatusFailed,
 			// Nothing writes this any more — an entry with nothing downloadable is dropped outright —
 			// so rows carrying it are leftovers and the screen has no use for them either.
 			9: EnqueueFutureStatusNoResults,
@@ -323,7 +417,7 @@ func TestEnqueueFutureQueue(t *testing.T) {
 			for _, item := range list {
 				ids = append(ids, item.MediaID)
 			}
-			t.Fatalf("list view returned %v, want only the unresolved rows %v", ids, []int{1, 2, 3, 4})
+			t.Fatalf("list view returned %v, want only the unresolved rows %v", ids, unresolved)
 		}
 		for _, item := range list {
 			if _, ok := unresolved[item.MediaID]; !ok {

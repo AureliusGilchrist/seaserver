@@ -529,6 +529,66 @@
   {
     "filepath": "../internal/achievement/engine.go",
     "filename": "engine.go",
+    "name": "Sources",
+    "formattedName": "Achievement_Sources",
+    "package": "achievement",
+    "fields": [
+      {
+        "name": "AnimeCollection",
+        "jsonName": "AnimeCollection",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MangaCollection",
+        "jsonName": "MangaCollection",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Extras",
+        "jsonName": "Extras",
+        "goType": "ExtrasCache",
+        "typescriptType": "Achievement_ExtrasCache",
+        "usedTypescriptType": "Achievement_ExtrasCache",
+        "usedStructName": "achievement.ExtrasCache",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Social",
+        "jsonName": "Social",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TimeZone",
+        "jsonName": "TimeZone",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Sources is where the engine reads what the rules measure. Every field is optional; a missing",
+      " source simply measures as nothing."
+    ]
+  },
+  {
+    "filepath": "../internal/achievement/engine.go",
+    "filename": "engine.go",
     "name": "Engine",
     "formattedName": "Achievement_Engine",
     "package": "achievement",
@@ -574,6 +634,17 @@
         "comments": []
       },
       {
+        "name": "sources",
+        "jsonName": "sources",
+        "goType": "Sources",
+        "typescriptType": "Achievement_Sources",
+        "usedTypescriptType": "Achievement_Sources",
+        "usedStructName": "achievement.Sources",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "defMap",
         "jsonName": "defMap",
         "goType": "map[string]Definition",
@@ -598,9 +669,9 @@
       {
         "name": "initialized",
         "jsonName": "initialized",
-        "goType": "bool",
-        "typescriptType": "boolean",
-        "required": true,
+        "goType": "map[db.Database]bool",
+        "typescriptType": "Record\u003cDatabase, boolean\u003e",
+        "required": false,
         "public": false,
         "comments": []
       },
@@ -611,6 +682,69 @@
         "typescriptType": "Achievement_ActivityTracker",
         "usedTypescriptType": "Achievement_ActivityTracker",
         "usedStructName": "achievement.ActivityTracker",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "evalMu",
+        "jsonName": "evalMu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "profileMu",
+        "jsonName": "profileMu",
+        "goType": "map[uint]sync.Mutex",
+        "typescriptType": "Record\u003cnumber, Mutex\u003e",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "timers",
+        "jsonName": "timers",
+        "goType": "map[uint]time.Timer",
+        "typescriptType": "Record\u003cnumber, Timer\u003e",
+        "usedTypescriptType": "Timer",
+        "usedStructName": "time.Timer",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "lastEval",
+        "jsonName": "lastEval",
+        "goType": "map[uint]time.Time",
+        "typescriptType": "Record\u003cnumber, string\u003e",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "activeMu",
+        "jsonName": "activeMu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "activeSeconds",
+        "jsonName": "activeSeconds",
+        "goType": "map[uint]map[ActivityKind]float64",
+        "typescriptType": "Record\u003cnumber, Record\u003cActivityKind, number\u003e\u003e",
         "required": false,
         "public": false,
         "comments": []
@@ -666,20 +800,40 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "Sources",
+        "jsonName": "Sources",
+        "goType": "Sources",
+        "typescriptType": "Achievement_Sources",
+        "usedTypescriptType": "Achievement_Sources",
+        "usedStructName": "achievement.Sources",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": []
   },
   {
-    "filepath": "../internal/achievement/engine.go",
-    "filename": "engine.go",
-    "name": "CollectionStats",
-    "formattedName": "Achievement_CollectionStats",
+    "filepath": "../internal/achievement/extras.go",
+    "filename": "extras.go",
+    "name": "MediaExtras",
+    "formattedName": "Achievement_MediaExtras",
     "package": "achievement",
     "fields": [
       {
-        "name": "TotalEpisodes",
-        "jsonName": "TotalEpisodes",
+        "name": "FetchedAt",
+        "jsonName": "fetchedAt",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Popularity",
+        "jsonName": "popularity",
         "goType": "int",
         "typescriptType": "number",
         "required": true,
@@ -687,8 +841,8 @@
         "comments": []
       },
       {
-        "name": "TotalMinutes",
-        "jsonName": "TotalMinutes",
+        "name": "Favourites",
+        "jsonName": "favourites",
         "goType": "int",
         "typescriptType": "number",
         "required": true,
@@ -696,645 +850,337 @@
         "comments": []
       },
       {
-        "name": "TotalAnime",
-        "jsonName": "TotalAnime",
-        "goType": "int",
-        "typescriptType": "number",
+        "name": "Source",
+        "jsonName": "source",
+        "goType": "string",
+        "typescriptType": "string",
         "required": true,
         "public": true,
         "comments": []
       },
       {
-        "name": "CompletedAnime",
-        "jsonName": "CompletedAnime",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "DroppedAnime",
-        "jsonName": "DroppedAnime",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "WatchingAnime",
-        "jsonName": "WatchingAnime",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "PausedAnime",
-        "jsonName": "PausedAnime",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "PTWAnime",
-        "jsonName": "PTWAnime",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "AnimeRewatches",
-        "jsonName": "AnimeRewatches",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "TotalChapters",
-        "jsonName": "TotalChapters",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "TotalManga",
-        "jsonName": "TotalManga",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "CompletedManga",
-        "jsonName": "CompletedManga",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "DroppedManga",
-        "jsonName": "DroppedManga",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "ReadingManga",
-        "jsonName": "ReadingManga",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "PausedManga",
-        "jsonName": "PausedManga",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "PTRManga",
-        "jsonName": "PTRManga",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "MangaRereads",
-        "jsonName": "MangaRereads",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "GenreCount",
-        "jsonName": "GenreCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "StudioCount",
-        "jsonName": "StudioCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "FormatCount",
-        "jsonName": "FormatCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "DecadeCount",
-        "jsonName": "DecadeCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "TagCount",
-        "jsonName": "TagCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "SeasonCount",
-        "jsonName": "SeasonCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "YearCount",
-        "jsonName": "YearCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "TVCount",
-        "jsonName": "TVCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "MovieCount",
-        "jsonName": "MovieCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "OVACount",
-        "jsonName": "OVACount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "ONACount",
-        "jsonName": "ONACount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "SpecialCount",
-        "jsonName": "SpecialCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "ShortCount",
-        "jsonName": "ShortCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "MusicCount",
-        "jsonName": "MusicCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "TVShortCount",
-        "jsonName": "TVShortCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "ManhwaCount",
-        "jsonName": "ManhwaCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "ManhuaCount",
-        "jsonName": "ManhuaCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "WebtoonCount",
-        "jsonName": "WebtoonCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "DoujinCount",
-        "jsonName": "DoujinCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "LightNovelCount",
-        "jsonName": "LightNovelCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "NovelCount",
-        "jsonName": "NovelCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "OneshotCount",
-        "jsonName": "OneshotCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "AnimeRatingCount",
-        "jsonName": "AnimeRatingCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "MangaRatingCount",
-        "jsonName": "MangaRatingCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "AnimeAverageRating",
-        "jsonName": "AnimeAverageRating",
-        "goType": "float64",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "MangaAverageRating",
-        "jsonName": "MangaAverageRating",
-        "goType": "float64",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "PerfectTenAnime",
-        "jsonName": "PerfectTenAnime",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "PerfectTenManga",
-        "jsonName": "PerfectTenManga",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "HarshCriticAnime",
-        "jsonName": "HarshCriticAnime",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "HarshCriticManga",
-        "jsonName": "HarshCriticManga",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "AnimeGenreCounts",
-        "jsonName": "AnimeGenreCounts",
-        "goType": "map[string]int",
-        "typescriptType": "Record\u003cstring, number\u003e",
-        "required": false,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "MangaGenreCounts",
-        "jsonName": "MangaGenreCounts",
-        "goType": "map[string]int",
-        "typescriptType": "Record\u003cstring, number\u003e",
-        "required": false,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "AnimeTagCounts",
-        "jsonName": "AnimeTagCounts",
-        "goType": "map[string]int",
-        "typescriptType": "Record\u003cstring, number\u003e",
-        "required": false,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "MangaTagCounts",
-        "jsonName": "MangaTagCounts",
-        "goType": "map[string]int",
-        "typescriptType": "Record\u003cstring, number\u003e",
-        "required": false,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "AnimeFormatCounts",
-        "jsonName": "AnimeFormatCounts",
-        "goType": "map[string]int",
-        "typescriptType": "Record\u003cstring, number\u003e",
-        "required": false,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "MangaFormatCounts",
-        "jsonName": "MangaFormatCounts",
-        "goType": "map[string]int",
-        "typescriptType": "Record\u003cstring, number\u003e",
-        "required": false,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "AnimeFavoriteCount",
-        "jsonName": "AnimeFavoriteCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "MangaFavoriteCount",
-        "jsonName": "MangaFavoriteCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "AnimeUniqueFormatCount",
-        "jsonName": "AnimeUniqueFormatCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "MangaUniqueFormatCount",
-        "jsonName": "MangaUniqueFormatCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "MangaStandardCount",
-        "jsonName": "MangaStandardCount",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "BellCurveAnime",
-        "jsonName": "BellCurveAnime",
-        "goType": "bool",
-        "typescriptType": "boolean",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "BellCurveManga",
-        "jsonName": "BellCurveManga",
-        "goType": "bool",
-        "typescriptType": "boolean",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "UsedAllScoresAnime",
-        "jsonName": "UsedAllScoresAnime",
-        "goType": "bool",
-        "typescriptType": "boolean",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "UsedAllScoresManga",
-        "jsonName": "UsedAllScoresManga",
-        "goType": "bool",
-        "typescriptType": "boolean",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "AllCompletedRatedAnime",
-        "jsonName": "AllCompletedRatedAnime",
-        "goType": "bool",
-        "typescriptType": "boolean",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "AllCompletedRatedManga",
-        "jsonName": "AllCompletedRatedManga",
-        "goType": "bool",
-        "typescriptType": "boolean",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "MaxSameScoreAnime",
-        "jsonName": "MaxSameScoreAnime",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "MaxSameScoreManga",
-        "jsonName": "MaxSameScoreManga",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "ScoreVarianceAnime",
-        "jsonName": "ScoreVarianceAnime",
-        "goType": "float64",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "ScoreVarianceManga",
-        "jsonName": "ScoreVarianceManga",
-        "goType": "float64",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "MediocreCountAnime",
-        "jsonName": "MediocreCountAnime",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": [
-          " count of anime rated 5-7"
-        ]
-      },
-      {
-        "name": "MediocreCountManga",
-        "jsonName": "MediocreCountManga",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": [
-          " count of manga rated 5-7"
-        ]
-      },
-      {
-        "name": "AnimeScoreHist",
-        "jsonName": "AnimeScoreHist",
+        "name": "Studios",
+        "jsonName": "studios",
         "goType": "[]int",
         "typescriptType": "Array\u003cnumber\u003e",
         "required": false,
         "public": true,
-        "comments": [
-          " index 0 unused, 1-10"
-        ]
+        "comments": []
       },
       {
-        "name": "MangaScoreHist",
-        "jsonName": "MangaScoreHist",
+        "name": "Staff",
+        "jsonName": "staff",
+        "goType": "[]staffRef",
+        "typescriptType": "Array\u003cAchievement_staffRef\u003e",
+        "usedTypescriptType": "Achievement_staffRef",
+        "usedStructName": "achievement.staffRef",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "VoiceActors",
+        "jsonName": "voiceActors",
         "goType": "[]int",
         "typescriptType": "Array\u003cnumber\u003e",
         "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Relations",
+        "jsonName": "relations",
+        "goType": "[]relation",
+        "typescriptType": "Array\u003cAchievement_relation\u003e",
+        "usedTypescriptType": "Achievement_relation",
+        "usedStructName": "achievement.relation",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PopularRank",
+        "jsonName": "popularRank",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RatedRank",
+        "jsonName": "ratedRank",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
         "public": true,
         "comments": []
       }
     ],
     "comments": [
-      " CollectionStats contains aggregate stats computed from AniList collection data.",
-      " This is built by the handler/refresh logic and passed to the engine."
+      " MediaExtras is what the list query does not carry and a third of the achievements need: who made",
+      " a series, where it came from, what it is related to, and how it ranks.",
+      "",
+      " Fetched in small batches on the background lane (it never competes with anything a person is",
+      " waiting on), kept on disk and shared by every profile — a series' studio is the same whoever",
+      " watched it. Refetched after extrasMaxAge, since popularity and rankings move."
+    ]
+  },
+  {
+    "filepath": "../internal/achievement/extras.go",
+    "filename": "extras.go",
+    "name": "ExtrasCache",
+    "formattedName": "Achievement_ExtrasCache",
+    "package": "achievement",
+    "fields": [
+      {
+        "name": "mu",
+        "jsonName": "mu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "path",
+        "jsonName": "path",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "items",
+        "jsonName": "items",
+        "goType": "map[int]MediaExtras",
+        "typescriptType": "Record\u003cnumber, Achievement_MediaExtras\u003e",
+        "usedTypescriptType": "Achievement_MediaExtras",
+        "usedStructName": "achievement.MediaExtras",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "pending",
+        "jsonName": "pending",
+        "goType": "map[int]bool",
+        "typescriptType": "Record\u003cnumber, boolean\u003e",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "running",
+        "jsonName": "running",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "failedAt",
+        "jsonName": "failedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "query",
+        "jsonName": "query",
+        "goType": "ExtrasQueryFunc",
+        "typescriptType": "Achievement_ExtrasQueryFunc",
+        "usedTypescriptType": "Achievement_ExtrasQueryFunc",
+        "usedStructName": "achievement.ExtrasQueryFunc",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "logger",
+        "jsonName": "logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "onFilled",
+        "jsonName": "onFilled",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " ExtrasCache holds MediaExtras by media id and fills the gaps in the background."
+    ]
+  },
+  {
+    "filepath": "../internal/achievement/facts.go",
+    "filename": "facts.go",
+    "name": "Facts",
+    "formattedName": "Achievement_Facts",
+    "package": "achievement",
+    "fields": [
+      {
+        "name": "Now",
+        "jsonName": "Now",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TZ",
+        "jsonName": "TZ",
+        "goType": "time.Location",
+        "typescriptType": "Location",
+        "usedTypescriptType": "Location",
+        "usedStructName": "time.Location",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Anime",
+        "jsonName": "Anime",
+        "goType": "side",
+        "typescriptType": "Achievement_side",
+        "usedTypescriptType": "Achievement_side",
+        "usedStructName": "achievement.side",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Manga",
+        "jsonName": "Manga",
+        "goType": "side",
+        "typescriptType": "Achievement_side",
+        "usedTypescriptType": "Achievement_side",
+        "usedStructName": "achievement.side",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FavoriteAnime",
+        "jsonName": "FavoriteAnime",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FavoriteManga",
+        "jsonName": "FavoriteManga",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CommentAnime",
+        "jsonName": "CommentAnime",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CommentManga",
+        "jsonName": "CommentManga",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SocialDays",
+        "jsonName": "SocialDays",
+        "goType": "map[dayKey]bool",
+        "typescriptType": "Record\u003cdayKey, boolean\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Parties",
+        "jsonName": "Parties",
+        "goType": "[]partySession",
+        "typescriptType": "Array\u003cAchievement_partySession\u003e",
+        "usedTypescriptType": "Achievement_partySession",
+        "usedStructName": "achievement.partySession",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Achievements",
+        "jsonName": "Achievements",
+        "goType": "[]models.Achievement",
+        "typescriptType": "Array\u003cModels_Achievement\u003e",
+        "usedTypescriptType": "Models_Achievement",
+        "usedStructName": "models.Achievement",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AchievementXP",
+        "jsonName": "AchievementXP",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LiveAnimeSessionHours",
+        "jsonName": "LiveAnimeSessionHours",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LiveMangaSessionHours",
+        "jsonName": "LiveMangaSessionHours",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Facts is everything the rules measure for one profile, built once per evaluation.",
+      "",
+      " The rules used to be fed whatever metadata the event that triggered them happened to carry, and",
+      " most events carried almost none — which is how \"watch 12 episodes in a day\" became \"watch 12",
+      " episodes, ever\", and how a third of the achievements could never unlock at all. Every rule now",
+      " reads the same complete picture: the lists, the history of what was watched and read and when,",
+      " and the profile's own social activity."
     ]
   },
   {
@@ -14382,6 +14228,434 @@
     "comments": [],
     "embeddedStructNames": [
       ""
+    ]
+  },
+  {
+    "filepath": "../internal/api/anilist/media_family.go",
+    "filename": "media_family.go",
+    "name": "FamilyNode",
+    "formattedName": "AL_FamilyNode",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Type",
+        "jsonName": "type",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Format",
+        "jsonName": "format",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "FamilyTitle",
+        "typescriptType": "AL_FamilyTitle",
+        "usedTypescriptType": "AL_FamilyTitle",
+        "usedStructName": "anilist.FamilyTitle",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CoverImage",
+        "jsonName": "coverImage",
+        "goType": "FamilyCover",
+        "typescriptType": "AL_FamilyCover",
+        "usedTypescriptType": "AL_FamilyCover",
+        "usedStructName": "anilist.FamilyCover",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BannerImage",
+        "jsonName": "bannerImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StartDate",
+        "jsonName": "startDate",
+        "goType": "FamilyDate",
+        "typescriptType": "AL_FamilyDate",
+        "usedTypescriptType": "AL_FamilyDate",
+        "usedStructName": "anilist.FamilyDate",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Season",
+        "jsonName": "season",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SeasonYear",
+        "jsonName": "seasonYear",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Episodes",
+        "jsonName": "episodes",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Chapters",
+        "jsonName": "chapters",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MeanScore",
+        "jsonName": "meanScore",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsAdult",
+        "jsonName": "isAdult",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Relations",
+        "jsonName": "relations",
+        "goType": "FamilyRelations",
+        "typescriptType": "AL_FamilyRelations",
+        "usedTypescriptType": "AL_FamilyRelations",
+        "usedStructName": "anilist.FamilyRelations",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " FamilyNode is one media in a franchise, as fetched by WalkMediaFamily's fetcher."
+    ]
+  },
+  {
+    "filepath": "../internal/api/anilist/media_family.go",
+    "filename": "media_family.go",
+    "name": "FamilyTitle",
+    "formattedName": "AL_FamilyTitle",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "UserPreferred",
+        "jsonName": "userPreferred",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Romaji",
+        "jsonName": "romaji",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "English",
+        "jsonName": "english",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Native",
+        "jsonName": "native",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/anilist/media_family.go",
+    "filename": "media_family.go",
+    "name": "FamilyCover",
+    "formattedName": "AL_FamilyCover",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "ExtraLarge",
+        "jsonName": "extraLarge",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Large",
+        "jsonName": "large",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Medium",
+        "jsonName": "medium",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Color",
+        "jsonName": "color",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/anilist/media_family.go",
+    "filename": "media_family.go",
+    "name": "FamilyDate",
+    "formattedName": "AL_FamilyDate",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "Year",
+        "jsonName": "year",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Month",
+        "jsonName": "month",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Day",
+        "jsonName": "day",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/anilist/media_family.go",
+    "filename": "media_family.go",
+    "name": "FamilyRelations",
+    "formattedName": "AL_FamilyRelations",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "Edges",
+        "jsonName": "edges",
+        "goType": "[]FamilyEdge",
+        "typescriptType": "Array\u003cAL_FamilyEdge\u003e",
+        "usedTypescriptType": "AL_FamilyEdge",
+        "usedStructName": "anilist.FamilyEdge",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/anilist/media_family.go",
+    "filename": "media_family.go",
+    "name": "FamilyEdge",
+    "formattedName": "AL_FamilyEdge",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "RelationType",
+        "jsonName": "relationType",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Node",
+        "jsonName": "node",
+        "goType": "FamilyEdgeNode",
+        "typescriptType": "AL_FamilyEdgeNode",
+        "usedTypescriptType": "AL_FamilyEdgeNode",
+        "usedStructName": "anilist.FamilyEdgeNode",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/anilist/media_family.go",
+    "filename": "media_family.go",
+    "name": "FamilyEdgeNode",
+    "formattedName": "AL_FamilyEdgeNode",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/anilist/media_family.go",
+    "filename": "media_family.go",
+    "name": "FamilyMember",
+    "formattedName": "AL_FamilyMember",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "Relation",
+        "jsonName": "relation",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Direct",
+        "jsonName": "direct",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Depth",
+        "jsonName": "depth",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " FamilyMember is a media in the franchise as seen from the media being viewed."
+    ],
+    "embeddedStructNames": [
+      "anilist.FamilyNode"
+    ]
+  },
+  {
+    "filepath": "../internal/api/anilist/media_family.go",
+    "filename": "media_family.go",
+    "name": "FamilyGraph",
+    "formattedName": "AL_FamilyGraph",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "Nodes",
+        "jsonName": "Nodes",
+        "goType": "map[int]FamilyNode",
+        "typescriptType": "Record\u003cnumber, AL_FamilyNode\u003e",
+        "usedTypescriptType": "AL_FamilyNode",
+        "usedStructName": "anilist.FamilyNode",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Truncated",
+        "jsonName": "Truncated",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " FamilyGraph is a fetched franchise: every node, keyed by id."
     ]
   },
   {
@@ -31438,6 +31712,15 @@
     "package": "constants",
     "fields": [
       {
+        "name": "Version",
+        "jsonName": "version",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "Seaserver",
         "jsonName": "seaserver",
         "goType": "VersionsManifest_Seaserver",
@@ -32264,6 +32547,16 @@
         "comments": []
       },
       {
+        "name": "lastMangaRefresh",
+        "jsonName": "lastMangaRefresh",
+        "goType": "map[uint]time.Time",
+        "typescriptType": "Record\u003cnumber, string\u003e",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "recentEdits",
         "jsonName": "recentEdits",
         "goType": "map[uint]map[int]animeListEdit",
@@ -32403,6 +32696,15 @@
         "required": false,
         "public": false,
         "comments": []
+      },
+      {
+        "name": "flushKick",
+        "jsonName": "flushKick",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
       }
     ],
     "comments": [
@@ -32411,6 +32713,254 @@
       " and this manager lazily creates and caches clients keyed by profile ID.",
       "",
       " Profile ID 0 (or admin) falls back to the global App.AnilistClientRef."
+    ]
+  },
+  {
+    "filepath": "../internal/core/anilist_edit_queue.go",
+    "filename": "anilist_edit_queue.go",
+    "name": "AnilistEditQueue",
+    "formattedName": "INTERNAL_AnilistEditQueue",
+    "package": "core",
+    "fields": [
+      {
+        "name": "mu",
+        "jsonName": "mu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "items",
+        "jsonName": "items",
+        "goType": "map[string]QueuedListEdit",
+        "typescriptType": "Record\u003cstring, INTERNAL_QueuedListEdit\u003e",
+        "usedTypescriptType": "INTERNAL_QueuedListEdit",
+        "usedStructName": "core.QueuedListEdit",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "path",
+        "jsonName": "path",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "wake",
+        "jsonName": "wake",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "exec",
+        "jsonName": "exec",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "notify",
+        "jsonName": "notify",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "logger",
+        "jsonName": "logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "started",
+        "jsonName": "started",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "now",
+        "jsonName": "now",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " AnilistEditQueue holds list-entry edits that AniList hasn't accepted yet and keeps sending them.",
+      "",
+      " A Save used to wait on AniList for as long as AniList took: behind a full rate-limit window that",
+      " is half a minute for a slot and up to 45 seconds more for the request, with the Save button and",
+      " the list status spinning the whole time — \"it's just sitting there not saving, but saying it is\".",
+      " The edit is written into the profile's cached collection before AniList is asked (the page shows",
+      " it straight away either way), so the only thing left to wait for is AniList's agreement, and that",
+      " can happen in the background: a Save tries AniList for a few seconds, and if the answer isn't in",
+      " by then the edit is queued here and the Save returns.",
+      "",
+      " The queue is kept on disk, so a restart doesn't lose an edit, and only the newest edit per media",
+      " is kept, so changing a status three times sends one request. Every change is announced over the",
+      " websocket, which is what the \"syncing to AniList\" indicator under the list status reads."
+    ]
+  },
+  {
+    "filepath": "../internal/core/anilist_edit_queue.go",
+    "filename": "anilist_edit_queue.go",
+    "name": "QueuedListEdit",
+    "formattedName": "INTERNAL_QueuedListEdit",
+    "package": "core",
+    "fields": [
+      {
+        "name": "ProfileID",
+        "jsonName": "profileId",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaID",
+        "jsonName": "mediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Type",
+        "jsonName": "type",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "anilist.MediaListStatus",
+        "typescriptType": "AL_MediaListStatus",
+        "usedTypescriptType": "AL_MediaListStatus",
+        "usedStructName": "anilist.MediaListStatus",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Score",
+        "jsonName": "score",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Progress",
+        "jsonName": "progress",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StartDate",
+        "jsonName": "startedAt",
+        "goType": "anilist.FuzzyDateInput",
+        "typescriptType": "AL_FuzzyDateInput",
+        "usedTypescriptType": "AL_FuzzyDateInput",
+        "usedStructName": "anilist.FuzzyDateInput",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EndDate",
+        "jsonName": "completedAt",
+        "goType": "anilist.FuzzyDateInput",
+        "typescriptType": "AL_FuzzyDateInput",
+        "usedTypescriptType": "AL_FuzzyDateInput",
+        "usedStructName": "anilist.FuzzyDateInput",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "QueuedAt",
+        "jsonName": "queuedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Attempts",
+        "jsonName": "attempts",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastError",
+        "jsonName": "lastError",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NextAttempt",
+        "jsonName": "nextAttempt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " QueuedListEdit is one edit waiting for AniList."
     ]
   },
   {
@@ -33242,6 +33792,17 @@
         "typescriptType": "INTERNAL_AnilistClientManager",
         "usedTypescriptType": "INTERNAL_AnilistClientManager",
         "usedStructName": "core.AnilistClientManager",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnilistEditQueue",
+        "jsonName": "AnilistEditQueue",
+        "goType": "AnilistEditQueue",
+        "typescriptType": "INTERNAL_AnilistEditQueue",
+        "usedTypescriptType": "INTERNAL_AnilistEditQueue",
+        "usedStructName": "core.AnilistEditQueue",
         "required": false,
         "public": true,
         "comments": []
@@ -34449,6 +35010,51 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "ProfileBorderID",
+        "jsonName": "profileBorderId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ProfileBgID",
+        "jsonName": "profileBgId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AvatarFrameID",
+        "jsonName": "avatarFrameId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BannerOverlayID",
+        "jsonName": "bannerOverlayId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ProfileLayoutID",
+        "jsonName": "profileLayoutId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [
@@ -34647,6 +35253,51 @@
       {
         "name": "WallpaperEffects",
         "jsonName": "wallpaperEffects",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ProfileBorderID",
+        "jsonName": "profileBorderId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ProfileBgID",
+        "jsonName": "profileBgId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AvatarFrameID",
+        "jsonName": "avatarFrameId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BannerOverlayID",
+        "jsonName": "bannerOverlayId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ProfileLayoutID",
+        "jsonName": "profileLayoutId",
         "goType": "string",
         "typescriptType": "string",
         "required": true,
@@ -35466,6 +36117,87 @@
         "jsonName": "newsNotifyNewEntries",
         "goType": "bool",
         "typescriptType": "boolean",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NewsNotifyMode",
+        "jsonName": "newsNotifyMode",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NewsNotifyListCurrent",
+        "jsonName": "newsNotifyListCurrent",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NewsNotifyListPlanning",
+        "jsonName": "newsNotifyListPlanning",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NewsNotifyListCompleted",
+        "jsonName": "newsNotifyListCompleted",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NewsNotifyListAnime",
+        "jsonName": "newsNotifyListAnime",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NewsNotifyListManga",
+        "jsonName": "newsNotifyListManga",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NewsNotifyKeywords",
+        "jsonName": "newsNotifyKeywords",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CommunityShowNews",
+        "jsonName": "communityShowNews",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TimeZone",
+        "jsonName": "timeZone",
+        "goType": "string",
+        "typescriptType": "string",
         "required": false,
         "public": true,
         "comments": []
@@ -38069,6 +38801,288 @@
   {
     "filepath": "../internal/database/models/models.go",
     "filename": "models.go",
+    "name": "EnqueueFutureDroppedItem",
+    "formattedName": "Models_EnqueueFutureDroppedItem",
+    "package": "models",
+    "fields": [
+      {
+        "name": "ProfileID",
+        "jsonName": "profileId",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaID",
+        "jsonName": "mediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RootMediaID",
+        "jsonName": "rootMediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FamilyID",
+        "jsonName": "familyId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Depth",
+        "jsonName": "depth",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RelationType",
+        "jsonName": "relationType",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ParentMediaID",
+        "jsonName": "parentMediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CoverImage",
+        "jsonName": "coverImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Reason",
+        "jsonName": "reason",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Torrents",
+        "jsonName": "torrents",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BestSeeders",
+        "jsonName": "bestSeeders",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalSeeders",
+        "jsonName": "totalSeeders",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AiredAt",
+        "jsonName": "airedAt",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Score",
+        "jsonName": "score",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ProviderID",
+        "jsonName": "providerId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Value",
+        "jsonName": "",
+        "goType": "string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " EnqueueFutureDroppedItem is what a search found for an anime that was taken off the queue for",
+      " having nothing downloadable.",
+      "",
+      " Its own table rather than a status on EnqueueFutureItem, because the two mean opposite things to a",
+      " run: a queue row stops an anime being discovered again, and a dropped anime has to stay",
+      " discoverable, since a later run may find it seeded. It carries the row's place in its franchise so",
+      " putting it back restores the entry rather than a stray copy of it."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "EnqueueFutureLastRun",
+    "formattedName": "Models_EnqueueFutureLastRun",
+    "package": "models",
+    "fields": [
+      {
+        "name": "RootMediaID",
+        "jsonName": "rootMediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RootTitle",
+        "jsonName": "rootTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Discovered",
+        "jsonName": "discovered",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Prepared",
+        "jsonName": "prepared",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Failed",
+        "jsonName": "failed",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Skipped",
+        "jsonName": "skipped",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Families",
+        "jsonName": "families",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastError",
+        "jsonName": "lastError",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StartedAt",
+        "jsonName": "startedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FinishedAt",
+        "jsonName": "finishedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " EnqueueFutureLastRun is the outcome of the most recent run. One row, id 1, replaced each time a",
+      " run ends: the progress file only describes a run still in flight, and is deleted when it finishes."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
     "name": "Theme",
     "formattedName": "Models_Theme",
     "package": "models",
@@ -40560,6 +41574,165 @@
   {
     "filepath": "../internal/database/models/models.go",
     "filename": "models.go",
+    "name": "ProfilePost",
+    "formattedName": "Models_ProfilePost",
+    "package": "models",
+    "fields": [
+      {
+        "name": "AuthorProfileID",
+        "jsonName": "authorProfileId",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "WallProfileID",
+        "jsonName": "wallProfileId",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Content",
+        "jsonName": "content",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaID",
+        "jsonName": "mediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaType",
+        "jsonName": "mediaType",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " \"anime\", \"manga\" or \"\""
+        ]
+      },
+      {
+        "name": "IsSpoiler",
+        "jsonName": "isSpoiler",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsEdited",
+        "jsonName": "isEdited",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " ProfilePost is a text post on a profile's timeline (stored in the global database).",
+      " AuthorProfileID == WallProfileID is a status post; otherwise it is a message the author left on",
+      " someone else's wall, AniList-style."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "TimelineLike",
+    "formattedName": "Models_TimelineLike",
+    "package": "models",
+    "fields": [
+      {
+        "name": "TargetKey",
+        "jsonName": "targetKey",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ProfileID",
+        "jsonName": "profileId",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " TimelineLike is one profile's like on a timeline item. TargetKey names the item:",
+      " \"post:\u003cid\u003e\" for a ProfilePost, \"act:\u003cprofileId\u003e:\u003ceventId\u003e\" for an activity event (those live in",
+      " per-profile databases, so the owning profile is part of the key)."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "TimelineReply",
+    "formattedName": "Models_TimelineReply",
+    "package": "models",
+    "fields": [
+      {
+        "name": "TargetKey",
+        "jsonName": "targetKey",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AuthorProfileID",
+        "jsonName": "authorProfileId",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Content",
+        "jsonName": "content",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " TimelineReply is a reply under a timeline item (same TargetKey scheme as TimelineLike)."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
     "name": "MangaFavorite",
     "formattedName": "Models_MangaFavorite",
     "package": "models",
@@ -41124,6 +42297,15 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "AchievementRulesVersion",
+        "jsonName": "",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [
@@ -41131,6 +42313,174 @@
     ],
     "embeddedStructNames": [
       "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "AchievementLogEntry",
+    "formattedName": "Models_AchievementLogEntry",
+    "package": "models",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "ID",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "At",
+        "jsonName": "At",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Kind",
+        "jsonName": "Kind",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " see achievement.LogKind*"
+        ]
+      },
+      {
+        "name": "MediaType",
+        "jsonName": "MediaType",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " \"anime\", \"manga\" or \"\""
+        ]
+      },
+      {
+        "name": "MediaID",
+        "jsonName": "MediaID",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Number",
+        "jsonName": "Number",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Minutes",
+        "jsonName": "Minutes",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Data",
+        "jsonName": "Data",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DayOnly",
+        "jsonName": "DayOnly",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " AchievementLogEntry is one thing the profile did, kept for good, for the achievement rules",
+      " (stored in per-profile DB).",
+      "",
+      " ActivityEvent rows are pruned after 30 days and ActivityLog only keeps daily totals; streaks of a",
+      " year and \"at 4 AM\" need neither limitation. The rows are small — one per episode or chapter."
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "AchievementListSnapshot",
+    "formattedName": "Models_AchievementListSnapshot",
+    "package": "models",
+    "fields": [
+      {
+        "name": "MediaType",
+        "jsonName": "MediaType",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaID",
+        "jsonName": "MediaID",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "Status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Score",
+        "jsonName": "Score",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Progress",
+        "jsonName": "Progress",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Repeat",
+        "jsonName": "Repeat",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " AchievementListSnapshot is the last-seen state of one list entry, so changes made anywhere",
+      " (here, the AniList site, another app) are noticed as changes (stored in per-profile DB)."
     ]
   },
   {
@@ -44785,6 +46135,42 @@
         "comments": []
       },
       {
+        "name": "applyProgressWriteFunc",
+        "jsonName": "applyProgressWriteFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "enqueuePendingProgressFunc",
+        "jsonName": "enqueuePendingProgressFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "hasRecentProgressWriteFunc",
+        "jsonName": "hasRecentProgressWriteFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "autoUpdateProgressEnabledFunc",
+        "jsonName": "autoUpdateProgressEnabledFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "recordPlaybackActivityFunc",
         "jsonName": "recordPlaybackActivityFunc",
         "goType": "",
@@ -45093,6 +46479,42 @@
       {
         "name": "GetProfileAnimeCollectionFunc",
         "jsonName": "GetProfileAnimeCollectionFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ApplyProgressWriteFunc",
+        "jsonName": "ApplyProgressWriteFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EnqueuePendingProgressFunc",
+        "jsonName": "EnqueuePendingProgressFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "HasRecentProgressWriteFunc",
+        "jsonName": "HasRecentProgressWriteFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AutoUpdateProgressEnabledFunc",
+        "jsonName": "AutoUpdateProgressEnabledFunc",
         "goType": "",
         "typescriptType": "any",
         "required": true,
@@ -45677,6 +47099,28 @@
         "typescriptType": "Once",
         "usedTypescriptType": "Once",
         "usedStructName": "sync.Once",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "pos",
+        "jsonName": "pos",
+        "goType": "atomic.Int64",
+        "typescriptType": "Int64",
+        "usedTypescriptType": "Int64",
+        "usedStructName": "atomic.Int64",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "stopped",
+        "jsonName": "stopped",
+        "goType": "atomic.Bool",
+        "typescriptType": "Bool",
+        "usedTypescriptType": "Bool",
+        "usedStructName": "atomic.Bool",
         "required": false,
         "public": false,
         "comments": []
@@ -48948,6 +50392,100 @@
     ]
   },
   {
+    "filepath": "../internal/enqueuefuture/catalog.go",
+    "filename": "catalog.go",
+    "name": "CatalogStatus",
+    "formattedName": "EnqueueFuture_CatalogStatus",
+    "package": "enqueuefuture",
+    "fields": [
+      {
+        "name": "Active",
+        "jsonName": "active",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Done",
+        "jsonName": "done",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NextID",
+        "jsonName": "nextId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MaxID",
+        "jsonName": "maxId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Queued",
+        "jsonName": "queued",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Waiting",
+        "jsonName": "waiting",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Prepared",
+        "jsonName": "prepared",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastError",
+        "jsonName": "lastError",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RetryAt",
+        "jsonName": "retryAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " CatalogStatus is the scan of the whole AniList catalog, as the frontend sees it."
+    ]
+  },
+  {
     "filepath": "../internal/enqueuefuture/pending_roots.go",
     "filename": "pending_roots.go",
     "name": "PendingRootInfo",
@@ -49324,6 +50862,37 @@
         "typescriptType": "Mutex",
         "usedTypescriptType": "Mutex",
         "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "catalogMu",
+        "jsonName": "catalogMu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "catalogRunning",
+        "jsonName": "catalogRunning",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "catalogCancel",
+        "jsonName": "catalogCancel",
+        "goType": "context.CancelFunc",
+        "typescriptType": "CancelFunc",
+        "usedTypescriptType": "CancelFunc",
+        "usedStructName": "context.CancelFunc",
         "required": false,
         "public": false,
         "comments": []
@@ -49776,6 +51345,152 @@
   {
     "filepath": "../internal/enqueuefuture/types.go",
     "filename": "types.go",
+    "name": "WaitingPage",
+    "formattedName": "EnqueueFuture_WaitingPage",
+    "package": "enqueuefuture",
+    "fields": [
+      {
+        "name": "Items",
+        "jsonName": "items",
+        "goType": "[]Item",
+        "typescriptType": "Array\u003cEnqueueFuture_Item\u003e",
+        "usedTypescriptType": "EnqueueFuture_Item",
+        "usedStructName": "enqueuefuture.Item",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Total",
+        "jsonName": "total",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NextPosition",
+        "jsonName": "nextPosition",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " WaitingPage is one page of the catalog rows still waiting to be prepared."
+    ]
+  },
+  {
+    "filepath": "../internal/enqueuefuture/types.go",
+    "filename": "types.go",
+    "name": "DroppedItem",
+    "formattedName": "EnqueueFuture_DroppedItem",
+    "package": "enqueuefuture",
+    "fields": [
+      {
+        "name": "MediaID",
+        "jsonName": "mediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RootMediaID",
+        "jsonName": "rootMediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CoverImage",
+        "jsonName": "coverImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Reason",
+        "jsonName": "reason",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Torrents",
+        "jsonName": "torrents",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BestSeeders",
+        "jsonName": "bestSeeders",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Score",
+        "jsonName": "score",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ProviderID",
+        "jsonName": "providerId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DroppedAt",
+        "jsonName": "droppedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " DroppedItem is an anime taken off the queue for having nothing downloadable, as the frontend sees",
+      " it: what the search found and why that was not enough. The results themselves stay on the server",
+      " until the anime is put back."
+    ]
+  },
+  {
+    "filepath": "../internal/enqueuefuture/types.go",
+    "filename": "types.go",
     "name": "Status",
     "formattedName": "EnqueueFuture_Status",
     "package": "enqueuefuture",
@@ -49886,6 +51601,17 @@
         "jsonName": "rewalkBacklog",
         "goType": "int",
         "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Catalog",
+        "jsonName": "catalog",
+        "goType": "CatalogStatus",
+        "typescriptType": "EnqueueFuture_CatalogStatus",
+        "usedTypescriptType": "EnqueueFuture_CatalogStatus",
+        "usedStructName": "enqueuefuture.CatalogStatus",
         "required": false,
         "public": true,
         "comments": []
@@ -55536,6 +57262,17 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "Items",
+        "jsonName": "items",
+        "goType": "[]shared_platform.PendingProgressItem",
+        "typescriptType": "Array\u003cPendingProgressItem\u003e",
+        "usedTypescriptType": "PendingProgressItem",
+        "usedStructName": "shared_platform.PendingProgressItem",
+        "required": false,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [
@@ -55875,6 +57612,24 @@
         "comments": []
       },
       {
+        "name": "BloodType",
+        "jsonName": "bloodType",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SiteUrl",
+        "jsonName": "siteUrl",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "DateOfBirth",
         "jsonName": "dateOfBirth",
         "goType": "CharacterDate",
@@ -55916,6 +57671,33 @@
     "package": "handlers",
     "fields": [
       {
+        "name": "First",
+        "jsonName": "first",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Middle",
+        "jsonName": "middle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Last",
+        "jsonName": "last",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "Full",
         "jsonName": "full",
         "goType": "string",
@@ -55934,8 +57716,26 @@
         "comments": []
       },
       {
+        "name": "UserPreferred",
+        "jsonName": "userPreferred",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "Alternative",
         "jsonName": "alternative",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AlternativeSpoiler",
+        "jsonName": "alternativeSpoiler",
         "goType": "[]string",
         "typescriptType": "Array\u003cstring\u003e",
         "required": false,
@@ -55955,6 +57755,15 @@
       {
         "name": "Large",
         "jsonName": "large",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Medium",
+        "jsonName": "medium",
         "goType": "string",
         "typescriptType": "string",
         "required": true,
@@ -56050,12 +57859,62 @@
         "comments": []
       },
       {
+        "name": "VoiceActorRoles",
+        "jsonName": "voiceActorRoles",
+        "goType": "[]CharacterVoiceActorRole",
+        "typescriptType": "Array\u003cCharacterVoiceActorRole\u003e",
+        "usedTypescriptType": "CharacterVoiceActorRole",
+        "usedStructName": "handlers.CharacterVoiceActorRole",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "Node",
         "jsonName": "node",
         "goType": "CharacterMediaNode",
         "typescriptType": "CharacterMediaNode",
         "usedTypescriptType": "CharacterMediaNode",
         "usedStructName": "handlers.CharacterMediaNode",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/character.go",
+    "filename": "character.go",
+    "name": "CharacterVoiceActorRole",
+    "formattedName": "CharacterVoiceActorRole",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "RoleNotes",
+        "jsonName": "roleNotes",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DubGroup",
+        "jsonName": "dubGroup",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "VoiceActor",
+        "jsonName": "voiceActor",
+        "goType": "CharacterVoiceActor",
+        "typescriptType": "CharacterVoiceActor",
+        "usedTypescriptType": "CharacterVoiceActor",
+        "usedStructName": "handlers.CharacterVoiceActor",
         "required": false,
         "public": true,
         "comments": []
@@ -56194,6 +58053,15 @@
         "comments": []
       },
       {
+        "name": "SeasonYear",
+        "jsonName": "seasonYear",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "Type",
         "jsonName": "type",
         "goType": "string",
@@ -56277,6 +58145,24 @@
       {
         "name": "MeanScore",
         "jsonName": "meanScore",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AverageScore",
+        "jsonName": "averageScore",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Popularity",
+        "jsonName": "popularity",
         "goType": "int",
         "typescriptType": "number",
         "required": false,
@@ -56433,6 +58319,172 @@
         "jsonName": "color",
         "goType": "string",
         "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/character.go",
+    "filename": "character.go",
+    "name": "MediaCharactersResponse",
+    "formattedName": "MediaCharactersResponse",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Total",
+        "jsonName": "total",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "HasNextPage",
+        "jsonName": "hasNextPage",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Page",
+        "jsonName": "page",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Edges",
+        "jsonName": "edges",
+        "goType": "[]MediaCharacterEdge",
+        "typescriptType": "Array\u003cMediaCharacterEdge\u003e",
+        "usedTypescriptType": "MediaCharacterEdge",
+        "usedStructName": "handlers.MediaCharacterEdge",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/character.go",
+    "filename": "character.go",
+    "name": "MediaCharacterEdge",
+    "formattedName": "MediaCharacterEdge",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Role",
+        "jsonName": "role",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Node",
+        "jsonName": "node",
+        "goType": "MediaCharacterNode",
+        "typescriptType": "MediaCharacterNode",
+        "usedTypescriptType": "MediaCharacterNode",
+        "usedStructName": "handlers.MediaCharacterNode",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "VoiceActors",
+        "jsonName": "voiceActors",
+        "goType": "[]CharacterVoiceActor",
+        "typescriptType": "Array\u003cCharacterVoiceActor\u003e",
+        "usedTypescriptType": "CharacterVoiceActor",
+        "usedStructName": "handlers.CharacterVoiceActor",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/character.go",
+    "filename": "character.go",
+    "name": "MediaCharacterNode",
+    "formattedName": "MediaCharacterNode",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "CharacterName",
+        "typescriptType": "CharacterName",
+        "usedTypescriptType": "CharacterName",
+        "usedStructName": "handlers.CharacterName",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Image",
+        "jsonName": "image",
+        "goType": "CharacterImage",
+        "typescriptType": "CharacterImage",
+        "usedTypescriptType": "CharacterImage",
+        "usedStructName": "handlers.CharacterImage",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Age",
+        "jsonName": "age",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Gender",
+        "jsonName": "gender",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Favourites",
+        "jsonName": "favourites",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsFavourite",
+        "jsonName": "isFavourite",
+        "goType": "bool",
+        "typescriptType": "boolean",
         "required": true,
         "public": true,
         "comments": []
@@ -57732,6 +59784,37 @@
     "comments": []
   },
   {
+    "filepath": "../internal/handlers/home_counts.go",
+    "filename": "home_counts.go",
+    "name": "HomeCounts",
+    "formattedName": "HomeCounts",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "AnimeFiles",
+        "jsonName": "animeFiles",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MangaChapters",
+        "jsonName": "mangaChapters",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " HomeCounts is what is on the server's disks, for the landing page. Both numbers are already in",
+      " memory, so this answers at once where the collections they used to be read from take many seconds."
+    ]
+  },
+  {
     "filepath": "../internal/handlers/kitsu.go",
     "filename": "kitsu.go",
     "name": "KitsuAnimeInfo",
@@ -58368,6 +60451,38 @@
       }
     ],
     "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/media_info.go",
+    "filename": "media_info.go",
+    "name": "MediaFamilyResponse",
+    "formattedName": "MediaFamilyResponse",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Members",
+        "jsonName": "members",
+        "goType": "[]anilist.FamilyMember",
+        "typescriptType": "Array\u003cAL_FamilyMember\u003e",
+        "usedTypescriptType": "AL_FamilyMember",
+        "usedStructName": "anilist.FamilyMember",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Truncated",
+        "jsonName": "truncated",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " MediaFamilyResponse is the franchise of a media as seen from it."
+    ]
   },
   {
     "filepath": "../internal/handlers/mobile_frontend.go",
@@ -59069,10 +61184,28 @@
         "comments": []
       },
       {
+        "name": "MediaImage",
+        "jsonName": "mediaImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "Content",
         "jsonName": "content",
         "goType": "string",
         "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsReply",
+        "jsonName": "isReply",
+        "goType": "bool",
+        "typescriptType": "boolean",
         "required": true,
         "public": true,
         "comments": []
@@ -59439,6 +61572,389 @@
     ],
     "comments": [
       " RecentAchievementEntry represents a recently unlocked achievement."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/profile_posts.go",
+    "filename": "profile_posts.go",
+    "name": "TimelineProfileSummary",
+    "formattedName": "TimelineProfileSummary",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Avatar",
+        "jsonName": "avatar",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DisplayTitle",
+        "jsonName": "displayTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NameColorCss",
+        "jsonName": "nameColorCss",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " TimelineProfileSummary is the author / wall owner shown on a timeline card."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/profile_posts.go",
+    "filename": "profile_posts.go",
+    "name": "TimelineFeedItem",
+    "formattedName": "TimelineFeedItem",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Key",
+        "jsonName": "key",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Kind",
+        "jsonName": "kind",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " \"post\" | \"activity\" | \"news\""
+        ]
+      },
+      {
+        "name": "CreatedAt",
+        "jsonName": "createdAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Author",
+        "jsonName": "author",
+        "goType": "TimelineProfileSummary",
+        "typescriptType": "TimelineProfileSummary",
+        "usedTypescriptType": "TimelineProfileSummary",
+        "usedStructName": "handlers.TimelineProfileSummary",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "WallProfile",
+        "jsonName": "wallProfile",
+        "goType": "TimelineProfileSummary",
+        "typescriptType": "TimelineProfileSummary",
+        "usedTypescriptType": "TimelineProfileSummary",
+        "usedStructName": "handlers.TimelineProfileSummary",
+        "required": false,
+        "public": true,
+        "comments": [
+          " set when posted on someone else's wall"
+        ]
+      },
+      {
+        "name": "PostID",
+        "jsonName": "postId",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Content",
+        "jsonName": "content",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsSpoiler",
+        "jsonName": "isSpoiler",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsEdited",
+        "jsonName": "isEdited",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaID",
+        "jsonName": "mediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaType",
+        "jsonName": "mediaType",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Activity",
+        "jsonName": "activity",
+        "goType": "TimelineEvent",
+        "typescriptType": "TimelineEvent",
+        "usedTypescriptType": "TimelineEvent",
+        "usedStructName": "handlers.TimelineEvent",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EpisodeFrom",
+        "jsonName": "episodeFrom",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EpisodeTo",
+        "jsonName": "episodeTo",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Achievements",
+        "jsonName": "achievements",
+        "goType": "[]TimelineAchievement",
+        "typescriptType": "Array\u003cTimelineAchievement\u003e",
+        "usedTypescriptType": "TimelineAchievement",
+        "usedStructName": "handlers.TimelineAchievement",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "News",
+        "jsonName": "news",
+        "goType": "TimelineNews",
+        "typescriptType": "TimelineNews",
+        "usedTypescriptType": "TimelineNews",
+        "usedStructName": "handlers.TimelineNews",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LikeCount",
+        "jsonName": "likeCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LikedByMe",
+        "jsonName": "likedByMe",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ReplyCount",
+        "jsonName": "replyCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CanEdit",
+        "jsonName": "canEdit",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CanDelete",
+        "jsonName": "canDelete",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " TimelineFeedItem is one card on a timeline: a post or a (possibly grouped) activity event."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/profile_posts.go",
+    "filename": "profile_posts.go",
+    "name": "TimelineFeedResponse",
+    "formattedName": "TimelineFeedResponse",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Items",
+        "jsonName": "items",
+        "goType": "[]TimelineFeedItem",
+        "typescriptType": "Array\u003cTimelineFeedItem\u003e",
+        "usedTypescriptType": "TimelineFeedItem",
+        "usedStructName": "handlers.TimelineFeedItem",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Page",
+        "jsonName": "page",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "HasMore",
+        "jsonName": "hasMore",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " TimelineFeedResponse is a page of timeline items."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/profile_posts.go",
+    "filename": "profile_posts.go",
+    "name": "TimelineReplyItem",
+    "formattedName": "TimelineReplyItem",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TargetKey",
+        "jsonName": "targetKey",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Author",
+        "jsonName": "author",
+        "goType": "TimelineProfileSummary",
+        "typescriptType": "TimelineProfileSummary",
+        "usedTypescriptType": "TimelineProfileSummary",
+        "usedStructName": "handlers.TimelineProfileSummary",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Content",
+        "jsonName": "content",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CreatedAt",
+        "jsonName": "createdAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CanDelete",
+        "jsonName": "canDelete",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " TimelineReplyItem is one reply under a timeline item."
     ]
   },
   {
@@ -60291,6 +62807,547 @@
     "comments": []
   },
   {
+    "filepath": "../internal/handlers/studio_profile.go",
+    "filename": "studio_profile.go",
+    "name": "StudioWork",
+    "formattedName": "StudioWork",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IDMal",
+        "jsonName": "idMal",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Format",
+        "jsonName": "format",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Episodes",
+        "jsonName": "episodes",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Duration",
+        "jsonName": "duration",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Season",
+        "jsonName": "season",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SeasonYear",
+        "jsonName": "seasonYear",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StartDate",
+        "jsonName": "startDate",
+        "goType": "anilist.FamilyDate",
+        "typescriptType": "AL_FamilyDate",
+        "usedTypescriptType": "AL_FamilyDate",
+        "usedStructName": "anilist.FamilyDate",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "anilist.FamilyTitle",
+        "typescriptType": "AL_FamilyTitle",
+        "usedTypescriptType": "AL_FamilyTitle",
+        "usedStructName": "anilist.FamilyTitle",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CoverImage",
+        "jsonName": "coverImage",
+        "goType": "anilist.FamilyCover",
+        "typescriptType": "AL_FamilyCover",
+        "usedTypescriptType": "AL_FamilyCover",
+        "usedStructName": "anilist.FamilyCover",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BannerImage",
+        "jsonName": "bannerImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MeanScore",
+        "jsonName": "meanScore",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Popularity",
+        "jsonName": "popularity",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Favourites",
+        "jsonName": "favourites",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Genres",
+        "jsonName": "genres",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsAdult",
+        "jsonName": "isAdult",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsMainStudio",
+        "jsonName": "isMainStudio",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Directors",
+        "jsonName": "directors",
+        "goType": "[]int",
+        "typescriptType": "Array\u003cnumber\u003e",
+        "required": false,
+        "public": true,
+        "comments": [
+          " staff ids"
+        ]
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/studio_profile.go",
+    "filename": "studio_profile.go",
+    "name": "StudioPerson",
+    "formattedName": "StudioPerson",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Native",
+        "jsonName": "native",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Image",
+        "jsonName": "image",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Role",
+        "jsonName": "role",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " the most senior directing role they held here"
+        ]
+      },
+      {
+        "name": "Works",
+        "jsonName": "works",
+        "goType": "[]int",
+        "typescriptType": "Array\u003cnumber\u003e",
+        "required": false,
+        "public": true,
+        "comments": [
+          " media ids, newest first"
+        ]
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/studio_profile.go",
+    "filename": "studio_profile.go",
+    "name": "StudioCount",
+    "formattedName": "StudioCount",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Key",
+        "jsonName": "key",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Count",
+        "jsonName": "count",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/studio_profile.go",
+    "filename": "studio_profile.go",
+    "name": "StudioProfile",
+    "formattedName": "StudioProfile",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsAnimationStudio",
+        "jsonName": "isAnimationStudio",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SiteURL",
+        "jsonName": "siteUrl",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Favourites",
+        "jsonName": "favourites",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalWorks",
+        "jsonName": "totalWorks",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " AniList's count, which may exceed Works"
+        ]
+      },
+      {
+        "name": "Partial",
+        "jsonName": "partial",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": false,
+        "public": true,
+        "comments": [
+          " AniList stopped answering before the last page"
+        ]
+      },
+      {
+        "name": "Works",
+        "jsonName": "works",
+        "goType": "[]StudioWork",
+        "typescriptType": "Array\u003cStudioWork\u003e",
+        "usedTypescriptType": "StudioWork",
+        "usedStructName": "handlers.StudioWork",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Directors",
+        "jsonName": "directors",
+        "goType": "[]StudioPerson",
+        "typescriptType": "Array\u003cStudioPerson\u003e",
+        "usedTypescriptType": "StudioPerson",
+        "usedStructName": "handlers.StudioPerson",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Stats",
+        "jsonName": "stats",
+        "goType": "StudioStats",
+        "typescriptType": "StudioStats",
+        "usedTypescriptType": "StudioStats",
+        "usedStructName": "handlers.StudioStats",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/studio_profile.go",
+    "filename": "studio_profile.go",
+    "name": "StudioStats",
+    "formattedName": "StudioStats",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "MainCount",
+        "jsonName": "mainCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SupportingCount",
+        "jsonName": "supportingCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FirstYear",
+        "jsonName": "firstYear",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastYear",
+        "jsonName": "lastYear",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MeanScore",
+        "jsonName": "meanScore",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": [
+          " popularity-weighted, main works"
+        ]
+      },
+      {
+        "name": "TotalEpisodes",
+        "jsonName": "totalEpisodes",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalMinutes",
+        "jsonName": "totalMinutes",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalPopularity",
+        "jsonName": "totalPopularity",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalFavourites",
+        "jsonName": "totalFavourites",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Airing",
+        "jsonName": "airing",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Upcoming",
+        "jsonName": "upcoming",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Formats",
+        "jsonName": "formats",
+        "goType": "[]StudioCount",
+        "typescriptType": "Array\u003cStudioCount\u003e",
+        "usedTypescriptType": "StudioCount",
+        "usedStructName": "handlers.StudioCount",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Genres",
+        "jsonName": "genres",
+        "goType": "[]StudioCount",
+        "typescriptType": "Array\u003cStudioCount\u003e",
+        "usedTypescriptType": "StudioCount",
+        "usedStructName": "handlers.StudioCount",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Years",
+        "jsonName": "years",
+        "goType": "[]StudioCount",
+        "typescriptType": "Array\u003cStudioCount\u003e",
+        "usedTypescriptType": "StudioCount",
+        "usedStructName": "handlers.StudioCount",
+        "required": false,
+        "public": true,
+        "comments": [
+          " main works per start year, oldest first"
+        ]
+      }
+    ],
+    "comments": []
+  },
+  {
     "filepath": "../internal/handlers/theme-images.go",
     "filename": "theme-images.go",
     "name": "ThemeEntry",
@@ -60541,6 +63598,43 @@
         "required": false,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "EntryStatus",
+        "jsonName": "entryStatus",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EntryStartedAt",
+        "jsonName": "entryStartedAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EntryCompletedAt",
+        "jsonName": "entryCompletedAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FirstActivityAt",
+        "jsonName": "firstActivityAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [
@@ -60595,6 +63689,199 @@
     ],
     "comments": [
       " TimelineResponse is the paginated response for the timeline endpoint."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/timeline_extras.go",
+    "filename": "timeline_extras.go",
+    "name": "TimelineAchievement",
+    "formattedName": "TimelineAchievement",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Key",
+        "jsonName": "key",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Tier",
+        "jsonName": "tier",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TierName",
+        "jsonName": "tierName",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Description",
+        "jsonName": "description",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IconSVG",
+        "jsonName": "iconSvg",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "XP",
+        "jsonName": "xp",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " TimelineAchievement is one unlock shown on an achievement card."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/timeline_extras.go",
+    "filename": "timeline_extras.go",
+    "name": "TimelineNewsBrief",
+    "formattedName": "TimelineNewsBrief",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Link",
+        "jsonName": "link",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Image",
+        "jsonName": "image",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FeedTitle",
+        "jsonName": "feedTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PublishedAt",
+        "jsonName": "publishedAt",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Description",
+        "jsonName": "description",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MatchedTitle",
+        "jsonName": "matchedTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MatchedList",
+        "jsonName": "matchedList",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " TimelineNewsBrief is one headline on a news card."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/timeline_extras.go",
+    "filename": "timeline_extras.go",
+    "name": "TimelineNews",
+    "formattedName": "TimelineNews",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Lead",
+        "jsonName": "lead",
+        "goType": "TimelineNewsBrief",
+        "typescriptType": "TimelineNewsBrief",
+        "usedTypescriptType": "TimelineNewsBrief",
+        "usedStructName": "handlers.TimelineNewsBrief",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Digest",
+        "jsonName": "digest",
+        "goType": "[]TimelineNewsBrief",
+        "typescriptType": "Array\u003cTimelineNewsBrief\u003e",
+        "usedTypescriptType": "TimelineNewsBrief",
+        "usedStructName": "handlers.TimelineNewsBrief",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " TimelineNews is a news card: a lead headline, a digest of more, or both."
     ]
   },
   {
@@ -60654,6 +63941,38 @@
       " DownloadingMediaStatus is what the client needs in order to decide which of the three download",
       " badges an anime gets — downloading, downloaded, or matched. A media ID appears in at most one of",
       " these lists, so a card can never show two."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/trailer_lookup.go",
+    "filename": "trailer_lookup.go",
+    "name": "TrailerLookup",
+    "formattedName": "TrailerLookup",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " YouTube video id; empty when there is none"
+        ]
+      },
+      {
+        "name": "Dub",
+        "jsonName": "dub",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " TrailerLookup is the trailer to play."
     ]
   },
   {
@@ -68305,6 +71624,15 @@
         "comments": []
       },
       {
+        "name": "applyProgressWriteFunc",
+        "jsonName": "applyProgressWriteFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "getProfileAnimeCollectionFunc",
         "jsonName": "getProfileAnimeCollectionFunc",
         "goType": "",
@@ -69284,6 +72612,15 @@
       {
         "name": "InvalidateProfileAnimeCollectionFunc",
         "jsonName": "InvalidateProfileAnimeCollectionFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ApplyProgressWriteFunc",
+        "jsonName": "ApplyProgressWriteFunc",
         "goType": "",
         "typescriptType": "any",
         "required": true,
@@ -81537,6 +84874,46 @@
         "required": false,
         "public": false,
         "comments": []
+      },
+      {
+        "name": "extractions",
+        "jsonName": "extractions",
+        "goType": "extractionTracker",
+        "typescriptType": "Mediastream_extractionTracker",
+        "usedTypescriptType": "Mediastream_extractionTracker",
+        "usedStructName": "mediastream.extractionTracker",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "idleStreams",
+        "jsonName": "idleStreams",
+        "goType": "",
+        "typescriptType": "any",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "activity",
+        "jsonName": "activity",
+        "goType": "",
+        "typescriptType": "any",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "probeGroup",
+        "jsonName": "probeGroup",
+        "goType": "singleflight.Group",
+        "typescriptType": "Group",
+        "usedTypescriptType": "Group",
+        "usedStructName": "singleflight.Group",
+        "required": false,
+        "public": false,
+        "comments": []
       }
     ],
     "comments": []
@@ -81594,6 +84971,35 @@
         "goType": "bool",
         "typescriptType": "boolean",
         "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "cancelled",
+        "jsonName": "cancelled",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "doneCh",
+        "jsonName": "doneCh",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "doneOnce",
+        "jsonName": "doneOnce",
+        "goType": "sync.Once",
+        "typescriptType": "Once",
+        "usedTypescriptType": "Once",
+        "usedStructName": "sync.Once",
+        "required": false,
         "public": false,
         "comments": []
       }
@@ -82061,6 +85467,39 @@
         "required": false,
         "public": false,
         "comments": []
+      },
+      {
+        "name": "ctx",
+        "jsonName": "ctx",
+        "goType": "context.Context",
+        "typescriptType": "Context",
+        "usedTypescriptType": "Context",
+        "usedStructName": "context.Context",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "cancel",
+        "jsonName": "cancel",
+        "goType": "context.CancelFunc",
+        "typescriptType": "CancelFunc",
+        "usedTypescriptType": "CancelFunc",
+        "usedStructName": "context.CancelFunc",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "loadedCh",
+        "jsonName": "loadedCh",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": [
+          " closed once Keyframes is set"
+        ]
       }
     ],
     "comments": [
@@ -82192,10 +85631,41 @@
         "comments": []
       },
       {
+        "name": "readyOnce",
+        "jsonName": "readyOnce",
+        "goType": "sync.Once",
+        "typescriptType": "Once",
+        "usedTypescriptType": "Once",
+        "usedStructName": "sync.Once",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "err",
+        "jsonName": "err",
+        "goType": "error",
+        "typescriptType": "error",
+        "usedTypescriptType": "error",
+        "usedStructName": "transcoder.error",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "nextId",
+        "jsonName": "nextId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "listeners",
         "jsonName": "listeners",
-        "goType": "[]",
-        "typescriptType": "Array\u003cany\u003e",
+        "goType": "map[int]",
+        "typescriptType": "Record\u003cnumber, any\u003e",
         "required": false,
         "public": false,
         "comments": []
@@ -82401,6 +85871,17 @@
         "comments": []
       },
       {
+        "name": "killMu",
+        "jsonName": "killMu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "killCh",
         "jsonName": "killCh",
         "goType": "",
@@ -82428,6 +85909,24 @@
         "usedTypescriptType": "CancelFunc",
         "usedStructName": "context.CancelFunc",
         "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "listenerId",
+        "jsonName": "listenerId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "hasListener",
+        "jsonName": "hasListener",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
         "public": false,
         "comments": []
       }
@@ -82508,6 +86007,19 @@
         "required": false,
         "public": false,
         "comments": []
+      },
+      {
+        "name": "cancel",
+        "jsonName": "cancel",
+        "goType": "context.CancelFunc",
+        "typescriptType": "CancelFunc",
+        "usedTypescriptType": "CancelFunc",
+        "usedStructName": "context.CancelFunc",
+        "required": false,
+        "public": false,
+        "comments": [
+          " stops this head's ffmpeg"
+        ]
       }
     ],
     "comments": []
@@ -82648,6 +86160,17 @@
         "comments": [
           " Close channel to stop tracker"
         ]
+      },
+      {
+        "name": "stopOnce",
+        "jsonName": "stopOnce",
+        "goType": "sync.Once",
+        "typescriptType": "Once",
+        "usedTypescriptType": "Once",
+        "usedStructName": "sync.Once",
+        "required": false,
+        "public": false,
+        "comments": []
       }
     ],
     "comments": []
@@ -82678,12 +86201,32 @@
         "comments": []
       },
       {
+        "name": "forgetChan",
+        "jsonName": "forgetChan",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "tracker",
         "jsonName": "tracker",
         "goType": "Tracker",
         "typescriptType": "Tracker",
         "usedTypescriptType": "Tracker",
         "usedStructName": "transcoder.Tracker",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "destroyed",
+        "jsonName": "destroyed",
+        "goType": "atomic.Bool",
+        "typescriptType": "Bool",
+        "usedTypescriptType": "Bool",
+        "usedStructName": "atomic.Bool",
         "required": false,
         "public": false,
         "comments": []
@@ -88515,6 +92058,86 @@
     ]
   },
   {
+    "filepath": "../internal/nakama/watch_party_record.go",
+    "filename": "watch_party_record.go",
+    "name": "PartyRecord",
+    "formattedName": "Nakama_PartyRecord",
+    "package": "nakama",
+    "fields": [
+      {
+        "name": "ProfileID",
+        "jsonName": "ProfileID",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Host",
+        "jsonName": "Host",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Started",
+        "jsonName": "Started",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Ended",
+        "jsonName": "Ended",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Peers",
+        "jsonName": "Peers",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": [
+          " usernames of the other participants"
+        ]
+      },
+      {
+        "name": "MaxPeers",
+        "jsonName": "MaxPeers",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ChatMessages",
+        "jsonName": "ChatMessages",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " PartyRecord summarizes one watch party this server's user took part in. It feeds the social",
+      " achievements (\"host 10 parties\", \"watch with 20 different peers\", \"a party past midnight\")."
+    ]
+  },
+  {
     "filepath": "../internal/nativeplayer/events.go",
     "filename": "events.go",
     "name": "ServerEvent",
@@ -88937,6 +92560,15 @@
         "required": false,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "Coverage",
+        "jsonName": "coverage",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": []
@@ -88988,6 +92620,282 @@
       }
     ],
     "comments": []
+  },
+  {
+    "filepath": "../internal/news/notify_filter.go",
+    "filename": "notify_filter.go",
+    "name": "NotifyFilter",
+    "formattedName": "NotifyFilter",
+    "package": "news",
+    "fields": [
+      {
+        "name": "mode",
+        "jsonName": "mode",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "keywords",
+        "jsonName": "keywords",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "names",
+        "jsonName": "names",
+        "goType": "[]listName",
+        "typescriptType": "Array\u003clistName\u003e",
+        "usedTypescriptType": "listName",
+        "usedStructName": "news.listName",
+        "required": false,
+        "public": false,
+        "comments": [
+          " NotifyModeLists"
+        ]
+      }
+    ],
+    "comments": [
+      " NotifyFilter decides, for one profile, whether a new item is worth a notification."
+    ]
+  },
+  {
+    "filepath": "../internal/news/notify_filter.go",
+    "filename": "notify_filter.go",
+    "name": "NotifyMatch",
+    "formattedName": "NotifyMatch",
+    "package": "news",
+    "fields": [
+      {
+        "name": "Mode",
+        "jsonName": "mode",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Title",
+        "jsonName": "matchedTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": [
+          " the list entry's display title"
+        ]
+      },
+      {
+        "name": "List",
+        "jsonName": "matchedList",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Media",
+        "jsonName": "matchedMedia",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Text",
+        "jsonName": "matchedText",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "In",
+        "jsonName": "matchedIn",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " NotifyMatch says why an item notified."
+    ]
+  },
+  {
+    "filepath": "../internal/news/timeline_rank.go",
+    "filename": "timeline_rank.go",
+    "name": "ListMatch",
+    "formattedName": "ListMatch",
+    "package": "news",
+    "fields": [
+      {
+        "name": "Title",
+        "jsonName": "Title",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " as shown to the user"
+        ]
+      },
+      {
+        "name": "List",
+        "jsonName": "List",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " \"Watching\", \"Planning\", \"Completed\""
+        ]
+      },
+      {
+        "name": "Weight",
+        "jsonName": "Weight",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " ListMatch is a title on the viewer's lists and how much a headline naming it counts."
+    ]
+  },
+  {
+    "filepath": "../internal/news/timeline_rank.go",
+    "filename": "timeline_rank.go",
+    "name": "RankContext",
+    "formattedName": "RankContext",
+    "package": "news",
+    "fields": [
+      {
+        "name": "Titles",
+        "jsonName": "Titles",
+        "goType": "map[string]ListMatch",
+        "typescriptType": "Record\u003cstring, ListMatch\u003e",
+        "usedTypescriptType": "ListMatch",
+        "usedStructName": "news.ListMatch",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Keywords",
+        "jsonName": "Keywords",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": [
+          " lower-cased; empty uses the built-in list"
+        ]
+      }
+    ],
+    "comments": [
+      " RankContext is what scoring knows about the viewer."
+    ]
+  },
+  {
+    "filepath": "../internal/news/timeline_rank.go",
+    "filename": "timeline_rank.go",
+    "name": "RankedNews",
+    "formattedName": "RankedNews",
+    "package": "news",
+    "fields": [
+      {
+        "name": "Item",
+        "jsonName": "Item",
+        "goType": "Item",
+        "typescriptType": "Item",
+        "usedTypescriptType": "Item",
+        "usedStructName": "news.Item",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Score",
+        "jsonName": "Score",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Matched",
+        "jsonName": "Matched",
+        "goType": "ListMatch",
+        "typescriptType": "ListMatch",
+        "usedTypescriptType": "ListMatch",
+        "usedStructName": "news.ListMatch",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " RankedNews is one scored headline."
+    ]
+  },
+  {
+    "filepath": "../internal/news/timeline_rank.go",
+    "filename": "timeline_rank.go",
+    "name": "TimelineNewsCard",
+    "formattedName": "TimelineNewsCard",
+    "package": "news",
+    "fields": [
+      {
+        "name": "At",
+        "jsonName": "At",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Lead",
+        "jsonName": "Lead",
+        "goType": "RankedNews",
+        "typescriptType": "RankedNews",
+        "usedTypescriptType": "RankedNews",
+        "usedStructName": "news.RankedNews",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Digest",
+        "jsonName": "Digest",
+        "goType": "[]RankedNews",
+        "typescriptType": "Array\u003cRankedNews\u003e",
+        "usedTypescriptType": "RankedNews",
+        "usedStructName": "news.RankedNews",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " TimelineNewsCard is one news card on the timeline: a lead headline, a digest of headlines, or",
+      " (after two cards end up next to each other in the feed) both."
+    ]
   },
   {
     "filepath": "../internal/notifier/notifier.go",
@@ -92564,6 +96472,46 @@
       " PendingMutationStore persists a small queue of AniList mutations to disk as JSON.",
       " The queue is intentionally small: for each (kind, target) pair we keep only the",
       " latest queued entry (since later progress values supersede earlier ones)."
+    ]
+  },
+  {
+    "filepath": "../internal/platforms/shared_platform/pending_mutations.go",
+    "filename": "pending_mutations.go",
+    "name": "PendingProgressItem",
+    "formattedName": "PendingProgressItem",
+    "package": "shared_platform",
+    "fields": [
+      {
+        "name": "MediaID",
+        "jsonName": "mediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Progress",
+        "jsonName": "progress",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "QueuedAt",
+        "jsonName": "queuedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " PendingProgressItem is one queued progress update, as the UI shows it."
     ]
   },
   {
@@ -102262,9 +106210,120 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "SizeBytes",
+        "jsonName": "sizeBytes",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DownSpeedBytes",
+        "jsonName": "downSpeedBytes",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UpSpeedBytes",
+        "jsonName": "upSpeedBytes",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Ratio",
+        "jsonName": "ratio",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Peers",
+        "jsonName": "peers",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "HasMetadata",
+        "jsonName": "hasMetadata",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": []
+  },
+  {
+    "filepath": "../internal/torrent_clients/builtin_client/client.go",
+    "filename": "client.go",
+    "name": "FileDetails",
+    "formattedName": "FileDetails",
+    "package": "builtin_client",
+    "fields": [
+      {
+        "name": "Index",
+        "jsonName": "Index",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Path",
+        "jsonName": "Path",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Size",
+        "jsonName": "Size",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Progress",
+        "jsonName": "Progress",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Wanted",
+        "jsonName": "Wanted",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " FileDetails is one file of a torrent as it stands right now."
+    ]
   },
   {
     "filepath": "../internal/torrent_clients/builtin_client/client.go",
@@ -102348,6 +106407,17 @@
         "public": false,
         "comments": [
           " hash -\u003e active torrent handle"
+        ]
+      },
+      {
+        "name": "destinations",
+        "jsonName": "destinations",
+        "goType": "map[string]string",
+        "typescriptType": "Record\u003cstring, string\u003e",
+        "required": false,
+        "public": false,
+        "comments": [
+          " hash -\u003e where an active torrent's files are"
         ]
       },
       {
@@ -105468,7 +109538,7 @@
     "fields": [
       {
         "name": "Name",
-        "jsonName": "\tname",
+        "jsonName": "name",
         "goType": "string",
         "typescriptType": "string",
         "required": true,
@@ -105477,7 +109547,7 @@
       },
       {
         "name": "Size",
-        "jsonName": "\tsize",
+        "jsonName": "size",
         "goType": "int",
         "typescriptType": "number",
         "required": true,
@@ -105486,7 +109556,7 @@
       },
       {
         "name": "Progress",
-        "jsonName": "\tprogress",
+        "jsonName": "progress",
         "goType": "float64",
         "typescriptType": "number",
         "required": true,
@@ -105495,7 +109565,7 @@
       },
       {
         "name": "Priority",
-        "jsonName": "\tpriority",
+        "jsonName": "priority",
         "goType": "TorrentPriority",
         "typescriptType": "TorrentPriority",
         "usedTypescriptType": "TorrentPriority",
@@ -105506,7 +109576,7 @@
       },
       {
         "name": "IsSeed",
-        "jsonName": "\tis_seed",
+        "jsonName": "is_seed",
         "goType": "bool",
         "typescriptType": "boolean",
         "required": true,
@@ -105515,7 +109585,7 @@
       },
       {
         "name": "PieceRange",
-        "jsonName": "\tpiece_range",
+        "jsonName": "piece_range",
         "goType": "[]int",
         "typescriptType": "Array\u003cnumber\u003e",
         "required": false,
@@ -105524,7 +109594,7 @@
       },
       {
         "name": "Availability",
-        "jsonName": "\tavailability",
+        "jsonName": "availability",
         "goType": "float64",
         "typescriptType": "number",
         "required": true,
@@ -106312,6 +110382,46 @@
     "comments": []
   },
   {
+    "filepath": "../internal/torrent_clients/qbittorrent/util/util.go",
+    "filename": "util.go",
+    "name": "StatusError",
+    "formattedName": "StatusError",
+    "package": "qbittorrent_util",
+    "fields": [
+      {
+        "name": "Code",
+        "jsonName": "Code",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "Status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Body",
+        "jsonName": "Body",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " StatusError is a non-OK answer to an add request. It keeps the status code, so a caller can tell",
+      " the answers apart, and whatever qBittorrent said about it."
+    ]
+  },
+  {
     "filepath": "../internal/torrent_clients/torrent_client/offline_queue.go",
     "filename": "offline_queue.go",
     "name": "TorrentAddQueueView",
@@ -106875,6 +110985,71 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "SizeBytes",
+        "jsonName": "sizeBytes",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DownSpeedBytes",
+        "jsonName": "downSpeedBytes",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UpSpeedBytes",
+        "jsonName": "upSpeedBytes",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AddedOn",
+        "jsonName": "addedOn",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Ratio",
+        "jsonName": "ratio",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Peers",
+        "jsonName": "peers",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "State",
+        "jsonName": "state",
+        "goType": "TorrentState",
+        "typescriptType": "TorrentClient_TorrentState",
+        "usedTypescriptType": "TorrentClient_TorrentState",
+        "usedStructName": "torrent_client.TorrentState",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": []
@@ -106897,6 +111072,85 @@
         "\"stopped\""
       ]
     },
+    "comments": []
+  },
+  {
+    "filepath": "../internal/torrent_clients/torrent_client/torrent.go",
+    "filename": "torrent.go",
+    "name": "TorrentState",
+    "formattedName": "TorrentClient_TorrentState",
+    "package": "torrent_client",
+    "fields": [],
+    "aliasOf": {
+      "goType": "string",
+      "typescriptType": "string",
+      "declaredValues": [
+        "\"downloading\"",
+        "\"stalled\"",
+        "\"metadata\"",
+        "\"checking\"",
+        "\"queued\"",
+        "\"seeding\"",
+        "\"paused\"",
+        "\"stopped\"",
+        "\"other\""
+      ]
+    },
+    "comments": []
+  },
+  {
+    "filepath": "../internal/torrent_clients/torrent_client/torrent.go",
+    "filename": "torrent.go",
+    "name": "TorrentFile",
+    "formattedName": "TorrentClient_TorrentFile",
+    "package": "torrent_client",
+    "fields": [
+      {
+        "name": "Index",
+        "jsonName": "index",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Path",
+        "jsonName": "path",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Size",
+        "jsonName": "size",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Progress",
+        "jsonName": "progress",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Wanted",
+        "jsonName": "wanted",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
     "comments": []
   },
   {
@@ -111013,6 +115267,15 @@
         "comments": []
       },
       {
+        "name": "isFinished",
+        "jsonName": "isFinished",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "metadataMu",
         "jsonName": "metadataMu",
         "goType": "sync.Mutex",
@@ -112720,6 +116983,269 @@
     "comments": []
   },
   {
+    "filepath": "../internal/updater/gitstatus.go",
+    "filename": "gitstatus.go",
+    "name": "PendingCommit",
+    "formattedName": "Updater_PendingCommit",
+    "package": "updater",
+    "fields": [
+      {
+        "name": "Hash",
+        "jsonName": "hash",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Subject",
+        "jsonName": "subject",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Author",
+        "jsonName": "author",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Date",
+        "jsonName": "date",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " unix seconds"
+        ]
+      }
+    ],
+    "comments": [
+      " PendingCommit is one commit an update would bring."
+    ]
+  },
+  {
+    "filepath": "../internal/updater/gitstatus.go",
+    "filename": "gitstatus.go",
+    "name": "UpdateStatus",
+    "formattedName": "Updater_UpdateStatus",
+    "package": "updater",
+    "fields": [
+      {
+        "name": "Version",
+        "jsonName": "version",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Commit",
+        "jsonName": "commit",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Behind",
+        "jsonName": "behind",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CommitsBehind",
+        "jsonName": "commitsBehind",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Commits",
+        "jsonName": "commits",
+        "goType": "[]PendingCommit",
+        "typescriptType": "Array\u003cUpdater_PendingCommit\u003e",
+        "usedTypescriptType": "Updater_PendingCommit",
+        "usedStructName": "updater.PendingCommit",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Files",
+        "jsonName": "files",
+        "goType": "[]FileChange",
+        "typescriptType": "Array\u003cUpdater_FileChange\u003e",
+        "usedTypescriptType": "Updater_FileChange",
+        "usedStructName": "updater.FileChange",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Blocked",
+        "jsonName": "blocked",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Updating",
+        "jsonName": "updating",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Checking",
+        "jsonName": "checking",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastChecked",
+        "jsonName": "lastChecked",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": [
+          " unix seconds"
+        ]
+      },
+      {
+        "name": "NextCheck",
+        "jsonName": "nextCheck",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": [
+          " unix seconds"
+        ]
+      },
+      {
+        "name": "LastError",
+        "jsonName": "lastError",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastUpdated",
+        "jsonName": "lastUpdated",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": [
+          " RFC3339, from the last update notice"
+        ]
+      },
+      {
+        "name": "Progress",
+        "jsonName": "progress",
+        "goType": "UpdateProgress",
+        "typescriptType": "Updater_UpdateProgress",
+        "usedTypescriptType": "Updater_UpdateProgress",
+        "usedStructName": "updater.UpdateProgress",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " UpdateStatus is the cached result of the last check."
+    ]
+  },
+  {
+    "filepath": "../internal/updater/gitstatus.go",
+    "filename": "gitstatus.go",
+    "name": "UpdateProgress",
+    "formattedName": "Updater_UpdateProgress",
+    "package": "updater",
+    "fields": [
+      {
+        "name": "Percent",
+        "jsonName": "percent",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Step",
+        "jsonName": "step",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Detail",
+        "jsonName": "detail",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": [
+          " the build's latest output line"
+        ]
+      },
+      {
+        "name": "StartedAt",
+        "jsonName": "startedAt",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " unix seconds"
+        ]
+      },
+      {
+        "name": "StepAt",
+        "jsonName": "stepAt",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " unix seconds the step began"
+        ]
+      }
+    ],
+    "comments": [
+      " UpdateProgress is the running update's current step."
+    ]
+  },
+  {
     "filepath": "../internal/updater/gitupdate.go",
     "filename": "gitupdate.go",
     "name": "GitAutoUpdater",
@@ -112773,6 +117299,28 @@
         "typescriptType": "Bool",
         "usedTypescriptType": "Bool",
         "usedStructName": "atomic.Bool",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "progressMu",
+        "jsonName": "progressMu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "progressAt",
+        "jsonName": "progressAt",
+        "goType": "UpdateProgress",
+        "typescriptType": "Updater_UpdateProgress",
+        "usedTypescriptType": "Updater_UpdateProgress",
+        "usedStructName": "updater.UpdateProgress",
         "required": false,
         "public": false,
         "comments": []
@@ -114617,8 +119165,27 @@
     "name": "ImageProxy",
     "formattedName": "Util_ImageProxy",
     "package": "util",
-    "fields": [],
-    "comments": []
+    "fields": [
+      {
+        "name": "CacheDir",
+        "jsonName": "CacheDir",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " ImageProxy fetches images (manga provider covers, mostly) for the client, which can't load them",
+      " directly because the providers check the Referer.",
+      "",
+      " Each image is fetched from the provider once and kept on disk (CacheDir), and sent with headers",
+      " that let the client keep it too. It used to be fetched from the provider on every view, and the",
+      " cache headers it meant to send were never sent at all (they were set with echo's c.Set, which",
+      " stores a value on the request context, not a response header), so every cover in a large manga",
+      " library was downloaded again on every visit."
+    ]
   },
   {
     "filepath": "../internal/util/ref.go",

@@ -6,6 +6,28 @@ import { ProgressBar } from "@/components/ui/progress-bar"
 import React from "react"
 import { LuGlobe } from "react-icons/lu"
 
+/** Mirrors EnqueueFutureCatalogRootID on the server. */
+const CATALOG_ROOT_ID = -1
+
+function formatWait(ms: number): string {
+    const seconds = Math.max(0, Math.ceil(ms / 1000))
+    return seconds < 60 ? `${seconds}s` : `${Math.ceil(seconds / 60)}m`
+}
+
+/** What the catalog is held up on right now, if anything. */
+function catalogWaitState(status: EnqueueFuture_Status | undefined, retryInMs: number): string | null {
+    const catalog = status?.catalog
+    if (!catalog?.active) return null
+    if (retryInMs > 0) return `AniList refused the scan — trying again in ${formatWait(retryInMs)}`
+    if (!catalog.waiting) return null
+    if (status?.running && status.rootMediaId !== CATALOG_ROOT_ID) {
+        return `Preparing waits its turn behind ${status.rootTitle || "the current run"}`
+    }
+    if (status?.rateLimited) return "Preparing is waiting out a rate limit"
+    if (!status?.running) return "Preparing starts within a couple of minutes"
+    return null
+}
+
 /**
  * Queueing the whole of AniList, as opposed to what one anime leads to.
  *
@@ -27,6 +49,18 @@ export function EnqueueFutureCatalog({ status }: { status: EnqueueFuture_Status 
     const catalog = status?.catalog
     const percent = catalog?.maxId ? Math.min(100, Math.round(((catalog.nextId - 1) / catalog.maxId) * 100)) : 0
 
+    // Both waits are minutes long, so they count down rather than sit there reading the same.
+    const retryAt = catalog?.retryAt ? new Date(catalog.retryAt).getTime() : 0
+    const prepareRetryAt = status?.rateLimited && status.retryAt ? new Date(status.retryAt).getTime() : 0
+    const [now, setNow] = React.useState(() => Date.now())
+    React.useEffect(() => {
+        if (retryAt <= Date.now() && prepareRetryAt <= Date.now()) return
+        const id = setInterval(() => setNow(Date.now()), 1_000)
+        return () => clearInterval(id)
+    }, [retryAt, prepareRetryAt])
+
+    const waitState = catalogWaitState(status, retryAt - now)
+
     return (
         <div className="rounded-[--radius-md] border bg-gray-950 p-4 space-y-3" data-enqueue-future-catalog>
             <div className="flex flex-wrap items-center justify-between gap-4">
@@ -37,9 +71,11 @@ export function EnqueueFutureCatalog({ status }: { status: EnqueueFuture_Status 
                         {catalog && (catalog.done
                             ? `Scan finished · ${catalog.queued} queued`
                             : `${catalog.active ? "Scanning" : "Stopped"} · ${percent}% · ${catalog.queued} queued`)}
+                        {catalog && catalog.prepared > 0 ? ` · ${catalog.prepared} prepared` : ""}
                         {catalog && catalog.waiting > 0 ? ` · ${catalog.waiting} waiting to be prepared` : ""}
-                        {catalog?.lastError ? ` · ${catalog.lastError}` : ""}
                     </p>
+                    {waitState && <p className="text-sm text-[--muted]" data-enqueue-future-catalog-wait>{waitState}</p>}
+                    {catalog?.lastError && <p className="text-sm text-[--orange] break-words" data-enqueue-future-catalog-error>{catalog.lastError}</p>}
                 </div>
                 {catalog?.active
                     ? <Button intent="alert-subtle" size="sm" onClick={() => stop()} loading={isStopping}>Stop</Button>

@@ -115,6 +115,13 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
         return () => clearInterval(id)
     }, [status?.rateLimited, status?.retryAt])
 
+    const discovered = status?.discovered || 0
+    const done = (status?.prepared || 0) + (status?.failed || 0)
+
+    // Paused while rate-limited: the clock the estimate runs on stops, because no work is. Called up
+    // here because the returns below depend on the status, and hooks have to run on every render.
+    const eta = useEta(done, discovered, !status?.running || !!status?.rateLimited)
+
     // A run that ended with something to say says it. Silence here is what made a failed run and a
     // run that never started look the same from the outside.
     if (!status?.running && status?.lastError && !status?.resumable) {
@@ -170,12 +177,7 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
         )
     }
 
-    const discovered = status.discovered || 0
-    const done = (status.prepared || 0) + (status.failed || 0)
     const percent = discovered > 0 ? Math.min(100, Math.round((done / discovered) * 100)) : 0
-
-    // Paused while rate-limited: the clock the estimate runs on stops, because no work is.
-    const eta = useEta(done, discovered, !!status.rateLimited)
 
     const retryInSeconds = status.retryAt
         ? Math.max(0, Math.ceil((new Date(status.retryAt).getTime() - now) / 1000))

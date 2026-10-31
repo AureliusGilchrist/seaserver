@@ -1,9 +1,12 @@
 import React from "react"
-import { useServerMutation, useServerQuery } from "@/api/client/requests"
+import { buildSeaQuery, useServerMutation, useServerQuery } from "@/api/client/requests"
 import { EnqueueFuture_Variables, SetEnqueueFutureItemStatus_Variables } from "@/api/generated/endpoint.types"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
-import { EnqueueFuture_DroppedItem, EnqueueFuture_Item, EnqueueFuture_Status } from "@/api/generated/types"
-import { useQueryClient } from "@tanstack/react-query"
+import { EnqueueFuture_DroppedItem, EnqueueFuture_Item, EnqueueFuture_Status, EnqueueFuture_WaitingPage } from "@/api/generated/types"
+import { serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
+import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
+import { InfiniteData, keepPreviousData, useInfiniteQuery, useQueryClient } from "@tanstack/react-query"
+import { useAtomValue } from "jotai/react"
 import { toast } from "sonner"
 
 /**
@@ -64,13 +67,22 @@ export function useEnqueueFuture() {
  * Polls only while a run is going, matching how the unmatched sweep reports progress.
  */
 export function useGetEnqueueFutureStatus(enabled: boolean = true) {
+    const queryClient = useQueryClient()
+
+    // Every status change is broadcast, so the poll below is only the fallback for a dropped socket.
+    const onMessage = React.useCallback((status: EnqueueFuture_Status) => {
+        queryClient.setQueryData([API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureStatus.key], status)
+    }, [queryClient])
+    useWebsocketMessageListener<EnqueueFuture_Status>({ type: "enqueueFutureStatus", onMessage })
+
     return useServerQuery<EnqueueFuture_Status>({
         endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureStatus.endpoint,
         method: API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureStatus.methods[0],
         queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureStatus.key],
         enabled: enabled,
         gcTime: 0,
-        refetchInterval: query => (query.state.data?.running ? 2_000 : false),
+        // Slower for the catalog on its own: it can stay active for weeks with this page open.
+        refetchInterval: query => (query.state.data?.running ? 2_000 : query.state.data?.catalog?.active ? 5_000 : false),
     })
 }
 
@@ -214,15 +226,20 @@ export function useClearEnqueueFutureRewalkBacklog() {
 
 export function useGetEnqueueFutureQueue({ isRunning }: { isRunning?: boolean } = {}) {
     const heldRef = React.useRef<{ fingerprint?: string, items: EnqueueFuture_Item[] }>({ items: [] })
+    const instance = React.useId()
 
     const query = useServerQuery<EnqueueFutureQueueResponse>({
         // The fingerprint we already hold rides along, so the server can answer "unchanged" instead
         // of re-sending rows we have. The query key stays fixed — this is the same query, asking
         // more precisely.
+        //
+        // Fixed per caller, though, not across them. The rows are held here, so the page and the
+        // sidebar each hold their own, and a shared key would hand one of them the other's
+        // "unchanged" with nothing held to show for it: an empty queue.
         endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureQueue.endpoint
             + (heldRef.current.fingerprint ? `?known=${encodeURIComponent(heldRef.current.fingerprint)}` : ""),
         method: API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureQueue.methods[0],
-        queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureQueue.key],
+        queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureQueue.key, instance],
         enabled: true,
         gcTime: 0,
         refetchInterval: isRunning ? 4_000 : false,
@@ -238,6 +255,39 @@ export function useGetEnqueueFutureQueue({ isRunning }: { isRunning?: boolean } 
     }
 
     return { ...query, data: heldRef.current.items }
+}
+
+/** How many waiting rows are asked for at a time. */
+const WAITING_PAGE_SIZE = 100
+
+/** Past this many pages a refetch is too many requests to repeat on a timer. */
+const WAITING_MAX_POLLED_PAGES = 3
+
+/**
+ * The catalog rows waiting to be prepared, a page at a time. These stay out of the queue above, which
+ * is polled whole and counted by the sidebar.
+ *
+ * A refetch asks for every page again, so this only refreshes by itself near the top of the list.
+ */
+export function useGetEnqueueFutureCatalogWaiting({ search, enabled, isActive }: { search: string, enabled: boolean, isActive?: boolean }) {
+    const password = useAtomValue(serverAuthTokenAtom)
+
+    return useInfiniteQuery<EnqueueFuture_WaitingPage | undefined, Error, InfiniteData<EnqueueFuture_WaitingPage | undefined, number>, string[], number>({
+        queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureCatalogWaiting.key, search],
+        initialPageParam: 0,
+        enabled: enabled,
+        placeholderData: keepPreviousData,
+        refetchInterval: query => (isActive && (query.state.data?.pages.length ?? 0) <= WAITING_MAX_POLLED_PAGES ? 30_000 : false),
+        queryFn: async ({ pageParam }) => {
+            return buildSeaQuery<EnqueueFuture_WaitingPage>({
+                endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureCatalogWaiting.endpoint,
+                method: API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureCatalogWaiting.methods[0],
+                params: { after: pageParam, search: search || undefined, limit: WAITING_PAGE_SIZE },
+                password: password,
+            })
+        },
+        getNextPageParam: lastPage => lastPage?.nextPosition || undefined,
+    })
 }
 
 /**
@@ -272,6 +322,7 @@ export function useSetEnqueueFutureItemStatus(mediaId: number | undefined) {
         mutationKey: [API_ENDPOINTS.ENQUEUE_FUTURE.SetEnqueueFutureItemStatus.key, String(mediaId)],
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureQueue.key] })
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureCatalogWaiting.key] })
         },
     })
 }

@@ -3,6 +3,7 @@ package enqueuefuture
 import (
 	"seanime/internal/database/db"
 	"seanime/internal/database/db_bridge"
+	"seanime/internal/database/models"
 )
 
 // An anime in the queue can be dealt with while it sits there: you download it from the queue, or
@@ -17,6 +18,34 @@ import (
 // family group, still counted, but not something you can select or pick a torrent for — there is
 // nothing to decide about an anime that is already downloading. Skip and ignore remain, because
 // those are how you say you are finished with a row rather than what to do with it.
+
+// settleDownloadedItem takes a row off the worker's hands when you got to it first, which a catalog
+// row can wait weeks for, and reports whether it did. Ready with no snapshot, the same as an anime
+// RegisterBadgedAnime brings in: the row stays as a record and opens live if the badge is cleared.
+//
+// Family edges are left to the worker. Those are queued whether or not you own them so the walk can
+// carry on through them, and preparing one is the only way its relations are ever found.
+func (r *Repository) settleDownloadedItem(item *models.EnqueueFutureItem) bool {
+	if item.ParentMediaID != 0 {
+		return false
+	}
+
+	state, err := r.database.GetAnimeDownloadState(item.MediaID)
+	if err != nil {
+		return false
+	}
+	if state == "" {
+		if staged, err := r.database.CountUnmatchedTorrentMetadataByAnimeID(item.MediaID); err != nil || staged == 0 {
+			return false
+		}
+	}
+
+	if err := r.database.SetEnqueueFutureItemStatus(item.MediaID, db.EnqueueFutureStatusReady, ""); err != nil {
+		return false
+	}
+	r.logger.Debug().Int("mediaId", item.MediaID).Msg("enqueuefuture: Already has a download, not preparing it")
+	return true
+}
 
 // downloadStatesByMediaID reads every anime's download badge in one query.
 //

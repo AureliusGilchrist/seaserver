@@ -18,6 +18,7 @@ import { EnqueueFutureDropped } from "@/app/(main)/enqueue-future/_components/en
 import { EnqueueFutureHeader } from "@/app/(main)/enqueue-future/_components/enqueue-future-header"
 import { EnqueueFutureList, FamilyOrdering, groupIntoFamilies } from "@/app/(main)/enqueue-future/_components/enqueue-future-list"
 import { EnqueueFutureProgress } from "@/app/(main)/enqueue-future/_components/enqueue-future-progress"
+import { EnqueueFutureWaiting } from "@/app/(main)/enqueue-future/_components/enqueue-future-waiting"
 import { TorrentSearchSnapshot } from "@/app/(main)/entry/_containers/torrent-search/_lib/handle-torrent-search"
 import { __torrentDownload_autoMatchAtom } from "@/app/(main)/entry/_containers/torrent-search/torrent-download-auto-match"
 import { __torrentSearch_selectedTorrentsAtom, TorrentSearchContainer } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-container"
@@ -57,6 +58,11 @@ function isActionable(item: EnqueueFuture_Item | undefined): boolean {
 /** Prepared, with torrents found — actionable this second rather than once a run reaches it. */
 function isReady(item: EnqueueFuture_Item | undefined): boolean {
     return item?.status === ENQUEUE_FUTURE_STATUS.READY
+}
+
+/** Something a torrent can be picked for now. Only a row the worker is holding has to be waited for. */
+function isOpenable(item: EnqueueFuture_Item | undefined): boolean {
+    return isActionable(item) && item?.status !== ENQUEUE_FUTURE_STATUS.PREPARING
 }
 
 export function EnqueueFuturePage() {
@@ -250,42 +256,49 @@ export function EnqueueFuturePage() {
         // matched, or skipped. Those stay in the list so their franchise reads whole, but the
         // position walks past them.
         //
-        // Two passes, and the order matters. The first looks for the next entry that is actually
-        // *ready* — prepared, with torrents found, something you can act on this second. Only if
-        // there is none does the second accept anything unsettled, which will be an entry still
-        // being prepared. Skipping used to land on whatever came next in the list, which during a run
-        // is usually a row that says "Preparing…" and can do nothing for you.
-        if (isActionable(orderedItems[at]) && isReady(orderedItems[at])) return at
-
-        for (let i = at + 1; i < orderedItems.length; i++) {
-            if (isActionable(orderedItems[i]) && isReady(orderedItems[i])) return i
-        }
-        for (let i = at - 1; i >= 0; i--) {
-            if (isActionable(orderedItems[i]) && isReady(orderedItems[i])) return i
-        }
-
-        if (isActionable(orderedItems[at])) return at
-        for (let i = at + 1; i < orderedItems.length; i++) {
-            if (isActionable(orderedItems[i])) return i
-        }
-        for (let i = at - 1; i >= 0; i--) {
-            if (isActionable(orderedItems[i])) return i
+        // Three passes, and the order matters. The first looks for the next entry that is actually
+        // *ready* — prepared, with torrents found, something you can act on this second. Then anything
+        // that opens with a live search, and only then an entry the worker is holding. Skipping used
+        // to land on whatever came next in the list, which during a run is usually a row that says
+        // "Preparing…" and can do nothing for you. An explicit click still opens any of them.
+        const wanted = [(item: EnqueueFuture_Item) => isActionable(item) && isReady(item), isOpenable, isActionable]
+        for (const matches of wanted) {
+            if (matches(orderedItems[at])) return at
+            for (let i = at + 1; i < orderedItems.length; i++) {
+                if (matches(orderedItems[i])) return i
+            }
+            for (let i = at - 1; i >= 0; i--) {
+                if (matches(orderedItems[i])) return i
+            }
         }
         return -1
     }, [orderedItems, activeMediaId])
 
-    const activeItem = index >= 0 ? orderedItems[index] : undefined
+    const listItem = index >= 0 ? orderedItems[index] : undefined
 
     React.useEffect(() => {
         if (index >= 0) lastIndexRef.current = index
         // Keep the stored id in step with what is actually being shown, so Prev and Next move from
         // here rather than from an anime that is no longer in the list.
-        if (activeItem && activeItem.mediaId !== activeMediaId) {
-            setActiveMediaId(activeItem.mediaId)
-        } else if (!activeItem && activeMediaId !== undefined) {
+        if (listItem && listItem.mediaId !== activeMediaId) {
+            setActiveMediaId(listItem.mediaId)
+        } else if (!listItem && activeMediaId !== undefined) {
             setActiveMediaId(undefined)
         }
-    }, [index, activeItem, activeMediaId])
+    }, [index, listItem, activeMediaId])
+
+    // A row opened from the Waiting panel, which has no place in the list above. The worker can reach
+    // it while it is open, and then the queue carries it, with the status that decides what is drawn.
+    const [waitingItem, setWaitingItem] = React.useState<EnqueueFuture_Item | undefined>(undefined)
+    const shownWaitingItem = React.useMemo(
+        () => waitingItem && ((queue ?? []).find(item => item.mediaId === waitingItem.mediaId) ?? waitingItem),
+        [waitingItem, queue])
+    const activeItem = shownWaitingItem ?? listItem
+
+    const bodyRef = React.useRef<HTMLDivElement | null>(null)
+    React.useEffect(() => {
+        if (waitingItem) bodyRef.current?.scrollIntoView({ block: "start", behavior: "smooth" })
+    }, [waitingItem?.mediaId])
 
     const { data: detail, isLoading: isLoadingDetail } = useGetEnqueueFutureItem(activeItem?.mediaId)
 
@@ -314,13 +327,13 @@ export function EnqueueFuturePage() {
     const [editSearchSignal, setEditSearchSignal] = React.useState(0)
     React.useEffect(() => {
         setEditSearchSignal(0)
-    }, [activeMediaId])
+    }, [activeItem?.mediaId])
 
     // The torrent selection is module-global and shared with the anime page's drawer, so it has to
     // be emptied on every step — otherwise the previous anime's picks come along to the next one.
     React.useEffect(() => {
         setSelectedTorrents([])
-    }, [activeMediaId, setSelectedTorrents])
+    }, [activeItem?.mediaId, setSelectedTorrents])
 
     const snapshot: TorrentSearchSnapshot | undefined = React.useMemo(() => {
         const s = detail?.snapshot
@@ -334,17 +347,24 @@ export function EnqueueFuturePage() {
 
     function goTo(nextIndex: number) {
         if (nextIndex < 0 || nextIndex >= orderedItems.length) return
+        setWaitingItem(undefined)
         setActiveMediaId(orderedItems[nextIndex].mediaId)
     }
 
     // Stable, so the memoised rows in the list actually stay memoised — a fresh arrow on every
     // render would defeat it and re-render all several hundred of them on every step.
     const handleSelect = React.useCallback((item: EnqueueFuture_Item) => {
+        setWaitingItem(undefined)
         setActiveMediaId(item.mediaId)
+    }, [])
+
+    const handleWaitingDone = React.useCallback((mediaId: number) => {
+        setWaitingItem(current => current?.mediaId === mediaId ? undefined : current)
     }, [])
 
     function handleDownloadStarted() {
         if (!activeItem) return
+        setWaitingItem(undefined)
 
         // The row stays. It is not marked downloaded here any more.
         //
@@ -449,7 +469,14 @@ export function EnqueueFuturePage() {
 
             <EnqueueFutureDropped isRunning={!!status?.running} />
 
-            {!orderedItems.length ? (
+            <EnqueueFutureWaiting
+                status={status}
+                activeMediaId={shownWaitingItem?.mediaId}
+                onSelect={setWaitingItem}
+                onDone={handleWaitingDone}
+            />
+
+            {!orderedItems.length && !activeItem ? (
                 <div className="text-center py-16 space-y-3 border rounded-[--radius-md] bg-gray-950" data-enqueue-future-empty>
                     <div
                         className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border bg-gray-900"
@@ -543,16 +570,20 @@ export function EnqueueFuturePage() {
 
                         <EnqueueFutureList
                             families={families}
-                            activeMediaId={activeMediaId}
+                            activeMediaId={shownWaitingItem ? undefined : activeMediaId}
                             onSelect={handleSelect}
+                            flat={queueView}
                         />
                     </div>
 
+                    <div className="min-w-0 scroll-mt-4" ref={bodyRef}>
                     <AppLayoutStack className="min-w-0">
                         <EnqueueFutureHeader
                             item={activeItem}
-                            index={index}
+                            index={shownWaitingItem ? -1 : index}
                             total={orderedItems.length}
+                            isWaitingRow={!!shownWaitingItem}
+                            onItemDone={() => setWaitingItem(undefined)}
                             onPrevious={() => goTo(index - 1)}
                             onNext={() => goTo(index + 1)}
                             autoMatch={activeAutoMatch}
@@ -573,6 +604,7 @@ export function EnqueueFuturePage() {
                             onEditSearch={() => setEditSearchSignal(n => n + 1)}
                         />
                     </AppLayoutStack>
+                    </div>
                 </div>
             )}
 
@@ -595,19 +627,19 @@ function ActiveItemBody({
     onEditSearch: () => void
 }) {
 
-    // Fetched live when the prepared snapshot carries no entry — a row whose snapshot will not
-    // decode, or was stored before snapshots carried one, used to dead-end into "open its page".
-    // The same endpoint the anime page uses is one request away, and the search UI below works with
-    // a live entry exactly as it does with a prepared one: it just searches instead of having
-    // results waiting. Gated to the one case that needs it, and never for a row still being
-    // prepared — that one opens on its own.
-    const needsLiveEntry = !!item && !!detail && !detail.snapshot?.entry
-        && item.status !== ENQUEUE_FUTURE_STATUS.PENDING && item.status !== ENQUEUE_FUTURE_STATUS.PREPARING
+    // Fetched live when there is no prepared entry: a row the worker has not reached, one it gave up
+    // on, or one whose snapshot will not decode or predates snapshots carrying an entry. The same
+    // endpoint the anime page uses is one request away, and the search UI below works with a live
+    // entry exactly as it does with a prepared one: it just searches instead of having results
+    // waiting. Never for a row being prepared — that one opens on its own. Not gated on detail
+    // either: a waiting row the worker dropped for having nothing is gone from the queue by now.
+    const needsLiveEntry = !!item && !isLoading && !detail?.snapshot?.entry
+        && item.status !== ENQUEUE_FUTURE_STATUS.PREPARING
     const { data: liveEntry, isLoading: isLoadingLiveEntry } = useGetAnimeEntry(item?.mediaId, needsLiveEntry)
 
     if (!item) return null
 
-    if (item.status === ENQUEUE_FUTURE_STATUS.PENDING || item.status === ENQUEUE_FUTURE_STATUS.PREPARING) {
+    if (item.status === ENQUEUE_FUTURE_STATUS.PREPARING) {
         return (
             <div className="text-center py-16 space-y-2 border rounded-[--radius-md] bg-gray-950">
                 <LoadingSpinner />

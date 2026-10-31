@@ -353,6 +353,29 @@ func (h *Handler) HandleStopEnqueueFutureCatalog(c echo.Context) error {
 	return h.RespondWithData(c, h.App.EnqueueFutureRepository.Status())
 }
 
+// HandleGetEnqueueFutureCatalogWaiting
+//
+//	@summary returns one page of the catalog rows waiting to be prepared.
+//	@desc These are left out of the queue, which is polled and counted by the sidebar. Takes the
+//	@desc query parameters "after" (the previous page's nextPosition), "search" and "limit".
+//	@route /api/v1/enqueue-future/catalog/waiting [GET]
+//	@returns enqueuefuture.WaitingPage
+func (h *Handler) HandleGetEnqueueFutureCatalogWaiting(c echo.Context) error {
+	if h.App.EnqueueFutureRepository == nil {
+		return h.RespondWithData(c, enqueuefuture.WaitingPage{Items: []*enqueuefuture.Item{}})
+	}
+
+	// Missing or unreadable reads as 0: the first page, at the largest size.
+	after, _ := strconv.Atoi(c.QueryParam("after"))
+	limit, _ := strconv.Atoi(c.QueryParam("limit"))
+
+	page, err := h.App.EnqueueFutureRepository.ListWaitingCatalogItems(after, c.QueryParam("search"), limit)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	return h.RespondWithData(c, page)
+}
+
 // HandleGetEnqueueFutureDropped
 //
 //	@summary returns the anime dropped from the queue for having nothing downloadable.

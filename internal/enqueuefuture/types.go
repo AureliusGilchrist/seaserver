@@ -101,6 +101,18 @@ type Item struct {
 	DownloadState string `json:"downloadState,omitempty"`
 }
 
+// MaxWaitingPageSize is the most catalog rows one page of the Waiting panel carries.
+const MaxWaitingPageSize = 200
+
+// WaitingPage is one page of the catalog rows still waiting to be prepared.
+type WaitingPage struct {
+	Items []*Item `json:"items"`
+	// Total is how many rows match, across every page.
+	Total int `json:"total"`
+	// NextPosition is the cursor for the next page, 0 on the last one.
+	NextPosition int `json:"nextPosition"`
+}
+
 // DroppedItem is an anime taken off the queue for having nothing downloadable, as the frontend sees
 // it: what the search found and why that was not enough. The results themselves stay on the server
 // until the anime is put back.

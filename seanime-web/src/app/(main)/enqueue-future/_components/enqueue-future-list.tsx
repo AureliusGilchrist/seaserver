@@ -278,10 +278,12 @@ export function groupIntoFamilies(
  * The queue at a glance, so Next is not the only way to get somewhere. Jumping straight to an anime
  * you recognise is usually what you want after the first dozen.
  */
-export function EnqueueFutureList({ families, activeMediaId, onSelect }: {
+export function EnqueueFutureList({ families, activeMediaId, onSelect, flat }: {
     families: EnqueueFutureFamily[]
     activeMediaId: number | undefined
     onSelect: (item: EnqueueFuture_Item) => void
+    /** Every row on its own rather than gathered into franchises, as the queue view draws them. */
+    flat?: boolean
 }) {
 
     const activeRef = React.useRef<HTMLDivElement | null>(null)
@@ -349,8 +351,9 @@ export function EnqueueFutureList({ families, activeMediaId, onSelect }: {
                 <FamilyBundle
                     // Keyed on the family, not on its first entry: dealing with the entry a bundle
                     // happens to start with must not look to React like a different bundle appearing
-                    // where the old one was. One bundle per key, so this is unique.
-                    key={family[0].familyId || family[0].mediaId}
+                    // where the old one was. One bundle per key, so this is unique — except in the
+                    // flat view, where seasons of one franchise are bundles of their own.
+                    key={flat ? family[0].mediaId : family[0].familyId || family[0].mediaId}
                     family={family}
                     // Narrowed here rather than passed straight down. Handing the selected id to
                     // every bundle made selection a prop change on all of them, so a single click

@@ -845,6 +845,97 @@ export type AL_BaseManga_Title = {
 export type AL_CharacterRole = "MAIN" | "SUPPORTING" | "BACKGROUND"
 
 /**
+ * - Filepath: internal/api/anilist/media_family.go
+ * - Filename: media_family.go
+ * - Package: anilist
+ */
+export type AL_FamilyCover = {
+    extraLarge?: string
+    large?: string
+    medium?: string
+    color?: string
+}
+
+/**
+ * - Filepath: internal/api/anilist/media_family.go
+ * - Filename: media_family.go
+ * - Package: anilist
+ */
+export type AL_FamilyDate = {
+    year?: number
+    month?: number
+    day?: number
+}
+
+/**
+ * - Filepath: internal/api/anilist/media_family.go
+ * - Filename: media_family.go
+ * - Package: anilist
+ */
+export type AL_FamilyEdge = {
+    relationType: string
+    node?: AL_FamilyEdgeNode
+}
+
+/**
+ * - Filepath: internal/api/anilist/media_family.go
+ * - Filename: media_family.go
+ * - Package: anilist
+ */
+export type AL_FamilyEdgeNode = {
+    id: number
+}
+
+/**
+ * - Filepath: internal/api/anilist/media_family.go
+ * - Filename: media_family.go
+ * - Package: anilist
+ * @description
+ *  FamilyMember is a media in the franchise as seen from the media being viewed.
+ */
+export type AL_FamilyMember = {
+    relation: string
+    direct: boolean
+    depth: number
+    id: number
+    type: string
+    format?: string
+    status?: string
+    title?: AL_FamilyTitle
+    coverImage?: AL_FamilyCover
+    bannerImage?: string
+    startDate?: AL_FamilyDate
+    season?: string
+    seasonYear?: number
+    episodes?: number
+    chapters?: number
+    meanScore?: number
+    isAdult?: boolean
+    relations?: AL_FamilyRelations
+}
+
+/**
+ * - Filepath: internal/api/anilist/media_family.go
+ * - Filename: media_family.go
+ * - Package: anilist
+ */
+export type AL_FamilyRelations = {
+    edges?: Array<AL_FamilyEdge>
+}
+
+/**
+ * - Filepath: internal/api/anilist/media_family.go
+ * - Filename: media_family.go
+ * - Package: anilist
+ */
+export type AL_FamilyTitle = {
+    userPreferred?: string
+    romaji?: string
+    english?: string
+    native?: string
+}
+
+/**
  * - Filepath: internal/api/anilist/models_gen.go
  * - Filename: models_gen.go
  * - Package: anilist
@@ -2487,11 +2578,34 @@ export type INTERNAL_ProfileSummary = {
     anilistAuthenticated: boolean
     wallpaperUrl: string
     wallpaperEffects: string
-    profileBorderId?: string
-    profileBgId?: string
-    avatarFrameId?: string
-    bannerOverlayId?: string
-    profileLayoutId?: string
+    profileBorderId: string
+    profileBgId: string
+    avatarFrameId: string
+    bannerOverlayId: string
+    profileLayoutId: string
+}
+
+/**
+ * - Filepath: internal/core/anilist_edit_queue.go
+ * - Filename: anilist_edit_queue.go
+ * - Package: core
+ * @description
+ *  QueuedListEdit is one edit waiting for AniList.
+ */
+export type INTERNAL_QueuedListEdit = {
+    profileId: number
+    mediaId: number
+    type: string
+    title?: string
+    status?: AL_MediaListStatus
+    score?: number
+    progress?: number
+    startedAt?: AL_FuzzyDateInput
+    completedAt?: AL_FuzzyDateInput
+    queuedAt?: string
+    attempts: number
+    lastError?: string
+    nextAttempt?: string
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2787,7 +2901,9 @@ export type EnqueueFuture_CatalogStatus = {
     maxId: number
     queued: number
     waiting: number
+    prepared: number
     lastError?: string
+    retryAt?: string
 }
 
 /**
@@ -2902,7 +3018,6 @@ export type EnqueueFuture_Snapshot = {
  *  Status is the progress of a running (or the last) Enqueue Future run.
  */
 export type EnqueueFuture_Status = {
-    catalog?: EnqueueFuture_CatalogStatus
     running: boolean
     resumable: boolean
     rootMediaId: number
@@ -2915,6 +3030,7 @@ export type EnqueueFuture_Status = {
     pendingRoots?: number
     pendingRootList?: Array<EnqueueFuture_PendingRootInfo>
     rewalkBacklog?: number
+    catalog?: EnqueueFuture_CatalogStatus
     currentTitle: string
     rateLimited: boolean
     retryAt?: string
@@ -2925,6 +3041,19 @@ export type EnqueueFuture_Status = {
     lastError: string
     startedAt?: string
     finishedAt?: string
+}
+
+/**
+ * - Filepath: internal/enqueuefuture/types.go
+ * - Filename: types.go
+ * - Package: enqueuefuture
+ * @description
+ *  WaitingPage is one page of the catalog rows still waiting to be prepared.
+ */
+export type EnqueueFuture_WaitingPage = {
+    items?: Array<EnqueueFuture_Item>
+    total: number
+    nextPosition: number
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3523,6 +3652,19 @@ export type DownloadingMediaStatus = {
 }
 
 /**
+ * - Filepath: internal/handlers/home_counts.go
+ * - Filename: home_counts.go
+ * - Package: handlers
+ * @description
+ *  HomeCounts is what is on the server's disks, for the landing page. Both numbers are already in
+ *  memory, so this answers at once where the collections they used to be read from take many seconds.
+ */
+export type HomeCounts = {
+    animeFiles: number
+    mangaChapters: number
+}
+
+/**
  * - Filepath: internal/handlers/kitsu.go
  * - Filename: kitsu.go
  * - Package: handlers
@@ -3623,6 +3765,18 @@ export type MangaHydrationStatus = {
     finishedAt?: string
     lastUpdatedAt?: string
     details?: Array<MangaHydrationDetail>
+}
+
+/**
+ * - Filepath: internal/handlers/media_info.go
+ * - Filename: media_info.go
+ * - Package: handlers
+ * @description
+ *  MediaFamilyResponse is the franchise of a media as seen from it.
+ */
+export type MediaFamilyResponse = {
+    members?: Array<AL_FamilyMember>
+    truncated: boolean
 }
 
 /**
@@ -3810,6 +3964,7 @@ export type OverwritePreview = {
  */
 export type PendingProgressSyncResponse = {
     count: number
+    items?: Array<PendingProgressItem>
 }
 
 /**
@@ -3824,7 +3979,9 @@ export type ProfileCommentItem = {
     mediaId: number
     mediaType: string
     mediaTitle: string
+    mediaImage: string
     content: string
+    isReply: boolean
     isEdited: boolean
     isSpoiler: boolean
     createdAt?: string
@@ -3866,6 +4023,10 @@ export type ProfileTimelineEvent = {
     mediaType: string
     achievementIconSvg?: string
     achievementDesc?: string
+    entryStatus?: string
+    entryStartedAt?: string
+    entryCompletedAt?: string
+    firstActivityAt?: string
 }
 
 /**
@@ -3980,6 +4141,288 @@ export type Status = {
     profiles?: Array<INTERNAL_ProfileSummary>
     planningSlutConfigured: boolean
     bootId: string
+}
+
+/**
+ * - Filepath: internal/handlers/studio_profile.go
+ * - Filename: studio_profile.go
+ * - Package: handlers
+ */
+export type StudioCount = {
+    key: string
+    count: number
+}
+
+/**
+ * - Filepath: internal/handlers/studio_profile.go
+ * - Filename: studio_profile.go
+ * - Package: handlers
+ */
+export type StudioPerson = {
+    id: number
+    name: string
+    native?: string
+    image?: string
+    /**
+     * the most senior directing role they held here
+     */
+    role: string
+    /**
+     * media ids, newest first
+     */
+    works?: Array<number>
+}
+
+/**
+ * - Filepath: internal/handlers/studio_profile.go
+ * - Filename: studio_profile.go
+ * - Package: handlers
+ */
+export type StudioProfile = {
+    id: number
+    name: string
+    isAnimationStudio: boolean
+    siteUrl?: string
+    favourites: number
+    /**
+     * AniList's count, which may exceed Works
+     */
+    totalWorks: number
+    /**
+     * AniList stopped answering before the last page
+     */
+    partial?: boolean
+    works?: Array<StudioWork>
+    directors?: Array<StudioPerson>
+    stats: StudioStats
+}
+
+/**
+ * - Filepath: internal/handlers/studio_profile.go
+ * - Filename: studio_profile.go
+ * - Package: handlers
+ */
+export type StudioStats = {
+    mainCount: number
+    supportingCount: number
+    firstYear?: number
+    lastYear?: number
+    /**
+     * popularity-weighted, main works
+     */
+    meanScore?: number
+    totalEpisodes: number
+    totalMinutes: number
+    totalPopularity: number
+    totalFavourites: number
+    airing: number
+    upcoming: number
+    formats?: Array<StudioCount>
+    genres?: Array<StudioCount>
+    /**
+     * main works per start year, oldest first
+     */
+    years?: Array<StudioCount>
+}
+
+/**
+ * - Filepath: internal/handlers/studio_profile.go
+ * - Filename: studio_profile.go
+ * - Package: handlers
+ */
+export type StudioWork = {
+    id: number
+    idMal?: number
+    format?: string
+    status?: string
+    episodes?: number
+    duration?: number
+    season?: string
+    seasonYear?: number
+    startDate?: AL_FamilyDate
+    title?: AL_FamilyTitle
+    coverImage?: AL_FamilyCover
+    bannerImage?: string
+    meanScore?: number
+    popularity?: number
+    favourites?: number
+    genres?: Array<string>
+    isAdult?: boolean
+    isMainStudio: boolean
+    /**
+     * staff ids
+     */
+    directors?: Array<number>
+}
+
+/**
+ * - Filepath: internal/handlers/timeline_extras.go
+ * - Filename: timeline_extras.go
+ * - Package: handlers
+ * @description
+ *  TimelineAchievement is one unlock shown on an achievement card.
+ */
+export type TimelineAchievement = {
+    key: string
+    name: string
+    tier: number
+    tierName?: string
+    description?: string
+    iconSvg?: string
+    xp?: number
+}
+
+/**
+ * - Filepath: internal/handlers/timeline.go
+ * - Filename: timeline.go
+ * - Package: handlers
+ * @description
+ *  TimelineEvent is a single resolved activity event for the timeline UI.
+ */
+export type TimelineEvent = {
+    id: number
+    eventType: string
+    mediaId: number
+    metadata: string
+    createdAt?: string
+    mediaTitle?: string
+    mediaImage?: string
+    /**
+     * "anime" or "manga" or ""
+     */
+    mediaType: string
+    achievementIconSvg?: string
+    achievementDesc?: string
+    entryStatus?: string
+    entryStartedAt?: string
+    entryCompletedAt?: string
+    firstActivityAt?: string
+}
+
+/**
+ * - Filepath: internal/handlers/profile_posts.go
+ * - Filename: profile_posts.go
+ * - Package: handlers
+ * @description
+ *  TimelineFeedItem is one card on a timeline: a post or a (possibly grouped) activity event.
+ */
+export type TimelineFeedItem = {
+    key: string
+    /**
+     * "post" | "activity" | "news"
+     */
+    kind: string
+    createdAt?: string
+    author?: TimelineProfileSummary
+    /**
+     * set when posted on someone else's wall
+     */
+    wallProfile?: TimelineProfileSummary
+    postId?: number
+    content?: string
+    isSpoiler?: boolean
+    isEdited?: boolean
+    mediaId?: number
+    mediaType?: string
+    activity?: TimelineEvent
+    episodeFrom?: number
+    episodeTo?: number
+    achievements?: Array<TimelineAchievement>
+    news?: TimelineNews
+    likeCount: number
+    likedByMe: boolean
+    replyCount: number
+    canEdit: boolean
+    canDelete: boolean
+}
+
+/**
+ * - Filepath: internal/handlers/profile_posts.go
+ * - Filename: profile_posts.go
+ * - Package: handlers
+ * @description
+ *  TimelineFeedResponse is a page of timeline items.
+ */
+export type TimelineFeedResponse = {
+    items?: Array<TimelineFeedItem>
+    page: number
+    hasMore: boolean
+}
+
+/**
+ * - Filepath: internal/handlers/timeline_extras.go
+ * - Filename: timeline_extras.go
+ * - Package: handlers
+ * @description
+ *  TimelineNews is a news card: a lead headline, a digest of more, or both.
+ */
+export type TimelineNews = {
+    lead?: TimelineNewsBrief
+    digest?: Array<TimelineNewsBrief>
+}
+
+/**
+ * - Filepath: internal/handlers/timeline_extras.go
+ * - Filename: timeline_extras.go
+ * - Package: handlers
+ * @description
+ *  TimelineNewsBrief is one headline on a news card.
+ */
+export type TimelineNewsBrief = {
+    title: string
+    link: string
+    image?: string
+    feedTitle: string
+    publishedAt: number
+    description?: string
+    matchedTitle?: string
+    matchedList?: string
+}
+
+/**
+ * - Filepath: internal/handlers/profile_posts.go
+ * - Filename: profile_posts.go
+ * - Package: handlers
+ * @description
+ *  TimelineProfileSummary is the author / wall owner shown on a timeline card.
+ */
+export type TimelineProfileSummary = {
+    id: number
+    name: string
+    avatar: string
+    displayTitle: string
+    nameColorCss: string
+}
+
+/**
+ * - Filepath: internal/handlers/profile_posts.go
+ * - Filename: profile_posts.go
+ * - Package: handlers
+ * @description
+ *  TimelineReplyItem is one reply under a timeline item.
+ */
+export type TimelineReplyItem = {
+    id: number
+    targetKey: string
+    author?: TimelineProfileSummary
+    content: string
+    createdAt?: string
+    canDelete: boolean
+}
+
+/**
+ * - Filepath: internal/handlers/trailer_lookup.go
+ * - Filename: trailer_lookup.go
+ * - Package: handlers
+ * @description
+ *  TrailerLookup is the trailer to play.
+ */
+export type TrailerLookup = {
+    /**
+     * YouTube video id; empty when there is none
+     */
+    id: string
+    dub: boolean
 }
 
 /**
@@ -6007,6 +6450,7 @@ export type Item = {
     feedTitle: string
     author: string
     categories?: Array<string>
+    coverage?: number
 }
 
 /**
@@ -6546,6 +6990,23 @@ export type Report_WebSocketLog = {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// SharedPlatform
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - Filepath: internal/platforms/shared_platform/pending_mutations.go
+ * - Filename: pending_mutations.go
+ * - Package: shared_platform
+ * @description
+ *  PendingProgressItem is one queued progress update, as the UI shows it.
+ */
+export type PendingProgressItem = {
+    mediaId: number
+    progress: number
+    queuedAt?: string
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Summary
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -6706,6 +7167,22 @@ export type TorrentClient_Torrent = {
 }
 
 /**
+ * - Filepath: internal/torrent_clients/torrent_client/offline_queue.go
+ * - Filename: offline_queue.go
+ * - Package: torrent_client
+ * @description
+ *  TorrentAddQueueView is the queue as the screen sees it: what is waiting for the client, and
+ *  whether anything is being imported right now.
+ */
+export type TorrentClient_TorrentAddQueueView = {
+    waiting: number
+    adding: number
+    total: number
+    oldest?: string
+    lastError?: string
+}
+
+/**
  * - Filepath: internal/torrent_clients/torrent_client/torrent.go
  * - Filename: torrent.go
  * - Package: torrent_client
@@ -6732,22 +7209,6 @@ export type TorrentClient_TorrentState = "downloading" |
     "paused" |
     "stopped" |
     "other"
-
-/**
- * - Filepath: internal/torrent_clients/torrent_client/offline_queue.go
- * - Filename: offline_queue.go
- * - Package: torrent_client
- * @description
- *  TorrentAddQueueView is the queue as the screen sees it: what is waiting for the client, and
- *  whether anything is being imported right now.
- */
-export type TorrentClient_TorrentAddQueueView = {
-    waiting: number
-    adding: number
-    total: number
-    oldest?: string
-    lastError?: string
-}
 
 /**
  * - Filepath: internal/torrent_clients/torrent_client/torrent.go
@@ -7228,6 +7689,23 @@ export type Updater_FileChange = {
 }
 
 /**
+ * - Filepath: internal/updater/gitstatus.go
+ * - Filename: gitstatus.go
+ * - Package: updater
+ * @description
+ *  PendingCommit is one commit an update would bring.
+ */
+export type Updater_PendingCommit = {
+    hash: string
+    subject: string
+    author: string
+    /**
+     * unix seconds
+     */
+    date: number
+}
+
+/**
  * - Filepath: internal/updater/check.go
  * - Filename: check.go
  * - Package: updater
@@ -7270,6 +7748,63 @@ export type Updater_Update = {
     release?: Updater_Release
     current_version?: string
     type: string
+}
+
+/**
+ * - Filepath: internal/updater/gitstatus.go
+ * - Filename: gitstatus.go
+ * - Package: updater
+ * @description
+ *  UpdateProgress is the running update's current step.
+ */
+export type Updater_UpdateProgress = {
+    percent: number
+    step: string
+    /**
+     * the build's latest output line
+     */
+    detail?: string
+    /**
+     * unix seconds
+     */
+    startedAt: number
+    /**
+     * unix seconds the step began
+     */
+    stepAt: number
+}
+
+/**
+ * - Filepath: internal/updater/gitstatus.go
+ * - Filename: gitstatus.go
+ * - Package: updater
+ * @description
+ *  UpdateStatus is the cached result of the last check.
+ */
+export type Updater_UpdateStatus = {
+    version: string
+    commit: string
+    behind: boolean
+    commitsBehind: number
+    commits?: Array<Updater_PendingCommit>
+    files?: Array<Updater_FileChange>
+    blocked?: string
+    updating: boolean
+    checking: boolean
+    /**
+     * unix seconds
+     */
+    lastChecked?: number
+    /**
+     * unix seconds
+     */
+    nextCheck?: number
+    lastError?: string
+    /**
+     * RFC3339, from the last update notice
+     */
+    lastUpdated?: string
+    progress?: Updater_UpdateProgress
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

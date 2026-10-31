@@ -465,6 +465,9 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 					"gave up after "+strconv.Itoa(item.Attempts)+" attempts")
 				continue
 			}
+			if r.settleDownloadedItem(item) {
+				continue
+			}
 			_ = r.database.SetEnqueueFutureItemStatus(mediaID, db.EnqueueFutureStatusPreparing, "")
 			r.setCurrentTitle(item.Title)
 		}

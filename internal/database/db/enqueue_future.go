@@ -79,11 +79,14 @@ var enqueueFutureListColumns = []string{
 // those out and keeps them in their franchise, so passing on one season of a series still shows the
 // series — and shows that you passed. Ignored and Downloaded stay out; those are rows you have
 // finished with entirely.
+// Failed is included too: nothing else would ever say the worker gave up on a row, and it can still
+// be searched live from the screen.
 var enqueueFutureUnresolvedStatuses = []string{
 	EnqueueFutureStatusPending,
 	EnqueueFutureStatusPreparing,
 	EnqueueFutureStatusReady,
 	EnqueueFutureStatusSkipped,
+	EnqueueFutureStatusFailed,
 }
 
 // EnqueueFutureCatalogRootID is the root of every row the catalog scan queues. No anime has it.
@@ -443,6 +446,61 @@ func (db *Database) CountPendingEnqueueFutureCatalogItems() (int, error) {
 		return db.gormdb.Model(&models.EnqueueFutureItem{}).
 			Where("status = ? AND root_media_id = ?", EnqueueFutureStatusPending, EnqueueFutureCatalogRootID).
 			Count(&count).Error
+	})
+	return int(count), err
+}
+
+// CountPreparedEnqueueFutureCatalogItems returns how many catalog rows the worker has finished with.
+// One query, unlike GetEnqueueFutureRunCounts: this is read on every status broadcast.
+func (db *Database) CountPreparedEnqueueFutureCatalogItems() (int, error) {
+	var count int64
+	err := retryOnBusy(func() error {
+		return db.gormdb.Model(&models.EnqueueFutureItem{}).
+			Where("root_media_id = ? AND status IN ?", EnqueueFutureCatalogRootID, []string{
+				EnqueueFutureStatusReady, EnqueueFutureStatusNoResults,
+				EnqueueFutureStatusDownloaded, EnqueueFutureStatusSkipped, EnqueueFutureStatusIgnored,
+			}).
+			Count(&count).Error
+	})
+	return int(count), err
+}
+
+// enqueueFutureCatalogQuery is the catalog rows waiting to be prepared, narrowed to a title search.
+func (db *Database) enqueueFutureCatalogQuery(search string) *gorm.DB {
+	query := db.gormdb.Model(&models.EnqueueFutureItem{}).
+		Where("status = ? AND root_media_id = ?", EnqueueFutureStatusPending, EnqueueFutureCatalogRootID)
+	if search = strings.TrimSpace(search); search != "" {
+		escaped := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(search)
+		query = query.Where(`title LIKE ? ESCAPE '\'`, "%"+escaped+"%")
+	}
+	return query
+}
+
+// GetEnqueueFutureCatalogItems returns catalog rows waiting to be prepared, in queue order, starting
+// after the given position. A cursor rather than an offset: the worker takes rows off the front of
+// this list the whole time it is being read, and an offset would skip rows as that happened.
+func (db *Database) GetEnqueueFutureCatalogItems(afterPosition int, search string, limit int) ([]*models.EnqueueFutureItem, error) {
+	var res []*models.EnqueueFutureItem
+	err := retryOnBusy(func() error {
+		return db.enqueueFutureCatalogQuery(search).
+			Select(enqueueFutureListColumns).
+			Where("position > ?", afterPosition).
+			Order("position ASC, id ASC").
+			Limit(limit).
+			Find(&res).Error
+	})
+	if err != nil {
+		db.Logger.Error().Err(err).Msg("db: Failed to get enqueue future catalog items")
+		return nil, err
+	}
+	return res, nil
+}
+
+// CountEnqueueFutureCatalogItems returns how many catalog rows waiting to be prepared match a search.
+func (db *Database) CountEnqueueFutureCatalogItems(search string) (int, error) {
+	var count int64
+	err := retryOnBusy(func() error {
+		return db.enqueueFutureCatalogQuery(search).Count(&count).Error
 	})
 	return int(count), err
 }

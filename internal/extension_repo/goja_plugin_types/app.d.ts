@@ -4044,7 +4044,27 @@ declare namespace $app {
         eta: string;
         status: TorrentClient_TorrentStatus;
         contentPath: string;
+        sizeBytes: number;
+        downSpeedBytes: number;
+        upSpeedBytes: number;
+        addedOn: number;
+        ratio: number;
+        peers: number;
+        state: TorrentClient_TorrentState;
     }
+
+    /**
+     * - Filepath: internal/torrent_clients/torrent_client/torrent.go
+     */
+    export type TorrentClient_TorrentState = "downloading" |
+    "stalled" |
+    "metadata" |
+    "checking" |
+    "queued" |
+    "seeding" |
+    "paused" |
+    "stopped" |
+    "other";
 
     /**
      * - Filepath: internal/torrent_clients/torrent_client/torrent.go

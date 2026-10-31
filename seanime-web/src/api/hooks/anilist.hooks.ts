@@ -465,9 +465,9 @@ export type MediaFamily = { members: MediaFamilyMember[], truncated: boolean }
 /** The whole franchise of a media (every season, film, spin-off, source…), oldest first. */
 export function useGetMediaFamily(id: Nullish<number | string>) {
     return useServerQuery<MediaFamily>({
-        endpoint: API_ENDPOINTS.ANILIST.GetMediaFamily.endpoint.replace("{id}", String(id)),
-        method: API_ENDPOINTS.ANILIST.GetMediaFamily.methods[0],
-        queryKey: [API_ENDPOINTS.ANILIST.GetMediaFamily.key, String(id)],
+        endpoint: API_ENDPOINTS.MEDIA_INFO.GetMediaFamily.endpoint.replace("{id}", String(id)),
+        method: API_ENDPOINTS.MEDIA_INFO.GetMediaFamily.methods[0],
+        queryKey: [API_ENDPOINTS.MEDIA_INFO.GetMediaFamily.key, String(id)],
         enabled: !!id && Number(id) > 0,
         staleTime: 1000 * 60 * 60,
         retry: 3,
@@ -518,9 +518,9 @@ export type MediaInfo = {
 
 export function useGetMediaInfo(id: Nullish<number | string>) {
     return useServerQuery<MediaInfo>({
-        endpoint: API_ENDPOINTS.ANILIST.GetMediaInfo.endpoint.replace("{id}", String(id)),
-        method: API_ENDPOINTS.ANILIST.GetMediaInfo.methods[0],
-        queryKey: [API_ENDPOINTS.ANILIST.GetMediaInfo.key, String(id)],
+        endpoint: API_ENDPOINTS.MEDIA_INFO.GetMediaInfo.endpoint.replace("{id}", String(id)),
+        method: API_ENDPOINTS.MEDIA_INFO.GetMediaInfo.methods[0],
+        queryKey: [API_ENDPOINTS.MEDIA_INFO.GetMediaInfo.key, String(id)],
         enabled: !!id && Number(id) > 0,
         staleTime: 1000 * 60 * 30,
         retry: 2,
@@ -584,9 +584,9 @@ export type StudioProfile = {
 /** A studio's filmography, directors and statistics, for the studio page. */
 export function useGetStudioProfile(id: Nullish<number | string>) {
     return useServerQuery<StudioProfile>({
-        endpoint: API_ENDPOINTS.ANILIST.GetStudioProfile.endpoint.replace("{id}", String(id)),
-        method: API_ENDPOINTS.ANILIST.GetStudioProfile.methods[0],
-        queryKey: [API_ENDPOINTS.ANILIST.GetStudioProfile.key, String(id)],
+        endpoint: API_ENDPOINTS.STUDIO_PROFILE.GetStudioProfile.endpoint.replace("{id}", String(id)),
+        method: API_ENDPOINTS.STUDIO_PROFILE.GetStudioProfile.methods[0],
+        queryKey: [API_ENDPOINTS.STUDIO_PROFILE.GetStudioProfile.key, String(id)],
         enabled: !!id && Number(id) > 0,
         staleTime: 1000 * 60 * 30,
         retry: 2,
@@ -598,9 +598,9 @@ export function useGetStudioProfile(id: Nullish<number | string>) {
 /** The trailer to preview, in the profile's sub or dub (a dub is searched for; AniList's is the fallback). */
 export function useGetMediaTrailer(id: Nullish<number>, lang: "sub" | "dub", enabled: boolean) {
     return useServerQuery<{ id: string, dub: boolean }>({
-        endpoint: API_ENDPOINTS.ANILIST.GetMediaTrailer.endpoint.replace("{id}", String(id)) + `?lang=${lang}`,
-        method: API_ENDPOINTS.ANILIST.GetMediaTrailer.methods[0],
-        queryKey: [API_ENDPOINTS.ANILIST.GetMediaTrailer.key, String(id), lang],
+        endpoint: API_ENDPOINTS.TRAILER_LOOKUP.GetMediaTrailer.endpoint.replace("{id}", String(id)) + `?lang=${lang}`,
+        method: API_ENDPOINTS.TRAILER_LOOKUP.GetMediaTrailer.methods[0],
+        queryKey: [API_ENDPOINTS.TRAILER_LOOKUP.GetMediaTrailer.key, String(id), lang],
         enabled: enabled && !!id && id > 0,
         staleTime: 1000 * 60 * 60 * 24,
         muteError: true,

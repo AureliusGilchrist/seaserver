@@ -178,46 +178,6 @@ export const API_ENDPOINTS = {
             methods: ["POST"],
             endpoint: "/api/v1/anilist/list-entry",
         },
-        /**
-         *  @description
-         *  Route returns the list edits waiting to be sent to AniList.
-         */
-        /**
-         *  @description
-         *  Route returns every media in the franchise of a media, oldest first.
-         */
-        GetMediaFamily: {
-            key: "ANILIST-get-media-family",
-            methods: ["GET"],
-            endpoint: "/api/v1/anilist/media/{id}/family",
-        },
-        /**
-         *  @description
-         *  Route returns the extended AniList metadata shown on a details page.
-         */
-        /**
-         *  @description
-         *  Route returns the YouTube trailer to preview for a media, in sub or dub.
-         */
-        GetMediaTrailer: {
-            key: "ANILIST-get-media-trailer",
-            methods: ["GET"],
-            endpoint: "/api/v1/anilist/media/{id}/trailer",
-        },
-        GetMediaInfo: {
-            key: "ANILIST-get-media-info",
-            methods: ["GET"],
-            endpoint: "/api/v1/anilist/media/{id}/info",
-        },
-        /**
-         *  @description
-         *  Route returns a studio's filmography, directors and statistics.
-         */
-        GetStudioProfile: {
-            key: "ANILIST-get-studio-profile",
-            methods: ["GET"],
-            endpoint: "/api/v1/anilist/studio/{id}/profile",
-        },
         GetAnilistEditQueue: {
             key: "ANILIST-get-anilist-edit-queue",
             methods: ["GET"],
@@ -791,6 +751,16 @@ export const API_ENDPOINTS = {
             key: "CHARACTER-get-anilist-character-details",
             methods: ["GET"],
             endpoint: "/api/v1/anilist/character-details/{id}",
+        },
+        /**
+         *  @description
+         *  Route returns one page of a media's characters.
+         *  Every character of an anime or manga, 25 per page, main roles first, with Japanese voice actors.
+         */
+        GetAnilistMediaCharacters: {
+            key: "CHARACTER-get-anilist-media-characters",
+            methods: ["GET"],
+            endpoint: "/api/v1/anilist/media-characters/{id}",
         },
     },
     CLIENT_PREFS: {
@@ -1376,6 +1346,17 @@ export const API_ENDPOINTS = {
         },
         /**
          *  @description
+         *  Route returns one page of the catalog rows waiting to be prepared.
+         *  These are left out of the queue, which is polled and counted by the sidebar. Takes the
+         *  query parameters "after" (the previous page's nextPosition), "search" and "limit".
+         */
+        GetEnqueueFutureCatalogWaiting: {
+            key: "ENQUEUE-FUTURE-get-enqueue-future-catalog-waiting",
+            methods: ["GET"],
+            endpoint: "/api/v1/enqueue-future/catalog/waiting",
+        },
+        /**
+         *  @description
          *  Route returns the anime dropped from the queue for having nothing downloadable.
          *  Highest AniList score first. Snapshots are omitted, as they are from the queue.
          */
@@ -1394,19 +1375,11 @@ export const API_ENDPOINTS = {
             methods: ["POST"],
             endpoint: "/api/v1/enqueue-future/dropped/{mediaId}/restore",
         },
-        /**
-         *  @description
-         *  Route forgets one dropped anime.
-         */
         DeleteEnqueueFutureDropped: {
             key: "ENQUEUE-FUTURE-delete-enqueue-future-dropped",
             methods: ["DELETE"],
             endpoint: "/api/v1/enqueue-future/dropped/{mediaId}",
         },
-        /**
-         *  @description
-         *  Route forgets every dropped anime, leaving the queue as it is.
-         */
         ClearEnqueueFutureDropped: {
             key: "ENQUEUE-FUTURE-clear-enqueue-future-dropped",
             methods: ["POST"],
@@ -1650,6 +1623,18 @@ export const API_ENDPOINTS = {
             key: "FILECACHE-clear-file-cache-mediastream-video-files",
             methods: ["DELETE"],
             endpoint: "/api/v1/filecache/mediastream/videofiles",
+        },
+    },
+    HOME_COUNTS: {
+        /**
+         *  @description
+         *  Route returns the number of anime files and manga chapters on the server.
+         *  Used by the landing page, which only needs the totals and not a whole collection.
+         */
+        GetHomeCounts: {
+            key: "HOME-COUNTS-get-home-counts",
+            methods: ["GET"],
+            endpoint: "/api/v1/home/counts",
         },
     },
     KITSU: {
@@ -2416,6 +2401,30 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/test-dump",
         },
     },
+    MEDIA_INFO: {
+        /**
+         *  @description
+         *  Route returns every media in the franchise of a media, oldest first.
+         *  Walks the relation graph (all relations but CHARACTER) breadth first, up to 150 media.
+         *  Each member says how the requested media relates to it, directly or through the walk.
+         */
+        GetMediaFamily: {
+            key: "MEDIA-INFO-get-media-family",
+            methods: ["GET"],
+            endpoint: "/api/v1/anilist/media/{id}/family",
+        },
+        /**
+         *  @description
+         *  Route returns the extended AniList metadata shown on a details page.
+         *  Source, favourites, hashtag, trending, external links, studios, staff with images, every
+         *  ranking, tags, status and score distributions. Anime and manga alike. Cached for 6 hours.
+         */
+        GetMediaInfo: {
+            key: "MEDIA-INFO-get-media-info",
+            methods: ["GET"],
+            endpoint: "/api/v1/anilist/media/{id}/info",
+        },
+    },
     MEDIAPLAYER: {
         StartDefaultMediaPlayer: {
             key: "MEDIAPLAYER-start-default-media-player",
@@ -3131,6 +3140,16 @@ export const API_ENDPOINTS = {
             methods: ["POST"],
             endpoint: "/api/v1/profiles/{id}/anilist-token",
         },
+        /**
+         *  @description
+         *  Route clears a profile's AniList token (admin only).
+         *  The profile keeps everything else; it just stops talking to AniList until a token is set again.
+         */
+        AdminClearProfileAniListToken: {
+            key: "PROFILE-admin-clear-profile-ani-list-token",
+            methods: ["DELETE"],
+            endpoint: "/api/v1/profiles/{id}/anilist-token",
+        },
     },
     PROFILE_ACTIVITY: {
         /**
@@ -3246,6 +3265,53 @@ export const API_ENDPOINTS = {
             key: "PROFILE-PAGE-get-exp-bar-for-level",
             methods: ["GET"],
             endpoint: "/api/v1/profile/exp-bar/level/{level}",
+        },
+    },
+    PROFILE_POSTS: {
+        GetProfileTimelineFeed: {
+            key: "PROFILE-POSTS-get-profile-timeline-feed",
+            methods: ["GET"],
+            endpoint: "/api/v1/profile/timeline-feed",
+        },
+        GetCommunityTimelineFeed: {
+            key: "PROFILE-POSTS-get-community-timeline-feed",
+            methods: ["GET"],
+            endpoint: "/api/v1/community/timeline-feed",
+        },
+        CreateProfilePost: {
+            key: "PROFILE-POSTS-create-profile-post",
+            methods: ["POST"],
+            endpoint: "/api/v1/profile/posts",
+        },
+        UpdateProfilePost: {
+            key: "PROFILE-POSTS-update-profile-post",
+            methods: ["PATCH"],
+            endpoint: "/api/v1/profile/posts/:id",
+        },
+        DeleteProfilePost: {
+            key: "PROFILE-POSTS-delete-profile-post",
+            methods: ["DELETE"],
+            endpoint: "/api/v1/profile/posts/:id",
+        },
+        ToggleTimelineLike: {
+            key: "PROFILE-POSTS-toggle-timeline-like",
+            methods: ["POST"],
+            endpoint: "/api/v1/profile/timeline/like",
+        },
+        GetTimelineReplies: {
+            key: "PROFILE-POSTS-get-timeline-replies",
+            methods: ["GET"],
+            endpoint: "/api/v1/profile/timeline/replies",
+        },
+        CreateTimelineReply: {
+            key: "PROFILE-POSTS-create-timeline-reply",
+            methods: ["POST"],
+            endpoint: "/api/v1/profile/timeline/replies",
+        },
+        DeleteTimelineReply: {
+            key: "PROFILE-POSTS-delete-timeline-reply",
+            methods: ["DELETE"],
+            endpoint: "/api/v1/profile/timeline/replies/:id",
         },
     },
     PROFILE_STATS: {
@@ -3678,6 +3744,19 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/status/manga-home-items",
         },
     },
+    STUDIO_PROFILE: {
+        /**
+         *  @description
+         *  Route returns a studio's filmography, directors and statistics.
+         *  Every title the studio worked on (main or supporting), newest first, with the directors
+         *  credited on each, plus totals: years active, formats, genres, scores, episodes.
+         */
+        GetStudioProfile: {
+            key: "STUDIO-PROFILE-get-studio-profile",
+            methods: ["GET"],
+            endpoint: "/api/v1/anilist/studio/{id}/profile",
+        },
+    },
     SYNTHETIC_ANIME: {
         /**
          *  @description
@@ -3814,6 +3893,16 @@ export const API_ENDPOINTS = {
         },
         /**
          *  @description
+         *  Route returns the files inside a torrent already in the client.
+         *  Answers right away: a torrent with no metadata yet has an empty list.
+         */
+        GetTorrentClientTorrentFiles: {
+            key: "TORRENT-CLIENT-get-torrent-client-torrent-files",
+            methods: ["POST"],
+            endpoint: "/api/v1/torrent-client/files",
+        },
+        /**
+         *  @description
          *  Route returns the download badge state of every anime that has one.
          *  Read straight from the state recorded against each anime — written when a download was
          *  queued, when it finished, and when it was matched — plus every anime with files in the
@@ -3939,11 +4028,6 @@ export const API_ENDPOINTS = {
          *  Route gets the files of a torrent.
          *  This handler is used to get the files of a torrent.
          */
-        GetTorrentClientTorrentFiles: {
-            key: "TORRENT-CLIENT-get-torrent-client-torrent-files",
-            methods: ["POST"],
-            endpoint: "/api/v1/torrent-client/files",
-        },
         TorrentClientGetFiles: {
             key: "TORRENT-CLIENT-torrent-client-get-files",
             methods: ["POST"],
@@ -3981,6 +4065,9 @@ export const API_ENDPOINTS = {
          *  nothing is added to a download queue to answer this. Torrents with no download URL (magnet
          *  only) are absent from the result rather than reported as zero — unless the search already
          *  answered them from the SeaDex list, whose releases are counted ahead of time.
+         *  When mediaId is given, the SeaDex list is asked for that anime first, so a release the list
+         *  has curated is answered from its own records even when the .torrent file cannot be fetched
+         *  — no download URL, a tracker that is down, a server restarted since the search ran.
          */
         GetTorrentContents: {
             key: "TORRENT-CONTENTS-get-torrent-contents",
@@ -4111,6 +4198,19 @@ export const API_ENDPOINTS = {
             key: "TRACK-PREFERENCES-upsert-track-preference",
             methods: ["POST"],
             endpoint: "/api/v1/mediastream/track-preferences",
+        },
+    },
+    TRAILER_LOOKUP: {
+        /**
+         *  @description
+         *  Route returns the YouTube trailer to preview for a media, in sub or dub.
+         *  With lang=dub, an English dub trailer is searched for on YouTube and AniList's trailer is
+         *  the fallback. With lang=sub (default) it is AniList's trailer.
+         */
+        GetMediaTrailer: {
+            key: "TRAILER-LOOKUP-get-media-trailer",
+            methods: ["GET"],
+            endpoint: "/api/v1/anilist/media/{id}/trailer",
         },
     },
     UNMATCHED: {
@@ -4404,6 +4504,18 @@ export const API_ENDPOINTS = {
             key: "UPDATE-NOTICE-check-backend-update",
             methods: ["POST"],
             endpoint: "/api/v1/update/backend/check",
+        },
+        /**
+         *  @description
+         *  Route returns the cached backend update status.
+         *  Whether the fork has commits this server lacks, which ones and which files they change,
+         *  when it last checked and when it checks next (every 5 minutes), and any check error.
+         *  Never fetches on request — the server's own check loop keeps it current.
+         */
+        GetBackendUpdateStatus: {
+            key: "UPDATE-NOTICE-get-backend-update-status",
+            methods: ["GET"],
+            endpoint: "/api/v1/update/backend/status",
         },
         /**
          *  @description

@@ -43,6 +43,38 @@ func (r *Repository) ListItems() ([]*Item, error) {
 	return items, nil
 }
 
+// ListWaitingCatalogItems returns one page of the catalog rows ListItems leaves out, for the Waiting
+// panel. A row is opened from there before it is prepared, so it carries its download state as well.
+func (r *Repository) ListWaitingCatalogItems(afterPosition int, search string, limit int) (*WaitingPage, error) {
+	if limit <= 0 || limit > MaxWaitingPageSize {
+		limit = MaxWaitingPageSize
+	}
+
+	// One more than asked for, which is how the end of the list is told from a full page.
+	records, err := r.database.GetEnqueueFutureCatalogItems(afterPosition, search, limit+1)
+	if err != nil {
+		return nil, err
+	}
+	total, err := r.database.CountEnqueueFutureCatalogItems(search)
+	if err != nil {
+		return nil, err
+	}
+
+	page := &WaitingPage{Items: make([]*Item, 0, limit), Total: total}
+	if len(records) > limit {
+		records = records[:limit]
+		page.NextPosition = records[limit-1].Position
+	}
+
+	states := r.downloadStatesByMediaID()
+	for _, record := range records {
+		item := toItem(record, nil)
+		item.DownloadState = states[record.MediaID]
+		page.Items = append(page.Items, item)
+	}
+	return page, nil
+}
+
 // GetItem returns one item with its snapshot decoded, or nil when it is not in the queue.
 func (r *Repository) GetItem(mediaID int) (*Item, error) {
 	record, err := r.database.GetEnqueueFutureItem(mediaID)
