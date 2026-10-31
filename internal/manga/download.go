@@ -518,6 +518,22 @@ func (d *Downloader) GetMediaMap() map[int]ProviderDownloadMap {
 	return result
 }
 
+// CountDownloadedChapters returns how many chapters are on disk, across every series and provider.
+func (d *Downloader) CountDownloadedChapters() int {
+	d.ensureMediaMapHydrated()
+	return countMapChapters(d.mediaMapSnapshot())
+}
+
+func countMapChapters(media MediaMap) int {
+	total := 0
+	for _, providers := range media {
+		for _, chapters := range providers {
+			total += len(chapters)
+		}
+	}
+	return total
+}
+
 func (d *Downloader) RunChapterDownloadQueue() error {
 	if err := d.setChapterDownloadQueueActive(true); err != nil {
 		return fmt.Errorf("failed to save manga chapter queue state: %w", err)

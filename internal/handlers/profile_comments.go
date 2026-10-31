@@ -8,7 +8,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// The profile page's Comments tab: every top-level comment a profile has left
+// The profile page's Comments tab: every comment and reply a profile has left
 // on any show or manga. This used to live in the chat handler file and survived
 // it — comments are profile-page activity, not chat.
 
@@ -38,15 +38,12 @@ func (h *Handler) HandleGetProfileComments(c echo.Context) error {
 
 	items := make([]*ProfileCommentItem, 0, len(comments))
 	for _, cm := range comments {
-		if cm.ParentID != nil {
-			// Replies are shown under their parent on the media page; the tab lists top-level activity.
-			continue
-		}
 		items = append(items, &ProfileCommentItem{
 			ID:        cm.ID,
 			MediaID:   cm.MediaID,
 			MediaType: cm.MediaType,
 			Content:   cm.Content,
+			IsReply:   cm.ParentID != nil && *cm.ParentID != 0,
 			IsEdited:  cm.IsEdited,
 			IsSpoiler: cm.IsSpoiler,
 			CreatedAt: cm.CreatedAt,
@@ -59,7 +56,7 @@ func (h *Handler) HandleGetProfileComments(c echo.Context) error {
 	return h.RespondWithData(c, ProfileCommentsResponse{Comments: items, TotalCount: int64(len(items))})
 }
 
-// resolveCommentTitles fills in the media title of each comment from the comment
+// resolveCommentTitles fills in the media title and cover of each comment from the comment
 // author's cached AniList collection (memory or disk copy — never blocks on a
 // fresh fetch). Comments are left from a media page, so the author's collection
 // almost always contains the media. Unresolved titles stay empty and the client
@@ -74,8 +71,9 @@ func (h *Handler) resolveCommentTitles(profileID uint, items []*ProfileCommentIt
 		}
 	}
 
-	animeTitles := map[int]string{}
-	mangaTitles := map[int]string{}
+	type mediaRef struct{ title, image string }
+	anime := map[int]mediaRef{}
+	manga := map[int]mediaRef{}
 	if needAnime {
 		if col, err := h.App.AnilistClientManager.GetAnimeCollection(profileID); err == nil && col.MediaListCollection != nil {
 			for _, list := range col.MediaListCollection.Lists {
@@ -86,7 +84,7 @@ func (h *Handler) resolveCommentTitles(profileID uint, items []*ProfileCommentIt
 					if e == nil || e.Media == nil {
 						continue
 					}
-					animeTitles[e.Media.ID] = e.Media.GetPreferredTitle()
+					anime[e.Media.ID] = mediaRef{title: e.Media.GetPreferredTitle(), image: e.Media.GetCoverImageSafe()}
 				}
 			}
 		}
@@ -101,18 +99,18 @@ func (h *Handler) resolveCommentTitles(profileID uint, items []*ProfileCommentIt
 					if e == nil || e.Media == nil {
 						continue
 					}
-					mangaTitles[e.Media.ID] = e.Media.GetPreferredTitle()
+					manga[e.Media.ID] = mediaRef{title: e.Media.GetPreferredTitle(), image: e.Media.GetCoverImageSafe()}
 				}
 			}
 		}
 	}
 
 	for _, it := range items {
+		ref := anime[it.MediaID]
 		if it.MediaType == "manga" {
-			it.MediaTitle = mangaTitles[it.MediaID]
-		} else {
-			it.MediaTitle = animeTitles[it.MediaID]
+			ref = manga[it.MediaID]
 		}
+		it.MediaTitle, it.MediaImage = ref.title, ref.image
 	}
 }
 
@@ -122,7 +120,9 @@ type ProfileCommentItem struct {
 	MediaID    int       `json:"mediaId"`
 	MediaType  string    `json:"mediaType"`
 	MediaTitle string    `json:"mediaTitle"`
+	MediaImage string    `json:"mediaImage"`
 	Content    string    `json:"content"`
+	IsReply    bool      `json:"isReply"`
 	IsEdited   bool      `json:"isEdited"`
 	IsSpoiler  bool      `json:"isSpoiler"`
 	CreatedAt  time.Time `json:"createdAt"`

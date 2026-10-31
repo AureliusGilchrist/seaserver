@@ -983,6 +983,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.POST("/profiles/activity", h.HandleSetProfileActivity)
 
 	v1.GET("/profile/comments", h.HandleGetProfileComments)
+	v1.GET("/home/counts", h.HandleGetHomeCounts)
 
 	//
 	// Custom Source

@@ -6,7 +6,7 @@ import { profileAvatarBorderStyle, profileHeaderBackgroundStyle, profileNameStyl
 import { useGetUserAchievements } from "@/api/hooks/achievement.hooks"
 import { AchievementsView } from "@/app/(main)/_features/achievement/achievements-view"
 import { useGetMyProfile, useGetUserProfile } from "@/api/hooks/community.hooks"
-import { useGetProfileComments, type ProfileCommentItem } from "@/api/hooks/profile-comments.hooks"
+import { ProfileCommentsTab } from "@/app/(main)/_features/profile/profile-comments-tab"
 import { useGetUserProfileStats } from "@/api/hooks/profile-stats.hooks"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
 import { LevelRingAvatar } from "@/app/(main)/_features/level-ring-avatar"
@@ -287,6 +287,7 @@ function UserProfilePage() {
                                 name: profile.name,
                             } : undefined}
                         />
+                        <ProfileCommentsTab userId={id} limit={3} onShowAll={() => router.push(`/profile/user?id=${id}&tab=comments`)} />
                     </TabsContent>
                     <TabsContent value="towatch" className="space-y-6 mt-6">
                         {/* What this person means to watch next — the list is theirs, so it is shown
@@ -300,7 +301,7 @@ function UserProfilePage() {
                         <UserAchievementsTabContent userId={id} ownerName={profile?.name} />
                     </TabsContent>
                     <TabsContent value="comments" className="space-y-6 mt-6">
-                        <ProfileCommentsTabContent userId={id} />
+                        <ProfileCommentsTab userId={id} />
                     </TabsContent>
                 </Tabs>
             </PageWrapper>
@@ -387,70 +388,6 @@ function UserAchievementsTabContent({ userId, ownerName }: { userId: number, own
     if (!data) return null
 
     return <AchievementsView data={data} variant="profile" ownerName={ownerName} />
-}
-
-// ─────────────────────── Comments Tab ───────────────────────
-
-/**
- * Every comment this profile has left on any show or manga, newest first,
- * with the media it was on and the day/time it was written. Media titles are
- * resolved server-side from the comment author's AniList collection.
- */
-function ProfileCommentsTabContent({ userId }: { userId: number }) {
-    const { data, isLoading } = useGetProfileComments(userId, true)
-    const comments = data?.comments ?? []
-
-    if (isLoading) {
-        return <div className="flex justify-center py-12"><LoadingSpinner /></div>
-    }
-
-    if (comments.length === 0) {
-        return (
-            <div className="flex flex-col items-center justify-center py-12 gap-2 text-center">
-                <LuMessageCircle className="size-8 text-[--muted]" />
-                <p className="text-[--muted]">No comments yet</p>
-            </div>
-        )
-    }
-
-    return (
-        <>
-            <div className="flex items-center gap-3">
-                <LuMessageSquare className="size-6 text-[--brand]" />
-                <div>
-                    <h2 className="text-lg font-semibold">Comments</h2>
-                    <p className="text-xs text-[--muted]">{data?.totalCount ?? comments.length} comment(s) across shows and manga</p>
-                </div>
-            </div>
-            <div className="space-y-2">
-                {comments.map(c => <ProfileCommentRow key={c.id} comment={c} />)}
-            </div>
-        </>
-    )
-}
-
-function ProfileCommentRow({ comment }: { comment: ProfileCommentItem }) {
-    // The generated type leaves timestamps optional, so an old comment without one falls back to nothing.
-    const date = comment.createdAt ? new Date(comment.createdAt) : undefined
-    const dateLabel = date?.toLocaleDateString(undefined, { weekday: "short", year: "numeric", month: "short", day: "numeric" })
-    const timeLabel = date?.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
-    const href = comment.mediaType === "manga" ? `/manga/details?id=${comment.mediaId}` : `/anime/details?id=${comment.mediaId}`
-
-    return (
-        <div className="rounded-xl border border-[--border] p-4 bg-gradient-to-br from-white/[0.06] via-black/25 to-black/35">
-            <div className="flex items-center justify-between gap-3 mb-2">
-                <SeaLink href={href}>
-                    <span className="text-sm font-semibold hover:underline">
-                        {comment.mediaTitle || `#${comment.mediaId}`}
-                    </span>
-                </SeaLink>
-                <span className="text-xs text-[--muted] shrink-0" title={date?.toISOString()}>
-                    {dateLabel} · {timeLabel}{comment.isEdited ? " · edited" : ""}
-                </span>
-            </div>
-            <p className="text-sm whitespace-pre-wrap break-words text-[--foreground]/90">{comment.content}</p>
-        </div>
-    )
 }
 
 // Phones only (every class is max-sm:): one scrollable row of tabs instead of several wrapped

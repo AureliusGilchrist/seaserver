@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Tooltip } from "@/components/ui/tooltip"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
-import { BiChevronDown, BiChevronUp, BiEdit, BiTrash, BiUpvote, BiDownvote, BiComment, BiSortAlt2 } from "react-icons/bi"
+import { BiChevronDown, BiChevronUp, BiEdit, BiTrash, BiUpvote, BiDownvote, BiComment, BiSolidUpvote, BiSolidDownvote } from "react-icons/bi"
+import { LuEyeOff, LuMessagesSquare, LuTriangleAlert } from "react-icons/lu"
 import { formatDistanceToNow } from "date-fns"
 
 const AUTO_COLLAPSE_DEPTH = 5
@@ -23,15 +24,21 @@ export function CommentSection({ mediaId, mediaType }: CommentSectionProps) {
     const { data, isLoading } = useGetComments(mediaId, mediaType, sort)
 
     return (
-        <div className="space-y-4 mt-8">
-            <div className="flex items-center justify-between">
-                <h3 className="text-xl font-semibold flex items-center gap-2">
-                    <BiComment className="text-[--muted]" />
-                    Comments
-                    {data?.totalCount != null && data.totalCount > 0 && (
-                        <span className="text-sm font-normal text-[--muted]">({data.totalCount})</span>
-                    )}
-                </h3>
+        <section className="relative isolate mt-8 space-y-5 overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-br from-white/[0.05] via-black/25 to-black/40 p-4 shadow-xl shadow-black/20 backdrop-blur-md sm:p-6" data-comment-section>
+            <div className="pointer-events-none absolute -right-16 -top-20 -z-10 size-56 rounded-full bg-brand-500/15 blur-3xl" />
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                    <span className="flex size-11 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-400/30 to-brand-700/20 text-brand-100 ring-1 ring-white/10">
+                        <LuMessagesSquare className="size-5" />
+                    </span>
+                    <div>
+                        <h3 className="text-lg font-semibold leading-tight text-white">Comments</h3>
+                        <p className="text-xs text-[--muted]">
+                            {data?.totalCount ? `${data.totalCount} comment${data.totalCount === 1 ? "" : "s"}` : "Start the conversation"}
+                        </p>
+                    </div>
+                </div>
                 <SortSelector value={sort} onChange={setSort} />
             </div>
 
@@ -42,15 +49,28 @@ export function CommentSection({ mediaId, mediaType }: CommentSectionProps) {
             />
 
             {isLoading && (
-                <div className="py-6 text-center text-[--muted]">Loading comments...</div>
+                <div className="space-y-2.5">
+                    {[0, 1, 2].map(i => (
+                        <div key={i} className="flex gap-3 rounded-2xl bg-black/25 p-3.5 ring-1 ring-white/[0.06]">
+                            <div className="size-9 shrink-0 animate-pulse rounded-full bg-white/[0.06]" />
+                            <div className="flex-1 space-y-2 py-1">
+                                <div className="h-3 w-1/4 animate-pulse rounded bg-white/[0.06]" />
+                                <div className="h-3 w-3/4 animate-pulse rounded bg-white/[0.06]" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
             )}
 
             {!isLoading && data?.comments && data.comments.length === 0 && (
-                <div className="py-6 text-center text-[--muted]">No comments yet. Be the first to comment!</div>
+                <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-white/10 py-10 text-center">
+                    <BiComment className="text-2xl text-[--muted]" />
+                    <p className="text-sm text-[--muted]">No comments yet. Be the first to comment!</p>
+                </div>
             )}
 
             {!isLoading && data?.comments && data.comments.length > 0 && (
-                <div className="space-y-1">
+                <div className="space-y-2.5">
                     {data.comments.map(comment => (
                         <CommentItem
                             key={comment.id}
@@ -63,7 +83,7 @@ export function CommentSection({ mediaId, mediaType }: CommentSectionProps) {
                     ))}
                 </div>
             )}
-        </div>
+        </section>
     )
 }
 
@@ -79,16 +99,16 @@ function SortSelector({ value, onChange }: SortSelectorProps) {
         { value: "oldest", label: "Oldest" },
     ]
     return (
-        <div className="flex items-center gap-1">
-            <BiSortAlt2 className="text-[--muted]" />
+        <div className="inline-flex rounded-full bg-black/25 p-0.5 ring-1 ring-white/10">
             {options.map(opt => (
                 <button
                     key={opt.value}
+                    type="button"
                     className={cn(
-                        "px-2 py-1 text-sm rounded-md transition",
+                        "rounded-full px-3 py-1 text-xs font-medium transition-all",
                         value === opt.value
-                            ? "bg-gray-700 text-white"
-                            : "text-[--muted] hover:text-white hover:bg-gray-800",
+                            ? "bg-white/[0.14] text-white shadow-sm"
+                            : "text-white/55 hover:text-white",
                     )}
                     onClick={() => onChange(opt.value)}
                 >
@@ -137,19 +157,19 @@ function CommentComposer({ mediaId, mediaType, sort, parentId, onCancel, onSucce
 
     if (!serverStatus?.currentProfile) {
         return (
-            <div className="py-3 text-center text-[--muted] text-sm">
+            <div className="rounded-2xl bg-black/25 py-4 text-center text-sm text-[--muted] ring-1 ring-white/[0.06]">
                 Log in to a profile to comment.
             </div>
         )
     }
 
     return (
-        <div className="space-y-2">
+        <div className="rounded-2xl bg-black/25 ring-1 ring-white/[0.08] transition focus-within:ring-brand-400/40">
             <Textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder={placeholder || "Write a comment..."}
-                className="min-h-[80px] resize-y bg-gray-900 border-gray-700"
+                placeholder={placeholder || "Share what you thought..."}
+                className="min-h-[76px] resize-y border-0 bg-transparent shadow-none focus:ring-0"
                 autoFocus={autoFocus}
                 onKeyDown={(e) => {
                     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
@@ -158,17 +178,23 @@ function CommentComposer({ mediaId, mediaType, sort, parentId, onCancel, onSucce
                     }
                 }}
             />
-            <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 text-sm text-[--muted] cursor-pointer select-none">
-                    <input
-                        type="checkbox"
-                        checked={isSpoiler}
-                        onChange={(e) => setIsSpoiler(e.target.checked)}
-                        className="rounded"
-                    />
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.06] px-3 py-2">
+                <button
+                    type="button"
+                    aria-pressed={isSpoiler}
+                    onClick={() => setIsSpoiler(v => !v)}
+                    className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 transition",
+                        isSpoiler
+                            ? "bg-amber-400/15 text-amber-200 ring-amber-300/30"
+                            : "bg-white/[0.04] text-white/55 ring-white/10 hover:text-white",
+                    )}
+                >
+                    <LuEyeOff className="size-3.5" />
                     Spoiler
-                </label>
+                </button>
                 <div className="flex items-center gap-2">
+                    <span className="hidden text-[11px] text-white/35 sm:inline">Ctrl + Enter to post</span>
                     {onCancel && (
                         <Button intent="gray-outline" size="sm" onClick={onCancel}>
                             Cancel
@@ -212,6 +238,7 @@ function CommentItem({ comment, mediaId, mediaType, sort, depth }: CommentItemPr
 
     const isAuthor = currentProfile && comment.author && currentProfile.id === comment.author.id
     const isAdmin = currentProfile?.isAdmin
+    const replyCount = countAllChildren(comment)
 
     const handleVote = (value: number) => {
         if (!currentProfile) return
@@ -242,171 +269,187 @@ function CommentItem({ comment, mediaId, mediaType, sort, depth }: CommentItemPr
 
     if (isCollapsed && depth >= AUTO_COLLAPSE_DEPTH) {
         return (
-            <div
-                className={cn("pl-4 border-l border-gray-700/50", depth > 0 && "ml-4")}
-            >
+            <div className="ml-4 border-l border-white/[0.08] pl-3 sm:ml-5 sm:pl-4">
                 <button
-                    className="flex items-center gap-2 text-sm text-[--muted] hover:text-white py-1"
+                    className="flex items-center gap-2 py-1 text-sm text-[--muted] hover:text-white"
                     onClick={() => setIsCollapsed(false)}
                 >
                     <BiChevronDown className="text-base" />
-                    Continue thread ({countAllChildren(comment)} more {countAllChildren(comment) === 1 ? "reply" : "replies"})
+                    Continue thread ({replyCount} more {replyCount === 1 ? "reply" : "replies"})
                 </button>
             </div>
         )
     }
 
     return (
-        <div className={cn(depth > 0 && "ml-4 pl-4 border-l border-gray-700/50")}>
-            <div className="py-2 group">
-                {/* Header: avatar, name, time */}
-                <div className="flex items-center gap-2 text-sm">
-                    {comment.author ? (
-                        <>
-                            <Avatar
-                                src={comment.author.anilistAvatar || comment.author.avatarPath}
-                                size="xs"
-                                fallback={comment.author.name?.charAt(0)?.toUpperCase()}
+        <div
+            className={cn(
+                depth === 0
+                    ? "rounded-2xl bg-black/25 p-3.5 ring-1 ring-white/[0.06] sm:p-4"
+                    : "ml-4 mt-2 border-l border-white/[0.08] pl-3 sm:ml-5 sm:pl-4",
+            )}
+        >
+            <div className="group flex gap-3">
+                <Avatar
+                    src={comment.author?.anilistAvatar || comment.author?.avatarPath}
+                    size="sm"
+                    className="shrink-0 ring-1 ring-white/10"
+                    fallback={comment.author?.name?.charAt(0)?.toUpperCase() || "?"}
+                />
+                <div className="min-w-0 flex-1">
+                    {/* Header: name, time */}
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
+                        {comment.author ? (
+                            <>
+                                <span className={cn("font-semibold text-white", comment.author.isAdmin && "text-brand-200")}>
+                                    {comment.author.name}
+                                </span>
+                                {comment.author.isAdmin && (
+                                    <span className="rounded-full bg-brand-500/15 px-2 py-0.5 text-[10px] font-semibold text-brand-200 ring-1 ring-brand-400/30">Admin</span>
+                                )}
+                            </>
+                        ) : (
+                            <span className="italic text-[--muted]">Deleted profile</span>
+                        )}
+                        <span className="text-xs text-[--muted]">{timeAgo}</span>
+                        {comment.isEdited && (
+                            <span className="text-xs italic text-[--muted]">edited</span>
+                        )}
+                        {depth >= AUTO_COLLAPSE_DEPTH && (
+                            <button
+                                className="ml-auto text-[--muted] hover:text-white"
+                                onClick={() => setIsCollapsed(true)}
+                            >
+                                <BiChevronUp className="text-base" />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Content */}
+                    {isEditing ? (
+                        <div className="mt-2 space-y-2">
+                            <Textarea
+                                value={editContent}
+                                onChange={(e) => setEditContent(e.target.value)}
+                                className="min-h-[60px] resize-y border-white/10 bg-black/30"
+                                autoFocus
                             />
-                            <span className={cn("font-medium", comment.author.isAdmin && "text-brand-300")}>
-                                {comment.author.name}
-                            </span>
-                            {comment.author.isAdmin && (
-                                <span className="text-xs px-1.5 py-0.5 rounded bg-brand-900/50 text-brand-300">Admin</span>
-                            )}
-                        </>
+                            <div className="flex items-center gap-2">
+                                <Button intent="primary" size="sm" onClick={handleEdit} disabled={isEditPending || !editContent.trim()}>
+                                    {isEditPending ? "Saving..." : "Save"}
+                                </Button>
+                                <Button intent="gray-outline" size="sm" onClick={() => { setIsEditing(false); setEditContent(comment.content) }}>
+                                    Cancel
+                                </Button>
+                            </div>
+                        </div>
                     ) : (
-                        <span className="text-[--muted] italic">Deleted profile</span>
+                        <div className="mt-1">
+                            {comment.isSpoiler && !spoilerRevealed ? (
+                                <button
+                                    className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/10 px-3 py-1 text-xs text-amber-200 ring-1 ring-amber-300/20 transition hover:bg-amber-400/20"
+                                    onClick={() => setSpoilerRevealed(true)}
+                                >
+                                    <LuTriangleAlert className="size-3.5" />
+                                    Spoiler, click to reveal
+                                </button>
+                            ) : (
+                                <div className="whitespace-pre-wrap break-words text-sm leading-relaxed text-white/90">
+                                    <SpoilerContent content={comment.content} />
+                                </div>
+                            )}
+                        </div>
                     )}
-                    <span className="text-[--muted]">·</span>
-                    <span className="text-[--muted]">{timeAgo}</span>
-                    {comment.isEdited && (
-                        <span className="text-[--muted] text-xs italic">(edited)</span>
-                    )}
-                    {depth >= AUTO_COLLAPSE_DEPTH && (
-                        <button
-                            className="text-[--muted] hover:text-white ml-auto"
-                            onClick={() => setIsCollapsed(true)}
-                        >
-                            <BiChevronUp className="text-base" />
-                        </button>
+
+                    {/* Actions: vote, reply, edit, delete */}
+                    {!isEditing && (
+                        <div className="mt-2 flex flex-wrap items-center gap-1">
+                            <div className="inline-flex items-center rounded-full bg-white/[0.04] ring-1 ring-white/[0.08]">
+                                <Tooltip trigger={
+                                    <button
+                                        aria-label="Upvote"
+                                        className={cn(
+                                            "rounded-full p-1.5 text-sm transition hover:bg-white/10",
+                                            comment.myVote === 1 ? "text-brand-300" : "text-[--muted]",
+                                        )}
+                                        onClick={() => handleVote(1)}
+                                    >
+                                        {comment.myVote === 1 ? <BiSolidUpvote /> : <BiUpvote />}
+                                    </button>
+                                }>Upvote</Tooltip>
+
+                                <span className={cn(
+                                    "min-w-[18px] text-center text-xs font-semibold tabular-nums",
+                                    comment.score > 0 ? "text-brand-300" : comment.score < 0 ? "text-red-400" : "text-[--muted]",
+                                )}>
+                                    {comment.score}
+                                </span>
+
+                                <Tooltip trigger={
+                                    <button
+                                        aria-label="Downvote"
+                                        className={cn(
+                                            "rounded-full p-1.5 text-sm transition hover:bg-white/10",
+                                            comment.myVote === -1 ? "text-red-400" : "text-[--muted]",
+                                        )}
+                                        onClick={() => handleVote(-1)}
+                                    >
+                                        {comment.myVote === -1 ? <BiSolidDownvote /> : <BiDownvote />}
+                                    </button>
+                                }>Downvote</Tooltip>
+                            </div>
+
+                            {/* Reply */}
+                            {currentProfile && (
+                                <button
+                                    className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs text-[--muted] transition hover:bg-white/[0.07] hover:text-white"
+                                    onClick={() => setShowReplyComposer(!showReplyComposer)}
+                                >
+                                    <BiComment />
+                                    Reply
+                                </button>
+                            )}
+
+                            {/* Hide or show the thread below */}
+                            {replyCount > 0 && depth < AUTO_COLLAPSE_DEPTH && (
+                                <button
+                                    className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs text-[--muted] transition hover:bg-white/[0.07] hover:text-white"
+                                    onClick={() => setIsCollapsed(v => !v)}
+                                >
+                                    {isCollapsed ? <BiChevronDown /> : <BiChevronUp />}
+                                    {isCollapsed ? `Show ${replyCount} ${replyCount === 1 ? "reply" : "replies"}` : "Hide replies"}
+                                </button>
+                            )}
+
+                            {/* Edit (author only) */}
+                            {isAuthor && (
+                                <button
+                                    className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs text-[--muted] transition hover:bg-white/[0.07] hover:text-white sm:opacity-0 sm:focus:opacity-100 sm:group-hover:opacity-100"
+                                    onClick={() => { setIsEditing(true); setEditContent(comment.content) }}
+                                >
+                                    <BiEdit />
+                                    Edit
+                                </button>
+                            )}
+
+                            {/* Delete (author or admin) */}
+                            {(isAuthor || isAdmin) && (
+                                <button
+                                    className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs text-[--muted] transition hover:bg-red-500/10 hover:text-red-300 sm:opacity-0 sm:focus:opacity-100 sm:group-hover:opacity-100"
+                                    onClick={handleDelete}
+                                >
+                                    <BiTrash />
+                                    Delete
+                                </button>
+                            )}
+                        </div>
                     )}
                 </div>
-
-                {/* Content */}
-                {isEditing ? (
-                    <div className="mt-2 space-y-2">
-                        <Textarea
-                            value={editContent}
-                            onChange={(e) => setEditContent(e.target.value)}
-                            className="min-h-[60px] resize-y bg-gray-900 border-gray-700"
-                            autoFocus
-                        />
-                        <div className="flex items-center gap-2">
-                            <Button intent="primary" size="sm" onClick={handleEdit} disabled={isEditPending || !editContent.trim()}>
-                                {isEditPending ? "Saving..." : "Save"}
-                            </Button>
-                            <Button intent="gray-outline" size="sm" onClick={() => { setIsEditing(false); setEditContent(comment.content) }}>
-                                Cancel
-                            </Button>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="mt-1">
-                        {comment.isSpoiler && !spoilerRevealed ? (
-                            <button
-                                className="text-sm text-[--muted] italic bg-gray-800 rounded px-2 py-1 hover:bg-gray-700 transition"
-                                onClick={() => setSpoilerRevealed(true)}
-                            >
-                                ⚠ Spoiler — click to reveal
-                            </button>
-                        ) : (
-                            <div className={cn(
-                                "text-sm whitespace-pre-wrap break-words",
-                                comment.isSpoiler && "relative",
-                            )}>
-                                <SpoilerContent content={comment.content} />
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* Actions: vote, reply, edit, delete */}
-                {!isEditing && (
-                    <div className="flex items-center gap-1 mt-1.5">
-                        {/* Vote buttons */}
-                        <Tooltip trigger={
-                            <button
-                                className={cn(
-                                    "p-1 rounded hover:bg-gray-800 transition text-sm",
-                                    comment.myVote === 1 ? "text-brand-400" : "text-[--muted]",
-                                )}
-                                onClick={() => handleVote(1)}
-                            >
-                                <BiUpvote />
-                            </button>
-                        }>Upvote</Tooltip>
-
-                        <span className={cn(
-                            "text-xs font-medium min-w-[20px] text-center",
-                            comment.score > 0 ? "text-brand-400" : comment.score < 0 ? "text-red-400" : "text-[--muted]",
-                        )}>
-                            {comment.score}
-                        </span>
-
-                        <Tooltip trigger={
-                            <button
-                                className={cn(
-                                    "p-1 rounded hover:bg-gray-800 transition text-sm",
-                                    comment.myVote === -1 ? "text-red-400" : "text-[--muted]",
-                                )}
-                                onClick={() => handleVote(-1)}
-                            >
-                                <BiDownvote />
-                            </button>
-                        }>Downvote</Tooltip>
-
-                        <span className="w-px h-4 bg-gray-700 mx-1" />
-
-                        {/* Reply */}
-                        {currentProfile && (
-                            <button
-                                className="flex items-center gap-1 px-2 py-1 text-xs text-[--muted] hover:text-white hover:bg-gray-800 rounded transition"
-                                onClick={() => setShowReplyComposer(!showReplyComposer)}
-                            >
-                                <BiComment />
-                                Reply
-                            </button>
-                        )}
-
-                        {/* Edit (author only) */}
-                        {isAuthor && (
-                            <button
-                                className="flex items-center gap-1 px-2 py-1 text-xs text-[--muted] hover:text-white hover:bg-gray-800 rounded transition opacity-0 group-hover:opacity-100"
-                                onClick={() => { setIsEditing(true); setEditContent(comment.content) }}
-                            >
-                                <BiEdit />
-                                Edit
-                            </button>
-                        )}
-
-                        {/* Delete (author or admin) */}
-                        {(isAuthor || isAdmin) && (
-                            <button
-                                className="flex items-center gap-1 px-2 py-1 text-xs text-[--muted] hover:text-red-400 hover:bg-gray-800 rounded transition opacity-0 group-hover:opacity-100"
-                                onClick={handleDelete}
-                            >
-                                <BiTrash />
-                                Delete
-                            </button>
-                        )}
-                    </div>
-                )}
             </div>
 
             {/* Reply composer */}
             {showReplyComposer && (
-                <div className="ml-4 mt-1 mb-2">
+                <div className="ml-4 mt-3 sm:ml-12">
                     <CommentComposer
                         mediaId={mediaId}
                         mediaType={mediaType}
@@ -422,7 +465,7 @@ function CommentItem({ comment, mediaId, mediaType, sort, depth }: CommentItemPr
 
             {/* Children */}
             {comment.children && comment.children.length > 0 && !isCollapsed && (
-                <div className="space-y-0">
+                <div className="mt-1">
                     {comment.children.map(child => (
                         <CommentItem
                             key={child.id}
@@ -442,7 +485,7 @@ function CommentItem({ comment, mediaId, mediaType, sort, depth }: CommentItemPr
 /**
  * Renders comment content with inline [spoiler]...[/spoiler] tags as blurred text
  */
-function SpoilerContent({ content }: { content: string }) {
+export function SpoilerContent({ content }: { content: string }) {
     const parts = React.useMemo(() => {
         const regex = /\[spoiler\]([\s\S]*?)\[\/spoiler\]/gi
         const result: Array<{ text: string; isSpoiler: boolean }> = []
@@ -482,7 +525,7 @@ function SpoilerInline({ text }: { text: string }) {
             className={cn(
                 "cursor-pointer rounded px-0.5 transition-all",
                 revealed
-                    ? "bg-gray-700/50"
+                    ? "bg-white/10"
                     : "bg-gray-600 text-transparent select-none blur-sm hover:blur-[3px]",
             )}
             onClick={() => setRevealed(true)}
