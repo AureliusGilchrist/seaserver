@@ -11,10 +11,12 @@ export const BANNER_FADE_END = 560
 /**
  * The anime/manga page hero's scroll behaviour, as one rule every hero banner shares.
  *
- *  - No custom wallpaper: the banner stays fixed behind the page and fades and blurs as you scroll,
- *    while the image zooms in slightly and lifts (the lift is desktop only).
- *  - Custom wallpaper: the banner scrolls away with the page instead, so the wallpaper (the true
- *    background) is what remains.
+ * The banner fades and blurs as you scroll while the image zooms in slightly and lifts (the lift is
+ * desktop only). That is the same with or without a custom wallpaper; what differs is where it sits:
+ *
+ *  - No custom wallpaper: the banner stays fixed behind the page.
+ *  - Custom wallpaper: the banner scrolls away with the page, so the wallpaper (the true background)
+ *    is what remains.
  *
  * `containerStyle` goes on the banner's motion container, `imageStyle` on the motion element that
  * holds the image. `restOpacity` is the banner's opacity at the top of the page, for banners that
@@ -42,8 +44,8 @@ export function useHeroScrollFade(opts?: { dim?: boolean, restOpacity?: number }
         /** Positioning classes for the banner container. */
         containerClass: hasWallpaper ? "absolute" : "fixed will-change-[opacity]",
         /** Fade for the banner container. */
-        containerStyle: hasWallpaper ? undefined : { opacity },
+        containerStyle: { opacity },
         /** Zoom, lift and blur for the banner image (container). */
-        imageStyle: hasWallpaper ? undefined : { scale, y, filter },
+        imageStyle: { scale, y, filter },
     }
 }
