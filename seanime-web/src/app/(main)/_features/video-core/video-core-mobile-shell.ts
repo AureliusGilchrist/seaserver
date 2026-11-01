@@ -30,3 +30,14 @@ export function mobileShellStreamQuery(container: Mediastream_MediaContainer | n
     const playable = codec.replace(/^hev1/, "hvc1").replace(/L-\d+/, "L150")
     return MediaSource.isTypeSupported(`video/mp4; codecs="${playable}"`) ? "?copy=1" : ""
 }
+
+/**
+ * The WebView has no picture in picture of its own, so the whole app goes into Android's. Fullscreen
+ * first, so the player is what fills the window, with its subtitles on it.
+ */
+export async function enterAndroidPip(video: HTMLVideoElement) {
+    const shell = (window as any).Capacitor?.Plugins?.MobileShell
+    if (!shell) return
+    if (!document.fullscreenElement) await (video.closest("[data-vc-element='container']") ?? video).requestFullscreen()
+    await shell.enterPictureInPicture({ width: video.videoWidth || 16, height: video.videoHeight || 9 })
+}

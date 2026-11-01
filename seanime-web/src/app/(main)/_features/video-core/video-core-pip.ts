@@ -1,3 +1,5 @@
+import { enterAndroidPip } from "@/app/(main)/_features/video-core/video-core-mobile-shell"
+import { __isMobileShell__ } from "@/types/constants"
 import { MediaCaptionsManager } from "@/app/(main)/_features/video-core/video-core-media-captions"
 import { VideoCoreSubtitleManager } from "@/app/(main)/_features/video-core/video-core-subtitles"
 import { VideoCore_VideoPlaybackInfo } from "@/app/(main)/_features/video-core/video-core.atoms"
@@ -200,6 +202,11 @@ export class VideoCorePipManager extends EventTarget {
     private isEnteringRef = false
 
     async enterPip() {
+        if (__isMobileShell__) {
+            if (this.video) await enterAndroidPip(this.video).catch(error => log.error("Failed to enter PiP", error))
+            return
+        }
+
         if (this.popoutHandler) {
             this.popoutHandler()
             return

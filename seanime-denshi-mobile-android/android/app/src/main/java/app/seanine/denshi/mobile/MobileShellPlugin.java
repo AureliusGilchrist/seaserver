@@ -1,5 +1,6 @@
 package app.seanine.denshi.mobile;
 
+import android.app.PictureInPictureParams;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -7,6 +8,7 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
+import android.util.Rational;
 import androidx.core.content.FileProvider;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -270,5 +272,25 @@ public class MobileShellPlugin extends Plugin {
         }
         //noinspection ResultOfMethodCallIgnored
         file.delete();
+    }
+
+    /** Shrinks the app to a floating window. The page puts the player in fullscreen first, so it fills it. */
+    @PluginMethod
+    public void enterPictureInPicture(PluginCall call) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            call.reject("Picture in picture needs Android 8");
+            return;
+        }
+        int width = call.getInt("width", 16);
+        int height = call.getInt("height", 9);
+        // Android refuses anything wider than 2.39:1 or taller than 1:2.39.
+        double ratio = Math.min(2.39, Math.max(1 / 2.39, (double) width / Math.max(height, 1)));
+        PictureInPictureParams params = new PictureInPictureParams.Builder()
+            .setAspectRatio(new Rational((int) Math.round(ratio * 1000), 1000))
+            .build();
+        getActivity().runOnUiThread(() -> {
+            if (getActivity().enterPictureInPictureMode(params)) call.resolve();
+            else call.reject("Picture in picture was refused");
+        });
     }
 }
