@@ -8,6 +8,7 @@ import { SeaImage } from "@/components/shared/sea-image"
 import { SeaLink } from "@/components/shared/sea-link"
 import { Carousel, CarouselContent, CarouselDotButtons, CarouselItem } from "@/components/ui/carousel"
 import { cn } from "@/components/ui/core/styling"
+import { expandIntoPage } from "@/lib/helpers/expand-into-page"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import { useRouter } from "@/lib/navigation"
 import React from "react"
@@ -184,7 +185,10 @@ const MediaEntryCardWrapper = React.memo(({ item }: {
     return (
         <div
             className="rounded-xl space-y-2 flex-none group/episode-card cursor-pointer select-none w-full"
-            onClick={() => router.push(`/manga/entry?id=${item.mediaId}`)}
+            onClick={event => {
+                expandIntoPage(event.currentTarget.querySelector("img"))
+                router.push(`/manga/entry?id=${item.mediaId}`)
+            }}
             data-manga-chapter-card
             data-media-id={item.mediaId}
         >
@@ -198,7 +202,7 @@ const MediaEntryCardWrapper = React.memo(({ item }: {
                     fill
                     quality={100}
                     sizes="14rem"
-                    className="object-cover rounded-xl object-center transition lg:group-hover/episode-card:scale-[1.02] duration-200"
+                    className="object-cover rounded-xl object-center transition lg:group-hover/episode-card:scale-110 duration-300"
                 /> : <div
                     className="h-full block rounded-xl absolute w-full bg-gradient-to-t from-gray-800 to-transparent z-[2]"
                 />}

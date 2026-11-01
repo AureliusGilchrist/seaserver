@@ -14,6 +14,7 @@ import { Carousel, CarouselContent, CarouselDotButtons, CarouselItem } from "@/c
 import { cn } from "@/components/ui/core/styling"
 import { useDebounce } from "@/hooks/use-debounce"
 import { anilist_animeIsMovie } from "@/lib/helpers/media"
+import { expandIntoPage } from "@/lib/helpers/expand-into-page"
 import { useContinueWatchingSpoilers } from "@/lib/theme/anime-spoilers"
 import { ThemeLibraryScreenBannerType, useThemeSettings } from "@/lib/theme/hooks"
 import { useWindowSize } from "@uidotdev/usehooks"
@@ -179,7 +180,14 @@ export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle,
                             className={episodeCardCarouselItemClass(ts.smallerEpisodeCarouselSize)}
                         >
                             <div className="relative">
-                                <div>
+                                <div
+                                    className="group/continue-card [&_[data-episode-card-image]]:duration-300 lg:group-hover/continue-card:[&_[data-episode-card-image]]:!scale-110"
+                                    onClickCapture={event => {
+                                        const target = event.target as HTMLElement
+                                        if (target.closest("button")) return
+                                        expandIntoPage(event.currentTarget.querySelector<HTMLImageElement>("img[data-episode-card-image]"))
+                                    }}
+                                >
                                     <_EpisodeCard
                                         key={episode.localFile?.path || ""}
                                         episode={episode}
