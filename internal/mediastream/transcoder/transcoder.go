@@ -30,7 +30,7 @@ type (
 		HwAccel   HwAccelSettings
 		// SoftwareHwAccel takes over when the encoder of HwAccel turns out not to work.
 		SoftwareHwAccel HwAccelSettings
-		softwareOnly    atomic.Bool
+		hwAccelStep     atomic.Int32
 		FfmpegPath      string
 		FfprobePath     string
 	}
@@ -94,7 +94,7 @@ func NewTranscoder(opts *NewTranscoderOptions) (*Transcoder, error) {
 			}),
 			SoftwareHwAccel: GetHardwareAccelSettings(HwAccelOptions{
 				Kind:       softwareHwAccelName,
-				Preset:     opts.Preset,
+				Preset:     softwareFallbackPreset,
 				FfmpegPath: opts.FfmpegPath,
 			}),
 			FfmpegPath:  opts.FfmpegPath,

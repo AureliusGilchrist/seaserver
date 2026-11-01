@@ -81,3 +81,25 @@ func TestBrokenHardwareEncoderFallsBackToCPU(t *testing.T) {
 		t.Fatalf("later encodes do not use the CPU: %s", args)
 	}
 }
+
+// A GPU that cannot decode keeps encoding: only the decode flags go, and the CPU is not used yet.
+func TestFailedHardwareDecoderKeepsTheEncoder(t *testing.T) {
+	settings := &Settings{
+		HwAccel:         HwAccelSettings{Name: "nvidia", DecodeFlags: []string{"-hwaccel", "cuda"}, EncodeFlags: []string{"-c:v", "h264_nvenc"}},
+		SoftwareHwAccel: HwAccelSettings{Name: softwareHwAccelName},
+	}
+
+	full := settings.activeHwAccel()
+	settings.fallBackFrom(full)
+	settings.fallBackFrom(full) // a second encoder failing on the same settings
+
+	encodeOnly := settings.activeHwAccel()
+	if encodeOnly.Name != "nvidia" || len(encodeOnly.DecodeFlags) != 0 {
+		t.Fatalf("got %+v, want the encoder without its decode flags", encodeOnly)
+	}
+
+	settings.fallBackFrom(encodeOnly)
+	if name := settings.activeHwAccel().Name; name != softwareHwAccelName {
+		t.Fatalf("active encoder is %q, want the CPU", name)
+	}
+}

@@ -671,10 +671,10 @@ func (ts *Stream) run(start int32) error {
 		// before its first segment is replaced now rather than left to time out.
 		isEncode := ts.handle.getFlags()&VideoF != 0 && ts.handle.getFlags()&Transmux == 0
 		if err != nil && !stoppedByUs && !startReady && isEncode && hwAccel.Name != softwareHwAccelName {
-			streamLogger.Warn().Int("eid", encoderId).Msgf("transcoder: %s encoder failed, using the CPU until the transcoder restarts", hwAccel.Name)
-			ts.settings.fallBackToSoftware()
+			streamLogger.Warn().Int("eid", encoderId).Msgf("transcoder: %s encoder failed, falling back until the transcoder restarts", hwAccel.Name)
+			ts.settings.fallBackFrom(hwAccel)
 			if err := ts.run(start); err != nil {
-				streamLogger.Error().Int("eid", encoderId).Err(err).Msgf("transcoder: Could not restart %s on the CPU", ts.kind)
+				streamLogger.Error().Int("eid", encoderId).Err(err).Msgf("transcoder: Could not restart %s after falling back", ts.kind)
 			}
 		}
 	}()
