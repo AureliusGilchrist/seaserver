@@ -5,6 +5,7 @@ import { useThemeSettings } from "@/lib/theme/hooks"
 import { resolveLandingImage, useWallpaperOverride } from "@/lib/theme/landing-look"
 import { useUICustomize } from "@/lib/ui-customize/ui-customize-provider"
 import { EFFECTS_PRESETS } from "@/lib/ui-customize/ui-customize-definitions"
+import { __isMobileShell__ } from "@/types/constants"
 import { motion } from "motion/react"
 import { usePathname } from "@/lib/navigation"
 import { ThemeBackgroundImage, useAnimeThemeOrNull } from "@/lib/theme/anime-themes/anime-theme-provider"
@@ -94,7 +95,8 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
     const wallpaperOpacity = wallpaperOverride ? wallpaperOverride.opacity : ts.libraryScreenCustomBackgroundOpacity
     // When the theme draws its own wallpaper it already carries these effects; only add them for the
     // custom one. The theme hands over to an override (see AnimeThemeProvider), effects included.
-    const showThemeEffectsOnCustom = themeActive && (!animeTheme!.activeBackgroundUrl || !!wallpaperOverride)
+    // Denshi Mobile's effects belong to the phone, so they don't need a theme to be active.
+    const showThemeEffectsOnCustom = (__isMobileShell__ ? !!animeTheme : themeActive) && (!animeTheme!.activeBackgroundUrl || !!wallpaperOverride)
     // Exclude specific pages from background effects.
     // NOTE: anime/character detail pages (/entry) are intentionally NOT excluded —
     // users want their wallpaper (and scanlines/grain/glow/etc.) visible behind the
@@ -142,7 +144,9 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
     // opacity=10  → dimAlpha ≈ 0.845  (very dark)
     // opacity=50  → dimAlpha ≈ 0.505  (half visible)
     // opacity=100 → dimAlpha ≈ 0.08   (mostly visible)
-    const dimAlpha = (100 - wallpaperOpacity) / 100 * 0.85 + 0.08
+    const opacityDim = (100 - wallpaperOpacity) / 100 * 0.85 + 0.08
+    // Denshi Mobile's Dim slider darkens on top of that, so both can be used together.
+    const dimAlpha = __isMobileShell__ ? 1 - (1 - opacityDim) * (1 - (animeTheme?.backgroundDim ?? 0)) : opacityDim
 
     const hasAnyEffect = (effectPreset && effectPreset.id !== "fx-none") && !isFullscreen
 

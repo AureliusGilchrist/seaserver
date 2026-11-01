@@ -2,7 +2,9 @@
 
 import { useServerMutation } from "@/api/client/requests"
 import { Button } from "@/components/ui/button"
-import { resolveLandingImage, useIsPhone, useLandingLook } from "@/lib/theme/landing-look"
+import { useAnimeThemeOrNull } from "@/lib/theme/anime-themes/anime-theme-provider"
+import { resolveLandingImage, useLandingLook, useMobileLook } from "@/lib/theme/landing-look"
+import { __isMobileShell__ } from "@/types/constants"
 import React from "react"
 import { LuImage, LuTrash2, LuUpload } from "react-icons/lu"
 import { toast } from "sonner"
@@ -41,24 +43,67 @@ export function LandingLookSettings() {
     )
 }
 
-/** Only on a phone, and only a phone uses it, so a desktop keeps its own wallpaper. */
+/** Denshi Mobile only: the wallpaper and effects here are the phone's own and never reach another device. */
 export function MobileWallpaperSettings() {
-    const { look, updateLook } = useLandingLook()
-    const isPhone = useIsPhone()
-    if (!isPhone) return null
+    if (!__isMobileShell__) return null
+    return <MobileWallpaperControls />
+}
+
+const percent = (value: number) => `${Math.round(value * 100)}%`
+
+function MobileWallpaperControls() {
+    const { look, updateLook } = useMobileLook()
+    const theme = useAnimeThemeOrNull()
+    if (!theme) return null
+
+    const resetEffects = () => {
+        theme.resetBackgroundDim()
+        theme.setBackgroundBlur(0)
+        theme.setBackgroundExposure(1)
+        theme.setBackgroundSaturation(1)
+        theme.setBackgroundContrast(1)
+        theme.setScanlinesStrength(0)
+        theme.setScanlinesSize(0.5)
+        theme.setVignetteStrength(0)
+        theme.setVignetteSize(0.5)
+        theme.setGlowStrength(0)
+        theme.setGlowScale(0.5)
+        theme.setNoiseStrength(0)
+        theme.setNoiseSpeed(1)
+        theme.setHologramStrength(0)
+    }
 
     return (
         <section className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4" data-mobile-wallpaper-settings>
             <div>
                 <p className="font-semibold text-white">Phone wallpaper</p>
                 <p className="text-xs text-[--muted]">
-                    Shows on every page, on phones only, in place of any other wallpaper. Left empty, your phone uses those as usual.
+                    Shows on every page of this app, in place of any other wallpaper. Left empty, your theme's wallpaper is used. Nothing here changes your desktop.
                 </p>
             </div>
-            <ImageRow label="Wallpaper" slot="mobile-wallpaper" value={look.mobileWallpaper} onChange={mobileWallpaper => updateLook({ mobileWallpaper })}>
-                <Slider label="Opacity" value={look.mobileWallpaperOpacity} min={1} onChange={mobileWallpaperOpacity => updateLook({ mobileWallpaperOpacity })} />
-                <Slider label="Glow" value={look.mobileWallpaperGlow} min={0} onChange={mobileWallpaperGlow => updateLook({ mobileWallpaperGlow })} />
+            <ImageRow label="Wallpaper" slot="mobile-wallpaper" value={look.wallpaper} onChange={wallpaper => updateLook({ wallpaper })}>
+                <Slider label="Opacity" value={look.wallpaperOpacity} min={1} onChange={wallpaperOpacity => updateLook({ wallpaperOpacity })} />
+                <Slider label="Bloom" value={look.wallpaperGlow} min={0} onChange={wallpaperGlow => updateLook({ wallpaperGlow })} />
             </ImageRow>
+
+            <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+                <Slider label="Dim" value={theme.backgroundDim} min={0} max={0.95} step={0.01} display={percent(theme.backgroundDim)} onChange={theme.setBackgroundDim} />
+                <Slider label="Blur" value={theme.backgroundBlur} min={0} max={60} display={`${theme.backgroundBlur}px`} onChange={theme.setBackgroundBlur} />
+                <Slider label="Exposure" value={theme.backgroundExposure} min={0.1} max={2.5} step={0.05} display={percent(theme.backgroundExposure)} onChange={theme.setBackgroundExposure} />
+                <Slider label="Saturation" value={theme.backgroundSaturation} min={0} max={3} step={0.05} display={percent(theme.backgroundSaturation)} onChange={theme.setBackgroundSaturation} />
+                <Slider label="Contrast" value={theme.backgroundContrast} min={0} max={3} step={0.05} display={percent(theme.backgroundContrast)} onChange={theme.setBackgroundContrast} />
+                <Slider label="Scanlines" value={theme.scanlinesStrength} min={0} max={1} step={0.01} display={percent(theme.scanlinesStrength)} onChange={theme.setScanlinesStrength} />
+                <Slider label="Scanline spacing" value={theme.scanlinesSize} min={0} max={1} step={0.01} display={percent(theme.scanlinesSize)} onChange={theme.setScanlinesSize} />
+                <Slider label="Vignette" value={theme.vignetteStrength} min={0} max={1} step={0.01} display={percent(theme.vignetteStrength)} onChange={theme.setVignetteStrength} />
+                <Slider label="Vignette size" value={theme.vignetteSize} min={0} max={1} step={0.01} display={percent(theme.vignetteSize)} onChange={theme.setVignetteSize} />
+                <Slider label="Glow" value={theme.glowStrength} min={0} max={1} step={0.01} display={percent(theme.glowStrength)} onChange={theme.setGlowStrength} />
+                <Slider label="Glow size" value={theme.glowScale} min={0} max={1} step={0.01} display={percent(theme.glowScale)} onChange={theme.setGlowScale} />
+                <Slider label="Film noise" value={theme.noiseStrength} min={0} max={1} step={0.01} display={percent(theme.noiseStrength)} onChange={theme.setNoiseStrength} />
+                <Slider label="Noise speed" value={theme.noiseSpeed} min={0.1} max={5} step={0.1} display={`${theme.noiseSpeed.toFixed(1)}x`} onChange={theme.setNoiseSpeed} />
+                <Slider label="Hologram" value={theme.hologramStrength} min={0} max={1} step={0.01} display={percent(theme.hologramStrength)} onChange={theme.setHologramStrength} />
+            </div>
+
+            <Button size="xs" intent="white-subtle" onClick={resetEffects}>Reset effects</Button>
         </section>
     )
 }
@@ -122,14 +167,23 @@ function ImageRow({ label, slot, value, onChange, children }: {
     )
 }
 
-function Slider({ label, value, min, onChange }: { label: string, value: number, min: number, onChange: (value: number) => void }) {
+function Slider({ label, value, min, max = 100, step = 1, display, onChange }: {
+    label: string
+    value: number
+    min: number
+    max?: number
+    step?: number
+    display?: string
+    onChange: (value: number) => void
+}) {
     return (
         <label className="block text-xs text-[--muted]">
-            <span className="flex justify-between"><span>{label}</span><span className="tabular-nums">{value}</span></span>
+            <span className="flex justify-between"><span>{label}</span><span className="tabular-nums">{display ?? value}</span></span>
             <input
                 type="range"
                 min={min}
-                max={100}
+                max={max}
+                step={step}
                 value={value}
                 onChange={event => onChange(Number(event.target.value))}
                 className="mt-1 w-full accent-[rgb(var(--color-brand-500))]"

@@ -213,6 +213,7 @@ export default function ThemeManagerPage() {
         setParticleTypeEnabled,
         setParticleTypeIntensity,
         backgroundDim,
+        backgroundDimDefault,
         setBackgroundDim,
         vignetteStrength,
         setVignetteStrength,
@@ -515,7 +516,7 @@ export default function ThemeManagerPage() {
                                 {/* Background section */}
                                 <div className="space-y-3">
                                     <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">Background</p>
-                                    <EffectSlider label="Dim" value={backgroundDim} min={0} max={1} step={0.01} display={`${Math.round(backgroundDim * 100)}%`} onChange={setBackgroundDim} onReset={() => setBackgroundDim(config.backgroundDim ?? 0.30)} />
+                                    <EffectSlider label="Dim" value={backgroundDim} min={0} max={1} step={0.01} display={`${Math.round(backgroundDim * 100)}%`} onChange={setBackgroundDim} onReset={() => setBackgroundDim(backgroundDimDefault)} />
                                     <EffectSlider label="Blur" value={backgroundBlur} min={0} max={60} step={1} display={`${backgroundBlur}px`} fillPct={(backgroundBlur / 60) * 100} onChange={setBackgroundBlur} onReset={() => setBackgroundBlur(0)} />
                                     <EffectSlider label="Exposure" value={backgroundExposure} min={0.1} max={2.5} step={0.05} display={`${Math.round(backgroundExposure * 100)}%`} fillPct={((backgroundExposure - 0.1) / 2.4) * 100} onChange={setBackgroundExposure} onReset={() => setBackgroundExposure(1.0)} />
                                     <EffectSlider label="Saturation" value={backgroundSaturation} min={0} max={3.0} step={0.05} display={`${Math.round(backgroundSaturation * 100)}%`} fillPct={(backgroundSaturation / 3.0) * 100} onChange={setBackgroundSaturation} onReset={() => setBackgroundSaturation(1.0)} />
@@ -1170,6 +1171,7 @@ export default function ThemeManagerPage() {
                 brandColorOverride={brandColorOverride}
                 setBrandColorOverride={setBrandColorOverride}
                 backgroundDim={backgroundDim}
+                backgroundDimDefault={backgroundDimDefault}
                 setBackgroundDim={setBackgroundDim}
                 backgroundBlur={backgroundBlur}
                 setBackgroundBlur={setBackgroundBlur}
@@ -2029,6 +2031,7 @@ interface ThemeSettingsPanelProps {
     brandColorOverride: string | null
     setBrandColorOverride: (v: string | null) => void
     backgroundDim: number
+    backgroundDimDefault: number
     setBackgroundDim: (v: number) => void
     backgroundBlur: number
     setBackgroundBlur: (v: number) => void
@@ -2065,7 +2068,7 @@ interface ThemeSettingsPanelProps {
 function ThemeSettingsPanel({
     open, onClose, config,
     brandColorOverride, setBrandColorOverride,
-    backgroundDim, setBackgroundDim,
+    backgroundDim, backgroundDimDefault, setBackgroundDim,
     backgroundBlur, setBackgroundBlur,
     backgroundExposure, setBackgroundExposure,
     backgroundSaturation, setBackgroundSaturation,
@@ -2187,7 +2190,7 @@ function ThemeSettingsPanel({
                             {/* ── Background sliders (at top) ── */}
                             <section className="space-y-3">
                                 <p className="text-[10px] font-semibold text-[--muted] uppercase tracking-widest">Background</p>
-                                <InlineSliderRow label="Dim" value={backgroundDim} onChange={setBackgroundDim} min={0} max={1} step={0.01} display={v => `${Math.round(v * 100)}%`} onReset={() => setBackgroundDim(config.backgroundDim ?? 0.30)} />
+                                <InlineSliderRow label="Dim" value={backgroundDim} onChange={setBackgroundDim} min={0} max={1} step={0.01} display={v => `${Math.round(v * 100)}%`} onReset={() => setBackgroundDim(backgroundDimDefault)} />
                                 <InlineSliderRow label="Blur" value={backgroundBlur} onChange={setBackgroundBlur} min={0} max={60} step={1} display={v => `${v}px`} onReset={() => setBackgroundBlur(0)} />
                                 <InlineSliderRow label="Exposure" value={backgroundExposure} onChange={setBackgroundExposure} min={0.1} max={2.5} step={0.05} display={v => `${Math.round(v * 100)}%`} onReset={() => setBackgroundExposure(1.0)} />
                                 <InlineSliderRow label="Saturation" value={backgroundSaturation} onChange={setBackgroundSaturation} min={0} max={3.0} step={0.05} display={v => `${Math.round(v * 100)}%`} onReset={() => setBackgroundSaturation(1.0)} />

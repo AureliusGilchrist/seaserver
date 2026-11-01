@@ -3,6 +3,7 @@ import Template from "@/app/template"
 import { AppErrorBoundary } from "@/components/shared/app-error-boundary"
 import { LoadingOverlayWithLogo } from "@/components/shared/loading-overlay-with-logo"
 import { NotFound } from "@/components/shared/not-found"
+import { __isMobileShell__ } from "@/types/constants"
 
 import { QueryClient } from "@tanstack/react-query"
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router"
@@ -16,7 +17,8 @@ export const Route = createRootRouteWithContext<{
 }>()({
     component: () => (
         <Template>
-            <CustomBackgroundImage />
+            {/* Denshi Mobile draws it from MainLayout: its effects come from AnimeThemeProvider. */}
+            {!__isMobileShell__ && <CustomBackgroundImage />}
             <Outlet />
         </Template>
     ),

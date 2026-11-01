@@ -34,6 +34,7 @@ import { ChapterDownloadsDrawer } from "@/app/(main)/manga/_containers/chapter-d
 import { LoadingOverlayWithLogo } from "@/components/shared/loading-overlay-with-logo"
 import { AppLayout, AppLayoutContent, AppLayoutSidebar, AppSidebarProvider } from "@/components/ui/app-layout"
 import { cn } from "@/components/ui/core/styling"
+import { CustomBackgroundImage } from "@/app/(main)/_features/custom-ui/custom-background-image"
 import { __isElectronDesktop__, __isMobileShell__ } from "@/types/constants"
 import { usePathname, useRouter } from "@/lib/navigation"
 import React from "react"
@@ -98,6 +99,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
             <SoundProvider>
             <CursorLibraryProvider />
             <SmoothScroll />
+            {__isMobileShell__ && <CustomBackgroundImage />}
             <GlobalProfileWallpaper />
             <DiscordRpcBridge />
             <RewardParticlesLayer />
