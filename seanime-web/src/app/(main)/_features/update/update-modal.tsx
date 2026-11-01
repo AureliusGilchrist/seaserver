@@ -1,6 +1,7 @@
 import { Updater_Release } from "@/api/generated/types"
 import { useDownloadRelease } from "@/api/hooks/download.hooks"
 import { useGetLatestUpdate, useInstallLatestUpdate } from "@/api/hooks/releases.hooks"
+import { serverErrorMessage, useBackendUpdateStatus, useUpdateBackend } from "@/api/hooks/update-notice.hooks"
 import { UpdateChangelogBody } from "@/app/(main)/_features/update/update-helper"
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
@@ -94,9 +95,9 @@ export function UpdateModal(props: UpdateModalProps) {
             >
                 <Downloader release={updateData?.release} />
 
-                <div className="space-y-2">
+                {isGitUpdate(updateData?.release) ? <GitUpdateBody commit={updateData?.release?.version} onLater={ignoreUpdate} /> : <div className="space-y-2">
                     <h3 className="text-center">A new update is available!</h3>
-                    <h4 className="font-bold flex gap-2 text-center items-center justify-center">
+                    <h4 className="font-bold flex flex-wrap gap-2 text-center items-center justify-center break-all">
                         <span className="text-[--muted]">{updateData?.current_version}</span> <FiArrowRight />
                         <span className="text-indigo-200">{updateData?.release?.version}</span></h4>
 
@@ -132,11 +133,55 @@ export function UpdateModal(props: UpdateModalProps) {
                         {!serverStatus?.isDesktopSidecar &&
                             <Button intent="white" leftIcon={<BiDownload />} onClick={() => setDownloaderOpen(true)}>Download</Button>}
                     </div>
-                </div>
+                </div>}
             </Modal>
         </>
     )
 
+}
+
+/** A server running from its git checkout is offered commits, which have no release page or files. */
+function isGitUpdate(release: Updater_Release | undefined) {
+    return !!release && !release.html_url && !release.assets?.length
+}
+
+function GitUpdateBody({ commit, onLater }: { commit: string | undefined, onLater: () => void }) {
+    const { data: status } = useBackendUpdateStatus()
+    const { mutate: updateBackend, isPending } = useUpdateBackend()
+    const commits = status?.commits ?? []
+
+    return (
+        <div className="space-y-4">
+            <div className="text-center">
+                <h3>A server update is ready</h3>
+                {!!commit && <p className="mt-1 font-mono text-xs text-[--muted]">{commit.slice(0, 9)}</p>}
+            </div>
+
+            {commits.length > 0
+                ? <ul className="divide-y divide-white/[0.06] overflow-hidden rounded-[--radius] bg-gray-950/50">
+                    {commits.slice(0, 5).map(c => <li key={c.hash} className="break-words px-3 py-2.5 text-sm">{c.subject}</li>)}
+                </ul>
+                : <p className="text-center text-sm text-[--muted]">The server has new changes waiting to be installed.</p>}
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <Button
+                    className="w-full sm:w-auto"
+                    leftIcon={<GrInstall className="text-2xl" />}
+                    loading={isPending}
+                    onClick={() => updateBackend({}, {
+                        onSuccess: () => {
+                            toast.success("The server is updating. It will restart when it's done.")
+                            onLater()
+                        },
+                        onError: error => toast.error(serverErrorMessage(error)),
+                    })}
+                >
+                    Update now
+                </Button>
+                <Button className="w-full sm:w-auto" intent="gray-subtle" onClick={onLater}>Later</Button>
+            </div>
+        </div>
+    )
 }
 
 type DownloaderProps = {
