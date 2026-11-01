@@ -186,8 +186,7 @@ const MediaEntryCardWrapper = React.memo(({ item }: {
         <div
             className="rounded-xl space-y-2 flex-none group/episode-card cursor-pointer select-none w-full"
             onClick={event => {
-                expandIntoPage(event.currentTarget.querySelector("img"))
-                router.push(`/manga/entry?id=${item.mediaId}`)
+                expandIntoPage(event.currentTarget.querySelector("img"), () => router.push(`/manga/entry?id=${item.mediaId}`))
             }}
             data-manga-chapter-card
             data-media-id={item.mediaId}

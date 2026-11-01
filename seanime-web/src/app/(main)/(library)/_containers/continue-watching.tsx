@@ -180,14 +180,7 @@ export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle,
                             className={episodeCardCarouselItemClass(ts.smallerEpisodeCarouselSize)}
                         >
                             <div className="relative">
-                                <div
-                                    className="group/continue-card [&_[data-episode-card-image]]:duration-300 lg:group-hover/continue-card:[&_[data-episode-card-image]]:!scale-110"
-                                    onClickCapture={event => {
-                                        const target = event.target as HTMLElement
-                                        if (target.closest("button")) return
-                                        expandIntoPage(event.currentTarget.querySelector<HTMLImageElement>("img[data-episode-card-image]"))
-                                    }}
-                                >
+                                <div className="group/continue-card [&_[data-episode-card-image]]:duration-300 lg:group-hover/continue-card:[&_[data-episode-card-image]]:!scale-110">
                                     <_EpisodeCard
                                         key={episode.localFile?.path || ""}
                                         episode={episode}
@@ -316,19 +309,17 @@ const _EpisodeCard = React.memo(({ episode, mRef, overrideLink, spoilerActive, w
             allowAnimeInfo
             mRef={mRef}
             onClick={() => {
-                if (!overrideLink) {
-                    setPlayNext(episode.baseAnime?.id, () => {
-                        if (!serverStatus?.isOffline) {
-                            router.push(`/entry?id=${episode.baseAnime?.id}`)
-                        } else {
-                            router.push(`/offline/entry/anime?id=${episode.baseAnime?.id}`)
-                        }
-                    })
-                } else {
-                    setPlayNext(episode.baseAnime?.id, () => {
+                const open = () => setPlayNext(episode.baseAnime?.id, () => {
+                    if (overrideLink) {
                         router.push(overrideLink.replace("{id}", episode.baseAnime?.id ? String(episode.baseAnime.id) : ""))
-                    })
-                }
+                    } else if (!serverStatus?.isOffline) {
+                        router.push(`/entry?id=${episode.baseAnime?.id}`)
+                    } else {
+                        router.push(`/offline/entry/anime?id=${episode.baseAnime?.id}`)
+                    }
+                })
+                // Here, not on a wrapper: the carousel cancels this click when a drag ends on the card.
+                expandIntoPage(mRef?.current?.querySelector("img[data-episode-card-image]"), open)
             }}
         />
     )
