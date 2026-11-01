@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"seanime/internal/api/anilist"
 	"seanime/internal/api/animap"
 	"seanime/internal/api/anizip"
 	"seanime/internal/api/metadata"
+	"seanime/internal/connectivity"
 	"seanime/internal/customsource"
 	"seanime/internal/database/db"
 	"seanime/internal/extension"
@@ -15,7 +17,6 @@ import (
 	"seanime/internal/util"
 	"seanime/internal/util/filecache"
 	"seanime/internal/util/result"
-	"net/http"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -181,6 +182,14 @@ func (p *ProviderImpl) GetAnimeMetadata(platform metadata.Platform, mId int) (re
 	cacheKey := GetAnimeMetadataCacheKey(platform, mId)
 	if cached, ok := p.animeMetadataCache.Get(cacheKey); ok {
 		return cached, nil
+	}
+
+	if connectivity.IsOffline() {
+		if diskMeta := p.loadMetadataFromDisk(cacheKey); diskMeta != nil {
+			p.animeMetadataCache.SetT(cacheKey, diskMeta, airingMetadataTTL)
+			return diskMeta, nil
+		}
+		return nil, errors.New("metadata is not stored for offline use")
 	}
 
 	res, err, _ := p.singleflight.Do(cacheKey, func() (interface{}, error) {

@@ -3,6 +3,8 @@ package core
 import (
 	"context"
 	"errors"
+	"seanime/internal/connectivity"
+	"seanime/internal/util/filecache"
 	"strings"
 	"sync"
 	"time"
@@ -32,6 +34,43 @@ type planningSlutCache struct {
 }
 
 var planningSlutAnimeCol planningSlutCache
+
+// The account's last known lists, kept on disk. Without them every library load waits on AniList and
+// then loses whatever only this account knows about, which with no internet is most of the library.
+var planningSlutBucket = filecache.NewPermanentBucket("planning-slut-collections")
+
+const (
+	planningSlutAnimeKey = "anime"
+	planningSlutMangaKey = "manga"
+)
+
+// SavePlanningSlutAnimeCollection keeps a copy for when AniList can't be reached.
+func (a *App) SavePlanningSlutAnimeCollection(col *anilist.AnimeCollection) {
+	if col != nil {
+		_ = a.FileCacher.SetPerm(planningSlutBucket, planningSlutAnimeKey, col)
+	}
+}
+
+// SavePlanningSlutMangaCollection keeps a copy for when AniList can't be reached.
+func (a *App) SavePlanningSlutMangaCollection(col *anilist.MangaCollection) {
+	if col != nil {
+		_ = a.FileCacher.SetPerm(planningSlutBucket, planningSlutMangaKey, col)
+	}
+}
+
+// StoredPlanningSlutAnimeCollection returns the copy on disk, if there is one.
+func (a *App) StoredPlanningSlutAnimeCollection() (*anilist.AnimeCollection, bool) {
+	var col anilist.AnimeCollection
+	found, err := a.FileCacher.GetPerm(planningSlutBucket, planningSlutAnimeKey, &col)
+	return &col, found && err == nil
+}
+
+// StoredPlanningSlutMangaCollection returns the copy on disk, if there is one.
+func (a *App) StoredPlanningSlutMangaCollection() (*anilist.MangaCollection, bool) {
+	var col anilist.MangaCollection
+	found, err := a.FileCacher.GetPerm(planningSlutBucket, planningSlutMangaKey, &col)
+	return &col, found && err == nil
+}
 
 // GetPlanningSlutToken returns the configured shared-account token, or "" when there is none.
 func (a *App) GetPlanningSlutToken() string {
@@ -73,6 +112,13 @@ func (a *App) GetPlanningSlutAnimeCollection(ctx context.Context, bypassCache bo
 	}
 	planningSlutAnimeCol.mu.Unlock()
 
+	if !connectivity.IsAniListAllowed() {
+		if col, ok := a.StoredPlanningSlutAnimeCollection(); ok {
+			return col, nil
+		}
+		return nil, anilist.ErrOffline
+	}
+
 	client, err := a.GetPlanningSlutClient()
 	if err != nil {
 		return nil, err
@@ -80,6 +126,9 @@ func (a *App) GetPlanningSlutAnimeCollection(ctx context.Context, bypassCache bo
 
 	viewer, err := client.GetViewer(ctx)
 	if err != nil {
+		if col, ok := a.StoredPlanningSlutAnimeCollection(); ok {
+			return col, nil
+		}
 		return nil, err
 	}
 	if viewer == nil || viewer.Viewer == nil {
@@ -89,8 +138,12 @@ func (a *App) GetPlanningSlutAnimeCollection(ctx context.Context, bypassCache bo
 
 	col, err := client.AnimeCollection(ctx, &name)
 	if err != nil {
+		if stored, ok := a.StoredPlanningSlutAnimeCollection(); ok {
+			return stored, nil
+		}
 		return nil, err
 	}
+	a.SavePlanningSlutAnimeCollection(col)
 
 	planningSlutAnimeCol.mu.Lock()
 	planningSlutAnimeCol.col = col

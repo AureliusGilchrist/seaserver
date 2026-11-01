@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"seanime/internal/api/anilist"
+	"seanime/internal/connectivity"
 	"seanime/internal/core"
 	"seanime/internal/database/db"
 	"seanime/internal/database/db_bridge"
@@ -448,9 +449,21 @@ func (h *Handler) getPlanningSlutAnimeCollectionCached(ctx context.Context, bypa
 			return cached, nil
 		}
 	}
-	col, err := h.getPlanningSlutAnimeCollection(ctx)
+	var col *anilist.AnimeCollection
+	var err error
+	if connectivity.IsAniListAllowed() {
+		col, err = h.getPlanningSlutAnimeCollection(ctx)
+	} else {
+		err = anilist.ErrOffline
+	}
 	if err != nil {
-		return nil, err
+		stored, ok := h.App.StoredPlanningSlutAnimeCollection()
+		if !ok {
+			return nil, err
+		}
+		col = stored
+	} else {
+		h.App.SavePlanningSlutAnimeCollection(col)
 	}
 	planningSlutAnimeCollectionCache.SetT(1, col, 5*time.Minute)
 	return col, nil
@@ -464,9 +477,21 @@ func (h *Handler) getPlanningSlutMangaCollectionCached(ctx context.Context, bypa
 			return cached, nil
 		}
 	}
-	col, err := h.getPlanningSlutMangaCollection(ctx)
+	var col *anilist.MangaCollection
+	var err error
+	if connectivity.IsAniListAllowed() {
+		col, err = h.getPlanningSlutMangaCollection(ctx)
+	} else {
+		err = anilist.ErrOffline
+	}
 	if err != nil {
-		return nil, err
+		stored, ok := h.App.StoredPlanningSlutMangaCollection()
+		if !ok {
+			return nil, err
+		}
+		col = stored
+	} else {
+		h.App.SavePlanningSlutMangaCollection(col)
 	}
 	planningSlutMangaCollectionCache.SetT(1, col, 5*time.Minute)
 	return col, nil

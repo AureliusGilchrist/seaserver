@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"seanime/internal/connectivity"
 	"seanime/internal/hook"
 	"seanime/internal/util/result"
 	"strconv"
@@ -77,6 +78,9 @@ func FetchAniZipMedia(from string, id int) (*Media, error) {
 // FetchAniZipMediaWithClient is FetchAniZipMedia with a caller-supplied HTTP client,
 // so callers can enforce their own timeout.
 func FetchAniZipMediaWithClient(from string, id int, client *http.Client) (*Media, error) {
+	if connectivity.IsOffline() {
+		return nil, errors.New("anizip: the server is offline")
+	}
 
 	// Event
 	reqEvent := &AnizipMediaRequestedEvent{

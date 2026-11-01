@@ -184,9 +184,6 @@ func (h *Handler) HandleGetMangaCollection(c echo.Context) error {
 
 	// Catalogue = admin's manga collection (media metadata source, cached)
 	catalogueMangaCollection, err := h.App.GetMangaCollection(false)
-	if err != nil {
-		return h.RespondWithError(c, err)
-	}
 
 	// For profile users with their own AniList: use their personal collection.
 	// For admin or unlinked profiles: fall back to the catalogue.
@@ -195,7 +192,17 @@ func (h *Handler) HandleGetMangaCollection(c echo.Context) error {
 		profileMangaCollection, ferr := h.App.AnilistClientManager.GetMangaCollection(profileID)
 		if ferr == nil && profileMangaCollection != nil {
 			mangaCollection = profileMangaCollection
+			err = nil
 		}
+	}
+	// Offline with nothing stored for the catalogue, the shared list is still worth trying: it's
+	// what lists everything downloaded.
+	if err != nil || mangaCollection == nil {
+		stored, ok := h.App.StoredPlanningSlutMangaCollection()
+		if !ok {
+			return h.RespondWithError(c, err)
+		}
+		mangaCollection = stored
 	}
 
 	// A status the user just changed has to be on the grid as well as on the entry page, or the two
@@ -515,7 +522,14 @@ func (h *Handler) HandleGetMangaEntryChapters(c echo.Context) error {
 		Year:     year,
 	})
 	if err != nil {
-		return h.RespondWithError(c, err)
+		// A provider that can't be reached says nothing about what's on disk.
+		providerErr := err
+		container = &manga.ChapterContainer{MediaId: b.MediaId, Provider: b.Provider}
+		merged, mergeErr := h.App.MangaRepository.MergeDownloadedChaptersWithProviderAndCollection(container, b.MediaId, nil)
+		if mergeErr != nil || merged == nil || len(merged.Chapters) == 0 {
+			return h.RespondWithError(c, providerErr)
+		}
+		return h.RespondWithData(c, merged)
 	}
 
 	// Get manga collection for merging downloaded chapters
@@ -597,10 +611,8 @@ func (h *Handler) HandleGetMangaEntryDownloadedChapters(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
-	mangaCollection, err := h.App.GetMangaCollection(false)
-	if err != nil {
-		return h.RespondWithError(c, err)
-	}
+	// Only handed on to a hook. What's on disk doesn't depend on it.
+	mangaCollection, _ := h.App.GetMangaCollection(false)
 
 	container, err := h.App.MangaRepository.GetDownloadedMangaChapterContainers(mId, mangaCollection)
 	if err != nil {

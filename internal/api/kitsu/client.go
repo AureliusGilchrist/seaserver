@@ -19,6 +19,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"seanime/internal/connectivity"
 	"seanime/internal/util/result"
 	"strconv"
 	"strings"
@@ -130,6 +131,9 @@ func (c *Client) ClearCache() {
 // `msecBetweenCalls` is non-zero only for mutating endpoints; get endpoints carry no such cost
 // because they don't trigger Kitsu's abuse detection.
 func (c *Client) do(ctx context.Context, method, path string, body any, msecBetweenCalls int) ([]byte, int, error) {
+	if connectivity.IsOffline() {
+		return nil, 0, errors.New("kitsu: the server is offline")
+	}
 	if c.logger != nil {
 		c.logger.Trace().Str("method", method).Str("path", path).Msg("kitsu: Request started")
 	}

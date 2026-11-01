@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"net"
 	"net/http"
+	"seanime/internal/connectivity"
 	"seanime/internal/constants"
 	"seanime/internal/events"
 	"seanime/internal/util"
@@ -445,6 +447,10 @@ func (ac *AnilistClientImpl) customDoFunc(ctx context.Context, req *http.Request
 		// Every request reports whether AniList is answering, so one banner can say so rather than a
 		// dozen screens each failing on their own. See availability.go.
 		noteRequestOutcome(err)
+		var netErr net.Error
+		if errors.As(err, &netErr) {
+			connectivity.ReportNetworkFailure()
+		}
 
 		timeSince := time.Since(reqTime)
 		dur := timeSince.Truncate(time.Millisecond).String()
