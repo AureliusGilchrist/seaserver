@@ -431,7 +431,9 @@ func (ac *AnilistClientImpl) customDoFunc(ctx context.Context, req *http.Request
 		// Refused rather than queued. Reported here because it is not a failure of AniList's and
 		// reads like one otherwise: the budget is spent and the queue for it is deeper than this
 		// request could be held for. See maxBudgetWait.
-		ac.logRefusal(gateErr, IsUserInitiated(ctx))
+		if !errors.Is(gateErr, ErrOffline) && !errors.Is(gateErr, ErrBlocked) {
+			ac.logRefusal(gateErr, IsUserInitiated(ctx))
+		}
 		return gateErr
 	}
 	defer release()

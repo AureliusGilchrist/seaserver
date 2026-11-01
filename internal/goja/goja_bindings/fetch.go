@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"seanime/internal/connectivity"
 	"seanime/internal/util"
 	"strings"
 	"sync"
@@ -49,15 +50,15 @@ func ApplyProxyURL(proxyURL string) {
 }
 
 type Fetch struct {
-	vm             *goja.Runtime
-	fetchSem       chan struct{}
-	vmResponseCh   chan func()
-	closed         atomic.Bool
-	closeCh        chan struct{}
-	requestWg      sync.WaitGroup
-	allowedDomains []string // empty = allow all domains
-	rules          []accessRule
-	anilistToken   string
+	vm              *goja.Runtime
+	fetchSem        chan struct{}
+	vmResponseCh    chan func()
+	closed          atomic.Bool
+	closeCh         chan struct{}
+	requestWg       sync.WaitGroup
+	allowedDomains  []string // empty = allow all domains
+	rules           []accessRule
+	anilistToken    string
 	responseHandler chan struct{} // To track the response handler goroutine
 }
 
@@ -96,11 +97,11 @@ var whitelistedDomains = []string{
 
 func NewFetch(vm *goja.Runtime, allowedDomains []string) *Fetch {
 	f := &Fetch{
-		vm:             vm,
-		fetchSem:       make(chan struct{}, maxConcurrentRequests),
-		vmResponseCh:   make(chan func(), maxConcurrentRequests),
-		closeCh:        make(chan struct{}),
-		allowedDomains: allowedDomains,
+		vm:              vm,
+		fetchSem:        make(chan struct{}, maxConcurrentRequests),
+		vmResponseCh:    make(chan func(), maxConcurrentRequests),
+		closeCh:         make(chan struct{}),
+		allowedDomains:  allowedDomains,
 		responseHandler: make(chan struct{}),
 	}
 	f.allowedDomains = lo.Uniq(append(f.allowedDomains, whitelistedDomains...))
@@ -231,12 +232,19 @@ func BindFetch(vm *goja.Runtime, allowedDomains ...[]string) *Fetch {
 	return f
 }
 
+func isAniListHost(host string) bool {
+	return host == "anilist.co" || strings.HasSuffix(host, ".anilist.co")
+}
+
 func (f *Fetch) isURLAllowed(urlStr string) bool {
 	if len(f.rules) == 0 {
 		return false
 	}
 
 	u, err := url.Parse(urlStr)
+	if err == nil && connectivity.Current() == connectivity.Blocked && isAniListHost(u.Hostname()) {
+		return false
+	}
 	if err != nil {
 		return false
 	}

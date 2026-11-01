@@ -34,7 +34,7 @@ func IsOutageError(err error) bool {
 	}
 	msg := strings.ToLower(err.Error())
 	for _, sig := range []string{
-		"connection refused", "no such host", "network is unreachable", "timeout",
+		"anilist: no connection", "connection refused", "no such host", "network is unreachable", "timeout",
 		"timed out", "eof", "connection reset", "tls handshake", "dial tcp",
 		"temporary failure", "503", "502", "504", "500", "server error",
 		"service unavailable", "too many requests", "429",

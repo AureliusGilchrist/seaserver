@@ -64,6 +64,8 @@ type AnilistSettings struct {
 	EnableAdultContent bool `gorm:"column:enable_adult_content" json:"enableAdultContent"`
 	BlurAdultContent   bool `gorm:"column:blur_adult_content" json:"blurAdultContent"`
 	DisableCacheLayer  bool `gorm:"column:disable_cache_layer" json:"disableCacheLayer"`
+	// Nothing goes to AniList at all, and changes stay pending until this is turned off.
+	BlockAll bool `gorm:"column:block_all_anilist" json:"blockAll"`
 	// v3.7+
 	// Days of AniList inactivity before a "watching" entry is auto-paused. 0 disables the job.
 	AutoPauseStaleWatchingDays int `gorm:"column:auto_pause_stale_watching_days;default:7" json:"autoPauseStaleWatchingDays"`

@@ -10,6 +10,7 @@ import (
 	"seanime/internal/achievement"
 	"seanime/internal/api/anilist"
 	"seanime/internal/api/metadata_provider"
+	"seanime/internal/connectivity"
 	"seanime/internal/constants"
 	"seanime/internal/continuity"
 	"seanime/internal/database/db"
@@ -41,18 +42,17 @@ import (
 	"seanime/internal/mediastream"
 	"seanime/internal/milestone"
 	"seanime/internal/nakama"
-	"seanime/internal/profileactivity"
 	"seanime/internal/nativeplayer"
 	"seanime/internal/onlinestream"
 	"seanime/internal/platforms/anilist_platform"
 	kitsuplatform "seanime/internal/platforms/kitsu_platform"
 	"seanime/internal/platforms/offline_platform"
 	"seanime/internal/platforms/platform"
-	"seanime/internal/watchparty"
 	"seanime/internal/platforms/simulated_platform"
 	"seanime/internal/playlist"
 	"seanime/internal/plugin"
 	"seanime/internal/privacy"
+	"seanime/internal/profileactivity"
 	"seanime/internal/report"
 	"seanime/internal/torrent_clients/torrent_client"
 	"seanime/internal/torrents/torrent"
@@ -64,6 +64,7 @@ import (
 	"seanime/internal/util/filecache"
 	"seanime/internal/util/result"
 	"seanime/internal/videocore"
+	"seanime/internal/watchparty"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -184,10 +185,10 @@ type (
 		HookManager hook.Manager
 
 		// Features
-		PlaylistManager *playlist.Manager
-		LibraryExplorer *library_explorer.LibraryExplorer
-		NakamaManager   *nakama.Manager
-		WatchPartyManager *watchparty.Manager
+		PlaylistManager        *playlist.Manager
+		LibraryExplorer        *library_explorer.LibraryExplorer
+		NakamaManager          *nakama.Manager
+		WatchPartyManager      *watchparty.Manager
 		ProfileActivityManager *profileactivity.Manager
 
 		// Unmatched torrent management
@@ -526,21 +527,21 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 		ExtensionBankRef:              extensionBankRef,
 		ExtensionPlaygroundRepository: extensionPlaygroundRepository,
 		ReportRepository:              report.NewRepository(logger),
-		TorrentRepository:             nil,                                          // Initialized in App.initModulesOnce
-		FillerManager:                 nil,                                          // Initialized in App.initModulesOnce
-		MangaDownloader:               nil,                                          // Initialized in App.initModulesOnce
-		PlaybackManager:               nil,                                          // Initialized in App.initModulesOnce
-		AutoDownloader:                nil,                                          // Initialized in App.initModulesOnce
-		AutoScanner:                   nil,                                          // Initialized in App.initModulesOnce
-		MediastreamRepository:         nil,                                          // Initialized in App.initModulesOnce
-		TorrentstreamRepository:       nil,                                          // Initialized in App.initModulesOnce
-		ContinuityManager:             nil,                                          // Initialized in App.initModulesOnce
-		DebridClientRepository:        nil,                                          // Initialized in App.initModulesOnce
-		DirectStreamManager:           nil,                                          // Initialized in App.initModulesOnce
-		NativePlayer:                  nil,                                          // Initialized in App.initModulesOnce
-		VideoCore:                     nil,                                          // Initialized in App.initModulesOnce
-		NakamaManager:                 nil,                                          // Initialized in App.initModulesOnce
-		WatchPartyManager:             nil,                                          // Initialized in App.initModulesOnce
+		TorrentRepository:             nil, // Initialized in App.initModulesOnce
+		FillerManager:                 nil, // Initialized in App.initModulesOnce
+		MangaDownloader:               nil, // Initialized in App.initModulesOnce
+		PlaybackManager:               nil, // Initialized in App.initModulesOnce
+		AutoDownloader:                nil, // Initialized in App.initModulesOnce
+		AutoScanner:                   nil, // Initialized in App.initModulesOnce
+		MediastreamRepository:         nil, // Initialized in App.initModulesOnce
+		TorrentstreamRepository:       nil, // Initialized in App.initModulesOnce
+		ContinuityManager:             nil, // Initialized in App.initModulesOnce
+		DebridClientRepository:        nil, // Initialized in App.initModulesOnce
+		DirectStreamManager:           nil, // Initialized in App.initModulesOnce
+		NativePlayer:                  nil, // Initialized in App.initModulesOnce
+		VideoCore:                     nil, // Initialized in App.initModulesOnce
+		NakamaManager:                 nil, // Initialized in App.initModulesOnce
+		WatchPartyManager:             nil, // Initialized in App.initModulesOnce
 		ProfileActivityManager:        profileactivity.NewManager(),
 		LibraryExplorer:               nil,                                          // Initialized in App.initModulesOnce
 		TorrentClientRepository:       nil,                                          // Initialized in App.InitOrRefreshModules
@@ -575,6 +576,17 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 		app.BootID = fmt.Sprintf("%x-%x-%x-%x-%x", bootBytes[0:4], bootBytes[4:6], bootBytes[6:8], bootBytes[8:10], bootBytes[10:])
 		logger.Info().Str("bootId", app.BootID).Msg("app: Generated boot ID for session invalidation")
 	}
+
+	// The offline flag used to be fixed at boot. It now follows the real connection, which also
+	// switches on every check that reads it: background jobs, the auto downloader, downloaded manga.
+	connectivity.OnChange(func(state connectivity.State) {
+		app.isOfflineRef.Set(connectivity.IsOffline())
+		logger.Info().Str("state", string(state)).Msg("app: Connectivity changed")
+		if app.WSEventManager != nil {
+			app.WSEventManager.SendEvent(events.ConnectivityChanged, string(state))
+		}
+	})
+	connectivity.Start(context.Background())
 
 	// Initialize AnilistClientManager after app struct is created (it references app)
 	app.AnilistClientManager = NewAnilistClientManager(app)

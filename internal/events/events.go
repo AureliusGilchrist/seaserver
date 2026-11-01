@@ -71,6 +71,7 @@ const (
 	UnmatchedMatchQueueUpdated  = "unmatched-match-queue-updated"
 	TorrentAddQueueUpdated      = "torrent-add-queue-updated"
 	UpdateNoticeAvailable       = "update-notice-available"
+	ConnectivityChanged         = "connectivity-changed" // Payload: online, offline or blocked
 	UpdateBackendLog            = "update-backend-log"
 	UpdateBackendProgress       = "update-backend-progress"
 	// UpdateBackendStatus: the cached update status changed (a check finished); clients refetch it.

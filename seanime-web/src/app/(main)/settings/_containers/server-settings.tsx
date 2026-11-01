@@ -232,6 +232,12 @@ export function ServerSettings(props: ServerSettingsProps) {
                 />
                 <Field.Switch
                     side="right"
+                    name="blockAll"
+                    label="Block all AniList"
+                    help="Nothing is sent to AniList, even with internet. Your changes stay pending and sync when you turn this off."
+                />
+                <Field.Switch
+                    side="right"
                     name="disableCacheLayer"
                     label="Disable AniList caching"
                     help="If enabled, Deus Ex Aeternae will stop caching AniList requests to disk."

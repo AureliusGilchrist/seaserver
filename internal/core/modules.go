@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"seanime/internal/achievement"
 	"seanime/internal/api/anilist"
+	"seanime/internal/connectivity"
 	"seanime/internal/continuity"
 	"seanime/internal/database/db"
 	"seanime/internal/database/db_bridge"
@@ -930,6 +931,7 @@ func (a *App) InitOrRefreshModules() {
 
 	if settings.Anilist != nil {
 		shared_platform.ShouldCache.Store(!settings.Anilist.DisableCacheLayer)
+		connectivity.SetBlocked(settings.Anilist.BlockAll)
 	}
 
 	// +---------------------+

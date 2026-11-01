@@ -3,6 +3,7 @@ package anilist
 import (
 	"context"
 	"errors"
+	"seanime/internal/connectivity"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -214,6 +215,14 @@ func yieldToUserRequests(ctx context.Context) {
 // Every AniList request in the server passes through here — see customDoFunc — so this is the one
 // place both the ordering and the pacing can be got right.
 func gateRequest(ctx context.Context) (func(), error) {
+	// First, so nothing waits on a budget or a timeout for a request that can't go anywhere.
+	switch connectivity.Current() {
+	case connectivity.Blocked:
+		return nil, ErrBlocked
+	case connectivity.Offline:
+		return nil, ErrOffline
+	}
+
 	if isWrite(ctx) {
 		// A write also counts as the user waiting, so background work keeps standing aside.
 		endWrite := beginWrite()
@@ -246,6 +255,13 @@ func gateRequest(ctx context.Context) (func(), error) {
 	}
 	return func() {}, nil
 }
+
+// ErrOffline and ErrBlocked refuse a request that was never sent. Both read as outages on purpose:
+// callers already know to fall back to their cached copy and queue edits for those.
+var (
+	ErrOffline = errors.New("anilist: no connection, the server is offline")
+	ErrBlocked = errors.New("anilist: no connection, blocked in settings")
+)
 
 // ErrRateBudgetWait is returned instead of waiting when the queue for a slot is longer than anyone
 // could reasonably be kept waiting. See maxBudgetWait.

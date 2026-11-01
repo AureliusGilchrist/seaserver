@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
+	"seanime/internal/connectivity"
 	"seanime/internal/constants"
 	"seanime/internal/core"
 	"seanime/internal/database/models"
@@ -26,20 +27,21 @@ import (
 // Status is a struct containing the user data, settings, and OS.
 // It is used by the client in various places to access necessary information.
 type Status struct {
-	OS                    string                        `json:"os"`
-	ClientDevice          string                        `json:"clientDevice"`
-	ClientPlatform        string                        `json:"clientPlatform"`
-	ClientUserAgent       string                        `json:"clientUserAgent"`
-	DataDir               string                        `json:"dataDir"`
-	User                  *user.User                    `json:"user"`
-	Settings              *models.Settings              `json:"settings"`
-	Version               string                        `json:"version"`
-	VersionName           string                        `json:"versionName"`
+	OS              string           `json:"os"`
+	ClientDevice    string           `json:"clientDevice"`
+	ClientPlatform  string           `json:"clientPlatform"`
+	ClientUserAgent string           `json:"clientUserAgent"`
+	DataDir         string           `json:"dataDir"`
+	User            *user.User       `json:"user"`
+	Settings        *models.Settings `json:"settings"`
+	Version         string           `json:"version"`
+	VersionName     string           `json:"versionName"`
 	// FrontendVersion is the seanime-web version this server build ships. The client
 	// compares it with the version baked into its own bundle to detect a stale UI.
 	FrontendVersion       string                        `json:"frontendVersion"`
 	ThemeSettings         *models.Theme                 `json:"themeSettings"`
 	IsOffline             bool                          `json:"isOffline"`
+	Connectivity          string                        `json:"connectivity"`
 	MediastreamSettings   *models.MediastreamSettings   `json:"mediastreamSettings"`
 	TorrentstreamSettings *models.TorrentstreamSettings `json:"torrentstreamSettings"`
 	DebridSettings        *models.DebridSettings        `json:"debridSettings"`
@@ -122,6 +124,7 @@ func (h *Handler) NewStatus(c echo.Context) *Status {
 		FrontendVersion:       constants.FrontendVersion,
 		ThemeSettings:         theme,
 		IsOffline:             h.App.Config.Server.Offline,
+		Connectivity:          string(connectivity.Current()),
 		MediastreamSettings:   h.App.SecondarySettings.Mediastream,
 		TorrentstreamSettings: h.App.SecondarySettings.Torrentstream,
 		DebridSettings:        h.App.SecondarySettings.Debrid,

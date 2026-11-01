@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"seanime/internal/connectivity"
 	"sort"
 	"strings"
 	"sync"
@@ -177,6 +178,10 @@ func (q *AnilistEditQueue) loop() {
 
 // RunDue sends every edit whose time has come and returns how long until the next one is due.
 func (q *AnilistEditQueue) RunDue(ctx context.Context) time.Duration {
+	// Held until AniList can be reached, without using up any entry's retries.
+	if !connectivity.IsAniListAllowed() {
+		return 15 * time.Second
+	}
 	q.mu.Lock()
 	now := q.now()
 	due := make([]*QueuedListEdit, 0)

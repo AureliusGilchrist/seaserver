@@ -4126,6 +4126,7 @@ export type Status = {
     frontendVersion: string
     themeSettings?: Models_Theme
     isOffline: boolean
+    connectivity: string
     mediastreamSettings?: Models_MediastreamSettings
     torrentstreamSettings?: Models_TorrentstreamSettings
     debridSettings?: Models_DebridSettings
@@ -5541,6 +5542,10 @@ export type Models_AnilistSettings = {
     enableAdultContent: boolean
     blurAdultContent: boolean
     disableCacheLayer: boolean
+    /**
+     * Nothing goes to AniList at all, and changes stay pending until this is turned off.
+     */
+    blockAll: boolean
     autoPauseStaleWatchingDays: number
 }
 

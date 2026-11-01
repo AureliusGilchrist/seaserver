@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"seanime/internal/api/anilist"
+	"seanime/internal/connectivity"
 	"seanime/internal/events"
 	"seanime/internal/platforms/shared_platform"
 	"seanime/internal/util"
@@ -420,6 +421,10 @@ func (m *AnilistClientManager) StartPendingFlusher(ctx context.Context) {
 	state := make(map[uint]*backoffState)
 
 	attempt := func(id uint, force bool) {
+		// Held, not failed: nothing can land, so there's no point backing off for it.
+		if !connectivity.IsAniListAllowed() {
+			return
+		}
 		stateMu.Lock()
 		st := state[id]
 		if st == nil {

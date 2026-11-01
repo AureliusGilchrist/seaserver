@@ -508,6 +508,7 @@ export default function Page() {
                                         enableAdultContent: data.enableAdultContent,
                                         blurAdultContent: status?.settings?.anilist?.blurAdultContent ?? false,
                                         disableCacheLayer: data.disableCacheLayer,
+                                        blockAll: data.blockAll,
                                         autoPauseStaleWatchingDays: status?.settings?.anilist?.autoPauseStaleWatchingDays ?? 7,
                                     },
                                     notifications: {
