@@ -1,5 +1,6 @@
+import { __isMobileShell__ } from "@/types/constants"
 import { mobileShellHlsConfig } from "@/app/(main)/_features/video-core/video-core-mobile-shell"
-import { getPreferredHlsQualityLevel } from "@/app/(main)/_features/video-core/_lib/hls-quality"
+import { getPhoneHlsLevel, getPreferredHlsQualityLevel } from "@/app/(main)/_features/video-core/_lib/hls-quality"
 import { vc_audioManager } from "@/app/(main)/_features/video-core/video-core"
 import { vc_autoPlayVideoAtom } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { logger } from "@/lib/helpers/debug"
@@ -56,6 +57,8 @@ export function isHLSSrc(src: string): boolean {
 }
 
 export const NATIVE_VIDEO_EXTENSIONS = /\.(mp4|avi|3gp|ogg)($|\?)/i
+
+const PHONE_STALLS_BEFORE_STEP_DOWN = 4
 
 export function isNativeVideoExtension(src: string): boolean {
     return NATIVE_VIDEO_EXTENSIONS.test(src)
@@ -173,6 +176,8 @@ export function useVideoCoreHls({
             // MAX_RECOVERY_ATTEMPTS (8) times total before surfacing a provider error.
             let recoveryAttempts = 0
             let fatalErrorReported = false
+            let phoneLevelPinned = false
+            let phoneStalls = 0
 
             const reportFatalError = (data: ErrorData) => {
                 if (fatalErrorReported) return
@@ -309,7 +314,12 @@ export function useVideoCoreHls({
                 setQualityLevels(levels)
 
                 const preferredLevel = getPreferredHlsQualityLevel(levels, preferredQualityRef.current)
-                if (preferredLevel !== null) {
+                const phoneLevel = __isMobileShell__ && (preferredLevel === null || preferredLevel === -1) ? getPhoneHlsLevel(levels) : null
+                if (phoneLevel !== null) {
+                    hlsLog.info("Staying on one quality level for this phone", phoneLevel)
+                    hls.currentLevel = phoneLevel
+                    phoneLevelPinned = true
+                } else if (preferredLevel !== null) {
                     hlsLog.info("Applying preferred quality level", preferredLevel)
                     hls.currentLevel = preferredLevel
                 }
@@ -375,6 +385,12 @@ export function useVideoCoreHls({
                 hlsLog.error("HLS error", data)
                 if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR && !data.fatal) {
                     onStalled?.(data)
+                    // A phone's pinned level still has to give way to a connection that can't carry it.
+                    if (phoneLevelPinned && ++phoneStalls >= PHONE_STALLS_BEFORE_STEP_DOWN && hls.currentLevel > 0) {
+                        phoneStalls = 0
+                        hls.currentLevel = hls.currentLevel - 1
+                        setCurrentQuality(hls.currentLevel)
+                    }
                 }
 
                 if (!data.fatal) return

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { getPreferredHlsQualityLevel } from "./hls-quality"
+import { getPhoneHlsLevel, getPreferredHlsQualityLevel } from "./hls-quality"
 import type { HlsQualityOption } from "./hls-quality"
 
 const levels: HlsQualityOption[] = [
@@ -26,5 +26,25 @@ describe("getPreferredHlsQualityLevel", () => {
     it("does not override HLS for an unknown quality label", () => {
         expect(getPreferredHlsQualityLevel(levels, "HD")).toBeNull()
         expect(getPreferredHlsQualityLevel(levels, undefined)).toBeNull()
+    })
+})
+
+describe("getPhoneHlsLevel", () => {
+    const level = (index: number, height: number) => ({ index, height, bitrate: height * 1000 })
+
+    it("stays at 720p when higher levels exist", () => {
+        expect(getPhoneHlsLevel([level(0, 240), level(1, 480), level(2, 720), level(3, 1080)])).toBe(2)
+    })
+
+    it("takes the highest level a smaller source has", () => {
+        expect(getPhoneHlsLevel([level(0, 240), level(1, 480)])).toBe(1)
+    })
+
+    it("leaves a single level alone", () => {
+        expect(getPhoneHlsLevel([level(0, 1080)])).toBeNull()
+    })
+
+    it("has nothing to pick when every level is above 720p", () => {
+        expect(getPhoneHlsLevel([level(0, 1080), level(1, 1440)])).toBeNull()
     })
 })

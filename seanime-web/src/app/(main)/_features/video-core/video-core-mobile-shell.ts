@@ -5,17 +5,20 @@ const HTTP_INTERCEPTOR = "/_capacitor_http_interceptor_"
 
 /**
  * On Android, Capacitor replaces XMLHttpRequest with a version that never passes responseType to the
- * native side, so a video segment arrives as text and cannot be played. Its own proxy path is left
- * alone and keeps the bytes intact. hls.js leaves a request as it is if xhrSetup has already opened it.
+ * native side, so a video segment arrives as text and cannot be played. hls.js leaves a request as it
+ * is if xhrSetup has already opened it, which is how segments get past that.
  */
 export const mobileShellHlsConfig = __isMobileShell__ ? {
-    // Waiting a moment beats 240p on a phone: a slow first segment is the encoder starting, not the network.
-    minAutoBitrate: 2_000_000,
+    // Never 240p, but low enough that a connection which cannot carry 480p drops a level instead of stalling.
+    minAutoBitrate: 1_000_000,
+    // Room to ride out a slow patch. Transcoded segments can be under a second long.
+    maxBufferLength: 60,
     xhrSetup: (xhr: XMLHttpRequest, url: string) => {
-        const proxy = new URL(window.location.origin)
-        proxy.pathname = HTTP_INTERCEPTOR
-        proxy.searchParams.set("u", new URL(url, window.location.href).toString())
-        xhr.open("GET", proxy.toString(), true)
+        // Going through Capacitor's own proxy opens a connection per segment, which a VPN pays for
+        // every time. Its patch leaves any URL with the proxy's path in it alone, so this one goes
+        // out as a real request on a connection the WebView keeps open.
+        const separator = url.includes("?") ? "&" : "?"
+        xhr.open("GET", `${url}${separator}_=${HTTP_INTERCEPTOR}`, true)
         // hls.js resolves a playlist's relative links against this, so it has to stay the real address.
         Object.defineProperty(xhr, "responseURL", { get: () => url })
     },
