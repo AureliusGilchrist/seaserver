@@ -15,8 +15,6 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void load() {
         super.load();
-        // Media from the server goes out natively, the way API calls do. See NativeMediaWebViewClient.
-        bridge.setWebViewClient(new NativeMediaWebViewClient(bridge));
         // The shell script's synchronous native bridge (see ShellConfigInterface) must exist
         // before the page's scripts run; loadUrl is only queued at this point, so adding the
         // interface here lands it in every page load.

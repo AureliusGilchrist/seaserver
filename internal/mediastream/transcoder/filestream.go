@@ -207,7 +207,11 @@ func (fs *FileStream) GetCopyMaster() string {
 
 func (fs *FileStream) audioRenditions() string {
 	master := ""
-	for _, audio := range fs.Info.Audios {
+	audios := fs.Info.Audios
+	if fs.settings != nil {
+		audios = keepDecodableAudios(audios, getFFmpegDecoders(fs.settings.FfmpegPath))
+	}
+	for _, audio := range audios {
 		master += "#EXT-X-MEDIA:TYPE=AUDIO,"
 		master += "GROUP-ID=\"audio\","
 		if audio.Language != nil {

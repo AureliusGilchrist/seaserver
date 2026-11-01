@@ -40,6 +40,8 @@ type ImageProxy struct {
 // goroutine behind until the server ran out.
 var imageProxyClient = req.C().SetTimeout(60 * time.Second)
 
+var imageProxySlots = make(chan struct{}, 6)
+
 const (
 	imageCacheMaxAge   = 30 * 24 * time.Hour // refetched after this
 	imageCacheMaxBytes = 1 << 30             // 1 GB, least recently used pruned beyond it
@@ -124,6 +126,14 @@ func (ip *ImageProxy) ProxyImage(c echo.Context) (err error) {
 		return c.NoContent(http.StatusNotModified)
 	}
 
+	if body, contentType, ok := ip.readCache(key); ok {
+		ip.setHeaders(c, contentType, etag)
+		return c.Blob(http.StatusOK, contentType, body)
+	}
+
+	// A chapter asks for all of its pages at once, and image hosts stall when they all go out together.
+	imageProxySlots <- struct{}{}
+	defer func() { <-imageProxySlots }()
 	if body, contentType, ok := ip.readCache(key); ok {
 		ip.setHeaders(c, contentType, etag)
 		return c.Blob(http.StatusOK, contentType, body)
