@@ -34,7 +34,7 @@ func (r *Repository) ServeEchoTranscodeStream(c echo.Context, clientId string) e
 	}
 
 	if path == "master.m3u8" {
-		ret, err := r.transcoder.MustGet().GetMaster(mediaContainer.Filepath, mediaContainer.Hash, mediaContainer.MediaInfo, clientId)
+		ret, err := r.transcoder.MustGet().GetMaster(mediaContainer.Filepath, mediaContainer.Hash, mediaContainer.MediaInfo, clientId, c.QueryParam("copy") == "1")
 		if err != nil {
 			return err
 		}

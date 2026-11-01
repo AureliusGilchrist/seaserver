@@ -1,3 +1,4 @@
+import { mobileShellStreamQuery } from "@/app/(main)/_features/video-core/video-core-mobile-shell"
 import { isDirectPlayOnly } from "@/app/(main)/mediastream/_lib/direct-play-only"
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { Anime_Episode, Mediastream_StreamType, Nullish } from "@/api/generated/types"
@@ -247,7 +248,7 @@ export function useHandleMediastream(props: HandleMediastreamProps) {
         if (mediaContainer?.streamUrl) {
             logger("MEDIASTREAM").info("Stream URL available", mediaContainer.streamUrl)
 
-            const _newUrl = `${getServerBaseUrl()}${mediaContainer.streamUrl}`
+            const _newUrl = `${getServerBaseUrl()}${mediaContainer.streamUrl}${mobileShellStreamQuery(mediaContainer)}`
 
             logger("MEDIASTREAM").info("Changing URL", _newUrl, "streamType:", mediaContainer.streamType)
 

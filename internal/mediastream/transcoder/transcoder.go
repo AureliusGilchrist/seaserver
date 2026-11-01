@@ -180,7 +180,7 @@ func (t *Transcoder) getFileStream(path string, hash string, mediaInfo *videofil
 	return ret, nil
 }
 
-func (t *Transcoder) GetMaster(path string, hash string, mediaInfo *videofile.MediaInfo, client string) (string, error) {
+func (t *Transcoder) GetMaster(path string, hash string, mediaInfo *videofile.MediaInfo, client string, copyVideo bool) (string, error) {
 	if debugStream {
 		start := time.Now()
 		t.logger.Trace().Msgf("transcoder: Retrieving master file")
@@ -197,6 +197,9 @@ func (t *Transcoder) GetMaster(path string, hash string, mediaInfo *videofile.Me
 		audio:   -1,
 		head:    -1,
 	})
+	if copyVideo {
+		return stream.GetCopyMaster(), nil
+	}
 	return stream.GetMaster(), nil
 }
 

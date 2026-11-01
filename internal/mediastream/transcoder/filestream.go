@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"path/filepath"
+	"regexp"
 	"seanime/internal/mediastream/videofile"
 	"seanime/internal/util/result"
 	"strings"
@@ -116,6 +117,9 @@ func (fs *FileStream) stop() {
 	})
 }
 
+// ffprobe reports no level for some HEVC files, which comes out as "L-99".
+var invalidHevcLevel = regexp.MustCompile(`L-\d+`)
+
 // GetMaster generates the master playlist.
 func (fs *FileStream) GetMaster() string {
 	master := "#EXTM3U\n"
@@ -178,6 +182,31 @@ func (fs *FileStream) GetMaster() string {
 		//	}
 		//}
 	}
+	return master + fs.audioRenditions()
+}
+
+// GetCopyMaster generates a master playlist with the source video as its only quality: nothing has
+// to decode it on the server, so it plays when ffmpeg has no decoder for the source codec, as long
+// as the client can decode it itself.
+func (fs *FileStream) GetCopyMaster() string {
+	master := "#EXTM3U\n"
+	if fs.Info.Video != nil {
+		master += "#EXT-X-STREAM-INF:"
+		master += fmt.Sprintf("AVERAGE-BANDWIDTH=%d,", int(float64(fs.Info.Video.Bitrate)*0.8))
+		master += fmt.Sprintf("BANDWIDTH=%d,", int(fs.Info.Video.Bitrate))
+		master += fmt.Sprintf("RESOLUTION=%dx%d,", fs.Info.Video.Width, fs.Info.Video.Height)
+		if fs.Info.Video.MimeCodec != nil {
+			master += fmt.Sprintf("CODECS=\"%s\",", invalidHevcLevel.ReplaceAllString(*fs.Info.Video.MimeCodec, "L150"))
+		}
+		master += "AUDIO=\"audio\","
+		master += "CLOSED-CAPTIONS=NONE\n"
+		master += fmt.Sprintf("./%s/index.m3u8\n", Original)
+	}
+	return master + fs.audioRenditions()
+}
+
+func (fs *FileStream) audioRenditions() string {
+	master := ""
 	for _, audio := range fs.Info.Audios {
 		master += "#EXT-X-MEDIA:TYPE=AUDIO,"
 		master += "GROUP-ID=\"audio\","

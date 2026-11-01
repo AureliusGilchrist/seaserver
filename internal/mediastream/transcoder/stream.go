@@ -462,7 +462,10 @@ func (ts *Stream) run(start int32) error {
 		"-nostats", "-hide_banner", "-loglevel", "warning",
 	}
 
-	args = append(args, ts.settings.HwAccel.DecodeFlags...)
+	// A copy decodes nothing, and must not depend on a decoder being there.
+	if ts.handle.getFlags()&Transmux == 0 {
+		args = append(args, ts.settings.HwAccel.DecodeFlags...)
+	}
 
 	if startRef != 0 {
 		if ts.handle.getFlags()&VideoF != 0 {

@@ -1,3 +1,4 @@
+import { Mediastream_MediaContainer } from "@/api/generated/types"
 import { __isMobileShell__ } from "@/types/constants"
 
 const HTTP_INTERCEPTOR = "/_capacitor_http_interceptor_"
@@ -17,3 +18,15 @@ export const mobileShellHlsConfig = __isMobileShell__ ? {
         Object.defineProperty(xhr, "responseURL", { get: () => url })
     },
 } : {}
+
+/**
+ * Asks for the source video untouched when the file is HEVC and this phone decodes HEVC itself. The
+ * server's ffmpeg may have no HEVC decoder, and re-encoding costs quality the phone doesn't need.
+ */
+export function mobileShellStreamQuery(container: Mediastream_MediaContainer | null | undefined) {
+    if (!__isMobileShell__ || container?.streamType !== "transcode") return ""
+    const codec = container.mediaInfo?.mimeCodec?.match(/hvc1\.[^",\s]+|hev1\.[^",\s]+/)?.[0]
+    if (!codec) return ""
+    const playable = codec.replace(/^hev1/, "hvc1").replace(/L-\d+/, "L150")
+    return MediaSource.isTypeSupported(`video/mp4; codecs="${playable}"`) ? "?copy=1" : ""
+}
