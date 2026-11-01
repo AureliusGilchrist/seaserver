@@ -81,7 +81,7 @@ export function ChapterPage(props: ChapterPageProps) {
                     data-chapter-page-image
                     data-page-index={index}
                     src={src}
-                    // No referrer: hosts that check it reject the app's own origin (https://localhost
+                    // No referrer: hosts that check it reject the app's own origin (http://localhost
                     // on Android). The server proxy below is the fallback for those that still refuse.
                     referrerPolicy="no-referrer"
                     onError={() => {

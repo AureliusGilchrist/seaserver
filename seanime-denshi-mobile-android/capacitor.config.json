@@ -2,6 +2,9 @@
     "appId": "app.seanine.denshi.mobile",
     "appName": "Denshi Mobile",
     "webDir": "www",
+    "server": {
+        "androidScheme": "http"
+    },
     "android": {
         "allowMixedContent": true,
         "webContentsDebuggingEnabled": false,

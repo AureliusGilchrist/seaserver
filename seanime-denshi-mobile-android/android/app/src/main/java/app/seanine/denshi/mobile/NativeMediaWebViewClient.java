@@ -19,7 +19,7 @@ import java.util.Map;
 /**
  * Fetches what the page loads from the server over plain http.
  *
- * The page is served from https://localhost, and API calls leave through the native HTTP plugin. An
+ * The page is served from http://localhost, and API calls leave through the native HTTP plugin. An
  * img or video element cannot: it goes through the WebView's own network stack, which can refuse to
  * reach a local address from a page, so episodes and manga pages failed while everything else worked.
  * Answering those requests here sends them out the same way the API calls go. Anything that goes

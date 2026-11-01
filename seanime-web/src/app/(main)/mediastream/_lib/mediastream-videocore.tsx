@@ -1,4 +1,5 @@
 "use client"
+import { isDirectPlayOnly } from "@/app/(main)/mediastream/_lib/direct-play-only"
 import { VideoCorePlayEpisodeRequest } from "@/app/(main)/_features/video-core/video-core-playlist"
 import { attachHiddenAudioSync } from "@/app/(main)/_features/video-core/hidden-audio-sync"
 import React from "react"
@@ -287,7 +288,7 @@ function MediastreamDirectPlayEffects({
     // switched to transcoding, which on this server thrashed encoder heads, paused, drifted the
     // audio and lost the resume position.
     const { data: mediastreamSettings } = useGetMediastreamSettings(true)
-    const directPlayOnly = !!mediastreamSettings?.directPlayOnly
+    const directPlayOnly = isDirectPlayOnly(mediastreamSettings)
 
     React.useEffect(() => {
         if (!videoElement || !handleChangeStreamType || currentStreamType !== "direct") return

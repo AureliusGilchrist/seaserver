@@ -1,3 +1,4 @@
+import { mobileShellHlsConfig } from "@/app/(main)/_features/video-core/video-core-mobile-shell"
 import { getPreferredHlsQualityLevel } from "@/app/(main)/_features/video-core/_lib/hls-quality"
 import { vc_audioManager } from "@/app/(main)/_features/video-core/video-core"
 import { vc_autoPlayVideoAtom } from "@/app/(main)/_features/video-core/video-core.atoms"
@@ -128,6 +129,7 @@ export function useVideoCoreHls({
 
             // Create new HLS instance
             const hls = new Hls({
+                ...mobileShellHlsConfig,
                 enableWorker: true,
                 lowLatencyMode: false,
                 backBufferLength: 90,

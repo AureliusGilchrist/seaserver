@@ -5,7 +5,7 @@ import { __isMobileShell__ } from "@/types/constants"
  * Server-relative theme/wallpaper/music paths ("/themes/…", "/theme-bg/…", "/theme-music/…",
  * "/api/…") made absolute for the Android client.
  *
- * The Android app serves its pages from https://localhost, so a relative path resolves to the app
+ * The Android app serves its pages from http://localhost, so a relative path resolves to the app
  * itself — and its bundle leaves the 350 MB of theme images out. Themes had no wallpaper there, and
  * with no wallpaper there was nothing to take the accent color from. Everywhere else the page is
  * served alongside these paths, so they're returned unchanged.

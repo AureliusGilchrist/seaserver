@@ -58,7 +58,7 @@ export function useMangaReaderUtils() {
     /**
      * The same page fetched by the server instead of the device. Used when a direct provider image
      * fails to load: image hosts commonly reject requests by referrer/origin, and the Android
-     * client's origin (https://localhost) is one they refuse. Returns null for pages that already
+     * client's origin (http://localhost) is one they refuse. Returns null for pages that already
      * come from the server.
      */
     const getProxiedChapterPageUrl = React.useCallback((url: string, isDownloaded: boolean | undefined, headers?: Record<string, string>) => {

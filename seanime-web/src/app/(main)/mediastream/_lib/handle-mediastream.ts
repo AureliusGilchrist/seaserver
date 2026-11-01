@@ -1,3 +1,4 @@
+import { isDirectPlayOnly } from "@/app/(main)/mediastream/_lib/direct-play-only"
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { Anime_Episode, Mediastream_StreamType, Nullish } from "@/api/generated/types"
 import { useHandleContinuityWithMediaPlayer, useHandleCurrentMediaContinuity } from "@/api/hooks/continuity.hooks"
@@ -193,11 +194,11 @@ export function useHandleMediastream(props: HandleMediastreamProps) {
 
             logger("MEDIASTREAM").info("Settings", {
                 disableAutoSwitchToDirectPlay: mediastreamSettings.disableAutoSwitchToDirectPlay,
-                directPlayOnly: mediastreamSettings.directPlayOnly,
+                directPlayOnly: isDirectPlayOnly(mediastreamSettings),
                 codecSupported,
             })
 
-            if (!codecSupported && mediastreamSettings.directPlayOnly) {
+            if (!codecSupported && isDirectPlayOnly(mediastreamSettings)) {
                 // No transcode to fall back to — try direct play rather than refuse.
                 logger("MEDIASTREAM").warning("Codec reported unsupported in direct-play-only mode, trying direct play", mediaContainer?.mediaInfo?.mimeCodec)
                 toast.warning("This file's codec may not be supported on this device — trying anyway")
@@ -206,7 +207,7 @@ export function useHandleMediastream(props: HandleMediastreamProps) {
                 return
             }
 
-            if (!mediastreamSettings.disableAutoSwitchToDirectPlay && !mediastreamSettings.directPlayOnly) {
+            if (!mediastreamSettings.disableAutoSwitchToDirectPlay && !isDirectPlayOnly(mediastreamSettings)) {
                 if (codecSupported) {
                     logger("MEDIASTREAM").info("Codec supported", mediaContainer?.mediaInfo?.mimeCodec)
                     logger("MEDIASTREAM").warning("Switching to direct play")
@@ -215,7 +216,7 @@ export function useHandleMediastream(props: HandleMediastreamProps) {
                     logger("MEDIASTREAM").info("Setting URL to undefined")
                     return
                 }
-            } else if (mediastreamSettings.directPlayOnly) {
+            } else if (isDirectPlayOnly(mediastreamSettings)) {
                 if (codecSupported) {
                     logger("MEDIASTREAM").info("Direct play only, switching to direct play")
                     setStreamType("direct")
@@ -233,7 +234,7 @@ export function useHandleMediastream(props: HandleMediastreamProps) {
         }
         // If the codec is not supported, switch to transcode
         if (mediaContainer?.streamType === "direct") {
-            if (!codecSupported && !mediastreamSettings?.directPlayOnly) {
+            if (!codecSupported && !isDirectPlayOnly(mediastreamSettings)) {
                 logger("MEDIASTREAM").warning("Codec not supported for direct play", mediaContainer?.mediaInfo?.mimeCodec)
                 logger("MEDIASTREAM").warning("Switching to transcode")
                 setStreamType("transcode")

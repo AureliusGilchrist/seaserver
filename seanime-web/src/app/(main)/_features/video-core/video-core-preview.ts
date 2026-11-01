@@ -1,3 +1,4 @@
+import { mobileShellHlsConfig } from "@/app/(main)/_features/video-core/video-core-mobile-shell"
 import type { VideoCore_VideoPlaybackInfo } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { logger } from "@/lib/helpers/debug"
 import Hls from "hls.js"
@@ -153,6 +154,7 @@ export class VideoCorePreviewManager {
         if (this.isHlsSource) {
             if (Hls.isSupported()) {
                 this.hlsInstance = new Hls({
+                ...mobileShellHlsConfig,
                     enableWorker: false,
                     lowLatencyMode: false,
                     backBufferLength: 0,

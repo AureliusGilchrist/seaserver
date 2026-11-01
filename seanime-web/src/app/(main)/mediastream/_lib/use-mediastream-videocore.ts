@@ -1,3 +1,4 @@
+import { isDirectPlayOnly } from "@/app/(main)/mediastream/_lib/direct-play-only"
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { Anime_Episode, Mediastream_StreamType, MKVParser_AttachmentInfo, MKVParser_ChapterInfo, MKVParser_Metadata, MKVParser_TrackInfo, Nullish } from "@/api/generated/types"
 import { useHandleCurrentMediaContinuity } from "@/api/hooks/continuity.hooks"
@@ -98,7 +99,7 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
 
         log.info("Settings loaded", {
             disableAutoSwitchToDirectPlay: mediastreamSettings.disableAutoSwitchToDirectPlay,
-            directPlayOnly: mediastreamSettings.directPlayOnly,
+            directPlayOnly: isDirectPlayOnly(mediastreamSettings),
             codecSupported,
             streamType: mediaContainer?.streamType,
         })
@@ -110,7 +111,7 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
             if (userForcedTranscodeRef.current) {
                 log.info("User forced transcode, skipping auto-switch to direct play")
             } else {
-                if (!codecSupported && mediastreamSettings.directPlayOnly) {
+                if (!codecSupported && isDirectPlayOnly(mediastreamSettings)) {
                     // Transcoding is off, so refusing would guarantee nothing plays. Try direct play;
                     // the browser's own "maybe" is often wrong (MKV, AC3 audio) and it may well work.
                     log.warning("Codec reported unsupported in direct-play-only mode, trying direct play anyway")
@@ -119,14 +120,14 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
                     changeUrl(undefined)
                     return
                 }
-                if (!mediastreamSettings.disableAutoSwitchToDirectPlay && !mediastreamSettings.directPlayOnly) {
+                if (!mediastreamSettings.disableAutoSwitchToDirectPlay && !isDirectPlayOnly(mediastreamSettings)) {
                     if (codecSupported) {
                         log.info("Auto-switching to direct play")
                         setStreamType("direct")
                         changeUrl(undefined)
                         return
                     }
-                } else if (mediastreamSettings.directPlayOnly) {
+                } else if (isDirectPlayOnly(mediastreamSettings)) {
                     if (codecSupported) {
                         log.info("Direct play only mode, switching to direct play")
                         setStreamType("direct")
@@ -145,7 +146,7 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
         // Auto-switch to transcode if codec not supported for direct play
         if (mediaContainer?.streamType === "direct") {
             // With direct-play-only there is no transcode to fall back to: play it as-is.
-            if (!codecSupported && !mediastreamSettings.directPlayOnly) {
+            if (!codecSupported && !isDirectPlayOnly(mediastreamSettings)) {
                 log.warning("Codec not supported, switching to transcode")
                 setStreamType("transcode")
                 changeUrl(undefined)
@@ -199,7 +200,7 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
         // played until a restart). Preferred means direct play whenever settings allow it — asking
         // for transcode first made the server probe and extract every file twice, competing with
         // direct play for the disk; the codec check still falls back to transcode when needed.
-        const preferDirect = !!mediastreamSettings && (!!mediastreamSettings.directPlayOnly || !mediastreamSettings.disableAutoSwitchToDirectPlay)
+        const preferDirect = !!mediastreamSettings && (isDirectPlayOnly(mediastreamSettings) || !mediastreamSettings.disableAutoSwitchToDirectPlay)
         setStreamType(preferDirect ? "direct" : "transcode")
         setPlayNonce(n => n + 1)
         changeUrl(undefined)

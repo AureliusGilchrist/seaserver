@@ -289,7 +289,7 @@ function WebsocketManagement() {
             }
 
             // The scheme follows the *server's* address, not the page's. The Android shell serves its
-            // pages from https://localhost while talking to a plain-http server, so keying off the
+            // pages from localhost while talking to a remote server, so keying off the
             // page made it dial wss:// at an http server: every HTTP call worked (they go through the
             // native HTTP plugin) but the websocket never connected, and the "server is down" overlay
             // sat on top of the login screen.
