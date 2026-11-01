@@ -1,5 +1,6 @@
 "use client"
 
+import { cachedImageUrl } from "@/lib/server/assets"
 import { CharacterMediaNode, CharacterVoiceActor, useGetAnilistCharacterDetails } from "@/api/hooks/anilist.hooks"
 import { useGetCharacterFavorites, useToggleCharacterFavorite } from "@/api/hooks/favorites.hooks"
 import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-entry-card"
@@ -218,7 +219,7 @@ export default function Page() {
                             {portrait && (
                                 <div className="w-40 shrink-0 animate-in fade-in zoom-in-95 duration-500 sm:w-52">
                                     <div className="aspect-[2/3] overflow-hidden rounded-2xl bg-gray-900 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)] ring-1 ring-white/15">
-                                        <img src={portrait} alt={data.name?.full ?? ""} className="size-full object-cover" />
+                                        <img src={cachedImageUrl(portrait)} alt={data.name?.full ?? ""} className="size-full object-cover" />
                                     </div>
                                 </div>
                             )}

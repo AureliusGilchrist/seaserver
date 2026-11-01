@@ -1,3 +1,4 @@
+import { cachedImageUrl } from "@/lib/server/assets"
 import { formatNumber } from "@/lib/helpers/number"
 import { EnqueueFuture_Item } from "@/api/generated/types"
 import { ENQUEUE_FUTURE_STATUS } from "@/api/hooks/enqueue_future.hooks"
@@ -50,7 +51,7 @@ export function EnqueueFutureHeader({
 
                 {item?.coverImage && (
                     <img
-                        src={item.coverImage}
+                        src={cachedImageUrl(item.coverImage)}
                         alt=""
                         loading="lazy"
                         decoding="async"

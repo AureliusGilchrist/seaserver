@@ -10,7 +10,6 @@ import (
 	"seanime/internal/torrent_clients/torrent_client"
 	"seanime/internal/unmatched"
 	coreutil "seanime/internal/util"
-	util "seanime/internal/util/proxies"
 	"strings"
 	"time"
 
@@ -90,6 +89,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 		"/icons",
 		"/events",
 		"/api/v1/image-proxy",
+		"/api/v1/image-cache",
 		"/api/v1/mediastream/transcode/",
 		"/api/v1/mediastream/direct/",
 		"/api/v1/torrent-client/list",
@@ -291,8 +291,9 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	// in OptionalAuthMiddleware so the client can check before it has a session)
 	v1.POST("/mobile-frontend/publish", h.HandlePublishMobileFrontend)
 
-	imageProxy := &util.ImageProxy{CacheDir: filepath.Join(h.App.Config.Cache.Dir, "image-proxy")}
+	imageProxy := h.App.ImageCache
 	v1.GET("/image-proxy", imageProxy.ProxyImage)
+	v1.GET("/image-cache", imageProxy.HandleCachedImage)
 
 	// Unauthenticated on purpose: it says nothing about the user, and the banner it drives has to
 	// work on every screen including the ones shown before anything else has loaded.

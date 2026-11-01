@@ -1,3 +1,4 @@
+import { cachedImageUrl } from "@/lib/server/assets"
 import { EnqueueFuture_DroppedItem } from "@/api/generated/types"
 import {
     useClearEnqueueFutureDropped,
@@ -73,7 +74,7 @@ function DroppedRow({ item }: { item: EnqueueFuture_DroppedItem }) {
 
     return (
         <li className="flex items-center gap-3 rounded-[--radius] border border-gray-800/80 bg-gray-950/40 px-2.5 py-1.5">
-            {item.coverImage && <img src={item.coverImage} alt="" className="w-7 h-10 object-cover rounded-sm flex-none" />}
+            {item.coverImage && <img src={cachedImageUrl(item.coverImage)} alt="" className="w-7 h-10 object-cover rounded-sm flex-none" />}
             <div className="min-w-0 flex-1">
                 <SeaLink href={`/entry?id=${item.mediaId}`} className="block text-sm truncate hover:underline">
                     {item.title || `#${item.mediaId}`}

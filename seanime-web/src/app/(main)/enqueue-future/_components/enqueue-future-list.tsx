@@ -1,3 +1,4 @@
+import { cachedImageUrl } from "@/lib/server/assets"
 import { EnqueueFuture_Item } from "@/api/generated/types"
 import { ENQUEUE_FUTURE_STATUS } from "@/api/hooks/enqueue_future.hooks"
 import { EnqueueFutureItemActions } from "@/app/(main)/enqueue-future/_components/enqueue-future-item-actions"
@@ -496,7 +497,7 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
                         <span className="relative flex-none">
                             {item.coverImage
                                 ? <img
-                                    src={item.coverImage}
+                                    src={cachedImageUrl(item.coverImage)}
                                     alt=""
                                     loading="lazy"
                                     decoding="async"

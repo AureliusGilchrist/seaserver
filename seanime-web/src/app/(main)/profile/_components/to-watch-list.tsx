@@ -1,5 +1,6 @@
 "use client"
 
+import { cachedImageUrl } from "@/lib/server/assets"
 import {
     useClearToWatch,
     useGetToWatch,
@@ -230,7 +231,7 @@ function ToWatchCover({ src, alt }: { src: string, alt: string }) {
 
     return (
         <img
-            src={current}
+            src={cachedImageUrl(current)}
             alt={alt}
             loading="lazy"
             decoding="async"

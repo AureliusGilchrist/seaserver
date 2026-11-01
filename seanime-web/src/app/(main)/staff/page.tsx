@@ -1,5 +1,6 @@
 "use client"
 
+import { cachedImageUrl } from "@/lib/server/assets"
 import { AL_StaffDetails_Staff, AL_StaffDetails_Staff_StaffMedia_Edges_Node } from "@/api/generated/types"
 import { StaffCareer, StaffCharacter, useGetAnilistStaffDetails, useGetStaffCareer } from "@/api/hooks/anilist.hooks"
 import { useGetStaffFavorites, useToggleStaffFavorite } from "@/api/hooks/favorites.hooks"
@@ -365,7 +366,7 @@ function SignatureWorks({ works }: { works: Work[] }) {
             <MediaSectionHeading icon={<LuCrown />} title="Best known for" />
             <div className="grid gap-4 lg:grid-cols-[1.4fr,1fr]">
                 <SeaLink href={href(lead.media)} className="group relative block min-h-[18rem] overflow-hidden rounded-3xl ring-1 ring-white/10">
-                    <img src={art(lead.media)} alt="" className="absolute inset-0 size-full object-cover transition-transform duration-700 group-hover:scale-[1.03]" />
+                    <img src={cachedImageUrl(art(lead.media))} alt="" className="absolute inset-0 size-full object-cover transition-transform duration-700 group-hover:scale-[1.03]" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
                     <div className="absolute inset-x-0 bottom-0 p-5 sm:p-7">
                         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-200/90">Highest rated</p>
@@ -376,7 +377,7 @@ function SignatureWorks({ works }: { works: Work[] }) {
                 <div className="grid grid-cols-2 gap-4">
                     {rest.map(work => (
                         <SeaLink key={work.media.id} href={href(work.media)} className="group relative block aspect-[16/11] overflow-hidden rounded-2xl ring-1 ring-white/10">
-                            <img src={art(work.media)} alt="" loading="lazy" className="absolute inset-0 size-full object-cover transition-transform duration-700 group-hover:scale-[1.05]" />
+                            <img src={cachedImageUrl(art(work.media))} alt="" loading="lazy" className="absolute inset-0 size-full object-cover transition-transform duration-700 group-hover:scale-[1.05]" />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
                             <div className="absolute inset-x-0 bottom-0 p-3">
                                 <p className="line-clamp-1 text-sm font-semibold text-white">{titleOf(work.media)}</p>

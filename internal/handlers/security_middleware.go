@@ -107,6 +107,7 @@ func RateLimitMiddleware(rl *RateLimiter) echo.MiddlewareFunc {
 				strings.HasPrefix(path, "/api/v1/directstream/") ||
 				strings.HasPrefix(path, "/api/v1/proxy") ||
 				strings.HasPrefix(path, "/api/v1/image-proxy") ||
+				strings.HasPrefix(path, "/api/v1/image-cache") ||
 				strings.HasPrefix(path, "/api/v1/library/collection") ||
 				strings.HasPrefix(path, "/api/v1/library/anilist-collection") ||
 				strings.HasPrefix(path, "/api/v1/manga/collection") ||

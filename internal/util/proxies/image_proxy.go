@@ -15,6 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"seanime/internal/connectivity"
 	"seanime/internal/util"
 
 	"github.com/imroc/req/v3"
@@ -46,6 +47,7 @@ const (
 	imageCacheMaxAge   = 30 * 24 * time.Hour // refetched after this
 	imageCacheMaxBytes = 1 << 30             // 1 GB, least recently used pruned beyond it
 	imageCachePruneGap = 200                 // writes between size checks
+	pinnedDir          = "pinned"            // library artwork, never pruned
 )
 
 var (
@@ -126,7 +128,7 @@ func (ip *ImageProxy) ProxyImage(c echo.Context) (err error) {
 		return c.NoContent(http.StatusNotModified)
 	}
 
-	if body, contentType, ok := ip.readCache(key); ok {
+	if body, contentType, ok := ip.readCache(key, connectivity.IsOffline()); ok {
 		ip.setHeaders(c, contentType, etag)
 		return c.Blob(http.StatusOK, contentType, body)
 	}
@@ -134,13 +136,21 @@ func (ip *ImageProxy) ProxyImage(c echo.Context) (err error) {
 	// A chapter asks for all of its pages at once, and image hosts stall when they all go out together.
 	imageProxySlots <- struct{}{}
 	defer func() { <-imageProxySlots }()
-	if body, contentType, ok := ip.readCache(key); ok {
+	if body, contentType, ok := ip.readCache(key, connectivity.IsOffline()); ok {
 		ip.setHeaders(c, contentType, etag)
 		return c.Blob(http.StatusOK, contentType, body)
 	}
 
+	if connectivity.IsOffline() {
+		return c.String(http.StatusNotFound, "Image is not stored for offline use")
+	}
+
 	body, contentType, err := ip.fetch(url, headers)
 	if err != nil || len(body) == 0 {
+		if body, contentType, ok := ip.readCache(key, true); ok {
+			ip.setHeaders(c, contentType, etag)
+			return c.Blob(http.StatusOK, contentType, body)
+		}
 		return c.String(echo.ErrInternalServerError.Code, "Error fetching image")
 	}
 	ip.writeCache(key, body, contentType)
@@ -159,13 +169,15 @@ func (ip *ImageProxy) paths(key string) (data, meta string) {
 	return filepath.Join(dir, key), filepath.Join(dir, key+".type")
 }
 
-func (ip *ImageProxy) readCache(key string) ([]byte, string, bool) {
+// readCache returns a stored image. allowStale also accepts one past imageCacheMaxAge, for when the
+// choice is that or nothing.
+func (ip *ImageProxy) readCache(key string, allowStale bool) ([]byte, string, bool) {
 	if ip.CacheDir == "" {
 		return nil, "", false
 	}
 	dataPath, metaPath := ip.paths(key)
 	info, err := os.Stat(dataPath)
-	if err != nil || time.Since(info.ModTime()) > imageCacheMaxAge {
+	if err != nil || (!allowStale && time.Since(info.ModTime()) > imageCacheMaxAge) {
 		return nil, "", false
 	}
 	body, err := os.ReadFile(dataPath)
@@ -222,6 +234,9 @@ func (ip *ImageProxy) prune() {
 	var entries []entry
 	var total int64
 	_ = filepath.WalkDir(ip.CacheDir, func(path string, d os.DirEntry, err error) error {
+		if err == nil && d.IsDir() && d.Name() == pinnedDir {
+			return filepath.SkipDir
+		}
 		if err != nil || d.IsDir() || strings.HasSuffix(path, ".type") || strings.HasSuffix(path, ".tmp") {
 			return nil
 		}

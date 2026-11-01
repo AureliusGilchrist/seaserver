@@ -20,12 +20,26 @@ export function resolveServerAsset(url: string | null | undefined): string | nul
     return url
 }
 
+// Must match cacheableImageHosts in internal/util/proxies/image_cache.go: the server refuses others.
+const CACHEABLE_IMAGE_HOST = /^https?:\/\/(?:[^/]+\.)?(?:anilist\.co|kitsu\.io|kitsu\.app|thetvdb\.com|tmdb\.org|myanimelist\.net|mangadex\.org|compsci88\.com)(?::\d+)?\//i
+
+/**
+ * Artwork from the internet, sent through the server's cache: it loads faster the second time, and
+ * still loads with no internet. Anything else comes back unchanged.
+ */
+export function cachedImageUrl(url: string): string
+export function cachedImageUrl(url: string | null | undefined): string | null | undefined
+export function cachedImageUrl(url: string | null | undefined): string | null | undefined {
+    if (!url || !CACHEABLE_IMAGE_HOST.test(url)) return url
+    return `${getServerBaseUrl()}/api/v1/image-cache?url=${encodeURIComponent(url)}`
+}
+
 export function getImageUrl(path: string) {
     if (path.startsWith("{{LOCAL_ASSETS}}")) {
         return `${getServerBaseUrl()}/${path.replace("{{LOCAL_ASSETS}}", "offline-assets")}`
     }
 
-    return path
+    return cachedImageUrl(path)
 }
 
 export function getAssetUrl(path: string) {

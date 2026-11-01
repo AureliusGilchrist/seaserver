@@ -62,6 +62,7 @@ import (
 	"seanime/internal/user"
 	"seanime/internal/util"
 	"seanime/internal/util/filecache"
+	proxies "seanime/internal/util/proxies"
 	"seanime/internal/util/result"
 	"seanime/internal/videocore"
 	"seanime/internal/watchparty"
@@ -211,6 +212,7 @@ type (
 
 		// Profile system
 		ProfileManager         *ProfileManager
+		ImageCache             *proxies.ImageProxy
 		ProfileMigrator        *ProfileMigrator
 		ProfilePathResolver    *ProfilePathResolver
 		ProfileDatabaseManager *ProfileDatabaseManager
@@ -587,6 +589,8 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 		}
 	})
 	connectivity.Start(context.Background())
+	app.ImageCache = &proxies.ImageProxy{CacheDir: filepath.Join(cfg.Cache.Dir, "image-proxy")}
+	app.StartArtworkCache(context.Background())
 
 	// Initialize AnilistClientManager after app struct is created (it references app)
 	app.AnilistClientManager = NewAnilistClientManager(app)

@@ -1,3 +1,4 @@
+import { cachedImageUrl } from "@/lib/server/assets"
 import { HomeSections } from "@/app/(main)/_features/home/home-sections"
 import { HomeStatsStrip } from "@/app/(main)/_features/home/home-stats-strip"
 import { LuFiles, LuFilm, LuHardDrive, LuLibrary, LuSparkles, LuTriangleAlert, LuTv } from "react-icons/lu"
@@ -292,7 +293,7 @@ export function HomeScreen() {
                         activeHero ? "opacity-100" : "opacity-0",
                     )}
                     style={{
-                        backgroundImage: activeHero ? `url(${activeHero})` : undefined,
+                        backgroundImage: activeHero ? `url(${cachedImageUrl(activeHero)})` : undefined,
                         backgroundSize: "cover",
                         backgroundPosition: "center",
                         filter: "blur(22px) saturate(120%)",

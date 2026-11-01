@@ -60,7 +60,8 @@ function loadImage(url: string): Promise<HTMLImageElement> {
             // Uploaded wallpapers are served by the app and require the credentialed CORS
             // request when the web UI is hosted on a different origin (for example, Tauri).
             // Public remote wallpapers remain anonymous so they do not receive app credentials.
-            img.crossOrigin = imageOrigin === serverOrigin ? "use-credentials" : "anonymous"
+            // The image cache answers with "*", which browsers refuse for a credentialed request.
+            img.crossOrigin = imageOrigin === serverOrigin && !url.includes("/api/v1/image-cache") ? "use-credentials" : "anonymous"
         }
         img.onload = () => resolve(img)
         img.onerror = () => reject(new Error("wallpaper could not be loaded"))
