@@ -172,6 +172,12 @@ export default function Page() {
     // alone, whose media enrichment can come back empty and leave both blank.
     const { entries: continueReadingList } = useMangaContinueReadingList()
     const hasContinueReadingHeader = continueReadingList.some(entry => !!entry.media)
+    // The continue-reading header is always first, and it has nothing to draw when nothing is in
+    // progress. The library's banner takes its place, so the page never loses its hero.
+    const showLibraryBanner = ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Dynamic && (
+        homeItems[0]?.type === "manga-library"
+        || (homeItems[0]?.type === "manga-continue-reading-header" && !hasContinueReadingHeader)
+    )
 
     if (mangaCollectionError && !mangaCollection) {
         return (
@@ -247,9 +253,7 @@ export default function Page() {
                 )}
 
                 {/* Manga Library Header - dynamic banner only when manga-library is first */}
-                {(ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Dynamic &&
-                    (homeItems[0]?.type === "manga-library")
-                ) && (
+                {showLibraryBanner && (
                     <MangaLibraryHeader manga={mangaCollection?.lists?.flatMap(l => l.entries)?.flatMap(e => e?.media)?.filter(Boolean) || []} />
                 )}
 
@@ -262,10 +266,7 @@ export default function Page() {
                 ></div>
 
                 {/* Top padding for dynamic banner */}
-                {(
-                    (ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Dynamic && hasManga) &&
-                    (homeItems[0]?.type === "manga-library")
-                ) && <div
+                {(showLibraryBanner && hasManga) && <div
                     className={cn(
                         "h-28",
                         ts.hideTopNavbar && "h-40",
@@ -281,7 +282,7 @@ export default function Page() {
                 {(
                     homeItems[0]?.type !== "manga-discover-header"
                     && !(homeItems[0]?.type === "manga-continue-reading-header" && hasContinueReadingHeader)
-                    && !(ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Dynamic && hasManga && homeItems[0]?.type === "manga-library")
+                    && !(showLibraryBanner && hasManga)
                     && !(!!ts.libraryScreenCustomBannerImage && ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Custom && homeItems[0]?.type !== "manga-discover-header" && !(homeItems[0]?.type === "manga-continue-reading-header" && hasContinueReadingHeader))
                 ) && <div
                     className={cn(

@@ -409,7 +409,10 @@ function BannerImage({ manga, isTransitioning, shouldBlurBanner }: BannerImagePr
                                 "object-cover object-center z-[1] transition-all duration-1000",
                                 isTransitioning && "scale-[1.01] -translate-x-0.5",
                                 !isTransitioning && "scale-100 translate-x-0",
-                                !isPrimaryBanner && "opacity-35",
+                                // Most manga have no AniList banner, only a portrait cover. At full
+                                // strength that is a stretched crop; dimmed behind the gradients below
+                                // it could not be seen at all.
+                                !isPrimaryBanner && "opacity-80 blur-sm object-[50%_25%]",
                             )}
                             onError={handleBannerError}
                         />
@@ -424,14 +427,16 @@ function BannerImage({ manga, isTransitioning, shouldBlurBanner }: BannerImagePr
             <div
                 className={cn(
                     "hidden lg:block max-w-[80rem] w-full z-[2] h-full absolute left-0 bg-gradient-to-r from-[--background] from-5% via-[--background] transition-opacity via-opacity-50 via-5% to-transparent",
-                    "opacity-100 duration-500",
+                    "duration-500",
+                    isPrimaryBanner ? "opacity-100" : "opacity-60",
                 )}
             />
 
             <div
                 className={cn(
                     "hidden lg:block max-w-[60rem] w-full right-0 z-[2] h-full absolute &-bottom-[10rem] bg-gradient-to-l from-[--background] from-5% via-[--background] via-opacity-50 via-5% transition-opacity to-transparent",
-                    "opacity-90 duration-500",
+                    "duration-500",
+                    isPrimaryBanner ? "opacity-90" : "opacity-40",
                 )}
             />
 

@@ -369,9 +369,10 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
 
     React.useEffect(() => {
         if (list.type === "CURRENT") {
-            const firstItem = mergedEntries[0]
-            if (currentHeaderImage === null && firstItem?.bannerImage) {
-                setCurrentHeaderImage(firstItem.bannerImage)
+            // Not simply the first: that one often has no banner, which would leave the page without one.
+            const firstBanner = mergedEntries.find(item => !!item.bannerImage)?.bannerImage
+            if (currentHeaderImage === null && firstBanner) {
+                setCurrentHeaderImage(firstBanner)
             }
         }
     }, [mergedEntries])
