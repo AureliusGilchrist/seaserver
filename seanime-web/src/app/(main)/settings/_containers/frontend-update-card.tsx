@@ -1,5 +1,6 @@
 "use client"
 
+import { __frontendUpdate_revealAtom } from "@/app/(main)/_features/stale-frontend-banner"
 import { Fact, PILL, timeAgo, timeUntil, UpdateState } from "@/app/(main)/settings/_containers/server-update-card"
 import { MAX_LOG_LINES, readProgress, stamp, updateSettingsLogAtom } from "@/app/(main)/settings/_containers/update-settings"
 import { Button } from "@/components/ui/button"
@@ -151,6 +152,23 @@ function shortCommit(commit?: string | null) {
 }
 
 export function FrontendUpdateCard() {
+    const cardRef = React.useRef<HTMLElement>(null)
+    const [reveal, setReveal] = useAtom(__frontendUpdate_revealAtom)
+    const [highlighted, setHighlighted] = React.useState(false)
+
+    // Sent here by the update banner: wait for the tab to settle, then show the card.
+    React.useEffect(() => {
+        if (!reveal) return
+        setReveal(false)
+        setHighlighted(true)
+        const scroll = setTimeout(() => cardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 350)
+        const fade = setTimeout(() => setHighlighted(false), 2500)
+        return () => {
+            clearTimeout(scroll)
+            clearTimeout(fade)
+        }
+    }, [reveal])
+
     const [settings, setSettings] = React.useState<DenshiSettings | null>(null)
     const [info, setInfo] = React.useState<FrontendInfo | null>(null)
     const [checking, setChecking] = React.useState(false)
@@ -345,7 +363,9 @@ export function FrontendUpdateCard() {
     const canInstall = !!result?.canInstall
 
     return (
-        <section className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-br from-white/[0.05] via-black/25 to-black/40 p-5 shadow-xl shadow-black/20 backdrop-blur-md sm:p-6">
+        <section
+            ref={cardRef}
+            className={cn("relative overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-br from-white/[0.05] via-black/25 to-black/40 p-5 shadow-xl shadow-black/20 backdrop-blur-md sm:p-6 scroll-mt-24 transition-shadow duration-500", highlighted && "ring-2 ring-brand-400/70")}>
             {state === "available" && <div className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-amber-400/10 blur-3xl" />}
             {state === "updating" && <div className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-brand-500/15 blur-3xl" />}
 

@@ -5,6 +5,9 @@
 // client is still running its old UI — a restart (or refresh) picks up the new one.
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { Button } from "@/components/ui/button"
+import { useRouter } from "@/lib/navigation"
+import { atom } from "jotai"
+import { useSetAtom } from "jotai/react"
 import React from "react"
 import { LuMonitorDown, LuX } from "react-icons/lu"
 
@@ -26,9 +29,16 @@ export function isNewerRelease(server: string, client: string): boolean {
     return false
 }
 
+/** Set by the banner so the settings page brings its frontend update card into view. */
+export const __frontendUpdate_revealAtom = atom(false)
+
 export function StaleFrontendBanner() {
     const serverStatus = useServerStatus()
+    const router = useRouter()
+    const reveal = useSetAtom(__frontendUpdate_revealAtom)
     const [dismissed, setDismissed] = React.useState(false)
+    // Denshi installs interfaces itself; a browser just gets the server's on a refresh.
+    const canInstall = !!window.electron?.liveUpdate
 
     const serverVersion = serverStatus?.frontendVersion
     const clientVersion = process.env.SEA_APP_VERSION
@@ -53,16 +63,24 @@ export function StaleFrontendBanner() {
                         </span>
                         <p className="mt-1.5 text-sm leading-relaxed text-white/90">
                             The server is running a newer interface ({serverVersion}) than this one ({clientVersion}).
-                            Restart the app or refresh the page to load the latest version.
+                            {canInstall ? "Update to load the latest version." : "Refresh the page to load the latest version."}
                         </p>
                     </div>
                     <Button
                         intent="primary"
                         size="sm"
                         className="shrink-0 self-center"
-                        onClick={() => window.location.reload()}
+                        onClick={() => {
+                            if (!canInstall) {
+                                window.location.reload()
+                                return
+                            }
+                            reveal(true)
+                            setDismissed(true)
+                            router.push("/settings?tab=personal")
+                        }}
                     >
-                        Refresh
+                        {canInstall ? "Update" : "Refresh"}
                     </Button>
                     <button
                         type="button"
