@@ -124,7 +124,8 @@ export function MainSidebar() {
                     containerRef={containerRef}
                 />
 
-                <div className="flex w-full gap-2 flex-col px-4 shrink-0 pb-2">
+                {/* The phone dock sits over the bottom of the drawer: leave room to scroll past it. */}
+                <div className="flex w-full gap-2 flex-col px-4 shrink-0 pb-2 [html[data-sea-dock]_&]:pb-28">
                     <SidebarUpdates isCollapsed={isCollapsed} />
                     <SidebarFooter isCollapsed={isCollapsed} onLogout={logout} />
                     <SidebarUser expandedSidebar={expandedSidebar} onLogout={logout} isCollapsed={isCollapsed} />
@@ -657,6 +658,7 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
             <VerticalMenu
                 collapsed={isCollapsed}
                 itemClass="relative"
+                itemContentClass="gap-3"
                 onMouseEnter={() => { }}
                 onMouseLeave={() => { }}
                 onLinkItemClick={() => ctx.setOpen(false)}
@@ -671,7 +673,7 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
                     // },
                     ...serverStatus?.settings?.nakama?.enabled ? [{
                         iconType: MdOutlineConnectWithoutContact,
-                        iconClass: "size-6",
+                        iconClass: "lg:size-6",
                         name: "Nakama",
                         isCurrent: nakamaModalOpen,
                         onClick: () => {
@@ -692,7 +694,7 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
                     {
                         id: "watch-together",
                         iconType: LuUsers,
-                        iconClass: "size-6",
+                        iconClass: "lg:size-6",
                         name: "Watch together",
                         isCurrent: watchPartyModalOpen,
                         onClick: () => {
@@ -882,6 +884,7 @@ function SidebarUser({ isCollapsed, expandedSidebar, onLogout }: { isCollapsed: 
                     <VerticalMenu
                         collapsed={isCollapsed}
                         itemClass="relative"
+                        itemContentClass="gap-3"
                         onLinkItemClick={() => ctx.setOpen(false)}
                         isSidebar
                         items={[

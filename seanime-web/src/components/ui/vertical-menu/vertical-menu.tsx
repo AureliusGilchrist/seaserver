@@ -271,6 +271,9 @@ export const VerticalMenu = React.forwardRef<HTMLDivElement, VerticalMenuProps>(
                     className={cn(
                         VerticalMenuAnatomy.itemContent({ size, collapsed, isSidebar }),
                         itemContentClass,
+                        // With a row's width to work with, a count sits in line with its label, clear of the chevron
+                        !collapsed && "[&>[class*=UI-Badge]]:top-1/2 [&>[class*=UI-Badge]]:-translate-y-1/2",
+                        !collapsed && (item.subContent ? "[&>[class*=UI-Badge]]:right-8" : "[&>[class*=UI-Badge]]:right-3"),
                         item.className,
                     )}
                 >
@@ -383,7 +386,7 @@ function renderItems(
                                     // hover, and any height change shifts the entries below it, so the
                                     // first click lands on a different entry (usually Home).
                                     "flex items-center gap-2 select-none cursor-pointer group/group-heading h-8 mt-2",
-                                    collapsed ? "justify-center" : "px-2",
+                                    collapsed ? "justify-center" : "px-3",
                                 )}
                                 title={collapsed ? item.name : undefined}
                             >

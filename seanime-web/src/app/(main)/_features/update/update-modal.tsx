@@ -86,6 +86,7 @@ export function UpdateModal(props: UpdateModalProps) {
                         onClick: () => setUpdateModalOpen(true),
                     },
                 ]}
+                itemContentClass="gap-3"
                 itemIconClass="text-brand-300"
             />
             <Modal

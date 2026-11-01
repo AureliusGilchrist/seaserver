@@ -58,13 +58,13 @@ function TrayExtraButtons({ items, onNavigate }: { items: TrayExtraItem[], onNav
                 const button = (
                     <span
                         className={cn(
-                            "relative flex size-8 items-center justify-center rounded-full text-[--muted] transition hover:bg-white/10 hover:text-white",
+                            "relative flex size-10 lg:size-8 items-center justify-center rounded-full text-[--muted] transition hover:bg-white/10 hover:text-white",
                             item.isCurrent && "bg-white/10 text-white",
                         )}
                     >
                         {Icon && <Icon className={cn("size-[1.15rem]", item.spinning && "animate-spin")} />}
                         {!!item.badge && item.badge > 0 && (
-                            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[0.6rem] font-bold text-black">
+                            <span className="absolute -right-2.5 -top-1.5 lg:-right-1 lg:-top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[0.6rem] font-bold text-black">
                                 {item.badge > 99 ? "99+" : item.badge}
                             </span>
                         )}
@@ -90,7 +90,7 @@ function TrayExtraButtons({ items, onNavigate }: { items: TrayExtraItem[], onNav
 function TrayExtrasOnly({ items, onNavigate }: { items: TrayExtraItem[], onNavigate?: () => void }) {
     if (!items.length) return null
     return (
-        <div data-plugin-sidebar-tray className="mx-auto my-2 flex w-10 flex-col items-center gap-1 rounded-full border border-[--border] p-1">
+        <div data-plugin-sidebar-tray className="mx-auto my-2 flex w-fit items-center gap-3 rounded-full border border-[--border] p-1 lg:w-10 lg:flex-col lg:gap-1">
             <TrayExtraButtons items={items} onNavigate={onNavigate} />
         </div>
     )
