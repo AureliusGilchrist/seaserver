@@ -523,6 +523,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Anilist.GET("/media/:id/info", h.HandleGetMediaInfo)
 	v1Anilist.GET("/media/:id/trailer", h.HandleGetMediaTrailer)
 	v1Anilist.GET("/studio/:id/profile", h.HandleGetStudioProfile)
+	v1Anilist.GET("/staff/:id/career", h.HandleGetStaffCareer)
 
 	v1Anilist.DELETE("/list-entry", h.HandleDeleteAnilistListEntry)
 

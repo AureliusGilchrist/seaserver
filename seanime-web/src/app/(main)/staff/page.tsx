@@ -1,10 +1,10 @@
 "use client"
 
 import { AL_StaffDetails_Staff, AL_StaffDetails_Staff_StaffMedia_Edges_Node } from "@/api/generated/types"
-import { useGetAnilistStaffDetails } from "@/api/hooks/anilist.hooks"
+import { StaffCareer, StaffCharacter, useGetAnilistStaffDetails, useGetStaffCareer } from "@/api/hooks/anilist.hooks"
 import { useGetStaffFavorites, useToggleStaffFavorite } from "@/api/hooks/favorites.hooks"
 import { GlassCard } from "@/app/(main)/_features/media/_components/media-info-panel"
-import { MEDIA_FORMAT_LABELS } from "@/app/(main)/_features/media/_components/media-meta-chips"
+import { compact, formatFuzzyDate, MEDIA_FORMAT_LABELS } from "@/app/(main)/_features/media/_components/media-meta-chips"
 import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-entry-card"
 import { MediaPageHeader } from "@/app/(main)/_features/media/_components/media-page-header-components"
 import { MediaSectionHeading } from "@/app/(main)/_features/media/_components/media-section-heading"
@@ -28,7 +28,9 @@ import {
     LuChevronDown,
     LuCrown,
     LuFilm,
+    LuHeart,
     LuInfo,
+    LuMic,
     LuSearch,
     LuSparkles,
     LuStar,
@@ -39,11 +41,13 @@ import {
 // the name is worked out from their credits, so the page says something even when AniList has no bio.
 
 type Node = AL_StaffDetails_Staff_StaffMedia_Edges_Node
-type Work = { media: Node, roles: string[] }
+type Work = { media: Node, roles: string[], voices: string[] }
+type VoiceRole = { character: StaffCharacter, role?: string, works: Node[] }
 type Kind = "all" | "anime" | "manga"
 type Sort = "newest" | "oldest" | "score"
 
 const PAGE_SIZE = 48
+const VOICE_PAGE_SIZE = 24
 
 const yearOf = (media: Node) => media.startDate?.year ?? undefined
 const titleOf = (media: Node) => media.title?.userPreferred || media.title?.romaji || media.title?.english || ""
@@ -74,16 +78,37 @@ function parseBio(description: string | undefined) {
     return { facts, bio: clean(body.join("\n")).replace(/\n{3,}/g, "\n\n") }
 }
 
-function useStaffWorks(staff: AL_StaffDetails_Staff) {
+function useStaffWorks(staff: AL_StaffDetails_Staff, career: StaffCareer | undefined) {
     return React.useMemo(() => {
         const byId = new Map<number, Work>()
-        for (const edge of staff.staffMedia?.edges ?? []) {
+        const workFor = (node: Node) => {
+            const work = byId.get(node.id) ?? { media: node, roles: [], voices: [] }
+            byId.set(node.id, work)
+            return work
+        }
+        // The details are the first page of the career, so the career replaces them once it arrives.
+        for (const edge of career?.credits ?? staff.staffMedia?.edges ?? []) {
             if (!edge?.node) continue
-            const work = byId.get(edge.node.id) ?? { media: edge.node, roles: [] }
+            const work = workFor(edge.node)
             if (edge.staffRole && !work.roles.includes(edge.staffRole)) work.roles.push(edge.staffRole)
-            byId.set(edge.node.id, work)
+        }
+        const voices = new Map<number, VoiceRole>()
+        for (const edge of career?.characters ?? []) {
+            if (!edge?.node) continue
+            const work = workFor(edge.node)
+            for (const character of edge.characters ?? []) {
+                const name = character.name?.full
+                if (name && !work.voices.includes(name)) work.voices.push(name)
+                const voice = voices.get(character.id) ?? { character, role: edge.characterRole, works: [] }
+                // A main role anywhere makes it a main role.
+                if (edge.characterRole === "MAIN") voice.role = "MAIN"
+                if (!voice.works.some(node => node.id === edge.node!.id)) voice.works.push(edge.node)
+                voices.set(character.id, voice)
+            }
         }
         const works = [...byId.values()]
+        const voiceRoles = [...voices.values()].sort((a, b) =>
+            Number(b.role === "MAIN") - Number(a.role === "MAIN") || b.works.length - a.works.length)
 
         const count = (keys: string[]) => {
             const totals = new Map<string, number>()
@@ -100,17 +125,34 @@ function useStaffWorks(staff: AL_StaffDetails_Staff) {
 
         return {
             works,
+            voiceRoles,
             anime: works.filter(w => w.media.type !== "MANGA").length,
             manga: works.filter(w => w.media.type === "MANGA").length,
             meanScore: scored.length ? Math.round(scored.reduce((n, w) => n + w.media.meanScore!, 0) / scored.length) : undefined,
             first,
             last,
             timeline: first && last ? Array.from({ length: last - first + 1 }, (_, i) => ({ year: first + i, amount: perYear.get(first + i) ?? 0 })) : [],
-            roles: count(works.flatMap(w => [...new Set(w.roles.map(roleName))])),
+            roles: count(works.flatMap(w => [...new Set([...w.roles.map(roleName), ...(w.voices.length ? ["Voice acting"] : [])])])),
             genres: count(works.flatMap(w => w.media.genres ?? [])),
             signature: [...scored].sort((a, b) => b.media.meanScore! - a.media.meanScore!).slice(0, 5),
         }
-    }, [staff])
+    }, [staff, career])
+}
+
+/** What AniList states outright, ahead of anything parsed out of the bio. */
+function careerFacts(career: StaffCareer | undefined) {
+    if (!career) return []
+    const years = career.yearsActive ?? []
+    const active = years.length ? `${years[0]} – ${years[1] ?? (career.dateOfDeath?.year ? "" : "now")}` : undefined
+    return ([
+        ["Born", formatFuzzyDate(career.dateOfBirth)],
+        ["Died", formatFuzzyDate(career.dateOfDeath)],
+        ["Age", career.age ? String(career.age) : undefined],
+        ["Gender", career.gender],
+        ["Hometown", career.homeTown],
+        ["Language", career.languageV2],
+        ["Years active", active],
+    ] as [string, string | null | undefined][]).filter((fact): fact is [string, string] => !!fact[1])
 }
 
 export default function Page() {
@@ -135,8 +177,14 @@ export function StaffView({ staff }: { staff: AL_StaffDetails_Staff }) {
     const { mutate: toggleFav, isPending: isTogglingFav } = useToggleStaffFavorite()
     const isFav = !!favIds?.includes(staff.id)
 
-    const stats = useStaffWorks(staff)
-    const { facts, bio } = React.useMemo(() => parseBio(staff.description), [staff.description])
+    const { data: career, isLoading: careerLoading } = useGetStaffCareer(staff.id)
+    const stats = useStaffWorks(staff, career)
+    const { facts: bioFacts, bio } = React.useMemo(() => parseBio(staff.description), [staff.description])
+    const facts = React.useMemo(() => {
+        const known = careerFacts(career)
+        const lower = known.map(([label]) => label.toLowerCase())
+        return [...known, ...bioFacts.filter(([label]) => !lower.includes(label.toLowerCase()) && !/^(birth|death)$/i.test(label))]
+    }, [career, bioFacts])
 
     const banner = stats.works.find(w => !!w.media.bannerImage)?.media.bannerImage
     const cover = stats.works[0]?.media.coverImage?.extraLarge
@@ -155,10 +203,12 @@ export function StaffView({ staff }: { staff: AL_StaffDetails_Staff }) {
             />
 
             <PageWrapper className="relative z-[5] space-y-12 px-4 pb-16 md:px-8">
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" data-staff-stats>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" data-staff-stats>
                     <StatTile icon={<LuFilm />} label="Anime" value={String(stats.anime)} sub="credits" />
                     <StatTile icon={<LuBookOpen />} label="Manga" value={String(stats.manga)} sub="credits" />
                     <StatTile icon={<LuCalendarRange />} label="Active" value={stats.first ? `${stats.last! - stats.first + 1} yrs` : "—"} sub={stats.first ? `${stats.first} – ${stats.last}` : undefined} />
+                    {!!stats.voiceRoles.length && <StatTile icon={<LuMic />} label="Characters" value={String(stats.voiceRoles.length)} sub="voiced" />}
+                    {!!career?.favourites && <StatTile icon={<LuHeart />} label="Favourites" value={compact(career.favourites)} sub="on AniList" />}
                     <StatTile icon={<LuStar />} label="Avg score" value={stats.meanScore ? (stats.meanScore / 10).toFixed(1) : "—"} sub="across their work" accent />
                     <StatTile icon={<LuBriefcase />} label="Top role" value={stats.roles[0]?.key ?? "—"} sub={stats.roles[0] ? `${stats.roles[0].amount} titles` : undefined} small />
                 </div>
@@ -191,7 +241,16 @@ export function StaffView({ staff }: { staff: AL_StaffDetails_Staff }) {
                     </aside>
                 </section>
 
-                <Filmography works={stats.works} anime={stats.anime} manga={stats.manga} />
+                {!!stats.voiceRoles.length && <VoiceRoles roles={stats.voiceRoles} />}
+
+                <Filmography
+                    works={stats.works}
+                    anime={stats.anime}
+                    manga={stats.manga}
+                    note={careerLoading
+                        ? "Loading the full career…"
+                        : career?.partial ? "AniList stopped answering, so some credits may be missing" : undefined}
+                />
             </PageWrapper>
         </div>
     )
@@ -311,7 +370,7 @@ function SignatureWorks({ works }: { works: Work[] }) {
                     <div className="absolute inset-x-0 bottom-0 p-5 sm:p-7">
                         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-200/90">Highest rated</p>
                         <p className="mt-1 line-clamp-2 text-2xl font-bold text-white sm:text-3xl">{titleOf(lead.media)}</p>
-                        <p className="mt-1.5 line-clamp-1 text-sm text-white/70">{lead.roles.join(" · ")}</p>
+                        <p className="mt-1.5 line-clamp-1 text-sm text-white/70">{[...lead.voices.map(name => `as ${name}`), ...lead.roles].join(" · ")}</p>
                     </div>
                 </SeaLink>
                 <div className="grid grid-cols-2 gap-4">
@@ -321,7 +380,7 @@ function SignatureWorks({ works }: { works: Work[] }) {
                             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
                             <div className="absolute inset-x-0 bottom-0 p-3">
                                 <p className="line-clamp-1 text-sm font-semibold text-white">{titleOf(work.media)}</p>
-                                <p className="line-clamp-1 text-[11px] text-white/60">{work.roles[0]}</p>
+                                <p className="line-clamp-1 text-[11px] text-white/60">{work.voices[0] ? `as ${work.voices[0]}` : work.roles[0]}</p>
                             </div>
                         </SeaLink>
                     ))}
@@ -366,7 +425,63 @@ function Bars({ items }: { items: { key: string, amount: number }[] }) {
     </div>
 }
 
-function Filmography({ works, anime, manga }: { works: Work[], anime: number, manga: number }) {
+function VoiceRoles({ roles }: { roles: VoiceRole[] }) {
+    const [limit, setLimit] = React.useState(VOICE_PAGE_SIZE)
+    const [mainOnly, setMainOnly] = React.useState(false)
+    const hasMain = roles.some(role => role.role === "MAIN")
+    const filtered = mainOnly ? roles.filter(role => role.role === "MAIN") : roles
+
+    return (
+        <section className="space-y-4" data-staff-voice-roles>
+            <MediaSectionHeading
+                icon={<LuMic />}
+                title="Voice roles"
+                count={filtered.length}
+                aside={hasMain ? <Segmented
+                    value={mainOnly ? "main" : "all"}
+                    onChange={value => setMainOnly(value === "main")}
+                    options={[["all", "All"], ["main", "Main roles"]]}
+                /> : undefined}
+            />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                {filtered.slice(0, limit).map(({ character, role, works }) => {
+                    const media = works[0]
+                    return (
+                        <div key={character.id} className="flex overflow-hidden rounded-2xl bg-black/30 ring-1 ring-white/10 transition-transform hover:-translate-y-0.5" data-staff-voice-role>
+                            <SeaLink href={`/character?id=${character.id}`} className="group flex min-w-0 flex-1 items-center gap-3 p-2">
+                                <span className="h-20 w-14 shrink-0 overflow-hidden rounded-xl bg-white/[0.05]">
+                                    {character.image?.large && <img src={getImageUrl(character.image.large)} alt="" loading="lazy" className="size-full object-cover" />}
+                                </span>
+                                <span className="min-w-0">
+                                    <span className="block truncate text-sm font-semibold text-white group-hover:text-brand-100">{character.name?.full}</span>
+                                    {!!role && <span className="mt-1 inline-block rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] font-medium text-white/65 ring-1 ring-white/10">{capitalize(role)}</span>}
+                                    {works.length > 1 && <span className="ml-1.5 text-[11px] text-white/45">{works.length} titles</span>}
+                                </span>
+                            </SeaLink>
+                            {!!media && <SeaLink href={`/entry?id=${media.id}`} className="group flex min-w-0 max-w-[45%] items-center justify-end gap-3 p-2 text-right">
+                                <span className="line-clamp-3 min-w-0 text-xs text-white/60 group-hover:text-white">{titleOf(media)}</span>
+                                <span className="h-20 w-14 shrink-0 overflow-hidden rounded-xl bg-white/[0.05]">
+                                    {!!(media.coverImage?.large || media.coverImage?.medium) && <img src={getImageUrl(media.coverImage?.large || media.coverImage?.medium || "")} alt="" loading="lazy" className="size-full object-cover" />}
+                                </span>
+                            </SeaLink>}
+                        </div>
+                    )
+                })}
+            </div>
+            {filtered.length > limit && <div className="flex justify-center">
+                <button
+                    type="button"
+                    onClick={() => setLimit(l => l + VOICE_PAGE_SIZE)}
+                    className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-5 py-2 text-sm font-medium text-white/80 backdrop-blur-md transition-colors hover:bg-white/[0.08] hover:text-white"
+                >
+                    Show more ({filtered.length - limit}) <LuChevronDown />
+                </button>
+            </div>}
+        </section>
+    )
+}
+
+function Filmography({ works, anime, manga, note }: { works: Work[], anime: number, manga: number, note?: string }) {
     const [kind, setKind] = React.useState<Kind>("all")
     const [sort, setSort] = React.useState<Sort>("newest")
     const [query, setQuery] = React.useState("")
@@ -402,7 +517,12 @@ function Filmography({ works, anime, manga }: { works: Work[], anime: number, ma
 
     return (
         <section className="space-y-5" data-staff-filmography>
-            <MediaSectionHeading icon={<LuSparkles />} title="Filmography" count={filtered.length} />
+            <MediaSectionHeading
+                icon={<LuSparkles />}
+                title="Filmography"
+                count={filtered.length}
+                aside={note ? <span className="text-xs text-[--muted]">{note}</span> : undefined}
+            />
 
             <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-black/25 p-3 backdrop-blur-md lg:flex-row lg:items-center lg:justify-between">
                 <Segmented value={kind} onChange={setKind} options={[["all", `All ${works.length}`], ["anime", `Anime ${anime}`], ["manga", `Manga ${manga}`]]} />
@@ -431,10 +551,12 @@ function Filmography({ works, anime, manga }: { works: Work[], anime: number, ma
                             <span className="text-xs text-white/40">{group.works.length}</span>
                         </div>}
                         <div className="sea-card-grid">
-                            {group.works.map(({ media, roles }) => (
+                            {group.works.map(({ media, roles, voices }) => (
                                 <div key={media.id} className="min-w-0" data-staff-work>
                                     <MediaEntryCard media={media as any} type={media.type === "MANGA" ? "manga" : "anime"} showLibraryBadge={media.type !== "MANGA"} />
-                                    <p className="mt-1 line-clamp-2 px-0.5 text-xs text-brand-200/80" title={roles.join(", ")}>{roles.join(" · ")}</p>
+                                    <p className="mt-1 line-clamp-2 px-0.5 text-xs text-brand-200/80" title={[...roles, ...voices].join(", ")}>
+                                        {[...voices.map(name => `as ${name}`), ...roles].join(" · ")}
+                                    </p>
                                     {!!media.format && <p className="truncate px-0.5 text-[11px] text-white/40">{MEDIA_FORMAT_LABELS[media.format] ?? capitalize(media.format)}</p>}
                                 </div>
                             ))}

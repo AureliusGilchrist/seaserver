@@ -20,6 +20,7 @@ import {
     AL_Stats,
     AL_StudioDetails,
     AL_StaffDetails,
+    AL_StaffDetails_Staff_StaffMedia_Edges_Node,
     AddToPlanningResponse,
     Nullish,
 } from "@/api/generated/types"
@@ -286,6 +287,43 @@ export function useGetAnilistStudioDetails(id: number) {
         enabled: true,
         staleTime: 30 * 60 * 1000,  // 30 minutes — studio data rarely changes
         gcTime: 60 * 60 * 1000,     // 1 hour in cache after unmount
+    })
+}
+
+type StaffCareerDate = { year?: number, month?: number, day?: number }
+
+export type StaffCharacter = {
+    id: number
+    name?: { full?: string, native?: string }
+    image?: { large?: string }
+}
+
+export type StaffCareer = {
+    age?: number
+    gender?: string
+    homeTown?: string
+    yearsActive?: number[]
+    languageV2?: string
+    favourites?: number
+    siteUrl?: string
+    dateOfBirth?: StaffCareerDate
+    dateOfDeath?: StaffCareerDate
+    partial?: boolean
+    credits: { staffRole?: string, node?: AL_StaffDetails_Staff_StaffMedia_Edges_Node }[]
+    characters: { characterRole?: string, characters?: StaffCharacter[], node?: AL_StaffDetails_Staff_StaffMedia_Edges_Node }[]
+}
+
+/** Everything a person has worked on. Slower than the details: a long career is many pages of AniList. */
+export function useGetStaffCareer(id: number) {
+    return useServerQuery<StaffCareer>({
+        endpoint: `/api/v1/anilist/staff/${id}/career`,
+        method: "GET",
+        queryKey: ["ANILIST-get-staff-career", String(id)],
+        enabled: id > 0,
+        staleTime: 1000 * 60 * 30,
+        retry: 2,
+        retryDelay: attempt => Math.min(3000 * 2 ** attempt, 12000),
+        muteError: true,
     })
 }
 
