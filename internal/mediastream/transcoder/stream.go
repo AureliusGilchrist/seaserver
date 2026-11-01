@@ -462,9 +462,11 @@ func (ts *Stream) run(start int32) error {
 		"-nostats", "-hide_banner", "-loglevel", "warning",
 	}
 
+	hwAccel := ts.settings.activeHwAccel()
+
 	// A copy decodes nothing, and must not depend on a decoder being there.
 	if ts.handle.getFlags()&Transmux == 0 {
-		args = append(args, ts.settings.HwAccel.DecodeFlags...)
+		args = append(args, hwAccel.DecodeFlags...)
 	}
 
 	if startRef != 0 {
@@ -527,8 +529,8 @@ func (ts *Stream) run(start int32) error {
 
 	// Added logging for ffmpeg command and hardware transcoding state
 	streamLogger.Trace().Msgf("transcoder: ffmpeg command: %s %s", ts.settings.FfmpegPath, strings.Join(args, " "))
-	if len(ts.settings.HwAccel.DecodeFlags) > 0 {
-		streamLogger.Trace().Msgf("transcoder: Hardware transcoding enabled with flags: %v", ts.settings.HwAccel.DecodeFlags)
+	if len(hwAccel.DecodeFlags) > 0 {
+		streamLogger.Trace().Msgf("transcoder: Hardware transcoding enabled with flags: %v", hwAccel.DecodeFlags)
 	} else {
 		streamLogger.Trace().Msg("transcoder: Hardware transcoding not enabled")
 	}
@@ -644,18 +646,11 @@ func (ts *Stream) run(start int32) error {
 	// Listen for process termination
 	go func() {
 		err := cmd.Wait()
+		// Exit code 255 alone does not mean we stopped it: an encoder that cannot start exits the same way.
+		stoppedByUs := headCtx.Err() != nil
 		headCancel()
-		var exitErr *exec.ExitError
-		// Check if hardware acceleration was attempted and if stderr indicates a failure to use it
-		if len(ts.settings.HwAccel.DecodeFlags) > 0 {
-			lowerOutput := strings.ToLower(stderr.String())
-			if strings.Contains(lowerOutput, "failed") &&
-				(strings.Contains(lowerOutput, "hwaccel") || strings.Contains(lowerOutput, "vaapi") || strings.Contains(lowerOutput, "cuvid") || strings.Contains(lowerOutput, "vdpau")) {
-				streamLogger.Warn().Int("eid", encoderId).Msg("transcoder: ffmpeg failed to use hardware acceleration settings; falling back to CPU")
-			}
-		}
 
-		if errors.As(err, &exitErr) && exitErr.ExitCode() == 255 {
+		if err != nil && stoppedByUs {
 			streamLogger.Trace().Int("eid", encoderId).Msgf("transcoder: ffmpeg process was terminated")
 		} else if err != nil {
 			streamLogger.Error().Int("eid", encoderId).Err(fmt.Errorf("%s: %s", err, stderr.String())).Msgf("transcoder: ffmpeg process failed")
@@ -663,10 +658,25 @@ func (ts *Stream) run(start int32) error {
 			streamLogger.Trace().Int("eid", encoderId).Msgf("transcoder: ffmpeg process for %s exited", ts.kind)
 		}
 
+		ts.segmentsLock.RLock()
+		startReady := ts.isSegmentReady(start)
+		ts.segmentsLock.RUnlock()
+
 		ts.lockHeads()
-		defer ts.unlockHeads()
 		// we can't delete the head directly because it would invalidate the others encoderId
 		ts.heads[encoderId] = DeletedHead
+		ts.unlockHeads()
+
+		// Whoever asked for this segment is still waiting for it, so a hardware encoder that failed
+		// before its first segment is replaced now rather than left to time out.
+		isEncode := ts.handle.getFlags()&VideoF != 0 && ts.handle.getFlags()&Transmux == 0
+		if err != nil && !stoppedByUs && !startReady && isEncode && hwAccel.Name != softwareHwAccelName {
+			streamLogger.Warn().Int("eid", encoderId).Msgf("transcoder: %s encoder failed, using the CPU until the transcoder restarts", hwAccel.Name)
+			ts.settings.fallBackToSoftware()
+			if err := ts.run(start); err != nil {
+				streamLogger.Error().Int("eid", encoderId).Err(err).Msgf("transcoder: Could not restart %s on the CPU", ts.kind)
+			}
+		}
 	}()
 
 	return nil

@@ -26,10 +26,13 @@ type (
 	}
 
 	Settings struct {
-		StreamDir   string
-		HwAccel     HwAccelSettings
-		FfmpegPath  string
-		FfprobePath string
+		StreamDir string
+		HwAccel   HwAccelSettings
+		// SoftwareHwAccel takes over when the encoder of HwAccel turns out not to work.
+		SoftwareHwAccel HwAccelSettings
+		softwareOnly    atomic.Bool
+		FfmpegPath      string
+		FfprobePath     string
 	}
 
 	NewTranscoderOptions struct {
@@ -88,6 +91,11 @@ func NewTranscoder(opts *NewTranscoderOptions) (*Transcoder, error) {
 				Preset:         opts.Preset,
 				CustomSettings: opts.HwAccelCustomSettings,
 				FfmpegPath:     opts.FfmpegPath,
+			}),
+			SoftwareHwAccel: GetHardwareAccelSettings(HwAccelOptions{
+				Kind:       softwareHwAccelName,
+				Preset:     opts.Preset,
+				FfmpegPath: opts.FfmpegPath,
 			}),
 			FfmpegPath:  opts.FfmpegPath,
 			FfprobePath: opts.FfprobePath,

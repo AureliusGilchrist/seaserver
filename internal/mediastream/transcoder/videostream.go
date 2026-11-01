@@ -58,21 +58,22 @@ func (vs *VideoStream) getTranscodeArgs(segments string) []string {
 		return args
 	}
 
-	vs.logger.Debug().Interface("hwaccelArgs", vs.settings.HwAccel).Msg("videostream: Hardware Acceleration")
+	hwAccel := vs.settings.activeHwAccel()
+	vs.logger.Debug().Interface("hwaccelArgs", hwAccel).Msg("videostream: Hardware Acceleration")
 
-	args = append(args, vs.settings.HwAccel.EncodeFlags...)
+	args = append(args, hwAccel.EncodeFlags...)
 	width := int32(float64(vs.quality.Height()) / float64(vs.file.Info.Video.Height) * float64(vs.file.Info.Video.Width))
 	// force a width that is a multiple of two else some apps behave badly.
 	width = closestMultiple(width, 2)
 	args = append(args,
-		"-vf", fmt.Sprintf(vs.settings.HwAccel.ScaleFilter, width, vs.quality.Height()),
+		"-vf", fmt.Sprintf(hwAccel.ScaleFilter, width, vs.quality.Height()),
 		// Even less sure but buf size are 5x the average bitrate since the average bitrate is only
 		// useful for hls segments.
 		"-bufsize", fmt.Sprint(vs.quality.MaxBitrate()*5),
 		"-b:v", fmt.Sprint(vs.quality.AverageBitrate()),
 		"-maxrate", fmt.Sprint(vs.quality.MaxBitrate()),
 	)
-	if vs.settings.HwAccel.WithForcedIdr {
+	if hwAccel.WithForcedIdr {
 		// Force segments to be split exactly on keyframes (only works when transcoding)
 		// forced-idr is needed to force keyframes to be an idr-frame (by default it can be any i frames)
 		// without this option, some hardware encoders uses others i-frames and the -f segment can't cut at them.
