@@ -1115,6 +1115,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.PATCH("/profile/display-cosmetics", h.HandleSetDisplayCosmetics)
 	v1.PATCH("/profile/wallpaper", h.HandleSetProfileWallpaper)
 	v1.POST("/profile/wallpaper/upload", h.HandleUploadProfileWallpaper)
+	v1.POST("/profile/landing-image/upload", h.HandleUploadLandingImage)
 	v1.GET("/profile/level", h.HandleGetLevel)
 	// What the last update was, kept until the client has seen it. Shown after sign-in, never at
 	// the PIN screen, and dismissed only by the person looking at it.

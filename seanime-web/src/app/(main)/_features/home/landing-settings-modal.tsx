@@ -1,5 +1,6 @@
 "use client"
 
+import { LandingLookSettings } from "@/app/(main)/_features/home/landing-look-settings"
 import { ALWAYS_SHOWN_LANDING_WIDGETS, LANDING_QUICK_LINKS, LANDING_WIDGET_META, useLandingFolders, useLandingWidgets, type LandingWidgetId } from "@/app/(main)/_features/home/landing-widgets"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
@@ -60,6 +61,8 @@ export function LandingSettingsModal({ open, onOpenChange }: { open: boolean, on
             contentClass="max-w-3xl max-h-[90vh] overflow-y-auto"
         >
             <div className="space-y-4 mt-4">
+                <LandingLookSettings />
+
                 <p className="text-sm text-[--muted]">
                     What the landing page shows, and in what order. Use the arrows to move a widget,
                     toggle it to hide it.

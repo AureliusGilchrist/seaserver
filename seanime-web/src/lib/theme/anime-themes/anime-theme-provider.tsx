@@ -2,6 +2,7 @@
 import { isMobile } from "@/lib/utils/browser-detection"
 import { buildSeaQuery } from "@/api/client/requests"
 import { resolveServerAsset } from "@/lib/server/assets"
+import { LANDING_PATH, resolveLandingImage, useLandingLook } from "@/lib/theme/landing-look"
 import React from "react"
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai"
 import { atomWithStorage } from "jotai/utils"
@@ -740,13 +741,17 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     // Theme Manager wallpaper, then the active profile wallpaper. Profile pages keep their own
     // scoped colors and are deliberately excluded from the latter two fallback sources.
     const isProfilePage = pathname.startsWith("/profile")
+    const { look: landingLook } = useLandingLook()
+    const landingWallpaper = pathname === LANDING_PATH ? landingLook.wallpaper : ""
     React.useEffect(() => {
         const profileWallpaperUrl = currentProfile?.wallpaperUrl
             ? currentProfile.wallpaperUrl.startsWith("/")
                 ? `${getServerBaseUrl()}${currentProfile.wallpaperUrl}`
                 : currentProfile.wallpaperUrl
             : null
-        const url = !isProfilePage && themeSettings.libraryScreenCustomBackgroundImage
+        const url = landingWallpaper
+            ? resolveLandingImage(landingWallpaper)
+            : !isProfilePage && themeSettings.libraryScreenCustomBackgroundImage
             ? getAssetUrl(themeSettings.libraryScreenCustomBackgroundImage)
             : config.id !== "seanime" && activeBackgroundUrl
                 ? activeBackgroundUrl
@@ -773,6 +778,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         activeBackgroundUrl,
         currentProfile?.wallpaperUrl,
         isProfilePage,
+        landingWallpaper,
         themeSettings.libraryScreenCustomBackgroundImage,
         setWallpaperAccent,
     ])
@@ -780,7 +786,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     // ── Background image: hide default body:before AND body:after when a custom bg is active ──
     React.useEffect(() => {
         const root = document.documentElement
-        if (config.id !== "seanime" && activeBackgroundUrl) {
+        if (landingWallpaper || (config.id !== "seanime" && activeBackgroundUrl)) {
             root.style.setProperty("--body-bg-opacity", "0")
             root.style.setProperty("--body-after-opacity", "0")
         } else {
@@ -791,7 +797,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
             root.style.removeProperty("--body-bg-opacity")
             root.style.removeProperty("--body-after-opacity")
         }
-    }, [config.id, activeBackgroundUrl])
+    }, [config.id, activeBackgroundUrl, landingWallpaper])
 
     // ── Google Font injection ──
     React.useEffect(() => {
@@ -989,7 +995,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         <AnimeThemeContext.Provider value={value}>
             {children}
             <AnimeThemeMusicPlayer />
-            {!hideBackdrop && config.id !== "seanime" && activeBackgroundUrl && <ThemeBackgroundImage url={activeBackgroundUrl} dim={backgroundDim} blur={backgroundBlur} exposure={backgroundExposure} saturation={backgroundSaturation} contrast={backgroundContrast} scanlinesStrength={scanlinesStrength} scanlinesSize={scanlinesSize} noiseStrength={noiseStrength} noiseSpeed={noiseSpeed} vignetteStrength={vignetteStrength} vignetteSize={vignetteSize} glowStrength={glowStrength} glowSpeed={glowSpeed} glowScale={glowScale} hologramStrength={hologramStrength} />}
+            {!hideBackdrop && !landingWallpaper && config.id !== "seanime" && activeBackgroundUrl && <ThemeBackgroundImage url={activeBackgroundUrl} dim={backgroundDim} blur={backgroundBlur} exposure={backgroundExposure} saturation={backgroundSaturation} contrast={backgroundContrast} scanlinesStrength={scanlinesStrength} scanlinesSize={scanlinesSize} noiseStrength={noiseStrength} noiseSpeed={noiseSpeed} vignetteStrength={vignetteStrength} vignetteSize={vignetteSize} glowStrength={glowStrength} glowSpeed={glowSpeed} glowScale={glowScale} hologramStrength={hologramStrength} />}
             {!hideBackdrop && config.id !== "seanime" && <ThemeAnimatedOverlay themeId={themeId} intensity={animatedIntensity} particleSettings={particleSettings} particleColor={config.particleColor} />}
         </AnimeThemeContext.Provider>
     )

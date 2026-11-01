@@ -75,18 +75,8 @@ func (h *Handler) HandleUploadProfileWallpaper(c echo.Context) error {
 		return h.RespondWithError(c, echo.NewHTTPError(400, "wallpaper must be under 10MB"))
 	}
 
-	ct := file.Header.Get("Content-Type")
-	ext := ""
-	switch ct {
-	case "image/png":
-		ext = ".png"
-	case "image/jpeg":
-		ext = ".jpg"
-	case "image/gif":
-		ext = ".gif"
-	case "image/webp":
-		ext = ".webp"
-	default:
+	ext := imageExtension(file.Header.Get("Content-Type"))
+	if ext == "" {
 		return h.RespondWithError(c, echo.NewHTTPError(400, "file must be a png, jpeg, gif or webp image"))
 	}
 
@@ -124,4 +114,80 @@ func (h *Handler) HandleUploadProfileWallpaper(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 	return h.RespondWithData(c, profile.ToSummary())
+}
+
+// imageExtension returns the extension for an image type this server stores, or "" for any other.
+func imageExtension(contentType string) string {
+	switch contentType {
+	case "image/png":
+		return ".png"
+	case "image/jpeg":
+		return ".jpg"
+	case "image/gif":
+		return ".gif"
+	case "image/webp":
+		return ".webp"
+	}
+	return ""
+}
+
+// HandleUploadLandingImage
+//
+//	@summary upload the landing page's wallpaper or banner for the current profile.
+//	@desc Only stores the file. The returned url is saved with the rest of the landing page's settings.
+//	@route /api/v1/profile/landing-image/upload [POST]
+func (h *Handler) HandleUploadLandingImage(c echo.Context) error {
+	profileID := h.GetProfileID(c)
+	if profileID == 0 {
+		return h.RespondWithError(c, echo.NewHTTPError(401, "Not authenticated"))
+	}
+	if h.App.ProfileManager == nil {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "Profiles not active"))
+	}
+
+	slot := c.FormValue("slot")
+	if slot != "wallpaper" && slot != "banner" {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "slot must be wallpaper or banner"))
+	}
+	file, err := c.FormFile("image")
+	if err != nil {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "image file required"))
+	}
+	// Larger than a profile wallpaper: an animated banner is a big GIF.
+	if file.Size > 25*1024*1024 {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "image must be under 25MB"))
+	}
+	ext := imageExtension(file.Header.Get("Content-Type"))
+	if ext == "" {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "file must be a png, jpeg, gif or webp image"))
+	}
+
+	dir := filepath.Join(h.App.ProfileManager.GetProfileDir(profileID), "avatars")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return h.RespondWithError(c, err)
+	}
+	name := "landing-" + slot
+	// A changed extension must not leave the old image behind.
+	for _, old := range []string{".png", ".jpg", ".gif", ".webp"} {
+		_ = os.Remove(filepath.Join(dir, name+old))
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	defer src.Close()
+	dst, err := os.Create(filepath.Join(dir, name+ext))
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	defer dst.Close()
+	if _, err := io.Copy(dst, src); err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	// The query string busts caches when the same filename is re-uploaded.
+	return h.RespondWithData(c, map[string]string{
+		"url": fmt.Sprintf("/api/v1/profiles/%d/avatar/%s%s?v=%d", profileID, name, ext, time.Now().Unix()),
+	})
 }

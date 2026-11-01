@@ -3,6 +3,7 @@
 import { useCurrentUser, useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { ContinueWatching } from "@/app/(main)/(library)/_containers/continue-watching"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
+import { resolveLandingImage, useLandingLook } from "@/lib/theme/landing-look"
 import { useHandleLibraryCollection } from "@/app/(main)/(library)/_lib/handle-library-collection"
 import { useLandingWidgets, type LandingWidgetId } from "@/app/(main)/_features/home/landing-widgets"
 import {
@@ -37,6 +38,7 @@ export function LandingHub() {
     const user = useCurrentUser()
     const serverStatus = useServerStatus()
     const { widgets } = useLandingWidgets()
+    const { look } = useLandingLook()
     const { continueWatchingList, isLoading: isLibraryLoading } = useHandleLibraryCollection()
 
     const [settingsOpen, setSettingsOpen] = useAtom(__landingSettingsModalOpen)
@@ -82,7 +84,12 @@ export function LandingHub() {
 
     return (
         <>
-            <CustomLibraryBanner discrete />
+            {look.banner
+                ? <CustomLibraryBanner
+                    isHomeScreen
+                    override={{ image: resolveLandingImage(look.banner), position: look.bannerPosition, opacity: look.bannerOpacity }}
+                />
+                : !look.wallpaper && <CustomLibraryBanner discrete />}
             <PageWrapper className="relative mx-auto min-h-[100svh] w-full max-w-[1800px] space-y-6 overflow-x-hidden px-3 py-4 sm:space-y-8 sm:px-5 sm:py-6 lg:space-y-10 lg:px-8 xl:px-10">
                 {/* Hero */}
                 <section ref={heroRef} data-landing-hero className="relative z-[1] overflow-hidden rounded-3xl border border-white/10 bg-black/25 p-5 shadow-2xl shadow-black/30 backdrop-blur-md sm:p-7 lg:p-10">

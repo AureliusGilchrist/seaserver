@@ -12,6 +12,8 @@ type CustomLibraryBannerProps = {
     discrete?: boolean
     isHomeScreen?: boolean
     isLibraryScreen?: boolean // Anime library or manga library
+    /** Draw this image rather than the app-wide banner. */
+    override?: { image: string, position: string, opacity: number }
 }
 
 export function CustomLibraryBanner(props: CustomLibraryBannerProps) {
@@ -19,10 +21,10 @@ export function CustomLibraryBanner(props: CustomLibraryBannerProps) {
      * Library screens: Shows the custom banner IF theme settings are set to use a custom banner
      * Other pages: Shows the custom banner
      */
-    const { discrete, isLibraryScreen, isHomeScreen } = props
+    const { discrete, isLibraryScreen, isHomeScreen, override } = props
     const ts = useThemeSettings()
-    const image = React.useMemo(() => ts.libraryScreenCustomBannerImage ? getAssetUrl(ts.libraryScreenCustomBannerImage) : "",
-        [ts.libraryScreenCustomBannerImage])
+    const image = React.useMemo(() => override?.image || (ts.libraryScreenCustomBannerImage ? getAssetUrl(ts.libraryScreenCustomBannerImage) : ""),
+        [override?.image, ts.libraryScreenCustomBannerImage])
     // Same scroll fade as the anime/manga page hero. A discrete banner starts faint and fades from there.
     const heroFade = useHeroScrollFade({ restOpacity: discrete ? 0.2 : 1 })
 
@@ -87,8 +89,8 @@ export function CustomLibraryBanner(props: CustomLibraryBannerProps) {
                         style={{
                             ...heroFade.imageStyle,
                             backgroundImage: `url(${HIDE_IMAGES ? "/no-cover.png" : image})`,
-                            backgroundPosition: ts.libraryScreenCustomBannerPosition || "50% 50%",
-                            opacity: (ts.libraryScreenCustomBannerOpacity || 100) / 100,
+                            backgroundPosition: (override ? override.position : ts.libraryScreenCustomBannerPosition) || "50% 50%",
+                            opacity: ((override ? override.opacity : ts.libraryScreenCustomBannerOpacity) || 100) / 100,
                             backgroundRepeat: "no-repeat",
                             backgroundSize: "cover",
                         }}

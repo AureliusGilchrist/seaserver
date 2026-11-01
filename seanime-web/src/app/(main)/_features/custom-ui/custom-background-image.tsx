@@ -2,6 +2,7 @@
 import { cn } from "@/components/ui/core/styling"
 import { getAssetUrl } from "@/lib/server/assets"
 import { useThemeSettings } from "@/lib/theme/hooks"
+import { LANDING_PATH, resolveLandingImage, useLandingLook } from "@/lib/theme/landing-look"
 import { useUICustomize } from "@/lib/ui-customize/ui-customize-provider"
 import { EFFECTS_PRESETS } from "@/lib/ui-customize/ui-customize-definitions"
 import { motion } from "motion/react"
@@ -84,8 +85,17 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
     const animeTheme = useAnimeThemeOrNull()
     const themeActive = !!animeTheme && animeTheme.config.id !== "seanime"
     const wallpaperBlurPx = animeTheme?.backgroundBlur ?? 0
-    // When the theme draws its own wallpaper it already carries these effects; only add them for the custom one.
-    const showThemeEffectsOnCustom = themeActive && !animeTheme!.activeBackgroundUrl
+    // The landing page's own wallpaper stands in for the app-wide one, through everything below.
+    const { look } = useLandingLook()
+    const landingWallpaper = pathname === LANDING_PATH ? look.wallpaper : ""
+    const wallpaperUrl = landingWallpaper
+        ? resolveLandingImage(landingWallpaper)
+        : ts.libraryScreenCustomBackgroundImage ? getAssetUrl(ts.libraryScreenCustomBackgroundImage) : ""
+    const wallpaperGlow = landingWallpaper ? look.wallpaperGlow : ts.libraryScreenCustomBackgroundGlow
+    const wallpaperOpacity = landingWallpaper ? look.wallpaperOpacity : ts.libraryScreenCustomBackgroundOpacity
+    // When the theme draws its own wallpaper it already carries these effects; only add them for the
+    // custom one. The theme hands the landing page over (see AnimeThemeProvider), effects included.
+    const showThemeEffectsOnCustom = themeActive && (!animeTheme!.activeBackgroundUrl || !!landingWallpaper)
     // Exclude specific pages from background effects.
     // NOTE: anime/character detail pages (/entry) are intentionally NOT excluded —
     // users want their wallpaper (and scanlines/grain/glow/etc.) visible behind the
@@ -115,9 +125,9 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
             if (t.backgroundSaturation !== 1) parts.push(`saturate(${t.backgroundSaturation})`)
             if (t.backgroundContrast !== 1) parts.push(`contrast(${t.backgroundContrast})`)
         }
-        if (ts.libraryScreenCustomBackgroundGlow > 0) {
-            parts.push(`brightness(${1 + ts.libraryScreenCustomBackgroundGlow * 0.025})`)
-            parts.push(`saturate(${1 + ts.libraryScreenCustomBackgroundGlow * 0.015})`)
+        if (wallpaperGlow > 0) {
+            parts.push(`brightness(${1 + wallpaperGlow * 0.025})`)
+            parts.push(`saturate(${1 + wallpaperGlow * 0.015})`)
         }
         if (hueRotate) {
             parts.push(`hue-rotate(${hueRotate})`)
@@ -127,13 +137,13 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
             parts.push("contrast(1.08)")
         }
         return parts.length > 0 ? parts.join(" ") : undefined
-    }, [ts.libraryScreenCustomBackgroundGlow, hueRotate, hasInkWash, showThemeEffectsOnCustom, animeTheme?.backgroundExposure, animeTheme?.backgroundSaturation, animeTheme?.backgroundContrast])
+    }, [wallpaperGlow, hueRotate, hasInkWash, showThemeEffectsOnCustom, animeTheme?.backgroundExposure, animeTheme?.backgroundSaturation, animeTheme?.backgroundContrast])
 
     // Dim alpha: derived from opacity slider so the overlay darkens/lightens visibly
     // opacity=10  → dimAlpha ≈ 0.845  (very dark)
     // opacity=50  → dimAlpha ≈ 0.505  (half visible)
     // opacity=100 → dimAlpha ≈ 0.08   (mostly visible)
-    const dimAlpha = (100 - ts.libraryScreenCustomBackgroundOpacity) / 100 * 0.85 + 0.08
+    const dimAlpha = (100 - wallpaperOpacity) / 100 * 0.85 + 0.08
 
     const hasAnyEffect = (effectPreset && effectPreset.id !== "fx-none") && !isFullscreen
 
@@ -146,7 +156,7 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
     return (
         <>
             {/* ── Section A: Wallpaper image + dim overlay ── */}
-            {!hideWallpaper && !!ts.libraryScreenCustomBackgroundImage && (
+            {!hideWallpaper && !!wallpaperUrl && (
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -174,7 +184,7 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
                             className,
                         )}
                         style={{
-                            backgroundImage: `url(${getAssetUrl(ts.libraryScreenCustomBackgroundImage)})`,
+                            backgroundImage: `url("${wallpaperUrl}")`,
                             filter: buildImageFilter(),
                         }}
                         {...rest}
@@ -199,14 +209,14 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
                     )}
 
                     {/* ── Bloom/glow from settings slider ── */}
-                    {ts.libraryScreenCustomBackgroundGlow > 0 && (
+                    {wallpaperGlow > 0 && (
                         <div
                             className="fixed w-full h-full inset-0 z-[0] pointer-events-none"
                             style={{
-                                backgroundImage: `url(${getAssetUrl(ts.libraryScreenCustomBackgroundImage)})`,
+                                backgroundImage: `url("${wallpaperUrl}")`,
                                 backgroundSize: "cover",
                                 backgroundPosition: "center",
-                                opacity: (ts.libraryScreenCustomBackgroundGlow / 100) * 0.18,
+                                opacity: (wallpaperGlow / 100) * 0.18,
                                 filter: `blur(40px) brightness(2) saturate(1.5)`,
                                 mixBlendMode: "screen",
                             }}
