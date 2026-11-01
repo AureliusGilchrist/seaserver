@@ -503,8 +503,8 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Anilist.GET("/collection", h.HandleGetAnimeCollection, h.RequireProfileSession)
 	v1Anilist.POST("/collection", h.HandleGetAnimeCollection, h.RequireProfileSession)
 
-	v1Anilist.GET("/collection/raw", h.HandleGetRawAnimeCollection)
-	v1Anilist.POST("/collection/raw", h.HandleGetRawAnimeCollection)
+	v1Anilist.GET("/collection/raw", h.HandleGetRawAnimeCollection, h.RequireProfileSession)
+	v1Anilist.POST("/collection/raw", h.HandleGetRawAnimeCollection, h.RequireProfileSession)
 
 	v1Anilist.POST("/planning", h.HandleAddAnimeToPlanning, h.RequireProfileSession)
 
@@ -740,8 +740,8 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 
 	v1Manga := v1.Group("/manga")
 	v1Manga.POST("/anilist/collection", h.HandleGetAnilistMangaCollection, h.RequireProfileSession)
-	v1Manga.GET("/anilist/collection/raw", h.HandleGetRawAnilistMangaCollection)
-	v1Manga.POST("/anilist/collection/raw", h.HandleGetRawAnilistMangaCollection)
+	v1Manga.GET("/anilist/collection/raw", h.HandleGetRawAnilistMangaCollection, h.RequireProfileSession)
+	v1Manga.POST("/anilist/collection/raw", h.HandleGetRawAnilistMangaCollection, h.RequireProfileSession)
 	v1Manga.POST("/anilist/list", h.HandleAnilistListManga)
 	v1Manga.GET("/collection", h.HandleGetMangaCollection, h.RequireProfileSession)
 	v1Manga.POST("/hydrate-all", h.HandleHydrateAllManga)

@@ -106,9 +106,12 @@ func (h *Handler) HandleGetRawAnimeCollection(c echo.Context) error {
 		if bypassCache {
 			h.App.AnilistClientManager.InvalidateAnimeCollection(profileID)
 		}
-		if col, err := h.App.AnilistClientManager.GetAnimeCollection(profileID); err == nil && col != nil {
-			return h.RespondWithData(c, col)
+		// An error stays an error: the app-level account is the shared planning one, not this person's.
+		col, err := h.App.AnilistClientManager.GetAnimeCollection(profileID)
+		if err != nil {
+			return h.RespondWithError(c, err)
 		}
+		return h.RespondWithData(c, col)
 	}
 
 	ctx := enmasse.WithUserInitiated(c.Request().Context())

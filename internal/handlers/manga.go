@@ -155,9 +155,12 @@ func (h *Handler) HandleGetRawAnilistMangaCollection(c echo.Context) error {
 		if bypassCache {
 			h.App.AnilistClientManager.InvalidateMangaCollection(profileID)
 		}
-		if col, err := h.App.AnilistClientManager.GetMangaCollection(profileID); err == nil && col != nil {
-			return h.RespondWithData(c, col)
+		// An error stays an error: the app-level account is the shared planning one, not this person's.
+		col, err := h.App.AnilistClientManager.GetMangaCollection(profileID)
+		if err != nil {
+			return h.RespondWithError(c, err)
 		}
+		return h.RespondWithData(c, col)
 	}
 
 	mangaCollection, err := h.App.GetRawMangaCollection(bypassCache)
