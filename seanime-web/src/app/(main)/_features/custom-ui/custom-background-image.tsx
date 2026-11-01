@@ -2,7 +2,7 @@
 import { cn } from "@/components/ui/core/styling"
 import { getAssetUrl } from "@/lib/server/assets"
 import { useThemeSettings } from "@/lib/theme/hooks"
-import { LANDING_PATH, resolveLandingImage, useLandingLook } from "@/lib/theme/landing-look"
+import { resolveLandingImage, useWallpaperOverride } from "@/lib/theme/landing-look"
 import { useUICustomize } from "@/lib/ui-customize/ui-customize-provider"
 import { EFFECTS_PRESETS } from "@/lib/ui-customize/ui-customize-definitions"
 import { motion } from "motion/react"
@@ -85,17 +85,16 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
     const animeTheme = useAnimeThemeOrNull()
     const themeActive = !!animeTheme && animeTheme.config.id !== "seanime"
     const wallpaperBlurPx = animeTheme?.backgroundBlur ?? 0
-    // The landing page's own wallpaper stands in for the app-wide one, through everything below.
-    const { look } = useLandingLook()
-    const landingWallpaper = pathname === LANDING_PATH ? look.wallpaper : ""
-    const wallpaperUrl = landingWallpaper
-        ? resolveLandingImage(landingWallpaper)
+    // The phone's or the landing page's own wallpaper stands in for the app-wide one, through everything below.
+    const wallpaperOverride = useWallpaperOverride()
+    const wallpaperUrl = wallpaperOverride
+        ? resolveLandingImage(wallpaperOverride.image)
         : ts.libraryScreenCustomBackgroundImage ? getAssetUrl(ts.libraryScreenCustomBackgroundImage) : ""
-    const wallpaperGlow = landingWallpaper ? look.wallpaperGlow : ts.libraryScreenCustomBackgroundGlow
-    const wallpaperOpacity = landingWallpaper ? look.wallpaperOpacity : ts.libraryScreenCustomBackgroundOpacity
+    const wallpaperGlow = wallpaperOverride ? wallpaperOverride.glow : ts.libraryScreenCustomBackgroundGlow
+    const wallpaperOpacity = wallpaperOverride ? wallpaperOverride.opacity : ts.libraryScreenCustomBackgroundOpacity
     // When the theme draws its own wallpaper it already carries these effects; only add them for the
-    // custom one. The theme hands the landing page over (see AnimeThemeProvider), effects included.
-    const showThemeEffectsOnCustom = themeActive && (!animeTheme!.activeBackgroundUrl || !!landingWallpaper)
+    // custom one. The theme hands over to an override (see AnimeThemeProvider), effects included.
+    const showThemeEffectsOnCustom = themeActive && (!animeTheme!.activeBackgroundUrl || !!wallpaperOverride)
     // Exclude specific pages from background effects.
     // NOTE: anime/character detail pages (/entry) are intentionally NOT excluded —
     // users want their wallpaper (and scanlines/grain/glow/etc.) visible behind the

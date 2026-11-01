@@ -1,4 +1,5 @@
 "use client"
+import { MobileWallpaperSettings } from "@/app/(main)/_features/home/landing-look-settings"
 import { resolveServerAsset } from "@/lib/server/assets"
 import React from "react"
 import { useAnimeTheme, deriveBrandShades, wallpaperPreviewModeAtom } from "@/lib/theme/anime-themes/anime-theme-provider"
@@ -605,6 +606,7 @@ export default function ThemeManagerPage() {
             )}
 
             {/* Wallpapers tab */}
+            {activeTab === "wallpapers" && <div className="px-4 pt-4 sm:px-8"><MobileWallpaperSettings /></div>}
             {activeTab === "wallpapers" && <WallpaperShopTab
                 themeId={themeId}
                 downloadedBgs={downloadedBgs ?? []}

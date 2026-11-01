@@ -2,7 +2,7 @@
 
 import { useServerMutation } from "@/api/client/requests"
 import { Button } from "@/components/ui/button"
-import { resolveLandingImage, useLandingLook } from "@/lib/theme/landing-look"
+import { resolveLandingImage, useIsPhone, useLandingLook } from "@/lib/theme/landing-look"
 import React from "react"
 import { LuImage, LuTrash2, LuUpload } from "react-icons/lu"
 import { toast } from "sonner"
@@ -41,9 +41,31 @@ export function LandingLookSettings() {
     )
 }
 
+/** Only on a phone, and only a phone uses it, so a desktop keeps its own wallpaper. */
+export function MobileWallpaperSettings() {
+    const { look, updateLook } = useLandingLook()
+    const isPhone = useIsPhone()
+    if (!isPhone) return null
+
+    return (
+        <section className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4" data-mobile-wallpaper-settings>
+            <div>
+                <p className="font-semibold text-white">Phone wallpaper</p>
+                <p className="text-xs text-[--muted]">
+                    Shows on every page, on phones only, in place of any other wallpaper. Left empty, your phone uses those as usual.
+                </p>
+            </div>
+            <ImageRow label="Wallpaper" slot="mobile-wallpaper" value={look.mobileWallpaper} onChange={mobileWallpaper => updateLook({ mobileWallpaper })}>
+                <Slider label="Opacity" value={look.mobileWallpaperOpacity} min={1} onChange={mobileWallpaperOpacity => updateLook({ mobileWallpaperOpacity })} />
+                <Slider label="Glow" value={look.mobileWallpaperGlow} min={0} onChange={mobileWallpaperGlow => updateLook({ mobileWallpaperGlow })} />
+            </ImageRow>
+        </section>
+    )
+}
+
 function ImageRow({ label, slot, value, onChange, children }: {
     label: string
-    slot: "wallpaper" | "banner"
+    slot: "wallpaper" | "banner" | "mobile-wallpaper"
     value: string
     onChange: (value: string) => void
     children: React.ReactNode

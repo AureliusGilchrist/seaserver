@@ -1,6 +1,8 @@
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
+import { usePathname } from "@/lib/navigation"
 import { getAssetUrl } from "@/lib/server/assets"
+import { isMobile } from "@/lib/utils/browser-detection"
 import { seaJotaiStorage } from "@/lib/sea-storage/sea-storage"
 import { useAtom, useAtomValue } from "jotai"
 import { atomWithStorage } from "jotai/utils"
@@ -17,6 +19,10 @@ export type LandingLook = {
     banner: string
     bannerPosition: string
     bannerOpacity: number
+    /** Shown on phones only, on every page, over every other wallpaper. */
+    mobileWallpaper: string
+    mobileWallpaperOpacity: number
+    mobileWallpaperGlow: number
 }
 
 export const DEFAULT_LANDING_LOOK: LandingLook = {
@@ -26,6 +32,9 @@ export const DEFAULT_LANDING_LOOK: LandingLook = {
     banner: "",
     bannerPosition: "50% 50%",
     bannerOpacity: 100,
+    mobileWallpaper: "",
+    mobileWallpaperOpacity: 100,
+    mobileWallpaperGlow: 0,
 }
 
 const landingLooksAtom = atomWithStorage<Record<string, LandingLook>>("sea-landing-look", {}, seaJotaiStorage, { getOnInit: true })
@@ -49,4 +58,22 @@ export function useLandingLook() {
     }, [key, setLooks])
 
     return { look, updateLook }
+}
+
+export function useIsPhone() {
+    return React.useMemo(() => typeof window !== "undefined" && isMobile(), [])
+}
+
+/** The wallpaper standing in for the app-wide one here, if any: the phone's own, then the landing page's. */
+export function useWallpaperOverride() {
+    const { look } = useLandingLook()
+    const pathname = usePathname()
+    const isPhone = useIsPhone()
+    if (isPhone && look.mobileWallpaper) {
+        return { image: look.mobileWallpaper, opacity: look.mobileWallpaperOpacity, glow: look.mobileWallpaperGlow }
+    }
+    if (pathname === LANDING_PATH && look.wallpaper) {
+        return { image: look.wallpaper, opacity: look.wallpaperOpacity, glow: look.wallpaperGlow }
+    }
+    return null
 }

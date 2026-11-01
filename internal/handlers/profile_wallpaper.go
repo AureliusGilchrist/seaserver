@@ -146,8 +146,8 @@ func (h *Handler) HandleUploadLandingImage(c echo.Context) error {
 	}
 
 	slot := c.FormValue("slot")
-	if slot != "wallpaper" && slot != "banner" {
-		return h.RespondWithError(c, echo.NewHTTPError(400, "slot must be wallpaper or banner"))
+	if slot != "wallpaper" && slot != "banner" && slot != "mobile-wallpaper" {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "slot must be wallpaper, banner or mobile-wallpaper"))
 	}
 	file, err := c.FormFile("image")
 	if err != nil {
