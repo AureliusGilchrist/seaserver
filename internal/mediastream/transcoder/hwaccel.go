@@ -1,10 +1,7 @@
 package transcoder
 
 import (
-	"os/exec"
 	"runtime"
-	"strings"
-	"sync"
 
 	"github.com/goccy/go-json"
 )
@@ -18,45 +15,10 @@ type (
 	}
 )
 
-// ffmpegFiltersCache memoizes the output of `ffmpeg -filters` per binary path so that
-// repeated hardware-acceleration probes don't spawn a new (slow, cold-start) ffmpeg
-// subprocess on the first playback. The result is stable for the lifetime of the process.
-var (
-	ffmpegFiltersCache   = map[string]string{}
-	ffmpegFiltersCacheMu sync.Mutex
-)
-
-// getFFmpegFilters returns the cached `ffmpeg -filters` output for the given binary,
-// running the subprocess only once per binary path.
-func getFFmpegFilters(ffmpegPath string) string {
-	ffmpegBin := ffmpegPath
-	if ffmpegBin == "" {
-		ffmpegBin = "ffmpeg"
-	}
-
-	ffmpegFiltersCacheMu.Lock()
-	defer ffmpegFiltersCacheMu.Unlock()
-
-	if out, ok := ffmpegFiltersCache[ffmpegBin]; ok {
-		return out
-	}
-
-	out, err := exec.Command(ffmpegBin, "-hide_banner", "-filters").CombinedOutput()
-	if err != nil {
-		// Cache the (empty) result to avoid re-running a failing command repeatedly.
-		ffmpegFiltersCache[ffmpegBin] = ""
-		return ""
-	}
-
-	result := string(out)
-	ffmpegFiltersCache[ffmpegBin] = result
-	return result
-}
-
-// WarmUpHardwareAccel pre-populates the ffmpeg filters cache in the background so the
-// first stream doesn't pay the cold-start cost of probing ffmpeg. Safe to call multiple times.
+// WarmUpHardwareAccel asks ffmpeg what it can decode in the background, so the first stream doesn't
+// pay the cold-start cost of that. Safe to call multiple times.
 func WarmUpHardwareAccel(ffmpegPath string) {
-	_ = getFFmpegFilters(ffmpegPath)
+	_ = getFFmpegDecoders(ffmpegPath)
 }
 
 func GetHardwareAccelSettings(opts HwAccelOptions) HwAccelSettings {
@@ -76,13 +38,6 @@ func GetHardwareAccelSettings(opts HwAccelOptions) HwAccelSettings {
 		customHwAccelSettings.Name = "custom"
 	} else if opts.CustomSettings == "" && name == "custom" {
 		name = "disabled"
-	}
-
-	// probeFFmpegFilter checks whether a given filter name is available in the ffmpeg binary.
-	// The underlying `ffmpeg -filters` output is memoized (see getFFmpegFilters), so this is
-	// cheap after the first call and never re-spawns ffmpeg on the hot path.
-	probeFFmpegFilter := func(o HwAccelOptions, filterName string) bool {
-		return strings.Contains(getFFmpegFilters(o.FfmpegPath), filterName)
 	}
 
 	defaultOSDevice := "/dev/dri/renderD128"
@@ -172,24 +127,13 @@ func GetHardwareAccelSettings(opts HwAccelOptions) HwAccelSettings {
 			WithForcedIdr: true,
 		}
 	case "nvidia":
-		// Prefer scale_cuda for full GPU pipeline when available.
-		// Fall back to CPU-memory scaling (no -hwaccel_output_format cuda) when
-		// scale_cuda is not compiled into ffmpeg — common on distro-packaged builds.
-		nvidiaScaleFilter := "format=nv12|cuda,hwupload,scale_cuda=%d:%d:format=nv12"
-		nvidiaDecodeFlags := []string{
-			"-hwaccel", "cuda",
-			"-hwaccel_output_format", "cuda",
-		}
-		if !probeFFmpegFilter(opts, "scale_cuda") {
-			streamLogger.Warn().Msg("transcoder: scale_cuda filter not available, falling back to CPU scaling with NVENC encode")
-			nvidiaScaleFilter = "scale=%d:%d"
-			nvidiaDecodeFlags = []string{
-				"-hwaccel", "cuda",
-			}
-		}
+		// Frames stay in CPU memory and are scaled there, even when ffmpeg has scale_cuda. A GPU-only
+		// pipeline cannot take the -pix_fmt below, and breaks on whatever the GPU cannot decode itself.
 		return HwAccelSettings{
-			Name:        "nvidia",
-			DecodeFlags: nvidiaDecodeFlags,
+			Name: "nvidia",
+			DecodeFlags: []string{
+				"-hwaccel", "cuda",
+			},
 			EncodeFlags: []string{
 				"-c:v", "h264_nvenc",
 				"-preset", preset,
@@ -198,7 +142,7 @@ func GetHardwareAccelSettings(opts HwAccelOptions) HwAccelSettings {
 				// Force 8-bit output — older GPUs (e.g. GTX 980 / Maxwell) don't support 10-bit NVENC.
 				"-pix_fmt", "yuv420p",
 			},
-			ScaleFilter:   nvidiaScaleFilter,
+			ScaleFilter:   "scale=%d:%d",
 			WithForcedIdr: true,
 		}
 	case "nvidia-decode":
