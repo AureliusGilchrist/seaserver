@@ -9,9 +9,14 @@ import { Card } from "@/components/ui/card"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import React, { useEffect, useRef, useState } from "react"
 import { BiPlay, BiStop, BiPause } from "react-icons/bi"
-import { LuCircleCheck, LuCircleX, LuCircleMinus, LuDownload, LuRefreshCw } from "react-icons/lu"
+import { LuCircleCheck, LuCircleX, LuCircleMinus, LuClock, LuDownload, LuRefreshCw } from "react-icons/lu"
 import { Switch } from "@/components/ui/switch"
 import { formatNumber } from "@/lib/helpers/number"
+
+function formatClock(value?: string) {
+    if (!value) return "-"
+    return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+}
 
 export function MangaEnMassePage() {
     const { data: status, isLoading } = useMangaEnMasseStatus()
@@ -22,6 +27,9 @@ export function MangaEnMassePage() {
     const downloadedScrollRef = useRef<HTMLDivElement>(null)
     const failedScrollRef = useRef<HTMLDivElement>(null)
     const skippedScrollRef = useRef<HTMLDivElement>(null)
+
+    const waitingForProvider = !!status?.isRunning && !!status?.details?.waitingForProvider
+    const deferredCount = status?.details?.deferredCount || 0
 
     // Auto-scroll to bottom when new entries are added
     useEffect(() => {
@@ -115,7 +123,11 @@ export function MangaEnMassePage() {
                     <div className="flex items-center gap-4 mb-4">
                         <div className="flex items-center gap-2">
                             <span className="text-lg font-semibold">Status:</span>
-                            {status?.isRunning ? (
+                            {waitingForProvider ? (
+                                <Badge intent="warning" className="animate-pulse">
+                                    <LuClock className="mr-1" /> Waiting for provider
+                                </Badge>
+                            ) : status?.isRunning ? (
                                 <Badge intent="primary" className="animate-pulse">
                                     <LuDownload className="mr-1" /> Running
                                 </Badge>
@@ -128,6 +140,28 @@ export function MangaEnMassePage() {
                     </div>
 
                     <p className="text-[--muted] mb-4">{status?.status || "Ready to start"}</p>
+
+                    {waitingForProvider && status?.details && (
+                        <div className="mb-4 rounded-lg border border-yellow-500/40 bg-yellow-950/30 p-4 text-sm">
+                            <p className="font-semibold text-yellow-300">
+                                {status.details.provider} is down. The run is paused and nothing is being skipped.
+                            </p>
+                            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <div>
+                                    <span className="text-[--muted]">Waiting since:</span> {formatClock(status.details.providerWaitSince)}
+                                </div>
+                                <div>
+                                    <span className="text-[--muted]">Checks so far:</span> {status.details.providerWaitAttempt - 1}
+                                </div>
+                                <div>
+                                    <span className="text-[--muted]">Next check:</span> {formatClock(status.details.providerNextProbeAt)}
+                                </div>
+                                <div>
+                                    <span className="text-[--muted]">Moves on at:</span> {formatClock(status.details.providerGiveUpAt)}
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {status?.details && (
                         <div className="mb-4 rounded-lg border border-[--border] bg-[--subtle]/40 p-4">
@@ -279,6 +313,31 @@ export function MangaEnMassePage() {
                     </Card>
                 </div>
 
+                {/* Deferred */}
+                {deferredCount > 0 && (
+                    <Card className="p-4">
+                        <div className="flex items-center gap-2 mb-1">
+                            <LuClock className="text-yellow-500 text-xl" />
+                            <h3 className="font-semibold">
+                                Deferred by provider outage ({formatNumber(deferredCount)})
+                            </h3>
+                        </div>
+                        <p className="text-sm text-[--muted] mb-3">
+                            Not skipped or failed. These run again on the next resume.
+                        </p>
+                        <div className="max-h-64 overflow-y-auto space-y-1">
+                            {status?.deferredManga?.slice(-100).map((manga, i) => (
+                                <div
+                                    key={i}
+                                    className="text-sm text-yellow-400 bg-yellow-950/30 px-2 py-1 rounded"
+                                >
+                                    {manga}
+                                </div>
+                            ))}
+                        </div>
+                    </Card>
+                )}
+
                 {/* Instructions */}
                 <Card className="p-4">
                     <h3 className="font-semibold mb-2">How it works</h3>
@@ -304,6 +363,10 @@ export function MangaEnMassePage() {
                         </li>
                         <li>
                             Manga not found on AniList will be <strong>skipped</strong>
+                        </li>
+                        <li>
+                            If the provider goes down the run <strong>waits</strong> for it to recover. After 6 hours it moves on,
+                            and the series it could not reach are deferred to the next resume
                         </li>
                     </ul>
                 </Card>

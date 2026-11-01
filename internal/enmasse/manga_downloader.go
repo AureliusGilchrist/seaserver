@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"maps"
 	"os"
 	"path/filepath"
 	"seanime/internal/api/anilist"
@@ -20,6 +21,7 @@ import (
 	"seanime/internal/platforms/platform"
 	"seanime/internal/util"
 	"seanime/internal/util/comparison"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -115,6 +117,10 @@ type (
 		downloadedManga []string
 		failedManga     []string
 		skippedManga    []string
+		// deferredTitles are series a provider outage kept from being processed, all of them, for the
+		// progress file. deferredManga is the same thing capped for the status, like the lists above.
+		deferredTitles  map[string]bool
+		deferredManga   []string
 		status          string
 		details         MangaDownloadDetails
 		resumeOnStartup bool
@@ -128,6 +134,9 @@ type (
 		DownloadedManga []string `json:"downloaded_manga"`
 		FailedManga     []string `json:"failed_manga"`
 		SkippedManga    []string `json:"skipped_manga"`
+		// DeferredManga are unprocessed on purpose: on resume they run again and skip the on-disk
+		// fast path, because chapters on disk may be only the part queued before the outage.
+		DeferredManga   []string `json:"deferred_manga,omitempty"`
 		ResumeOnStartup bool     `json:"resume_on_startup,omitempty"`
 	}
 
@@ -146,6 +155,7 @@ type (
 		DownloadedManga  []string             `json:"downloadedManga"`
 		FailedManga      []string             `json:"failedManga"`
 		SkippedManga     []string             `json:"skippedManga"`
+		DeferredManga    []string             `json:"deferredManga"`
 		Status           string               `json:"status"`
 		Details          MangaDownloadDetails `json:"details"`
 		HasSavedProgress bool                 `json:"hasSavedProgress"`
@@ -168,7 +178,14 @@ type (
 		DownloadedCount   int    `json:"downloadedCount"`
 		FailedCount       int    `json:"failedCount"`
 		SkippedCount      int    `json:"skippedCount"`
+		DeferredCount     int    `json:"deferredCount"`
 		LastError         string `json:"lastError"`
+		// Set while the run is parked on a provider outage. The times are RFC 3339.
+		WaitingForProvider  bool   `json:"waitingForProvider"`
+		ProviderWaitAttempt int    `json:"providerWaitAttempt"`
+		ProviderWaitSince   string `json:"providerWaitSince"`
+		ProviderNextProbeAt string `json:"providerNextProbeAt"`
+		ProviderGiveUpAt    string `json:"providerGiveUpAt"`
 	}
 
 	NewMangaDownloaderOptions struct {
@@ -228,6 +245,8 @@ func NewMangaDownloader(opts *NewMangaDownloaderOptions) *MangaDownloader {
 		downloadedManga: make([]string, 0, MaxLogEntries),
 		failedManga:     make([]string, 0, MaxLogEntries),
 		skippedManga:    make([]string, 0, MaxLogEntries),
+		deferredTitles:  make(map[string]bool),
+		deferredManga:   make([]string, 0, MaxLogEntries),
 		details: MangaDownloadDetails{
 			Phase: "idle",
 			Step:  "idle",
@@ -249,6 +268,7 @@ func (d *MangaDownloader) GetStatus() *MangaDownloaderStatus {
 		DownloadedManga: d.downloadedManga,
 		FailedManga:     d.failedManga,
 		SkippedManga:    d.skippedManga,
+		DeferredManga:   d.deferredManga,
 		Status:          d.status,
 		Details: MangaDownloadDetails{
 			Phase:             d.details.Phase,
@@ -267,7 +287,14 @@ func (d *MangaDownloader) GetStatus() *MangaDownloaderStatus {
 			DownloadedCount:   len(d.downloadedManga),
 			FailedCount:       len(d.failedManga),
 			SkippedCount:      len(d.skippedManga),
+			DeferredCount:     len(d.deferredTitles),
 			LastError:         d.details.LastError,
+
+			WaitingForProvider:  d.details.WaitingForProvider,
+			ProviderWaitAttempt: d.details.ProviderWaitAttempt,
+			ProviderWaitSince:   d.details.ProviderWaitSince,
+			ProviderNextProbeAt: d.details.ProviderNextProbeAt,
+			ProviderGiveUpAt:    d.details.ProviderGiveUpAt,
 		},
 		HasSavedProgress: d.hasSavedProgress(),
 	}
@@ -318,6 +345,8 @@ func (d *MangaDownloader) Start(resume bool) error {
 		d.downloadedManga = make([]string, 0, MaxLogEntries)
 		d.failedManga = make([]string, 0, MaxLogEntries)
 		d.skippedManga = make([]string, 0, MaxLogEntries)
+		d.deferredTitles = make(map[string]bool)
+		d.deferredManga = make([]string, 0, MaxLogEntries)
 		d.clearProgress()
 	}
 	if err := d.writeResumeOnStartupMarker(true); err != nil {
@@ -381,6 +410,7 @@ func (d *MangaDownloader) saveProgressFromState() {
 		DownloadedManga: d.downloadedManga,
 		FailedManga:     d.failedManga,
 		SkippedManga:    d.skippedManga,
+		DeferredManga:   d.deferredTitleList(),
 		ResumeOnStartup: d.resumeOnStartup,
 	}
 
@@ -452,6 +482,11 @@ func (d *MangaDownloader) run(ctx context.Context, resume bool) {
 		d.mu.Lock()
 		d.isRunning = false
 		d.currentManga = nil
+		if d.details.Phase == "waiting_provider" {
+			d.details.Phase = "paused"
+			d.details.Step = "paused while waiting for provider"
+		}
+		d.details.clearProviderWait()
 		d.mu.Unlock()
 		d.sendStatusUpdate()
 	}()
@@ -520,6 +555,7 @@ func (d *MangaDownloader) run(ctx context.Context, resume bool) {
 			d.downloadedManga = progress.DownloadedManga
 			d.failedManga = progress.FailedManga
 			d.skippedManga = progress.SkippedManga
+			d.restoreDeferred(progress.DeferredManga)
 			d.processedCount = len(processedTitles)
 			d.mu.Unlock()
 			d.logger.Info().Int("skipping", len(processedTitles)).Msg("enmasse-manga: Resuming from saved progress")
@@ -533,6 +569,8 @@ func (d *MangaDownloader) run(ctx context.Context, resume bool) {
 
 	d.logger.Info().Int("count", len(mangaList)).Msg("enmasse-manga: Loaded manga list")
 	d.setStatus(fmt.Sprintf("Processing %d manga...", len(mangaList)))
+
+	watch := d.newRunWatchdog()
 
 	processedCount := d.processedCount
 	for _, mangaItem := range mangaList {
@@ -574,8 +612,27 @@ func (d *MangaDownloader) run(ctx context.Context, resume bool) {
 
 		d.logger.Info().Str("title", mangaItem.Title).Msg("enmasse-manga: Processing manga")
 
-		err := d.processManga(ctx, mangaItem)
+		err := d.processManga(ctx, mangaItem, watch)
+
+		// Neither of these is a verdict on the series, so it stays out of processedTitles and the
+		// lists below. Marking it processed is what used to lose every title an outage touched.
+		if isProviderWaitFailure(ctx, err) {
+			if ctx.Err() != nil {
+				continue // the top of the loop saves progress and stops
+			}
+			d.logger.Warn().Err(err).Str("title", mangaItem.Title).Msg("enmasse-manga: Deferring manga until the provider recovers")
+			d.addToDeferred(mangaItem.Title)
+			d.updateDetails(func(details *MangaDownloadDetails) {
+				details.Step = "deferred, provider is down"
+				details.LastError = err.Error()
+			})
+			d.saveCurrentProgress(processedTitles)
+			time.Sleep(DelayBetweenManga)
+			continue
+		}
+
 		processedTitles[mangaItem.Title] = true
+		d.removeFromDeferred(mangaItem.Title)
 
 		if err != nil {
 			d.updateDetails(func(details *MangaDownloadDetails) {
@@ -606,6 +663,19 @@ func (d *MangaDownloader) run(ctx context.Context, resume bool) {
 
 		// Delay between manga to avoid rate limiting
 		time.Sleep(DelayBetweenManga)
+	}
+
+	// The progress file is what brings deferred titles back, so a list that ends with some must not
+	// clear it. The startup marker stays set too: the next backend start picks them up on its own.
+	if deferred := d.deferredCount(); deferred > 0 {
+		d.saveCurrentProgress(processedTitles)
+		d.setStatus(fmt.Sprintf("Reached the end of the list - %d series deferred by a provider outage, Resume to retry them", deferred))
+		d.updateDetails(func(details *MangaDownloadDetails) {
+			details.Phase = "deferred"
+			details.Step = "list finished with deferred series"
+		})
+		d.wsEventManager.SendEvent(events.WarningToast, fmt.Sprintf("Manga En Masse: %d series deferred by a provider outage", deferred))
+		return
 	}
 
 	d.clearProgress()
@@ -681,6 +751,7 @@ func (d *MangaDownloader) saveCurrentProgress(processedTitles map[string]bool) {
 		DownloadedManga: d.downloadedManga,
 		FailedManga:     d.failedManga,
 		SkippedManga:    d.skippedManga,
+		DeferredManga:   d.deferredTitleList(),
 		ResumeOnStartup: d.resumeOnStartup,
 	}
 	d.mu.Unlock()
@@ -755,7 +826,7 @@ func buildTitleVariants(title string) []string {
 	return uniq
 }
 
-func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoMangaItem) error {
+func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoMangaItem, watch *providerWatchdog) error {
 	provider := DefaultMangaProvider
 	d.updateDetails(func(details *MangaDownloadDetails) {
 		details.Phase = "processing"
@@ -766,8 +837,10 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 	// Aggressive fast-skip for en masse runs:
 	// if any chapter already exists on disk for this title, skip this series entirely.
 	// This avoids expensive provider/API work for partially or fully downloaded series.
+	// A deferred title is the exception: what is on disk may be the part queued before the outage.
+	deferred := d.isDeferred(mangaItem.Title)
 	variants := buildTitleVariants(mangaItem.Title)
-	if _, diskCount := d.mangaDownloader.CountChaptersByTitles(variants); diskCount > 0 {
+	if _, diskCount := d.mangaDownloader.CountChaptersByTitles(variants); diskCount > 0 && !deferred {
 		d.logger.Info().
 			Str("title", mangaItem.Title).
 			Int("found", diskCount).
@@ -808,8 +881,15 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 
 	time.Sleep(DelayBetweenAPIRequests)
 
-	chapters, err := mangaProvider.GetProvider().FindChapters(mangaId)
+	providerClient := mangaProvider.GetProvider()
+
+	chapters, err := retryThroughOutage(ctx, watch, providerClient, func() ([]*hibikemanga.ChapterDetails, error) {
+		return providerClient.FindChapters(mangaId)
+	})
 	if err != nil {
+		if isProviderWaitFailure(ctx, err) {
+			return err
+		}
 		return fmt.Errorf("failed to get chapters from WeebCentral: %w", err)
 	}
 	// Provider rate limit (per provider, excluding torrent client)
@@ -828,7 +908,12 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 			Msg("enmasse-manga: No chapters found on primary ID, searching for alternate IDs")
 
 		time.Sleep(DelayBetweenAPIRequests)
-		searchResults, searchErr := mangaProvider.GetProvider().Search(hibikemanga.SearchOptions{Query: mangaItem.Title})
+		searchResults, searchErr := retryThroughOutage(ctx, watch, providerClient, func() ([]*hibikemanga.SearchResult, error) {
+			return providerClient.Search(hibikemanga.SearchOptions{Query: mangaItem.Title})
+		})
+		if isProviderWaitFailure(ctx, searchErr) {
+			return searchErr
+		}
 		if searchErr != nil {
 			d.logger.Warn().Err(searchErr).
 				Str("title", mangaItem.Title).
@@ -847,7 +932,12 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 					Msg("enmasse-manga: Retrying chapter fetch with alternate ID")
 
 				time.Sleep(DelayBetweenAPIRequests)
-				altChapters, altErr := mangaProvider.GetProvider().FindChapters(altID)
+				altChapters, altErr := retryThroughOutage(ctx, watch, providerClient, func() ([]*hibikemanga.ChapterDetails, error) {
+					return providerClient.FindChapters(altID)
+				})
+				if isProviderWaitFailure(ctx, altErr) {
+					return altErr
+				}
 				if altErr != nil {
 					d.logger.Warn().Err(altErr).
 						Str("title", mangaItem.Title).
@@ -1007,7 +1097,7 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 	// Secondary fast-skip after media title resolution.
 	// This catches cases where the on-disk folder name differs from the Hakuneko title,
 	// but resolves to the AniList/synthetic media title used for downloads.
-	if mediaTitle != "" {
+	if mediaTitle != "" && !deferred {
 		if _, diskCount := d.mangaDownloader.CountChaptersByTitles([]string{mediaTitle}); diskCount > 0 {
 			d.logger.Info().
 				Str("title", mangaItem.Title).
@@ -1076,20 +1166,19 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 				<-d.chapterSemaphore
 				return err
 			}
-			pages, err = mangaProvider.GetProvider().FindChapterPages(chapter.ID)
+			pages, err = providerClient.FindChapterPages(chapter.ID)
+			if err == nil {
+				watch.succeeded()
+			}
 			if err != nil {
-				if d.isRetryableError(err) {
-					d.logger.Warn().Err(err).
-						Str("title", mangaItem.Title).
-						Str("chapterId", chapter.ID).
-						Msg("enmasse-manga: Rate limited fetching chapter pages, waiting to retry...")
-					d.setStatus(fmt.Sprintf("Rate limited on %s - waiting %v to retry...", mangaItem.Title, RateLimitRetryDelay))
-					select {
-					case <-ctx.Done():
-						<-d.chapterSemaphore
-						return ctx.Err()
-					case <-time.After(RateLimitRetryDelay):
-					}
+				// Without this an outage part way through a series drops every remaining chapter and
+				// still reports the series as downloaded.
+				retry, waitErr := watch.await(ctx, providerClient, err)
+				if waitErr != nil {
+					<-d.chapterSemaphore
+					return waitErr
+				}
+				if retry {
 					continue
 				}
 				d.logger.Warn().Err(err).
@@ -1649,6 +1738,119 @@ func (d *MangaDownloader) addToSkipped(title string) {
 	if len(d.skippedManga) > MaxLogEntries {
 		d.skippedManga = d.skippedManga[len(d.skippedManga)-MaxLogEntries:]
 	}
+}
+
+// addToDeferred records a title a provider outage kept from being processed.
+func (d *MangaDownloader) addToDeferred(title string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.deferredTitles[title] {
+		return
+	}
+	d.deferredTitles[title] = true
+	d.deferredManga = append(d.deferredManga, title)
+	if len(d.deferredManga) > MaxLogEntries {
+		d.deferredManga = d.deferredManga[len(d.deferredManga)-MaxLogEntries:]
+	}
+}
+
+// removeFromDeferred clears a title that has now been processed.
+func (d *MangaDownloader) removeFromDeferred(title string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if !d.deferredTitles[title] {
+		return
+	}
+	delete(d.deferredTitles, title)
+	d.deferredManga = slices.DeleteFunc(d.deferredManga, func(t string) bool { return t == title })
+}
+
+func (d *MangaDownloader) isDeferred(title string) bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.deferredTitles[title]
+}
+
+func (d *MangaDownloader) deferredCount() int {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return len(d.deferredTitles)
+}
+
+// restoreDeferred loads the deferred titles from saved progress. Must be called with d.mu held.
+func (d *MangaDownloader) restoreDeferred(titles []string) {
+	d.deferredTitles = make(map[string]bool, len(titles))
+	for _, title := range titles {
+		d.deferredTitles[title] = true
+	}
+	d.deferredManga = slices.Clone(titles[max(0, len(titles)-MaxLogEntries):])
+}
+
+// deferredTitleList returns every deferred title. Must be called with d.mu held.
+func (d *MangaDownloader) deferredTitleList() []string {
+	titles := slices.Collect(maps.Keys(d.deferredTitles))
+	slices.Sort(titles)
+	return titles
+}
+
+func (details *MangaDownloadDetails) clearProviderWait() {
+	details.WaitingForProvider = false
+	details.ProviderWaitAttempt = 0
+	details.ProviderWaitSince = ""
+	details.ProviderNextProbeAt = ""
+	details.ProviderGiveUpAt = ""
+}
+
+// newRunWatchdog returns the outage watchdog for one run, reporting into the run's status.
+func (d *MangaDownloader) newRunWatchdog() *providerWatchdog {
+	watch := newProviderWatchdog()
+
+	// What the wait replaced on screen, so that recovering puts it back.
+	var statusBefore, phaseBefore, stepBefore string
+	waiting := false
+
+	watch.onWait = func(wait providerWait) {
+		d.mu.Lock()
+		if !waiting {
+			waiting = true
+			statusBefore, phaseBefore, stepBefore = d.status, d.details.Phase, d.details.Step
+			d.logger.Warn().Err(wait.Cause).Str("provider", d.details.Provider).Msg("enmasse-manga: Provider is down, pausing the run")
+		}
+		d.status = fmt.Sprintf("%s is down - check %d in %s, moving on at %s",
+			d.details.Provider, wait.Attempt, time.Until(wait.NextProbe).Round(time.Second), wait.GiveUpAt.Format("15:04"))
+		d.details.Phase = "waiting_provider"
+		d.details.Step = "waiting for provider to recover"
+		d.details.LastError = wait.Cause.Error()
+		d.details.WaitingForProvider = true
+		d.details.ProviderWaitAttempt = wait.Attempt
+		d.details.ProviderWaitSince = wait.StartedAt.Format(time.RFC3339)
+		d.details.ProviderNextProbeAt = wait.NextProbe.Format(time.RFC3339)
+		d.details.ProviderGiveUpAt = wait.GiveUpAt.Format(time.RFC3339)
+		d.mu.Unlock()
+		d.sendStatusUpdate()
+	}
+	endWait := func() {
+		d.mu.Lock()
+		if waiting {
+			waiting = false
+			d.status, d.details.Phase, d.details.Step = statusBefore, phaseBefore, stepBefore
+		}
+		d.details.clearProviderWait()
+		d.mu.Unlock()
+		d.sendStatusUpdate()
+	}
+	watch.onRecover = func() {
+		d.logger.Info().Msg("enmasse-manga: Provider recovered, continuing the run")
+		endWait()
+		d.updateDetails(func(details *MangaDownloadDetails) { details.LastError = "" })
+	}
+	watch.onGiveUp = func(cause error) {
+		d.logger.Warn().Err(cause).Dur("waited", watch.maxWait).Msg("enmasse-manga: Provider still down, moving on and deferring series")
+		endWait()
+		d.wsEventManager.SendEvent(events.WarningToast, "Manga En Masse: provider still down, deferring series until it recovers")
+	}
+
+	return watch
 }
 
 // getOrCreateSyntheticManga creates or retrieves a synthetic manga entry for manga not found on AniList.

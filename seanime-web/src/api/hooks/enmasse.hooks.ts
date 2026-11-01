@@ -108,6 +108,7 @@ export interface MangaEnMasseDownloaderStatus {
     downloadedManga: string[]
     failedManga: string[]
     skippedManga: string[]
+    deferredManga?: string[]
     status: string
     details?: MangaEnMasseDetails
     hasSavedProgress: boolean
@@ -130,7 +131,13 @@ export interface MangaEnMasseDetails {
     downloadedCount: number
     failedCount: number
     skippedCount: number
+    deferredCount: number
     lastError: string
+    waitingForProvider: boolean
+    providerWaitAttempt: number
+    providerWaitSince: string
+    providerNextProbeAt: string
+    providerGiveUpAt: string
 }
 
 const MANGA_ENMASSE_ENDPOINTS = {

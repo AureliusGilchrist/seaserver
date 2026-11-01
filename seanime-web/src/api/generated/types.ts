@@ -2860,7 +2860,13 @@ export type MangaDownloadDetails = {
     downloadedCount: number
     failedCount: number
     skippedCount: number
+    deferredCount: number
     lastError: string
+    waitingForProvider: boolean
+    providerWaitAttempt: number
+    providerWaitSince: string
+    providerNextProbeAt: string
+    providerGiveUpAt: string
 }
 
 /**
@@ -2878,6 +2884,7 @@ export type MangaDownloaderStatus = {
     downloadedManga?: Array<string>
     failedManga?: Array<string>
     skippedManga?: Array<string>
+    deferredManga?: Array<string>
     status: string
     details: MangaDownloadDetails
     hasSavedProgress: boolean
