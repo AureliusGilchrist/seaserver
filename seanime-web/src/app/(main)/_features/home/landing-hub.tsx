@@ -3,6 +3,7 @@
 import { useCurrentUser, useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { ContinueWatching } from "@/app/(main)/(library)/_containers/continue-watching"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
+import { ThemeLibraryScreenBannerType, useThemeSettings } from "@/lib/theme/hooks"
 import { resolveLandingImage, useLandingLook } from "@/lib/theme/landing-look"
 import { useHandleLibraryCollection } from "@/app/(main)/(library)/_lib/handle-library-collection"
 import { useLandingWidgets, type LandingWidgetId } from "@/app/(main)/_features/home/landing-widgets"
@@ -21,6 +22,7 @@ import {
     LandingUnmatchedWidget,
     LandingUpdatesWidget,
 } from "@/app/(main)/_features/home/landing-widget-views"
+import { LandingContinueBanner } from "@/app/(main)/_features/home/landing-continue-banner"
 import { __landingSettingsModalOpen, LandingSettingsModal } from "@/app/(main)/_features/home/landing-settings-modal"
 import { MangaUpcomingChapters } from "@/app/(main)/manga/_containers/manga-upcoming-chapters"
 import { PageWrapper } from "@/components/shared/page-wrapper"
@@ -39,6 +41,7 @@ export function LandingHub() {
     const serverStatus = useServerStatus()
     const { widgets } = useLandingWidgets()
     const { look } = useLandingLook()
+    const ts = useThemeSettings()
     const { continueWatchingList, isLoading: isLibraryLoading } = useHandleLibraryCollection()
 
     const [settingsOpen, setSettingsOpen] = useAtom(__landingSettingsModalOpen)
@@ -77,9 +80,15 @@ export function LandingHub() {
         "anime-stats", "manga-stats", "schedule", "airing-today", "to-watch", "unmatched", "torrents", "achievements",
     ]
     const stats = React.useMemo(() => ordered.filter(w => statIds.includes(w.id)), [ordered])
+    const readingEnabled = ordered.some(w => w.id === "continue-reading")
+    // Continue reading always follows continue watching, wherever that one was moved to.
     const sections = React.useMemo(
-        () => ordered.filter(w => !statIds.includes(w.id) && w.id !== "quick-links"),
-        [ordered],
+        () => ordered
+            .filter(w => !statIds.includes(w.id) && w.id !== "quick-links" && w.id !== "continue-reading")
+            .flatMap(w => w.id === "continue-watching" && readingEnabled
+                ? [w, { id: "continue-reading" as const, enabled: true }]
+                : [w]),
+        [ordered, readingEnabled],
     )
 
     return (
@@ -89,7 +98,9 @@ export function LandingHub() {
                     isHomeScreen
                     override={{ image: resolveLandingImage(look.banner), position: look.bannerPosition, opacity: look.bannerOpacity }}
                 />
-                : !look.wallpaper && <CustomLibraryBanner discrete />}
+                : (readingEnabled && ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Dynamic)
+                    ? <LandingContinueBanner episodes={continueWatchingList} />
+                    : !look.wallpaper && <CustomLibraryBanner discrete />}
             <PageWrapper className="relative mx-auto min-h-[100svh] w-full max-w-[1800px] space-y-6 overflow-x-hidden px-3 py-4 sm:space-y-8 sm:px-5 sm:py-6 lg:space-y-10 lg:px-8 xl:px-10">
                 {/* Hero */}
                 <section ref={heroRef} data-landing-hero className="relative z-[1] overflow-hidden rounded-3xl border border-white/10 bg-black/25 p-5 shadow-2xl shadow-black/30 backdrop-blur-md sm:p-7 lg:p-10">
@@ -134,6 +145,7 @@ export function LandingHub() {
                         />
                     </div>
                 )}
+                {firstWidgetId === "continue-watching" && readingEnabled && <LandingWidget id="continue-reading" />}
 
                 {quickLinksWidget && (
                     <div className="relative z-[1]">
@@ -154,7 +166,7 @@ export function LandingHub() {
                 )}
 
                 {/* Sections, full width */}
-                {sections.filter(w => w.id !== (firstWidgetId === "continue-watching" ? "continue-watching" : null)).map(widget => (
+                {sections.filter(w => firstWidgetId !== "continue-watching" || (w.id !== "continue-watching" && w.id !== "continue-reading")).map(widget => (
                     <div key={widget.id} className="relative z-[1]">
                         <LandingWidget
                             id={widget.id}
@@ -208,7 +220,11 @@ function LandingWidget({ id, continueWatchingList = [], isLibraryLoading = false
                 </div>
             )
         case "continue-reading":
-            return <LandingContinueReadingWidget />
+            return (
+                <div className="relative z-[1] rounded-3xl border border-white/10 bg-black/20 p-4 shadow-xl shadow-black/20 backdrop-blur-md empty:hidden sm:p-5">
+                    <LandingContinueReadingWidget />
+                </div>
+            )
         case "to-watch":
             return <LandingToWatchWidget />
         case "unmatched":

@@ -5,7 +5,7 @@ import { cn } from "@/components/ui/core/styling"
 import { getAssetUrl } from "@/lib/server/assets"
 import { ThemeLibraryScreenBannerType, useThemeSettings } from "@/lib/theme/hooks"
 import { __isDesktop__, HIDE_IMAGES } from "@/types/constants"
-import { motion } from "motion/react"
+import { AnimatePresence, motion } from "motion/react"
 import React from "react"
 
 type CustomLibraryBannerProps = {
@@ -80,21 +80,28 @@ export function CustomLibraryBanner(props: CustomLibraryBannerProps) {
                             discrete && "opacity-70",
                         )}
                     />
-                    <motion.div
-                        data-custom-library-banner-image
-                        className={cn(
-                            "CUSTOM_LIB_BANNER_IMG z-[1] absolute inset-0 w-full h-full bg-cover bg-no-repeat transition-opacity duration-1000",
-                            "scroll-locked-offset",
-                        )}
-                        style={{
-                            ...heroFade.imageStyle,
-                            backgroundImage: `url(${HIDE_IMAGES ? "/no-cover.png" : image})`,
-                            backgroundPosition: (override ? override.position : ts.libraryScreenCustomBannerPosition) || "50% 50%",
-                            opacity: ((override ? override.opacity : ts.libraryScreenCustomBannerOpacity) || 100) / 100,
-                            backgroundRepeat: "no-repeat",
-                            backgroundSize: "cover",
-                        }}
-                    />
+                    {/* Keyed by image so a banner that changes crossfades. */}
+                    <AnimatePresence initial={false}>
+                        <motion.div
+                            key={image}
+                            data-custom-library-banner-image
+                            className={cn(
+                                "CUSTOM_LIB_BANNER_IMG z-[1] absolute inset-0 w-full h-full bg-cover bg-no-repeat",
+                                "scroll-locked-offset",
+                            )}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: ((override ? override.opacity : ts.libraryScreenCustomBannerOpacity) || 100) / 100 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 1 }}
+                            style={{
+                                ...heroFade.imageStyle,
+                                backgroundImage: `url(${HIDE_IMAGES ? "/no-cover.png" : image})`,
+                                backgroundPosition: (override ? override.position : ts.libraryScreenCustomBannerPosition) || "50% 50%",
+                                backgroundRepeat: "no-repeat",
+                                backgroundSize: "cover",
+                            }}
+                        />
+                    </AnimatePresence>
                     <div
                         data-custom-library-banner-bottom-gradient
                         className={cn(
