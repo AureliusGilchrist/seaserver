@@ -48,6 +48,8 @@ type EpisodeGridItemProps = {
     spoilerActive?: boolean
     /** A library file previewed in the thumbnail while it is hovered (see episode-card-preview.tsx). */
     previewPath?: string
+    /** Seconds to start the preview at: where the episode was left off. */
+    previewStartAt?: number
 }
 
 export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.ComponentPropsWithoutRef<"div">) => {
@@ -69,6 +71,7 @@ export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.C
         imageClassName,
         imageContainerClassName,
         previewPath,
+        previewStartAt,
         className,
         disabled,
         isFiller,
@@ -180,7 +183,7 @@ export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.C
                     onMouseLeave={() => setThumbHovered(false)}
                 >
                     {!!previewPath && !spoilerActive && <div className="absolute inset-0 z-[2] overflow-hidden rounded-[--radius-md]">
-                        <EpisodeCardPreview path={previewPath} hovered={thumbHovered} kind="episode" />
+                        <EpisodeCardPreview path={previewPath} startAt={previewStartAt} hovered={thumbHovered} kind="episode" />
                     </div>}
                     <div data-episode-grid-item-image-overlay className="absolute z-[1] rounded-[--radius-md] w-full h-full"></div>
                     <div

@@ -75,6 +75,7 @@ export const EpisodeItem = memo(({ episode, media, isWatched, watchedProgress, o
                 // episodePreviewScope, whose stored "resume" value from older builds silently turned
                 // every card here into nothing (no file passed, no trailer either).
                 previewPath={personal.episodePreviewEnabled ? episode.localFile?.path : undefined}
+                previewStartAt={totalSeconds && secondsRemaining ? totalSeconds - secondsRemaining : undefined}
                 isInvalid={episode.isInvalid}
                 title={episode.displayTitle}
                 episodeTitle={episode.episodeTitle}

@@ -1,7 +1,7 @@
 "use client"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { AL_AnimeDetailsById_Media, Anime_Entry, Anime_Episode } from "@/api/generated/types"
-import { getEpisodeSecondsRemaining, getEpisodePercentageComplete, getEpisodeTotalSeconds, useGetContinuityWatchHistory } from "@/api/hooks/continuity.hooks"
+import { getEpisodeResumeSeconds, getEpisodeSecondsRemaining, getEpisodePercentageComplete, getEpisodeTotalSeconds, useGetContinuityWatchHistory } from "@/api/hooks/continuity.hooks"
 import { EpisodeCard } from "@/app/(main)/_features/anime/_components/episode-card"
 
 import { useSeaCommandInject } from "@/app/(main)/_features/sea-command/use-inject"
@@ -177,6 +177,7 @@ export function EpisodeSection({ entry, details, bottomSection, hideCarousel, ma
                                             episode={episode}
                                             previewPath={personal.episodePreviewEnabled ? episode.localFile?.path : undefined}
                                             previewKind="episode"
+                                            previewStartAt={getEpisodeResumeSeconds(watchHistory, episode.baseAnime?.id || 0, episode.progressNumber)}
                                             image={episode.episodeMetadata?.image || episode.baseAnime?.bannerImage || episode.baseAnime?.coverImage?.extraLarge}
                                             topTitle={episode.episodeTitle || displayTitle(episode?.baseAnime?.title)}
                                             title={episode.displayTitle}

@@ -63,6 +63,26 @@ export function EpisodeCardPreview(props: EpisodeCardPreviewProps) {
     return props.path ? <FilePreview {...props} path={props.path} /> : null
 }
 
+const trailerChecks = new Map<string, Promise<boolean>>()
+
+/**
+ * AniList keeps listing trailers YouTube has since removed, and those would play as an error page
+ * inside the card. YouTube answers for a missing video with a 120px placeholder thumbnail.
+ */
+function isTrailerAvailable(id: string) {
+    let check = trailerChecks.get(id)
+    if (!check) {
+        check = new Promise<boolean>(resolve => {
+            const thumbnail = new Image()
+            thumbnail.onload = () => resolve(thumbnail.naturalWidth > 120)
+            thumbnail.onerror = () => resolve(false)
+            thumbnail.src = `https://i.ytimg.com/vi/${encodeURIComponent(id)}/mqdefault.jpg`
+        })
+        trailerChecks.set(id, check)
+    }
+    return check
+}
+
 const _previewWarnedOnce = new Set<string>()
 
 /** console.warn that keeps only the first message of each kind (previews render per-card, so the log would flood). */
@@ -106,13 +126,18 @@ function TrailerPreview({ trailerId: originalTrailerId, mediaId, hovered, onPlay
             return
         }
         setLookedUp(true) // starts the lookup during the hover delay
-        const timer = setTimeout(() => {
+        let cancelled = false
+        const timer = setTimeout(async () => {
+            if (!await isTrailerAvailable(trailerId) || cancelled) return
             activeStop?.()
             activeStop = stop
             setActive(true)
         }, HOVER_DELAY_MS[personal.episodePreviewDelay] ?? 700)
-        return () => clearTimeout(timer)
-    }, [hovered, enabled])
+        return () => {
+            cancelled = true
+            clearTimeout(timer)
+        }
+    }, [hovered, enabled, trailerId])
 
     React.useEffect(() => () => {
         if (activeStop === stop) activeStop = null

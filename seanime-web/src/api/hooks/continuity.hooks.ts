@@ -65,6 +65,12 @@ export function getEpisodeSecondsRemaining(history: Nullish<Continuity_WatchHist
     return Math.max(1, Math.round(item.duration - item.currentTime))
 }
 
+/** Where an episode was left off, for a preview to start at. Undefined if it wasn't started. */
+export function getEpisodeResumeSeconds(history: Nullish<Continuity_WatchHistory>, mediaId: number, progressNumber: number) {
+    const item = getInProgressItem(history, mediaId, progressNumber)
+    return item && item.currentTime > 0 ? item.currentTime : undefined
+}
+
 export function getEpisodeTotalSeconds(history: Nullish<Continuity_WatchHistory>, mediaId: number, progressNumber: number) {
     const item = getInProgressItem(history, mediaId, progressNumber)
     if (!item) return 0

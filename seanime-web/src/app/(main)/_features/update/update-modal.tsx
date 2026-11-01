@@ -107,7 +107,7 @@ export function UpdateModal(props: UpdateModalProps) {
 
                     <UpdateChangelogBody updateData={updateData} />
 
-                    <div className="flex gap-2 w-full items-center !mt-4">
+                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:items-center !mt-4 [&_button]:w-full sm:[&_button]:w-auto">
                         {!serverStatus?.isDesktopSidecar && <Modal
                             trigger={<Button leftIcon={<GrInstall className="text-2xl" />}>
                                 Update now
@@ -125,7 +125,7 @@ export function UpdateModal(props: UpdateModalProps) {
                                 </Button>
                             </div>
                         </Modal>}
-                        <div className="flex flex-1" />
+                        <div className="hidden sm:flex flex-1" />
                         <SeaLink href={updateData?.release?.html_url || ""} target="_blank">
                             <Button intent="white-subtle" rightIcon={<BiLinkExternal />}>See on GitHub</Button>
                         </SeaLink>
