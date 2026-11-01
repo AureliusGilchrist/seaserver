@@ -2,7 +2,21 @@ package connectivity
 
 import "testing"
 
+func TestForcedOfflineIgnoresTheConnection(t *testing.T) {
+	reset()
+	SetForcedOffline(true)
+	report(true)
+	if Current() != Offline {
+		t.Fatalf("state is %s while forced offline", Current())
+	}
+	SetForcedOffline(false)
+	if Current() != Online {
+		t.Fatalf("state is %s after turning it off", Current())
+	}
+}
+
 func reset() {
+	forced.Store(false)
 	offline.Store(false)
 	blocked.Store(false)
 	failures.Store(0)

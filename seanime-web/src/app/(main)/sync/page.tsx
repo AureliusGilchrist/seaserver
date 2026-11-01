@@ -134,7 +134,7 @@ export default function Page() {
         >
 
             <p className="text-sm text-[--muted]">
-                Offline mode is automatic now. If the server loses its internet, your library keeps working and changes sync when it's back.
+                Offline mode is the cloud button in the sidebar. It also turns on by itself if the server loses its internet.
             </p>
 
             <div className="flex flex-col lg:flex-row gap-2">

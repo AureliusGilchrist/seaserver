@@ -473,10 +473,9 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 
 	// Offline mode is handled transparently by the CacheLayer — the OfflinePlatform
 	// is no longer used. Always start on AnilistPlatform and clear any stale flag.
-	if cfg.Server.Offline {
-		cfg.Server.Offline = false
-		logger.Info().Msg("app: Cleared stale offline mode flag — using cache-backed AnilistPlatform")
-	}
+	// Set here, the flag now only means the sidebar's switch was left on: see below.
+	startOffline := cfg.Server.Offline
+	cfg.Server.Offline = false
 	if !anilistCWRef.Get().IsAuthenticated() {
 		logger.Warn().Msg("app: Anilist client is not authenticated, using simulated platform")
 		activePlatformRef.Set(simulatedPlatform)
@@ -717,6 +716,12 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 		app.InitOrRefreshAnilistData()
 	} else {
 		app.ServerReady.Store(true)
+	}
+
+	// Applied after the setup above, which has to run for the app to have a user at all. With the
+	// switch on, what it asks AniList is simply refused.
+	if startOffline {
+		connectivity.SetForcedOffline(true)
 	}
 
 	// Load the other extensions asynchronously

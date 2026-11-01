@@ -34,6 +34,7 @@ const (
 
 var (
 	offline  atomic.Bool
+	forced   atomic.Bool
 	blocked  atomic.Bool
 	failures atomic.Int32
 	wake     = make(chan struct{}, 1)
@@ -47,7 +48,7 @@ func Current() State {
 	if blocked.Load() {
 		return Blocked
 	}
-	if offline.Load() {
+	if IsOffline() {
 		return Offline
 	}
 	return Online
@@ -55,7 +56,14 @@ func Current() State {
 
 // IsOffline reports whether the internet can't be reached, whatever the block is set to.
 func IsOffline() bool {
-	return offline.Load()
+	return offline.Load() || forced.Load()
+}
+
+// SetForcedOffline acts as though there were no internet, for the sidebar's offline switch.
+func SetForcedOffline(on bool) {
+	if forced.Swap(on) != on {
+		notify()
+	}
 }
 
 // IsAniListAllowed reports whether a request to AniList should be attempted at all.

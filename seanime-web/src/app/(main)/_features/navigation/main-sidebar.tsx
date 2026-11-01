@@ -1,11 +1,12 @@
 "use client"
+import { useSetOfflineMode } from "@/api/hooks/local.hooks"
+import { useConnectivity } from "@/lib/server/connectivity"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { useRefreshAnimeCollection } from "@/api/hooks/anilist.hooks"
 import { useLogout } from "@/api/hooks/auth.hooks"
 import { useGetExtensionUpdateData as useGetExtensionUpdateData, usePluginWithIssuesCount } from "@/api/hooks/extensions.hooks"
 import { useProfileLogin, useProfileLogout, useRevalidateSession } from "@/api/hooks/profiles.hooks"
 import { isLoginModalOpenAtom } from "@/app/(main)/_atoms/server-status.atoms"
-import { useSyncIsActive } from "@/app/(main)/_atoms/sync.atoms"
 import { SidebarNavbar } from "@/app/(main)/_features/layout/top-navbar"
 import { usePluginSidebarItems } from "@/app/(main)/_features/plugin/webview/plugin-sidebar"
 import { useSeaCommand } from "@/app/(main)/_features/sea-command/sea-command"
@@ -52,7 +53,7 @@ import { BiCheck, BiChevronRight, BiExtension, BiLogIn, BiLogOut } from "react-i
 import { GiTrophyCup, GiPalette } from "react-icons/gi"
 import { FiLogIn, FiSearch } from "react-icons/fi"
 import { HiOutlineServerStack } from "react-icons/hi2"
-import { IoCloudOfflineOutline, IoHomeOutline } from "react-icons/io5"
+import { IoCloudOfflineOutline, IoCloudOutline, IoHomeOutline } from "react-icons/io5"
 import { LuBook, LuBookOpen, LuBell, LuCalendar, LuCirclePlay, LuClipboardCheck, LuCompass, LuDownload, LuFlag, LuFolderSearch, LuGlobe, LuGitFork, LuHardDriveDownload, LuLayers, LuLayoutDashboard, LuMonitorPlay, LuNewspaper, LuRefreshCw, LuRss, LuSettings, LuShieldCheck, LuTv, LuUserRound, LuUsers } from "react-icons/lu"
 import { SiAnilist } from "react-icons/si"
 import { MdBackspace, MdOutlineConnectWithoutContact } from "react-icons/md"
@@ -603,6 +604,8 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
     const ctx = useAppSidebarContext()
     const pathname = usePathname()
     const serverStatus = useServerStatus()
+    const connectivity = useConnectivity()
+    const { mutate: setOfflineMode } = useSetOfflineMode()
     const user = useCurrentUser()
 
     // Anime theme overrides (safe: null if provider not yet mounted — prevents crash hiding avatar)
@@ -619,7 +622,6 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
     const pluginWithIssuesCount = usePluginWithIssuesCount()
 
     // Sync
-    const { syncIsActive } = useSyncIsActive()
 
     // Nakama
     const [nakamaModalOpen, setNakamaModalOpen] = useAtom(nakamaModalOpenAtom)
@@ -726,18 +728,9 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
                     }),
                     applyFooterOverride({
                         id: "sync",
-                        iconType: IoCloudOfflineOutline,
-                        name: "Offline",
-                        href: "/sync",
-                        isCurrent: pathname.includes("/sync"),
-                        addon: (syncIsActive)
-                            ? <Badge
-                                className="absolute right-0 top-0 bg-blue-500" size="sm"
-                                intent="alert-solid"
-                            >
-                                1
-                            </Badge>
-                            : undefined,
+                        iconType: connectivity === "online" ? IoCloudOutline : IoCloudOfflineOutline,
+                        name: connectivity === "online" ? "Online" : connectivity === "blocked" ? "AniList blocked" : "Offline",
+                        onClick: () => setOfflineMode({ enabled: connectivity === "online" }),
                     }),
                     ...(!serverStatus?.profilesEnabled || !serverStatus?.profiles?.length || serverStatus?.currentProfile?.isAdmin ? [applyFooterOverride({
                         id: "settings",

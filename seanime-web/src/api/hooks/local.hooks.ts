@@ -152,14 +152,5 @@ export function useSetOfflineMode() {
         endpoint: API_ENDPOINTS.LOCAL.SetOfflineMode.endpoint,
         method: API_ENDPOINTS.LOCAL.SetOfflineMode.methods[0],
         mutationKey: [API_ENDPOINTS.LOCAL.SetOfflineMode.key],
-        onSuccess: async (data) => {
-            if (data) {
-                toast.success("Offline mode enabled")
-                window.location.href = "/offline"
-            } else {
-                toast.success("Offline mode disabled")
-                window.location.href = "/"
-            }
-        },
     })
 }

@@ -1,5 +1,5 @@
 "use client"
-import { ConnectivityChip } from "@/app/(main)/_features/connectivity/connectivity-chip"
+import { ConnectivityListener } from "@/app/(main)/_features/connectivity/connectivity-chip"
 import { MangaHydrationProgressBar, ScanProgressBar } from "@/app/(main)/(library)/_containers/scan-progress-bar"
 import { ScannerModal } from "@/app/(main)/(library)/_containers/scanner-modal"
 import { ErrorExplainer } from "@/app/(main)/_features/error-explainer/error-explainer"
@@ -132,7 +132,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
             <NewEpisodeNotifier />
             <NewMangaChapterNotifier />
             <AnilistStatusBanner />
-            <ConnectivityChip />
+            <ConnectivityListener />
             <StaleFrontendBanner />
             <Announcements />
             <AdminAnnouncementsBanner />
