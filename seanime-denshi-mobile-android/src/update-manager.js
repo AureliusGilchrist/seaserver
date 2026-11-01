@@ -453,9 +453,9 @@
     var SHELL_DISMISS_KEY = "sea-apk-shell-dismissed"
     var APK_FILE = "denshi-mobile-update.apk"
 
-    var SHELL_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000
+    var SHELL_CHECK_INTERVAL_MS = 15 * 60 * 1000
     var SHELL_FIRST_CHECK_DELAY_MS = 20 * 1000
-    var SHELL_MIN_RETRY_MS = 60 * 60 * 1000
+    var SHELL_MIN_RETRY_MS = 5 * 60 * 1000
 
     var shellChecking = false
 

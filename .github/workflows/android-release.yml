@@ -46,7 +46,15 @@ jobs:
           java-version: 21
           cache: gradle
 
+      - name: Restore frontend dependencies
+        id: web-deps
+        uses: actions/cache@v4
+        with:
+          path: seanime-web/node_modules
+          key: web-node-modules-${{ runner.os }}-${{ hashFiles('seanime-web/package-lock.json') }}
+
       - name: Install frontend dependencies
+        if: steps.web-deps.outputs.cache-hit != 'true'
         working-directory: seanime-web
         run: |
           npm ci
