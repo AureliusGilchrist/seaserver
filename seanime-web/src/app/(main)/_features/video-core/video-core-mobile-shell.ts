@@ -9,6 +9,8 @@ const HTTP_INTERCEPTOR = "/_capacitor_http_interceptor_"
  * alone and keeps the bytes intact. hls.js leaves a request as it is if xhrSetup has already opened it.
  */
 export const mobileShellHlsConfig = __isMobileShell__ ? {
+    // Waiting a moment beats 240p on a phone: a slow first segment is the encoder starting, not the network.
+    minAutoBitrate: 2_000_000,
     xhrSetup: (xhr: XMLHttpRequest, url: string) => {
         const proxy = new URL(window.location.origin)
         proxy.pathname = HTTP_INTERCEPTOR
@@ -19,13 +21,17 @@ export const mobileShellHlsConfig = __isMobileShell__ ? {
     },
 } : {}
 
+/** Past this a Blu-ray remux would stall on a phone's connection, so it gets re-encoded instead. */
+const MAX_UNTOUCHED_BITRATE = 20_000_000
+
 /**
- * Asks for the source video untouched when the file is HEVC and this phone decodes HEVC itself. The
- * server's ffmpeg may have no HEVC decoder, and re-encoding costs quality the phone doesn't need.
+ * Asks for the source video untouched when this phone can decode it itself. Re-encoding costs
+ * quality the phone doesn't need, and the player drops to 240p whenever the encoder falls behind.
  */
 export function mobileShellStreamQuery(container: Mediastream_MediaContainer | null | undefined) {
     if (!__isMobileShell__ || container?.streamType !== "transcode") return ""
-    const codec = container.mediaInfo?.mimeCodec?.match(/hvc1\.[^",\s]+|hev1\.[^",\s]+/)?.[0]
+    if ((container.mediaInfo?.video?.bitrate ?? 0) > MAX_UNTOUCHED_BITRATE) return ""
+    const codec = container.mediaInfo?.mimeCodec?.match(/(?:avc1|hvc1|hev1)\.[^",\s]+/)?.[0]
     if (!codec) return ""
     const playable = codec.replace(/^hev1/, "hvc1").replace(/L-\d+/, "L150")
     return MediaSource.isTypeSupported(`video/mp4; codecs="${playable}"`) ? "?copy=1" : ""
