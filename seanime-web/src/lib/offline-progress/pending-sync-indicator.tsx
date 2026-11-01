@@ -1,5 +1,6 @@
 "use client"
 
+import { useConnectivity } from "@/lib/server/connectivity"
 import { formatNumber } from "@/lib/helpers/number"
 
 import { buildSeaQuery } from "@/api/client/requests"
@@ -9,7 +10,7 @@ import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websocke
 import { cn } from "@/components/ui/core/styling"
 import { QueuedProgressItem, setServerProgressQueue } from "@/lib/progress-queue/progress-queue"
 import { WSEvents } from "@/lib/server/ws-events"
-import { useQueryClient } from "@tanstack/react-query"
+import { QueryClient, useQueryClient } from "@tanstack/react-query"
 import { AnimatePresence, motion } from "motion/react"
 import { useAtomValue } from "jotai"
 import React from "react"
@@ -41,7 +42,7 @@ export function PendingSyncIndicator() {
     const apply = React.useCallback((next: QueuedProgressItem[]) => {
         const prev = prevCountRef.current
         if (prev > 0 && next.length === 0) {
-            toast.success(`Synced ${prev} queued episode${prev > 1 ? "s" : ""} to AniList`)
+            toast.success(`Synced ${prev} queued update${prev > 1 ? "s" : ""} to AniList`)
         }
         prevCountRef.current = next.length
         setItems(next)
@@ -93,6 +94,8 @@ export function PendingSyncIndicator() {
     }, [poll])
 
     const count = items.length
+    const connectivity = useConnectivity()
+    const waiting = connectivity === "blocked" ? "AniList is blocked" : connectivity === "offline" ? "will sync when online" : "syncing to AniList"
 
     return (
         <AnimatePresence>
@@ -108,13 +111,13 @@ export function PendingSyncIndicator() {
                         "text-xs text-[--muted] select-none",
                     )}
                     onClick={() => setOpen(o => !o)}
-                    title="Your watched episodes are saved and will sync to AniList as soon as it accepts them."
+                    title="What you've watched and read is saved, and will sync to AniList as soon as it can."
                 >
                     <div className="flex items-center gap-2">
-                        <LuRefreshCw className="size-3.5 animate-spin text-brand-400" style={{ animationDuration: "2.5s" }} />
+                        <LuRefreshCw className={cn("size-3.5 text-brand-400", connectivity === "online" && "animate-spin")} style={{ animationDuration: "2.5s" }} />
                         <span>
                             <span className="font-semibold text-[--foreground]">{formatNumber(count)}</span>{" "}
-                            progress update{count > 1 ? "s" : ""} queued — syncing to AniList
+                            progress update{count > 1 ? "s" : ""} queued — {waiting}
                         </span>
                     </div>
                     {open && (
@@ -130,11 +133,24 @@ export function PendingSyncIndicator() {
     )
 }
 
+/** Queued items can be anime or manga, and the lists are what's sure to be loaded. */
+function collectionTitle(queryClient: QueryClient, mediaId: number): string | undefined {
+    const keys = [API_ENDPOINTS.ANILIST.GetAnimeCollection.key, API_ENDPOINTS.MANGA.GetRawAnilistMangaCollection.key]
+    for (const key of keys) {
+        const lists = queryClient.getQueryData<any>([key])?.MediaListCollection?.lists ?? []
+        for (const list of lists) {
+            const entry = list?.entries?.find((e: any) => e?.media?.id === mediaId)
+            if (entry) return entry.media?.title?.userPreferred ?? entry.media?.title?.romaji
+        }
+    }
+    return undefined
+}
+
 function QueuedItemRow({ item }: { item: QueuedProgressItem }) {
     const queryClient = useQueryClient()
     // Use whatever title is already cached for the entry; fall back to the id.
     const cached = queryClient.getQueryData<any>([API_ENDPOINTS.ANIME_ENTRIES.GetAnimeEntry.key, String(item.mediaId)])
-    const title = cached?.media?.title?.userPreferred ?? cached?.media?.title?.romaji ?? `Anime #${item.mediaId}`
+    const title = cached?.media?.title?.userPreferred ?? cached?.media?.title?.romaji ?? collectionTitle(queryClient, item.mediaId) ?? `Entry #${item.mediaId}`
     return (
         <li className="flex justify-between gap-4">
             <span className="truncate max-w-[14rem] text-[--foreground]">{title}</span>

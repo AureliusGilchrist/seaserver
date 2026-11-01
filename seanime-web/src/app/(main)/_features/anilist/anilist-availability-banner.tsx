@@ -1,4 +1,5 @@
 "use client"
+import { useConnectivity } from "@/lib/server/connectivity"
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { cn } from "@/components/ui/core/styling"
 import React from "react"
@@ -29,6 +30,7 @@ type Availability = {
 
 export function AnilistAvailabilityBanner() {
     const [availability, setAvailability] = React.useState<Availability | null>(null)
+    const connectivity = useConnectivity()
 
     React.useEffect(() => {
         let cancelled = false
@@ -55,7 +57,8 @@ export function AnilistAvailabilityBanner() {
         }
     }, [])
 
-    if (!availability || availability.available) return null
+    // Offline or blocked, the app already says so, and AniList being unreachable isn't news.
+    if (connectivity !== "online" || !availability || availability.available) return null
 
     return (
         <div

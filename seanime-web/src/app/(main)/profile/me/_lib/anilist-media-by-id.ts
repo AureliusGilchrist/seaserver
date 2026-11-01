@@ -1,3 +1,4 @@
+import { getConnectivity } from "@/lib/server/connectivity"
 import { useQuery } from "@tanstack/react-query"
 
 const ANIME_QUERY = `query ($id: Int) {
@@ -49,7 +50,8 @@ export function useAnilistMediaById(id: number, type: "anime" | "manga") {
             const j: any = await res.json()
             return (j?.data?.Media as AnilistMedia) ?? null
         },
-        enabled: id > 0,
+        // This one goes straight to AniList, so it has to honour the block itself.
+        enabled: id > 0 && getConnectivity() === "online",
         staleTime: 30 * 60 * 1000,
         gcTime: 60 * 60 * 1000,
         retry: 1,

@@ -1,4 +1,5 @@
 "use client"
+import { isOfflineErrorMessage } from "@/lib/server/connectivity"
 import { isCacheMissError, showCacheMissToast } from "@/lib/helpers/cache-miss-toast"
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { profileSessionEndedAtom, profileSessionTokenAtom, serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
@@ -260,6 +261,7 @@ export function useServerMutation<R = void, V = void, C = unknown>(
             // reconnect state. Network-level failures are console-only, here and in the query
             // handler below; the websocket atom is what tells the user the server is unreachable.
             if (!error?.response) return
+            if (isOfflineErrorMessage(error.response.data?.error)) return
             // 401 errors are always handled by the call-site's own onError (e.g. profile login
             // showing the AniList token modal). Showing a generic toast on top of that causes
             // duplicate noise, so bail out early and let the caller deal with it.
@@ -369,6 +371,7 @@ export function useServerQuery<R, V = any>(
             if (props.error?.response?.status === 401) return
             if (props.error?.response?.status === 409) return
             const serverErrMsg = props.error?.response?.data?.error ?? ""
+            if (isOfflineErrorMessage(serverErrMsg)) return
             if (serverErrMsg === "not authenticated" || serverErrMsg === "unauthorized") return
             if (isCacheMissError(props.error)) {
                 if (!muteCacheMiss) showCacheMissToast(() => props.refetch())

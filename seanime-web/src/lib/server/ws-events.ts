@@ -28,6 +28,7 @@ export const enum WSEvents {
     UNMATCHED_MATCH_QUEUE_UPDATED = "unmatched-match-queue-updated",
     TORRENT_ADD_QUEUE_UPDATED = "torrent-add-queue-updated",
     UPDATE_NOTICE_AVAILABLE = "update-notice-available",
+    CONNECTIVITY_CHANGED = "connectivity-changed",
     UPDATE_BACKEND_LOG = "update-backend-log",
     UPDATE_BACKEND_PROGRESS = "update-backend-progress",
     UPDATE_BACKEND_STATUS = "update-backend-status",

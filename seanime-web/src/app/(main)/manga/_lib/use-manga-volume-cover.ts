@@ -1,4 +1,5 @@
 "use client"
+import { getConnectivity } from "@/lib/server/connectivity"
 import { useQuery } from "@tanstack/react-query"
 
 type VolumeCoverMedia = {
@@ -9,6 +10,7 @@ type VolumeCoverMedia = {
 const API = "https://api.mangadex.org"
 
 async function fetchVolumeOneCover(title: string): Promise<string | null> {
+    if (getConnectivity() === "offline") return null
     const search = await fetch(`${API}/manga?title=${encodeURIComponent(title)}&limit=1&order[relevance]=desc`)
     if (!search.ok) return null
     const id = ((await search.json()) as any)?.data?.[0]?.id as string | undefined
