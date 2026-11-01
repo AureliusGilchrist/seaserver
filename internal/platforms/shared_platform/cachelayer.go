@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"seanime/internal/api/anilist"
+	"seanime/internal/connectivity"
 	"seanime/internal/util"
 	"seanime/internal/util/filecache"
 	"seanime/internal/util/result"
@@ -204,6 +205,18 @@ func clearFailureTracking() {
 	failureTrackingMutex.Lock()
 	defer failureTrackingMutex.Unlock()
 	failureTracking = failureTracking[:0]
+}
+
+var sharedCacheLayers sync.Map
+
+// SharedCacheLayer returns one CacheLayer per client for callers that would otherwise build one per
+// request. Each NewCacheLayer starts a ticker that never stops.
+func SharedCacheLayer(anilistClientRef *util.Ref[anilist.AnilistClient]) anilist.AnilistClient {
+	if layer, ok := sharedCacheLayers.Load(anilistClientRef); ok {
+		return layer.(anilist.AnilistClient)
+	}
+	layer, _ := sharedCacheLayers.LoadOrStore(anilistClientRef, NewCacheLayer(anilistClientRef))
+	return layer.(anilist.AnilistClient)
 }
 
 // NewCacheLayer creates a CacheLayer wrapping the given AniList client.
@@ -1008,7 +1021,8 @@ func (c *CacheLayer) UpdateMediaListEntry(ctx context.Context, mediaID *int, sta
 	// If the AniList API is currently unavailable, queue this mutation so it can be
 	// replayed once the API comes back. We still invalidate local caches so the UI
 	// reflects the user's intent, and we return a synthetic success result.
-	if !IsWorking.Load() {
+	if !IsWorking.Load() || !connectivity.IsAniListAllowed() {
+		// The stored collections stay as they are: with AniList out of reach they are all there is.
 		c.pendingMutations.Enqueue(&PendingMutation{
 			Kind:        PendingKindUpdateEntry,
 			MediaID:     mediaID,
@@ -1018,10 +1032,6 @@ func (c *CacheLayer) UpdateMediaListEntry(ctx context.Context, mediaID *int, sta
 			StartedAt:   startedAt,
 			CompletedAt: completedAt,
 		})
-		if mediaID != nil {
-			c.invalidateMediaCaches(*mediaID)
-			c.invalidateCollectionCaches()
-		}
 		return &anilist.UpdateMediaListEntry{}, nil
 	}
 
@@ -1039,16 +1049,13 @@ func (c *CacheLayer) UpdateMediaListEntry(ctx context.Context, mediaID *int, sta
 
 func (c *CacheLayer) UpdateMediaListEntryStatus(ctx context.Context, mediaID *int, status *anilist.MediaListStatus, interceptors ...clientv2.RequestInterceptor) (*anilist.UpdateMediaListEntry, error) {
 	// Same outage handling as UpdateMediaListEntry: queue a status-only mutation for replay.
-	if !IsWorking.Load() {
+	if !IsWorking.Load() || !connectivity.IsAniListAllowed() {
+		// The stored collections stay as they are: with AniList out of reach they are all there is.
 		c.pendingMutations.Enqueue(&PendingMutation{
 			Kind:    PendingKindUpdateEntry,
 			MediaID: mediaID,
 			Status:  status,
 		})
-		if mediaID != nil {
-			c.invalidateMediaCaches(*mediaID)
-			c.invalidateCollectionCaches()
-		}
 		return &anilist.UpdateMediaListEntry{}, nil
 	}
 
@@ -1066,7 +1073,8 @@ func (c *CacheLayer) UpdateMediaListEntryStatus(ctx context.Context, mediaID *in
 func (c *CacheLayer) UpdateMediaListEntryProgress(ctx context.Context, mediaID *int, progress *int, status *anilist.MediaListStatus, startedAt *anilist.FuzzyDateInput, completedAt *anilist.FuzzyDateInput, interceptors ...clientv2.RequestInterceptor) (*anilist.UpdateMediaListEntryProgress, error) {
 	// Queue progress updates when AniList is unreachable so the user's place is
 	// preserved and eventually synced. Local caches are invalidated so the UI updates.
-	if !IsWorking.Load() {
+	if !IsWorking.Load() || !connectivity.IsAniListAllowed() {
+		// The stored collections stay as they are: with AniList out of reach they are all there is.
 		c.pendingMutations.Enqueue(&PendingMutation{
 			Kind:        PendingKindUpdateEntryProgress,
 			MediaID:     mediaID,
@@ -1075,10 +1083,6 @@ func (c *CacheLayer) UpdateMediaListEntryProgress(ctx context.Context, mediaID *
 			StartedAt:   startedAt,
 			CompletedAt: completedAt,
 		})
-		if mediaID != nil {
-			c.invalidateMediaCaches(*mediaID)
-			c.invalidateCollectionCaches()
-		}
 		return &anilist.UpdateMediaListEntryProgress{}, nil
 	}
 
@@ -1096,16 +1100,13 @@ func (c *CacheLayer) UpdateMediaListEntryProgress(ctx context.Context, mediaID *
 
 func (c *CacheLayer) UpdateMediaListEntryRepeat(ctx context.Context, mediaID *int, repeat *int, interceptors ...clientv2.RequestInterceptor) (*anilist.UpdateMediaListEntryRepeat, error) {
 	// Queue rewatch-count updates when AniList is unreachable.
-	if !IsWorking.Load() {
+	if !IsWorking.Load() || !connectivity.IsAniListAllowed() {
+		// The stored collections stay as they are: with AniList out of reach they are all there is.
 		c.pendingMutations.Enqueue(&PendingMutation{
 			Kind:    PendingKindUpdateEntryRepeat,
 			MediaID: mediaID,
 			Repeat:  repeat,
 		})
-		if mediaID != nil {
-			c.invalidateMediaCaches(*mediaID)
-			c.invalidateCollectionCaches()
-		}
 		return &anilist.UpdateMediaListEntryRepeat{}, nil
 	}
 
@@ -1123,12 +1124,12 @@ func (c *CacheLayer) UpdateMediaListEntryRepeat(ctx context.Context, mediaID *in
 
 func (c *CacheLayer) DeleteEntry(ctx context.Context, mediaListEntryID *int, interceptors ...clientv2.RequestInterceptor) (*anilist.DeleteEntry, error) {
 	// Queue deletes too so an offline removal still propagates when the API recovers.
-	if !IsWorking.Load() {
+	if !IsWorking.Load() || !connectivity.IsAniListAllowed() {
+		// The stored collections stay as they are: with AniList out of reach they are all there is.
 		c.pendingMutations.Enqueue(&PendingMutation{
 			Kind:    PendingKindDeleteEntry,
 			EntryID: mediaListEntryID,
 		})
-		c.invalidateCollectionCaches()
 		return &anilist.DeleteEntry{}, nil
 	}
 

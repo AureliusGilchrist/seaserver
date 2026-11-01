@@ -370,6 +370,9 @@ func (a *App) sendQueuedListEdit(ctx context.Context, edit *QueuedListEdit) erro
 	if err != nil {
 		return err
 	}
+	if a.AnilistClientManager != nil {
+		a.AnilistClientManager.withNewestQueuedProgress(edit)
+	}
 	mediaID := edit.MediaID
 	if edit.ProfileID > 0 && a.AnilistClientManager != nil {
 		client := a.AnilistClientManager.GetClient(edit.ProfileID)

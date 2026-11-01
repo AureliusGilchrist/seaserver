@@ -684,7 +684,7 @@ func (h *Handler) HandleAnilistListManga(c echo.Context) error {
 	}
 
 	ret, err := anilist.ListMangaM(
-		shared_platform.NewCacheLayer(h.App.AnilistClientRef),
+		shared_platform.SharedCacheLayer(h.App.AnilistClientRef),
 		p.Page,
 		p.Search,
 		p.PerPage,
@@ -781,7 +781,11 @@ func (h *Handler) HandleUpdateMangaProgress(c echo.Context) error {
 			startedAt,
 			completedAt,
 		)
-		if err != nil {
+		if shared_platform.IsOutageError(err) {
+			// Kept for when AniList is back, and shown now so Continue Reading moves on.
+			h.App.AnilistClientManager.EnqueueProgressUpdate(profileID, b.MediaId, b.ChapterNumber, &status, startedAt, completedAt)
+			h.App.AnilistClientManager.ApplyMangaListEntryUpdate(profileID, b.MediaId, nil, &status, nil, &b.ChapterNumber, startedAt, completedAt)
+		} else if err != nil {
 			return h.RespondWithError(c, err)
 		}
 	} else {

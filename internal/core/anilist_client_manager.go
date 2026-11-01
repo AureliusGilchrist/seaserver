@@ -167,6 +167,8 @@ func (m *AnilistClientManager) EnqueueProgressUpdate(
 		StartedAt:   startedAt,
 		CompletedAt: completedAt,
 	})
+	// Shown now, so Continue Watching moves on while this waits for AniList.
+	m.ApplyAnimeListEntryUpdate(profileID, mediaID, nil, status, nil, &prog, startedAt, completedAt)
 	m.notifyProgressQueue(profileID, nil)
 	m.KickPendingFlush(profileID)
 }

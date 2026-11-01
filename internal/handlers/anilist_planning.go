@@ -51,6 +51,11 @@ func (h *Handler) HandleAddAnimeToPlanning(c echo.Context) error {
 		// AniList unreachable — queue it rather than losing the action.
 		if shared_platform.IsOutageError(err) && resolvedProfileID > 0 {
 			h.App.AnilistClientManager.EnqueueStatusUpdate(resolvedProfileID, mediaID, status)
+			var media *anilist.BaseAnime
+			if found, mediaErr := h.App.AnilistPlatformRef.Get().GetAnime(c.Request().Context(), mediaID); mediaErr == nil {
+				media = found
+			}
+			h.App.AnilistClientManager.ApplyAnimeListEntryUpdate(resolvedProfileID, mediaID, media, &status, nil, nil, nil, nil)
 			h.App.Logger.Warn().Int("mediaId", mediaID).Msg("anilist: AniList unreachable; queued add-to-planning for later sync")
 			return h.RespondWithData(c, AddToPlanningResponse{Added: true, Queued: true})
 		}

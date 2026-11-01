@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"seanime/internal/achievement"
 	"seanime/internal/api/anilist"
+	"seanime/internal/connectivity"
 	"seanime/internal/core"
 	"seanime/internal/database/models"
 	"seanime/internal/enmasse"
@@ -148,7 +149,10 @@ func (h *Handler) HandleSetAnilistRewatches(c echo.Context) error {
 		if !client.IsAuthenticated() {
 			return h.RespondWithError(c, errors.New("profile AniList account not authenticated"))
 		}
-		if _, err := client.UpdateMediaListEntryRepeat(c.Request().Context(), &b.MediaId, &b.Repeat); err != nil {
+		if _, err := client.UpdateMediaListEntryRepeat(c.Request().Context(), &b.MediaId, &b.Repeat); shared_platform.IsOutageError(err) {
+			h.App.AnilistClientManager.EnqueueRepeatUpdate(profileID, b.MediaId, b.Repeat)
+			return h.RespondWithData(c, true)
+		} else if err != nil {
 			return h.RespondWithError(c, err)
 		}
 		h.App.AnilistClientManager.InvalidateAnimeCollection(profileID)
@@ -608,6 +612,14 @@ func (h *Handler) HandleDeleteAnilistListEntry(c echo.Context) error {
 			return h.RespondWithError(c, errors.New("profile AniList account not authenticated"))
 		}
 
+		// Finding the entry below means asking AniList, so offline it comes from the stored list.
+		if !connectivity.IsAniListAllowed() {
+			if !h.App.AnilistClientManager.QueueListEntryRemoval(profileID, *p.Type, *p.MediaId) {
+				return h.RespondWithError(c, errors.New("list entry not found in profile collection"))
+			}
+			return h.RespondWithData(c, true)
+		}
+
 		var listEntryID int
 		// Fetch the profile's collection to find the entry ID
 		viewerName := h.App.AnilistClientManager.GetUsername(profileID)
@@ -799,7 +811,7 @@ func (h *Handler) HandleAnilistListAnime(c echo.Context) error {
 	}
 
 	ret, err := anilist.ListAnimeM(
-		shared_platform.NewCacheLayer(h.App.AnilistClientRef),
+		shared_platform.SharedCacheLayer(h.App.AnilistClientRef),
 		p.Page,
 		p.Search,
 		p.PerPage,
@@ -861,7 +873,7 @@ func (h *Handler) HandleAnilistListRecentAiringAnime(c echo.Context) error {
 	}
 
 	ret, err := anilist.ListRecentAiringAnimeM(
-		shared_platform.NewCacheLayer(h.App.AnilistClientRef),
+		shared_platform.SharedCacheLayer(h.App.AnilistClientRef),
 		p.Page,
 		p.Search,
 		p.PerPage,
@@ -911,7 +923,7 @@ func (h *Handler) HandleAnilistListMissedSequels(c echo.Context) error {
 	}
 
 	ret, err := anilist.ListMissedSequels(
-		shared_platform.NewCacheLayer(h.App.AnilistClientRef),
+		shared_platform.SharedCacheLayer(h.App.AnilistClientRef),
 		animeCollection,
 		h.App.Logger,
 		h.App.GetUserAnilistToken(),
