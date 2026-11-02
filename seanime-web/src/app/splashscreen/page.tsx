@@ -224,7 +224,7 @@ export default function Page() {
 
             <div className="z-[1] flex flex-col items-center">
                 <Image
-                    src="/deus-ex-aeternae-emblem.svg"
+                    src="/eternity-emblem.png"
                     alt="Deus ex Aeternae"
                     priority
                     width={80}

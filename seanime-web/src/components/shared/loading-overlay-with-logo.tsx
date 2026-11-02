@@ -9,7 +9,7 @@ import React from "react"
 export function LoadingOverlayWithLogo({ refetch, title }: { refetch?: () => void, title?: string }) {
     return <LoadingOverlay showSpinner={false}>
         <Image
-            src="/deus-ex-aeternae-emblem.svg"
+            src="/eternity-emblem.png"
             alt="Deus ex Aeternae"
             priority
             width={100}

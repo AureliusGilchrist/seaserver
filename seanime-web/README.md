@@ -1,5 +1,5 @@
 <p align="center">
-<img src="public/deus-ex-aeternae-emblem.svg" alt="Deus ex Aeternae emblem" width="70px"/>
+<img src="public/eternity-emblem.png" alt="Eternity Server emblem" width="70px"/>
 </p>
 
 <h2 align="center"><b>Seanime Web</b></h2>

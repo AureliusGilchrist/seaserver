@@ -126,7 +126,7 @@ function StepIndicator({ currentStep, totalSteps, onStepClick }: { currentStep: 
             <div className="flex items-center justify-center mb-6">
                 <div className="relative mx-auto size-16">
                     <motion.img
-                        src="/deus-ex-aeternae-emblem.svg"
+                        src="/eternity-emblem.png"
                         alt="Deus Ex Aeternae Logo"
                         className="w-full h-full object-contain"
                         initial={{ opacity: 0 }}

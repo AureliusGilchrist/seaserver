@@ -1,44 +1,31 @@
 #!/usr/bin/env python3
-"""Regenerate every application icon from the Deus Ex Aeternae emblem SVG.
+"""Regenerate every application icon from the Eternity Server emblem PNG.
 
-- Renders the SVG with headless Chromium (Playwright) at each required size.
+- Resizes the master PNG (seanime-web/public/eternity-emblem.png) to each required size.
 - Packs Windows .ico and macOS .icns containers.
 - Regenerates the Go byte-array sources (internal/icon/iconwin.go, iconunix.go).
 """
-import base64
 import io
 import os
 import struct
 import sys
 
 from PIL import Image
-from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SVG_PATH = os.path.join(ROOT, "seanime-web", "public", "deus-ex-aeternae-emblem.svg")
-
-with open(SVG_PATH, "rb") as f:
-    svg_b64 = base64.b64encode(f.read()).decode("ascii")
+PNG_PATH = os.path.join(ROOT, "seanime-web", "public", "eternity-emblem.png")
 
 
 def render(size: int, black: bool = False) -> Image.Image:
-    """Render the emblem at `size`x`size` with transparency; optionally all-black (macOS template)."""
-    css = "filter: brightness(0);" if black else ""
-    html = (
-        "<!doctype html><html><head><style>"
-        "html,body{margin:0;padding:0;background:transparent;overflow:hidden}"
-        "img{display:block;width:100vw;height:100vh;" + css + "}"
-        "</style></head><body>"
-        f'<img src="data:image/svg+xml;base64,{svg_b64}">'
-        "</body></html>"
-    )
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
-        page = browser.new_page(viewport={"width": size, "height": size}, device_scale_factor=1)
-        page.set_content(html)
-        buf = page.screenshot(omit_background=True, type="png")
-        browser.close()
-    return Image.open(io.BytesIO(buf)).convert("RGBA")
+    """Resize the emblem to `size`x`size`; optionally as a black silhouette (macOS template)."""
+    im = Image.open(PNG_PATH).convert("RGBA")
+    im = im.resize((size, size), Image.LANCZOS)
+    if black:
+        # White-on-black artwork: use luminance as the alpha of a black fill.
+        lum = im.convert("L")
+        im = Image.new("RGBA", (size, size), (0, 0, 0, 255))
+        im.putalpha(lum)
+    return im
 
 
 def write_icns(imgs: dict, path: str) -> None:

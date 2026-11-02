@@ -1,4 +1,4 @@
-// Rasterizes the deus-ex-aeternae emblem into the app's launcher mipmaps and adaptive-icon
+// Rasterizes the eternity emblem into the app's launcher mipmaps and adaptive-icon
 // layers. Run once after a clean checkout:  node scripts/make-icons.mjs
 import sharp from "sharp"
 import { readFileSync } from "node:fs"
@@ -7,8 +7,8 @@ import { fileURLToPath } from "node:url"
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const resDir = join(rootDir, "android", "app", "src", "main", "res")
-const emblem = join(rootDir, "..", "seanime-web", "out-mobile", "deus-ex-aeternae-emblem.svg")
-const svg = readFileSync(emblem)
+const emblem = join(rootDir, "..", "seanime-web", "public", "eternity-emblem.png")
+const art = readFileSync(emblem)
 
 // The emblem has no background of its own; on the launcher it sits on the app's near-black.
 const background = { r: 12, g: 12, b: 12, alpha: 1 }
@@ -16,7 +16,7 @@ const background = { r: 12, g: 12, b: 12, alpha: 1 }
 const mipmapSizes = { mdpi: 48, hdpi: 72, xhdpi: 96, xxhdpi: 144, xxxhdpi: 192 }
 
 for (const [density, size] of Object.entries(mipmapSizes)) {
-    const icon = await sharp(svg, { density: 512 })
+    const icon = await sharp(art)
         .resize(size, size)
         .flatten({ background })
         .png()
@@ -44,7 +44,7 @@ for (const [density, size] of Object.entries(mipmapSizes)) {
 // foreground scaled so the emblem's safe area survives the 108/72 viewport crop.
 const adaptiveSizes = { mdpi: 108, hdpi: 162, xhdpi: 216, xxhdpi: 324, xxxhdpi: 432 }
 for (const [density, size] of Object.entries(adaptiveSizes)) {
-    const foreground = await sharp(svg, { density: 512 })
+    const foreground = await sharp(art)
         .resize(Math.round(size * 0.55), Math.round(size * 0.55))
         .png()
         .toBuffer()

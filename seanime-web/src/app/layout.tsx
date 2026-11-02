@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     title: "Deus Ex Aeternae",
     description: "Self-hosted, user-friendly media server for anime and manga.",
     icons: {
-        icon: "/deus-ex-aeternae-emblem.svg",
+        icon: "/eternity-emblem.png",
         apple: "/icons/apple-icon.png",
     },
     appleWebApp: {

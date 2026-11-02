@@ -535,7 +535,7 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
                 )}
             >
                 <img
-                    src="/deus-ex-aeternae-emblem.svg"
+                    src="/eternity-emblem.png"
                     alt="Deus ex Aeternae"
                     className="size-10 transition-all duration-300"
                     data-easter-egg="logo"

@@ -14,7 +14,7 @@ export default function manifest(): MetadataRoute.Manifest {
         theme_color: "#070707",
         icons: [
             {
-                src: "/deus-ex-aeternae-emblem.svg",
+                src: "/eternity-emblem.png",
                 sizes: "any",
                 type: "image/svg+xml",
                 purpose: "any",

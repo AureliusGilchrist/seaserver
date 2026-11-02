@@ -151,7 +151,7 @@
         ].join(";"))
 
         el.innerHTML = [
-            '<img src="/deus-ex-aeternae-emblem.svg" alt="" style="width:84px;height:84px;margin-bottom:18px;filter:drop-shadow(0 0 24px rgba(56,189,248,.25))"/>',
+            '<img src="/eternity-emblem.png" alt="" style="width:84px;height:84px;margin-bottom:18px;filter:drop-shadow(0 0 24px rgba(255,255,255,.28))"/>',
             '<div style="font-size:13px;letter-spacing:.55em;color:#9ca3af;margin-bottom:6px;text-indent:.55em">DENSHI</div>',
             '<div style="font-size:12px;color:#6b7280;margin-bottom:40px">Connect to your server</div>',
             '<input id="denshi-shell-url" type="url" autocapitalize="off" autocorrect="off" spellcheck="false" style="width:100%;max-width:340px;box-sizing:border-box;padding:13px 14px;border-radius:12px;border:1px solid #1f2937;background:#0c1017;color:#f3f4f6;font-size:15px;outline:none;text-align:center"/>',
