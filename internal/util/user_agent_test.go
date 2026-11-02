@@ -6,10 +6,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"seanime/internal/test_utils"
 	"testing"
 )
 
 func TestGetOnlineUserAgents(t *testing.T) {
+	test_utils.SetTwoLevelDeep()
+	test_utils.InitTestProvider(t, test_utils.Network())
+
 	userAgents, err := getOnlineUserAgents()
 	if err != nil {
 		t.Fatalf("Failed to get online user agents: %v", err)
@@ -17,7 +21,12 @@ func TestGetOnlineUserAgents(t *testing.T) {
 	t.Logf("Online user agents: %v", userAgents)
 }
 
+// TestTransformUserAgentJsonlToSliceFile is a generator, not a test: it overwrites user_agent_list.go
+// from data/user_agents.jsonl. Run it on purpose with SEANIME_GENERATE_USER_AGENTS=1.
 func TestTransformUserAgentJsonlToSliceFile(t *testing.T) {
+	if os.Getenv("SEANIME_GENERATE_USER_AGENTS") != "1" {
+		t.Skip("generator; set SEANIME_GENERATE_USER_AGENTS=1 to rewrite user_agent_list.go")
+	}
 
 	jsonlFilePath := filepath.Join("data", "user_agents.jsonl")
 

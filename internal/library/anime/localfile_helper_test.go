@@ -174,6 +174,7 @@ func TestLocalFile_Equals(t *testing.T) {
 }
 
 func TestLocalFile_GetTitleVariations(t *testing.T) {
+	skipOnWindowsSeparateFilePath(t)
 
 	tests := []struct {
 		filePath       string
@@ -259,6 +260,7 @@ func TestLocalFile_GetTitleVariations(t *testing.T) {
 }
 
 func TestLocalFile_GetParsedTitle(t *testing.T) {
+	skipOnWindowsSeparateFilePath(t)
 
 	tests := []struct {
 		filePath            string
@@ -294,6 +296,7 @@ func TestLocalFile_GetParsedTitle(t *testing.T) {
 }
 
 func TestLocalFile_GetFolderTitle(t *testing.T) {
+	skipOnWindowsSeparateFilePath(t)
 
 	tests := []struct {
 		filePath            string

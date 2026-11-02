@@ -13,6 +13,8 @@ import (
 func TestGojaFormData(t *testing.T) {
 	vm := goja.New()
 	defer vm.ClearInterrupt()
+	// FormData's Go methods (Append, Get…) are only reachable as append/get through the mapper.
+	vm.SetFieldNameMapper(DefaultFieldMapper{})
 
 	BindFormData(vm)
 

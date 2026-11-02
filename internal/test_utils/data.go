@@ -40,6 +40,7 @@ type (
 		EnableMediaPlayerTests     bool `mapstructure:"enable_media_player_tests"`
 		EnableTorrentClientTests   bool `mapstructure:"enable_torrent_client_tests"`
 		EnableTorrentstreamTests   bool `mapstructure:"enable_torrentstream_tests"`
+		EnableNetworkTests         bool `mapstructure:"enable_network_tests"`
 	}
 
 	ProviderConfig struct {
@@ -142,6 +143,28 @@ func TorrentClient() FlagFunc {
 func Torrentstream() FlagFunc {
 	return func() bool {
 		return ConfigData.Flags.EnableTorrentstreamTests
+	}
+}
+
+// Network gates tests that reach arbitrary external hosts (CDNs, scrapers, trackers).
+// Off unless enable_network_tests = true, so the default run stays offline.
+func Network() FlagFunc {
+	return func() bool {
+		return ConfigData.Flags.EnableNetworkTests
+	}
+}
+
+// RealDebrid gates tests that call the real Real-Debrid API; they need realdebrid_api_key.
+func RealDebrid() FlagFunc {
+	return func() bool {
+		return ConfigData.Provider.RealDebridApiKey != ""
+	}
+}
+
+// TorBox gates tests that call the real TorBox API; they need torbox_api_key.
+func TorBox() FlagFunc {
+	return func() bool {
+		return ConfigData.Provider.TorBoxApiKey != ""
 	}
 }
 

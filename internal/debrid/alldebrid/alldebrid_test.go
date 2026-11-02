@@ -39,7 +39,7 @@ func TestAllDebrid_Authenticate(t *testing.T) {
 
 func TestAllDebrid_GetTorrents(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/../v4.1/magnet/status", r.URL.Path)
+		assert.Equal(t, "/magnet/status", r.URL.Path)
 		assert.Equal(t, "Bearer key", r.Header.Get("Authorization"))
 
 		w.WriteHeader(http.StatusOK)

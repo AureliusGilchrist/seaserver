@@ -12,7 +12,7 @@ import (
 )
 
 func TestTorBox_GetTorrents(t *testing.T) {
-	test_utils.InitTestProvider(t)
+	test_utils.InitTestProvider(t, test_utils.RealDebrid())
 	logger := util.NewLogger()
 
 	rd := NewRealDebrid(logger)
@@ -31,7 +31,7 @@ func TestTorBox_GetTorrents(t *testing.T) {
 func TestTorBox_AddTorrent(t *testing.T) {
 	t.Skip("Skipping test that adds a torrent to RealDebrid")
 
-	test_utils.InitTestProvider(t)
+	test_utils.InitTestProvider(t, test_utils.RealDebrid())
 
 	// Already added
 	magnet := ""
@@ -62,7 +62,7 @@ func TestTorBox_AddTorrent(t *testing.T) {
 
 func TestTorBox_getTorrentInfo(t *testing.T) {
 
-	test_utils.InitTestProvider(t)
+	test_utils.InitTestProvider(t, test_utils.RealDebrid())
 
 	logger := util.NewLogger()
 
@@ -79,7 +79,7 @@ func TestTorBox_getTorrentInfo(t *testing.T) {
 
 func TestTorBox_GetDownloadUrl(t *testing.T) {
 
-	test_utils.InitTestProvider(t)
+	test_utils.InitTestProvider(t, test_utils.RealDebrid())
 
 	logger := util.NewLogger()
 
@@ -99,7 +99,7 @@ func TestTorBox_GetDownloadUrl(t *testing.T) {
 
 func TestTorBox_InstantAvailability(t *testing.T) {
 
-	test_utils.InitTestProvider(t)
+	test_utils.InitTestProvider(t, test_utils.RealDebrid())
 
 	logger := util.NewLogger()
 
@@ -116,7 +116,7 @@ func TestTorBox_InstantAvailability(t *testing.T) {
 func TestTorBox_ChooseFileAndDownload(t *testing.T) {
 	//t.Skip("Skipping test that adds a torrent to RealDebrid")
 
-	test_utils.InitTestProvider(t)
+	test_utils.InitTestProvider(t, test_utils.RealDebrid())
 
 	magnet := ""
 

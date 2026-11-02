@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"seanime/internal/util"
 	"testing"
 	"time"
@@ -13,7 +16,35 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// skipWithoutChrome skips the test when chromedp has no browser to launch. It looks in the same
+// places chromedp's default allocator does (PATH names, then the usual install paths).
+func skipWithoutChrome(t *testing.T) {
+	t.Helper()
+	for _, name := range []string{"headless_shell", "headless-shell", "chromium", "chromium-browser",
+		"google-chrome", "google-chrome-stable", "google-chrome-beta", "google-chrome-unstable", "chrome"} {
+		if _, err := exec.LookPath(name); err == nil {
+			return
+		}
+	}
+	paths := []string{
+		"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+		"/Applications/Chromium.app/Contents/MacOS/Chromium",
+		`C:\Program Files\Google\Chrome\Application\chrome.exe`,
+		`C:\Program Files (x86)\Google\Chrome\Application\chrome.exe`,
+	}
+	if dir := os.Getenv("LOCALAPPDATA"); dir != "" {
+		paths = append(paths, filepath.Join(dir, "Google", "Chrome", "Application", "chrome.exe"))
+	}
+	for _, p := range paths {
+		if _, err := os.Stat(p); err == nil {
+			return
+		}
+	}
+	t.Skip("no Chrome/Chromium found for chromedp")
+}
+
 func setupChromeVMWithServer(t *testing.T) (*goja.Runtime, *ChromeDP, *httptest.Server) {
+	skipWithoutChrome(t)
 	vm := goja.New()
 	chrome := BindChromeDP(vm)
 

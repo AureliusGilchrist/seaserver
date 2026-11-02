@@ -68,7 +68,7 @@ func TestCacherSetAndGet(t *testing.T) {
 	tempDir := t.TempDir()
 	t.Log(tempDir)
 
-	cacher, err := NewCacher(filepath.Join(test_utils.ConfigData.Path.DataDir, "cache"))
+	cacher, err := NewCacher(filepath.Join(tempDir, "cache"))
 
 	bucket := Bucket{
 		name: "test",

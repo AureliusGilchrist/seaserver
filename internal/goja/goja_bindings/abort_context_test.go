@@ -8,13 +8,19 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestAbortContext(t *testing.T) {
+func newAbortContextVM() *goja.Runtime {
 	vm := goja.New()
 	BindAbortContext(vm, gojautil.NewScheduler())
+	return vm
+}
 
+func TestAbortContext(t *testing.T) {
+	// Each subtest gets its own VM: the scripts declare top-level consts, which can't be redeclared in one VM.
 	t.Run("AbortContext basic functionality", func(t *testing.T) {
+		vm := newAbortContextVM()
 		script := `
 			const controller = new AbortContext();
 			const signal = controller.signal;
@@ -29,7 +35,7 @@ func TestAbortContext(t *testing.T) {
 		`
 
 		val, err := vm.RunString(script)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		obj := val.ToObject(vm)
 		util.Spew(obj.Export())
@@ -61,6 +67,7 @@ func TestAbortContext(t *testing.T) {
 	//})
 
 	t.Run("AbortSignal with reason", func(t *testing.T) {
+		vm := newAbortContextVM()
 		script := `
 			const controller = new AbortContext();
 			const signal = controller.signal;
@@ -71,7 +78,7 @@ func TestAbortContext(t *testing.T) {
 		`
 
 		val, err := vm.RunString(script)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "Custom reason", val.String())
 	})
 }

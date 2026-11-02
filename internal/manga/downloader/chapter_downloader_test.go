@@ -13,6 +13,10 @@ import (
 )
 
 func TestQueue(t *testing.T) {
+	// The table below is a placeholder: its entries are commented out and have no provider,
+	// so running it only dereferences a nil provider.
+	t.Skip("no manga provider wired into the test table yet")
+
 	test_utils.InitTestProvider(t)
 
 	tempDir := t.TempDir()

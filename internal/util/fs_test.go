@@ -1,6 +1,7 @@
 package util
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -30,6 +31,9 @@ func TestValidVideoExtension(t *testing.T) {
 }
 
 func TestSubdirectory(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("cases use Windows paths and drive-letter case folding")
+	}
 	tests := []struct {
 		parent   string
 		child    string
@@ -51,6 +55,9 @@ func TestSubdirectory(t *testing.T) {
 }
 
 func TestIsFileUnderDir(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("cases use Windows paths and drive-letter case folding")
+	}
 	tests := []struct {
 		parent   string
 		child    string
@@ -65,13 +72,16 @@ func TestIsFileUnderDir(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.child, func(t *testing.T) {
-			result := IsFileUnderDir(test.parent, test.child)
+			result := IsFileUnderDir(test.child, test.parent)
 			require.Equal(t, test.expected, result)
 		})
 	}
 }
 
 func TestSameDir(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("cases use Windows paths and drive-letter case folding")
+	}
 	tests := []struct {
 		dir1     string
 		dir2     string

@@ -12,7 +12,7 @@ import (
 )
 
 func TestTorBox_GetTorrents(t *testing.T) {
-	test_utils.InitTestProvider(t)
+	test_utils.InitTestProvider(t, test_utils.TorBox())
 	logger := util.NewLogger()
 
 	tb := NewTorBox(logger)
@@ -47,7 +47,7 @@ func TestTorBox_GetTorrents(t *testing.T) {
 func TestTorBox_AddTorrent(t *testing.T) {
 	t.Skip("Skipping test that adds a torrent to TorBox")
 
-	test_utils.InitTestProvider(t)
+	test_utils.InitTestProvider(t, test_utils.TorBox())
 
 	// Already added
 	magnet := ""
