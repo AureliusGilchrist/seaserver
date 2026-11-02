@@ -1,4 +1,5 @@
-import { Anime_Episode } from "@/api/generated/types"
+import { Anime_Episode, Anime_EntryListData } from "@/api/generated/types"
+import { __anilist_userAnimeListDataAtom } from "@/app/(main)/_atoms/anilist.atoms"
 import {
     finishEntry,
     looksDozed,
@@ -17,7 +18,7 @@ import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { cn } from "@/components/ui/core/styling"
 import { getImageUrl } from "@/lib/server/assets"
 import { useGetAnimeEntry } from "@/api/hooks/anime_entries.hooks"
-import { useGetAnilistAnimeDetails } from "@/api/hooks/anilist.hooks"
+import { MediaFamilyMember, useGetAnilistAnimeDetails, useGetMediaFamily } from "@/api/hooks/anilist.hooks"
 import { VideoCoreLifecycleState } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_playlistState } from "@/app/(main)/_features/video-core/video-core-playlist"
@@ -27,7 +28,7 @@ import { useRouter } from "@/lib/navigation"
 import { atom, useAtomValue, useSetAtom } from "jotai"
 import { useAtom } from "jotai/react"
 import React from "react"
-import { LuArrowRight, LuChevronDown, LuHistory, LuMoon, LuPlay } from "react-icons/lu"
+import { LuArrowRight, LuCheck, LuChevronDown, LuHistory, LuMoon, LuPlay } from "react-icons/lu"
 
 /**
  * Two things the player asks about rather than assuming.
@@ -91,13 +92,23 @@ export function isStillWatchingActiveHour(
     return isInCheckWindow(hour, startHour, endHour)
 }
 
+/** A series in the sequel branch view. */
+export type VideoCoreSequelOption = {
+    id: number
+    title: string
+    format?: string
+    year?: number
+    episodes?: number
+    cover?: string
+}
+
 export type VideoCoreSequelPromptState = {
     mediaId: number
     /** The series just finished. */
     title: string
-    /** The sequel's media id, and what it is called. */
-    sequelId: number
-    sequelTitle: string
+    cover?: string
+    /** Every direct sequel, oldest first: more than one is a fork, and the user picks. */
+    sequels: VideoCoreSequelOption[]
 }
 
 export type VideoCoreStillWatchingState = {
@@ -191,13 +202,36 @@ export const vc_stillWatchingPrompt = atom<VideoCoreStillWatchingState | null>(n
  */
 export const vc_stillWatchingHold = atom(false)
 
-/** The sequel of a series, if AniList lists one. */
-function findSequel(relations?: { relationType?: string; node?: any }[]): any | null {
-    if (!relations?.length) return null
+/** Orders by start date; undated (usually unannounced) entries go last. */
+function startKey(date?: { year?: number, month?: number, day?: number }) {
+    if (!date?.year) return 99_999_999
+    return date.year * 10_000 + (date.month || 12) * 100 + (date.day || 28)
+}
+
+function toSequelOption(node: any): VideoCoreSequelOption {
+    return {
+        id: node.id,
+        title: node.title?.userPreferred ?? node.title?.romaji ?? node.title?.english ?? "Untitled",
+        format: node.format,
+        year: node.startDate?.year ?? node.seasonYear,
+        episodes: node.episodes,
+        cover: node.coverImage?.large ?? node.coverImage?.medium ?? node.coverImage?.extraLarge,
+    }
+}
+
+/** Every direct sequel of a series AniList lists, oldest first. */
+function findSequels(relations?: { relationType?: string; node?: any }[]): VideoCoreSequelOption[] {
+    if (!relations?.length) return []
     // SEQUEL is the direct continuation. A series that continues as a "SIDE_STORY" or "ALTERNATIVE"
-    // is not the same story picking up where it left off, so those are not offered as "the sequel".
-    const sequel = relations.find(edge => (edge.relationType ?? "").toUpperCase() === "SEQUEL")
-    return sequel?.node ?? null
+    // is not the same story picking up where it left off, so those are not offered as a sequel.
+    // A series can have several (a second season and a film, say): each is a branch to choose from.
+    const seen = new Set<number>()
+    return relations
+        .filter(edge => (edge.relationType ?? "").toUpperCase() === "SEQUEL" && edge.node?.id && edge.node?.type !== "MANGA")
+        .map(edge => edge.node)
+        .filter(node => !seen.has(node.id) && !!seen.add(node.id))
+        .sort((a, b) => startKey(a.startDate) - startKey(b.startDate))
+        .map(toSequelOption)
 }
 
 /**
@@ -219,6 +253,8 @@ export function useVideoCoreWatchingChecks(
     // only once the series has actually run out of episodes to play.
     const onLastEpisode = totalEpisodes > 0 && episodeNumber >= totalEpisodes
     const { data: details } = useGetAnilistAnimeDetails(onLastEpisode ? mediaId : null)
+    // The franchise, for the branch view's line of earlier series; warmed now so the prompt has it.
+    useGetMediaFamily(onLastEpisode ? mediaId : null)
 
     const setSequelPrompt = useSetAtom(vc_sequelPrompt)
     const setStillWatching = useSetAtom(vc_stillWatchingPrompt)
@@ -421,13 +457,14 @@ export function useVideoCoreWatchingChecks(
         const { details, state, mediaId, episodeNumber, totalEpisodes, setSequelPrompt } = latestRef.current
         if (!mediaId || !episodeNumber) return
         if (!(totalEpisodes > 0 && episodeNumber >= totalEpisodes)) return
-        const sequel = findSequel(details?.relations?.edges)
-        if (sequel?.id) {
+        const sequels = findSequels(details?.relations?.edges)
+        if (sequels.length) {
+            const media = state.playbackInfo?.media
             setSequelPrompt({
                 mediaId,
-                title: state.playbackInfo?.media?.title?.userPreferred ?? state.playbackInfo?.media?.title?.romaji ?? "This series",
-                sequelId: sequel.id,
-                sequelTitle: sequel.title?.userPreferred ?? sequel.title?.romaji ?? "the sequel",
+                title: media?.title?.userPreferred ?? media?.title?.romaji ?? "This series",
+                cover: media?.coverImage?.large ?? media?.coverImage?.medium ?? undefined,
+                sequels,
             })
         }
     }, [])
@@ -435,44 +472,208 @@ export function useVideoCoreWatchingChecks(
     return { onEpisodeEnded, onVideoEnded, beforeAutoNext }
 }
 
+/** How many earlier series the branch view draws before folding the rest into "+N earlier". */
+const SEQUEL_BRANCH_PREQUELS_SHOWN = 3
+
 /**
- * "Would you like to move to the sequel?" — shown when a series runs out of episodes and AniList
- * knows what comes next.
+ * The series before this one, oldest first: follows each one's PREQUEL edge back through the franchise.
+ * Only the main line — side stories and spin-offs hang off it and aren't "where you are".
+ */
+function tracePrequels(members: MediaFamilyMember[] | undefined, mediaId: number): MediaFamilyMember[] {
+    if (!members?.length) return []
+    const byId = new Map(members.map(m => [m.id, m]))
+    const line: MediaFamilyMember[] = []
+    const seen = new Set<number>([mediaId])
+    let current = byId.get(mediaId)
+    while (current) {
+        const prequels = (current.relations?.edges ?? [])
+            .filter(e => e.relationType === "PREQUEL" && e.node?.id && byId.get(e.node.id)?.type === "ANIME" && !seen.has(e.node.id))
+            .map(e => byId.get(e.node!.id)!)
+            // The latest earlier series is the one this picks up from (a season over the film before it).
+            .sort((a, b) => startKey(b.startDate) - startKey(a.startDate))
+        const prev = prequels[0]
+        if (!prev) break
+        seen.add(prev.id)
+        line.unshift(prev)
+        current = prev
+    }
+    return line
+}
+
+function sequelMeta(option: VideoCoreSequelOption) {
+    const format = option.format ? (option.format === "TV" ? "TV" : option.format.replace(/_/g, " ").toLowerCase().replace(/^\w/, c => c.toUpperCase())) : null
+    const episodes = option.format !== "MOVIE" && option.episodes ? `${option.episodes} ep${option.episodes === 1 ? "" : "s"}` : null
+    return [format, option.year, episodes].filter(Boolean).join(" · ")
+}
+
+function listStatusLabel(listData?: Anime_EntryListData) {
+    switch (listData?.status) {
+        case "COMPLETED":
+            return "Watched"
+        case "CURRENT":
+            return listData.progress ? `Watching · ep ${listData.progress}` : "Watching"
+        case "PLANNING":
+            return "Planned"
+        case "PAUSED":
+            return "Paused"
+        case "REPEATING":
+            return "Rewatching"
+        default:
+            return null
+    }
+}
+
+function BranchCover({ src, className }: { src?: string, className?: string }) {
+    return (
+        <div className={cn("flex-none overflow-hidden rounded-md bg-gray-800", className)}>
+            {src && <img src={getImageUrl(src)} alt="" className="size-full object-cover" draggable={false} />}
+        </div>
+    )
+}
+
+/**
+ * "Where to next?" — shown when a series runs out of episodes and AniList knows what comes next.
+ *
+ * Drawn as a branch of the franchise: the series before this one, this one ("you are here"), and a
+ * line forking out to each direct sequel. With one sequel it's a straight line and a button; with
+ * several (a second season and a film, say) each branch is the choice.
  */
 export function VideoCoreSequelPrompt() {
     const [prompt, setPrompt] = useAtom(vc_sequelPrompt)
     const router = useRouter()
     const { setPlayNext } = usePlayNext()
+    const { data: family } = useGetMediaFamily(prompt?.mediaId ?? null)
+    const listData = useAtomValue(__anilist_userAnimeListDataAtom)
+
+    const prequels = React.useMemo(() => prompt ? tracePrequels(family?.members, prompt.mediaId) : [], [family, prompt])
 
     if (!prompt) return null
 
-    const startSequel = () => {
-        const id = prompt.sequelId
+    const shownPrequels = prequels.slice(-SEQUEL_BRANCH_PREQUELS_SHOWN)
+    const hiddenPrequels = prequels.length - shownPrequels.length
+    const forked = prompt.sequels.length > 1
+
+    const start = (id: number) => {
         setPrompt(null)
         setPlayNext(id, () => router.push(`/entry?id=${id}`))
     }
 
+    const n = prompt.sequels.length
+
     return (
         <div
             data-vc-element="sequel-prompt"
-            className="absolute inset-0 flex items-center justify-center z-[55] cursor-auto"
+            className="absolute inset-0 z-[55] flex cursor-auto items-center justify-center overflow-y-auto bg-black/40 p-3 sm:p-6"
             onClick={e => e.stopPropagation()}
             onPointerMove={e => e.stopPropagation()}
         >
-            <div className="bg-gray-950/80 backdrop-blur-md rounded-xl p-6 text-center shadow-2xl border border-[--border] max-w-sm">
-                <p className="text-white text-lg font-medium mb-1">That's the end of {prompt.title}</p>
-                <p className="text-gray-300 text-sm mb-5">
-                    <span className="font-semibold text-white">{prompt.sequelTitle}</span> continues the story.
+            <div className="my-auto w-full max-w-3xl rounded-2xl border border-[--border] bg-gray-950/85 p-4 shadow-2xl backdrop-blur-md sm:p-6">
+                <p className="text-lg font-semibold text-white">{forked ? "Which next?" : "On to the next one?"}</p>
+                <p className="mb-4 text-sm text-gray-300">
+                    {forked
+                        ? `${prompt.title} branches into ${n} sequels. Pick where to go.`
+                        : `That's the end of ${prompt.title}.`}
                 </p>
-                <div className="flex gap-3 justify-center">
-                    <Button size="sm" intent="white" leftIcon={<LuPlay />} onClick={startSequel}>
-                        Start episode 1
-                    </Button>
-                    <Button
-                        size="sm"
-                        intent="gray-outline"
-                        onClick={() => setPrompt(null)}
+
+                <div className="flex flex-col sm:flex-row sm:items-center" data-vc-element="sequel-branch">
+                    {/* The line so far */}
+                    {shownPrequels.length > 0 && (
+                        <div className="flex items-center" data-sequel-branch-past>
+                            {hiddenPrequels > 0 && (
+                                <>
+                                    <span className="flex-none rounded-full border border-white/15 px-2 py-0.5 text-[0.65rem] font-semibold text-gray-400">
+                                        +{hiddenPrequels} earlier
+                                    </span>
+                                    <span className="w-3 flex-none border-t-2 border-white/15" />
+                                </>
+                            )}
+                            {shownPrequels.map((m, i) => (
+                                <React.Fragment key={m.id}>
+                                    {i > 0 && <span className="w-3 flex-none border-t-2 border-white/15" />}
+                                    <div title={m.title?.userPreferred ?? m.title?.romaji} className="opacity-60">
+                                        <BranchCover src={m.coverImage?.medium ?? m.coverImage?.large} className="h-12 w-8 sm:h-14 sm:w-10" />
+                                    </div>
+                                </React.Fragment>
+                            ))}
+                            <span className="hidden w-4 flex-none border-t-2 border-white/15 sm:block" />
+                        </div>
+                    )}
+
+                    {/* You are here */}
+                    <div
+                        className={cn(
+                            "flex flex-none items-center gap-3 rounded-xl border border-[--brand]/60 bg-[--brand]/10 p-2 pr-3 shadow-[0_0_24px_-8px_var(--brand)]",
+                            shownPrequels.length > 0 && "mt-2 sm:mt-0",
+                            "sm:max-w-[13rem]",
+                        )}
+                        data-sequel-branch-current
                     >
+                        <BranchCover src={prompt.cover} className="h-16 w-11" />
+                        <div className="min-w-0">
+                            <p className="text-[0.65rem] font-bold uppercase tracking-wider text-[--brand]">You are here</p>
+                            <p className="line-clamp-2 text-sm font-semibold text-white">{prompt.title}</p>
+                            <p className="flex items-center gap-1 text-xs text-gray-400"><LuCheck className="size-3" /> Finished</p>
+                        </div>
+                    </div>
+
+                    {/* The trunk out of "you are here": down on a phone, across on a wider screen */}
+                    <span className="ml-2 h-3 flex-none border-l-2 border-[--brand]/60 sm:hidden" />
+                    <span className="hidden w-6 flex-none border-t-2 border-[--brand]/60 sm:block" />
+
+                    {/* The branches */}
+                    <div className="flex min-w-0 flex-1 flex-col gap-3 pl-7 sm:pl-5" data-sequel-branch-next>
+                        {prompt.sequels.map((option, i) => {
+                            const status = listStatusLabel(listData[String(option.id)])
+                            const isFirst = i === 0
+                            const isLast = i === n - 1
+                            return (
+                                <div key={option.id} className="relative">
+                                    {/* The rail joining the branches, and this branch's stub off it */}
+                                    <span
+                                        className={cn(
+                                            "absolute left-[-1.25rem] border-l-2 border-[--brand]/60",
+                                            isLast ? "top-[-0.75rem] bottom-1/2" : "top-[-0.75rem] bottom-0",
+                                            n === 1 && "sm:hidden",
+                                            n > 1 && isFirst && "sm:top-1/2 sm:bottom-0",
+                                            n > 1 && !isFirst && !isLast && "sm:top-[-0.75rem] sm:bottom-0",
+                                            n > 1 && isLast && "sm:top-[-0.75rem] sm:bottom-1/2",
+                                        )}
+                                    />
+                                    <span className="absolute left-[-1.25rem] top-1/2 w-5 border-t-2 border-[--brand]/60" />
+
+                                    <button
+                                        type="button"
+                                        onClick={() => start(option.id)}
+                                        className={cn(
+                                            "group flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-2 pr-3 text-left transition",
+                                            "hover:border-[--brand]/70 hover:bg-[--brand]/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--brand]",
+                                        )}
+                                        data-sequel-branch-option={option.id}
+                                    >
+                                        <BranchCover src={option.cover} className="h-16 w-11" />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="line-clamp-2 text-sm font-semibold text-white">{option.title}</p>
+                                            <p className="text-xs text-gray-400">{sequelMeta(option)}</p>
+                                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                                <span className="flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-black transition group-hover:scale-105">
+                                                    <LuPlay className="size-3" /> {option.format === "MOVIE" ? "Play" : forked ? "Watch" : "Start episode 1"}
+                                                </span>
+                                                {status && (
+                                                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-[0.65rem] font-semibold text-gray-200">
+                                                        {status}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </button>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
+
+                <div className="mt-4 flex justify-end">
+                    <Button size="sm" intent="gray-outline" onClick={() => setPrompt(null)}>
                         Not now
                     </Button>
                 </div>

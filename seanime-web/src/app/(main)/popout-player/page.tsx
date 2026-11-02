@@ -39,8 +39,10 @@ const log = logger("POPOUT PLAYER")
 export default function Page() {
     return (
         <ClientPrefsHydrator>
-            <AnimeThemeProvider>
-                <UICustomizeProvider>
+            {/* Colors only: the wallpaper and its animated layers were drawn around the video every
+                frame (this window is never "fullscreen", which is what hides them in the main one). */}
+            <AnimeThemeProvider ambient={false}>
+                <UICustomizeProvider mouseTrail={false}>
                     <div className="h-dvh w-full bg-black relative z-[1]">
                         <VideoCoreProvider key="native-player" id="native-player">
                             <PopoutPlaybackHandoff />

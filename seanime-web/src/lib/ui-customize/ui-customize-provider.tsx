@@ -33,7 +33,11 @@ export function useUICustomize() {
     return React.useContext(UICustomizeContext)
 }
 
-export function UICustomizeProvider({ children }: { children: React.ReactNode }) {
+export function UICustomizeProvider({ children, mouseTrail = true }: {
+    children: React.ReactNode
+    /** Off for a window that only plays video (the Denshi popout), where the trail draws over the picture. */
+    mouseTrail?: boolean
+}) {
     const currentProfile = useAtomValue(currentProfileAtom)
     const profileKey = currentProfile?.id ? String(currentProfile.id) : "default"
     const storageKey = `sea-ui-customize-${profileKey}`
@@ -122,7 +126,7 @@ export function UICustomizeProvider({ children }: { children: React.ReactNode })
     return (
         <UICustomizeContext.Provider value={{ state, setPreset, setAllState, getActivePreset }}>
             {children}
-            <MouseTrail kind={(MOUSE_TRAIL_PRESETS.find(p => p.id === state.trail)?.cssVars?.["--sea-trail"]) ?? "none"} />
+            {mouseTrail && <MouseTrail kind={(MOUSE_TRAIL_PRESETS.find(p => p.id === state.trail)?.cssVars?.["--sea-trail"]) ?? "none"} />}
         </UICustomizeContext.Provider>
     )
 }

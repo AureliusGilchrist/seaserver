@@ -491,6 +491,8 @@ export type MediaFamilyMember = {
     chapters?: number
     meanScore?: number
     isAdult?: boolean
+    /** This member's own relations, so a line through the franchise (prequel to sequel) can be traced. */
+    relations?: { edges?: { relationType?: string, node?: { id: number } }[] }
     /** How the viewed media relates to this one: SEQUEL, SIDE_STORY… or CURRENT for itself. */
     relation: string
     /** Listed among the viewed media's own relations (rather than found further along). */

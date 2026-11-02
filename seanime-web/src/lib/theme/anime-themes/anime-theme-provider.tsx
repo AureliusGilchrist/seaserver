@@ -327,7 +327,15 @@ export function useAnimeThemeOrNull(): AnimeThemeContextValue | null {
 // Provider
 // ─────────────────────────────────────────────────────────────────
 
-export function AnimeThemeProvider({ children }: { children: React.ReactNode }) {
+export function AnimeThemeProvider({ children, ambient = true }: {
+    children: React.ReactNode
+    /**
+     * The wallpaper, its animated effects and the theme music. Off for a window that only plays
+     * video (the Denshi popout): it keeps the theme's colors, but nothing is drawn around the
+     * picture every frame and no second music player runs alongside the main window's.
+     */
+    ambient?: boolean
+}) {
     const currentProfile = useAtomValue(currentProfileAtom)
     const pathname = usePathname()
     const profileKey = currentProfile?.id ? String(currentProfile.id) : "default"
@@ -1023,12 +1031,12 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         document.addEventListener("fullscreenchange", onChange)
         return () => document.removeEventListener("fullscreenchange", onChange)
     }, [])
-    const hideBackdrop = videoFullscreen || browserFullscreen
+    const hideBackdrop = !ambient || videoFullscreen || browserFullscreen
 
     return (
         <AnimeThemeContext.Provider value={value}>
             {children}
-            <AnimeThemeMusicPlayer />
+            {ambient && <AnimeThemeMusicPlayer />}
             {!hideBackdrop && !wallpaperOverride && config.id !== "seanime" && activeBackgroundUrl && <ThemeBackgroundImage url={activeBackgroundUrl} dim={backgroundDim} dimMode={__isMobileShell__ ? "darken" : "fade"} blur={backgroundBlur} exposure={backgroundExposure} saturation={backgroundSaturation} contrast={backgroundContrast} scanlinesStrength={scanlinesStrength} scanlinesSize={scanlinesSize} noiseStrength={noiseStrength} noiseSpeed={noiseSpeed} vignetteStrength={vignetteStrength} vignetteSize={vignetteSize} glowStrength={glowStrength} glowSpeed={glowSpeed} glowScale={glowScale} hologramStrength={hologramStrength} />}
             {!hideBackdrop && config.id !== "seanime" && <ThemeAnimatedOverlay themeId={themeId} intensity={animatedIntensity} particleSettings={particleSettings} particleColor={config.particleColor} />}
         </AnimeThemeContext.Provider>
