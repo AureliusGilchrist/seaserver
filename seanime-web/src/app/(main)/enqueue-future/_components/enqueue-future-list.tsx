@@ -308,10 +308,19 @@ export function EnqueueFutureList({ families, activeMediaId, onSelect, flat, mor
     // ever grows, and it is never reset by a poll — shrinking it under somebody mid-scroll would
     // throw them back up the list, which is worse than the lag.
     const [visibleFamilies, setVisibleFamilies] = React.useState(FAMILY_PAGE_SIZE)
+    const scrollRef = React.useRef<HTMLDivElement | null>(null)
     const sentinelRef = React.useRef<HTMLDivElement | null>(null)
-    const loadMore = React.useRef({ atEnd: false, onLoadMoreWaiting })
-    loadMore.current = { atEnd: visibleFamilies >= families.length, onLoadMoreWaiting }
+    const onLoadMoreWaitingRef = React.useRef(onLoadMoreWaiting)
+    onLoadMoreWaitingRef.current = onLoadMoreWaiting
     const hasMore = visibleFamilies < families.length || moreWaiting > 0
+
+    // The next page of waiting rows is asked for while there are still a couple of chunks left to
+    // draw, not once the last one is on screen — so the request is already back by the time the
+    // scroll reaches it, instead of the list stopping dead at the bottom for a round trip.
+    const nearEnd = families.length - visibleFamilies <= FAMILY_PAGE_SIZE * 2
+    React.useEffect(() => {
+        if (nearEnd && moreWaiting > 0) onLoadMoreWaitingRef.current?.()
+    }, [nearEnd, moreWaiting, families.length])
 
     // The selection has to be drawn wherever it is, or Next walks past the end of the window and the
     // screen goes blank while the list insists everything is fine.
@@ -328,17 +337,21 @@ export function EnqueueFutureList({ families, activeMediaId, onSelect, flat, mor
         const sentinel = sentinelRef.current
         if (!sentinel) return
 
+        // Rooted on the list itself. With the viewport as root the margin did nothing — the list
+        // clips its own overflow, so the sentinel only counted once it was actually scrolled into
+        // the list's view, and every chunk was built at the moment you hit the bottom.
+        //
+        // Re-created on every step, so a sentinel still in range after a chunk lands asks again
+        // straight away rather than waiting for a scroll to move it out and back in.
         const observer = new IntersectionObserver(entries => {
             if (entries.some(entry => entry.isIntersecting)) {
                 setVisibleFamilies(current => Math.max(current, Math.min(current + FAMILY_PAGE_SIZE, families.length)))
-                // Everything loaded is drawn, so the next rows have to come from the server.
-                if (loadMore.current.atEnd) loadMore.current.onLoadMoreWaiting?.()
             }
-        }, { rootMargin: "400px" })
+        }, { root: scrollRef.current, rootMargin: "1200px 0px" })
 
         observer.observe(sentinel)
         return () => observer.disconnect()
-    }, [families.length, hasMore, visibleFamilies >= families.length])
+    }, [families.length, hasMore, visibleFamilies])
 
     const shown = React.useMemo(
         () => families.slice(0, Math.min(visibleFamilies, families.length)),
@@ -353,6 +366,7 @@ export function EnqueueFutureList({ families, activeMediaId, onSelect, flat, mor
         // than leaving a third of the column empty. Sticky so it stays with you as the right-hand
         // pane scrolls, and it scrolls inside itself instead of pushing the page taller.
         <div
+            ref={scrollRef}
             className="rounded-[--radius-md] border bg-gray-950 overflow-y-auto overscroll-contain lg:sticky lg:top-4 max-h-[calc(100vh-9rem)]"
             data-enqueue-future-list
         >
@@ -420,9 +434,15 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
         <div
             className={cn(
                 "border-b last:border-b-0",
+                // Off-screen bundles skip layout and paint entirely, so a list scrolled thousands of
+                // rows deep costs about what the rows on screen cost.
+                "[content-visibility:auto]",
                 isGroup && "bg-gray-900/40",
                 isGroup && containsActive && "bg-gray-900/70",
             )}
+            // "auto" keeps the real height once a bundle has been drawn; the figure is only the
+            // guess for one that has not, so the scrollbar does not jump as they come into view.
+            style={{ containIntrinsicSize: `auto ${family.length * ROW_HEIGHT_PX + (isGroup ? GROUP_HEADER_HEIGHT_PX : 0)}px` }}
             data-enqueue-future-family={isGroup ? "group" : "single"}
         >
             {isGroup && (
@@ -444,24 +464,62 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
             )}
 
             <div className={cn(isGroup && "pl-2 border-l-2 border-[--brand] ml-2 mb-1")}>
-                {family.map((item) => {
-                    const isActive = item.mediaId === activeMediaId
-                    // Already downloading, downloaded or matched. The row stays — it is part of its
-                    // franchise and removing it would make the group look incomplete — but there is
-                    // nothing left to decide about it, so it cannot be opened or have a torrent
-                    // picked for it. Skip and Ignore stay live: those are how you say you are done
-                    // with a row, which is exactly what this is.
-                    // Skipped counts as settled too: you already decided about it. The row stays,
-                    // greyed, in its franchise — passing on one season should still show the series,
-                    // and should show that you passed rather than quietly erasing the row.
-                    const settled = !!item.downloadState || item.status === ENQUEUE_FUTURE_STATUS.SKIPPED
-                    return (
+                {family.map((item) => (
+                    <QueueRow
+                        key={item.mediaId}
+                        item={item}
+                        isActive={item.mediaId === activeMediaId}
+                        isGroup={isGroup}
+                        depth={depths.get(item.mediaId) ?? 0}
+                        onSelect={onSelect}
+                        activeRef={activeRef}
+                    />
+                ))}
+            </div>
+        </div>
+    )
+})
+
+/** Height of one row: p-2 around an h-12 cover. Only an estimate for rows not yet laid out. */
+const ROW_HEIGHT_PX = 64
+/** Height of a group's "N related" header. */
+const GROUP_HEADER_HEIGHT_PX = 32
+
+const QueueRow = React.memo(function QueueRow({ item, isActive, isGroup, depth, onSelect, activeRef }: {
+    item: EnqueueFuture_Item
+    isActive: boolean
+    isGroup: boolean
+    depth: number
+    onSelect: (item: EnqueueFuture_Item) => void
+    activeRef: React.RefObject<HTMLDivElement | null>
+}) {
+
+    // The row's Skip and Ignore are mounted the first time the row is touched, not up front.
+    //
+    // Each set is three mutation hooks, two tooltips and a confirmation dialog, and they are
+    // invisible until hover anyway. Thousands of rows each carrying that was most of what made
+    // scrolling far down the queue drag. Once mounted they stay, so a dialog opened from them is
+    // never torn down by the pointer leaving the row.
+    const [armed, setArmed] = React.useState(false)
+    const arm = React.useCallback(() => setArmed(true), [])
+
+    // Already downloading, downloaded or matched. The row stays — it is part of its
+    // franchise and removing it would make the group look incomplete — but there is
+    // nothing left to decide about it, so it cannot be opened or have a torrent
+    // picked for it. Skip and Ignore stay live: those are how you say you are done
+    // with a row, which is exactly what this is.
+    // Skipped counts as settled too: you already decided about it. The row stays,
+    // greyed, in its franchise — passing on one season should still show the series,
+    // and should show that you passed rather than quietly erasing the row.
+    const settled = !!item.downloadState || item.status === ENQUEUE_FUTURE_STATUS.SKIPPED
+    return (
                     // A div rather than a button: the row carries its own Skip and Ignore buttons,
                     // and a button inside a button is invalid markup that browsers resolve however
                     // they like. Role and key handling put the keyboard behaviour back.
                     <div
-                        key={item.mediaId}
                         ref={isActive ? activeRef : undefined}
+                        onPointerEnter={arm}
+                        onFocus={arm}
                         role="button"
                         tabIndex={settled ? -1 : 0}
                         aria-disabled={settled}
@@ -483,7 +541,7 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
                         // Capped, because a fifteen-entry saga indented fifteen times is a staircase
                         // running off the side of a 320px column. Past the cap the rows stack at the
                         // same depth, which still says "deep into it".
-                        style={isGroup ? { paddingLeft: `${14 + Math.min(depths.get(item.mediaId) ?? 0, 6) * 14}px` } : undefined}
+                        style={isGroup ? { paddingLeft: `${14 + Math.min(depth, 6) * 14}px` } : undefined}
                         className={cn(
                             "group/enqueue-future-row w-full flex items-center gap-3 p-2 text-left transition",
                             settled
@@ -531,14 +589,10 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
                                 "group-hover/enqueue-future-row:opacity-100 focus-within:opacity-100",
                                 isActive && "opacity-100",
                             )}>
-                                <EnqueueFutureItemActions item={item} compact />
+                                {(armed || isActive) && <EnqueueFutureItemActions item={item} compact />}
                             </span>
                         </span>
                     </div>
-                    )
-                })}
-            </div>
-        </div>
     )
 })
 
