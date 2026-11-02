@@ -235,7 +235,20 @@ type authedRoundTripper struct {
 	reauthing bool
 	reauthErr error
 	reauthCh  chan struct{}
+	// reauthAt is when the last login attempt finished; with reauthErr it lets reauth answer from
+	// that attempt instead of logging in again. See reauthReuseWindow and reauthFailureCooldown.
+	reauthAt time.Time
 }
+
+const (
+	// reauthReuseWindow: a 403 that arrives just after a successful re-login is a request that left
+	// with the old cookie. It is retried with the new one rather than logging in yet again.
+	reauthReuseWindow = 10 * time.Second
+	// reauthFailureCooldown: after a failed login no new attempt is made for this long. Every
+	// poller would otherwise try once per request, and qBittorrent bans the IP after a few
+	// failures (5 by default), which takes the WebUI away from everything on this machine.
+	reauthFailureCooldown = 60 * time.Second
+)
 
 // reauth ensures only one login attempt runs at a time. Concurrent callers wait
 // for the in-progress login to finish and share its result rather than each
@@ -253,6 +266,19 @@ func (art *authedRoundTripper) reauth() error {
 		return err
 	}
 
+	if !art.reauthAt.IsZero() {
+		since := time.Since(art.reauthAt)
+		if art.reauthErr == nil && since < reauthReuseWindow {
+			art.mu.Unlock()
+			return nil
+		}
+		if art.reauthErr != nil && since < reauthFailureCooldown {
+			err := art.reauthErr
+			art.mu.Unlock()
+			return fmt.Errorf("qBittorrent: not logging in again so soon after a failed login: %w", err)
+		}
+	}
+
 	art.reauthing = true
 	art.reauthCh = make(chan struct{})
 	art.mu.Unlock()
@@ -266,6 +292,7 @@ func (art *authedRoundTripper) reauth() error {
 	art.mu.Lock()
 	art.reauthing = false
 	art.reauthErr = loginErr
+	art.reauthAt = time.Now()
 	close(art.reauthCh)
 	art.mu.Unlock()
 

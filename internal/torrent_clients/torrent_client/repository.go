@@ -3,6 +3,7 @@ package torrent_client
 import (
 	"context"
 	"errors"
+	"fmt"
 	"seanime/internal/api/metadata_provider"
 	"seanime/internal/database/db"
 	"seanime/internal/events"
@@ -49,6 +50,8 @@ type (
 		// offlineQueue holds torrents the client could not take because it was unreachable, and
 		// imports them the moment it answers again. See offline_queue.go.
 		offlineQueue *torrentAddQueue
+		// qbitList coalesces, briefly caches and backs off qBittorrent's torrent list. See list_gate.go.
+		qbitList *qbitListGate
 	}
 
 	NewRepositoryOptions struct {
@@ -85,6 +88,7 @@ func NewRepository(opts *NewRepositoryOptions) *Repository {
 		provider:            opts.Provider,
 		metadataProviderRef: opts.MetadataProviderRef,
 		activeTorrentCount:  &ActiveCount{},
+		qbitList:            newQbitListGate(),
 	}
 
 	// The offline add queue: started with the repository, so a queue left behind by a stop — or by
@@ -214,13 +218,24 @@ func (r *Repository) GetList(opts *GetListOptions) ([]*Torrent, error) {
 
 	switch r.provider {
 	case QbittorrentClient:
-		torrents, err := r.qBittorrentClient.Torrent.GetList(&qbittorrent_model.GetTorrentListOptions{
+		listOpts := &qbittorrent_model.GetTorrentListOptions{
 			Filter:   "all",
 			Category: opts.Category,
 			Sort:     sortBy,
 			Reverse:  reverse,
+		}
+		key := fmt.Sprintf("%s|%t|", sortBy, reverse)
+		if opts.Category != nil {
+			key += *opts.Category
+		}
+		torrents, err := r.qbitList.get(key, func() ([]*qbittorrent_model.Torrent, error) {
+			return r.qBittorrentClient.Torrent.GetList(listOpts)
 		})
 		if err != nil {
+			var held *qbitListBackoffError
+			if errors.As(err, &held) {
+				return nil, err
+			}
 			r.logger.Err(err).Msg("torrent client: Error while getting torrent list (qBittorrent)")
 			return nil, err
 		}
@@ -286,17 +301,16 @@ func (r *Repository) GetActiveCount(ret *ActiveCount) {
 	ret.Paused = 0
 	switch r.provider {
 	case QbittorrentClient:
-		torrents, err := r.qBittorrentClient.Torrent.GetList(&qbittorrent_model.GetTorrentListOptions{Filter: "downloading"})
+		// Counted from the same full list everything else asks for, rather than two filtered
+		// requests of its own every five seconds: the gate usually answers this from a list that
+		// is already in hand. Paused here is a paused download, which is all the "downloading"
+		// filter this used to ask for counted as paused too.
+		torrents, err := r.GetList(&GetListOptions{})
 		if err != nil {
 			return
 		}
-		torrents2, err := r.qBittorrentClient.Torrent.GetList(&qbittorrent_model.GetTorrentListOptions{Filter: "seeding"})
-		if err != nil {
-			return
-		}
-		torrents = append(torrents, torrents2...)
 		for _, t := range torrents {
-			switch fromQbitTorrentStatus(t.State) {
+			switch t.Status {
 			case TorrentStatusDownloading:
 				ret.Downloading++
 			case TorrentStatusSeeding:
@@ -401,20 +415,9 @@ func (r *Repository) addToClient(magnets []string, dest string) error {
 			Tags:     r.qBittorrentClient.Tags,
 			Category: r.qBittorrentClient.Category,
 		})
-		// If 403 Forbidden, try to re-login and retry once
-		if err != nil && (strings.Contains(err.Error(), "403") || strings.Contains(err.Error(), "Forbidden")) {
-			r.logger.Warn().Str("error", err.Error()).Msg("torrent client: Got 403, attempting to re-login to qBittorrent")
-			if loginErr := r.qBittorrentClient.Login(); loginErr != nil {
-				r.logger.Error().Err(loginErr).Str("host", r.qBittorrentClient.Host).Int("port", r.qBittorrentClient.Port).Msg("torrent client: Failed to re-login to qBittorrent")
-			} else {
-				r.logger.Info().Msg("torrent client: Re-logged in to qBittorrent, retrying add")
-				err = r.qBittorrentClient.Torrent.AddURLs(magnets, &qbittorrent_model.AddTorrentsOptions{
-					Savepath: dest,
-					Tags:     r.qBittorrentClient.Tags,
-					Category: r.qBittorrentClient.Category,
-				})
-			}
-		}
+		// A 403 needs nothing here: the client's transport logs in again and retries the request
+		// itself (see qbittorrent.authedRoundTripper). Logging in a second time from here only added
+		// another login attempt per add, and qBittorrent bans an IP after repeated failed logins.
 		if isAddConflict(err) {
 			r.logger.Warn().Err(err).Strs("magnets", magnets).Msg("torrent client: qBittorrent did not add the torrent")
 			return ErrTorrentAlreadyInClient
