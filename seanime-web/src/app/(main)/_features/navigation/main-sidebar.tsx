@@ -99,6 +99,12 @@ export function MainSidebar() {
 
     return (
         <>
+            {/* Full-height scrim behind the icons: above page content/banner, below the sidebar UI.
+                Kept outside AppSidebar so the sidebar's transform/overflow can't clip or pin it. */}
+            <div
+                aria-hidden="true"
+                className="pointer-events-none fixed inset-y-0 left-0 z-[15] hidden w-24 bg-gradient-to-r from-black/40 via-black/20 to-transparent lg:block"
+            />
             <AppSidebar
                 ref={containerRef}
                 className={cn(
@@ -112,10 +118,6 @@ export function MainSidebar() {
                 onMouseEnter={handleExpandSidebar}
                 onMouseLeave={handleUnexpandedSidebar}
             >
-                <div
-                    aria-hidden="true"
-                    className="pointer-events-none fixed inset-y-0 left-0 z-0 w-20 bg-gradient-to-r from-black/25 via-black/10 to-transparent"
-                />
                 {(!ctx.isBelowBreakpoint && ts.expandSidebarOnHover && ts.disableSidebarTransparency) && <div
                     className={cn(
                         "fixed z-0 h-full translate-x-0 w-[50px] bg-gradient bg-gradient-to-r via-[--background] from-[--background] to-transparent",

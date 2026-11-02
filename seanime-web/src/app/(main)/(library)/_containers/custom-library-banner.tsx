@@ -55,14 +55,20 @@ export function CustomLibraryBanner(props: CustomLibraryBannerProps) {
                 )}
                 style={heroFade.containerStyle}
             >
-                {(!ts.disableSidebarTransparency && !discrete) && <div
+                {(!ts.disableSidebarTransparency && !discrete) && <motion.div
                     data-custom-library-banner-top-gradient
-                    className="hidden lg:block h-full absolute z-[2] w-[20rem] opacity-70 left-0 top-0 bg-gradient bg-gradient-to-r from-[var(--background)] to-transparent"
+                    className="hidden lg:block h-full absolute z-[2] w-[20rem] left-0 top-0 bg-gradient bg-gradient-to-r from-[var(--background)] to-transparent"
+                    initial={false}
+                    animate={{ opacity: visible ? 0.7 : 0 }}
+                    transition={{ duration: 1 }}
                 />}
 
-                <div
+                <motion.div
                     data-custom-library-banner-bottom-gradient
                     className="w-full z-[3] absolute bottom-[-5rem] h-[5rem] bg-gradient-to-b from-[--background] via-transparent via-100% to-transparent"
+                    initial={false}
+                    animate={{ opacity: visible ? 1 : 0 }}
+                    transition={{ duration: 1 }}
                 />
                 <motion.div
                     initial={{ opacity: 0 }}
