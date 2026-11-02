@@ -3,6 +3,7 @@ package updater
 import (
 	"seanime/internal/constants"
 	"seanime/internal/events"
+	"seanime/internal/test_utils"
 	"seanime/internal/util"
 	"strings"
 	"testing"
@@ -20,7 +21,10 @@ func TestUpdater_getReleaseName(t *testing.T) {
 }
 
 func TestUpdater_FetchLatestRelease(t *testing.T) {
+	test_utils.SetTwoLevelDeep()
+	test_utils.InitTestProvider(t, test_utils.Network())
 
+	defer func(prev string) { fallbackGithubUrl = prev }(fallbackGithubUrl)
 	fallbackGithubUrl = "https://seanimedud.app/api/releases" // simulate dead endpoint
 	//githubUrl = "https://api.github.com/repos/5rahim/seanime-desktop/releases/latest"
 
@@ -36,6 +40,8 @@ func TestUpdater_FetchLatestRelease(t *testing.T) {
 }
 
 func TestUpdater_FetchLatestReleaseFromApi(t *testing.T) {
+	test_utils.SetTwoLevelDeep()
+	test_utils.InitTestProvider(t, test_utils.Network())
 
 	updater := New(constants.Version, util.NewLogger(), events.NewMockWSEventManager(util.NewLogger()))
 	release, err := updater.fetchLatestReleaseFromApi("github")
@@ -49,6 +55,8 @@ func TestUpdater_FetchLatestReleaseFromApi(t *testing.T) {
 }
 
 func TestUpdater_FetchLatestReleaseFromGitHub(t *testing.T) {
+	test_utils.SetTwoLevelDeep()
+	test_utils.InitTestProvider(t, test_utils.Network())
 
 	updater := New(constants.Version, util.NewLogger(), events.NewMockWSEventManager(util.NewLogger()))
 	release, err := updater.fetchLatestReleaseFromGitHub()
@@ -121,6 +129,8 @@ func TestUpdater_CompareVersion(t *testing.T) {
 }
 
 func TestUpdater(t *testing.T) {
+	test_utils.SetTwoLevelDeep()
+	test_utils.InitTestProvider(t, test_utils.Network())
 
 	u := New(constants.Version, util.NewLogger(), events.NewMockWSEventManager(util.NewLogger()))
 

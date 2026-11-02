@@ -10,6 +10,9 @@ import (
 func TestAnalyze(t *testing.T) {
 	test_utils.SetTwoLevelDeep()
 	test_utils.InitTestProvider(t)
+	if test_utils.ConfigData.Path.DataDir == "" {
+		t.Skip("set path.dataDir in test/config.toml to a Seanime data dir with logs")
+	}
 
 	analyzer := NewAnalyzer(NewTroubleshooterOptions{
 		LogsDir: filepath.Join(test_utils.ConfigData.Path.DataDir, "logs"),

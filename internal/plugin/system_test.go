@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"runtime"
 	"seanime/internal/extension"
 	"testing"
 
@@ -29,6 +30,10 @@ func newMockAppContext(paths map[string][]string) *mockAppContext {
 }
 
 func TestIsAllowedPath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		// "/anime/lib1/…" isn't absolute on Windows, so isAllowedPath prefixes the drive and no pattern matches.
+		t.Skip("cases use Unix library paths")
+	}
 	// Create mock context with predefined paths
 	mockCtx := newMockAppContext(map[string][]string{
 		"SEANIME_ANIME_LIBRARY": {"/anime/lib1", "/anime/lib2"},

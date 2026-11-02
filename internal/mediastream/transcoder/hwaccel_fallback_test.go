@@ -20,7 +20,17 @@ func TestBrokenHardwareEncoderFallsBackToCPU(t *testing.T) {
 		t.Skip("ffmpeg is not installed")
 	}
 
-	dir := t.TempDir()
+	// Not t.TempDir: on Windows the killed ffmpeg can still hold the output folder for a moment after
+	// stream.close(), which fails TempDir's cleanup. Retry the removal instead.
+	dir, err := os.MkdirTemp("", "hwaccel-fallback-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		for i := 0; i < 50 && os.RemoveAll(dir) != nil; i++ {
+			time.Sleep(100 * time.Millisecond)
+		}
+	})
 	source := filepath.Join(dir, "source.mkv")
 	out, err := exec.Command(ffmpeg, "-y", "-hide_banner", "-loglevel", "error",
 		"-f", "lavfi", "-i", "testsrc2=size=320x240:rate=24", "-t", "4",

@@ -25,6 +25,7 @@ func TestClient_Start(t *testing.T) {
 }
 
 func TestClient_CheckStart(t *testing.T) {
+	test_utils.InitTestProvider(t, test_utils.TorrentClient())
 
 	client := NewClient(&NewClientOptions{
 		Logger:   util.NewLogger(),

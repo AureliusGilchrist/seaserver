@@ -2,6 +2,7 @@ package updater
 
 import (
 	"os"
+	"seanime/internal/test_utils"
 	"seanime/internal/util"
 	"strings"
 	"testing"
@@ -10,6 +11,8 @@ import (
 )
 
 func TestUpdater_DownloadLatestRelease(t *testing.T) {
+	test_utils.SetTwoLevelDeep()
+	test_utils.InitTestProvider(t, test_utils.Network())
 
 	updater := New("0.2.0", util.NewLogger(), nil)
 

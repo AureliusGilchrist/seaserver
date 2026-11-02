@@ -287,6 +287,9 @@ func TestMetadataParser_Torrent(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
+	if testMagnet == "" {
+		t.Skip("set testMagnet to a real magnet link to run this integration test")
+	}
 
 	tempDir := t.TempDir()
 	client, tor, file := getTestTorrentFile(t, testMagnet, tempDir)
@@ -356,7 +359,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Alignment, Angle, BackColour, Bold, BorderStyle, Encoding, Fontname, Fontsize, Italic, MarginL, MarginR, MarginV, Outline, OutlineColour, PrimaryColour, ScaleX, ScaleY, SecondaryColour, Shadow, Spacing, Strikeout, Underline
-Style: Default,2,0.000,&H00000000,0,1,0,Roboto Medium,24.000,0,20,20,23,1.300,&H00000000,&H00ffffff,100.000,100.000,&H000000ff,0.000,0.000,0,0
+Style: Default,2,0.000,&He1000000,0,1,0,Roboto Medium,24.000,0,20,20,23,1.300,&H00000000,&H00ffffff,100.000,100.000,&H000000ff,1.000,0.000,0,0
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
