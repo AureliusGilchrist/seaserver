@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"seanime/internal/api/anilist"
+	"seanime/internal/connectivity"
+	"seanime/internal/util/filecache"
 
 	"github.com/goccy/go-json"
 	"github.com/labstack/echo/v4"
@@ -53,6 +55,71 @@ const familyNodeFields = `
 	relations { edges { relationType(version: 2) node { id } } }
 `
 
+// The franchise walks are also kept on disk, so the sequel prompt and the details pages' franchise
+// survive a restart and work with no internet. One entry per franchise (keyed by its lowest member
+// id) holds the graph; an index maps every member id to that key, so a 150-media franchise is
+// stored once rather than once per member.
+var (
+	familyDiskBucket      = filecache.NewBucket("anime_family", 30*24*time.Hour)
+	familyDiskIndexBucket = filecache.NewBucket("anime_family_index", 30*24*time.Hour)
+)
+
+// familyDiskEntry is FamilyGraph with explicit JSON names, so the stored shape doesn't hinge on
+// FamilyGraph's untagged fields.
+type familyDiskEntry struct {
+	Nodes     map[int]*anilist.FamilyNode `json:"nodes"`
+	Truncated bool                        `json:"truncated"`
+}
+
+func saveFamilyToDisk(fc *filecache.Cacher, graph *anilist.FamilyGraph) {
+	if fc == nil || graph == nil || len(graph.Nodes) == 0 {
+		return
+	}
+	key := 0
+	for memberID := range graph.Nodes {
+		if key == 0 || memberID < key {
+			key = memberID
+		}
+	}
+	keyStr := strconv.Itoa(key)
+	if err := fc.Set(familyDiskBucket, keyStr, &familyDiskEntry{Nodes: graph.Nodes, Truncated: graph.Truncated}); err != nil {
+		return
+	}
+	for memberID := range graph.Nodes {
+		_ = fc.Set(familyDiskIndexBucket, strconv.Itoa(memberID), keyStr)
+	}
+}
+
+func loadFamilyFromDisk(fc *filecache.Cacher, id int) (*anilist.FamilyGraph, bool) {
+	if fc == nil {
+		return nil, false
+	}
+	var key string
+	if found, err := fc.Get(familyDiskIndexBucket, strconv.Itoa(id), &key); err != nil || !found {
+		return nil, false
+	}
+	var entry familyDiskEntry
+	if found, err := fc.Get(familyDiskBucket, key, &entry); err != nil || !found {
+		return nil, false
+	}
+	// The franchise may have been re-walked from another member since and no longer include this one.
+	if entry.Nodes[id] == nil {
+		return nil, false
+	}
+	return &anilist.FamilyGraph{Nodes: entry.Nodes, Truncated: entry.Truncated}, true
+}
+
+// lastKnownFamily is the franchise served when a walk can't be made: memory (any age), then disk.
+func (h *Handler) lastKnownFamily(id int) (*anilist.FamilyGraph, bool) {
+	familyMu.Lock()
+	cached := familyCache[id]
+	familyMu.Unlock()
+	if cached != nil {
+		return cached.graph, true
+	}
+	return loadFamilyFromDisk(h.App.FileCacher, id)
+}
+
 // MediaFamilyResponse is the franchise of a media as seen from it.
 type MediaFamilyResponse struct {
 	Members   []*anilist.FamilyMember `json:"members"`
@@ -80,6 +147,13 @@ func (h *Handler) HandleGetMediaFamily(c echo.Context) error {
 		return h.RespondWithData(c, MediaFamilyResponse{Members: cached.graph.MembersFrom(id), Truncated: cached.graph.Truncated})
 	}
 
+	// Offline or blocked: the walk would only fail, so serve the last known franchise.
+	if !connectivity.IsAniListAllowed() {
+		if graph, ok := h.lastKnownFamily(id); ok {
+			return h.RespondWithData(c, MediaFamilyResponse{Members: graph.MembersFrom(id), Truncated: graph.Truncated})
+		}
+	}
+
 	// Detached from the request: a walk that has started is worth finishing even if this page is
 	// left, since the next visit to any member of the franchise reads it from the cache.
 	ch := familyFlight.DoChan(strconv.Itoa(id), func() (any, error) {
@@ -95,12 +169,16 @@ func (h *Handler) HandleGetMediaFamily(c echo.Context) error {
 			familyCache[memberID] = entry
 		}
 		familyMu.Unlock()
+		saveFamilyToDisk(h.App.FileCacher, graph)
 		return graph, nil
 	})
 
 	select {
 	case res := <-ch:
 		if res.Err != nil {
+			if graph, ok := h.lastKnownFamily(id); ok {
+				return h.RespondWithData(c, MediaFamilyResponse{Members: graph.MembersFrom(id), Truncated: graph.Truncated})
+			}
 			return h.RespondWithError(c, res.Err)
 		}
 		graph := res.Val.(*anilist.FamilyGraph)

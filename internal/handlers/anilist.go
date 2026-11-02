@@ -11,6 +11,7 @@ import (
 	"seanime/internal/database/models"
 	"seanime/internal/enmasse"
 	"seanime/internal/platforms/shared_platform"
+	"seanime/internal/util/filecache"
 	"seanime/internal/util/result"
 	"strconv"
 	"strings"
@@ -452,6 +453,40 @@ const detailsCacheTTL = time.Minute
 // detailsFetchTimeout bounds the live fetch, so freshness can never cost a held connection.
 const detailsFetchTimeout = 5 * time.Second
 
+// detailsDiskBucket keeps the last fetched details of every anime on disk.
+//
+// The memory cache above is a minute long and gone on restart, so with no internet the details
+// were simply unavailable — and with them the relations the player's sequel prompt is built from.
+// The disk copy is only ever served when a live fetch can't be made or fails.
+var detailsDiskBucket = filecache.NewBucket("anime_details", 30*24*time.Hour)
+
+func saveDetailsToDisk(fc *filecache.Cacher, mId int, details *anilist.AnimeDetailsById_Media) {
+	if fc == nil || details == nil {
+		return
+	}
+	_ = fc.Set(detailsDiskBucket, strconv.Itoa(mId), details)
+}
+
+func loadDetailsFromDisk(fc *filecache.Cacher, mId int) (*anilist.AnimeDetailsById_Media, bool) {
+	if fc == nil {
+		return nil, false
+	}
+	var details *anilist.AnimeDetailsById_Media
+	found, err := fc.Get(detailsDiskBucket, strconv.Itoa(mId), &details)
+	if err != nil || !found || details == nil {
+		return nil, false
+	}
+	return details, true
+}
+
+// lastKnownDetails is the copy served when a live fetch can't be made: memory first, then disk.
+func (h *Handler) lastKnownDetails(mId int) (*anilist.AnimeDetailsById_Media, bool) {
+	if cached, ok := detailsCache.Get(mId); ok {
+		return cached, true
+	}
+	return loadDetailsFromDisk(h.App.FileCacher, mId)
+}
+
 // HandleGetAnilistAnimeDetails
 //
 //	@summary returns more details about an AniList anime entry.
@@ -481,6 +516,13 @@ func (h *Handler) HandleGetAnilistAnimeDetails(c echo.Context) error {
 		}
 	}
 
+	// Offline or blocked: there is no live fetch to wait for, only the last copy.
+	if !connectivity.IsAniListAllowed() {
+		if details, ok := h.lastKnownDetails(mId); ok {
+			return h.RespondWithData(c, details)
+		}
+	}
+
 	// Bounded, because a page open must not be able to hold a connection open indefinitely.
 	//
 	// A browser opens six connections to a host and no more. An unbounded live fetch here — which
@@ -498,12 +540,13 @@ func (h *Handler) HandleGetAnilistAnimeDetails(c echo.Context) error {
 	if err != nil {
 		// A live fetch that fails — a rate-limit slot, a timeout — falls back to the last copy
 		// rather than failing the page. Stale details beat no details.
-		if cached, ok := detailsCache.Get(mId); ok {
+		if cached, ok := h.lastKnownDetails(mId); ok {
 			return h.RespondWithData(c, cached)
 		}
 		return h.RespondWithError(c, err)
 	}
 	detailsCache.SetT(mId, details, detailsCacheTTL)
+	saveDetailsToDisk(h.App.FileCacher, mId, details)
 
 	return h.RespondWithData(c, details)
 }
