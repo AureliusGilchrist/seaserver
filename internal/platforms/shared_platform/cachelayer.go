@@ -1,6 +1,7 @@
 package shared_platform
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -15,6 +16,8 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
+
+	"golang.org/x/sync/singleflight"
 	"time"
 
 	"github.com/Yamashou/gqlgenc/clientv2"
@@ -291,6 +294,10 @@ func NewCacheLayer(anilistClientRef *util.Ref[anilist.AnilistClient], mediaDB ..
 	}
 
 	AnilistClient.Store(anilistClientRef.Get())
+
+	if db != nil {
+		cl.pruneMediaCacheDaily()
+	}
 
 	// Watch for IsWorking transitions and flush any queued mutations as soon as the
 	// AniList API becomes available again. This lets progress updates made while
@@ -591,6 +598,118 @@ func networkFirstGet[T any](c *CacheLayer, bucketName string, cacheKey string, n
 	return nil, fmt.Errorf("no cached data available")
 }
 
+// HasStoredAnime and HasStoredManga report whether BaseAnimeByID / BaseMangaByID will answer from the
+// store, so a caller's own rate limiter can be skipped for reads that never reach AniList.
+func (c *CacheLayer) HasStoredAnime(mediaID int) bool { return c.hasStored(BaseAnimeBucket, mediaID) }
+func (c *CacheLayer) HasStoredManga(mediaID int) bool { return c.hasStored(BaseMangaBucket, mediaID) }
+
+func (c *CacheLayer) hasStored(bucketName string, mediaID int) bool {
+	if !ShouldCache.Load() || c.db == nil {
+		return false
+	}
+	_, found := c.db.GetMediaCache(bucketName, c.generateCacheKey(&mediaID))
+	return found
+}
+
+const (
+	// mediaFreshFor is how long a stored media entry is served without asking AniList again.
+	mediaFreshFor = 6 * time.Hour
+	// airingFreshFor is the same for a show still airing, whose episode count and next airing date
+	// move every week. Past it, the show is read live first (see airingLiveWait).
+	airingFreshFor = 30 * time.Minute
+	// airingLiveWait is how long that live read may take before the stored copy is served instead.
+	airingLiveWait = 4 * time.Second
+	// mediaKeepFor is how long an entry nobody reads is kept before it is deleted.
+	mediaKeepFor = 30 * 24 * time.Hour
+)
+
+// mediaCacheAger is a MediaCacheStore that also says when an entry was stored (*db.Database).
+type mediaCacheAger interface {
+	GetMediaCacheWithTime(bucket, key string) ([]byte, time.Time, bool)
+}
+
+// mediaCachePruner is a MediaCacheStore that can delete old entries (*db.Database).
+type mediaCachePruner interface {
+	PruneMediaCache(before time.Time) (int64, error)
+}
+
+var mediaPruneOnce sync.Once
+
+// pruneMediaCacheDaily deletes stored media entries nobody has read in mediaKeepFor, at start and
+// then once a day, so the store holds what is in use rather than everything ever looked at.
+func (c *CacheLayer) pruneMediaCacheDaily() {
+	pruner, ok := c.db.(mediaCachePruner)
+	if !ok {
+		return
+	}
+	mediaPruneOnce.Do(func() {
+		go func() {
+			for {
+				// Not while offline: nothing can be refreshed then, so everything would age toward
+				// deletion — and the stored copies are what offline mode runs on.
+				if connectivity.IsOffline() {
+					time.Sleep(24 * time.Hour)
+					continue
+				}
+				if n, err := pruner.PruneMediaCache(time.Now().Add(-mediaKeepFor)); err == nil && n > 0 {
+					c.logger.Info().Int64("entries", n).Msg("anilist cache: Removed stored media nobody has opened in 30 days")
+				}
+				time.Sleep(24 * time.Hour)
+			}
+		}()
+	})
+}
+
+// isStale reports whether a stored entry of a finished show should be fetched again behind the
+// copy being served.
+func isStale(data []byte, cachedAt time.Time) bool {
+	return time.Since(cachedAt) > mediaFreshFor
+}
+
+// isAiringPastFresh reports whether a stored entry is a show still airing (or not yet out) and older
+// than airingFreshFor, which is read live rather than served stale.
+func isAiringPastFresh(data []byte, cachedAt time.Time) bool {
+	if time.Since(cachedAt) <= airingFreshFor {
+		return false
+	}
+	return bytes.Contains(data, []byte(`"RELEASING"`)) || bytes.Contains(data, []byte(`"NOT_YET_RELEASED"`))
+}
+
+var (
+	mediaRefreshFlight singleflight.Group
+	// At most two background refreshes at once: they share AniList's rate limit with everything the
+	// user is waiting on, and a restart with thousands of stale entries must not flood it.
+	mediaRefreshSlots = make(chan struct{}, 2)
+)
+
+// refreshMediaInBackground fetches one media entry again and stores it, detached from any request.
+// Concurrent asks for the same entry share one fetch; when both slots are busy the refresh is
+// skipped, and the next read past mediaFreshFor asks again.
+func (c *CacheLayer) refreshMediaInBackground(bucketName, cacheKey string, fetch func(ctx context.Context) (any, error)) {
+	go func() {
+		_, _, _ = mediaRefreshFlight.Do(bucketName+"/"+cacheKey, func() (any, error) {
+			select {
+			case mediaRefreshSlots <- struct{}{}:
+			default:
+				return nil, nil
+			}
+			defer func() { <-mediaRefreshSlots }()
+
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
+			result, err := fetch(ctx)
+			c.checkAndUpdateWorkingState(err)
+			if err != nil || result == nil || c.db == nil {
+				return nil, err
+			}
+			if data, marshalErr := json.Marshal(result); marshalErr == nil {
+				_ = c.db.SetMediaCache(bucketName, cacheKey, data)
+			}
+			return nil, nil
+		})
+	}()
+}
+
 // networkFirstGetSQLite is like networkFirstGet but uses SQLite (via c.db) for
 // unlimited media caching instead of the bounded file cache. Falls back to
 // file cache for backward-compat with existing cached data.
@@ -600,16 +719,54 @@ func networkFirstGet[T any](c *CacheLayer, bucketName string, cacheKey string, n
 // copy alone grew to gigabytes, and decoding it on first use stalled the enqueue walk for an hour
 // at startup. SQLite is the store for these entries; the file read remains only for entries cached
 // before that migration.
-func networkFirstGetSQLite[T any](c *CacheLayer, bucketName string, cacheKey string, networkFn func() (*T, error)) (*T, error) {
+func networkFirstGetSQLite[T any](c *CacheLayer, ctx context.Context, bucketName string, cacheKey string, networkFn func(ctx context.Context) (*T, error)) (*T, error) {
 	if !ShouldCache.Load() || c.db == nil {
-		return networkFirstGet(c, bucketName, cacheKey, networkFn)
+		return networkFirstGet(c, bucketName, cacheKey, func() (*T, error) { return networkFn(ctx) })
+	}
+
+	// Stored first. A show's details hardly change from one hour to the next, but every network read
+	// queues behind the shared AniList rate limit (up to 10 s) — which is what made a library of shows
+	// take 11 s to open, and a details page sit out its whole 5 s timeout every time. A stored copy is
+	// served at once; one older than mediaFreshFor is refreshed in the background for next time. A
+	// deep refresh of an entry deletes its row (InvalidateMediaCaches), so that still reads live.
+	if aged, ok := c.db.(mediaCacheAger); ok {
+		if data, cachedAt, found := aged.GetMediaCacheWithTime(bucketName, cacheKey); found {
+			var cached T
+			if err := json.Unmarshal(data, &cached); err == nil {
+				// A show still airing, past its fresh window, is read live first: a new episode or
+				// airing date must not hide behind the stored copy even once. The stored copy is the
+				// answer only if AniList can't give one in time.
+				if isAiringPastFresh(data, cachedAt) && IsWorking.Load() {
+					liveCtx, cancel := context.WithTimeout(ctx, airingLiveWait)
+					result, err := networkFn(liveCtx)
+					cancel()
+					c.checkAndUpdateWorkingState(err)
+					if err == nil && result != nil {
+						if data, marshalErr := json.Marshal(result); marshalErr == nil {
+							_ = c.db.SetMediaCache(bucketName, cacheKey, data)
+						}
+						return result, nil
+					}
+					c.refreshMediaInBackground(bucketName, cacheKey, func(bctx context.Context) (any, error) {
+						return networkFn(bctx)
+					})
+					return &cached, nil
+				}
+				if isStale(data, cachedAt) {
+					c.refreshMediaInBackground(bucketName, cacheKey, func(bctx context.Context) (any, error) {
+						return networkFn(bctx)
+					})
+				}
+				return &cached, nil
+			}
+		}
 	}
 
 	bucket := c.buckets[bucketName]
 
-	// Network-first: try API if working
+	// Nothing stored: the network it is, if AniList is working
 	if IsWorking.Load() {
-		result, err := networkFn()
+		result, err := networkFn(ctx)
 		c.checkAndUpdateWorkingState(err)
 		if err == nil && result != nil {
 			// Persist to SQLite (async, non-blocking)
@@ -621,16 +778,10 @@ func networkFirstGetSQLite[T any](c *CacheLayer, bucketName string, cacheKey str
 			return result, nil
 		}
 	} else {
-		// Background recovery attempt
-		go func() {
-			result, err := networkFn()
-			c.checkAndUpdateWorkingState(err)
-			if err == nil && result != nil {
-				if data, marshalErr := json.Marshal(result); marshalErr == nil {
-					_ = c.db.SetMediaCache(bucketName, cacheKey, data)
-				}
-			}
-		}()
+		// Background recovery attempt, detached: the caller is not waiting for it
+		c.refreshMediaInBackground(bucketName, cacheKey, func(bctx context.Context) (any, error) {
+			return networkFn(bctx)
+		})
 	}
 
 	// SQLite fallback first (indexed, fast even at 100K+ entries)
@@ -959,7 +1110,7 @@ func (c *CacheLayer) BaseAnimeByID(ctx context.Context, id *int, interceptors ..
 	}
 
 	cacheKey := c.generateCacheKey(id)
-	result, err := networkFirstGetSQLite(c, BaseAnimeBucket, cacheKey, func() (*anilist.BaseAnimeByID, error) {
+	result, err := networkFirstGetSQLite(c, ctx, BaseAnimeBucket, cacheKey, func(ctx context.Context) (*anilist.BaseAnimeByID, error) {
 		return c.anilistClientRef.Get().BaseAnimeByID(ctx, id, interceptors...)
 	})
 
@@ -987,7 +1138,7 @@ func (c *CacheLayer) CompleteAnimeByID(ctx context.Context, id *int, interceptor
 	}
 
 	cacheKey := c.generateCacheKey(id)
-	return networkFirstGetSQLite(c, CompleteAnimeBucket, cacheKey, func() (*anilist.CompleteAnimeByID, error) {
+	return networkFirstGetSQLite(c, ctx, CompleteAnimeBucket, cacheKey, func(ctx context.Context) (*anilist.CompleteAnimeByID, error) {
 		return c.anilistClientRef.Get().CompleteAnimeByID(ctx, id, interceptors...)
 	})
 }
@@ -998,7 +1149,7 @@ func (c *CacheLayer) AnimeDetailsByID(ctx context.Context, id *int, interceptors
 	}
 
 	cacheKey := c.generateCacheKey(id)
-	return networkFirstGetSQLite(c, AnimeDetailsBucket, cacheKey, func() (*anilist.AnimeDetailsByID, error) {
+	return networkFirstGetSQLite(c, ctx, AnimeDetailsBucket, cacheKey, func(ctx context.Context) (*anilist.AnimeDetailsByID, error) {
 		return c.anilistClientRef.Get().AnimeDetailsByID(ctx, id, interceptors...)
 	})
 }
@@ -1171,7 +1322,7 @@ func (c *CacheLayer) BaseMangaByID(ctx context.Context, id *int, interceptors ..
 	}
 
 	cacheKey := c.generateCacheKey(id)
-	result, err := networkFirstGetSQLite(c, BaseMangaBucket, cacheKey, func() (*anilist.BaseMangaByID, error) {
+	result, err := networkFirstGetSQLite(c, ctx, BaseMangaBucket, cacheKey, func(ctx context.Context) (*anilist.BaseMangaByID, error) {
 		return c.anilistClientRef.Get().BaseMangaByID(ctx, id, interceptors...)
 	})
 
@@ -1192,7 +1343,7 @@ func (c *CacheLayer) MangaDetailsByID(ctx context.Context, id *int, interceptors
 	}
 
 	cacheKey := c.generateCacheKey(id)
-	return networkFirstGetSQLite(c, MangaDetailsBucket, cacheKey, func() (*anilist.MangaDetailsByID, error) {
+	return networkFirstGetSQLite(c, ctx, MangaDetailsBucket, cacheKey, func(ctx context.Context) (*anilist.MangaDetailsByID, error) {
 		return c.anilistClientRef.Get().MangaDetailsByID(ctx, id, interceptors...)
 	})
 }

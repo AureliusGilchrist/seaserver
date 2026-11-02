@@ -192,6 +192,20 @@ func (p *ProviderImpl) GetAnimeMetadata(platform metadata.Platform, mId int) (re
 		return nil, errors.New("metadata is not stored for offline use")
 	}
 
+	// Past the memory copy (gone after every restart), the disk copy of a finished series is served at
+	// once and fetched again behind it. Waiting on the live lookup put a second or so on every entry
+	// page opened after a restart. Never for a show still airing (or one not known to be finished): its
+	// episode list moves, so it is looked up live and the disk copy only covers a failed lookup.
+	if diskMeta := p.loadMetadataFromDisk(cacheKey); diskMeta != nil && p.isStoredAsFinished(cacheKey) {
+		p.animeMetadataCache.SetT(cacheKey, diskMeta, airingMetadataTTL)
+		go func() {
+			_, _, _ = p.singleflight.Do(cacheKey, func() (interface{}, error) {
+				return p.fetchAnimeMetadata(platform, mId)
+			})
+		}()
+		return diskMeta, nil
+	}
+
 	res, err, _ := p.singleflight.Do(cacheKey, func() (interface{}, error) {
 		return p.fetchAnimeMetadata(platform, mId)
 	})
@@ -353,8 +367,9 @@ func (p *ProviderImpl) fetchAnimeMetadata(platform metadata.Platform, mId int) (
 	mId = event.MediaId
 
 	p.animeMetadataCache.SetT(GetAnimeMetadataCacheKey(platform, mId), ret, ttl)
-	// Write-through to disk for offline resilience.
+	// Write-through to disk for offline resilience, noting whether the series is finished.
 	p.saveMetadataToDisk(GetAnimeMetadataCacheKey(platform, mId), ret)
+	p.markStoredAsFinished(GetAnimeMetadataCacheKey(platform, mId), ttl == finishedMetadataTTL)
 
 	return ret, nil
 }
@@ -529,6 +544,26 @@ func (p *ProviderImpl) saveMetadataToDisk(cacheKey string, m *metadata.AnimeMeta
 	if err := p.fileCacher.SetPerm(p.metadataBucket, cacheKey, m); err != nil {
 		p.logger.Warn().Err(err).Str("key", cacheKey).Msg("metadata_provider: Failed to persist metadata to disk")
 	}
+}
+
+// markStoredAsFinished records whether a stored entry belongs to a finished series. Only those are
+// served from disk ahead of a live lookup.
+func (p *ProviderImpl) markStoredAsFinished(cacheKey string, finished bool) {
+	if p.fileCacher == nil {
+		return
+	}
+	_ = p.fileCacher.SetPerm(p.metadataBucket, cacheKey+":finished", finished)
+}
+
+// isStoredAsFinished reports whether the stored entry is known to be a finished series. An entry
+// with no record (stored before the record existed) counts as airing.
+func (p *ProviderImpl) isStoredAsFinished(cacheKey string) bool {
+	if p.fileCacher == nil {
+		return false
+	}
+	var finished bool
+	found, err := p.fileCacher.GetPerm(p.metadataBucket, cacheKey+":finished", &finished)
+	return err == nil && found && finished
 }
 
 // loadMetadataFromDisk loads previously cached anime metadata from disk.

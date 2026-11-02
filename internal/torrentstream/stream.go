@@ -433,6 +433,15 @@ func (r *Repository) GetMediaInfo(ctx context.Context, mediaId int) (media *anil
 			}
 			media = baseAnime.ToCompleteAnime()
 			err = nil
+		} else if media != nil && r.completeAnimeCache != nil {
+			// Kept for the next episode list; it used to be read here but never written, so every
+			// episode list went back to the platform. Briefly for a show still airing, whose
+			// episode count moves.
+			ttl := 2 * time.Hour
+			if media.Status != nil && (*media.Status == anilist.MediaStatusReleasing || *media.Status == anilist.MediaStatusNotYetReleased) {
+				ttl = 10 * time.Minute
+			}
+			r.completeAnimeCache.SetT(mediaId, media, ttl)
 		}
 	}
 

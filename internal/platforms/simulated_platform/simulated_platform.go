@@ -46,9 +46,10 @@ type SimulatedPlatform struct {
 
 func NewSimulatedPlatform(localManager local.Manager, client *util.Ref[anilist.AnilistClient], extensionBankRef *util.Ref[*extension.UnifiedBank], logger *zerolog.Logger, db *db.Database) (platform.Platform, error) {
 	sp := &SimulatedPlatform{
-		logger:           logger,
-		localManager:     localManager,
-		client:           shared_platform.NewCacheLayer(client),
+		logger:       logger,
+		localManager: localManager,
+		// With the database, so media reads are stored-first rather than a wait on AniList each time.
+		client:           shared_platform.NewCacheLayer(client, db),
 		anilistRateLimit: limiter.NewAnilistLimiter(),
 		helper:           shared_platform.NewPlatformHelper(extensionBankRef, db, logger),
 		db:               db,
@@ -298,8 +299,10 @@ func (sp *SimulatedPlatform) GetAnime(ctx context.Context, mediaID int) (*anilis
 	// collection's two-minute lookup deadline slide to over half an hour on a big library. Every such
 	// request holds one of the browser's six connections to the server, so a few of them stopped the
 	// next episode from even being requested.
-	if err := sp.anilistRateLimit.WaitContext(ctx); err != nil {
-		return nil, err
+	if !sp.hasStored(mediaID, false) {
+		if err := sp.anilistRateLimit.WaitContext(ctx); err != nil {
+			return nil, err
+		}
 	}
 
 	// Get anime from anilist
@@ -436,8 +439,10 @@ func (sp *SimulatedPlatform) GetManga(ctx context.Context, mediaID int) (*anilis
 	}
 
 	// Rate-limit before hitting AniList to prevent 429 thundering herd
-	if err := sp.anilistRateLimit.WaitContext(ctx); err != nil {
-		return nil, err
+	if !sp.hasStored(mediaID, true) {
+		if err := sp.anilistRateLimit.WaitContext(ctx); err != nil {
+			return nil, err
+		}
 	}
 
 	// Get manga from anilist
@@ -852,4 +857,17 @@ func (sp *SimulatedPlatform) invalidateMangaCollectionCache() {
 	sp.collectionMu.Lock()
 	defer sp.collectionMu.Unlock()
 	sp.mangaCollection = nil
+}
+
+// hasStored reports whether the media is answered from the stored cache, where the AniList rate
+// limiter has nothing to protect: waiting on it there made a big library take most of a minute.
+func (sp *SimulatedPlatform) hasStored(mediaID int, manga bool) bool {
+	layer, ok := sp.client.(*shared_platform.CacheLayer)
+	if !ok {
+		return false
+	}
+	if manga {
+		return layer.HasStoredManga(mediaID)
+	}
+	return layer.HasStoredAnime(mediaID)
 }

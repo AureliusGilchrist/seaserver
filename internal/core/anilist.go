@@ -32,9 +32,10 @@ func (a *App) UpdatePlatform(platform platform.Platform) {
 		a.AnilistPlatformRef.Get().Close()
 	}
 	a.AnilistPlatformRef.Set(platform)
-	a.AddOnRefreshAnilistCollectionFunc("anilist-platform", func() {
-		a.AnilistPlatformRef.Get().ClearCache()
-	})
+	// The platform's media caches are not cleared on a collection refresh any more. A list changing
+	// says nothing about the shows in it, the caches expire on their own (sooner for airing shows),
+	// and clearing them made the library load that every refresh triggers start from cold — each show
+	// a fresh wait on AniList.
 }
 
 // UpdateAnilistClientToken will update the Anilist Client Wrapper token.

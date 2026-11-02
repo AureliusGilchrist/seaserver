@@ -88,13 +88,28 @@ func (a *App) GetPlanningSlutClient() (*anilist.AnilistClientImpl, error) {
 		return nil, errors.New("planning slut token not configured")
 	}
 
+	// One client per token rather than one per call: each new client brings its own HTTP client, so
+	// every call started its connections to AniList from scratch.
+	planningSlutClientMu.Lock()
+	defer planningSlutClientMu.Unlock()
+	if planningSlutClient != nil && planningSlutClientToken == token {
+		return planningSlutClient, nil
+	}
+
 	client := anilist.NewAnilistClient(token, a.AnilistCacheDir)
 	if a.WSEventManager != nil {
 		client.SetWSEventManager(a.WSEventManager)
 		client.SetTokenExpiredEvent(events.AnilistPlanningSlutTokenExpired)
 	}
+	planningSlutClient, planningSlutClientToken = client, token
 	return client, nil
 }
+
+var (
+	planningSlutClientMu    sync.Mutex
+	planningSlutClient      *anilist.AnilistClientImpl
+	planningSlutClientToken string
+)
 
 // GetPlanningSlutAnimeCollection returns the shared account's anime collection, cached for
 // planningSlutCollectionTTL. Pass bypassCache to force a fetch.

@@ -19,6 +19,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/samber/lo"
+	"golang.org/x/sync/singleflight"
 )
 
 var (
@@ -448,6 +449,28 @@ func (h *Handler) getPlanningSlutAnimeCollectionCached(ctx context.Context, bypa
 		if cached, ok := planningSlutAnimeCollectionCache.Get(1); ok {
 			return cached, nil
 		}
+		// Past the memory copy, the saved one is served straight away and refreshed behind it. The
+		// refresh is two AniList calls in a row (viewer, then collection), and every library load used
+		// to wait on both once the five minutes were up.
+		if stored, ok := h.App.StoredPlanningSlutAnimeCollection(); ok {
+			planningSlutAnimeCollectionCache.SetT(1, stored, 5*time.Minute)
+			if connectivity.IsAniListAllowed() {
+				go func() {
+					_, _, _ = planningSlutRefreshFlight.Do("Anime", func() (any, error) {
+						bctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+						defer cancel()
+						col, err := h.getPlanningSlutAnimeCollection(bctx)
+						if err != nil || col == nil {
+							return nil, err
+						}
+						h.App.SavePlanningSlutAnimeCollection(col)
+						planningSlutAnimeCollectionCache.SetT(1, col, 5*time.Minute)
+						return nil, nil
+					})
+				}()
+			}
+			return stored, nil
+		}
 	}
 	var col *anilist.AnimeCollection
 	var err error
@@ -476,6 +499,28 @@ func (h *Handler) getPlanningSlutMangaCollectionCached(ctx context.Context, bypa
 		if cached, ok := planningSlutMangaCollectionCache.Get(1); ok {
 			return cached, nil
 		}
+		// Past the memory copy, the saved one is served straight away and refreshed behind it. The
+		// refresh is two AniList calls in a row (viewer, then collection), and every library load used
+		// to wait on both once the five minutes were up.
+		if stored, ok := h.App.StoredPlanningSlutMangaCollection(); ok {
+			planningSlutMangaCollectionCache.SetT(1, stored, 5*time.Minute)
+			if connectivity.IsAniListAllowed() {
+				go func() {
+					_, _, _ = planningSlutRefreshFlight.Do("Manga", func() (any, error) {
+						bctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+						defer cancel()
+						col, err := h.getPlanningSlutMangaCollection(bctx)
+						if err != nil || col == nil {
+							return nil, err
+						}
+						h.App.SavePlanningSlutMangaCollection(col)
+						planningSlutMangaCollectionCache.SetT(1, col, 5*time.Minute)
+						return nil, nil
+					})
+				}()
+			}
+			return stored, nil
+		}
 	}
 	var col *anilist.MangaCollection
 	var err error
@@ -496,6 +541,9 @@ func (h *Handler) getPlanningSlutMangaCollectionCached(ctx context.Context, bypa
 	planningSlutMangaCollectionCache.SetT(1, col, 5*time.Minute)
 	return col, nil
 }
+
+// planningSlutRefreshFlight keeps one background refresh per collection.
+var planningSlutRefreshFlight singleflight.Group
 
 // invalidatePlanningSlutCollectionCaches clears both anime and manga caches
 // so the next request fetches fresh data from AniList.

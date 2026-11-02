@@ -532,11 +532,34 @@ func (h *Handler) HandleGetAnilistAnimeDetails(c echo.Context) error {
 	// spinning on a request the server log never shows, because it never arrived.
 	//
 	// So freshness gets a few seconds, and past that the last copy is served. The fetch is not
-	// wasted either — it lands in the cache and the next open gets it.
-	fetchCtx, cancel := context.WithTimeout(c.Request().Context(), detailsFetchTimeout)
-	defer cancel()
+	// wasted either — it runs on detached, lands in the cache, and the next open gets it. (It used to
+	// be cancelled with the request, so a slow AniList meant every open waited the full timeout.) A
+	// stored copy comes back from the platform's cache layer at once and never reaches this wait.
+	type detailsResult struct {
+		details *anilist.AnimeDetailsById_Media
+		err     error
+	}
+	done := make(chan detailsResult, 1)
+	go func() {
+		fetchCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+		details, err := h.App.AnilistPlatformRef.Get().GetAnimeDetails(fetchCtx, mId)
+		if err == nil && details != nil {
+			detailsCache.SetT(mId, details, detailsCacheTTL)
+			saveDetailsToDisk(h.App.FileCacher, mId, details)
+		}
+		done <- detailsResult{details, err}
+	}()
 
-	details, err := h.App.AnilistPlatformRef.Get().GetAnimeDetails(fetchCtx, mId)
+	var details *anilist.AnimeDetailsById_Media
+	select {
+	case res := <-done:
+		details, err = res.details, res.err
+	case <-time.After(detailsFetchTimeout):
+		err = context.DeadlineExceeded
+	case <-c.Request().Context().Done():
+		return c.Request().Context().Err()
+	}
 	if err != nil {
 		// A live fetch that fails — a rate-limit slot, a timeout — falls back to the last copy
 		// rather than failing the page. Stale details beat no details.
@@ -545,8 +568,6 @@ func (h *Handler) HandleGetAnilistAnimeDetails(c echo.Context) error {
 		}
 		return h.RespondWithError(c, err)
 	}
-	detailsCache.SetT(mId, details, detailsCacheTTL)
-	saveDetailsToDisk(h.App.FileCacher, mId, details)
 
 	return h.RespondWithData(c, details)
 }

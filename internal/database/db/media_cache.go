@@ -16,6 +16,24 @@ func (db *Database) GetMediaCache(bucket, key string) ([]byte, bool) {
 	return entry.Data, true
 }
 
+// GetMediaCacheWithTime is GetMediaCache plus when the entry was stored, so a reader can decide
+// whether it is still fresh.
+func (db *Database) GetMediaCacheWithTime(bucket, key string) ([]byte, time.Time, bool) {
+	var entry models.MediaCacheEntry
+	err := db.gormdb.Where("bucket = ? AND cache_key = ?", bucket, key).First(&entry).Error
+	if err != nil {
+		return nil, time.Time{}, false
+	}
+	return entry.Data, entry.CachedAt, true
+}
+
+// PruneMediaCache deletes entries stored before the cutoff and returns how many went. Entries in
+// use are refreshed (and re-dated) whenever they go stale, so only ones nobody opens age out.
+func (db *Database) PruneMediaCache(before time.Time) (int64, error) {
+	res := db.gormdb.Where("cached_at < ?", before).Delete(&models.MediaCacheEntry{})
+	return res.RowsAffected, res.Error
+}
+
 // DeleteMediaCache removes one cached media entry. Used by the per-entry deep refresh, which
 // has to reach the SQLite cache too — clearing only the in-memory and file caches leaves this
 // one to serve the same stale media straight back.

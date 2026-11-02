@@ -29,6 +29,8 @@ export function useAnimeCollectionListener() {
         type: WSEvents.REFRESHED_ANILIST_MANGA_COLLECTION,
         onMessage: data => {
             (async () => {
+                // The manga library itself too: it was the one page a manga refresh never updated.
+                await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA.GetMangaCollection.key] })
                 await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA.GetAnilistMangaCollection.key] })
                 await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA.GetRawAnilistMangaCollection.key] })
                 await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA.GetMangaEntry.key] })
