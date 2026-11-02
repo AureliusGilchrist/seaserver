@@ -646,13 +646,22 @@ func (a *App) initModulesOnce() {
 	// | Auto-track downloads for offline library  |
 	// +------------------------------------------+
 
+	// Ids that failed to track are left alone for a while (e.g. not in the AniList collection),
+	// so every queued chapter doesn't repeat the lookup and the log line
+	mangaTrackFailures := newTrackFailureMemo(trackFailureWindow)
+	animeTrackFailures := newTrackFailureMemo(trackFailureWindow)
+
 	// Track manga when chapters are queued for download
 	a.MangaDownloader.OnMangaQueued = func(mediaId int) {
 		if a.LocalManager == nil {
 			return
 		}
+		if !mangaTrackFailures.shouldTry(mediaId) {
+			return
+		}
 		err := a.LocalManager.TrackManga(mediaId)
 		if err != nil && err != local.ErrAlreadyTracked {
+			mangaTrackFailures.markFailed(mediaId)
 			a.Logger.Debug().Err(err).Int("mediaId", mediaId).Msg("auto-track: Could not track manga for offline")
 		}
 	}
@@ -662,8 +671,12 @@ func (a *App) initModulesOnce() {
 		if a.LocalManager == nil {
 			return
 		}
+		if !animeTrackFailures.shouldTry(mediaId) {
+			return
+		}
 		err := a.LocalManager.TrackAnime(mediaId)
 		if err != nil && err != local.ErrAlreadyTracked {
+			animeTrackFailures.markFailed(mediaId)
 			a.Logger.Debug().Err(err).Int("mediaId", mediaId).Msg("auto-track: Could not track anime for offline")
 		}
 	}

@@ -352,6 +352,10 @@ func (m *ManagerImpl) TrackAnime(mId int) error {
 		Type:    AnimeType,
 	}
 
+	if _, found := m.localDb.GetTrackedMedia(mId, AnimeType); found {
+		return ErrAlreadyTracked
+	}
+
 	// Check if the anime is in the user's anime collection
 	if m.animeCollection.IsAbsent() {
 		m.logger.Error().Msg("local manager: Anime collection not set")
@@ -359,17 +363,13 @@ func (m *ManagerImpl) TrackAnime(mId int) error {
 	}
 
 	if _, found := m.animeCollection.MustGet().GetListEntryFromAnimeId(mId); !found {
-		m.logger.Error().Msgf("local manager: Anime %d not found in user's anime collection", mId)
+		m.logger.Debug().Msgf("local manager: Anime %d not found in user's anime collection", mId)
 		return fmt.Errorf("anime is not in AniList collection")
-	}
-
-	if _, found := m.localDb.GetTrackedMedia(mId, AnimeType); found {
-		return ErrAlreadyTracked
 	}
 
 	err := m.localDb.gormdb.Create(s).Error
 	if err != nil {
-		m.logger.Error().Msgf("local manager: Failed to add anime %d to local database: %w", mId, err)
+		m.logger.Error().Msgf("local manager: Failed to add anime %d to local database: %v", mId, err)
 		return fmt.Errorf("failed to add anime %d to local database: %w", mId, err)
 	}
 
@@ -409,6 +409,10 @@ func (m *ManagerImpl) TrackManga(mId int) error {
 		Type:    MangaType,
 	}
 
+	if _, found := m.localDb.GetTrackedMedia(mId, MangaType); found {
+		return ErrAlreadyTracked
+	}
+
 	// Check if the manga is in the user's manga collection
 	if m.mangaCollection.IsAbsent() {
 		m.logger.Error().Msg("local manager: Manga collection not set")
@@ -416,17 +420,13 @@ func (m *ManagerImpl) TrackManga(mId int) error {
 	}
 
 	if _, found := m.mangaCollection.MustGet().GetListEntryFromMangaId(mId); !found {
-		m.logger.Error().Msgf("local manager: Manga %d not found in user's manga collection", mId)
+		m.logger.Debug().Msgf("local manager: Manga %d not found in user's manga collection", mId)
 		return fmt.Errorf("manga is not in AniList collection")
-	}
-
-	if _, found := m.localDb.GetTrackedMedia(mId, MangaType); found {
-		return ErrAlreadyTracked
 	}
 
 	err := m.localDb.gormdb.Create(s).Error
 	if err != nil {
-		m.logger.Error().Msgf("local manager: Failed to add manga %d to local database: %w", mId, err)
+		m.logger.Error().Msgf("local manager: Failed to add manga %d to local database: %v", mId, err)
 		return fmt.Errorf("failed to add manga %d to local database: %w", mId, err)
 	}
 

@@ -70,6 +70,9 @@ func (db *Database) DequeueChapterDownloadQueueItem() (*models.ChapterDownloadQu
 // picks, and a full en masse run must never block them.
 const MaxQueuedSeries = 50
 
+// ErrMaxQueuedSeries is returned when an en masse chapter would add a series past MaxQueuedSeries.
+var ErrMaxQueuedSeries = errors.New("maximum of 50 series allowed in the download queue at once")
+
 func (db *Database) InsertChapterDownloadQueueItem(item *models.ChapterDownloadQueueItem) error {
 
 	// Check if the item already exists
@@ -106,7 +109,7 @@ func (db *Database) InsertChapterDownloadQueueItem(item *models.ChapterDownloadQ
 			})
 			if uniqueSeriesCount >= MaxQueuedSeries {
 				db.Logger.Debug().Int64("currentCount", uniqueSeriesCount).Int("max", MaxQueuedSeries).Msg("db: Maximum queued series limit reached")
-				return errors.New("maximum of 50 series allowed in the download queue at once")
+				return ErrMaxQueuedSeries
 			}
 		}
 	}

@@ -1,6 +1,7 @@
 package chapter_downloader
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -109,7 +110,12 @@ func (q *Queue) Add(id DownloadID, pages []*hibikemanga.ChapterPage, runNext boo
 		EnMasse:         enMasse,
 	})
 	if err != nil {
-		q.logger.Error().Err(err).Msgf("Failed to insert chapter download queue item for id %v", id)
+		// A full queue is expected: the en masse downloader waits and retries
+		if errors.Is(err, db.ErrMaxQueuedSeries) {
+			q.logger.Debug().Err(err).Msgf("Failed to insert chapter download queue item for id %v", id)
+		} else {
+			q.logger.Error().Err(err).Msgf("Failed to insert chapter download queue item for id %v", id)
+		}
 		return err
 	}
 

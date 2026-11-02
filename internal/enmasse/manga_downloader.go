@@ -1201,7 +1201,7 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 		}
 
 		// Add to download queue with retry for queue full
-
+		queueFullLogged := false
 		for {
 			select {
 			case <-ctx.Done():
@@ -1224,7 +1224,13 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 
 			if err != nil {
 				if d.isQueueFullError(err) {
-					d.logger.Info().
+					// Info on the first wait for this chapter, Debug on every retry after
+					logEvent := d.logger.Debug()
+					if !queueFullLogged {
+						logEvent = d.logger.Info()
+						queueFullLogged = true
+					}
+					logEvent.
 						Str("title", mangaItem.Title).
 						Str("chapterId", chapter.ID).
 						Msg("enmasse-manga: Queue full (50 series limit), waiting for space...")
