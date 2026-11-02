@@ -160,6 +160,8 @@ func TestNewEnhancedMediaFetcher(t *testing.T) {
 			if err != nil {
 				t.Fatal("expected result, got error:", err.Error())
 			}
+			// Close the log file before TempDir cleanup, which can't remove an open file on Windows.
+			defer scanLogger.Done()
 
 			// +---------------------+
 			// |   Local Files       |
@@ -246,6 +248,8 @@ func TestFetchMediaFromLocalFiles(t *testing.T) {
 			if err != nil {
 				t.Fatal("expected result, got error:", err.Error())
 			}
+			// Close the log file before TempDir cleanup, which can't remove an open file on Windows.
+			defer scanLogger.Done()
 
 			// +---------------------+
 			// |   Local Files       |

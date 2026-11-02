@@ -1,0 +1,79 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    # Same OS as auto-release.yml; the suite is checked on Windows.
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      # Absolute, so every package finds the config whatever its depth.
+      TEST_CONFIG_PATH: ${{ github.workspace }}/test
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Write test config with every network flag off
+        run: |
+          sed -E 's/^(enable_[a-z_]+) = true/\1 = false/' test/config.example.toml > test/config.toml
+          grep '^enable_' test/config.toml
+
+      - name: Stub the embedded web build
+        # main.go embeds all:web, which is gitignored and only exists after a frontend build.
+        run: |
+          mkdir -p web
+          [ -e web/index.html ] || echo '<!doctype html>' > web/index.html
+
+      - name: go vet
+        # Non-blocking until the existing findings are fixed: time.Since evaluated at defer time in
+        # internal/mediastream/transcoder/transcoder.go, unreachable code in internal/library/scanner/matcher.go.
+        # Remove continue-on-error once `go vet ./...` is clean.
+        continue-on-error: true
+        run: go vet ./...
+
+      - name: go test
+        run: go test -count=1 -timeout 20m ./...
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: seanime-web
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: seanime-web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check (tsc)
+        run: npx tsc --noEmit
+
+      - name: Type-check (tsgo, as the build does)
+        run: npx tsgo --noEmit
+
+      - name: Lockstep and guard scripts
+        run: npm test
