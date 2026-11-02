@@ -1227,6 +1227,7 @@ function createMainWindow() {
         ...savedPlacement.bounds, show: false,
         backgroundColor: "#111111",
         acceptFirstMouse: false,
+        title: "Deus Ex Aeternae",
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
