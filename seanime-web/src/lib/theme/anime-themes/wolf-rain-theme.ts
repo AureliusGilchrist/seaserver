@@ -2,7 +2,6 @@
 import { GiWolfHowl, GiSnowflake1, GiMoonBats, GiCrystalBall, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiMountainRoad } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
-import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
 
@@ -56,7 +55,6 @@ export const wolfRainTheme: AnimeThemeConfig = {
         "milestones": { icon: LuFlag, label: "Wolf Goals" },
         "theme-manager": { icon: GiPalette, label: "Moon Colors" },
         "extensions": { icon: BiExtension, label: "Pack Mods" },
-        "sync": { icon: IoCloudOfflineOutline, label: "Pack Sync" },
         "settings": { icon: GiSettingsKnobs, label: "Wolf Settings" },
     },
     achievementNames: {

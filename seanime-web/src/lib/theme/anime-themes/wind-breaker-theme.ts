@@ -2,7 +2,6 @@
 import { GiCycle, GiWindSlap, GiRunningShoe, GiPunch, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiHelmet, GiHeartKey, GiRoad } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
-import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
 
@@ -56,7 +55,6 @@ export const windBreakerTheme: AnimeThemeConfig = {
         "notifications": { icon: LuBell, label: "Street Alerts" },
         "theme-manager": { icon: GiPalette, label: "Street Palette" },
         "extensions": { icon: BiExtension, label: "Crew Mods" },
-        "sync": { icon: IoCloudOfflineOutline, label: "Crew Sync" },
         "settings": { icon: GiSettingsKnobs, label: "Sakura's Config" },
     },
     achievementNames: {

@@ -2,6 +2,7 @@ import { useSyncDownloadingAnime } from "@/app/(main)/_atoms/downloading.atoms"
 import { useSyncMangaBadges } from "@/app/(main)/_atoms/manga-badges.atoms"
 import { AchievementUnlockPanel } from "@/app/(main)/_features/achievement/achievement-unlock-panel"
 import { AnilistAvailabilityBanner } from "@/app/(main)/_features/anilist/anilist-availability-banner"
+import { OfflineBanner } from "@/app/(main)/_features/connectivity/offline-banner"
 import { MainLayout } from "@/app/(main)/_features/layout/main-layout"
 import { useCardSizeVariables } from "@/app/(main)/_features/media/card-size"
 import { OfflineLayout } from "@/app/(main)/_features/layout/offline-layout"
@@ -65,6 +66,7 @@ function Layout() {
                     {/* Above everything, because when AniList is down every screen below fails and
                         none of them can explain why. */}
                     <AnilistAvailabilityBanner />
+                    <OfflineBanner />
                     <TopNavbar />
                     <div data-main-layout-content>
                         <ErrorBoundary FallbackComponent={AppErrorBoundary}>

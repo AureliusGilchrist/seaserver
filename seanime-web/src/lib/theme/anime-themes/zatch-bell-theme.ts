@@ -2,7 +2,6 @@
 import { GiLightningStorm, GiCrown, GiBookAura, GiStarFormation, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiSpellBook, GiHeartKey, GiMagicSwirl } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
-import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
 
@@ -56,7 +55,6 @@ export const zatchBellTheme: AnimeThemeConfig = {
         "notifications": { icon: LuBell, label: "Mamodo Alerts" },
         "theme-manager": { icon: GiPalette, label: "Gold Palette" },
         "extensions": { icon: BiExtension, label: "Spell Mods" },
-        "sync": { icon: IoCloudOfflineOutline, label: "Spell Sync" },
         "settings": { icon: GiSettingsKnobs, label: "Kiyo's Config" },
     },
     achievementNames: {

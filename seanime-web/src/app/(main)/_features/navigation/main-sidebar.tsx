@@ -728,12 +728,14 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
                             </Badge>
                             : undefined,
                     }),
-                    applyFooterOverride({
+                    // Never themed: its icon and label are the state, and a theme's fixed icon hid it.
+                    {
                         id: "sync",
                         iconType: connectivity === "online" ? IoCloudOutline : IoCloudOfflineOutline,
+                        iconClass: connectivity === "online" ? undefined : "text-amber-400",
                         name: connectivity === "online" ? "Online" : connectivity === "blocked" ? "AniList blocked" : "Offline",
                         onClick: () => setOfflineMode({ enabled: connectivity === "online" }),
-                    }),
+                    },
                     ...(!serverStatus?.profilesEnabled || !serverStatus?.profiles?.length || serverStatus?.currentProfile?.isAdmin ? [applyFooterOverride({
                         id: "settings",
                         iconType: LuSettings,

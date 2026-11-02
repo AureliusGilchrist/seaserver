@@ -2,7 +2,6 @@ import { AnimeThemeConfig } from "./types"
 import { GiCampfire, GiMountainRoad, GiTrophyCup, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiScrollUnfurled, GiHeartKey, GiPineTree, GiStarSwirl } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
-import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
 
@@ -54,7 +53,6 @@ export const yuruCampTheme: AnimeThemeConfig = {
         "notifications": { icon: LuBell, label: "Camp Alerts" },
         "theme-manager": { icon: GiPalette, label: "Nature Colors" },
         "extensions": { icon: BiExtension, label: "Gear Mods" },
-        "sync": { icon: IoCloudOfflineOutline, label: "Camp Sync" },
         "settings": { icon: GiSettingsKnobs, label: "Rin's Config" },
     },
     achievementNames: {

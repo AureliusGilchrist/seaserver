@@ -2,7 +2,6 @@ import { AnimeThemeConfig } from "./types"
 import { GiStarSwirl, GiTrophyCup, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiScrollUnfurled, GiHeartKey, GiCrystalBall, GiFlowerEmblem, GiSpellBook } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
-import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
 
@@ -54,7 +53,6 @@ export const weatheringWithYouTheme: AnimeThemeConfig = {
         "notifications": { icon: LuBell, label: "Rain Alerts" },
         "theme-manager": { icon: GiPalette, label: "Sky Colors" },
         "extensions": { icon: BiExtension, label: "Weather Mods" },
-        "sync": { icon: IoCloudOfflineOutline, label: "Sky Sync" },
         "settings": { icon: GiSettingsKnobs, label: "Hodaka Config" },
     },
     achievementNames: {

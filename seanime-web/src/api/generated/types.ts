@@ -4127,6 +4127,10 @@ export type Status = {
     themeSettings?: Models_Theme
     isOffline: boolean
     connectivity: string
+    /**
+     * OfflineForced is true when offline mode was turned on by hand rather than the internet being down.
+     */
+    offlineForced: boolean
     mediastreamSettings?: Models_MediastreamSettings
     torrentstreamSettings?: Models_TorrentstreamSettings
     debridSettings?: Models_DebridSettings

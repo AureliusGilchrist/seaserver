@@ -66,6 +66,11 @@ func SetForcedOffline(on bool) {
 	}
 }
 
+// IsForcedOffline reports whether the user turned offline mode on, as opposed to the internet being down.
+func IsForcedOffline() bool {
+	return forced.Load()
+}
+
 // IsAniListAllowed reports whether a request to AniList should be attempted at all.
 func IsAniListAllowed() bool {
 	return Current() == Online

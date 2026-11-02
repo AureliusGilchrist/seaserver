@@ -38,10 +38,12 @@ type Status struct {
 	VersionName     string           `json:"versionName"`
 	// FrontendVersion is the seanime-web version this server build ships. The client
 	// compares it with the version baked into its own bundle to detect a stale UI.
-	FrontendVersion       string                        `json:"frontendVersion"`
-	ThemeSettings         *models.Theme                 `json:"themeSettings"`
-	IsOffline             bool                          `json:"isOffline"`
-	Connectivity          string                        `json:"connectivity"`
+	FrontendVersion string        `json:"frontendVersion"`
+	ThemeSettings   *models.Theme `json:"themeSettings"`
+	IsOffline       bool          `json:"isOffline"`
+	Connectivity    string        `json:"connectivity"`
+	// OfflineForced is true when offline mode was turned on by hand rather than the internet being down.
+	OfflineForced         bool                          `json:"offlineForced"`
 	MediastreamSettings   *models.MediastreamSettings   `json:"mediastreamSettings"`
 	TorrentstreamSettings *models.TorrentstreamSettings `json:"torrentstreamSettings"`
 	DebridSettings        *models.DebridSettings        `json:"debridSettings"`
@@ -125,6 +127,7 @@ func (h *Handler) NewStatus(c echo.Context) *Status {
 		ThemeSettings:         theme,
 		IsOffline:             h.App.Config.Server.Offline,
 		Connectivity:          string(connectivity.Current()),
+		OfflineForced:         connectivity.IsForcedOffline(),
 		MediastreamSettings:   h.App.SecondarySettings.Mediastream,
 		TorrentstreamSettings: h.App.SecondarySettings.Torrentstream,
 		DebridSettings:        h.App.SecondarySettings.Debrid,

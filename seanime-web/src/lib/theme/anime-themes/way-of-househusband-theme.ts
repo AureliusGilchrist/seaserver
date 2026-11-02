@@ -2,7 +2,6 @@ import { AnimeThemeConfig } from "./types"
 import { GiFist, GiTrophyCup, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiScrollUnfurled, GiHeartKey, GiCrystalBall, GiStarSwirl, GiSpellBook } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
-import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
 
@@ -54,7 +53,6 @@ export const wayOfHousehusbandTheme: AnimeThemeConfig = {
         "notifications": { icon: LuBell, label: "Sale Alerts" },
         "theme-manager": { icon: GiPalette, label: "Yakuza Colors" },
         "extensions": { icon: BiExtension, label: "Apron Mods" },
-        "sync": { icon: IoCloudOfflineOutline, label: "Home Sync" },
         "settings": { icon: GiSettingsKnobs, label: "Tatsu Config" },
     },
     achievementNames: {

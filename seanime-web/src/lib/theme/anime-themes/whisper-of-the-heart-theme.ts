@@ -2,7 +2,6 @@
 import { GiMusicalNotes, GiBookshelf, GiRose, GiHeartKey, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiCherish } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
-import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
 
@@ -56,7 +55,6 @@ export const whisperOfTheHeartTheme: AnimeThemeConfig = {
         "milestones": { icon: LuFlag, label: "Dream Goals" },
         "theme-manager": { icon: GiPalette, label: "Warm Colors" },
         "extensions": { icon: BiExtension, label: "Library Mods" },
-        "sync": { icon: IoCloudOfflineOutline, label: "Library Sync" },
         "settings": { icon: GiSettingsKnobs, label: "Reading Settings" },
     },
     achievementNames: {

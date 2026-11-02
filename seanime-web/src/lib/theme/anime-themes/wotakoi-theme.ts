@@ -2,7 +2,6 @@
 import { GiComputerFan, GiGamepad, GiHeartKey, GiCoffeeCup, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiBookCover } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
-import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
 
@@ -56,7 +55,6 @@ export const wotakoiTheme: AnimeThemeConfig = {
         "milestones": { icon: LuFlag, label: "Otaku Goals" },
         "theme-manager": { icon: GiPalette, label: "Office Colors" },
         "extensions": { icon: BiExtension, label: "Otaku Mods" },
-        "sync": { icon: IoCloudOfflineOutline, label: "Otaku Sync" },
         "settings": { icon: GiSettingsKnobs, label: "Narumi Settings" },
     },
     achievementNames: {

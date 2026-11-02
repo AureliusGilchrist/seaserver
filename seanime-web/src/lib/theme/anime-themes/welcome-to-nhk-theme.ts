@@ -2,7 +2,6 @@ import { AnimeThemeConfig } from "./types"
 import { GiCrystalBall, GiTrophyCup, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiScrollUnfurled, GiHeartKey, GiStarSwirl, GiSpellBook, GiMusicalNotes } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
-import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
 
@@ -54,7 +53,6 @@ export const welcomeToNhkTheme: AnimeThemeConfig = {
         "notifications": { icon: LuBell, label: "Door Knocks" },
         "theme-manager": { icon: GiPalette, label: "Room Colors" },
         "extensions": { icon: BiExtension, label: "Hikikomori Mods" },
-        "sync": { icon: IoCloudOfflineOutline, label: "Room Sync" },
         "settings": { icon: GiSettingsKnobs, label: "Satou Config" },
     },
     achievementNames: {

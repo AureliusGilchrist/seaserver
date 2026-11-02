@@ -2,7 +2,6 @@ import { AnimeThemeConfig } from "./types"
 import { GiFlowerEmblem, GiTrophyCup, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiScrollUnfurled, GiHeartKey, GiCrystalBall, GiStarSwirl, GiSpellBook } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
-import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
 
@@ -54,7 +53,6 @@ export const wolfChildrenTheme: AnimeThemeConfig = {
         "notifications": { icon: LuBell, label: "Family Alerts" },
         "theme-manager": { icon: GiPalette, label: "Forest Colors" },
         "extensions": { icon: BiExtension, label: "Wolf Mods" },
-        "sync": { icon: IoCloudOfflineOutline, label: "Family Sync" },
         "settings": { icon: GiSettingsKnobs, label: "Hana Config" },
     },
     achievementNames: {

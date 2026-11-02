@@ -2,7 +2,6 @@
 import { GiMusicalNotes, GiFlowerEmblem, GiViolin, GiHeartKey, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiCherish } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
-import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
 
@@ -56,7 +55,6 @@ export const yourLieInAprilTheme: AnimeThemeConfig = {
         "milestones": { icon: LuFlag, label: "Music Goals" },
         "theme-manager": { icon: GiPalette, label: "Spring Colors" },
         "extensions": { icon: BiExtension, label: "Music Mods" },
-        "sync": { icon: IoCloudOfflineOutline, label: "Music Sync" },
         "settings": { icon: GiSettingsKnobs, label: "Kousei's Settings" },
     },
     achievementNames: {

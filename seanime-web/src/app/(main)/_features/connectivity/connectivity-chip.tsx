@@ -2,7 +2,8 @@
 
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
-import { getConnectivity, setConnectivity } from "@/lib/server/connectivity"
+import { API_ENDPOINTS } from "@/api/generated/endpoints"
+import { getConnectivity, setConnectivity, setOfflineForced } from "@/lib/server/connectivity"
 import { WSEvents } from "@/lib/server/ws-events"
 import { useQueryClient } from "@tanstack/react-query"
 import React from "react"
@@ -19,10 +20,15 @@ export function ConnectivityListener() {
     }, [queryClient])
 
     React.useEffect(() => update(serverStatus?.connectivity), [serverStatus?.connectivity, update])
+    React.useEffect(() => setOfflineForced(!!serverStatus?.offlineForced), [serverStatus?.offlineForced])
 
     useWebsocketMessageListener<string>({
         type: WSEvents.CONNECTIVITY_CHANGED,
-        onMessage: update,
+        onMessage: next => {
+            update(next)
+            // The event carries the state only; whether it was switched on by hand comes with the status.
+            void queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.STATUS.GetStatus.key] })
+        },
         deps: [update],
     })
 

@@ -2,7 +2,6 @@ import { AnimeThemeConfig } from "./types"
 import { GiIceCube, GiTrophyCup, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiScrollUnfurled, GiHeartKey, GiMusicalNotes, GiStarSwirl, GiFireworkRocket } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
-import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
 
@@ -54,7 +53,6 @@ export const yuriOnIceTheme: AnimeThemeConfig = {
         "notifications": { icon: LuBell, label: "Score Alerts" },
         "theme-manager": { icon: GiPalette, label: "Ice Colors" },
         "extensions": { icon: BiExtension, label: "Costume Mods" },
-        "sync": { icon: IoCloudOfflineOutline, label: "Rink Sync" },
         "settings": { icon: GiSettingsKnobs, label: "Blade Config" },
     },
     achievementNames: {

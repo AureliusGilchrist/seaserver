@@ -17,10 +17,29 @@ export function setConnectivity(next: string | undefined) {
 }
 
 export function useConnectivity() {
-    return React.useSyncExternalStore(listener => {
-        listeners.add(listener)
-        return () => listeners.delete(listener)
-    }, getConnectivity)
+    return React.useSyncExternalStore(subscribe, getConnectivity)
+}
+
+// Whether offline mode was turned on by hand (the sidebar switch) rather than the internet being down.
+let forced = false
+
+export function getOfflineForced() {
+    return forced
+}
+
+export function setOfflineForced(next: boolean) {
+    if (next === forced) return
+    forced = next
+    listeners.forEach(listener => listener())
+}
+
+export function useOfflineForced() {
+    return React.useSyncExternalStore(subscribe, getOfflineForced)
+}
+
+function subscribe(listener: () => void) {
+    listeners.add(listener)
+    return () => { listeners.delete(listener) }
 }
 
 /** Errors that only say the server can't reach the internet. The offline chip already says that. */

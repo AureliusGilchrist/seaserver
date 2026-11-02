@@ -1,6 +1,7 @@
 import { useServerMutation, useServerQuery } from "@/api/client/requests"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { Local_QueueState, Local_TrackedMediaItem } from "@/api/generated/types"
+import { setConnectivity, setOfflineForced } from "@/lib/server/connectivity"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
@@ -148,9 +149,19 @@ export function useLocalSyncSimulatedDataToAnilist() {
 }
 
 export function useSetOfflineMode() {
+    const queryClient = useQueryClient()
     return useServerMutation<boolean, SetOfflineMode_Variables>({
         endpoint: API_ENDPOINTS.LOCAL.SetOfflineMode.endpoint,
         method: API_ENDPOINTS.LOCAL.SetOfflineMode.methods[0],
         mutationKey: [API_ENDPOINTS.LOCAL.SetOfflineMode.key],
+        // Shown straight away rather than waiting on the websocket event. Turning it off only asks the
+        // server again: the internet may really be down, in which case it stays offline.
+        onSuccess: async enabled => {
+            if (enabled) {
+                setConnectivity("offline")
+                setOfflineForced(true)
+            }
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.STATUS.GetStatus.key] })
+        },
     })
 }
