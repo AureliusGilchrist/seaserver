@@ -18,12 +18,7 @@ import (
 )
 
 // knownHydratorBugs lists cases that fail because of a bug in the code, not the test.
-// A bare "calc(...)" in a rule's Episode field is passed straight to util.EvaluateSimpleExpression,
-// which doesn't strip the calc( ) wrapper, so the episode stays 0.
-var knownHydratorBugs = map[string]string{
-	"should apply rule with regex substitution, single capture group, calc": "Episode \"calc(...)\" is not evaluated; fix hydrator.go/EvaluateSimpleExpression first",
-	"should evaluate calc in episode field":                                 "Episode \"calc(...)\" is not evaluated; fix hydrator.go/EvaluateSimpleExpression first",
-}
+var knownHydratorBugs = map[string]string{}
 
 func TestFileHydrator_HydrateMetadata(t *testing.T) {
 	test_utils.InitTestProvider(t, test_utils.Anilist())

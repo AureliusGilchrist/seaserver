@@ -26,7 +26,9 @@ func SeparateFilePath(path string, prefixPath string) *SeparatedFilePath {
 		cleaned = path[len(prefixPath):] // Remove prefix
 	}
 	fp := filepath.Base(filepath.ToSlash(path))
-	parentsPath := filepath.Dir(filepath.ToSlash(cleaned))
+	// Back to slashes: on Windows filepath.Dir returns backslashes, and the split below then
+	// left every folder name joined into one.
+	parentsPath := filepath.ToSlash(filepath.Dir(filepath.ToSlash(cleaned)))
 	if parentsPath == "." || parentsPath == "/" || parentsPath == ".." {
 		parentsPath = ""
 	}

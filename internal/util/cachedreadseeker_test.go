@@ -137,9 +137,6 @@ func TestCachedReadSeeker_Performance(t *testing.T) {
 }
 
 func TestCachedReadSeeker_SeekBehavior(t *testing.T) {
-	// Known bug: Seek(…, io.SeekEnd) pads the cache with zero bytes up to the end, so reads after it
-	// return zeros instead of source data (SeekEnd and SeekStartZero cases fail).
-	t.Skip("CachedReadSeeker.Seek with io.SeekEnd zero-fills the cache; fix cachedreadseeker.go first")
 	data := []byte("0123456789")
 	mock := newMockSlowReader(data, 0)
 	cached := NewCachedReadSeeker(mock)

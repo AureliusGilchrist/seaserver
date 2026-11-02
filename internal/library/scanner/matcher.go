@@ -106,6 +106,10 @@ func (m *Matcher) MatchLocalFilesWithMedia() error {
 // matchLocalFileWithMedia finds the best match for the local file
 // If the best match is above a certain threshold, set the local file's mediaId to the best match's id
 // If the best match is below a certain threshold, leave the local file's mediaId to 0
+// legacyAutoMatchEnabled switches the title-based auto-match back on. Off: it mismatched
+// franchises with overlapping titles, so files are matched by hand from the Unmatched view.
+const legacyAutoMatchEnabled = false
+
 func (m *Matcher) matchLocalFileWithMedia(lf *anime.LocalFile) {
 	// Never re-match a locked (manually matched) file
 	if lf.Locked && lf.MediaId != 0 {
@@ -131,21 +135,22 @@ func (m *Matcher) matchLocalFileWithMedia(lf *anime.LocalFile) {
 	//
 	// Everything else stays in the "unmatched" bucket (MediaId == 0) until the
 	// user explicitly resolves it.
-	if !lf.Locked {
-		lf.MediaId = 0
+	if !legacyAutoMatchEnabled {
+		if !lf.Locked {
+			lf.MediaId = 0
+		}
+		if m.ScanLogger != nil {
+			m.ScanLogger.LogMatcher(zerolog.DebugLevel).
+				Str("filename", lf.Name).
+				Msg("Auto-matching disabled; file left unmatched")
+		}
+		if m.ScanSummaryLogger != nil {
+			m.ScanSummaryLogger.LogUnmatched(lf, "Auto-matching is disabled — resolve manually from the Unmatched view")
+		}
+		return
 	}
-	if m.ScanLogger != nil {
-		m.ScanLogger.LogMatcher(zerolog.DebugLevel).
-			Str("filename", lf.Name).
-			Msg("Auto-matching disabled; file left unmatched")
-	}
-	if m.ScanSummaryLogger != nil {
-		m.ScanSummaryLogger.LogUnmatched(lf, "Auto-matching is disabled — resolve manually from the Unmatched view")
-	}
-	return
 
-	//nolint:govet // Code below is intentionally unreachable: legacy auto-match
-	// is preserved for reference but disabled per user request.
+	// Legacy auto-match, kept for reference but switched off (legacyAutoMatchEnabled).
 	defer util.HandlePanicInModuleThenS("scanner/matcher/matchLocalFileWithMedia", func(stackTrace string) {
 		if !lf.Locked {
 			lf.MediaId = 0
@@ -305,7 +310,7 @@ func (m *Matcher) validateMatchGroup(mediaId int, lfs []*anime.LocalFile) {
 			}
 			return
 		}
-		
+
 		if !comparison.ValueContainsSpecial(lf.Name) && !comparison.ValueContainsNC(lf.Name) {
 			t := lf.GetParsedTitle()
 			if compRes, ok := comparison.FindBestMatchWithSorensenDice(&t, titles); ok {
@@ -350,7 +355,7 @@ func (m *Matcher) validateMatchGroup(mediaId int, lfs []*anime.LocalFile) {
 func (m *Matcher) tryAnilistNameMatching(lf *anime.LocalFile, titleVariations []*string) bool {
 	// Try to match against AniList names with 92.5% threshold
 	anilistThreshold := 0.925 // 92.5%
-	
+
 	for _, titleVar := range titleVariations {
 		// Try English titles first
 		if len(m.MediaContainer.engTitles) > 0 {
@@ -365,7 +370,7 @@ func (m *Matcher) tryAnilistNameMatching(lf *anime.LocalFile, titleVariations []
 							Found:     found,
 						}
 						hook.GlobalHookManager.OnScanLocalFileMatched().Trigger(event)
-						
+
 						if !event.DefaultPrevented && event.Match != nil {
 							lf.MediaId = event.Match.ID
 							if m.ScanLogger != nil {
@@ -383,7 +388,7 @@ func (m *Matcher) tryAnilistNameMatching(lf *anime.LocalFile, titleVariations []
 				}
 			}
 		}
-		
+
 		// Try Romaji titles
 		if len(m.MediaContainer.romTitles) > 0 {
 			if rom, found := comparison.FindBestMatchWithSorensenDice(titleVar, m.MediaContainer.romTitles); found {
@@ -397,7 +402,7 @@ func (m *Matcher) tryAnilistNameMatching(lf *anime.LocalFile, titleVariations []
 							Found:     found,
 						}
 						hook.GlobalHookManager.OnScanLocalFileMatched().Trigger(event)
-						
+
 						if !event.DefaultPrevented && event.Match != nil {
 							lf.MediaId = event.Match.ID
 							if m.ScanLogger != nil {
@@ -416,7 +421,7 @@ func (m *Matcher) tryAnilistNameMatching(lf *anime.LocalFile, titleVariations []
 			}
 		}
 	}
-	
+
 	return false // No high-confidence AniList name match found
 }
 
@@ -601,7 +606,7 @@ func (m *Matcher) tryOriginalMatching(lf *anime.LocalFile, titleVariations []*st
 		Found:     found,
 	}
 	hook.GlobalHookManager.OnScanLocalFileMatched().Trigger(event)
-	
+
 	if !event.DefaultPrevented && event.Match != nil && finalRating >= m.Threshold {
 		lf.MediaId = event.Match.ID
 		if m.ScanLogger != nil {

@@ -98,6 +98,10 @@ func IntegerToOrdinal(number int) string {
 // e.g. "12-11" -> 1, "3+4" -> 7
 func EvaluateSimpleExpression(expr string) (int, error) {
 	expr = strings.TrimSpace(expr)
+	// A rule's Episode field may hold the whole "calc(...)" rather than just what is inside it.
+	if lower := strings.ToLower(expr); strings.HasPrefix(lower, "calc(") && strings.HasSuffix(expr, ")") {
+		expr = strings.TrimSpace(expr[len("calc(") : len(expr)-1])
+	}
 	if expr == "" {
 		return 0, fmt.Errorf("empty expression")
 	}

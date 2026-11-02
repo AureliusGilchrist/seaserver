@@ -94,10 +94,8 @@ func (c *CachedReadSeeker) Seek(offset int64, whence int) (int64, error) {
 			return 0, err
 		}
 		target = end + offset
-		// Cache the end position for future SeekEnd calls
-		if int64(len(c.cache)) < end {
-			c.cache = append(c.cache, make([]byte, end-int64(len(c.cache)))...)
-		}
+		// The cache only ever holds bytes actually read from the source. It used to be padded with
+		// zeros up to the end here, and every later read in that range returned zeros as data.
 	default:
 		return 0, fmt.Errorf("invalid whence: %d", whence)
 	}

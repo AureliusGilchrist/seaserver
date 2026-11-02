@@ -79,7 +79,8 @@ func VersionIsOlderThan(version string, compare string) bool {
 	return comp < 0 && shouldUpdate
 }
 
-var allowedGitHubOwners = []string{"5rahim"}
+// The fork publishes its own releases; upstream stays allowed for its assets.
+var allowedGitHubOwners = []string{"AureliusGilchrist", "5rahim"}
 
 // validateReleaseUrl checks that the URL points to a GitHub release asset
 // from an allowed owner.

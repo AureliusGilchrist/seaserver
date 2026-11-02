@@ -274,8 +274,10 @@ func (f *LocalFile) GetFolderTitle() string {
 	folderTitles := make([]string, 0)
 	if f.ParsedFolderData != nil && len(f.ParsedFolderData) > 0 {
 		// Go through each folder data and keep the ones with a title
+		// Folders that hold a show's extras (Opening, Ending, Extras…) are named for what is in them,
+		// not for the show, so they never stand in as its title.
 		data := lo.Filter(f.ParsedFolderData, func(fpd *LocalFileParsedData, _ int) bool {
-			return len(fpd.Title) > 0
+			return len(fpd.Title) > 0 && !isExtrasFolderTitle(fpd.Title)
 		})
 		if len(data) == 0 {
 			return ""
@@ -465,4 +467,14 @@ func (f *LocalFile) GetTitleVariations() []*string {
 
 	return lo.ToSlicePtr(titleVariations)
 
+}
+
+// isExtrasFolderTitle reports whether a folder name only says what kind of extras it holds.
+func isExtrasFolderTitle(title string) bool {
+	switch strings.ToLower(strings.TrimSpace(title)) {
+	case "opening", "openings", "ending", "endings", "op", "ops", "ed", "eds", "ncop", "nced", "ncops", "nceds",
+		"op & ed", "op&ed", "extra", "extras", "bonus", "menu", "menus", "trailer", "trailers", "pv", "cm", "cms":
+		return true
+	}
+	return false
 }

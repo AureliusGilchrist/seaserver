@@ -1,7 +1,6 @@
 package util
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/Masterminds/semver/v3"
@@ -297,11 +296,6 @@ func TestValidateReleaseUrl(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.url, func(t *testing.T) {
-			if strings.Contains(tt.url, "/AureliusGilchrist/") {
-				// Known bug: allowedGitHubOwners in version.go still lists only the upstream owner,
-				// so the fork's own release assets are rejected.
-				t.Skip("allowedGitHubOwners is missing AureliusGilchrist; fix version.go first")
-			}
 			err := ValidateReleaseUrl(tt.url)
 			valid := err == nil
 			assert.Equal(t, tt.expectedOutput, valid)

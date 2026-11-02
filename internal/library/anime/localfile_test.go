@@ -8,20 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// skipOnWindowsSeparateFilePath skips tests that read folder data from anime.NewLocalFile on Windows.
-// Known bug: filesystem.SeparateFilePath splits filepath.Dir's result on "/", but on Windows
-// filepath.Dir turns the slashes back into backslashes, so all folders end up as one dirname.
-// (SeparateFilePathS wraps the Dir call in filepath.ToSlash and is not affected.)
-func skipOnWindowsSeparateFilePath(t *testing.T) {
-	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("filesystem.SeparateFilePath breaks folder names on Windows; fix mediapath.go first")
-	}
-}
-
 func TestNewLocalFile(t *testing.T) {
-	skipOnWindowsSeparateFilePath(t)
-
 	tests := []struct {
 		path              string
 		libraryPath       string
