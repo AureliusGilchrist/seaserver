@@ -463,12 +463,14 @@ export function LandingLibraryInsightsWidget() {
     )
 }
 
-export function LandingContinueReadingWidget() {
+export function LandingContinueReadingWidget({ onHoverImage }: {
+    onHoverImage?: (imageUrl: string | null) => void
+}) {
     const { entries, isLoading } = useMangaContinueReadingList()
     if (isLoading) {
         return <div className="px-4 py-6 text-sm text-[--muted]">Loading your reading list…</div>
     }
-    return <MangaContinueReading list={entries} withTitle />
+    return <MangaContinueReading list={entries} withTitle onHoverImage={onHoverImage} />
 }
 
 /**
@@ -661,4 +663,3 @@ export function NewsRow({ item, withDescription = true }: { item: RssItem, withD
         </a>
     )
 }
-

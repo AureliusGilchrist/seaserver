@@ -45,6 +45,7 @@ export function LandingHub() {
     const { continueWatchingList, isLoading: isLibraryLoading } = useHandleLibraryCollection()
 
     const [settingsOpen, setSettingsOpen] = useAtom(__landingSettingsModalOpen)
+    const [hoverImage, setHoverImage] = React.useState<string | null>(null)
     const heroRef = React.useRef<HTMLElement>(null)
 
     React.useEffect(() => {
@@ -98,8 +99,8 @@ export function LandingHub() {
                     isHomeScreen
                     override={{ image: resolveLandingImage(look.banner), position: look.bannerPosition, opacity: look.bannerOpacity }}
                 />
-                : (readingEnabled && ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Dynamic)
-                    ? <LandingContinueBanner episodes={continueWatchingList} />
+                : ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Dynamic
+                    ? <LandingContinueBanner hoverImage={hoverImage} />
                     : !look.wallpaper && <CustomLibraryBanner discrete />}
             <PageWrapper className="relative mx-auto min-h-[100svh] w-full max-w-[1800px] space-y-6 overflow-x-hidden px-3 py-4 sm:space-y-8 sm:px-5 sm:py-6 lg:space-y-10 lg:px-8 xl:px-10">
                 {/* Hero */}
@@ -142,10 +143,11 @@ export function LandingHub() {
                             episodes={continueWatchingList}
                             isLoading={isLibraryLoading}
                             showWhenEmpty
+                            onHoverImage={setHoverImage}
                         />
                     </div>
                 )}
-                {firstWidgetId === "continue-watching" && readingEnabled && <LandingWidget id="continue-reading" />}
+                {firstWidgetId === "continue-watching" && readingEnabled && <LandingWidget id="continue-reading" onHoverImage={setHoverImage} />}
 
                 {quickLinksWidget && (
                     <div className="relative z-[1]">
@@ -172,6 +174,7 @@ export function LandingHub() {
                             id={widget.id}
                             continueWatchingList={continueWatchingList}
                             isLibraryLoading={isLibraryLoading}
+                            onHoverImage={setHoverImage}
                         />
                     </div>
                 ))}
@@ -193,10 +196,11 @@ function greeting() {
     return "Good evening"
 }
 
-function LandingWidget({ id, continueWatchingList = [], isLibraryLoading = false }: {
+function LandingWidget({ id, continueWatchingList = [], isLibraryLoading = false, onHoverImage }: {
     id: LandingWidgetId
     continueWatchingList?: ReturnType<typeof useHandleLibraryCollection>["continueWatchingList"]
     isLibraryLoading?: boolean
+    onHoverImage?: (imageUrl: string | null) => void
 }) {
     switch (id) {
         case "quick-links":
@@ -216,13 +220,13 @@ function LandingWidget({ id, continueWatchingList = [], isLibraryLoading = false
         case "continue-watching":
             return (
                 <div className="relative z-[1] rounded-3xl border border-white/10 bg-black/20 p-4 shadow-xl shadow-black/20 backdrop-blur-md sm:p-5">
-                    <ContinueWatching episodes={continueWatchingList} isLoading={isLibraryLoading} withTitle showWhenEmpty />
+                    <ContinueWatching episodes={continueWatchingList} isLoading={isLibraryLoading} withTitle showWhenEmpty onHoverImage={onHoverImage} />
                 </div>
             )
         case "continue-reading":
             return (
                 <div className="relative z-[1] rounded-3xl border border-white/10 bg-black/20 p-4 shadow-xl shadow-black/20 backdrop-blur-md empty:hidden sm:p-5">
-                    <LandingContinueReadingWidget />
+                    <LandingContinueReadingWidget onHoverImage={onHoverImage} />
                 </div>
             )
         case "to-watch":

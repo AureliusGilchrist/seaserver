@@ -27,11 +27,12 @@ import { seaCommand_compareMediaTitles } from "../../_features/sea-command/utils
 
 export const __libraryHeaderEpisodeAtom = atom<Anime_Episode | null>(null)
 
-export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle, showWhenEmpty }: {
+export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle, showWhenEmpty, onHoverImage }: {
     episodes: Anime_Episode[],
     isLoading: boolean
     linkTemplate?: string
     withTitle?: boolean
+    onHoverImage?: (imageUrl: string | null) => void
     /** Keep the section (with a short note) when there is nothing in progress, e.g. on the landing page. */
     showWhenEmpty?: boolean
 }) {
@@ -188,6 +189,7 @@ export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle,
                                         overrideLink={linkTemplate}
                                         spoilerActive={spoilerActive ?? false}
                                         watchHistory={watchHistory}
+                                        onHoverImage={onHoverImage}
                                         badge={episode.baseAnime?.status === "RELEASING" ? <OngoingEpisodeBadge /> : episode.baseAnime?.status === "FINISHED" ? <FinishedEpisodeBadge /> : undefined}
                                     />
                                 </div>
@@ -237,13 +239,14 @@ function OngoingEpisodeBadge() {
     )
 }
 
-const _EpisodeCard = React.memo(({ episode, mRef, overrideLink, spoilerActive, watchHistory, badge }: {
+const _EpisodeCard = React.memo(({ episode, mRef, overrideLink, spoilerActive, watchHistory, badge, onHoverImage }: {
     episode: Anime_Episode,
     mRef: React.RefObject<any>,
     overrideLink?: string
     spoilerActive: boolean
     watchHistory: Continuity_WatchHistory | undefined
     badge?: React.ReactNode
+    onHoverImage?: (imageUrl: string | null) => void
 }) => {
     const serverStatus = useServerStatus()
     const router = useRouter()
@@ -299,6 +302,7 @@ const _EpisodeCard = React.memo(({ episode, mRef, overrideLink, spoilerActive, w
                 title: episode?.baseAnime?.title?.userPreferred,
             }}
             onMouseEnter={() => {
+                onHoverImage?.(episode.baseAnime?.bannerImage || episode.baseAnime?.coverImage?.extraLarge || episode.baseAnime?.coverImage?.large || null)
                 React.startTransition(() => {
                     setHeaderImage({
                         bannerImage: episode.baseAnime?.bannerImage || null,
@@ -306,6 +310,7 @@ const _EpisodeCard = React.memo(({ episode, mRef, overrideLink, spoilerActive, w
                     })
                 })
             }}
+            onMouseLeave={() => onHoverImage?.(null)}
             allowAnimeInfo
             mRef={mRef}
             onClick={() => {
@@ -324,4 +329,3 @@ const _EpisodeCard = React.memo(({ episode, mRef, overrideLink, spoilerActive, w
         />
     )
 })
-

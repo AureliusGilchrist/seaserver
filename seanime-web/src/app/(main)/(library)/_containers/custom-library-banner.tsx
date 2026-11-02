@@ -14,6 +14,8 @@ type CustomLibraryBannerProps = {
     isLibraryScreen?: boolean // Anime library or manga library
     /** Draw this image rather than the app-wide banner. */
     override?: { image: string, position: string, opacity: number }
+    /** Fade the banner image layer while keeping it mounted for an exit transition. */
+    visible?: boolean
 }
 
 export function CustomLibraryBanner(props: CustomLibraryBannerProps) {
@@ -21,7 +23,7 @@ export function CustomLibraryBanner(props: CustomLibraryBannerProps) {
      * Library screens: Shows the custom banner IF theme settings are set to use a custom banner
      * Other pages: Shows the custom banner
      */
-    const { discrete, isLibraryScreen, isHomeScreen, override } = props
+    const { discrete, isLibraryScreen, isHomeScreen, override, visible = true } = props
     const ts = useThemeSettings()
     const image = React.useMemo(() => override?.image || (ts.libraryScreenCustomBannerImage ? getAssetUrl(ts.libraryScreenCustomBannerImage) : ""),
         [override?.image, ts.libraryScreenCustomBannerImage])
@@ -64,7 +66,7 @@ export function CustomLibraryBanner(props: CustomLibraryBannerProps) {
                 />
                 <motion.div
                     initial={{ opacity: 0 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    animate={{ opacity: visible ? 1 : 0, y: 0 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 1, delay: 0.2 }}
                     className={cn(

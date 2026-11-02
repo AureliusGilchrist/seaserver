@@ -102,7 +102,7 @@ export function MainSidebar() {
             <AppSidebar
                 ref={containerRef}
                 className={cn(
-                    "group/main-sidebar h-full flex flex-col justify-between transition-gpu w-full transition-[width] duration-300 overflow-x-hidden",
+                    "group/main-sidebar relative z-20 h-full flex flex-col justify-between transition-gpu w-full transition-[width] duration-300 overflow-x-hidden",
                     // Enable scrolling but hide the scrollbar
                     "overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']",
                     (!ctx.isBelowBreakpoint && expandedSidebar) && "w-[260px]",
@@ -112,20 +112,26 @@ export function MainSidebar() {
                 onMouseEnter={handleExpandSidebar}
                 onMouseLeave={handleUnexpandedSidebar}
             >
+                <div
+                    aria-hidden="true"
+                    className="pointer-events-none fixed inset-y-0 left-0 z-0 w-20 bg-gradient-to-r from-black/25 via-black/10 to-transparent"
+                />
                 {(!ctx.isBelowBreakpoint && ts.expandSidebarOnHover && ts.disableSidebarTransparency) && <div
                     className={cn(
-                        "fixed h-full translate-x-0 w-[50px] bg-gradient bg-gradient-to-r via-[--background] from-[--background] to-transparent",
+                        "fixed z-0 h-full translate-x-0 w-[50px] bg-gradient bg-gradient-to-r via-[--background] from-[--background] to-transparent",
                         "group-hover/main-sidebar:translate-x-[250px] transition opacity-0 duration-300 group-hover/main-sidebar:opacity-100",
                     )}
                 ></div>}
 
-                <SidebarNavigation
-                    isCollapsed={isCollapsed}
-                    containerRef={containerRef}
-                />
+                <div className="relative z-10">
+                    <SidebarNavigation
+                        isCollapsed={isCollapsed}
+                        containerRef={containerRef}
+                    />
+                </div>
 
                 {/* The phone dock sits over the bottom of the drawer: leave room to scroll past it. */}
-                <div className="flex w-full gap-2 flex-col px-4 shrink-0 pb-2 [html[data-sea-dock]_&]:pb-28">
+                <div className="relative z-10 flex w-full gap-2 flex-col px-4 shrink-0 pb-2 [html[data-sea-dock]_&]:pb-28">
                     <SidebarUpdates isCollapsed={isCollapsed} />
                     <SidebarFooter isCollapsed={isCollapsed} onLogout={logout} />
                     <SidebarUser expandedSidebar={expandedSidebar} onLogout={logout} isCollapsed={isCollapsed} />

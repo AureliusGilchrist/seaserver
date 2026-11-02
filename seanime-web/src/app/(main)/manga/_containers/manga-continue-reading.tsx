@@ -149,9 +149,7 @@ export function MangaContinueReading({ list, onHoverImage, withTitle }: MangaCon
                                 className="basis-[9.5rem] md:basis-[11rem] lg:basis-[12rem]"
                             >
                                 <div
-                                    onMouseEnter={() => {
-                                        if (hoverImage) onHoverImage?.(hoverImage)
-                                    }}
+                                    onMouseEnter={() => onHoverImage?.(hoverImage)}
                                     onMouseLeave={() => onHoverImage?.(null)}
                                 >
                                     <MediaEntryCardWrapper item={item} />
