@@ -87,7 +87,7 @@ func checkAnilistRelatedMediaNotifications(c *JobCtx) {
 	}
 
 	client := c.App.AnilistClientRef.Get()
-	if client == nil || !client.IsAuthenticated() {
+	if !canPollAnilistNotifications(client) {
 		return
 	}
 
@@ -112,7 +112,7 @@ func checkProfileAnilistNotifications(c *JobCtx) {
 			continue
 		}
 		client := c.App.AnilistClientManager.GetClient(profile.ID)
-		if client == nil || !client.IsAuthenticated() {
+		if !canPollAnilistNotifications(client) {
 			continue
 		}
 		database, err := c.App.ProfileDatabaseManager.GetDatabase(profile.ID)
@@ -123,6 +123,19 @@ func checkProfileAnilistNotifications(c *JobCtx) {
 		}
 		persistAnilistNotifications(c, client, []string{"AIRING", "RELATED_MEDIA_ADDITION"}, []*db.Database{database})
 	}
+}
+
+// canPollAnilistNotifications reports whether the client has a token AniList hasn't refused.
+// A rejected client is skipped until its token changes (a new login replaces the client),
+// rather than sending the same refused token every run.
+func canPollAnilistNotifications(client anilist.AnilistClient) bool {
+	if client == nil || !client.IsAuthenticated() {
+		return false
+	}
+	if r, ok := client.(interface{ TokenRejected() bool }); ok && r.TokenRejected() {
+		return false
+	}
+	return true
 }
 
 func persistAnilistNotifications(c *JobCtx, client anilist.AnilistClient, types []string, databases []*db.Database) {

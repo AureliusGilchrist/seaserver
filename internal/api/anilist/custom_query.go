@@ -10,11 +10,20 @@ import (
 	"seanime/internal/constants"
 	"seanime/internal/util"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/goccy/go-json"
 	"github.com/rs/zerolog"
 )
+
+// ErrTokenRejected is returned by a raw query when AniList refused the token it was sent: an HTTP
+// 401, or an "Invalid token" / "Unauthorized" GraphQL error on a request that carried a token.
+// A request sent without a token never returns it — that is a missing login, not a bad one.
+var ErrTokenRejected = errors.New("anilist: token rejected")
+
+// customQueryURL is where raw queries go. A variable only so tests can point it at a local server.
+var customQueryURL = constants.AnilistApiUrl
 
 func CustomQuery(body map[string]interface{}, logger *zerolog.Logger, token string) (data interface{}, err error) {
 	bodyBytes, err := json.Marshal(body)
@@ -92,14 +101,15 @@ func customQueryWithContext(ctx context.Context, body []byte, logger *zerolog.Lo
 		requestCtx, cancel = context.WithTimeout(ctx, anilistRequestTimeout)
 		defer cancel()
 	}
-	req, err = http.NewRequestWithContext(requestCtx, "POST", constants.AnilistApiUrl, bytes.NewBuffer(body))
+	req, err = http.NewRequestWithContext(requestCtx, "POST", customQueryURL, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	if len(token) > 0 && token[0] != "" {
+	sentToken := len(token) > 0 && token[0] != ""
+	if sentToken {
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token[0]))
 	}
 
@@ -156,6 +166,10 @@ func customQueryWithContext(ctx context.Context, body []byte, logger *zerolog.Lo
 
 	defer resp.Body.Close()
 
+	if sentToken && resp.StatusCode == http.StatusUnauthorized {
+		return nil, fmt.Errorf("%w: status 401", ErrTokenRejected)
+	}
+
 	if resp.Header.Get("Content-Encoding") == "gzip" {
 		resp.Body, err = gzip.NewReader(resp.Body)
 		if err != nil {
@@ -176,7 +190,11 @@ func customQueryWithContext(ctx context.Context, body []byte, logger *zerolog.Lo
 	if ok && len(reqErrors) > 0 {
 		firstError, foundErr := reqErrors[0].(map[string]interface{})
 		if foundErr {
-			return nil, errors.New(firstError["message"].(string))
+			message, _ := firstError["message"].(string)
+			if sentToken && isTokenRejectedMessage(message) {
+				return nil, fmt.Errorf("%w: %s", ErrTokenRejected, message)
+			}
+			return nil, errors.New(message)
 		}
 	}
 
@@ -186,4 +204,10 @@ func customQueryWithContext(ctx context.Context, body []byte, logger *zerolog.Lo
 	}
 
 	return data, nil
+}
+
+// isTokenRejectedMessage reports whether a GraphQL error message is AniList refusing the token.
+func isTokenRejectedMessage(message string) bool {
+	m := strings.TrimSuffix(strings.TrimSpace(strings.ToLower(message)), ".")
+	return m == "invalid token" || m == "unauthorized"
 }

@@ -102,6 +102,9 @@ type (
 		// rateLimited tracks whether we are currently in a rate-limited state so we
 		// only send the recovery "online" event once.
 		rateLimited atomic.Bool
+		// tokenRejected is set once AniList refuses this client's token. The client is replaced
+		// (and the flag with it) when the profile's token changes.
+		tokenRejected atomic.Bool
 	}
 )
 
@@ -155,6 +158,21 @@ func (ac *AnilistClientImpl) broadcastTokenExpired() {
 	ac.wsEventManager.SendEvent(eventName, payload)
 }
 
+// TokenRejected reports whether AniList has refused this client's token. Background pollers skip
+// such a client instead of resending the same rejected token every run.
+func (ac *AnilistClientImpl) TokenRejected() bool {
+	return ac.tokenRejected.Load()
+}
+
+// markTokenRejected flags the token as refused, logging and broadcasting only the first time.
+func (ac *AnilistClientImpl) markTokenRejected() {
+	if !ac.tokenRejected.CompareAndSwap(false, true) {
+		return
+	}
+	ac.logger.Error().Msg("anilist: token expired or invalid (401) — re-authentication required")
+	ac.broadcastTokenExpired()
+}
+
 // NewAnilistClient creates a new AnilistClientImpl with the given token.
 // The token is used for authorization when making requests to the AniList API.
 func NewAnilistClient(token string, cacheDir string) *AnilistClientImpl {
@@ -196,8 +214,18 @@ func (ac *AnilistClientImpl) GetCacheDir() string {
 	return ac.cacheDir
 }
 
+// CustomQuery runs a raw GraphQL query. With no token argument it uses the client's own token, so
+// authenticated-only queries (notifications, viewer) work without the caller threading it through.
 func (ac *AnilistClientImpl) CustomQuery(body []byte, logger *zerolog.Logger, token ...string) (data interface{}, err error) {
-	return customQuery(body, logger, token...)
+	t := ac.token
+	if len(token) > 0 && token[0] != "" {
+		t = token[0]
+	}
+	data, err = customQuery(body, logger, t)
+	if errors.Is(err, ErrTokenRejected) && t == ac.token {
+		ac.markTokenRejected()
+	}
+	return data, err
 }
 
 ////////////////////////////////
@@ -574,6 +602,7 @@ func (ac *AnilistClientImpl) customDoFunc(ctx context.Context, req *http.Request
 		if resp.StatusCode == 401 {
 			resp.Body.Close()
 			ac.logger.Error().Msg("anilist: token expired or invalid (401) — re-authentication required")
+			ac.tokenRejected.Store(true)
 			ac.broadcastTokenExpired()
 			break
 		}
