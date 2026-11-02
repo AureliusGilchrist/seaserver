@@ -763,13 +763,13 @@ function createTray() {
         }
     }
     ] : []), {
-        id: "quit", label: "Quit Seaserver Denshi", click: () => {
+        id: "quit", label: "Quit Deus Ex Aeternae Client", click: () => {
             cleanupAndExit()
         }
     }
     ])
 
-    tray.setToolTip("Seaserver Denshi")
+    tray.setToolTip("Deus Ex Aeternae Client")
 
     if (process.platform !== "darwin") {
         tray.setContextMenu(contextMenu)

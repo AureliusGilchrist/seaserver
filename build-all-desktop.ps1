@@ -158,7 +158,7 @@ function Get-InstalledDenshi {
     foreach ($r in $roots) {
         try {
             $hit = Get-ItemProperty $r -ErrorAction SilentlyContinue |
-                Where-Object { $_.DisplayName -eq 'Seaserver Denshi' } |
+                Where-Object { $_.DisplayName -eq 'Deus Ex Aeternae Client' } |
                 Select-Object -First 1
             if ($hit) { return $hit }
         } catch { }
@@ -199,7 +199,7 @@ function Print-Stats {
 
 $StartTime = Get-Date
 
-BoxTitle 'Seaserver Denshi Build (Windows)'
+BoxTitle 'Deus Ex Aeternae Client Build (Windows)'
 Print-Stats
 
 # Count this run up front so failed runs show up in the stats too
@@ -294,11 +294,11 @@ Invoke-BuildStep '5.2' 'Release locks on previous build output' -Dir $DenshiDir 
     # electron-builder runs rcedit to stamp the icon and version strings into the packaged
     # exe, rewriting its resources in place. That write fails with
     #   Fatal error: Unable to commit changes
-    # whenever something still holds a handle on the file - most often a Seaserver Denshi
+    # whenever something still holds a handle on the file - most often a Deus Ex Aeternae Client
     # left running from a previous session, or a scanner that grabbed the exe moments after
     # the asar integrity step wrote it. electron-builder retries and usually wins the race,
     # but clearing the two common causes up front keeps the build quiet and deterministic.
-    foreach ($procName in @('Seaserver Denshi', 'seanime-server-windows', 'seanime')) {
+    foreach ($procName in @('Deus Ex Aeternae Client', 'seanime-server-windows', 'seanime')) {
         $procs = Get-Process -Name $procName -ErrorAction SilentlyContinue
         foreach ($p in $procs) {
             Write-Host "  Stopping running process: $($p.Name) (pid $($p.Id))"
@@ -374,7 +374,7 @@ Divider
 Write-Host 'Outputs:'
 Write-Host "  $esc[1mStandalone:$esc[0m  ./seanime.exe + ./web/  $esc[2m(what a browser talks to)$esc[0m"
 Write-Host "  $esc[1mSidecar:$esc[0m     seanime-denshi/binaries/seanime-server-windows.exe"
-Write-Host "  $esc[1mFresh app:$esc[0m   seanime-denshi/dist/win-unpacked/Seaserver Denshi.exe"
+Write-Host "  $esc[1mFresh app:$esc[0m   seanime-denshi/dist/win-unpacked/Deus Ex Aeternae Client.exe"
 Write-Host "  $esc[1mInstaller:$esc[0m   seanime-denshi/dist/ (NSIS .exe)"
 Divider
 
@@ -409,7 +409,7 @@ Print-Stats
 Divider
 
 if ($Launch) {
-    $app = Join-Path $DenshiDir 'dist\win-unpacked\Seaserver Denshi.exe'
+    $app = Join-Path $DenshiDir 'dist\win-unpacked\Deus Ex Aeternae Client.exe'
     if (Test-Path $app) {
         SubStep "Launching $app"
         Start-Process -FilePath $app

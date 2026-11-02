@@ -1,4 +1,4 @@
-# Seaserver Denshi Mobile
+# Deus Ex Aeternae Client Mobile
 
 A connect-only, phone-shaped Electron client for Seaserver. It hosts nothing — it builds its own
 frontend from the `seanime-web` checkout on this machine, then connects to the Seaserver instance

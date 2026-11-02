@@ -1,6 +1,6 @@
 {
   "name": "seanime-denshi-mobile",
-  "version": "5.5.0-25",
+  "version": "5.5.0-27",
   "description": "Mobile-shaped, connect-only Electron client for Seaserver",
   "main": "src/main.js",
   "author": "5rahim <talkwithrahim@gmail.com>",
@@ -32,7 +32,7 @@
       "customDir": "v39.2.7"
     },
     "appId": "app.seanine.denshi.mobile",
-    "productName": "Seaserver Denshi Mobile",
+    "productName": "Deus Ex Aeternae Client Mobile",
     "asar": true,
     "extraResources": [
       {
@@ -89,7 +89,7 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "deleteAppDataOnUninstall": false,
-      "shortcutName": "Seaserver Denshi Mobile",
+      "shortcutName": "Deus Ex Aeternae Client Mobile",
       "artifactName": "seanime-denshi-mobile-${version}_Windows_${arch}.${ext}"
     },
     "directories": {

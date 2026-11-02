@@ -1,4 +1,4 @@
-# Seaserver Denshi Mobile — Android
+# Deus Ex Aeternae Client Mobile — Android
 
 Connect-only Android client for a Seaserver, built with Capacitor. It is the phone counterpart
 of `seanime-denshi-mobile` (the Electron client): it never hosts anything itself, it connects to

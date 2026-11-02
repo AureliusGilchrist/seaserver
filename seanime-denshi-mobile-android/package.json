@@ -1,7 +1,7 @@
 {
     "name": "seanime-denshi-mobile-android",
-    "version": "5.5.0-25",
-    "description": "Seaserver Denshi Mobile - the Android (APK) shell of the Denshi Mobile client: a Capacitor wrapper around the seanime-web mobile build that hot-swaps in newer frontend bundles published to the server.",
+    "version": "5.5.0-27",
+    "description": "Deus Ex Aeternae Client Mobile - the Android (APK) shell of the Denshi Mobile client: a Capacitor wrapper around the seanime-web mobile build that hot-swaps in newer frontend bundles published to the server.",
     "private": true,
     "scripts": {
         "sync": "node scripts/build-www.mjs && cap sync android",

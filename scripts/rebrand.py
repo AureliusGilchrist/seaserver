@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Rebrand visible 'Seanime' strings to 'Deus Ex Aeternae' in whitelisted files.
 
-- 'Seanime Denshi' (desktop client references) becomes 'Seaserver Denshi'.
+- 'Seanime Denshi' (desktop client references) becomes 'Deus Ex Aeternae Client'.
 - Code identifiers (headers, cookies, settings keys, component names, paths) are protected.
 """
 import os
@@ -121,7 +121,7 @@ def unprotect(s: str) -> str:
 def process(content: str) -> tuple[str, int]:
     content = protect(content)
     # Desktop client name first, so the generic pass doesn't mangle it.
-    content = content.replace("Seanime Denshi", "Seaserver Denshi")
+    content = content.replace("Seanime Denshi", "Deus Ex Aeternae Client")
     count = content.count("Seanime")
     content = content.replace("Seanime", APP)
     content = unprotect(content)

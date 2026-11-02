@@ -88,7 +88,7 @@ export function PlaybackSettings(props: PlaybackSettingsProps) {
 
             {__isElectronDesktop__ && (
                 <SettingsCard
-                    title="Seaserver Denshi"
+                    title="Deus Ex Aeternae Client"
                     className="border-2 border-dashed dark:border-gray-700 bg-gradient-to-r from-indigo-50/50 to-pink-50/50 dark:from-gray-900/20 dark:to-gray-900/20"
                 >
                     <div className="space-y-4">
