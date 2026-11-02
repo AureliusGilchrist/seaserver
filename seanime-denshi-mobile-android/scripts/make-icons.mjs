@@ -41,11 +41,11 @@ for (const [density, size] of Object.entries(mipmapSizes)) {
 }
 
 // Adaptive icon layers (API 26+): the vector XML foreground is replaced by plain PNGs —
-// foreground scaled so the emblem's safe area survives the 108/72 viewport crop.
+// foreground scaled to fill the adaptive icon safe area without clipping the outer ring.
 const adaptiveSizes = { mdpi: 108, hdpi: 162, xhdpi: 216, xxhdpi: 324, xxxhdpi: 432 }
 for (const [density, size] of Object.entries(adaptiveSizes)) {
     const foreground = await sharp(art)
-        .resize(Math.round(size * 0.55), Math.round(size * 0.55))
+        .resize(Math.round(size * 0.72), Math.round(size * 0.72))
         .png()
         .toBuffer()
     await sharp({
