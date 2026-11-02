@@ -1342,9 +1342,9 @@ function absoluteUrl(u: string): string {
 
 export function ThemeBackgroundImage({ url, dim, dimMode = "fade", blur, exposure, saturation, contrast, scanlinesStrength = 0, scanlinesSize = 0.5, noiseStrength = 0, noiseSpeed = 1, noiseScale = 1, vignetteStrength = 0, vignetteSize = 0.5, glowStrength = 0, glowSpeed = 2, glowScale = 0.5, hologramStrength = 0, effectsOnly = false }: { url: string; effectsOnly?: boolean; dim?: number; /** "fade" lowers the image's opacity over a dark underlay; "darken" keeps it opaque and lowers its brightness. */ dimMode?: "fade" | "darken"; blur?: number; exposure?: number; saturation?: number; contrast?: number; scanlinesStrength?: number; scanlinesSize?: number; noiseStrength?: number; noiseSpeed?: number; noiseScale?: number; vignetteStrength?: number; vignetteSize?: number; glowStrength?: number; glowSpeed?: number; glowScale?: number; hologramStrength?: number }) {
     const previewMode = useAtomValue(wallpaperPreviewModeAtom)
-    // The wallpaper never goes above ~50% opacity so page text stays readable on busy images.
+    // The Dim slider is the only thing that dims the wallpaper: 0 means fully vivid, on every page.
     const darken = dimMode === "darken"
-    const effectiveDim = previewMode && !darken ? 0.05 : darken ? Math.min(Math.max(dim ?? 0.5, 0), 0.95) : Math.max(dim ?? 0.65, 0.5)
+    const effectiveDim = previewMode && !darken ? 0.05 : darken ? Math.min(Math.max(dim ?? 0.5, 0), 0.95) : Math.min(Math.max(dim ?? 0.30, 0), 0.95)
     // Darken: the picture stays solid and only gets darker, so its colours don't wash into the page.
     const opacity = darken ? 1 : 1 - effectiveDim
     const brightness = (exposure ?? 1) * (darken ? 1 - effectiveDim : 1)
@@ -1370,7 +1370,11 @@ export function ThemeBackgroundImage({ url, dim, dimMode = "fade", blur, exposur
                     backgroundRepeat: "no-repeat",
                     opacity,
                     filter: filterParts.length > 0 ? filterParts.join(" ") : undefined,
-                    boxShadow: "inset 0 0 120px 40px rgba(0,0,0,0.5), inset 0 0 40px 20px rgba(0,0,0,0.3)",
+                    // Edge shading follows the Dim slider (full strength at dim 0.5+, none at 0) so an
+                    // undimmed wallpaper has no darkening the user didn't ask for.
+                    boxShadow: effectiveDim > 0
+                        ? `inset 0 0 120px 40px rgba(0,0,0,${(0.5 * Math.min(effectiveDim / 0.5, 1)).toFixed(3)}), inset 0 0 40px 20px rgba(0,0,0,${(0.3 * Math.min(effectiveDim / 0.5, 1)).toFixed(3)})`
+                        : undefined,
                 }}
             />}
             {/* Scanlines - static overlay (no animation to avoid lag) */}
