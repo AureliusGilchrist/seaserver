@@ -7,7 +7,6 @@ import { useDownloadingAnime } from "@/app/(main)/_atoms/downloading.atoms"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import {
     __torrentDownload_matchSeasonOneAtom as matchSeasonOneAtom,
-    MATCH_SEASON_ONE_DISABLED_HELP,
     MATCH_SEASON_ONE_HELP,
     MATCH_SEASON_ONE_LABEL,
 } from "@/app/(main)/entry/_containers/torrent-search/torrent-download-auto-match"
@@ -69,7 +68,17 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
     const [picks, setPicks] = React.useState<EnqueueFuture_AutoPick[]>([])
     const [removed, setRemoved] = React.useState<Set<number>>(() => new Set())
 
-    const [autoMatch, setAutoMatch] = React.useState(true)
+    // Decided per torrent: on unless you turned it off for that row. Reset with each batch.
+    const [autoMatchOff, setAutoMatchOff] = React.useState<Set<number>>(() => new Set())
+    const isAutoMatch = (mediaId: number) => !autoMatchOff.has(mediaId)
+    function setAutoMatchFor(mediaId: number, value: boolean) {
+        setAutoMatchOff(prev => {
+            const next = new Set(prev)
+            if (value) next.delete(mediaId)
+            else next.add(mediaId)
+            return next
+        })
+    }
     const [matchSeasonOne, setMatchSeasonOne] = useAtom(matchSeasonOneAtom)
 
     const { mutateAsync: autoPick, isPending: isPicking } = useAutoPickEnqueueFuture()
@@ -93,6 +102,7 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
         setBatchIds(next)
         setPicks([])
         setRemoved(new Set())
+        setAutoMatchOff(new Set())
         setError(null)
         if (!next.length) return
         const req = ++requestRef.current
@@ -153,8 +163,8 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
                         destination,
                         smartSelect: { enabled: false, missingEpisodeNumbers: [] },
                         media,
-                        autoMatch,
-                        matchSeasonOneOnly: autoMatch && matchSeasonOne,
+                        autoMatch: isAutoMatch(pick.mediaId),
+                        matchSeasonOneOnly: isAutoMatch(pick.mediaId) && matchSeasonOne,
                     })
                     addDownloadingAnime(pick.mediaId)
                     ok++
@@ -241,6 +251,16 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
                                         {pick.dualAudio && <span className="ml-2 text-[--brand] font-semibold">Dual Audio</span>}
                                     </p>
                                 </div>
+                                <div className="flex-none pt-0.5" title="Match this one into your library automatically when it finishes">
+                                    <Switch
+                                        size="sm"
+                                        label="Auto-match"
+                                        value={isAutoMatch(pick.mediaId)}
+                                        onValueChange={v => setAutoMatchFor(pick.mediaId, v)}
+                                        disabled={!!downloading}
+                                        data-enqueue-future-auto-torrent-row-auto-match
+                                    />
+                                </div>
                                 <IconButton
                                     size="sm"
                                     intent="gray-basic"
@@ -277,18 +297,36 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
             )}
 
             <div className="space-y-2 border-t pt-3">
-                <Switch
-                    label="Match automatically when finished"
-                    value={autoMatch}
-                    onValueChange={setAutoMatch}
-                    disabled={!!downloading}
-                />
+                <div className="flex flex-wrap items-center gap-2 text-sm text-[--muted]">
+                    <span>Match automatically when finished:</span>
+                    <span className="text-[--foreground]">
+                        {toDownload.filter(p => isAutoMatch(p.mediaId)).length} of {toDownload.length}
+                    </span>
+                    <Button
+                        size="xs"
+                        intent="gray-subtle"
+                        disabled={!!downloading}
+                        onClick={() => setAutoMatchOff(new Set())}
+                        data-enqueue-future-auto-torrent-auto-match-all-on
+                    >
+                        All on
+                    </Button>
+                    <Button
+                        size="xs"
+                        intent="gray-subtle"
+                        disabled={!!downloading}
+                        onClick={() => setAutoMatchOff(new Set(withTorrent.map(p => p.mediaId)))}
+                        data-enqueue-future-auto-torrent-auto-match-all-off
+                    >
+                        All off
+                    </Button>
+                </div>
                 <Switch
                     label={MATCH_SEASON_ONE_LABEL}
-                    help={autoMatch ? MATCH_SEASON_ONE_HELP : MATCH_SEASON_ONE_DISABLED_HELP}
+                    help={MATCH_SEASON_ONE_HELP + " Applies to the torrents with auto-match on."}
                     value={matchSeasonOne}
                     onValueChange={setMatchSeasonOne}
-                    disabled={!autoMatch || !!downloading}
+                    disabled={!!downloading}
                 />
             </div>
 
