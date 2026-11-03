@@ -2,6 +2,7 @@
 
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
+import { invalidateAllQueriesExceptPlayback } from "@/api/client/invalidate-all"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { getConnectivity, setConnectivity, setOfflineForced } from "@/lib/server/connectivity"
 import { WSEvents } from "@/lib/server/ws-events"
@@ -16,7 +17,7 @@ export function ConnectivityListener() {
     const update = React.useCallback((next: string | undefined) => {
         const wasOnline = getConnectivity() === "online"
         setConnectivity(next)
-        if (!wasOnline && getConnectivity() === "online") void queryClient.invalidateQueries()
+        if (!wasOnline && getConnectivity() === "online") void invalidateAllQueriesExceptPlayback(queryClient)
     }, [queryClient])
 
     React.useEffect(() => update(serverStatus?.connectivity), [serverStatus?.connectivity, update])

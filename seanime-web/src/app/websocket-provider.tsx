@@ -1,3 +1,4 @@
+import { invalidateAllQueriesExceptPlayback } from "@/api/client/invalidate-all"
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { profileSessionTokenAtom, serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { websocketAtom, WebSocketContext } from "@/app/(main)/_atoms/websocket.atoms"
@@ -137,7 +138,7 @@ function ServerDownModal() {
         setReason(null)
         if (wasDown.current) {
             wasDown.current = false
-            queryClient.invalidateQueries()
+            void invalidateAllQueriesExceptPlayback(queryClient)
         }
     }, [isConnected])
 
