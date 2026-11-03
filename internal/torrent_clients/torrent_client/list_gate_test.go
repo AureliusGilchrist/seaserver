@@ -79,3 +79,35 @@ func TestQbitListGateBacksOffAfterFailure(t *testing.T) {
 		t.Fatalf("success should reset the backoff, got %v", g.backoff)
 	}
 }
+
+func TestQbitListTTLScalesWithFetchTime(t *testing.T) {
+	cases := []struct {
+		took, want time.Duration
+	}{
+		{100 * time.Millisecond, qbitListTTL},
+		{4 * time.Second, 12 * time.Second},
+		{50 * time.Second, qbitListTTLCap},
+	}
+	for _, c := range cases {
+		if got := qbitListTTLFor(c.took); got != c.want {
+			t.Errorf("took %v: got %v want %v", c.took, got, c.want)
+		}
+	}
+}
+
+// A slow list is reused rather than fetched again straight away.
+func TestQbitListGateReusesSlowListLonger(t *testing.T) {
+	g := newQbitListGate()
+	var calls atomic.Int32
+	fetch := func() ([]*qbittorrent_model.Torrent, error) {
+		calls.Add(1)
+		time.Sleep(500 * time.Millisecond)
+		return []*qbittorrent_model.Torrent{{Name: "a"}}, nil
+	}
+	_, _ = g.get("k", fetch)
+	time.Sleep(1100 * time.Millisecond) // past the plain one-second TTL
+	_, _ = g.get("k", fetch)
+	if n := calls.Load(); n != 1 {
+		t.Fatalf("expected the slow list to be reused, got %d fetches", n)
+	}
+}

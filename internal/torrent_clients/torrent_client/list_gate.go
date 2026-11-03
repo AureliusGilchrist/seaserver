@@ -25,6 +25,15 @@ import (
 //   - a list that just arrived is reused for a moment rather than fetched again;
 //   - a list request that failed is not retried by every caller straight away: further asks get
 //     the same error until a growing backoff has passed, giving the client room to recover.
+//
+// Both waits scale with how slow qBittorrent actually is. With a fixed one-second reuse and a
+// five-second first backoff, a qBittorrent bogged down by a burst of large adds had a full list
+// request from us in front of it almost without pause: each one took up to the 60-second timeout,
+// and qBittorrent keeps building a list after we stop waiting for it, so the next one queued
+// behind the last. It only recovered once the server was stopped. Now a list that took long to
+// build is reused for longer (qbitListTTLFactor times its build time), and the wait after a
+// failure is never shorter than the failed request itself — so at least half of qBittorrent's
+// time is its own while it is struggling. A fast client sees no difference.
 type qbitListGate struct {
 	group singleflight.Group
 
@@ -38,6 +47,8 @@ type qbitListGate struct {
 type qbitListEntry struct {
 	torrents []*qbittorrent_model.Torrent
 	at       time.Time
+	// ttl is how long this list may be reused, from how long it took to fetch.
+	ttl time.Duration
 }
 
 const (
@@ -46,8 +57,17 @@ const (
 	qbitListTTL = 1 * time.Second
 	// The failure backoff starts here and doubles on every consecutive failure, up to the cap.
 	qbitListBackoffBase = 5 * time.Second
-	qbitListBackoffCap  = 2 * time.Minute
+	qbitListBackoffCap  = 5 * time.Minute
+	// qbitListTTLFactor scales the reuse of a list with how long it took to build: a list that took
+	// four seconds is reused for twelve. Capped so a one-off stall cannot freeze the list for long.
+	qbitListTTLFactor = 3
+	qbitListTTLCap    = 60 * time.Second
 )
+
+// qbitListTTLFor is how long a list that took took to fetch may be reused.
+func qbitListTTLFor(took time.Duration) time.Duration {
+	return min(max(qbitListTTL, took*qbitListTTLFactor), qbitListTTLCap)
+}
 
 func newQbitListGate() *qbitListGate {
 	return &qbitListGate{cache: make(map[string]qbitListEntry)}
@@ -56,7 +76,7 @@ func newQbitListGate() *qbitListGate {
 // get returns the list for key, from the cache, a request already in flight, or a new request.
 func (g *qbitListGate) get(key string, fetch func() ([]*qbittorrent_model.Torrent, error)) ([]*qbittorrent_model.Torrent, error) {
 	g.mu.Lock()
-	if e, ok := g.cache[key]; ok && time.Since(e.at) < qbitListTTL {
+	if e, ok := g.cache[key]; ok && time.Since(e.at) < e.ttl {
 		g.mu.Unlock()
 		return e.torrents, nil
 	}
@@ -68,7 +88,9 @@ func (g *qbitListGate) get(key string, fetch func() ([]*qbittorrent_model.Torren
 	g.mu.Unlock()
 
 	v, err, _ := g.group.Do(key, func() (interface{}, error) {
+		started := time.Now()
 		torrents, err := fetch()
+		took := time.Since(started)
 
 		g.mu.Lock()
 		defer g.mu.Unlock()
@@ -78,14 +100,17 @@ func (g *qbitListGate) get(key string, fetch func() ([]*qbittorrent_model.Torren
 			} else {
 				g.backoff = min(g.backoff*2, qbitListBackoffCap)
 			}
+			// Never ask again sooner than the failed request lasted: a timed-out list is still
+			// being built on qBittorrent's side for about that long.
+			wait := max(g.backoff, took)
 			g.failErr = err
-			g.failUntil = time.Now().Add(g.backoff)
+			g.failUntil = time.Now().Add(wait)
 			return nil, err
 		}
 		g.backoff = 0
 		g.failErr = nil
 		g.failUntil = time.Time{}
-		g.cache[key] = qbitListEntry{torrents: torrents, at: time.Now()}
+		g.cache[key] = qbitListEntry{torrents: torrents, at: time.Now(), ttl: qbitListTTLFor(took)}
 		return torrents, nil
 	})
 	if err != nil {
