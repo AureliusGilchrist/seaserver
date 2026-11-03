@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require("electron")
+const { contextBridge, ipcRenderer, webFrame } = require("electron")
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -142,6 +142,17 @@ contextBridge.exposeInMainWorld(
         platform: process.platform,
 
         // Clipboard
+        // Fork: the Interface size setting. Native page zoom, so every coordinate the page reads
+        // (pointer events, element rects, window size) stays in one space; the web app falls back to
+        // CSS zoom where this is missing.
+        zoom: {
+            setFactor: (factor) => {
+                const f = Number(factor)
+                if (Number.isFinite(f) && f >= 0.25 && f <= 5) webFrame.setZoomFactor(f)
+            },
+            getFactor: () => webFrame.getZoomFactor(),
+        },
+
         clipboard: {
             writeText: (text) => ipcRenderer.invoke("clipboard:writeText", text)
         },

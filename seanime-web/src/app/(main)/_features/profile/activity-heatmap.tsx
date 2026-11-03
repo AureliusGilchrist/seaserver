@@ -2,6 +2,7 @@
 
 import { ProfileStats_ActivityDay } from "@/api/generated/types"
 import { cn } from "@/components/ui/core/styling"
+import { getViewportCssSize, toCssRect } from "@/lib/interface-scale/interface-scale"
 import React from "react"
 
 /**
@@ -153,7 +154,7 @@ export function ActivityHeatmap({ days, compact, fill: fillOverride }: {
                 <div
                     className="fixed z-50 pointer-events-none rounded-lg border border-gray-700 bg-[--paper] px-3 py-2 shadow-lg"
                     style={{
-                        left: Math.min(hovered.x + 14, (typeof window !== "undefined" ? window.innerWidth : 1200) - 190),
+                        left: Math.min(hovered.x + 14, (typeof window !== "undefined" ? getViewportCssSize().width : 1200) - 190),
                         top: Math.max(hovered.y - 56, 8),
                     }}
                 >
@@ -214,7 +215,7 @@ function HeatmapCell({
                 isToday && "ring-1 ring-white/50",
                 cell && "hover:scale-125 hover:z-10 cursor-pointer",
             )}
-            onMouseEnter={cell && onHover ? e => onHover({ x: e.clientX, y: e.clientY, day: cell }) : undefined}
+            onMouseEnter={cell && onHover ? e => onHover({ ...cssPoint(e.clientX, e.clientY), day: cell }) : undefined}
             onMouseMove={cell && onHover ? e => onHover({ x: e.clientX, y: e.clientY, day: cell }) : undefined}
             onMouseLeave={cell && onHover ? () => onHover(null) : undefined}
         >
@@ -223,4 +224,10 @@ function HeatmapCell({
             )}
         </div>
     )
+}
+
+/** A pointer position in the px that styles use. */
+function cssPoint(x: number, y: number) {
+    const r = toCssRect({ left: x, top: y, width: 0, height: 0 })
+    return { x: r.left, y: r.top }
 }

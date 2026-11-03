@@ -109,7 +109,7 @@ export function LandingHub() {
                     <div className="relative flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-end sm:gap-6">
                         <div className="min-w-0">
                             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[--brand] sm:text-sm sm:tracking-[0.25em]">{greeting()}</p>
-                            <h1 className="mt-2 break-words text-3xl font-extrabold leading-[1.05] tracking-tight text-white drop-shadow-lg sm:text-4xl lg:text-5xl 2xl:text-6xl">
+                            <h1 className="mt-2 break-words text-3xl font-extrabold leading-[1.05] tracking-tight text-white drop-shadow-lg sm:text-4xl lg:text-6xl">
                                 {user?.viewer?.name
                                     ? <>Welcome back, <span className="bg-gradient-to-r from-brand-200 to-brand-500 bg-clip-text text-transparent">{user.viewer.name}</span></>
                                     : <>Welcome back</>}

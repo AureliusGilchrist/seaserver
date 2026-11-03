@@ -1,3 +1,4 @@
+import { getViewportCssSize, toCssRect } from "@/lib/interface-scale/interface-scale"
 const EXPAND_MS = 950
 const LAYER_Z_INDEX = "9999"
 
@@ -11,7 +12,8 @@ const LAYER_Z_INDEX = "9999"
  * reason. The layers sit on the body, so they outlive the page the card was on.
  */
 export function expandIntoPage(image: HTMLImageElement | null | undefined, navigate: () => void) {
-    const rect = image?.getBoundingClientRect()
+    const measured = image?.getBoundingClientRect()
+    const rect = measured && toCssRect(measured)
     const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
     if (!image?.currentSrc || !rect?.width || !rect.height || reducedMotion) {
         navigate()
@@ -48,9 +50,10 @@ export function expandIntoPage(image: HTMLImageElement | null | undefined, navig
 
     document.body.append(backdrop, copy)
 
-    const covering = Math.max(window.innerWidth / rect.width, window.innerHeight / rect.height) * 1.02
-    const x = window.innerWidth / 2 - (rect.left + rect.width / 2)
-    const y = window.innerHeight / 2 - (rect.top + rect.height / 2)
+    const viewport = getViewportCssSize()
+    const covering = Math.max(viewport.width / rect.width, viewport.height / rect.height) * 1.02
+    const x = viewport.width / 2 - (rect.left + rect.width / 2)
+    const y = viewport.height / 2 - (rect.top + rect.height / 2)
     const expanded = `translate(${x}px, ${y}px) scale(${covering})`
 
     backdrop.animate([

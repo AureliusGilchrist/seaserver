@@ -4,6 +4,7 @@ import { AnilistOverwriteCard } from "@/app/(main)/settings/_containers/anilist-
 import { PlaybackSettings } from "@/app/(main)/settings/_components/playback-settings"
 import { StillWatchingTiming } from "@/app/(main)/settings/_components/still-watching-timing"
 import { CardSizeSettings } from "@/app/(main)/settings/_components/card-size-settings"
+import { InterfaceSizeSettings } from "@/app/(main)/settings/_components/interface-size-settings"
 import { FranchiseSettings } from "@/app/(main)/settings/_components/franchise-settings"
 import { FrontendUpdateCard } from "@/app/(main)/settings/_containers/frontend-update-card"
 import { Button } from "@/components/ui/button"
@@ -673,6 +674,9 @@ export function ClientSettings(props: ClientSettingsProps) {
                     </PersonalSection>
 
                     <PersonalSection def={section("display")}>
+                        <SettingRow>
+                            <InterfaceSizeSettings />
+                        </SettingRow>
                         <SettingRow settingKey="smoothScrolling">
                             <Switch
                                 side="right"

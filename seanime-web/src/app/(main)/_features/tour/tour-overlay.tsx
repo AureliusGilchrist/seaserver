@@ -1,4 +1,5 @@
 import { cn } from "@/components/ui/core/styling"
+import { getViewportCssSize, toCssRect } from "@/lib/interface-scale/interface-scale"
 import { useAtomValue } from "jotai/react"
 import { AnimatePresence, motion } from "motion/react"
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
@@ -10,7 +11,7 @@ const EMPTY_RECT: Rect = { top: 0, left: 0, width: 0, height: 0 }
 
 // returns a viewport-relative rect with padding applied
 function getElementRect(el: Element, padding: number): Rect {
-    const r = el.getBoundingClientRect()
+    const r = toCssRect(el.getBoundingClientRect())
     return {
         top: r.top - padding,
         left: r.left - padding,
@@ -28,8 +29,7 @@ function computePopoverPosition(
     placement: TourStepPlacement,
     gap: number = 12,
 ): PopoverPosition {
-    const vw = window.innerWidth
-    const vh = window.innerHeight
+    const { width: vw, height: vh } = getViewportCssSize()
 
     let top = 0
     let left = 0
@@ -71,8 +71,7 @@ function resolvePlacement(
     preferred: TourStepPlacement,
     gap: number = 12,
 ): TourStepPlacement {
-    const vw = window.innerWidth
-    const vh = window.innerHeight
+    const { width: vw, height: vh } = getViewportCssSize()
 
     const spaceTop = targetRect.top - gap
     const spaceBottom = vh - (targetRect.top + targetRect.height + gap)
@@ -109,8 +108,7 @@ function resolvePlacement(
 
 // full-screen SVG with a transparent cutout over the target element
 function SpotlightOverlay({ rect, onClick }: { rect: Rect; onClick?: (e: React.MouseEvent) => void }) {
-    const vw = window.innerWidth
-    const vh = window.innerHeight
+    const { width: vw, height: vh } = getViewportCssSize()
 
     const borderRadius = 8
     const r = borderRadius
@@ -373,7 +371,7 @@ export function TourOverlay() {
     // measure the card so we can position it
     useLayoutEffect(() => {
         if (!cardRef.current) return
-        const { width, height } = cardRef.current.getBoundingClientRect()
+        const { width, height } = toCssRect(cardRef.current.getBoundingClientRect())
         setCardSize((prev) => {
             if (prev.width === width && prev.height === height) return prev
             return { width, height }

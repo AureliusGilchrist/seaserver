@@ -9,6 +9,7 @@ import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister"
 import { store } from "@/app/jotai-store"
 import { Provider as JotaiProvider } from "jotai/react"
+import { InterfaceScaleHud } from "@/lib/interface-scale/interface-scale-hud"
 import { ThemeProvider } from "next-themes"
 import React from "react"
 import { CookiesProvider } from "react-cookie"
@@ -135,6 +136,7 @@ export const ClientProviders: React.FC<ClientProvidersProps> = ({ children }) =>
                             {children}
                             <CustomThemeProvider />
                             <Toaster />
+                            <InterfaceScaleHud />
                         </WebsocketProvider>
                         <CustomCSSProvider />
                         {/*{process.env.NODE_ENV === "development" && <React.Suspense fallback={null}>*/}

@@ -5,6 +5,7 @@ import React from "react"
 import ReactDOM from "react-dom/client"
 import { ErrorBoundary, FallbackProps } from "react-error-boundary"
 import { LuffyError } from "./components/shared/luffy-error"
+import { installInterfaceScale } from "./lib/interface-scale/interface-scale"
 import { Button } from "./components/ui/button"
 import { routeTree } from "./routeTree.gen"
 import "@fontsource-variable/inter/index.css"
@@ -117,6 +118,9 @@ setTimeout(() => {
     }
     catch {}
 }, 15_000)
+
+// Interface size: applied before the first render, so the first paint is already at the chosen size.
+installInterfaceScale()
 
 ReactDOM.createRoot(document.getElementById("root")!, {
     onUncaughtError: (error, errorInfo) => {

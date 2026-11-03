@@ -74,6 +74,11 @@ declare global {
             clipboard: {
                 writeText: (text: string) => Promise<void>;
             };
+            /** Native page zoom (Interface size). Missing on shells built before it existed. */
+            zoom?: {
+                setFactor: (factor: number) => void;
+                getFactor: () => number;
+            };
             denshiSettings: {
                 get: () => Promise<DenshiSettings>;
                 set: (settings: DenshiSettings) => Promise<DenshiSettings>;

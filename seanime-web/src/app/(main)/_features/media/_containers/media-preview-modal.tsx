@@ -148,7 +148,7 @@ function Content({ entry, entryLoading, detailsLoading, details, type }: {
                 className={cn(
                     "absolute z-[0] opacity-30 w-full rounded-t-[--radius] overflow-hidden",
                     "w-full flex-none object-cover object-center z-[3] bg-[--background] h-[12rem]",
-                    ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small ? "lg:h-[23rem]" : "h-[12rem] lg:h-[22rem] 2xl:h-[30rem]",
+                    ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small ? "lg:h-[23rem]" : "h-[12rem] lg:h-[26rem]",
                 )}
             >
 
@@ -211,7 +211,7 @@ function Content({ entry, entryLoading, detailsLoading, details, type }: {
                 <Skeleton
                     className={cn(
                         "h-[12rem]",
-                        ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small ? "lg:h-[23rem]" : "h-[12rem] lg:h-[22rem] 2xl:h-[30rem]",
+                        ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small ? "lg:h-[23rem]" : "h-[12rem] lg:h-[26rem]",
                     )}
                 />
                 {/*<LoadingSpinner />*/}

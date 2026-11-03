@@ -4,6 +4,7 @@ import { useGetMangaCollection } from "@/api/hooks/manga.hooks"
 import { CARD_WIDTH_DEFAULT, CARD_WIDTH_MAX, CARD_WIDTH_MIN, usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { cn } from "@/components/ui/core/styling"
 import { setClientSettings } from "@/lib/client-settings"
+import { getViewportCssSize, useInterfaceScale } from "@/lib/interface-scale/interface-scale"
 import React from "react"
 import { LuBookOpen, LuLink, LuLink2Off, LuRotateCcw, LuTv } from "react-icons/lu"
 
@@ -193,12 +194,14 @@ function PreviewCard({ type, sample }: { type: "anime" | "manga", sample: { cove
 
 /** Roughly how many cards of a width fit across the main content area on this screen. */
 function usePerRow() {
-    const [width, setWidth] = React.useState(() => typeof window === "undefined" ? 1600 : window.innerWidth)
+    const interfaceScale = useInterfaceScale()
+    const [width, setWidth] = React.useState(() => typeof window === "undefined" ? 1600 : getViewportCssSize().width)
     React.useEffect(() => {
-        const on = () => setWidth(window.innerWidth)
+        const on = () => setWidth(getViewportCssSize().width)
+        on()
         window.addEventListener("resize", on)
         return () => window.removeEventListener("resize", on)
-    }, [])
+    }, [interfaceScale])
     return (cardWidth: number) => {
         const content = Math.max(320, width - (width >= 1024 ? 160 : 32))
         const gap = 16

@@ -1,3 +1,5 @@
+import { getCssZoom } from "@/lib/interface-scale/interface-scale"
+
 // Netflix-style hand-off from an episode card's hover preview to the player: clicking play while the
 // preview runs grows the preview's frame from the card to full-screen and fades it into the player,
 // which starts where the preview was. The preview registers its <video>; the card's click takes the
@@ -89,8 +91,8 @@ function showOverlay(video: HTMLVideoElement) {
         const rect = video.getBoundingClientRect()
         const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
         if (rect.width && !reducedMotion) {
-            const x = rect.left + rect.width / 2 - window.innerWidth / 2
-            const y = rect.top + rect.height / 2 - window.innerHeight / 2
+            const x = (rect.left + rect.width / 2 - window.innerWidth / 2) / getCssZoom()
+            const y = (rect.top + rect.height / 2 - window.innerHeight / 2) / getCssZoom()
             canvas.animate([
                 { transform: `translate(${x}px, ${y}px) scale(${rect.width / window.innerWidth})` },
                 { transform: "none" },

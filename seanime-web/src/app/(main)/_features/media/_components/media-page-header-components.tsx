@@ -85,7 +85,7 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
                 data-media-page-header-banner
                 className={cn(
                     "w-full scroll-locked-offset flex-none object-cover object-center z-[3] bg-[--background] h-[20rem]",
-                    ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small ? "lg:h-[28rem]" : "h-[20rem] lg:h-[32rem] 2xl:h-[34rem]",
+                    ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small ? "lg:h-[28rem]" : "h-[20rem] lg:h-[34rem]",
                     isFixedBanner ? "fixed top-0 will-change-[opacity]" : "absolute -top-[5rem]",
                     !ts.disableSidebarTransparency && TRANSPARENT_SIDEBAR_BANNER_IMG_STYLE,
                     shouldHideBanner && "bg-transparent",
@@ -399,8 +399,8 @@ export function MediaPageHeaderEntryDetails(props: MediaPageHeaderEntryDetailsPr
                     <div className="space-y-1.5" data-media-page-header-entry-details-title-container>
                         <TextGenerateEffect
                             className={cn(
-                                "[text-shadow:_0_2px_18px_rgb(0_0_0_/_35%)] text-white line-clamp-2 pb-1 text-center lg:text-left text-pretty text-3xl 2xl:text-5xl font-bold tracking-tight xl:max-w-[50vw]",
-                                smallerTitle && "text-3xl 2xl:text-3xl",
+                                "[text-shadow:_0_2px_18px_rgb(0_0_0_/_35%)] text-white line-clamp-2 pb-1 text-center lg:text-left text-pretty text-3xl lg:text-5xl font-bold tracking-tight xl:max-w-[50vw]",
+                                smallerTitle && "text-3xl lg:text-3xl",
                             )}
                             words={title || ""}
                         />

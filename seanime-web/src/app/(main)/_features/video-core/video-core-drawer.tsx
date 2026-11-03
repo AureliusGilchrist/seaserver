@@ -2,6 +2,7 @@ import { vc_containerElement } from "@/app/(main)/_features/video-core/video-cor
 import { vc_miniPlayerSize } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { CloseButton } from "@/components/ui/button"
 import { cn, ComponentAnatomy, defineStyleAnatomy } from "@/components/ui/core/styling"
+import { getCssZoom, getViewportCssSize } from "@/lib/interface-scale/interface-scale"
 import { __isDesktop__ } from "@/types/constants"
 import type * as DialogPrimitive from "@radix-ui/react-dialog"
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
@@ -258,8 +259,9 @@ export function VideoCoreDrawer(props: DrawerProps) {
         const width = window.innerWidth >= 1024 ? 400 : 300 // lg:w-[400px] w-[300px]
         const height = width * (9 / 16) // aspect-video
 
-        const rightBoundary = window.innerWidth - width - PADDING
-        const bottomBoundary = window.innerHeight - height - PADDING
+        const viewport = getViewportCssSize()
+        const rightBoundary = viewport.width - width - PADDING
+        const bottomBoundary = viewport.height - height - PADDING
 
         return { x: rightBoundary, y: bottomBoundary }
     }, [])
@@ -283,9 +285,9 @@ export function VideoCoreDrawer(props: DrawerProps) {
 
         return {
             leftBoundary: 80 + PADDING,
-            rightBoundary: window.innerWidth - width - PADDING,
+            rightBoundary: getViewportCssSize().width - width - PADDING,
             topBoundary: PADDING,
-            bottomBoundary: window.innerHeight - height - PADDING,
+            bottomBoundary: getViewportCssSize().height - height - PADDING,
             width,
             height,
         }
@@ -312,8 +314,9 @@ export function VideoCoreDrawer(props: DrawerProps) {
         const handleMouseMove = (e: MouseEvent) => {
             if (!isDragging || !contentRef.current) return
 
-            const deltaX = e.clientX - dragStartPos.current.x
-            const deltaY = e.clientY - dragStartPos.current.y
+            // Pointer px to style px (they differ under the Interface size CSS zoom).
+            const deltaX = (e.clientX - dragStartPos.current.x) / getCssZoom()
+            const deltaY = (e.clientY - dragStartPos.current.y) / getCssZoom()
             if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) hasDraggedRef.current = true
             if (!hasDraggedRef.current) return
 
@@ -323,8 +326,8 @@ export function VideoCoreDrawer(props: DrawerProps) {
             // Follow the pointer anywhere, only keeping the player fully on screen.
             const newX = elementStartPos.current.x + deltaX
             const newY = elementStartPos.current.y + deltaY
-            const maxX = window.innerWidth - boundaries.width
-            const maxY = window.innerHeight - boundaries.height
+            const maxX = getViewportCssSize().width - boundaries.width
+            const maxY = getViewportCssSize().height - boundaries.height
             setIsHidden(false)
             setPosition({
                 x: Math.max(0, Math.min(newX, maxX)),
@@ -370,7 +373,7 @@ export function VideoCoreDrawer(props: DrawerProps) {
 
                 // If hidden, maintain hidden state but adjust position
                 if (isHidden) {
-                    newX = window.innerWidth - boundaries.width * 0.1
+                    newX = getViewportCssSize().width - boundaries.width * 0.1
                 } else {
                     // Ensure position is within new boundaries
                     newX = Math.max(boundaries.leftBoundary, Math.min(prevPosition.x, boundaries.rightBoundary))
@@ -404,8 +407,8 @@ export function VideoCoreDrawer(props: DrawerProps) {
 
             // Bottom-left grip: dragging left grows the width, dragging down grows the
             // height. The panel stays aspect-locked to 16:9 so the picture never distorts.
-            const dx = resizeStartPos.current.x - e.clientX
-            const newWidth = Math.round(Math.max(280, Math.min(window.innerWidth * 0.85, resizeStartSize.current.width + dx)))
+            const dx = (resizeStartPos.current.x - e.clientX) / getCssZoom()
+            const newWidth = Math.round(Math.max(280, Math.min(getViewportCssSize().width * 0.85, resizeStartSize.current.width + dx)))
             const newHeight = Math.round(newWidth * (9 / 16))
 
             const size = { width: newWidth, height: newHeight }
@@ -497,8 +500,9 @@ export function VideoCoreDrawer(props: DrawerProps) {
         if (!miniPlayer || !contentRef.current) return
 
         const el = contentRef.current
-        const maxX = Math.max(80 + PADDING, window.innerWidth - el.offsetWidth - PADDING)
-        const maxY = Math.max(PADDING, window.innerHeight - el.offsetHeight - PADDING)
+        const { width: viewportW, height: viewportH } = getViewportCssSize()
+        const maxX = Math.max(80 + PADDING, viewportW - el.offsetWidth - PADDING)
+        const maxY = Math.max(PADDING, viewportH - el.offsetHeight - PADDING)
 
         setPosition(prev => {
             const x = Math.min(Math.max(80 + PADDING, prev.x), maxX)
@@ -521,8 +525,8 @@ export function VideoCoreDrawer(props: DrawerProps) {
         motionAnimationRef.current?.cancel()
 
         if (!browserViewTransitionActive && previousRect && didToggleMiniPlayer && currentRect.width > 0 && currentRect.height > 0) {
-            const deltaX = previousRect.left - currentRect.left
-            const deltaY = previousRect.top - currentRect.top
+            const deltaX = (previousRect.left - currentRect.left) / getCssZoom()
+            const deltaY = (previousRect.top - currentRect.top) / getCssZoom()
             const scaleX = previousRect.width / currentRect.width
             const scaleY = previousRect.height / currentRect.height
 
