@@ -50,6 +50,13 @@ export type TrayExtraItem = {
     spinning?: boolean
 }
 
+/** Exact up to 999, then compact ("1.2k", "12k") so the pill stays small. */
+function formatTrayBadge(n: number): string {
+    if (n < 1000) return String(n)
+    const k = n / 1000
+    return `${k < 10 ? (Math.floor(k * 10) / 10).toString() : Math.floor(k)}k`
+}
+
 function TrayExtraButtons({ items, onNavigate }: { items: TrayExtraItem[], onNavigate?: () => void }) {
     return (
         <>
@@ -64,8 +71,18 @@ function TrayExtraButtons({ items, onNavigate }: { items: TrayExtraItem[], onNav
                     >
                         {Icon && <Icon className={cn("size-[1.15rem]", item.spinning && "animate-spin")} />}
                         {!!item.badge && item.badge > 0 && (
-                            <span className="absolute -right-2.5 -top-1.5 lg:-right-1 lg:-top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[0.6rem] font-bold text-black">
-                                {item.badge > 99 ? "99+" : item.badge}
+                            <span
+                                className={cn(
+                                    "pointer-events-none absolute -right-2 -top-1 lg:-right-1.5 lg:-top-1.5 z-[1]",
+                                    "flex h-[1.05rem] min-w-[1.05rem] items-center justify-center rounded-full px-[0.3rem]",
+                                    // Gold coin: light-to-deep amber with a top highlight, a dark ring that
+                                    // cuts it off the icon, and a soft glow.
+                                    "bg-gradient-to-b from-amber-200 via-amber-400 to-amber-600 text-amber-950",
+                                    "ring-2 ring-[--background] shadow-[0_0_8px_rgba(251,191,36,0.45),inset_0_1px_0_rgba(255,255,255,0.6)]",
+                                    "text-[0.6rem] font-extrabold leading-none tabular-nums tracking-tight",
+                                )}
+                            >
+                                {formatTrayBadge(item.badge)}
                             </span>
                         )}
                     </span>

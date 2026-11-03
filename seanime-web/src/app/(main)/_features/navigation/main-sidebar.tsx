@@ -100,10 +100,13 @@ export function MainSidebar() {
     return (
         <>
             {/* Full-height scrim behind the icons: above page content/banner, below the sidebar UI.
-                Kept outside AppSidebar so the sidebar's transform/overflow can't clip or pin it. */}
+                Kept outside AppSidebar so the sidebar's transform/overflow can't clip or pin it.
+                Near-solid black at the left edge, fading out past the slim sidebar's (5rem) right edge,
+                so the icons read over bright wallpapers and banners. rem-sized, so it follows the
+                Interface size zoom; desktop only (the phone drawer has its own background). */}
             <div
                 aria-hidden="true"
-                className="pointer-events-none fixed inset-y-0 left-0 z-[15] hidden w-24 bg-gradient-to-r from-black/40 via-black/20 to-transparent lg:block"
+                className="pointer-events-none fixed inset-y-0 left-0 z-[15] hidden w-36 bg-[linear-gradient(to_right,rgba(0,0,0,0.92)_0%,rgba(0,0,0,0.8)_30%,rgba(0,0,0,0.45)_55%,rgba(0,0,0,0.15)_78%,transparent_100%)] lg:block"
             />
             <AppSidebar
                 ref={containerRef}
