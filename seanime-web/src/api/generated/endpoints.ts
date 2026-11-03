@@ -166,6 +166,11 @@ export const API_ENDPOINTS = {
             methods: ["GET", "POST"],
             endpoint: "/api/v1/anilist/collection/raw",
         },
+        SetAnilistRewatches: {
+            key: "ANILIST-set-anilist-rewatches",
+            methods: ["POST"],
+            endpoint: "/api/v1/anilist/list-entry/rewatch",
+        },
         /**
          *  @description
          *  Route updates the user's list entry on Anilist.
@@ -1385,6 +1390,18 @@ export const API_ENDPOINTS = {
             methods: ["POST"],
             endpoint: "/api/v1/enqueue-future/dropped/clear",
         },
+        /**
+         *  @description
+         *  Route proposes one SeaDex torrent for each of up to 40 queued anime.
+         *  Searches SeaDex live for each anime and picks the release with Dual Audio first, then the
+         *  most files, then the most seeders. Only releases with at least 2 seeders are considered, and
+         *  a TV show needs more than one file. Nothing is downloaded — the result is for review.
+         */
+        AutoPickEnqueueFuture: {
+            key: "ENQUEUE-FUTURE-auto-pick-enqueue-future",
+            methods: ["POST"],
+            endpoint: "/api/v1/enqueue-future/auto-pick",
+        },
     },
     ENTITY_FAVORITE: {
         /**
@@ -1647,6 +1664,16 @@ export const API_ENDPOINTS = {
             key: "KITSU-get-kitsu-anime-info",
             methods: ["GET"],
             endpoint: "/api/v1/kitsu/anime/{id}",
+        },
+        /**
+         *  @description
+         *  Route returns supplementary metadata for a manga from Kitsu.
+         *  This queries the Kitsu API using the manga's MAL ID. Returns found=false when there is no match.
+         */
+        GetKitsuMangaInfo: {
+            key: "KITSU-get-kitsu-manga-info",
+            methods: ["GET"],
+            endpoint: "/api/v1/kitsu/manga/{id}",
         },
     },
     KITSU_COLLECTION: {
@@ -3411,6 +3438,16 @@ export const API_ENDPOINTS = {
             methods: ["POST"],
             endpoint: "/api/v1/profile/wallpaper/upload",
         },
+        /**
+         *  @description
+         *  Route upload the landing page's wallpaper or banner for the current profile.
+         *  Only stores the file. The returned url is saved with the rest of the landing page's settings.
+         */
+        UploadLandingImage: {
+            key: "PROFILE-WALLPAPER-upload-landing-image",
+            methods: ["POST"],
+            endpoint: "/api/v1/profile/landing-image/upload",
+        },
     },
     PROFILES_TIMELINE: {
         /**
@@ -3615,6 +3652,13 @@ export const API_ENDPOINTS = {
             key: "SETTINGS-save-media-player-settings",
             methods: ["PATCH"],
             endpoint: "/api/v1/settings/media-player",
+        },
+    },
+    STAFF_CAREER: {
+        GetStaffCareer: {
+            key: "STAFF-CAREER-get-staff-career",
+            methods: ["GET"],
+            endpoint: "/api/v1/anilist/staff/{id}/career",
         },
     },
     STATUS: {

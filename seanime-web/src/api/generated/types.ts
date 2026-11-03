@@ -2895,6 +2895,25 @@ export type MangaDownloaderStatus = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
+ * - Filepath: internal/enqueuefuture/autopick.go
+ * - Filename: autopick.go
+ * - Package: enqueuefuture
+ * @description
+ *  AutoPick is the proposal for one anime.
+ */
+export type EnqueueFuture_AutoPick = {
+    mediaId: number
+    title: string
+    searchedFor: string
+    torrent?: HibikeTorrent_AnimeTorrent
+    files: number
+    dualAudio: boolean
+    reason?: string
+    media?: AL_BaseAnime
+    existingDir?: string
+}
+
+/**
  * - Filepath: internal/enqueuefuture/catalog.go
  * - Filename: catalog.go
  * - Package: enqueuefuture
@@ -3676,7 +3695,7 @@ export type HomeCounts = {
  * - Filename: kitsu.go
  * - Package: handlers
  * @description
- *  KitsuAnimeInfo is supplementary metadata for an anime pulled from Kitsu.
+ *  KitsuAnimeInfo is supplementary metadata for an anime or manga pulled from Kitsu.
  */
 export type KitsuAnimeInfo = {
     found: boolean
@@ -3703,6 +3722,9 @@ export type KitsuAnimeInfo = {
     youtubeVideoId: string
     posterImage: string
     coverImage: string
+    chapterCount: number
+    volumeCount: number
+    serialization: string
 }
 
 /**
@@ -4106,6 +4128,96 @@ export type RouteHandlerParam = {
 }
 
 /**
+ * - Filepath: internal/handlers/staff_career.go
+ * - Filename: staff_career.go
+ * - Package: handlers
+ */
+export type StaffCareer = {
+    age?: number
+    gender?: string
+    homeTown?: string
+    yearsActive?: Array<number>
+    languageV2?: string
+    favourites?: number
+    siteUrl?: string
+    dateOfBirth?: StaffCareerDate
+    dateOfDeath?: StaffCareerDate
+    /**
+     * AniList stopped answering before the last page
+     */
+    partial?: boolean
+    credits?: Array<StaffCareerCredit>
+    characters?: Array<StaffCareerVoiceRole>
+}
+
+/**
+ * - Filepath: internal/handlers/staff_career.go
+ * - Filename: staff_career.go
+ * - Package: handlers
+ */
+export type StaffCareerCharacter = {
+    id: number
+    name: StaffCareerCharacter_Name
+    image: StaffCareerCharacter_Image
+}
+
+/**
+ * - Filepath: internal/handlers/staff_career.go
+ * - Filename: staff_career.go
+ * - Package: handlers
+ */
+export type StaffCareerCharacter_Image = {
+    large: string
+}
+
+/**
+ * - Filepath: internal/handlers/staff_career.go
+ * - Filename: staff_career.go
+ * - Package: handlers
+ */
+export type StaffCareerCharacter_Name = {
+    full: string
+    native: string
+}
+
+/**
+ * - Filepath: internal/handlers/staff_career.go
+ * - Filename: staff_career.go
+ * - Package: handlers
+ * @description
+ *  StaffCareerCredit is one job on one title. The title keeps AniList's shape, which is what the media
+ *  cards take.
+ */
+export type StaffCareerCredit = {
+    staffRole: string
+    node?: any
+}
+
+/**
+ * - Filepath: internal/handlers/staff_career.go
+ * - Filename: staff_career.go
+ * - Package: handlers
+ */
+export type StaffCareerDate = {
+    year?: number
+    month?: number
+    day?: number
+}
+
+/**
+ * - Filepath: internal/handlers/staff_career.go
+ * - Filename: staff_career.go
+ * - Package: handlers
+ * @description
+ *  StaffCareerVoiceRole is a title and the characters voiced in it.
+ */
+export type StaffCareerVoiceRole = {
+    characterRole: string
+    characters?: Array<StaffCareerCharacter>
+    node?: any
+}
+
+/**
  * - Filepath: internal/handlers/status.go
  * - Filename: status.go
  * - Package: handlers
@@ -4127,9 +4239,6 @@ export type Status = {
     themeSettings?: Models_Theme
     isOffline: boolean
     connectivity: string
-    /**
-     * OfflineForced is true when offline mode was turned on by hand rather than the internet being down.
-     */
     offlineForced: boolean
     mediastreamSettings?: Models_MediastreamSettings
     torrentstreamSettings?: Models_TorrentstreamSettings
@@ -5546,9 +5655,6 @@ export type Models_AnilistSettings = {
     enableAdultContent: boolean
     blurAdultContent: boolean
     disableCacheLayer: boolean
-    /**
-     * Nothing goes to AniList at all, and changes stay pending until this is turned off.
-     */
     blockAll: boolean
     autoPauseStaleWatchingDays: number
 }

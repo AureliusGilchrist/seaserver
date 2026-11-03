@@ -1657,6 +1657,17 @@
         "required": false,
         "public": false,
         "comments": []
+      },
+      {
+        "name": "tokenRejected",
+        "jsonName": "tokenRejected",
+        "goType": "atomic.Bool",
+        "typescriptType": "Bool",
+        "usedTypescriptType": "Bool",
+        "usedStructName": "atomic.Bool",
+        "required": false,
+        "public": false,
+        "comments": []
       }
     ],
     "comments": []
@@ -31705,6 +31716,26 @@
     ]
   },
   {
+    "filepath": "../internal/connectivity/connectivity.go",
+    "filename": "connectivity.go",
+    "name": "State",
+    "formattedName": "State",
+    "package": "connectivity",
+    "fields": [],
+    "aliasOf": {
+      "goType": "string",
+      "typescriptType": "string",
+      "declaredValues": [
+        "\"online\"",
+        "\"offline\"",
+        "\"blocked\""
+      ]
+    },
+    "comments": [
+      " State is what the server can currently reach."
+    ]
+  },
+  {
     "filepath": "../internal/constants/constants.go",
     "filename": "constants.go",
     "name": "VersionsManifest",
@@ -33748,6 +33779,17 @@
         "typescriptType": "INTERNAL_ProfileManager",
         "usedTypescriptType": "INTERNAL_ProfileManager",
         "usedStructName": "core.ProfileManager",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ImageCache",
+        "jsonName": "ImageCache",
+        "goType": "proxies.ImageProxy",
+        "typescriptType": "ImageProxy",
+        "usedTypescriptType": "ImageProxy",
+        "usedStructName": "proxies.ImageProxy",
         "required": false,
         "public": true,
         "comments": []
@@ -36735,6 +36777,15 @@
       {
         "name": "DisableCacheLayer",
         "jsonName": "disableCacheLayer",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BlockAll",
+        "jsonName": "blockAll",
         "goType": "bool",
         "typescriptType": "boolean",
         "required": true,
@@ -41437,6 +41488,15 @@
         "comments": [
           " \"open\" or \"closed\""
         ]
+      },
+      {
+        "name": "TorrentEncryption",
+        "jsonName": "torrentEncryption",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [],
@@ -49844,6 +49904,24 @@
         "comments": []
       },
       {
+        "name": "deferredTitles",
+        "jsonName": "deferredTitles",
+        "goType": "map[string]bool",
+        "typescriptType": "Record\u003cstring, boolean\u003e",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "deferredManga",
+        "jsonName": "deferredManga",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "status",
         "jsonName": "status",
         "goType": "string",
@@ -49934,6 +50012,15 @@
       {
         "name": "SkippedManga",
         "jsonName": "skipped_manga",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DeferredManga",
+        "jsonName": "deferred_manga",
         "goType": "[]string",
         "typescriptType": "Array\u003cstring\u003e",
         "required": false,
@@ -50062,6 +50149,15 @@
       {
         "name": "SkippedManga",
         "jsonName": "skippedManga",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DeferredManga",
+        "jsonName": "deferredManga",
         "goType": "[]string",
         "typescriptType": "Array\u003cstring\u003e",
         "required": false,
@@ -50252,8 +50348,62 @@
         "comments": []
       },
       {
+        "name": "DeferredCount",
+        "jsonName": "deferredCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "LastError",
         "jsonName": "lastError",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "WaitingForProvider",
+        "jsonName": "waitingForProvider",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ProviderWaitAttempt",
+        "jsonName": "providerWaitAttempt",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ProviderWaitSince",
+        "jsonName": "providerWaitSince",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ProviderNextProbeAt",
+        "jsonName": "providerNextProbeAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ProviderGiveUpAt",
+        "jsonName": "providerGiveUpAt",
         "goType": "string",
         "typescriptType": "string",
         "required": true,
@@ -50389,6 +50539,103 @@
     "comments": [
       " RateLimiter enforces a max number of events within a sliding window.",
       " Simple windowed limiter suitable for low-rate operations."
+    ]
+  },
+  {
+    "filepath": "../internal/enqueuefuture/autopick.go",
+    "filename": "autopick.go",
+    "name": "AutoPick",
+    "formattedName": "EnqueueFuture_AutoPick",
+    "package": "enqueuefuture",
+    "fields": [
+      {
+        "name": "MediaID",
+        "jsonName": "mediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SearchedFor",
+        "jsonName": "searchedFor",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Torrent",
+        "jsonName": "torrent",
+        "goType": "hibiketorrent.AnimeTorrent",
+        "typescriptType": "HibikeTorrent_AnimeTorrent",
+        "usedTypescriptType": "HibikeTorrent_AnimeTorrent",
+        "usedStructName": "hibiketorrent.AnimeTorrent",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Files",
+        "jsonName": "files",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DualAudio",
+        "jsonName": "dualAudio",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Reason",
+        "jsonName": "reason",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Media",
+        "jsonName": "media",
+        "goType": "anilist.BaseAnime",
+        "typescriptType": "AL_BaseAnime",
+        "usedTypescriptType": "AL_BaseAnime",
+        "usedStructName": "anilist.BaseAnime",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ExistingDir",
+        "jsonName": "existingDir",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " AutoPick is the proposal for one anime."
     ]
   },
   {
@@ -60036,10 +60283,37 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "ChapterCount",
+        "jsonName": "chapterCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "VolumeCount",
+        "jsonName": "volumeCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Serialization",
+        "jsonName": "serialization",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [
-      " KitsuAnimeInfo is supplementary metadata for an anime pulled from Kitsu."
+      " KitsuAnimeInfo is supplementary metadata for an anime or manga pulled from Kitsu."
     ]
   },
   {
@@ -62167,6 +62441,335 @@
     "comments": []
   },
   {
+    "filepath": "../internal/handlers/staff_career.go",
+    "filename": "staff_career.go",
+    "name": "StaffCareerDate",
+    "formattedName": "StaffCareerDate",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Year",
+        "jsonName": "year",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Month",
+        "jsonName": "month",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Day",
+        "jsonName": "day",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/staff_career.go",
+    "filename": "staff_career.go",
+    "name": "StaffCareerCredit",
+    "formattedName": "StaffCareerCredit",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "StaffRole",
+        "jsonName": "staffRole",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Node",
+        "jsonName": "node",
+        "goType": "json.RawMessage",
+        "typescriptType": "any",
+        "usedStructName": "json.RawMessage",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " StaffCareerCredit is one job on one title. The title keeps AniList's shape, which is what the media",
+      " cards take."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/staff_career.go",
+    "filename": "staff_career.go",
+    "name": "StaffCareerCharacter",
+    "formattedName": "StaffCareerCharacter",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "StaffCareerCharacter_Name",
+        "inlineStructType": "struct{\nFull string `json:\"full\"`\nNative string `json:\"native\"`}",
+        "typescriptType": "StaffCareerCharacter_Name",
+        "usedTypescriptType": "{ full: string; native: string; }",
+        "usedStructName": "handlers.StaffCareerCharacter_Name",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Image",
+        "jsonName": "image",
+        "goType": "StaffCareerCharacter_Image",
+        "inlineStructType": "struct{\nLarge string `json:\"large\"`}",
+        "typescriptType": "StaffCareerCharacter_Image",
+        "usedTypescriptType": "{ large: string; }",
+        "usedStructName": "handlers.StaffCareerCharacter_Image",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/staff_career.go",
+    "filename": "staff_career.go",
+    "name": "StaffCareerCharacter_Name",
+    "formattedName": "StaffCareerCharacter_Name",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Full",
+        "jsonName": "full",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Native",
+        "jsonName": "native",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/staff_career.go",
+    "filename": "staff_career.go",
+    "name": "StaffCareerCharacter_Image",
+    "formattedName": "StaffCareerCharacter_Image",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Large",
+        "jsonName": "large",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/staff_career.go",
+    "filename": "staff_career.go",
+    "name": "StaffCareerVoiceRole",
+    "formattedName": "StaffCareerVoiceRole",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "CharacterRole",
+        "jsonName": "characterRole",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Characters",
+        "jsonName": "characters",
+        "goType": "[]StaffCareerCharacter",
+        "typescriptType": "Array\u003cStaffCareerCharacter\u003e",
+        "usedTypescriptType": "StaffCareerCharacter",
+        "usedStructName": "handlers.StaffCareerCharacter",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Node",
+        "jsonName": "node",
+        "goType": "json.RawMessage",
+        "typescriptType": "any",
+        "usedStructName": "json.RawMessage",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " StaffCareerVoiceRole is a title and the characters voiced in it."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/staff_career.go",
+    "filename": "staff_career.go",
+    "name": "StaffCareer",
+    "formattedName": "StaffCareer",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Age",
+        "jsonName": "age",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Gender",
+        "jsonName": "gender",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "HomeTown",
+        "jsonName": "homeTown",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "YearsActive",
+        "jsonName": "yearsActive",
+        "goType": "[]int",
+        "typescriptType": "Array\u003cnumber\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Language",
+        "jsonName": "languageV2",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Favourites",
+        "jsonName": "favourites",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SiteURL",
+        "jsonName": "siteUrl",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DateOfBirth",
+        "jsonName": "dateOfBirth",
+        "goType": "StaffCareerDate",
+        "typescriptType": "StaffCareerDate",
+        "usedTypescriptType": "StaffCareerDate",
+        "usedStructName": "handlers.StaffCareerDate",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DateOfDeath",
+        "jsonName": "dateOfDeath",
+        "goType": "StaffCareerDate",
+        "typescriptType": "StaffCareerDate",
+        "usedTypescriptType": "StaffCareerDate",
+        "usedStructName": "handlers.StaffCareerDate",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Partial",
+        "jsonName": "partial",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": false,
+        "public": true,
+        "comments": [
+          " AniList stopped answering before the last page"
+        ]
+      },
+      {
+        "name": "Credits",
+        "jsonName": "credits",
+        "goType": "[]StaffCareerCredit",
+        "typescriptType": "Array\u003cStaffCareerCredit\u003e",
+        "usedTypescriptType": "StaffCareerCredit",
+        "usedStructName": "handlers.StaffCareerCredit",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Characters",
+        "jsonName": "characters",
+        "goType": "[]StaffCareerVoiceRole",
+        "typescriptType": "Array\u003cStaffCareerVoiceRole\u003e",
+        "usedTypescriptType": "StaffCareerVoiceRole",
+        "usedStructName": "handlers.StaffCareerVoiceRole",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
     "filepath": "../internal/handlers/status.go",
     "filename": "status.go",
     "name": "Status",
@@ -62281,6 +62884,24 @@
       {
         "name": "IsOffline",
         "jsonName": "isOffline",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Connectivity",
+        "jsonName": "connectivity",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "OfflineForced",
+        "jsonName": "offlineForced",
         "goType": "bool",
         "typescriptType": "boolean",
         "required": true,
@@ -86284,6 +86905,28 @@
         "comments": []
       },
       {
+        "name": "SoftwareHwAccel",
+        "jsonName": "SoftwareHwAccel",
+        "goType": "HwAccelSettings",
+        "typescriptType": "HwAccelSettings",
+        "usedTypescriptType": "HwAccelSettings",
+        "usedStructName": "transcoder.HwAccelSettings",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "hwAccelStep",
+        "jsonName": "hwAccelStep",
+        "goType": "atomic.Int32",
+        "typescriptType": "Int32",
+        "usedTypescriptType": "Int32",
+        "usedStructName": "atomic.Int32",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "FfmpegPath",
         "jsonName": "FfmpegPath",
         "goType": "string",
@@ -104069,6 +104712,15 @@
         "comments": []
       },
       {
+        "name": "failClosed",
+        "jsonName": "failClosed",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "stopCh",
         "jsonName": "stopCh",
         "goType": "",
@@ -104362,6 +105014,17 @@
         "public": true,
         "comments": [
           " \"open\" or \"closed\""
+        ]
+      },
+      {
+        "name": "TorrentEncryption",
+        "jsonName": "torrentEncryption",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " \"prefer\" or \"require\""
         ]
       }
     ],
@@ -105823,6 +106486,15 @@
       {
         "name": "EnableTorrentstreamTests",
         "jsonName": "EnableTorrentstreamTests",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EnableNetworkTests",
+        "jsonName": "EnableNetworkTests",
         "goType": "bool",
         "typescriptType": "boolean",
         "required": true,
@@ -110588,6 +111260,17 @@
         "typescriptType": "TorrentClient_torrentAddQueue",
         "usedTypescriptType": "TorrentClient_torrentAddQueue",
         "usedStructName": "torrent_client.torrentAddQueue",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "qbitList",
+        "jsonName": "qbitList",
+        "goType": "qbitListGate",
+        "typescriptType": "TorrentClient_qbitListGate",
+        "usedTypescriptType": "TorrentClient_qbitListGate",
+        "usedStructName": "torrent_client.qbitListGate",
         "required": false,
         "public": false,
         "comments": []

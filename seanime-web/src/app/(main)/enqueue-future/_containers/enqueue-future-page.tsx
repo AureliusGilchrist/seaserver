@@ -12,6 +12,7 @@ import {
     useSetEnqueueFutureItemStatus,
 } from "@/api/hooks/enqueue_future.hooks"
 import { EnqueueFutureAddTorrents } from "@/app/(main)/enqueue-future/_components/enqueue-future-add-torrents"
+import { EnqueueFutureAutoTorrent } from "@/app/(main)/enqueue-future/_components/enqueue-future-auto-torrent"
 import { useGetAnimeEntry } from "@/api/hooks/anime_entries.hooks"
 import { EnqueueFutureCatalog } from "@/app/(main)/enqueue-future/_components/enqueue-future-catalog"
 import { EnqueueFutureCurrentShow } from "@/app/(main)/enqueue-future/_components/enqueue-future-current-show"
@@ -34,7 +35,7 @@ import { useAtomValue, useSetAtom } from "jotai/react"
 import React from "react"
 import { TextInput } from "@/components/ui/text-input"
 import { useDebounce } from "@/hooks/use-debounce"
-import { LuArrowDownUp, LuEye, LuEyeOff, LuGitBranch, LuLayers, LuList, LuRotateCcw, LuSearch } from "react-icons/lu"
+import { LuArrowDownUp, LuEye, LuEyeOff, LuGitBranch, LuLayers, LuList, LuRotateCcw, LuSearch, LuWandSparkles } from "react-icons/lu"
 import { toast } from "sonner"
 
 /**
@@ -302,6 +303,13 @@ export function EnqueueFuturePage() {
 
     const listItem = index >= 0 ? orderedItems[index] : undefined
 
+    // Auto torrent popup: works through every ready, undecided anime in the order drawn above.
+    const [isAutoTorrentOpen, setAutoTorrentOpen] = React.useState(false)
+    const autoTorrentCandidates = React.useMemo(
+        () => orderedItems.filter(item => isActionable(item) && isReady(item)),
+        [orderedItems],
+    )
+
     React.useEffect(() => {
         if (index >= 0) lastIndexRef.current = index
         // Keep the stored id in step with what is actually being shown, so Prev and Next move from
@@ -434,6 +442,16 @@ export function EnqueueFuturePage() {
                         only rendered with a queue on display could never reach them. Nothing here
                         removes an entry: hidden rows come back to ready and reappear. */}
                     <Button
+                        intent="primary-subtle"
+                        size="sm"
+                        leftIcon={<LuWandSparkles />}
+                        onClick={() => setAutoTorrentOpen(true)}
+                        disabled={!autoTorrentCandidates.length}
+                        data-enqueue-future-auto-torrent-button
+                    >
+                        {`Auto torrent${autoTorrentCandidates.length ? ` (${autoTorrentCandidates.length})` : ""}`}
+                    </Button>
+                    <Button
                         intent="gray-outline"
                         size="sm"
                         leftIcon={<LuRotateCcw />}
@@ -470,6 +488,12 @@ export function EnqueueFuturePage() {
                     )}
                 </div>
             </div>
+
+            <EnqueueFutureAutoTorrent
+                open={isAutoTorrentOpen}
+                onOpenChange={setAutoTorrentOpen}
+                candidates={autoTorrentCandidates}
+            />
 
             <EnqueueFutureProgress status={status} />
 

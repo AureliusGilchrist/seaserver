@@ -1048,6 +1048,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1EnqueueFuture.POST("/catalog/start", h.HandleStartEnqueueFutureCatalog)
 	v1EnqueueFuture.POST("/catalog/stop", h.HandleStopEnqueueFutureCatalog)
 	v1EnqueueFuture.GET("/catalog/waiting", h.HandleGetEnqueueFutureCatalogWaiting)
+	v1EnqueueFuture.POST("/auto-pick", h.HandleAutoPickEnqueueFuture)
 	v1EnqueueFuture.GET("/dropped", h.HandleGetEnqueueFutureDropped)
 	v1EnqueueFuture.POST("/dropped/clear", h.HandleClearEnqueueFutureDropped)
 	v1EnqueueFuture.POST("/dropped/:mediaId/restore", h.HandleRestoreEnqueueFutureDropped)

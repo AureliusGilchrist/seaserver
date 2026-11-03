@@ -1,0 +1,320 @@
+import { useServerMutation } from "@/api/client/requests"
+import { TorrentClientDownload_Variables } from "@/api/generated/endpoint.types"
+import { API_ENDPOINTS } from "@/api/generated/endpoints"
+import { EnqueueFuture_AutoPick, EnqueueFuture_Item } from "@/api/generated/types"
+import { useAutoPickEnqueueFuture } from "@/api/hooks/enqueue_future.hooks"
+import { useDownloadingAnime } from "@/app/(main)/_atoms/downloading.atoms"
+import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
+import {
+    __torrentDownload_matchSeasonOneAtom as matchSeasonOneAtom,
+    MATCH_SEASON_ONE_DISABLED_HELP,
+    MATCH_SEASON_ONE_HELP,
+    MATCH_SEASON_ONE_LABEL,
+} from "@/app/(main)/entry/_containers/torrent-search/torrent-download-auto-match"
+import { sanitizeDirectoryName } from "@/app/(main)/entry/_containers/torrent-search/torrent-download-file-selection"
+import { Button, IconButton } from "@/components/ui/button"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { Modal } from "@/components/ui/modal"
+import { Switch } from "@/components/ui/switch"
+import { upath } from "@/lib/helpers/upath"
+import { useAtom } from "jotai/react"
+import React from "react"
+import { LuX } from "react-icons/lu"
+import { toast } from "sonner"
+
+/** How many anime are proposed for review at once. */
+export const AUTO_TORRENT_BATCH_SIZE = 40
+
+/**
+ * Auto torrent: proposes a SeaDex release for each queued anime, forty at a time, for you to review.
+ *
+ * The server does the choosing (see internal/enqueuefuture/autopick.go): SeaDex only, at least two
+ * seeders, Dual Audio first, then the most files — and a TV show must have more than one file. Here
+ * you strike out anything that looks wrong with ×, then confirm; what is left is downloaded and the
+ * next forty are fetched. Closing the popup stops it and drops you back on the queue.
+ *
+ * The list of anime to work through is frozen when the popup opens, so the queue changing underneath
+ * (a run still going, a download badge arriving) never reshuffles a batch you are looking at.
+ */
+export function EnqueueFutureAutoTorrent({ open, onOpenChange, candidates }: {
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    /** Ready, actionable queue rows in the order the queue shows them. */
+    candidates: EnqueueFuture_Item[]
+}) {
+    return (
+        <Modal
+            open={open}
+            onOpenChange={onOpenChange}
+            contentClass="max-w-4xl"
+            title="Auto torrent"
+            description="SeaDex releases only · 2+ seeders · Dual Audio preferred · most files wins (TV needs more than 1)"
+            data-enqueue-future-auto-torrent-modal
+        >
+            {open && <AutoTorrentBody candidates={candidates} onExit={() => onOpenChange(false)} />}
+        </Modal>
+    )
+}
+
+function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Item[], onExit: () => void }) {
+    const serverStatus = useServerStatus()
+    const libraryPath = serverStatus?.settings?.library?.libraryPath
+
+    // Frozen on open — see the component comment.
+    const [frozen] = React.useState(() => candidates.map(c => c.mediaId))
+
+    // Every anime already put in front of you this session, whether downloaded or struck out.
+    const [handled, setHandled] = React.useState<Set<number>>(() => new Set())
+    const [batchIds, setBatchIds] = React.useState<number[]>([])
+    const [picks, setPicks] = React.useState<EnqueueFuture_AutoPick[]>([])
+    const [removed, setRemoved] = React.useState<Set<number>>(() => new Set())
+
+    const [autoMatch, setAutoMatch] = React.useState(true)
+    const [matchSeasonOne, setMatchSeasonOne] = useAtom(matchSeasonOneAtom)
+
+    const { mutateAsync: autoPick, isPending: isPicking } = useAutoPickEnqueueFuture()
+    const { mutateAsync: download } = useServerMutation<boolean, TorrentClientDownload_Variables>({
+        endpoint: API_ENDPOINTS.TORRENT_CLIENT.TorrentClientDownload.endpoint,
+        method: API_ENDPOINTS.TORRENT_CLIENT.TorrentClientDownload.methods[0],
+        mutationKey: [API_ENDPOINTS.TORRENT_CLIENT.TorrentClientDownload.key, "auto-torrent"],
+    })
+    const { addDownloadingAnime } = useDownloadingAnime()
+
+    const [downloading, setDownloading] = React.useState<{ done: number, total: number } | null>(null)
+    const [error, setError] = React.useState<string | null>(null)
+
+    const remaining = React.useMemo(() => frozen.filter(id => !handled.has(id)), [frozen, handled])
+
+    // Guards against a stale response landing after the popup moved on (or closed).
+    const requestRef = React.useRef(0)
+
+    const loadNextBatch = React.useCallback(async (from: number[]) => {
+        const next = from.slice(0, AUTO_TORRENT_BATCH_SIZE)
+        setBatchIds(next)
+        setPicks([])
+        setRemoved(new Set())
+        setError(null)
+        if (!next.length) return
+        const req = ++requestRef.current
+        try {
+            const result = await autoPick({ mediaIds: next })
+            if (req !== requestRef.current) return
+            setPicks(result ?? [])
+        }
+        catch (e: any) {
+            if (req !== requestRef.current) return
+            setError(e?.response?.data?.error || e?.message || "Could not search SeaDex")
+        }
+    }, [autoPick])
+
+    // First batch on open.
+    React.useEffect(() => {
+        void loadNextBatch(frozen)
+        return () => {
+            requestRef.current++
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+
+    const withTorrent = picks.filter(p => !!p.torrent)
+    const withoutTorrent = picks.filter(p => !p.torrent)
+    const toDownload = withTorrent.filter(p => !removed.has(p.mediaId))
+
+    function remove(mediaId: number) {
+        setRemoved(prev => new Set(prev).add(mediaId))
+    }
+
+    function finishBatch() {
+        const nextHandled = new Set(handled)
+        batchIds.forEach(id => nextHandled.add(id))
+        setHandled(nextHandled)
+        void loadNextBatch(frozen.filter(id => !nextHandled.has(id)))
+    }
+
+    async function handleConfirm() {
+        if (!toDownload.length) {
+            finishBatch()
+            return
+        }
+        setDownloading({ done: 0, total: toDownload.length })
+        let ok = 0
+        let failed = 0
+        for (const pick of toDownload) {
+            const media = pick.media
+            const romaji = media?.title?.romaji || pick.title || ""
+            const destination = pick.existingDir
+                || (libraryPath ? upath.join(libraryPath, sanitizeDirectoryName(romaji)) : "")
+            if (!media || !destination) {
+                failed++
+            } else {
+                try {
+                    await download({
+                        torrents: [pick.torrent!],
+                        destination,
+                        smartSelect: { enabled: false, missingEpisodeNumbers: [] },
+                        media,
+                        autoMatch,
+                        matchSeasonOneOnly: autoMatch && matchSeasonOne,
+                    })
+                    addDownloadingAnime(pick.mediaId)
+                    ok++
+                }
+                catch {
+                    failed++
+                }
+            }
+            setDownloading(d => d ? { ...d, done: d.done + 1 } : d)
+        }
+        setDownloading(null)
+        if (ok) toast.success(`Queued ${ok} download${ok === 1 ? "" : "s"}`)
+        if (failed) toast.error(`${failed} download${failed === 1 ? "" : "s"} could not be added`)
+        finishBatch()
+    }
+
+    const batchNumber = Math.floor((frozen.length - remaining.length) / AUTO_TORRENT_BATCH_SIZE) + 1
+    const totalBatches = Math.max(1, Math.ceil(frozen.length / AUTO_TORRENT_BATCH_SIZE))
+
+    if (!frozen.length) {
+        return (
+            <div className="py-10 text-center space-y-3">
+                <p className="text-sm text-[--muted]">Nothing in the queue is ready to auto torrent.</p>
+                <Button intent="gray-outline" onClick={onExit}>Back to Enqueue Future</Button>
+            </div>
+        )
+    }
+
+    if (!batchIds.length) {
+        return (
+            <div className="py-10 text-center space-y-3" data-enqueue-future-auto-torrent-done>
+                <p className="text-lg font-semibold">All done</p>
+                <p className="text-sm text-[--muted]">Every ready anime in the queue has been reviewed.</p>
+                <Button intent="white" onClick={onExit}>Back to Enqueue Future</Button>
+            </div>
+        )
+    }
+
+    return (
+        <div className="space-y-4" data-enqueue-future-auto-torrent>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-[--muted]">
+                <span>
+                    Batch {batchNumber} of {totalBatches} · {batchIds.length} anime
+                    {remaining.length > batchIds.length ? ` · ${remaining.length - batchIds.length} more after this` : ""}
+                </span>
+                {!isPicking && !!picks.length && (
+                    <span>
+                        <span className="text-[--foreground] font-semibold">{toDownload.length}</span> to download
+                        {withoutTorrent.length ? ` · ${withoutTorrent.length} with no pick` : ""}
+                    </span>
+                )}
+            </div>
+
+            {isPicking ? (
+                <div className="py-12 text-center space-y-3">
+                    <LoadingSpinner />
+                    <p className="text-sm text-[--muted]">Searching SeaDex for {batchIds.length} anime… this can take a minute.</p>
+                </div>
+            ) : error ? (
+                <div className="py-10 text-center space-y-3">
+                    <p className="text-sm text-red-300">{error}</p>
+                    <Button intent="gray-outline" onClick={() => void loadNextBatch(remaining)}>Try again</Button>
+                </div>
+            ) : (
+                <div className="max-h-[60vh] overflow-y-auto space-y-1 pr-1" data-enqueue-future-auto-torrent-list>
+                    {withTorrent.map(pick => {
+                        const isRemoved = removed.has(pick.mediaId)
+                        if (isRemoved) return null
+                        return (
+                            <div
+                                key={pick.mediaId}
+                                className="flex items-start gap-3 rounded-[--radius-md] border bg-gray-950 px-3 py-2"
+                                data-enqueue-future-auto-torrent-row
+                            >
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-medium break-words">{pick.torrent!.name}</p>
+                                    <p className="text-xs text-[--muted] break-words">
+                                        Looking for: <span className="text-gray-300">{pick.title}</span>
+                                        {pick.searchedFor ? ` — ${pick.searchedFor}` : ""}
+                                    </p>
+                                    <p className="text-xs text-[--muted]">
+                                        {pick.files} file{pick.files === 1 ? "" : "s"} · {pick.torrent!.seeders} seeders
+                                        {pick.torrent!.formattedSize ? ` · ${pick.torrent!.formattedSize}` : ""}
+                                        {pick.dualAudio && <span className="ml-2 text-[--brand] font-semibold">Dual Audio</span>}
+                                    </p>
+                                </div>
+                                <IconButton
+                                    size="sm"
+                                    intent="gray-basic"
+                                    icon={<LuX />}
+                                    aria-label="Remove from this batch"
+                                    onClick={() => remove(pick.mediaId)}
+                                    disabled={!!downloading}
+                                    data-enqueue-future-auto-torrent-remove
+                                />
+                            </div>
+                        )
+                    })}
+
+                    {!toDownload.length && !!withTorrent.length && (
+                        <p className="py-4 text-center text-sm text-[--muted]">Everything in this batch was removed.</p>
+                    )}
+
+                    {!!withoutTorrent.length && (
+                        <details className="pt-2">
+                            <summary className="cursor-pointer text-xs text-[--muted] select-none">
+                                {withoutTorrent.length} with no pick — left alone in the queue
+                            </summary>
+                            <div className="space-y-1 pt-1">
+                                {withoutTorrent.map(pick => (
+                                    <div key={pick.mediaId} className="px-3 py-1.5 text-xs text-[--muted] rounded-[--radius-md] border border-dashed">
+                                        <span className="text-gray-300">{pick.title || `#${pick.mediaId}`}</span>
+                                        {" — "}{pick.reason || "No pick"}
+                                    </div>
+                                ))}
+                            </div>
+                        </details>
+                    )}
+                </div>
+            )}
+
+            <div className="space-y-2 border-t pt-3">
+                <Switch
+                    label="Match automatically when finished"
+                    value={autoMatch}
+                    onValueChange={setAutoMatch}
+                    disabled={!!downloading}
+                />
+                <Switch
+                    label={MATCH_SEASON_ONE_LABEL}
+                    help={autoMatch ? MATCH_SEASON_ONE_HELP : MATCH_SEASON_ONE_DISABLED_HELP}
+                    value={matchSeasonOne}
+                    onValueChange={setMatchSeasonOne}
+                    disabled={!autoMatch || !!downloading}
+                />
+            </div>
+
+            <div className="flex flex-wrap justify-end gap-2">
+                <Button
+                    intent="gray-outline"
+                    onClick={onExit}
+                    disabled={!!downloading}
+                    data-enqueue-future-auto-torrent-exit
+                >
+                    Exit
+                </Button>
+                <Button
+                    intent="white"
+                    onClick={() => void handleConfirm()}
+                    loading={!!downloading}
+                    disabled={isPicking || !!error}
+                    data-enqueue-future-auto-torrent-confirm
+                >
+                    {downloading
+                        ? `Adding ${downloading.done}/${downloading.total}…`
+                        : toDownload.length
+                            ? `Download ${toDownload.length}${remaining.length > batchIds.length ? " & next batch" : ""}`
+                            : remaining.length > batchIds.length ? "Next batch" : "Finish"}
+                </Button>
+            </div>
+        </div>
+    )
+}

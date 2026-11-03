@@ -455,3 +455,35 @@ func (h *Handler) HandleClearEnqueueFutureDropped(c echo.Context) error {
 	}
 	return h.RespondWithData(c, true)
 }
+
+// HandleAutoPickEnqueueFuture
+//
+//	@summary proposes one SeaDex torrent for each of up to 40 queued anime.
+//	@desc Searches SeaDex live for each anime and picks the release with Dual Audio first, then the
+//	@desc most files, then the most seeders. Only releases with at least 2 seeders are considered, and
+//	@desc a TV show needs more than one file. Nothing is downloaded — the result is for review.
+//	@route /api/v1/enqueue-future/auto-pick [POST]
+//	@returns []enqueuefuture.AutoPick
+func (h *Handler) HandleAutoPickEnqueueFuture(c echo.Context) error {
+	type body struct {
+		MediaIds []int `json:"mediaIds"`
+	}
+
+	var b body
+	if err := c.Bind(&b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+	if len(b.MediaIds) == 0 {
+		return h.RespondWithData(c, []*enqueuefuture.AutoPick{})
+	}
+	if len(b.MediaIds) > enqueuefuture.AutoPickMaxBatch {
+		return h.RespondWithError(c, echo.NewHTTPError(400, fmt.Sprintf("at most %d anime at a time", enqueuefuture.AutoPickMaxBatch)))
+	}
+
+	if h.App.EnqueueFutureRepository == nil {
+		return h.RespondWithError(c, echo.NewHTTPError(500, "enqueue future is unavailable"))
+	}
+
+	picks := h.App.EnqueueFutureRepository.AutoPickTorrents(c.Request().Context(), b.MediaIds, h.torrentContentsHTTPClient())
+	return h.RespondWithData(c, picks)
+}

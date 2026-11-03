@@ -209,6 +209,17 @@
 //     })
 // }
 
+// export function useSetAnilistRewatches() {
+//     return useServerMutation<boolean, SetAnilistRewatches_Variables>({
+//         endpoint: API_ENDPOINTS.ANILIST.SetAnilistRewatches.endpoint,
+//         method: API_ENDPOINTS.ANILIST.SetAnilistRewatches.methods[0],
+//         mutationKey: [API_ENDPOINTS.ANILIST.SetAnilistRewatches.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
 // export function useEditAnilistListEntry() {
 //     return useServerMutation<true, EditAnilistListEntry_Variables>({
 //         endpoint: API_ENDPOINTS.ANILIST.EditAnilistListEntry.endpoint,
@@ -1620,6 +1631,17 @@
 //     })
 // }
 
+// export function useAutoPickEnqueueFuture() {
+//     return useServerMutation<Array<EnqueueFuture_AutoPick>, AutoPickEnqueueFuture_Variables>({
+//         endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.AutoPickEnqueueFuture.endpoint,
+//         method: API_ENDPOINTS.ENQUEUE_FUTURE.AutoPickEnqueueFuture.methods[0],
+//         mutationKey: [API_ENDPOINTS.ENQUEUE_FUTURE.AutoPickEnqueueFuture.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // entity_favorite
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2000,6 +2022,15 @@
 //         endpoint: API_ENDPOINTS.KITSU.GetKitsuAnimeInfo.endpoint.replace("{id}", String(id)),
 //         method: API_ENDPOINTS.KITSU.GetKitsuAnimeInfo.methods[0],
 //         queryKey: [API_ENDPOINTS.KITSU.GetKitsuAnimeInfo.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useGetKitsuMangaInfo(id: number) {
+//     return useServerQuery<KitsuAnimeInfo>({
+//         endpoint: API_ENDPOINTS.KITSU.GetKitsuMangaInfo.endpoint.replace("{id}", String(id)),
+//         method: API_ENDPOINTS.KITSU.GetKitsuMangaInfo.methods[0],
+//         queryKey: [API_ENDPOINTS.KITSU.GetKitsuMangaInfo.key],
 //         enabled: true,
 //     })
 // }
@@ -4184,6 +4215,17 @@
 //     })
 // }
 
+// export function useUploadLandingImage() {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.PROFILE_WALLPAPER.UploadLandingImage.endpoint,
+//         method: API_ENDPOINTS.PROFILE_WALLPAPER.UploadLandingImage.methods[0],
+//         mutationKey: [API_ENDPOINTS.PROFILE_WALLPAPER.UploadLandingImage.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // profiles_timeline
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -4478,6 +4520,19 @@
 //         onSuccess: async () => {
 // 
 //         },
+//     })
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// staff_career
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// export function useGetStaffCareer(id: number) {
+//     return useServerQuery<StaffCareer>({
+//         endpoint: API_ENDPOINTS.STAFF_CAREER.GetStaffCareer.endpoint.replace("{id}", String(id)),
+//         method: API_ENDPOINTS.STAFF_CAREER.GetStaffCareer.methods[0],
+//         queryKey: [API_ENDPOINTS.STAFF_CAREER.GetStaffCareer.key],
+//         enabled: true,
 //     })
 // }
 

@@ -1,8 +1,8 @@
 import React from "react"
 import { buildSeaQuery, useServerMutation, useServerQuery } from "@/api/client/requests"
-import { EnqueueFuture_Variables, SetEnqueueFutureItemStatus_Variables } from "@/api/generated/endpoint.types"
+import { AutoPickEnqueueFuture_Variables, EnqueueFuture_Variables, SetEnqueueFutureItemStatus_Variables } from "@/api/generated/endpoint.types"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
-import { EnqueueFuture_DroppedItem, EnqueueFuture_Item, EnqueueFuture_Status, EnqueueFuture_WaitingPage } from "@/api/generated/types"
+import { EnqueueFuture_AutoPick, EnqueueFuture_DroppedItem, EnqueueFuture_Item, EnqueueFuture_Status, EnqueueFuture_WaitingPage } from "@/api/generated/types"
 import { serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
 import { InfiniteData, keepPreviousData, useInfiniteQuery, useQueryClient } from "@tanstack/react-query"
@@ -408,5 +408,18 @@ export function useClearEnqueueFutureDropped() {
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureDropped.key] })
         },
+    })
+}
+
+/**
+ * Proposes one SeaDex torrent for each of up to 40 queued anime, for the auto-torrent review popup.
+ * Nothing is downloaded. Searches are live, so a batch can take a minute or two.
+ */
+export function useAutoPickEnqueueFuture() {
+    return useServerMutation<Array<EnqueueFuture_AutoPick>, AutoPickEnqueueFuture_Variables>({
+        endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.AutoPickEnqueueFuture.endpoint,
+        method: API_ENDPOINTS.ENQUEUE_FUTURE.AutoPickEnqueueFuture.methods[0],
+        mutationKey: [API_ENDPOINTS.ENQUEUE_FUTURE.AutoPickEnqueueFuture.key],
+        timeout: 10 * 60 * 1000,
     })
 }

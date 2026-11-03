@@ -605,6 +605,52 @@
     }
   },
   {
+    "name": "HandleSetAnilistRewatches",
+    "trimmedName": "SetAnilistRewatches",
+    "comments": [
+      "HandleSetAnilistRewatches",
+      "",
+      "\t@summary sets how many times an anime has been rewatched.",
+      "\t@route /api/v1/anilist/list-entry/rewatch [POST]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/anilist.go",
+    "filename": "anilist.go",
+    "api": {
+      "summary": "sets how many times an anime has been rewatched.",
+      "descriptions": [],
+      "endpoint": "/api/v1/anilist/list-entry/rewatch",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "MediaId",
+          "jsonName": "mediaId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "Repeat",
+          "jsonName": "repeat",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleEditAnilistListEntry",
     "trimmedName": "EditAnilistListEntry",
     "comments": [
@@ -770,6 +816,27 @@
       "returns": "[]core.QueuedListEdit",
       "returnGoType": "core.QueuedListEdit",
       "returnTypescriptType": "Array\u003cINTERNAL_QueuedListEdit\u003e"
+    }
+  },
+  {
+    "name": "lastKnownDetails",
+    "trimmedName": "lastKnownDetails",
+    "comments": [
+      "lastKnownDetails is the copy served when a live fetch can't be made: memory first, then disk.",
+      ""
+    ],
+    "filepath": "internal/handlers/anilist.go",
+    "filename": "anilist.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
     }
   },
   {
@@ -2708,6 +2775,71 @@
     }
   },
   {
+    "name": "secureEqual",
+    "trimmedName": "secureEqual",
+    "comments": [
+      "secureEqual compares two secrets in constant time, so the response time doesn't reveal how",
+      "many leading characters of a guess were right. An empty expected value never matches: an",
+      "unset password must not be satisfied by an empty header.",
+      ""
+    ],
+    "filepath": "internal/handlers/auth_guard.go",
+    "filename": "auth_guard.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "failed",
+    "trimmedName": "failed",
+    "comments": [
+      "failed records a wrong password from ip and, past the free allowance, holds the caller.",
+      ""
+    ],
+    "filepath": "internal/handlers/auth_guard.go",
+    "filename": "auth_guard.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "sweep",
+    "trimmedName": "sweep",
+    "comments": [
+      "sweep drops addresses that have been quiet for a while. Called with g.mu held.",
+      ""
+    ],
+    "filepath": "internal/handlers/auth_guard.go",
+    "filename": "auth_guard.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleRunAutoDownloader",
     "trimmedName": "RunAutoDownloader",
     "comments": [
@@ -4643,30 +4775,6 @@
     }
   },
   {
-    "name": "isSelfHostedSubtitleURL",
-    "trimmedName": "isSelfHostedSubtitleURL",
-    "comments": [
-      "isSelfHostedSubtitleURL reports whether the subtitle URL points at this server itself —",
-      "the mediastream extracted-subtitle endpoint the frontend hands back to convert-subs.",
-      "Matched by loopback hostnames and by the exact Host header the request arrived with, so",
-      "LAN-IP deployments are covered too.",
-      ""
-    ],
-    "filepath": "internal/handlers/directstream.go",
-    "filename": "directstream.go",
-    "api": {
-      "summary": "",
-      "descriptions": [],
-      "endpoint": "",
-      "methods": null,
-      "params": [],
-      "bodyFields": [],
-      "returns": "bool",
-      "returnGoType": "bool",
-      "returnTypescriptType": "boolean"
-    }
-  },
-  {
     "name": "fetchSelfHostedSubtitle",
     "trimmedName": "fetchSelfHostedSubtitle",
     "comments": [
@@ -6499,6 +6607,50 @@
     }
   },
   {
+    "name": "HandleAutoPickEnqueueFuture",
+    "trimmedName": "AutoPickEnqueueFuture",
+    "comments": [
+      "HandleAutoPickEnqueueFuture",
+      "",
+      "\t@summary proposes one SeaDex torrent for each of up to 40 queued anime.",
+      "\t@desc Searches SeaDex live for each anime and picks the release with Dual Audio first, then the",
+      "\t@desc most files, then the most seeders. Only releases with at least 2 seeders are considered, and",
+      "\t@desc a TV show needs more than one file. Nothing is downloaded — the result is for review.",
+      "\t@route /api/v1/enqueue-future/auto-pick [POST]",
+      "\t@returns []enqueuefuture.AutoPick",
+      ""
+    ],
+    "filepath": "internal/handlers/enqueue_future.go",
+    "filename": "enqueue_future.go",
+    "api": {
+      "summary": "proposes one SeaDex torrent for each of up to 40 queued anime.",
+      "descriptions": [
+        "Searches SeaDex live for each anime and picks the release with Dual Audio first, then the",
+        "most files, then the most seeders. Only releases with at least 2 seeders are considered, and",
+        "a TV show needs more than one file. Nothing is downloaded — the result is for review."
+      ],
+      "endpoint": "/api/v1/enqueue-future/auto-pick",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "MediaIds",
+          "jsonName": "mediaIds",
+          "goType": "[]int",
+          "usedStructType": "",
+          "typescriptType": "Array\u003cnumber\u003e",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "[]enqueuefuture.AutoPick",
+      "returnGoType": "enqueuefuture.AutoPick",
+      "returnTypescriptType": "Array\u003cEnqueueFuture_AutoPick\u003e"
+    }
+  },
+  {
     "name": "HandleGetCharacterFavorites",
     "trimmedName": "GetCharacterFavorites",
     "comments": [
@@ -7730,6 +7882,70 @@
       "returns": "handlers.KitsuAnimeInfo",
       "returnGoType": "handlers.KitsuAnimeInfo",
       "returnTypescriptType": "KitsuAnimeInfo"
+    }
+  },
+  {
+    "name": "HandleGetKitsuMangaInfo",
+    "trimmedName": "GetKitsuMangaInfo",
+    "comments": [
+      "HandleGetKitsuMangaInfo",
+      "",
+      "\t@summary returns supplementary metadata for a manga from Kitsu.",
+      "\t@desc This queries the Kitsu API using the manga's MAL ID. Returns found=false when there is no match.",
+      "\t@param id - int - true - \"The MyAnimeList ID\"",
+      "\t@returns handlers.KitsuAnimeInfo",
+      "\t@route /api/v1/kitsu/manga/{id} [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu.go",
+    "filename": "kitsu.go",
+    "api": {
+      "summary": "returns supplementary metadata for a manga from Kitsu.",
+      "descriptions": [
+        "This queries the Kitsu API using the manga's MAL ID. Returns found=false when there is no match."
+      ],
+      "endpoint": "/api/v1/kitsu/manga/{id}",
+      "methods": [
+        "GET"
+      ],
+      "params": [
+        {
+          "name": "id",
+          "jsonName": "id",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": [
+            "The MyAnimeList ID"
+          ]
+        }
+      ],
+      "bodyFields": [],
+      "returns": "handlers.KitsuAnimeInfo",
+      "returnGoType": "handlers.KitsuAnimeInfo",
+      "returnTypescriptType": "KitsuAnimeInfo"
+    }
+  },
+  {
+    "name": "fetchKitsuInfo",
+    "trimmedName": "fetchKitsuInfo",
+    "comments": [
+      "fetchKitsuInfo looks up a MyAnimeList ID on Kitsu. kind is \"anime\" or \"manga\".",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu.go",
+    "filename": "kitsu.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
     }
   },
   {
@@ -11610,6 +11826,27 @@
     }
   },
   {
+    "name": "lastKnownFamily",
+    "trimmedName": "lastKnownFamily",
+    "comments": [
+      "lastKnownFamily is the franchise served when a walk can't be made: memory (any age), then disk.",
+      ""
+    ],
+    "filepath": "internal/handlers/media_info.go",
+    "filename": "media_info.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleGetMediaFamily",
     "trimmedName": "GetMediaFamily",
     "comments": [
@@ -13190,6 +13427,27 @@
       "methods": [
         "DELETE"
       ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "reopenCacher",
+    "trimmedName": "reopenCacher",
+    "comments": [
+      "reopenCacher closes fc and opens the same directory again, as a server restart would.",
+      ""
+    ],
+    "filepath": "internal/handlers/offline_media_cache_test.go",
+    "filename": "offline_media_cache_test.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
       "params": [],
       "bodyFields": [],
       "returns": "bool",
@@ -17401,6 +17659,56 @@
     }
   },
   {
+    "name": "imageExtension",
+    "trimmedName": "imageExtension",
+    "comments": [
+      "imageExtension returns the extension for an image type this server stores, or \"\" for any other.",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_wallpaper.go",
+    "filename": "profile_wallpaper.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleUploadLandingImage",
+    "trimmedName": "UploadLandingImage",
+    "comments": [
+      "HandleUploadLandingImage",
+      "",
+      "\t@summary upload the landing page's wallpaper or banner for the current profile.",
+      "\t@desc Only stores the file. The returned url is saved with the rest of the landing page's settings.",
+      "\t@route /api/v1/profile/landing-image/upload [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_wallpaper.go",
+    "filename": "profile_wallpaper.go",
+    "api": {
+      "summary": "upload the landing page's wallpaper or banner for the current profile.",
+      "descriptions": [
+        "Only stores the file. The returned url is saved with the rest of the landing page's settings."
+      ],
+      "endpoint": "/api/v1/profile/landing-image/upload",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleGetProfilesTimeline",
     "trimmedName": "GetProfilesTimeline",
     "comments": [
@@ -18853,6 +19161,68 @@
     ],
     "filepath": "internal/handlers/sha256.go",
     "filename": "sha256.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetStaffCareer",
+    "trimmedName": "GetStaffCareer",
+    "comments": [
+      "HandleGetStaffCareer",
+      "",
+      "\t@summary returns everything a staff member has worked on and the characters they voiced.",
+      "\t@param id - int - true - \"The AniList staff ID\"",
+      "\t@returns handlers.StaffCareer",
+      "\t@route /api/v1/anilist/staff/{id}/career [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/staff_career.go",
+    "filename": "staff_career.go",
+    "api": {
+      "summary": "returns everything a staff member has worked on and the characters they voiced.",
+      "descriptions": [],
+      "endpoint": "/api/v1/anilist/staff/{id}/career",
+      "methods": [
+        "GET"
+      ],
+      "params": [
+        {
+          "name": "id",
+          "jsonName": "id",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": [
+            "The AniList staff ID"
+          ]
+        }
+      ],
+      "bodyFields": [],
+      "returns": "handlers.StaffCareer",
+      "returnGoType": "handlers.StaffCareer",
+      "returnTypescriptType": "StaffCareer"
+    }
+  },
+  {
+    "name": "walkStaffPages",
+    "trimmedName": "walkStaffPages",
+    "comments": [
+      "walkStaffPages asks for pages until one says it is the last. An error past the first page keeps what",
+      "arrived and reports it as partial.",
+      ""
+    ],
+    "filepath": "internal/handlers/staff_career.go",
+    "filename": "staff_career.go",
     "api": {
       "summary": "",
       "descriptions": [],
