@@ -37,8 +37,17 @@ func NewEchoApp(app *App, webFS *embed.FS) *echo.Echo {
 	// load fails and the app has no accent.
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			if strings.HasPrefix(c.Request().URL.Path, "/themes/") {
+			path := c.Request().URL.Path
+			if strings.HasPrefix(path, "/themes/") {
 				c.Response().Header().Set("Access-Control-Allow-Origin", "*")
+			}
+			if strings.HasPrefix(path, "/api/") {
+				// API answers are data, never something a browser should sniff into HTML or a
+				// script. Static files are left alone: Windows hosts can map .js to a wrong MIME
+				// type in the registry, and nosniff would then block the web UI's own scripts.
+				h := c.Response().Header()
+				h.Set("X-Content-Type-Options", "nosniff")
+				h.Set("X-Permitted-Cross-Domain-Policies", "none")
 			}
 			return next(c)
 		}
@@ -209,6 +218,19 @@ func (j *CustomJSONSerializer) Deserialize(c echo.Context, i interface{}) error 
 func RunEchoServer(app *App, e *echo.Echo) {
 	serverAddr := app.Config.GetServerAddr()
 	app.Logger.Info().Msgf("app: Server Address: %s", serverAddr)
+
+	// Connection hardening. Only the header phase is time-limited: request bodies (uploads)
+	// and responses (video streams, long-lived WebSockets) can legitimately run for hours.
+	// ReadHeaderTimeout stops slowloris-style clients from holding connections open by
+	// trickling headers; IdleTimeout retires abandoned keep-alive connections.
+	for _, s := range []*http.Server{e.Server, e.TLSServer} {
+		if s == nil {
+			continue
+		}
+		s.ReadHeaderTimeout = 20 * time.Second
+		s.IdleTimeout = 2 * time.Minute
+		s.MaxHeaderBytes = 1 << 20
+	}
 
 	// Start the server
 	go func() {

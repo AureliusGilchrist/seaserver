@@ -1139,6 +1139,8 @@ type PrivacySettings struct {
 	Socks5Port      int    `gorm:"column:socks5_port" json:"socks5Port"`
 	DNSCryptEnabled bool   `gorm:"column:dnscrypt_enabled" json:"dnsCryptEnabled"`
 	FailMode        string `gorm:"column:fail_mode" json:"failMode"` // "open" or "closed"
+	// "prefer" or "require"; empty on rows saved before the field existed, read as "prefer".
+	TorrentEncryption string `gorm:"column:torrent_encryption" json:"torrentEncryption"`
 }
 
 ///////////////////////////////////////////////////////////////////////////

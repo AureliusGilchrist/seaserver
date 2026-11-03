@@ -20,11 +20,21 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// buildRoomHostWsURL constructs the WebSocket URL with properly escaped parameters
+// peerReadLimit caps a single WebSocket message from a peer (16 MiB: far above any real
+// watch-party message, low enough that a misbehaving peer can't exhaust memory).
+const peerReadLimit = 16 << 20
+
+// buildRoomHostWsURL constructs the WebSocket URL with properly escaped parameters.
+//
+// The room password travels in this URL, so anything but an encrypted wss:// URL is refused:
+// a relay answering with ws:// would otherwise have the password sent in plain text.
 func buildRoomHostWsURL(baseURL, password, version string) (string, error) {
 	u, err := url.Parse(baseURL)
 	if err != nil {
 		return "", err
+	}
+	if u.Scheme != "wss" {
+		return "", fmt.Errorf("refusing insecure room relay URL scheme %q, only wss is allowed", u.Scheme)
 	}
 	q := u.Query()
 	q.Set("password", password)
@@ -480,18 +490,8 @@ func (m *Manager) HandlePeerConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		m.logger.Error().Err(err).Msg("nakama: Failed to upgrade WebSocket connection")
-		return
-	}
-
-	username := r.Header.Get("X-Seanime-Nakama-Username")
-	// Generate a random username if username is not set (this shouldn't be the case because the peer will generate its own username)
-	if username == "" {
-		username = "Peer_" + util.RandomStringWithAlphabet(8, "bcdefhijklmnopqrstuvwxyz0123456789")
-	}
-
+	// Reject malformed handshakes before upgrading: after the upgrade the connection is
+	// hijacked and an HTTP error can no longer reach the peer.
 	peerID := r.Header.Get("X-Seanime-Nakama-Peer-Id")
 	if peerID == "" {
 		m.logger.Error().Msg("nakama: Peer connection missing PeerID header")
@@ -503,6 +503,21 @@ func (m *Manager) HandlePeerConnection(w http.ResponseWriter, r *http.Request) {
 	if serverVersion != constants.Version {
 		http.Error(w, "Server version mismatch", http.StatusBadRequest)
 		return
+	}
+
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		m.logger.Error().Err(err).Msg("nakama: Failed to upgrade WebSocket connection")
+		return
+	}
+	// Peers only send small JSON messages; cap frames so one can't make the host buffer
+	// an arbitrarily large message.
+	conn.SetReadLimit(peerReadLimit)
+
+	username := r.Header.Get("X-Seanime-Nakama-Username")
+	// Generate a random username if username is not set (this shouldn't be the case because the peer will generate its own username)
+	if username == "" {
+		username = "Peer_" + util.RandomStringWithAlphabet(8, "bcdefhijklmnopqrstuvwxyz0123456789")
 	}
 
 	// Check for existing connection with the same PeerID (reconnection scenario)

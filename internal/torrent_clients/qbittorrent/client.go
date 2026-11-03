@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"seanime/internal/privacy"
 	"seanime/internal/torrent_clients/qbittorrent/application"
 	"seanime/internal/torrent_clients/qbittorrent/log"
 	"seanime/internal/torrent_clients/qbittorrent/rss"
@@ -205,7 +206,43 @@ func (c *Client) Login() error {
 	}
 	jar.SetCookies(apiURL, []*http.Cookie{resp.Cookies()[0]})
 	c.client.Jar = jar
+	c.enforceEncryption()
 	return nil
+}
+
+// enforceEncryption switches qBittorrent to "require encryption" when the privacy settings ask
+// for it. Only the one preference is written (qBittorrent merges partial setPreferences
+// payloads), so nothing else the user configured in qBittorrent is touched, and it is left
+// alone entirely in the default "prefer" mode. Failures are logged and never fail the login.
+func (c *Client) enforceEncryption() {
+	pm := privacy.Current()
+	if pm == nil || c.logger == nil || !pm.TorrentEncryptionRequired() {
+		return
+	}
+	// qBittorrent: 0 = prefer encryption, 1 = force encryption, 2 = force plain
+	const forceEncryption = 1
+	if prefs, err := c.Application.GetAppPreferences(); err == nil && prefs.Encryption == forceEncryption {
+		return
+	}
+	form := url.Values{}
+	form.Set("json", fmt.Sprintf(`{"encryption":%d}`, forceEncryption))
+	request, err := http.NewRequest("POST", c.baseURL+"/app/setPreferences", strings.NewReader(form.Encode()))
+	if err != nil {
+		return
+	}
+	request.Header.Set("content-type", "application/x-www-form-urlencoded")
+	request.Header.Set("Referer", c.baseURL)
+	resp, err := c.client.Do(request)
+	if err != nil {
+		c.logger.Warn().Err(err).Msg("qbittorrent: Could not require protocol encryption")
+		return
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		c.logger.Warn().Str("status", resp.Status).Msg("qbittorrent: Could not require protocol encryption")
+		return
+	}
+	c.logger.Info().Msg("qbittorrent: Protocol encryption set to required")
 }
 
 func (c *Client) Logout() error {

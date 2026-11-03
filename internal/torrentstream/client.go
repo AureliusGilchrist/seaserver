@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"seanime/internal/mediaplayers/mediaplayer"
+	"seanime/internal/privacy"
 	"seanime/internal/util"
 	"strings"
 	"sync"
@@ -96,6 +97,8 @@ func (c *Client) initializeClient() error {
 	cfg.Seed = true
 	cfg.DisableIPv6 = settings.DisableIPV6
 	cfg.Logger = alog.Logger{}
+	// Protocol encryption and SOCKS5 tracker routing from the privacy settings
+	privacy.ApplyTorrentConfig(cfg)
 
 	// TEST ONLY: Limit download speed to 1mb/s
 	// cfg.DownloadRateLimiter = rate.NewLimiter(rate.Limit(1<<20), 1<<20)

@@ -12,6 +12,7 @@ export type PrivacySettings = {
     socks5Port: number
     dnsCryptEnabled: boolean
     failMode: string // "open" | "closed"
+    torrentEncryption: string // "prefer" | "require"
 }
 
 export type DNSCryptStatus = {

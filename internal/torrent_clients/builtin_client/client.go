@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"seanime/internal/database/db"
 	"seanime/internal/database/models"
+	"seanime/internal/privacy"
 	"seanime/internal/util"
 	"sync"
 	"time"
@@ -130,6 +131,8 @@ func (c *Client) initialize() error {
 	cfg.Seed = true
 	cfg.Logger = alog.Logger{}
 	cfg.DefaultStorage = storage.NewFileByInfoHash(dir)
+	// Protocol encryption and SOCKS5 tracker routing from the privacy settings
+	privacy.ApplyTorrentConfig(cfg)
 
 	client, err := torrent.NewClient(cfg)
 	if err != nil {

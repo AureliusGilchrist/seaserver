@@ -1,9 +1,7 @@
 package handlers
 
 import (
-	"seanime/internal/database/models"
 	"seanime/internal/privacy"
-	"strings"
 
 	"github.com/labstack/echo/v4"
 )
@@ -22,24 +20,7 @@ func (h *Handler) HandleGetPrivacySettings(c echo.Context) error {
 	}
 
 	if dbSettings != nil && dbSettings.ID != 0 {
-		providers := []string{}
-		if dbSettings.DoHProviders != "" {
-			for _, p := range strings.Split(dbSettings.DoHProviders, ",") {
-				p = strings.TrimSpace(p)
-				if p != "" {
-					providers = append(providers, p)
-				}
-			}
-		}
-		status.Settings = privacy.Settings{
-			DoHEnabled:      dbSettings.DoHEnabled,
-			DoHProviders:    providers,
-			Socks5Enabled:   dbSettings.Socks5Enabled,
-			Socks5Address:   dbSettings.Socks5Address,
-			Socks5Port:      dbSettings.Socks5Port,
-			DNSCryptEnabled: dbSettings.DNSCryptEnabled,
-			FailMode:        dbSettings.FailMode,
-		}
+		status.Settings = *privacy.SettingsFromModel(dbSettings)
 	} else {
 		status.Settings = *privacy.DefaultSettings()
 	}
@@ -70,31 +51,12 @@ func (h *Handler) HandleSavePrivacySettings(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
-	// Validate
-	if b.Settings.FailMode == "" {
-		b.Settings.FailMode = "open"
-	}
-	if b.Settings.FailMode != "open" && b.Settings.FailMode != "closed" {
-		b.Settings.FailMode = "open"
-	}
+	// Validate: unknown enum values fall back to defaults, non-HTTPS DoH URLs are dropped
+	b.Settings.Normalize()
 
-	// Save to database
-	dbSettings := &models.PrivacySettings{
-		DoHEnabled:      b.Settings.DoHEnabled,
-		DoHProviders:    strings.Join(b.Settings.DoHProviders, ","),
-		Socks5Enabled:   b.Settings.Socks5Enabled,
-		Socks5Address:   b.Settings.Socks5Address,
-		Socks5Port:      b.Settings.Socks5Port,
-		DNSCryptEnabled: b.Settings.DNSCryptEnabled,
-		FailMode:        b.Settings.FailMode,
-	}
-	dbSettings.ID = 1
-
-	saved, err := h.App.Database.UpsertPrivacySettings(dbSettings)
-	if err != nil {
+	if _, err := h.App.Database.UpsertPrivacySettings(b.Settings.ToModel()); err != nil {
 		return h.RespondWithError(c, err)
 	}
-	_ = saved
 
 	// Apply settings to the privacy manager immediately
 	if h.App.PrivacyManager != nil {

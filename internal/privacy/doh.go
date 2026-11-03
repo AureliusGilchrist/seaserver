@@ -2,6 +2,7 @@ package privacy
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/url"
 	"sync"
@@ -19,9 +20,24 @@ type DoHManager struct {
 	activeIndex    atomic.Int32
 	resolvers      []*net.Resolver
 	systemResolver *net.Resolver
-	stopCh         chan struct{}
-	stopped        atomic.Bool
-	mu             sync.RWMutex
+	// failClosed refuses lookups instead of falling back to the plain-text system resolver
+	// when every DoH resolver is down.
+	failClosed bool
+	stopCh     chan struct{}
+	stopped    atomic.Bool
+	mu         sync.RWMutex
+}
+
+// errDNSBlocked is returned for every lookup while fail-closed DNS has no working resolver.
+var errDNSBlocked = errors.New("privacy/doh: DNS blocked, no DoH resolver is reachable (fail-closed)")
+
+// blockedResolver answers names from the hosts file (localhost keeps working) and refuses
+// everything that would need a DNS server.
+var blockedResolver = &net.Resolver{
+	PreferGo: true,
+	Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+		return nil, errDNSBlocked
+	},
 }
 
 // probeTimeout bounds each resolver health check.
@@ -62,11 +78,12 @@ func resolverOptions(providerURL string) []dns.DoHOption {
 
 // NewDoHManager creates a DoH manager with the given provider URLs.
 // Providers are ordered by priority (first = primary).
-func NewDoHManager(providers []string, logger *zerolog.Logger) *DoHManager {
+func NewDoHManager(providers []string, failClosed bool, logger *zerolog.Logger) *DoHManager {
 	m := &DoHManager{
-		providers: providers,
-		logger:    logger,
-		stopCh:    make(chan struct{}),
+		providers:  providers,
+		failClosed: failClosed,
+		logger:     logger,
+		stopCh:     make(chan struct{}),
 	}
 	return m
 }
@@ -91,6 +108,7 @@ func (m *DoHManager) Start() {
 
 	if len(m.resolvers) == 0 {
 		m.logger.Error().Msg("privacy/doh: No resolvers could be initialized")
+		net.DefaultResolver = m.fallbackResolver()
 		m.mu.Unlock()
 		return
 	}
@@ -173,7 +191,7 @@ func (m *DoHManager) promote() {
 	// take resolverCount*probeTimeout, and leaving a known-dead resolver
 	// installed for that long would stall every outgoing request in the app.
 	m.mu.RLock()
-	net.DefaultResolver = m.systemResolver
+	net.DefaultResolver = m.fallbackResolver()
 	m.mu.RUnlock()
 
 	// <= so the current index is retried last: after a fallback to the system
@@ -193,7 +211,20 @@ func (m *DoHManager) promote() {
 		}
 	}
 
-	m.logger.Error().Msg("privacy/doh: All DoH resolvers failed, using the system resolver until one recovers")
+	if m.failClosed {
+		m.logger.Error().Msg("privacy/doh: All DoH resolvers failed, blocking DNS until one recovers (fail-closed)")
+	} else {
+		m.logger.Error().Msg("privacy/doh: All DoH resolvers failed, using the system resolver until one recovers")
+	}
+}
+
+// fallbackResolver is what DNS uses while no DoH resolver works: the system resolver when
+// failing open, a resolver that refuses every query when failing closed.
+func (m *DoHManager) fallbackResolver() *net.Resolver {
+	if m.failClosed {
+		return blockedResolver
+	}
+	return m.systemResolver
 }
 
 // ActiveProvider returns the URL of the currently active DoH provider.

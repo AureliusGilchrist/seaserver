@@ -31,7 +31,10 @@ func (h *Handler) webSocketEventHandler(c echo.Context) error {
 	// When a server password is set, require auth via query param
 	if h.App.Config.Server.Password != "" {
 		token := c.QueryParam("token")
-		if token != h.App.ServerPasswordHash {
+		if !secureEqual(token, h.App.ServerPasswordHash) {
+			if token != "" {
+				serverAuthGuard.failed(c.Request().Context(), c.RealIP())
+			}
 			return c.JSON(http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 		}
 	}

@@ -1,6 +1,7 @@
 package nakama
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"seanime/internal/events"
@@ -71,7 +72,9 @@ func (m *Manager) handleAuthMessage(message *Message, senderID string) error {
 	}
 
 	// Verify password
-	success := authPayload.Password == m.settings.HostPassword
+	// Constant-time, and an unset host password never matches
+	success := m.settings.HostPassword != "" &&
+		subtle.ConstantTimeCompare([]byte(authPayload.Password), []byte(m.settings.HostPassword)) == 1
 	var replyMessage string
 	if success {
 		// Update the peer connection with the PeerID from auth payload if not already set

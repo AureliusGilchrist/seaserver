@@ -66,7 +66,6 @@ import (
 	"seanime/internal/util/result"
 	"seanime/internal/videocore"
 	"seanime/internal/watchparty"
-	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -363,31 +362,16 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 	// Load privacy settings from database and apply them
 	privacySettings, _ := database.GetPrivacySettings()
 	if privacySettings != nil && privacySettings.ID != 0 {
-		providers := []string{}
-		if privacySettings.DoHProviders != "" {
-			for _, p := range strings.Split(privacySettings.DoHProviders, ",") {
-				p = strings.TrimSpace(p)
-				if p != "" {
-					providers = append(providers, p)
-				}
-			}
-		}
-		privacyManager.UpdateSettings(&privacy.Settings{
-			DoHEnabled:      privacySettings.DoHEnabled,
-			DoHProviders:    providers,
-			Socks5Enabled:   privacySettings.Socks5Enabled,
-			Socks5Address:   privacySettings.Socks5Address,
-			Socks5Port:      privacySettings.Socks5Port,
-			DNSCryptEnabled: privacySettings.DNSCryptEnabled,
-			FailMode:        privacySettings.FailMode,
-		})
+		privacyManager.UpdateSettings(privacy.SettingsFromModel(privacySettings))
 	} else if cfg.Server.DoHUrl != "" {
 		// Fallback: use legacy DoH config from seanime.toml
-		privacyManager.UpdateSettings(&privacy.Settings{
-			DoHEnabled:   true,
-			DoHProviders: []string{cfg.Server.DoHUrl},
-			FailMode:     "open",
-		})
+		legacy := privacy.DefaultSettings()
+		legacy.DoHProviders = []string{cfg.Server.DoHUrl}
+		privacyManager.UpdateSettings(legacy)
+	} else {
+		// Nothing saved yet: apply the defaults (DNS-over-HTTPS on, fail-open, torrents prefer
+		// encryption) so lookups are encrypted from the first launch.
+		privacyManager.UpdateSettings(privacy.DefaultSettings())
 	}
 
 	// Initialize file cache system for media and metadata

@@ -26,7 +26,7 @@ func (h *Handler) OptionalAuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc
 
 			if path == "/api/v1/status" {
 				// allow status requests by all clients but mark as unauthenticated
-				if passwordHash != h.App.ServerPasswordHash {
+				if !secureEqual(passwordHash, h.App.ServerPasswordHash) {
 					c.Set("unauthenticated", true)
 				}
 			}
@@ -34,8 +34,12 @@ func (h *Handler) OptionalAuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc
 			return next(c)
 		}
 
-		if passwordHash == h.App.ServerPasswordHash {
-			return next(c)
+		if passwordHash != "" {
+			if secureEqual(passwordHash, h.App.ServerPasswordHash) {
+				return next(c)
+			}
+			// Wrong password: slow repeated guesses from the same address down
+			serverAuthGuard.failed(c.Request().Context(), c.RealIP())
 		}
 
 		// Check HMAC token in query parameter
@@ -53,22 +57,18 @@ func (h *Handler) OptionalAuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc
 		// Handle Nakama client connections
 		if h.App.Settings.GetNakama().Enabled && h.App.Settings.GetNakama().IsHost {
 			// Verify the Nakama host password in the client request
+			// An empty host password never matches (secureEqual), so a host without one can't
+			// be reached by a request that simply omits the header.
 			nakamaPasswordHeader := c.Request().Header.Get("X-Seanime-Nakama-Token")
+			isNakamaPath := path == "/api/v1/nakama/ws" || // peer-to-host WebSocket
+				strings.HasPrefix(path, "/api/v1/nakama/host/") // the only paths Nakama clients may use
 
-			// Allow WebSocket connections for peer-to-host communication
-			if path == "/api/v1/nakama/ws" {
-				if nakamaPasswordHeader == h.App.Settings.GetNakama().HostPassword {
+			if isNakamaPath && nakamaPasswordHeader != "" {
+				if secureEqual(nakamaPasswordHeader, h.App.Settings.GetNakama().HostPassword) {
 					c.Response().Header().Set("X-Seanime-Nakama-Is-Client", "true")
 					return next(c)
 				}
-			}
-
-			// Only allow the following paths to be accessed by Nakama clients
-			if strings.HasPrefix(path, "/api/v1/nakama/host/") {
-				if nakamaPasswordHeader == h.App.Settings.GetNakama().HostPassword {
-					c.Response().Header().Set("X-Seanime-Nakama-Is-Client", "true")
-					return next(c)
-				}
+				serverAuthGuard.failed(c.Request().Context(), c.RealIP())
 			}
 		}
 
