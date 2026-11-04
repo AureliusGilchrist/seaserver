@@ -50795,6 +50795,16 @@
         "required": false,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "LastErrorAt",
+        "jsonName": "lastErrorAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [

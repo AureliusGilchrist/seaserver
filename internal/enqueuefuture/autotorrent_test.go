@@ -3,6 +3,7 @@ package enqueuefuture
 import (
 	"context"
 	"errors"
+	"slices"
 	"net/http"
 	"sync"
 	"testing"
@@ -281,5 +282,60 @@ func TestAutoTorrentConfirmMarksDownloadingAtOnce(t *testing.T) {
 	}
 	if len(r.AutoTorrentQueuedMediaIDs()) != 0 {
 		t.Fatal("nothing should be reported queued once sent")
+	}
+}
+
+// A search for the next batch that was cut short leaves NextBatch saved with no picks. The picker
+// must still search it, or every confirm waits through a full search from scratch.
+func TestAutoTorrentResumesInterruptedNextSearch(t *testing.T) {
+	dir := t.TempDir()
+	r := newTestAutoTorrentRepo(t, dir)
+	a := r.autoTorrent
+	a.mu.Lock()
+	a.state = autoTorrentState{
+		Active:     true,
+		Candidates: ids(80),
+		Handled:    []int{},
+		Batch:      ids(40),
+		Picks:      make([]*AutoPick, 40),
+		NextBatch:  ids(80)[40:], // saved mid-search
+	}
+	a.saveLocked()
+	a.mu.Unlock()
+
+	r2 := newTestAutoTorrentRepo(t, dir)
+	r2.SetAutoTorrentHooks(AutoTorrentHooks{})
+	waitFor(t, "the interrupted next batch to be searched", func() bool { return r2.AutoTorrentStatus().NextReady })
+}
+
+// Anime with a pick still waiting to be sent are not offered again by a new run, and a saved queue
+// holding the same anime twice keeps only the newest pick.
+func TestAutoTorrentNoDuplicatePicks(t *testing.T) {
+	dir := t.TempDir()
+	r := newTestAutoTorrentRepo(t, dir)
+	a := r.autoTorrent
+	a.mu.Lock()
+	a.state.Adds = []AutoTorrentJob{
+		{MediaID: 1, Torrent: hibiketorrent.AnimeTorrent{Name: "old"}},
+		{MediaID: 2, Torrent: hibiketorrent.AnimeTorrent{Name: "two"}},
+		{MediaID: 1, Torrent: hibiketorrent.AnimeTorrent{Name: "new"}},
+	}
+	a.saveLocked()
+	a.mu.Unlock()
+
+	r2 := newTestAutoTorrentRepo(t, dir)
+	r2.autoTorrent.mu.Lock()
+	adds := slices.Clone(r2.autoTorrent.state.Adds)
+	r2.autoTorrent.mu.Unlock()
+	if len(adds) != 2 || adds[0].MediaID != 2 || adds[1].Torrent.Name != "new" {
+		t.Fatalf("expected duplicates merged, newest kept: %+v", adds)
+	}
+
+	v, err := r2.StartAutoTorrent([]int{1, 2, 3, 4})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v.Total != 2 || !slices.Equal(v.Batch, []int{3, 4}) {
+		t.Fatalf("anime still waiting to be sent should be left out: total=%d batch=%v", v.Total, v.Batch)
 	}
 }

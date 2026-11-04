@@ -21550,6 +21550,27 @@
     }
   },
   {
+    "name": "magnetFromInfoHash",
+    "trimmedName": "magnetFromInfoHash",
+    "comments": [
+      "magnetFromInfoHash builds a magnet link from a torrent's info hash, when it has a usable one.",
+      ""
+    ],
+    "filepath": "internal/handlers/torrent_add.go",
+    "filename": "torrent_add.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "torrentClientRepo",
     "trimmedName": "torrentClientRepo",
     "comments": [

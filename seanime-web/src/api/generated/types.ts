@@ -2930,6 +2930,7 @@ export type EnqueueFuture_AutoTorrentAddStatus = {
     settled: number
     failed: number
     lastError?: string
+    lastErrorAt?: string
 }
 
 /**

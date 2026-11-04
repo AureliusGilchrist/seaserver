@@ -370,7 +370,11 @@ function AutoTorrentAddProgress({ status }: { status: EnqueueFuture_AutoTorrentA
                 {status.failed ? ` · ${status.failed} failed` : ""}
             </p>
             {!!status.waiting && <p className="text-orange-300">{status.waiting}</p>}
-            {!!status.failed && !!status.lastError && <p className="text-red-300">Last error: {status.lastError}</p>}
+            {!!status.failed && !!status.lastError && (
+                <p className="text-red-300">
+                    Last error{status.lastErrorAt ? ` (${new Date(status.lastErrorAt).toLocaleString()})` : ""}: {status.lastError}
+                </p>
+            )}
         </div>
     )
 }

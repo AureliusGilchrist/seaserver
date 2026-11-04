@@ -72,6 +72,8 @@ type AutoTorrentAddStatus struct {
 	Settled   int    `json:"settled"`
 	Failed    int    `json:"failed"`
 	LastError string `json:"lastError,omitempty"`
+	// LastErrorAt is when LastError happened, so an old failure does not read as a current one.
+	LastErrorAt *time.Time `json:"lastErrorAt,omitempty"`
 }
 
 // AutoTorrentView is the session as the popup sees it.
@@ -191,6 +193,7 @@ func (a *autoTorrent) load() {
 	// Nothing is being sent at the moment the server starts.
 	st.AddStatus.Current = ""
 	st.AddStatus.Waiting = ""
+	st.Adds = dedupeJobs(st.Adds)
 	a.state = st
 }
 
@@ -284,7 +287,13 @@ func (r *Repository) StartAutoTorrent(mediaIDs []int) (AutoTorrentView, error) {
 		return v, ErrAutoTorrentActive
 	}
 
-	seen := make(map[int]struct{}, len(mediaIDs))
+	// Anime with a pick still waiting to be sent are left out: offering them again is how the same
+	// anime ended up queued twice, the older copy then dropping itself as "already downloading" when
+	// the newer one put its badge up.
+	seen := make(map[int]struct{}, len(mediaIDs)+len(a.state.Adds))
+	for _, job := range a.state.Adds {
+		seen[job.MediaID] = struct{}{}
+	}
 	candidates := make([]int, 0, len(mediaIDs))
 	for _, id := range mediaIDs {
 		if id <= 0 {
@@ -299,10 +308,10 @@ func (r *Repository) StartAutoTorrent(mediaIDs []int) (AutoTorrentView, error) {
 
 	a.cancelPickLocked()
 	a.generation++
-	adds, addStatus := a.state.Adds, a.state.AddStatus
-	if len(adds) == 0 && !a.adding {
-		addStatus = AutoTorrentAddStatus{}
-	}
+	// Each run counts its own adds. Picks still being sent from an earlier run carry on, but the
+	// tally and the last error start again, so an old failure does not read as this run's.
+	adds := a.state.Adds
+	addStatus := AutoTorrentAddStatus{Current: a.state.AddStatus.Current, Waiting: a.state.AddStatus.Waiting}
 	a.state = autoTorrentState{
 		Active:     true,
 		Candidates: candidates,
@@ -361,6 +370,8 @@ func (r *Repository) ConfirmAutoTorrent(matchSeasonOneOnly bool) (AutoTorrentVie
 			continue
 		}
 		autoMatch := !slices.Contains(st.AutoMatchOff, p.MediaID)
+		// One pick per anime waiting to be sent: a newer choice replaces an older one.
+		st.Adds = slices.DeleteFunc(st.Adds, func(j AutoTorrentJob) bool { return j.MediaID == p.MediaID })
 		st.Adds = append(st.Adds, AutoTorrentJob{
 			MediaID:            p.MediaID,
 			Torrent:            *p.Torrent,
@@ -519,8 +530,12 @@ func (a *autoTorrent) runPicker(run int) {
 		case !st.Active:
 		case len(st.Batch) > 0 && st.Picks == nil && st.PickError == "":
 			ids = slices.Clone(st.Batch)
-		case len(st.Batch) > 0 && st.Picks != nil && st.NextBatch == nil:
-			// The batch on screen is ready: get the one after it ready too.
+		case len(st.Batch) > 0 && st.Picks != nil && st.NextPicks == nil:
+			// The batch on screen is ready: get the one after it ready too. Keyed on the picks
+			// being missing, not on NextBatch being unset — a search for it that was cut short (a
+			// restart, a superseded run) leaves NextBatch saved with nothing behind it, and keying on
+			// NextBatch meant that search was never started again, so every confirm sat through a
+			// full search from scratch.
 			if upcoming := a.upcomingLocked(st.Batch); len(upcoming) > 0 {
 				st.NextBatch = upcoming
 				ids = slices.Clone(upcoming)
@@ -664,6 +679,8 @@ func (a *autoTorrent) runAdder() {
 		case err != nil:
 			a.state.AddStatus.Failed++
 			a.state.AddStatus.LastError = err.Error()
+			now := time.Now()
+			a.state.AddStatus.LastErrorAt = &now
 		case added:
 			a.state.AddStatus.Added++
 		default:
@@ -727,6 +744,21 @@ func (a *autoTorrent) setAddWaiting(why string) {
 // +---------------------+
 // |       Helpers       |
 // +---------------------+
+
+// dedupeJobs keeps one job per anime — the newest, at its own place in the list.
+func dedupeJobs(jobs []AutoTorrentJob) []AutoTorrentJob {
+	last := make(map[int]int, len(jobs))
+	for i, j := range jobs {
+		last[j.MediaID] = i
+	}
+	out := make([]AutoTorrentJob, 0, len(last))
+	for i, j := range jobs {
+		if last[j.MediaID] == i {
+			out = append(out, j)
+		}
+	}
+	return out
+}
 
 func flaggedIDs(picks []*AutoPick) []int {
 	out := []int{}
