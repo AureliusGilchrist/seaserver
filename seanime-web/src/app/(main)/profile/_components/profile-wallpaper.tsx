@@ -26,7 +26,8 @@ export type WallpaperEffects = {
 }
 
 export const DEFAULT_WALLPAPER_EFFECTS: WallpaperEffects = {
-    dim: 0.5,
+    // Undimmed unless the wallpaper's own Dim slider says otherwise.
+    dim: 0,
     blur: 0,
     exposure: 1,
     saturation: 1,

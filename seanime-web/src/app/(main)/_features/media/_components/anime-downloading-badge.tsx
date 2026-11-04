@@ -209,7 +209,7 @@ export function AnimeDownloadingBadge(props: AnimeDownloadingBadgeProps) {
                     title={label}
                     aria-label={label}
                     className={cn(
-                        "inline-flex size-7 items-center justify-center rounded-full border bg-black/60 backdrop-blur-sm",
+                        "inline-flex size-7 items-center justify-center rounded-full border bg-black/75",
                         compactClass,
                         className,
                     )}
@@ -227,7 +227,7 @@ export function AnimeDownloadingBadge(props: AnimeDownloadingBadgeProps) {
                 aria-label={label}
                 className={cn(
                     "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[10px] uppercase tracking-wider font-medium",
-                    "bg-black/40 backdrop-blur-sm border",
+                    "bg-black/60 border",
                     compactClass,
                     className,
                 )}

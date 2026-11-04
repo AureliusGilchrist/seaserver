@@ -532,14 +532,10 @@ export function AnimeThemeProvider({ children, ambient = true }: {
 
     // ── Background dim / blur (per-theme, user-overridable) ──
     //
-    // A phone dims by darkening (see the backdrop below), so until it picks a dim of its own a theme
-    // wallpaper starts as dark as the fade used to leave it, and a wallpaper the user chose starts undimmed.
+    // Undimmed until the user dims it. A wallpaper is only ever darkened by the Dim setting: no theme
+    // default, no phone minimum, on every page and client.
     const wallpaperOverride = useWallpaperOverride()
-    const backgroundDimDefault = !__isMobileShell__
-        ? config.backgroundDim ?? 0.30
-        : wallpaperOverride || themeSettings.libraryScreenCustomBackgroundImage
-            ? 0
-            : Math.max(config.backgroundDim ?? 0.30, 0.5)
+    const backgroundDimDefault = 0
     const [backgroundDim, setBackgroundDimRaw] = React.useState<number>(() => {
         if (typeof window === "undefined") return backgroundDimDefault
         try {
@@ -1342,9 +1338,10 @@ function absoluteUrl(u: string): string {
 
 export function ThemeBackgroundImage({ url, dim, dimMode = "fade", blur, exposure, saturation, contrast, scanlinesStrength = 0, scanlinesSize = 0.5, noiseStrength = 0, noiseSpeed = 1, noiseScale = 1, vignetteStrength = 0, vignetteSize = 0.5, glowStrength = 0, glowSpeed = 2, glowScale = 0.5, hologramStrength = 0, effectsOnly = false }: { url: string; effectsOnly?: boolean; dim?: number; /** "fade" lowers the image's opacity over a dark underlay; "darken" keeps it opaque and lowers its brightness. */ dimMode?: "fade" | "darken"; blur?: number; exposure?: number; saturation?: number; contrast?: number; scanlinesStrength?: number; scanlinesSize?: number; noiseStrength?: number; noiseSpeed?: number; noiseScale?: number; vignetteStrength?: number; vignetteSize?: number; glowStrength?: number; glowSpeed?: number; glowScale?: number; hologramStrength?: number }) {
     const previewMode = useAtomValue(wallpaperPreviewModeAtom)
-    // The Dim slider is the only thing that dims the wallpaper: 0 means fully vivid, on every page.
+    // The Dim slider is the only thing that dims the wallpaper: 0 means fully vivid, on every page,
+    // the theme preview included.
     const darken = dimMode === "darken"
-    const effectiveDim = previewMode && !darken ? 0.05 : darken ? Math.min(Math.max(dim ?? 0.5, 0), 0.95) : Math.min(Math.max(dim ?? 0.30, 0), 0.95)
+    const effectiveDim = Math.min(Math.max(dim ?? 0, 0), 0.95)
     // Darken: the picture stays solid and only gets darker, so its colours don't wash into the page.
     const opacity = darken ? 1 : 1 - effectiveDim
     const brightness = (exposure ?? 1) * (darken ? 1 - effectiveDim : 1)
@@ -1356,7 +1353,7 @@ export function ThemeBackgroundImage({ url, dim, dimMode = "fade", blur, exposur
     const lineHeight = Math.round(2 + scanlinesSize * 6)
     const noiseAnimDuration = `${(1 / noiseSpeed).toFixed(2)}s`
     return (
-        <div aria-hidden style={{ position: "fixed", inset: 0, zIndex: effectsOnly ? 0 : -1, pointerEvents: "none" }}>
+        <div aria-hidden style={{ position: "fixed", inset: 0, zIndex: effectsOnly ? 0 : -1, pointerEvents: "none", overflow: "hidden" }}>
             {/* Dark underlay so the semi-transparent wallpaper reads darker */}
             {!previewMode && !effectsOnly && <div style={{ position: "absolute", inset: 0, background: darken ? "#000" : "rgba(0,0,0,0.75)" }} />}
             {/* Wallpaper image */}
@@ -1391,11 +1388,13 @@ export function ThemeBackgroundImage({ url, dim, dimMode = "fade", blur, exposur
             {/* Film noise - fixed to not increase brightness */}
             {noiseStrength > 0 && (
                 <>
-                    <style>{`@keyframes sea-noise{0%{background-position:0 0}20%{background-position:-20% -20%}40%{background-position:40% 10%}60%{background-position:-10% 30%}80%{background-position:20% -10%}100%{background-position:0 0}}`}</style>
+                    {/* Moved with transform on an oversized layer: runs on the compositor, where shifting the
+                        background-position repainted the whole screen on every step. */}
+                    <style>{`@keyframes sea-noise{0%{transform:translate3d(0,0,0)}20%{transform:translate3d(-8%,-8%,0)}40%{transform:translate3d(8%,4%,0)}60%{transform:translate3d(-4%,8%,0)}80%{transform:translate3d(6%,-4%,0)}100%{transform:translate3d(0,0,0)}}`}</style>
                     <div
                         style={{
                             position: "absolute",
-                            inset: 0,
+                            inset: "-15%",
                             opacity: noiseStrength * 0.25,
                             mixBlendMode: "overlay",
                             backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,

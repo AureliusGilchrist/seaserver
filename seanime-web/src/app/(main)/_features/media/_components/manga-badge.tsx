@@ -175,7 +175,7 @@ export function MangaBadge(props: MangaBadgeProps) {
                         aria-label={presentation.label}
                         className={cn(
                             "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[10px] uppercase tracking-wider font-medium",
-                            "bg-black/40 backdrop-blur-sm border",
+                            "bg-black/60 border",
                             presentation.compactClass,
                         )}
                     >

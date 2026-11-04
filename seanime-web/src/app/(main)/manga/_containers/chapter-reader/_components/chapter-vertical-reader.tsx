@@ -104,6 +104,10 @@ export function MangaVerticalReader({ pageContainer }: MangaVerticalReaderProps)
         }
     }
 
+    // The latest handler, so the listener above always sees the current pages.
+    const handleScrollRef = React.useRef(handleScroll)
+    handleScrollRef.current = handleScroll
+
     // Reset isLastPage state when pages change
     React.useEffect(() => {
         setIsLastPage(false)
@@ -111,9 +115,23 @@ export function MangaVerticalReader({ pageContainer }: MangaVerticalReaderProps)
 
     // Add scroll event listener when component mounts
     React.useEffect(() => {
-        // Add a scroll event listener to container
-        containerRef.current?.addEventListener("scroll", handleScroll)
-        return () => containerRef.current?.removeEventListener("scroll", handleScroll)
+        // At most once per frame, and passive: the page measurements were taken on every scroll event,
+        // several per frame, each forcing a layout while the strip was scrolling.
+        const el = containerRef.current
+        if (!el) return
+        let frame = 0
+        const onScroll = () => {
+            if (frame) return
+            frame = requestAnimationFrame(() => {
+                frame = 0
+                handleScrollRef.current()
+            })
+        }
+        el.addEventListener("scroll", onScroll, { passive: true })
+        return () => {
+            el.removeEventListener("scroll", onScroll)
+            if (frame) cancelAnimationFrame(frame)
+        }
     }, [containerRef.current])
 
     // Page navigation
@@ -193,6 +211,7 @@ export function MangaVerticalReader({ pageContainer }: MangaVerticalReaderProps)
                         page={page}
                         index={index}
                         readingMode={"paged"}
+                        lazy
                         pageContainer={pageContainer}
                         onFinishedLoading={() => {
                             // If the first page is loaded, set the current page index to 0

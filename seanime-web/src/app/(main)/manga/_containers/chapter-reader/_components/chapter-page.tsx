@@ -19,6 +19,8 @@ type ChapterPageProps = {
     imageWidth?: number | string
     imageMaxWidth?: number | string
     containerMaxWidth?: number | string
+    /** Scrolling readers: load pages as they near the screen instead of all at once. */
+    lazy?: boolean
 }
 
 export function ChapterPage(props: ChapterPageProps) {
@@ -35,6 +37,7 @@ export function ChapterPage(props: ChapterPageProps) {
         imageWidth,
         imageMaxWidth,
         containerMaxWidth,
+        lazy,
         ...rest
     } = props
 
@@ -84,6 +87,11 @@ export function ChapterPage(props: ChapterPageProps) {
                     // No referrer: hosts that check it reject the app's own origin (http://localhost
                     // on Android). The server proxy below is the fallback for those that still refuse.
                     referrerPolicy="no-referrer"
+                    // Decoded off the main thread, so a big page never stalls a scroll or a page flip.
+                    // Scrolling readers load the pages near the screen first; the first ones are urgent.
+                    decoding="async"
+                    loading={lazy && index > 2 ? "lazy" : "eager"}
+                    fetchPriority={index < 2 ? "high" : "auto"}
                     onError={() => {
                         if (!viaProxy && proxied) {
                             logger("chapter-page").info("direct load failed, retrying through the server", index)

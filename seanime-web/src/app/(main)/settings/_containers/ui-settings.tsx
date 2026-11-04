@@ -414,7 +414,7 @@ export function UISettings() {
                                         label="Image path"
                                         name="libraryScreenCustomBackgroundImage"
                                         placeholder="e.g. image.png"
-                                        help="Background image for all pages. Dimmed on non-library screens."
+                                        help="Background image for all pages. Dimmed only by its Opacity setting."
                                     />
 
                                     <Field.Number

@@ -1124,9 +1124,8 @@ media-preview-chapter-display {
     transform: translateZ(0);
     will-change: transform;
     color-rendering: optimizeQuality;
-    image-rendering: -moz-crisp-edges;
-    image-rendering: -webkit-crisp-edges;
-    image-rendering: crisp-edges;
+    /* No image-rendering override: crisp-edges forced nearest-neighbour scaling (aliased line art) and
+       can keep the video off a hardware overlay. */
 }
 
 :where([data-part="captions"] [data-part="cue"]) {
@@ -2402,7 +2401,9 @@ html[data-sea-selection]:not([data-sea-selection="select-default"]) :focus-visib
 html[data-sea-badge="badge-pill"] .UI-Badge__root { border-radius: 9999px !important; }
 html[data-sea-badge="badge-square"] .UI-Badge__root { border-radius: 0 !important; }
 html[data-sea-badge="badge-outline"] .UI-Badge__root { background: transparent !important; box-shadow: inset 0 0 0 1px currentColor; }
-html[data-sea-badge="badge-glass"] .UI-Badge__root { background: rgba(255, 255, 255, 0.1) !important; backdrop-filter: blur(6px); }
+/* Badges sit on every card of every grid: a blur behind each one is a separate GPU pass per badge on
+   every scroll frame, so the glass looks come from a solid translucent fill instead. */
+html[data-sea-badge="badge-glass"] .UI-Badge__root { background: rgba(255, 255, 255, 0.16) !important; }
 html[data-sea-badge="badge-caps"] .UI-Badge__root { text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.7em; }
 
 /* Dark Glass: frosted near-black for every badge, the media-card corners included (the score badge
@@ -2411,11 +2412,11 @@ html[data-sea-badge="badge-caps"] .UI-Badge__root { text-transform: uppercase; l
    the progress badge) stays clear so the glass isn't doubled. */
 html[data-sea-badge="badge-dark-glass"] .UI-Badge__root,
 html[data-sea-badge="badge-dark-glass"] [data-media-entry-score-badge] {
-    background: rgba(9, 9, 13, 0.55) !important;
+    background: rgba(9, 9, 13, 0.78) !important;
     color: #f4f4f5 !important;
     border-color: transparent !important;
-    -webkit-backdrop-filter: blur(10px) saturate(150%);
-    backdrop-filter: blur(10px) saturate(150%);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.09), inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 6px 16px -8px rgba(0, 0, 0, 0.7) !important;
 }
 html[data-sea-badge="badge-dark-glass"] .UI-Badge__root .UI-Badge__root {

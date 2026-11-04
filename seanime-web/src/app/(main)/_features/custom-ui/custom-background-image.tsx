@@ -140,11 +140,11 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
         return parts.length > 0 ? parts.join(" ") : undefined
     }, [wallpaperGlow, hueRotate, hasInkWash, showThemeEffectsOnCustom, animeTheme?.backgroundExposure, animeTheme?.backgroundSaturation, animeTheme?.backgroundContrast])
 
-    // Dim alpha: derived from opacity slider so the overlay darkens/lightens visibly
-    // opacity=10  → dimAlpha ≈ 0.845  (very dark)
-    // opacity=50  → dimAlpha ≈ 0.505  (half visible)
-    // opacity=100 → dimAlpha ≈ 0.08   (mostly visible)
-    const opacityDim = (100 - wallpaperOpacity) / 100 * 0.85 + 0.08
+    // Dim alpha: only what the Opacity slider asks for — at 100 the wallpaper is shown untouched.
+    // opacity=10  → dimAlpha ≈ 0.765  (very dark)
+    // opacity=50  → dimAlpha ≈ 0.425  (half visible)
+    // opacity=100 → dimAlpha = 0      (as is)
+    const opacityDim = (100 - wallpaperOpacity) / 100 * 0.85
     // Denshi Mobile's Dim slider darkens on top of that, so both can be used together.
     const dimAlpha = __isMobileShell__ ? 1 - (1 - opacityDim) * (1 - (animeTheme?.backgroundDim ?? 0)) : opacityDim
 

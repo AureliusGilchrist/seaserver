@@ -200,8 +200,20 @@ export function MouseTrail({ kind }: { kind: string }) {
             }
         }
 
-        // Never compete with a playing video for frames.
-        const videoPlaying = () => Array.from(document.querySelectorAll("video")).some(v => !v.paused && !v.ended && v.readyState > 2)
+        // Never compete with a playing video for frames. Tracked from play/pause events rather than
+        // looked up on every pointer move.
+        const playingVideos = new Set<EventTarget>()
+        const onPlaying = (e: Event) => { if ((e.target as HTMLElement)?.tagName === "VIDEO") playingVideos.add(e.target!) }
+        const onStopped = (e: Event) => { playingVideos.delete(e.target!) }
+        document.addEventListener("playing", onPlaying, true)
+        document.addEventListener("pause", onStopped, true)
+        document.addEventListener("ended", onStopped, true)
+        document.addEventListener("emptied", onStopped, true)
+        document.querySelectorAll("video").forEach(v => { if (!v.paused && !v.ended) playingVideos.add(v) })
+        const videoPlaying = () => {
+            for (const v of playingVideos) if (!(v as HTMLVideoElement).isConnected) playingVideos.delete(v)
+            return playingVideos.size > 0
+        }
 
         const onMove = (e: PointerEvent) => {
             if (e.pointerType === "touch") return
@@ -220,6 +232,10 @@ export function MouseTrail({ kind }: { kind: string }) {
         return () => {
             cancelAnimationFrame(raf)
             window.removeEventListener("pointermove", onMove)
+            document.removeEventListener("playing", onPlaying, true)
+            document.removeEventListener("pause", onStopped, true)
+            document.removeEventListener("ended", onStopped, true)
+            document.removeEventListener("emptied", onStopped, true)
             window.removeEventListener("resize", resize)
             ctx.clearRect(0, 0, canvas.width, canvas.height)
         }

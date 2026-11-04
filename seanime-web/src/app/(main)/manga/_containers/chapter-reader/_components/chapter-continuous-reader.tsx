@@ -204,6 +204,7 @@ export function MangaContinuousReader({ pageContainer }: MangaContinuousReaderPr
                         page={page}
                         index={index}
                         readingMode={"continuous"}
+                        lazy
                         pageContainer={pageContainer}
                         onFinishedLoading={() => {
                             handlePageLoad(index)

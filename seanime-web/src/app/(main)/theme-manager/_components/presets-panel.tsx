@@ -143,7 +143,7 @@ export function PresetsPanel() {
         setActiveBackgroundUrl(preset.backgroundImageUrl)
         // Apply effects
         const e = preset.effects
-        setBackgroundDim(e.dim ?? 0.3)
+        setBackgroundDim(e.dim ?? 0)
         setBackgroundBlur(e.blur ?? 30)
         setBackgroundExposure(e.exposure ?? 1)
         setBackgroundSaturation(e.saturation ?? 1)

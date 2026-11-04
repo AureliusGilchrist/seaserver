@@ -1,6 +1,7 @@
 "use client"
 
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
+import { __isElectronDesktop__ } from "@/types/constants"
 import Lenis from "lenis"
 import "lenis/dist/lenis.css"
 import React from "react"
@@ -23,9 +24,13 @@ export function SmoothScroll() {
     React.useEffect(() => {
         if (!enabled || typeof window === "undefined") return
         if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return
+        // Denshi has Chromium's own smooth scrolling, which runs on the compositor thread: a main-thread
+        // scroll animation on top of it only lets any page work show up as scroll stutter.
+        if (__isElectronDesktop__) return
 
         const lenis = new Lenis({
-            autoRaf: true,
+            // Driven below only while a scroll is animating, not on every frame for the life of the page.
+            autoRaf: false,
             lerp: 0.085,
             wheelMultiplier: 1,
             smoothWheel: true,
@@ -46,12 +51,25 @@ export function SmoothScroll() {
             if (locked) lenis.stop()
             else lenis.start()
         }
+        // Frames only while the eased scroll is moving: woken by the wheel, stopped once it settles.
+        let raf = 0
+        const tick = (time: number) => {
+            lenis.raf(time)
+            raf = lenis.isScrolling ? requestAnimationFrame(tick) : 0
+        }
+        const wake = () => {
+            if (!raf) raf = requestAnimationFrame(tick)
+        }
+        window.addEventListener("wheel", wake, { passive: true })
+
         const observer = new MutationObserver(sync)
         observer.observe(body, { attributes: true, attributeFilter: ["style", "class", "data-scroll-locked"] })
         document.addEventListener("fullscreenchange", sync)
         sync()
 
         return () => {
+            window.removeEventListener("wheel", wake)
+            if (raf) cancelAnimationFrame(raf)
             observer.disconnect()
             document.removeEventListener("fullscreenchange", sync)
             lenis.destroy()

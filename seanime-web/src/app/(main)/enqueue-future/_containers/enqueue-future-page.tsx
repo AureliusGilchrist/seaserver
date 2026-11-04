@@ -405,18 +405,7 @@ export function EnqueueFuturePage() {
     return (
         <PageWrapper className="relative p-4 sm:p-8 space-y-4" data-enqueue-future-page>
 
-            {/* The theme wallpaper is painted across the whole app at z-index -1 and dimmed by the
-                theme, not by the page. This screen puts far more small text over it than a normal
-                one — a torrent list, release names, filter labels — so it darkens its own patch of
-                background instead of asking you to turn the wallpaper down everywhere else. */}
-            <div
-                aria-hidden
-                className="fixed inset-0 z-0 bg-[--background] opacity-80 pointer-events-none"
-                data-enqueue-future-scrim
-            />
-
-            {/* One positioned wrapper for everything, so the scrim above sits between the
-                wallpaper and the page rather than on top of it. */}
+            {/* No scrim of its own: the wallpaper dims only by its setting, on every page. */}
             <div className="relative z-[1] space-y-4">
 
             <div className="flex flex-wrap items-center justify-between gap-4">
