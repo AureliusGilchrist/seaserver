@@ -2,6 +2,7 @@ package enqueuefuture
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"sync"
 	"testing"
@@ -215,5 +216,70 @@ func TestAutoTorrentConfirmAdoptsRunningNextSearch(t *testing.T) {
 	defer mu.Unlock()
 	if searches[41] != 1 {
 		t.Fatalf("the second batch was searched %d times", searches[41])
+	}
+}
+
+// Confirming puts every pick's downloading badge up at once, keeps queued anime out of the stale
+// check, and takes the badge down again for a pick that could not be added.
+func TestAutoTorrentConfirmMarksDownloadingAtOnce(t *testing.T) {
+	gap := autoTorrentAddGap
+	autoTorrentAddGap = 10 * time.Millisecond
+	t.Cleanup(func() { autoTorrentAddGap = gap })
+	r := newTestAutoTorrentRepo(t, t.TempDir())
+	r.autoTorrent.pick = func(_ context.Context, batch []int, _ *http.Client, _ ...func(int)) []*AutoPick {
+		out := make([]*AutoPick, len(batch))
+		for i, id := range batch {
+			out[i] = &AutoPick{MediaID: id, Torrent: &hibiketorrent.AnimeTorrent{Name: "t" + string(rune('a'+i))}}
+		}
+		return out
+	}
+
+	var mu sync.Mutex
+	marked, unmarked := map[int]bool{}, map[int]bool{}
+	gate := make(chan struct{})
+	r.SetAutoTorrentHooks(AutoTorrentHooks{
+		MarkDownloading:   func(id int) { mu.Lock(); marked[id] = true; mu.Unlock() },
+		UnmarkDownloading: func(id int) { mu.Lock(); unmarked[id] = true; mu.Unlock() },
+		Add: func(job AutoTorrentJob) (bool, error) {
+			<-gate
+			if job.MediaID == 2 {
+				return false, errors.New("client said no")
+			}
+			return true, nil
+		},
+	})
+
+	if _, err := r.StartAutoTorrent(ids(3)); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "batch", func() bool { return !r.AutoTorrentStatus().Picking })
+	r.EditAutoTorrent([]int{3}, nil) // struck out: no badge, nothing sent
+	if _, err := r.ConfirmAutoTorrent(false); err != nil {
+		t.Fatal(err)
+	}
+
+	mu.Lock()
+	if !marked[1] || !marked[2] || marked[3] {
+		mu.Unlock()
+		t.Fatalf("expected badges for 1 and 2 only at confirm, got %v", marked)
+	}
+	mu.Unlock()
+	queued := r.AutoTorrentQueuedMediaIDs()
+	if _, ok := queued[1]; !ok || len(queued) != 2 {
+		t.Fatalf("queued anime should be reported until sent: %v", queued)
+	}
+
+	close(gate)
+	waitFor(t, "adds", func() bool {
+		v := r.AutoTorrentStatus()
+		return v.Adds.Pending == 0 && v.Adds.Current == ""
+	})
+	mu.Lock()
+	defer mu.Unlock()
+	if !unmarked[2] || unmarked[1] {
+		t.Fatalf("only the failed pick's badge should come down, got %v", unmarked)
+	}
+	if len(r.AutoTorrentQueuedMediaIDs()) != 0 {
+		t.Fatal("nothing should be reported queued once sent")
 	}
 }

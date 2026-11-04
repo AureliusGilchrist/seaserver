@@ -50702,6 +50702,15 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "MarkedDownloading",
+        "jsonName": "markedDownloading",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [
@@ -50980,6 +50989,24 @@
       {
         "name": "ContentsClient",
         "jsonName": "ContentsClient",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MarkDownloading",
+        "jsonName": "MarkDownloading",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UnmarkDownloading",
+        "jsonName": "UnmarkDownloading",
         "goType": "",
         "typescriptType": "any",
         "required": true,
@@ -117466,6 +117493,15 @@
         "goType": "[]int",
         "typescriptType": "Array\u003cnumber\u003e",
         "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "exclude",
+        "jsonName": "exclude",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
         "public": false,
         "comments": []
       }

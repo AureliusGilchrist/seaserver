@@ -39,7 +39,8 @@ const AutoTorrentFileName = "enqueue-future-auto-torrent.json"
 // AutoTorrentBatchSize is how many anime are put in front of you at once.
 const AutoTorrentBatchSize = AutoPickMaxBatch
 
-const (
+// Variables so tests can shorten them.
+var (
 	autoTorrentAddGap     = 10 * time.Second
 	autoTorrentSlowAdd    = 20 * time.Second
 	autoTorrentAddBackoff = 60 * time.Second
@@ -52,6 +53,8 @@ type AutoTorrentJob struct {
 	Media              *anilist.BaseAnime         `json:"media"`
 	AutoMatch          bool                       `json:"autoMatch"`
 	MatchSeasonOneOnly bool                       `json:"matchSeasonOneOnly"`
+	// MarkedDownloading is true when the anime's downloading badge was put up at confirm time.
+	MarkedDownloading bool `json:"markedDownloading"`
 }
 
 // AutoTorrentAddStatus is the progress of the background adds.
@@ -105,6 +108,10 @@ type AutoTorrentHooks struct {
 	ClientUnavailable func() (bool, string)
 	// ContentsClient fetches .torrent files to count what is in them.
 	ContentsClient func() *http.Client
+	// MarkDownloading puts an anime's downloading badge up; UnmarkDownloading takes it down again,
+	// but only while it still reads downloading.
+	MarkDownloading   func(mediaID int)
+	UnmarkDownloading func(mediaID int)
 }
 
 // autoTorrentState is what is saved to disk.
@@ -344,6 +351,10 @@ func (r *Repository) ConfirmAutoTorrent(matchSeasonOneOnly bool) (AutoTorrentVie
 		return v, errors.New("this batch is still being searched")
 	}
 
+	// Badges go up the moment you confirm, not when the adder reaches each one — that can be many
+	// minutes later at one every ten seconds — so the anime read as downloading everywhere at once.
+	mark := a.hooks != nil && a.hooks.MarkDownloading != nil
+	var marked []int
 	queued := 0
 	for _, p := range st.Picks {
 		if p == nil || p.Torrent == nil || slices.Contains(st.Removed, p.MediaID) {
@@ -356,7 +367,11 @@ func (r *Repository) ConfirmAutoTorrent(matchSeasonOneOnly bool) (AutoTorrentVie
 			Media:              p.Media,
 			AutoMatch:          autoMatch,
 			MatchSeasonOneOnly: autoMatch && matchSeasonOneOnly,
+			MarkedDownloading:  mark,
 		})
+		if mark {
+			marked = append(marked, p.MediaID)
+		}
 		queued++
 	}
 	st.Handled = append(st.Handled, st.Batch...)
@@ -382,7 +397,12 @@ func (r *Repository) ConfirmAutoTorrent(matchSeasonOneOnly bool) (AutoTorrentVie
 	}
 	a.saveLocked()
 	v := a.viewLocked()
+	hooks := a.hooks
 	a.mu.Unlock()
+
+	for _, id := range marked {
+		hooks.MarkDownloading(id)
+	}
 
 	a.r.logger.Info().Int("queued", queued).Msg("enqueuefuture: Auto torrent batch confirmed")
 	a.kickPicker()
@@ -522,9 +542,9 @@ func (a *autoTorrent) runPicker(run int) {
 		if a.hooks.ContentsClient != nil {
 			client = a.hooks.ContentsClient()
 		}
+		a.progressIDs, a.progress = ids, 0
 		a.mu.Unlock()
 
-		a.progressIDs, a.progress = ids, 0
 		picks := a.pick(ctx, ids, client, func(done int) {
 			a.mu.Lock()
 			if slices.Equal(a.progressIDs, ids) {
@@ -613,7 +633,10 @@ func (a *autoTorrent) runAdder() {
 		}
 		// Dealt with since you confirmed it — downloaded by hand, matched, skipped. Dropped without
 		// touching the client, and without the gap: nothing was sent.
-		if reason := a.r.SettledReason(job.MediaID); reason != "" {
+		if reason := a.r.settledReasonFor(job.MediaID, job.MarkedDownloading); reason != "" {
+			// Skipped or ignored since: the badge put up at confirm comes back down. A matched or
+			// downloaded badge is left alone — the unmark only takes down "downloading".
+			a.unmark(hooks, job)
 			a.r.logger.Debug().Str("torrent", job.Torrent.Name).Str("reason", reason).Msg("enqueuefuture: Auto torrent skipping, anime already dealt with")
 			a.mu.Lock()
 			a.popAddLocked(job)
@@ -652,6 +675,8 @@ func (a *autoTorrent) runAdder() {
 
 		if err != nil {
 			a.r.logger.Warn().Err(err).Str("torrent", job.Torrent.Name).Msg("enqueuefuture: Auto torrent could not add torrent")
+			// Nothing is downloading, so nothing may say so.
+			a.unmark(hooks, job)
 		}
 
 		// The gap only sits between two adds, so the last one does not hold the worker.
@@ -665,6 +690,25 @@ func (a *autoTorrent) runAdder() {
 		}
 		time.Sleep(gap)
 	}
+}
+
+func (a *autoTorrent) unmark(hooks *AutoTorrentHooks, job AutoTorrentJob) {
+	if job.MarkedDownloading && hooks != nil && hooks.UnmarkDownloading != nil {
+		hooks.UnmarkDownloading(job.MediaID)
+	}
+}
+
+// AutoTorrentQueuedMediaIDs are the anime confirmed in auto torrent and not sent to the client yet.
+// Their downloading badge is up with nothing in the client behind it, which is expected, not stale.
+func (r *Repository) AutoTorrentQueuedMediaIDs() map[int]struct{} {
+	a := r.autoTorrent
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	out := make(map[int]struct{}, len(a.state.Adds))
+	for _, job := range a.state.Adds {
+		out[job.MediaID] = struct{}{}
+	}
+	return out
 }
 
 // popAddLocked removes job from the front of the list, if it is still there.

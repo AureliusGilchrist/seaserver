@@ -103,10 +103,20 @@ func looksLikeSpecialRelease(name string, files int, episodes int) bool {
 // the auto torrent popup works from a list frozen when it opened, and the background adds run long
 // after that, so either can reach an anime you have dealt with since.
 func (r *Repository) SettledReason(mediaID int) string {
+	return r.settledReasonFor(mediaID, false)
+}
+
+// settledReasonFor is SettledReason, optionally ignoring a "downloading" badge — the one auto
+// torrent puts up itself the moment you confirm a pick, which must not then read to its own adder
+// as "already downloading".
+func (r *Repository) settledReasonFor(mediaID int, ignoreDownloading bool) string {
 	if r.database == nil || mediaID <= 0 {
 		return ""
 	}
 	state, _ := r.database.GetAnimeDownloadState(mediaID)
+	if ignoreDownloading && state == "downloading" {
+		state = ""
+	}
 	status := ""
 	if record, err := r.database.GetEnqueueFutureItem(mediaID); err == nil && record != nil {
 		status = record.Status

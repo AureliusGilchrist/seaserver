@@ -599,6 +599,10 @@ func (a *App) initModulesOnce() {
 		},
 	})
 
+	// Auto torrent puts a downloading badge up the moment a pick is confirmed, ahead of the paced
+	// add that sends it to the client; those are not stale while they wait.
+	a.StuckDownloadMonitor.SetExcludeFunc(a.EnqueueFutureRepository.AutoTorrentQueuedMediaIDs)
+
 	// A run holds an item as "preparing" while it works on it, which is only true for as long as the
 	// worker is alive. Nothing survived the restart, so neither should that claim.
 	a.EnqueueFutureRepository.ResetStaleItems()

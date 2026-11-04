@@ -37,6 +37,9 @@ type StuckDownloadMonitor struct {
 	torrentStateSource func() ([]TorrentState, bool)
 
 	stuck []int
+
+	// exclude names anime whose badge is expected to be ahead of the client. See SetExcludeFunc.
+	exclude func() map[int]struct{}
 }
 
 // NewStuckDownloadMonitor creates a monitor. Call SetTorrentStateSource and Start before relying on
@@ -142,11 +145,31 @@ func (m *StuckDownloadMonitor) check() {
 
 // StuckMediaIDs returns the last computed set of media IDs whose "downloading" badge has nothing
 // live behind it. Empty before the first successful pass.
-func (m *StuckDownloadMonitor) StuckMediaIDs() []int {
+// SetExcludeFunc registers which anime are expected to have a downloading badge with nothing in the
+// client yet — auto torrent's queue, which puts badges up at confirm and sends one torrent every ten
+// seconds. They are left out of StuckMediaIDs so "clear stale badges" cannot take them down.
+func (m *StuckDownloadMonitor) SetExcludeFunc(fn func() map[int]struct{}) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	out := make([]int, len(m.stuck))
-	copy(out, m.stuck)
+	m.exclude = fn
+}
+
+func (m *StuckDownloadMonitor) StuckMediaIDs() []int {
+	m.mu.Lock()
+	stuck := m.stuck
+	exclude := m.exclude
+	m.mu.Unlock()
+
+	var skip map[int]struct{}
+	if exclude != nil {
+		skip = exclude()
+	}
+	out := make([]int, 0, len(stuck))
+	for _, id := range stuck {
+		if _, ok := skip[id]; !ok {
+			out = append(out, id)
+		}
+	}
 	return out
 }
 

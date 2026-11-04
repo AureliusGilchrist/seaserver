@@ -8,6 +8,7 @@ import {
     useRetryAutoTorrent,
     useStartAutoTorrent,
 } from "@/api/hooks/enqueue_future.hooks"
+import { DOWNLOADING_MEDIA_QUERY_KEY, useDownloadingAnime } from "@/app/(main)/_atoms/downloading.atoms"
 import {
     __torrentDownload_matchSeasonOneAtom as matchSeasonOneAtom,
     MATCH_SEASON_ONE_HELP,
@@ -66,6 +67,7 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
     const { mutate: retry, isPending: isRetrying } = useRetryAutoTorrent()
     const { mutate: end, isPending: isEnding } = useEndAutoTorrent()
     const [matchSeasonOne, setMatchSeasonOne] = useAtom(matchSeasonOneAtom)
+    const { addDownloadingAnime } = useDownloadingAnime()
 
     function startSession() {
         start({ mediaIds: candidates.map(c => c.mediaId) })
@@ -137,8 +139,15 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
     }
 
     function handleConfirm() {
+        // Every pick in the batch reads as downloading the moment it is confirmed — badge, greyed
+        // row and all — not when the server gets round to sending it, which can be many minutes
+        // later. The server puts the same badges up for every other screen and device.
+        const confirmedIds = toDownload.map(p => p.mediaId)
         confirm({ matchSeasonOneOnly: matchSeasonOne }, {
             onSuccess: () => {
+                confirmedIds.forEach(id => addDownloadingAnime(id))
+                void queryClient.invalidateQueries({ queryKey: DOWNLOADING_MEDIA_QUERY_KEY })
+                void queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureQueue.key] })
                 if (toDownload.length) {
                     toast.success(`${toDownload.length} torrent${toDownload.length === 1 ? "" : "s"} queued — added in the background`)
                 }

@@ -45,6 +45,12 @@ func (h *Handler) wireAutoTorrent(app *core.App) {
 			return false, ""
 		},
 		ContentsClient: h.torrentContentsHTTPClient,
+		MarkDownloading: func(mediaID int) {
+			h.App.UnmatchedRepository.MarkAnimeDownloading(mediaID)
+		},
+		UnmarkDownloading: func(mediaID int) {
+			_, _ = h.App.UnmatchedRepository.ClearAnimeDownloadStateIfDownloading(mediaID)
+		},
 	})
 }
 
