@@ -99,12 +99,20 @@ export function MainSidebar() {
 
     return (
         <>
+            {/* Full-height scrim behind the icons: above page content/banner, below the sidebar UI.
+                Kept outside AppSidebar so the sidebar's transform/overflow can't clip or pin it.
+                Near-solid black at the left edge, fading out past the slim sidebar's (5rem) right edge,
+                so the icons read over bright wallpapers and banners. rem-sized, so it follows the
+                Interface size zoom; desktop only (the phone drawer has its own background).
+                A static gradient: no blur, no animation, so it costs nothing per frame. */}
+            <div
+                aria-hidden="true"
+                className="pointer-events-none fixed inset-y-0 left-0 z-[15] hidden w-36 bg-[linear-gradient(to_right,rgba(0,0,0,0.92)_0%,rgba(0,0,0,0.8)_30%,rgba(0,0,0,0.45)_55%,rgba(0,0,0,0.15)_78%,transparent_100%)] lg:block"
+            />
             <AppSidebar
                 ref={containerRef}
                 className={cn(
-                    // The icons carry a soft shadow so they read over bright wallpapers; nothing darkens
-                    // the wallpaper behind them (it dims only by its own setting).
-                    "group/main-sidebar relative z-20 h-full [&_svg]:drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] flex flex-col justify-between transition-gpu w-full transition-[width] duration-300 overflow-x-hidden",
+                    "group/main-sidebar relative z-20 h-full flex flex-col justify-between transition-gpu w-full transition-[width] duration-300 overflow-x-hidden",
                     // Enable scrolling but hide the scrollbar
                     "overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']",
                     (!ctx.isBelowBreakpoint && expandedSidebar) && "w-[260px]",
