@@ -57794,6 +57794,133 @@
     "comments": []
   },
   {
+    "filepath": "../internal/handlers/auto_torrent_queue.go",
+    "filename": "auto_torrent_queue.go",
+    "name": "AutoTorrentJob",
+    "formattedName": "AutoTorrentJob",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Torrent",
+        "jsonName": "torrent",
+        "goType": "hibiketorrent.AnimeTorrent",
+        "typescriptType": "HibikeTorrent_AnimeTorrent",
+        "usedTypescriptType": "HibikeTorrent_AnimeTorrent",
+        "usedStructName": "hibiketorrent.AnimeTorrent",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Media",
+        "jsonName": "media",
+        "goType": "anilist.BaseAnime",
+        "typescriptType": "AL_BaseAnime",
+        "usedTypescriptType": "AL_BaseAnime",
+        "usedStructName": "anilist.BaseAnime",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AutoMatch",
+        "jsonName": "autoMatch",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MatchSeasonOneOnly",
+        "jsonName": "matchSeasonOneOnly",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " AutoTorrentJob is one confirmed pick waiting to be sent to the torrent client."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/auto_torrent_queue.go",
+    "filename": "auto_torrent_queue.go",
+    "name": "AutoTorrentQueueStatus",
+    "formattedName": "AutoTorrentQueueStatus",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Pending",
+        "jsonName": "pending",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Current",
+        "jsonName": "current",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Waiting",
+        "jsonName": "waiting",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Added",
+        "jsonName": "added",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Skipped",
+        "jsonName": "skipped",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Failed",
+        "jsonName": "failed",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastError",
+        "jsonName": "lastError",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " AutoTorrentQueueStatus is what the popup shows about the background adds."
+    ]
+  },
+  {
     "filepath": "../internal/handlers/character.go",
     "filename": "character.go",
     "name": "CharacterDetailsResponse",

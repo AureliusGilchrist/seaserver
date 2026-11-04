@@ -3577,6 +3577,37 @@ export type ApiDocsGroup = {
 }
 
 /**
+ * - Filepath: internal/handlers/auto_torrent_queue.go
+ * - Filename: auto_torrent_queue.go
+ * - Package: handlers
+ * @description
+ *  AutoTorrentJob is one confirmed pick waiting to be sent to the torrent client.
+ */
+export type AutoTorrentJob = {
+    torrent?: HibikeTorrent_AnimeTorrent
+    media?: AL_BaseAnime
+    autoMatch: boolean
+    matchSeasonOneOnly: boolean
+}
+
+/**
+ * - Filepath: internal/handlers/auto_torrent_queue.go
+ * - Filename: auto_torrent_queue.go
+ * - Package: handlers
+ * @description
+ *  AutoTorrentQueueStatus is what the popup shows about the background adds.
+ */
+export type AutoTorrentQueueStatus = {
+    pending: number
+    current?: string
+    waiting?: string
+    added: number
+    skipped: number
+    failed: number
+    lastError?: string
+}
+
+/**
  * - Filepath: internal/handlers/update_notice.go
  * - Filename: update_notice.go
  * - Package: handlers

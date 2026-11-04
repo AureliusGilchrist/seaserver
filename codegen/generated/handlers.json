@@ -3400,6 +3400,117 @@
     }
   },
   {
+    "name": "enqueueAutoTorrents",
+    "trimmedName": "enqueueAutoTorrents",
+    "comments": [
+      "enqueueAutoTorrents adds jobs to the queue and starts the worker if it is not already running.",
+      ""
+    ],
+    "filepath": "internal/handlers/auto_torrent_queue.go",
+    "filename": "auto_torrent_queue.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "autoTorrentWait",
+    "trimmedName": "autoTorrentWait",
+    "comments": [
+      "autoTorrentWait records why the queue is holding off and waits before looking again.",
+      ""
+    ],
+    "filepath": "internal/handlers/auto_torrent_queue.go",
+    "filename": "auto_torrent_queue.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleAutoTorrentAdd",
+    "trimmedName": "AutoTorrentAdd",
+    "comments": [
+      "HandleAutoTorrentAdd",
+      "",
+      "\t@summary hands confirmed auto torrent picks to the server to add in the background.",
+      "\t@desc Returns immediately. The server adds the torrents one at a time, 10 seconds apart, and",
+      "\t@desc holds off while the torrent client is offline or slow, so a batch never floods it.",
+      "\t@route /api/v1/enqueue-future/auto-pick/add [POST]",
+      "\t@returns handlers.AutoTorrentQueueStatus",
+      ""
+    ],
+    "filepath": "internal/handlers/auto_torrent_queue.go",
+    "filename": "auto_torrent_queue.go",
+    "api": {
+      "summary": "hands confirmed auto torrent picks to the server to add in the background.",
+      "descriptions": [
+        "Returns immediately. The server adds the torrents one at a time, 10 seconds apart, and",
+        "holds off while the torrent client is offline or slow, so a batch never floods it."
+      ],
+      "endpoint": "/api/v1/enqueue-future/auto-pick/add",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "Items",
+          "jsonName": "items",
+          "goType": "[]AutoTorrentJob",
+          "usedStructType": "handlers.AutoTorrentJob",
+          "typescriptType": "Array\u003cAutoTorrentJob\u003e",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "handlers.AutoTorrentQueueStatus",
+      "returnGoType": "handlers.AutoTorrentQueueStatus",
+      "returnTypescriptType": "AutoTorrentQueueStatus"
+    }
+  },
+  {
+    "name": "HandleGetAutoTorrentAddStatus",
+    "trimmedName": "GetAutoTorrentAddStatus",
+    "comments": [
+      "HandleGetAutoTorrentAddStatus",
+      "",
+      "\t@summary returns the progress of the background auto torrent adds.",
+      "\t@route /api/v1/enqueue-future/auto-pick/add [GET]",
+      "\t@returns handlers.AutoTorrentQueueStatus",
+      ""
+    ],
+    "filepath": "internal/handlers/auto_torrent_queue.go",
+    "filename": "auto_torrent_queue.go",
+    "api": {
+      "summary": "returns the progress of the background auto torrent adds.",
+      "descriptions": [],
+      "endpoint": "/api/v1/enqueue-future/auto-pick/add",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "handlers.AutoTorrentQueueStatus",
+      "returnGoType": "handlers.AutoTorrentQueueStatus",
+      "returnTypescriptType": "AutoTorrentQueueStatus"
+    }
+  },
+  {
     "name": "anilistDataQuery",
     "trimmedName": "anilistDataQuery",
     "comments": [
@@ -21116,6 +21227,51 @@
     ],
     "filepath": "internal/handlers/timeline_extras.go",
     "filename": "timeline_extras.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "queuedTorrentMetadata",
+    "trimmedName": "queuedTorrentMetadata",
+    "comments": [
+      "queuedTorrentMetadata is everything known about the anime a download is for, worked out once per",
+      "request: the episode metadata is fetched here rather than in the middle of a match. Zero value",
+      "when the download is not for a known anime.",
+      ""
+    ],
+    "filepath": "internal/handlers/torrent_add.go",
+    "filename": "torrent_add.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "addTorrentToClient",
+    "trimmedName": "addTorrentToClient",
+    "comments": [
+      "addTorrentToClient sends one torrent to the client, into the unmatched directory, with its anime",
+      "metadata saved first. Reports false with no error when the client already has it.",
+      ""
+    ],
+    "filepath": "internal/handlers/torrent_add.go",
+    "filename": "torrent_add.go",
     "api": {
       "summary": "",
       "descriptions": [],

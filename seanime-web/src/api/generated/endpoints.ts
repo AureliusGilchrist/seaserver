@@ -746,6 +746,24 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/auto-downloader/item",
         },
     },
+    AUTO_TORRENT_QUEUE: {
+        /**
+         *  @description
+         *  Route hands confirmed auto torrent picks to the server to add in the background.
+         *  Returns immediately. The server adds the torrents one at a time, 10 seconds apart, and
+         *  holds off while the torrent client is offline or slow, so a batch never floods it.
+         */
+        AutoTorrentAdd: {
+            key: "AUTO-TORRENT-QUEUE-auto-torrent-add",
+            methods: ["POST"],
+            endpoint: "/api/v1/enqueue-future/auto-pick/add",
+        },
+        GetAutoTorrentAddStatus: {
+            key: "AUTO-TORRENT-QUEUE-get-auto-torrent-add-status",
+            methods: ["GET"],
+            endpoint: "/api/v1/enqueue-future/auto-pick/add",
+        },
+    },
     CHARACTER: {
         /**
          *  @description

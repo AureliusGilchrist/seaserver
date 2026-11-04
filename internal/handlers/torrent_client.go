@@ -737,109 +737,26 @@ func (h *Handler) HandleTorrentClientDownload(c echo.Context) error {
 	// media page has already told us exactly which anime this is, so the episode metadata is
 	// fetched here rather than in the middle of a match. Every torrent in the request is for this
 	// same anime, so this is a single call however many torrents were selected.
-	var queuedMetadata unmatched.TorrentMetadata
-	if b.Media != nil {
-		queuedMetadata = unmatched.TorrentMetadata{
-			AnimeID:            b.Media.ID,
-			AutoMatch:          b.AutoMatch,
-			MatchSeasonOneOnly: b.MatchSeasonOneOnly,
-		}
-		if b.Media.Title != nil {
-			if b.Media.Title.Romaji != nil {
-				queuedMetadata.AnimeTitleRomaji = *b.Media.Title.Romaji
-			}
-			if b.Media.Title.Native != nil {
-				queuedMetadata.AnimeTitleNative = *b.Media.Title.Native
-			}
-		}
-		if b.Media.Format != nil {
-			queuedMetadata.AnimeFormat = string(*b.Media.Format)
-		}
-		if b.Media.StartDate != nil && b.Media.StartDate.Year != nil {
-			queuedMetadata.AnimeStartYear = *b.Media.StartDate.Year
-		}
-		// AniList's count for this exact entry — recorded so the Unmatched screen doesn't have to
-		// fall back to the Animap map, which also counts specials and sibling seasons.
-		if b.Media.Episodes != nil {
-			queuedMetadata.AnimeExpectedEpisodes = *b.Media.Episodes
-		}
-
-		// The episode titles. Fetched now, so naming the files later is pure string work.
-		h.App.UnmatchedRepository.EnrichMetadata(&queuedMetadata)
-	}
+	queuedMetadata := h.queuedTorrentMetadata(b.Media)
 
 	added := 0
 
 	// OVERRIDE: Always download to unmatched directory
 	// Each torrent goes to /zroot/torrents/Anime/Unmatched/$TorrentName
 	for _, t := range b.Torrents {
-		// Get the unmatched destination for this torrent
-		destination := h.App.UnmatchedRepository.GetUnmatchedDestination(t.Name)
-
-		// Get the torrent's provider extension
-		providerExtension, ok := h.App.TorrentRepository.GetAnimeProviderExtension(t.Provider)
-		if !ok {
-			return h.RespondWithError(c, errors.New("provider extension not found for torrent"))
-		}
-
-		// Get the torrent magnet link
-		magnet, err := providerExtension.GetProvider().GetTorrentMagnetLink(&t)
-		if err != nil {
-			return h.RespondWithError(c, err)
-		}
-
-		// Already in the client: nothing new is downloading, so nothing here may claim otherwise,
-		// and the metadata of the download that is already there stays as it is.
-		if hash := torrent_client.MagnetInfoHash(magnet); hash != "" && repo.TorrentExists(hash) {
-			h.App.Logger.Warn().Str("torrent", t.Name).Msg("torrent client: Torrent is already in the client, skipping")
-			continue
-		}
-
-		// Save anime metadata BEFORE queueing the download.
-		//
-		// This record is the ONLY thing linking the download back to its anime — the Unmatched
-		// screen has no other way to recover it. If this write fails and the torrent is added
-		// anyway, the download lands with nothing attached and has to be matched by hand. That
-		// failure used to be logged as a warning and swallowed, which let it go unnoticed across
-		// many downloads.
 		// This torrent's own answer, falling back to the one given for the batch.
 		autoMatch := b.AutoMatch
 		if override, ok := b.AutoMatchByTorrent[t.Link]; ok {
 			autoMatch = override
 		}
 
-		if b.Media != nil {
-			metadata := queuedMetadata
-			metadata.AutoMatch = autoMatch
-			// Season 1 only is a narrowing of the automatic match, so it travels with it: a torrent
-			// singled out to be reviewed by hand carries no scoping rule for a match that will not
-			// happen.
-			metadata.MatchSeasonOneOnly = autoMatch && b.MatchSeasonOneOnly
-			if err := h.App.UnmatchedRepository.SaveTorrentMetadataRecord(t.Name, metadata); err != nil {
-				h.App.Logger.Error().Err(err).Str("torrent", t.Name).Msg("torrent client: Failed to save torrent metadata")
-				return h.RespondWithError(c, fmt.Errorf("could not save anime metadata for %q, torrent not added: %w", t.Name, err))
-			}
-		}
-
-		// Add torrent to client with unmatched destination
-		err = repo.AddMagnets([]string{magnet}, destination)
-		if errors.Is(err, torrent_client.ErrTorrentAlreadyInClient) {
-			continue
-		}
+		ok, err := h.addTorrentToClient(repo, t, b.Media, queuedMetadata, autoMatch, b.MatchSeasonOneOnly)
 		if err != nil {
 			return h.RespondWithError(c, err)
 		}
-		added++
-
-		// The badge goes up here, at the moment the download exists, and stays up until something
-		// says it has moved on. Written after the torrent is accepted so a failed add leaves no
-		// badge behind, and written unconditionally so downloading another season of something
-		// already in the library says "downloading" again — which is what the card is being asked.
-		if b.Media != nil {
-			h.App.UnmatchedRepository.MarkAnimeDownloading(b.Media.ID)
+		if ok {
+			added++
 		}
-
-		h.App.Logger.Info().Str("torrent", t.Name).Str("destination", destination).Bool("autoMatch", autoMatch && b.Media != nil).Msg("torrent client: Added torrent to unmatched directory")
 	}
 
 	// Nothing was added, so answer with the conflict: the page says nothing rather than "Download

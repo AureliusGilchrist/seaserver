@@ -1,8 +1,8 @@
 import React from "react"
 import { buildSeaQuery, useServerMutation, useServerQuery } from "@/api/client/requests"
-import { AutoPickEnqueueFuture_Variables, EnqueueFuture_Variables, SetEnqueueFutureItemStatus_Variables } from "@/api/generated/endpoint.types"
+import { AutoPickEnqueueFuture_Variables, AutoTorrentAdd_Variables, EnqueueFuture_Variables, SetEnqueueFutureItemStatus_Variables } from "@/api/generated/endpoint.types"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
-import { EnqueueFuture_AutoPick, EnqueueFuture_DroppedItem, EnqueueFuture_Item, EnqueueFuture_Status, EnqueueFuture_WaitingPage } from "@/api/generated/types"
+import { AutoTorrentQueueStatus, EnqueueFuture_AutoPick, EnqueueFuture_DroppedItem, EnqueueFuture_Item, EnqueueFuture_Status, EnqueueFuture_WaitingPage } from "@/api/generated/types"
 import { serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
 import { InfiniteData, keepPreviousData, useInfiniteQuery, useQueryClient } from "@tanstack/react-query"
@@ -421,5 +421,29 @@ export function useAutoPickEnqueueFuture() {
         method: API_ENDPOINTS.ENQUEUE_FUTURE.AutoPickEnqueueFuture.methods[0],
         mutationKey: [API_ENDPOINTS.ENQUEUE_FUTURE.AutoPickEnqueueFuture.key],
         timeout: 10 * 60 * 1000,
+    })
+}
+
+/** Hands confirmed auto torrent picks to the server, which adds them in the background. Returns at once. */
+export function useAutoTorrentAdd() {
+    const queryClient = useQueryClient()
+    return useServerMutation<AutoTorrentQueueStatus, AutoTorrentAdd_Variables>({
+        endpoint: API_ENDPOINTS.AUTO_TORRENT_QUEUE.AutoTorrentAdd.endpoint,
+        method: API_ENDPOINTS.AUTO_TORRENT_QUEUE.AutoTorrentAdd.methods[0],
+        mutationKey: [API_ENDPOINTS.AUTO_TORRENT_QUEUE.AutoTorrentAdd.key],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.AUTO_TORRENT_QUEUE.GetAutoTorrentAddStatus.key] })
+        },
+    })
+}
+
+/** Progress of the background auto torrent adds. Polls while there is anything left to send. */
+export function useGetAutoTorrentAddStatus(enabled: boolean) {
+    return useServerQuery<AutoTorrentQueueStatus>({
+        endpoint: API_ENDPOINTS.AUTO_TORRENT_QUEUE.GetAutoTorrentAddStatus.endpoint,
+        method: API_ENDPOINTS.AUTO_TORRENT_QUEUE.GetAutoTorrentAddStatus.methods[0],
+        queryKey: [API_ENDPOINTS.AUTO_TORRENT_QUEUE.GetAutoTorrentAddStatus.key],
+        enabled,
+        refetchInterval: query => ((query.state.data?.pending ?? 0) > 0 || !!query.state.data?.current ? 3_000 : false),
     })
 }

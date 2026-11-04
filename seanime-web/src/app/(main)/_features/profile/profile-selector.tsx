@@ -196,10 +196,16 @@ export function ProfileSelector({ profiles, onManageProfiles }: ProfileSelectorP
         )
     }
 
+    // Both screens below are pinned to the window (fixed, inset-0) rather than sitting in the page
+    // as a min-h-screen block. In the page, anything else that made the document taller — the
+    // app's other overlays render beside this gate — left a strip below it where the blurred
+    // wallpaper showed through along the bottom of the window. Below the title bar (z-999), so
+    // the window controls stay reachable.
+
     // PIN entry screen with keypad
     if (selectedProfile) {
         return (
-            <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#080a16] px-4 py-10 text-white">
+            <div className="fixed inset-0 z-[100] flex flex-col items-center [justify-content:safe_center] overflow-y-auto overflow-x-hidden bg-[#080a16] px-4 py-10 text-white" data-profile-gate>
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_15%_10%,rgba(124,58,237,0.22),transparent_42%),radial-gradient(ellipse_at_85%_80%,rgba(8,145,178,0.16),transparent_45%)]" />
                 <div className="pointer-events-none absolute -left-20 top-1/3 h-64 w-64 rounded-full bg-violet-600/10 blur-3xl" />
                 <div className="pointer-events-none absolute -right-24 bottom-0 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
@@ -293,7 +299,7 @@ export function ProfileSelector({ profiles, onManageProfiles }: ProfileSelectorP
 
     // Profile grid
     return (
-        <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#080a16] px-4 py-10 text-white">
+        <div className="fixed inset-0 z-[100] flex flex-col items-center [justify-content:safe_center] overflow-y-auto overflow-x-hidden bg-[#080a16] px-4 py-10 text-white" data-profile-gate>
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_15%_10%,rgba(124,58,237,0.22),transparent_42%),radial-gradient(ellipse_at_85%_80%,rgba(8,145,178,0.16),transparent_45%)]" />
             <div className="pointer-events-none absolute -left-20 top-1/3 h-64 w-64 rounded-full bg-violet-600/10 blur-3xl" />
             <div className="pointer-events-none absolute -right-24 bottom-0 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
