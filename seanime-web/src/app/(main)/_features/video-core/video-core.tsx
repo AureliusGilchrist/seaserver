@@ -571,7 +571,9 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                                     filter: (settings.videoEnhancement.enabled && beautifyImage)
                                         ? `contrast(${settings.videoEnhancement.contrast}) saturate(${settings.videoEnhancement.saturation}) brightness(${settings.videoEnhancement.brightness})`
                                         : "none",
-                                    imageRendering: "crisp-edges",
+                                    // Nearest-neighbour scaling forces the video through the compositor instead
+                                    // of a hardware overlay; only used with GPU-optimized playback off.
+                                    ...(settings.gpuOptimizedPlayback === false ? { imageRendering: "crisp-edges" as const } : {}),
                                 }}
                             >
                                 {state.playbackInfo?.mkvMetadata?.subtitleTracks?.map(track => (
@@ -589,11 +591,17 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                                 touches. It sits inside the video's own container — above the
                                 element, below the control bar and top section — and takes no
                                 pointer events, so a click meant for the video reaches it as if
-                                the layer were not there. */}
+                                the layer were not there. It is only shown while the controls
+                                are up: anything drawn over a playing <video> stops the GPU from
+                                presenting it on a hardware overlay plane (a fully transparent
+                                layer draws nothing, so it does not count). */}
                             <div
                                 data-vc-element="vignette"
                                 aria-hidden
-                                className="pointer-events-none absolute inset-0 z-[1]"
+                                className={cn(
+                                    "pointer-events-none absolute inset-0 z-[1] transition-opacity duration-200 ease-in-out",
+                                    (busy || paused || settings.gpuOptimizedPlayback === false) ? "opacity-100" : "opacity-0",
+                                )}
                                 style={{
                                     background: "radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.15) 75%, rgba(0,0,0,0.35) 100%)",
                                 }}
@@ -1961,6 +1969,10 @@ export function VideoCore(props: VideoCoreProps) {
             videoRef.current.playbackRate = playbackRate
         }
     }, [playbackRate, videoRef.current])
+
+    React.useEffect(() => {
+        pipManager?.setGpuOptimized(settings.gpuOptimizedPlayback !== false)
+    }, [pipManager, settings.gpuOptimizedPlayback])
 
     // Update PIP manager
     React.useEffect(() => {

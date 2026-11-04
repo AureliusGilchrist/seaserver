@@ -62,6 +62,9 @@ func (vs *VideoStream) getTranscodeArgs(segments string) []string {
 	vs.logger.Debug().Interface("hwaccelArgs", hwAccel).Msg("videostream: Hardware Acceleration")
 
 	args = append(args, hwAccel.EncodeFlags...)
+	if vs.settings.Threads > 0 && isSoftwareEncode(hwAccel) {
+		args = append(args, "-threads", fmt.Sprint(vs.settings.Threads))
+	}
 	width := int32(float64(vs.quality.Height()) / float64(vs.file.Info.Video.Height) * float64(vs.file.Info.Video.Width))
 	// force a width that is a multiple of two else some apps behave badly.
 	width = closestMultiple(width, 2)

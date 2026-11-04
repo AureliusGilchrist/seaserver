@@ -6,6 +6,7 @@ import (
 	"fmt"
 	hibikemanga "seanime/internal/extension/hibike/manga"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -53,8 +54,12 @@ type providerWait struct {
 // sign, so asking the front page would report a healthy site. The only question with a useful answer
 // is whether requests that normally work still do, which is what probeProvider asks.
 //
-// It belongs to one run and is only used from that run's goroutine.
+// It belongs to one run. The chapters of a series are fetched concurrently, so await and succeeded
+// lock mu: while one chapter sits out an outage the others wait their turn instead of each starting
+// a wait of its own.
 type providerWatchdog struct {
+	mu sync.Mutex
+
 	minBackoff time.Duration
 	maxBackoff time.Duration
 	maxWait    time.Duration
@@ -105,6 +110,8 @@ func sleepContext(ctx context.Context, d time.Duration) error {
 //	(true, nil)    send the request again: the provider recovered, or the failure looks passing
 //	(false, err)   errProviderOutage after giving up, or the context's error
 func (w *providerWatchdog) await(ctx context.Context, provider hibikemanga.Provider, cause error) (bool, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	if err := ctx.Err(); err != nil {
 		return false, err
 	}
@@ -192,6 +199,8 @@ func (w *providerWatchdog) retryTransient(ctx context.Context, cause error) (boo
 
 // succeeded is called when a provider request comes back fine, which is the best health check of all.
 func (w *providerWatchdog) succeeded() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	w.transientRetries = 0
 	if w.gaveUp {
 		w.gaveUp = false

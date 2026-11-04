@@ -81,8 +81,8 @@ func (ip *ImageProxy) Pin(rawURL string) error {
 	key := imageCacheKey(rawURL)
 	body, _, ok := ip.readCache(key, true)
 	if !ok {
-		imageProxySlots <- struct{}{}
-		defer func() { <-imageProxySlots }()
+		imagePinSlots <- struct{}{}
+		defer func() { <-imagePinSlots }()
 		var err error
 		if body, _, err = ip.fetch(rawURL, nil); err != nil {
 			return err

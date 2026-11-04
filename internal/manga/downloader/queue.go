@@ -23,6 +23,10 @@ const (
 	QueueStatusErrored     QueueStatus = "errored"
 )
 
+// MaxConcurrentChapterDownloads is how many chapters download at once. Each fetches up to
+// maxConcurrentPages pages at a time.
+const MaxConcurrentChapterDownloads = 2
+
 type (
 	// Queue is used to manage the download queue.
 	// If feeds the downloader with the next item in the queue.
@@ -30,7 +34,8 @@ type (
 		logger            *zerolog.Logger
 		mu                sync.Mutex
 		db                *db.Database
-		current           *QueueInfo
+		// running are the items being downloaded, oldest first (at most MaxConcurrentChapterDownloads).
+		running           []*QueueInfo
 		runCh             chan *QueueInfo // Channel to tell downloader to run the next item
 		active            bool
 		ensureRunning     bool // Tracks if ensureProgress goroutine is running
@@ -137,23 +142,20 @@ func (q *Queue) HasCompleted(queueInfo *QueueInfo) {
 	if queueInfo.Status == QueueStatusErrored {
 		q.logger.Warn().Msgf("chapter downloader: Errored %s", queueInfo.DownloadID.ChapterId)
 		// Update the status of the current item in the database.
-		_ = q.db.UpdateChapterDownloadQueueItemStatus(q.current.DownloadID.Provider, q.current.DownloadID.MediaId, q.current.DownloadID.ChapterId, string(QueueStatusErrored))
+		_ = q.db.UpdateChapterDownloadQueueItemStatus(queueInfo.DownloadID.Provider, queueInfo.DownloadID.MediaId, queueInfo.DownloadID.ChapterId, string(QueueStatusErrored))
 	} else {
 		q.logger.Debug().Msgf("chapter downloader: Dequeueing %s", queueInfo.DownloadID.ChapterId)
-		// Dequeue the item from the database.
-		_, err := q.db.DequeueChapterDownloadQueueItem()
-		if err != nil {
+		// Dequeue the item from the database. A failure still frees its slot: a stuck slot would
+		// stall the queue for good.
+		if err := q.db.DequeueChapterDownloadQueueItemByID(queueInfo.DownloadID.Provider, queueInfo.DownloadID.MediaId, queueInfo.DownloadID.ChapterId); err != nil {
 			q.logger.Error().Err(err).Msgf("Failed to dequeue chapter download queue item for id %v", queueInfo.DownloadID)
-			q.mu.Unlock()
-			return
 		}
 	}
 
 	q.wsEventManager.SendEvent(events.ChapterDownloadQueueUpdated, nil)
 	q.wsEventManager.SendEvent(events.RefreshedMangaDownloadData, nil)
 
-	// Reset current item
-	q.current = nil
+	q.removeRunning(queueInfo)
 	shouldRunNext := q.active
 	q.mu.Unlock()
 
@@ -198,7 +200,7 @@ func (q *Queue) Stop() {
 	}
 
 	q.active = false
-	q.current = nil
+	q.running = nil
 
 	// Reset any "downloading" items back to "not_started" so they can be picked up again
 	_ = q.db.ResetDownloadingChapterDownloadQueueItems()
@@ -215,10 +217,10 @@ func (q *Queue) ensureProgress() {
 	for range ticker.C {
 		q.mu.Lock()
 		active := q.active
-		hasCurrent := q.current != nil
+		hasRoom := len(q.running) < MaxConcurrentChapterDownloads
 		q.mu.Unlock()
 
-		if active && !hasCurrent {
+		if active && hasRoom {
 			// Kick runNext in a goroutine to avoid blocking the ticker
 			go q.runNext()
 		}
@@ -244,8 +246,8 @@ func (q *Queue) runNext() {
 		return
 	}
 
-	if q.current != nil {
-		q.logger.Debug().Msg("chapter downloader: Current item is not nil")
+	if len(q.running) >= MaxConcurrentChapterDownloads {
+		q.logger.Debug().Msg("chapter downloader: Every download slot is busy")
 		q.mu.Unlock()
 		return
 	}
@@ -307,24 +309,21 @@ func (q *Queue) runNext() {
 	// Update status
 	_ = q.db.UpdateChapterDownloadQueueItemStatus(id.Provider, id.MediaId, id.ChapterId, string(QueueStatusDownloading))
 
-	// Set the current item.
-	q.current = &QueueInfo{
+	currentItem := &QueueInfo{
 		DownloadID:     id,
 		DownloadedUrls: make([]string, 0),
 		Status:         QueueStatusDownloading,
 	}
 
 	// Unmarshal the page data.
-	err = json.Unmarshal(next.PageData, &q.current.Pages)
+	err = json.Unmarshal(next.PageData, &currentItem.Pages)
 	if err != nil {
 		q.logger.Error().Err(err).Msgf("Failed to unmarshal pages for id %v", id)
 		_ = q.db.UpdateChapterDownloadQueueItemStatus(id.Provider, id.MediaId, id.ChapterId, string(QueueStatusNotStarted))
-		q.current = nil
 		q.mu.Unlock()
 		return
 	}
-
-	currentItem := q.current
+	q.running = append(q.running, currentItem)
 	q.mu.Unlock()
 
 	// Brief delay to allow UI to update and prevent hammering the source
@@ -334,7 +333,7 @@ func (q *Queue) runNext() {
 	q.mu.Lock()
 	if !q.active {
 		q.logger.Debug().Msg("chapter downloader: Queue became inactive during delay")
-		q.current = nil
+		q.removeRunning(currentItem)
 		_ = q.db.UpdateChapterDownloadQueueItemStatus(id.Provider, id.MediaId, id.ChapterId, string(QueueStatusNotStarted))
 		q.mu.Unlock()
 		return
@@ -345,6 +344,19 @@ func (q *Queue) runNext() {
 
 	// Tell Downloader to run
 	q.runCh <- currentItem
+
+	// Fill the next free slot, if there is one.
+	go q.runNext()
+}
+
+// removeRunning drops an item from the running ones. The caller holds q.mu.
+func (q *Queue) removeRunning(item *QueueInfo) {
+	for i, r := range q.running {
+		if r == item || r.DownloadID == item.DownloadID {
+			q.running = append(q.running[:i:i], q.running[i+1:]...)
+			return
+		}
+	}
 }
 
 // shouldSkipSeries checks if a series is already mostly downloaded (within 10% threshold)
@@ -449,9 +461,9 @@ func (q *Queue) GetCurrent() (qi *QueueInfo, ok bool) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	if q.current == nil {
+	if len(q.running) == 0 {
 		return nil, false
 	}
 
-	return q.current, true
+	return q.running[0], true
 }

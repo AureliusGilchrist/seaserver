@@ -23,6 +23,9 @@ export type VideoCoreSettings = {
      * songs track (or none), never the full subtitles. Not stored. */
     subtitleSignsOnly?: boolean
     subtitleDelay: number // in seconds
+    /** GPU-friendly playback: nothing is drawn over a playing video (so the GPU can present it on
+     * a hardware overlay), and Document PiP moves the real video instead of copying frames. */
+    gpuOptimizedPlayback: boolean
     audioDelay: number // in seconds, positive = audio ahead, negative = audio behind
     // Video enhancement settings
     videoEnhancement: {
@@ -60,6 +63,7 @@ export const vc_initialSettings: VideoCoreSettings = {
     preferredAudioLanguage: "jpn,jp,jap,japanese",
     subtitleDelay: 0,
     audioDelay: 0,
+    gpuOptimizedPlayback: true,
     videoEnhancement: {
         enabled: true,
         contrast: 1.05,

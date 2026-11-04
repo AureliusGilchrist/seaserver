@@ -62,6 +62,19 @@ func (db *Database) DequeueChapterDownloadQueueItem() (*models.ChapterDownloadQu
 	return &res, nil
 }
 
+// DequeueChapterDownloadQueueItemByID removes one finished item. DequeueChapterDownloadQueueItem
+// takes whichever item is downloading, which is the wrong one when several download at once.
+func (db *Database) DequeueChapterDownloadQueueItemByID(provider string, mId int, chapterId string) error {
+	err := retryOnBusy(func() error {
+		return db.gormdb.Where("provider = ? AND media_id = ? AND chapter_id = ?", provider, mId, chapterId).
+			Delete(&models.ChapterDownloadQueueItem{}).Error
+	})
+	if err != nil {
+		db.Logger.Error().Err(err).Msg("db: Failed to delete chapter download queue item")
+	}
+	return err
+}
+
 // MaxQueuedSeries is the maximum number of unique manga series the en masse downloader is
 // allowed to have in the download queue at once. Chapters per series are unlimited.
 //

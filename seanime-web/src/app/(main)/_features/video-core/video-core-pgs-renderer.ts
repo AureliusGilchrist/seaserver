@@ -23,11 +23,38 @@ export interface PgsEvent {
 
 const log = logger("PGS RENDERER")
 
+// Timing-only copy of an event, kept sorted on the main thread so it can tell when playback crosses
+// an event boundary without asking the worker every frame.
+interface PgsTiming {
+    key: string
+    start: number
+    end: number
+}
+
+// Same lookback as the worker: earlier events checked when the latest-starting one has ended.
+const OVERLAP_LOOKBACK = 4
+
+function pgsEventKey(event: PgsEvent) {
+    return `${event.startTime}-${event.duration}-${event.imageData.substring(0, 50)}`
+}
+
+type VideoWithFrameCallback = HTMLVideoElement & {
+    requestVideoFrameCallback?: (cb: (now: number, metadata: { mediaTime: number }) => void) => number
+    cancelVideoFrameCallback?: (handle: number) => void
+}
+
 export class VideoCorePgsRenderer {
     _canvas: HTMLCanvasElement | null = null
     private _videoElement: HTMLVideoElement
     private _worker: Worker | null = null
     private _animationFrameId: number | null = null
+    private _videoFrameCallbackId: number | null = null
+    private _timings: PgsTiming[] = []
+    private _timingKeys = new Set<string>()
+    private _timeOffset = 0
+    // Key of the event the worker was last told to show ("" = none, null = never told).
+    private _postedKey: string | null = null
+    private _onSeeked = () => this._check(true)
     private _debug: boolean = false
     private _isDestroyed: boolean = false
     private _canvasWidth: number = 0
@@ -51,6 +78,7 @@ export class VideoCorePgsRenderer {
             type: "addEvent",
             payload: event,
         })
+        if (this._addTiming(event)) this._check(true)
     }
 
     addEvents(events: PgsEvent[]) {
@@ -62,6 +90,11 @@ export class VideoCorePgsRenderer {
             type: "addEvents",
             payload: events,
         })
+        let added = false
+        for (const event of events) {
+            if (this._addTiming(event)) added = true
+        }
+        if (added) this._check(true)
     }
 
     resize() {
@@ -114,10 +147,12 @@ export class VideoCorePgsRenderer {
             return
         }
 
+        this._timeOffset = offset
         this._worker.postMessage({
             type: "setTimeOffset",
             payload: { offset },
         })
+        this._check(true)
     }
 
     stop() {
@@ -129,6 +164,9 @@ export class VideoCorePgsRenderer {
             return
         }
 
+        this._timings = []
+        this._timingKeys.clear()
+        this._postedKey = null
         this._worker.postMessage({
             type: "clear",
         })
@@ -141,6 +179,12 @@ export class VideoCorePgsRenderer {
             cancelAnimationFrame(this._animationFrameId)
             this._animationFrameId = null
         }
+        const video = this._videoElement as VideoWithFrameCallback
+        if (this._videoFrameCallbackId !== null) {
+            video.cancelVideoFrameCallback?.(this._videoFrameCallbackId)
+            this._videoFrameCallbackId = null
+        }
+        this._videoElement.removeEventListener("seeked", this._onSeeked)
 
         // Terminate worker
         if (this._worker) {
@@ -266,31 +310,78 @@ export class VideoCorePgsRenderer {
         this._resizeObserver.observe(this._videoElement)
     }
 
+    // Runs once per presented video frame (requestVideoFrameCallback), which is when the picture
+    // the subtitle belongs to can change, and asks the worker to draw only when that crosses an
+    // event boundary. Browsers without rVFC fall back to rAF with the same boundary check.
     private _startRenderLoop() {
-        const render = () => {
-            if (this._isDestroyed) {
-                return
-            }
+        const video = this._videoElement as VideoWithFrameCallback
+        video.addEventListener("seeked", this._onSeeked)
 
-            // Send render request to worker with current video state
-            if (this._worker && (!this._videoElement.paused || this._videoElement.seeking)) {
-                this._worker.postMessage({
-                    type: "render",
-                    payload: {
-                        currentTime: this._videoElement.currentTime,
-                        canvasWidth: this._canvasWidth,
-                        canvasHeight: this._canvasHeight,
-                        isPlaying: !this._videoElement.paused,
-                    },
-                })
+        if (typeof video.requestVideoFrameCallback === "function") {
+            const onFrame = (_now: number, metadata: { mediaTime: number }) => {
+                if (this._isDestroyed) return
+                this._check(false, metadata.mediaTime)
+                this._videoFrameCallbackId = video.requestVideoFrameCallback!(onFrame)
             }
-
+            this._videoFrameCallbackId = video.requestVideoFrameCallback(onFrame)
+        } else {
+            const render = () => {
+                if (this._isDestroyed) return
+                if (!video.paused || video.seeking) this._check(false)
+                this._animationFrameId = requestAnimationFrame(render)
+            }
             this._animationFrameId = requestAnimationFrame(render)
         }
 
-        render()
+        this._check(true)
     }
 
+    // Returns true when the timing was new.
+    private _addTiming(event: PgsEvent) {
+        const key = pgsEventKey(event)
+        if (this._timingKeys.has(key)) return false
+        this._timingKeys.add(key)
+        const timing = { key, start: event.startTime, end: event.startTime + event.duration }
+        const idx = this._upperBound(timing.start)
+        this._timings.splice(idx, 0, timing)
+        return true
+    }
+
+    private _upperBound(time: number) {
+        let lo = 0
+        let hi = this._timings.length
+        while (lo < hi) {
+            const mid = (lo + hi) >>> 1
+            if (this._timings[mid].start <= time) lo = mid + 1
+            else hi = mid
+        }
+        return lo
+    }
+
+    private _activeKey(time: number) {
+        const last = this._upperBound(time) - 1
+        for (let i = last; i >= 0 && i >= last - OVERLAP_LOOKBACK; i--) {
+            if (time <= this._timings[i].end) return this._timings[i].key
+        }
+        return ""
+    }
+
+    private _check(force: boolean, mediaTime?: number) {
+        if (!this._worker || this._isDestroyed) return
+        const currentTime = mediaTime ?? this._videoElement.currentTime
+        const key = this._activeKey(currentTime + this._timeOffset)
+        if (!force && key === this._postedKey) return
+        this._postedKey = key
+        this._worker.postMessage({
+            type: "render",
+            payload: {
+                currentTime,
+                canvasWidth: this._canvasWidth,
+                canvasHeight: this._canvasHeight,
+                isPlaying: !this._videoElement.paused,
+            },
+        })
+    }
 
     private _getRenderedVideoContentSize(containerWidth: number, containerHeight: number) {
         const videoWidth = this._videoElement.videoWidth

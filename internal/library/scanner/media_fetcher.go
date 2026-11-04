@@ -13,6 +13,7 @@ import (
 	"seanime/internal/util"
 	"seanime/internal/util/limiter"
 	"seanime/internal/util/parallel"
+	"sync"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
@@ -212,6 +213,10 @@ func FetchMediaFromLocalFiles(
 	rateLimiter := limiter.NewLimiter(time.Second, 20)
 	rateLimiter2 := limiter.NewLimiter(time.Second, 20)
 
+	// Every title asks AniList at once; past the shared budget they queue for a slot instead of
+	// being refused (which used to leave those titles out of the scan).
+	ctx = anilist.WithBudgetWait(ctx)
+
 	// Get titles
 	titles := anime.GetUniqueAnimeTitlesFromLocalFiles(localFiles)
 
@@ -279,8 +284,10 @@ func FetchMediaFromLocalFiles(
 		return true
 	})
 
-	// Fetch all media from the AniList IDs
+	// Fetch all media from the AniList IDs. The lookups run in parallel, so the results are
+	// collected under a lock.
 	anilistMedia := make([]*anilist.CompleteAnime, 0)
+	var anilistMediaMu sync.Mutex
 	lop.ForEach(anilistIds, func(id int, index int) {
 		anilistRateLimiter.Wait()
 		var media *anilist.CompleteAnime
@@ -293,8 +300,10 @@ func FetchMediaFromLocalFiles(
 				err = nil
 			}
 		}
-		if err == nil {
+		if err == nil && media != nil {
+			anilistMediaMu.Lock()
 			anilistMedia = append(anilistMedia, media)
+			anilistMediaMu.Unlock()
 			if scanLogger != nil {
 				scanLogger.LogMediaFetcher(zerolog.DebugLevel).
 					Str("module", "Enhanced").
@@ -333,7 +342,7 @@ func FetchMediaFromLocalFiles(
 	// The relations are fetched in parallel and added to `completeAnime`
 	lop.ForEach(anilistMedia, func(m *anilist.CompleteAnime, index int) {
 		// We ignore errors because we want to continue even if one of the media fails
-		_ = m.FetchMediaTree(anilist.FetchMediaTreeAll, platform.GetAnilistClient(), anilistRateLimiter, tree, completeAnime)
+		_ = m.FetchMediaTreeContext(ctx, anilist.FetchMediaTreeAll, platform.GetAnilistClient(), anilistRateLimiter, tree, completeAnime)
 	})
 
 	// +---------------------+

@@ -1,18 +1,30 @@
-// Web Worker for PGS rendering
+// Web Worker for PGS rendering.
+//
+// The main thread only sends a "render" message when playback crosses an event boundary (or after
+// a seek, resize, offset change or new events), so this worker does work a few times per subtitle,
+// not once per frame. The canvas is cleared only when the shown event changes.
 let ctx = null
 let offscreenCanvas = null
-const events = new Map()
-const imageCache = new Map()
+// Sorted by startTime. Each entry is the event as received plus `bitmap` once decoded.
+let events = []
+const eventKeys = new Set()
 let currentEvent = null
 let currentEventRendered = false
+let lastTime = null
+let lastCanvasWidth = 0
+let lastCanvasHeight = 0
 let timeOffset = 0
 let debug = false
+
+// How many earlier events to check when the latest-starting one has already ended. PGS events
+// rarely overlap, so a few is plenty.
+const OVERLAP_LOOKBACK = 4
 
 function getEventKey(event) {
     return `${event.startTime}-${event.duration}-${event.imageData.substring(0, 50)}`
 }
 
-async function preloadImage(base64Data) {
+async function decodeImage(base64Data) {
     const response = await fetch(base64Data)
     const blob = await response.blob()
     return createImageBitmap(blob)
@@ -27,41 +39,80 @@ function logDebug(message, data) {
     }
 }
 
+// Index of the first event whose startTime is greater than `time`.
+function upperBound(time) {
+    let lo = 0
+    let hi = events.length
+    while (lo < hi) {
+        const mid = (lo + hi) >>> 1
+        if (events[mid].startTime <= time) lo = mid + 1
+        else hi = mid
+    }
+    return lo
+}
+
+function findEventAt(time) {
+    const last = upperBound(time) - 1
+    for (let i = last; i >= 0 && i >= last - OVERLAP_LOOKBACK; i--) {
+        const event = events[i]
+        if (time <= event.startTime + event.duration) return event
+    }
+    return null
+}
+
+function insertEvent(event) {
+    const idx = upperBound(event.startTime)
+    events.splice(idx, 0, event)
+}
+
 async function handleAddEvent(event) {
     const key = getEventKey(event)
-
-    if (events.has(key)) {
+    if (eventKeys.has(key)) {
         return
     }
-
-    events.set(key, event)
+    eventKeys.add(key)
+    // Inserted synchronously, so a "render" message that follows finds it even before its image
+    // has been decoded.
+    insertEvent(event)
 
     try {
-        const img = await preloadImage(event.imageData)
-        imageCache.set(event.imageData, img)
+        const bitmap = await decodeImage(event.imageData)
+        if (!eventKeys.has(key)) {
+            // Cleared while decoding.
+            bitmap.close?.()
+            return
+        }
+        event.bitmap = bitmap
+        // The image itself is no longer needed; keep only the bitmap.
+        event.imageData = ""
         logDebug("Preloaded image", {
             startTime: event.startTime,
-            width: img.width,
-            height: img.height,
+            width: bitmap.width,
+            height: bitmap.height,
         })
+        // The event became current before its image was ready: draw it now.
+        if (event === currentEvent && !currentEventRendered) {
+            drawCurrent()
+        }
     } catch (err) {
         self.postMessage({
             type: "error",
-            payload: { message: "Failed to preload image", error: err },
+            payload: { message: "Failed to preload image", error: String(err) },
         })
     }
+}
 
-    logDebug("Added PGS event", {
-        startTime: event.startTime,
-        endTime: event.startTime + event.duration,
-        duration: event.duration,
-        width: event.width,
-        height: event.height,
-        x: event.x,
-        y: event.y,
-        canvasWidth: event.canvasWidth,
-        canvasHeight: event.canvasHeight,
-    })
+function clearCanvas() {
+    if (ctx && offscreenCanvas) {
+        ctx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height)
+    }
+}
+
+function drawCurrent() {
+    if (!currentEvent) return
+    if (renderEvent(currentEvent, lastCanvasWidth, lastCanvasHeight)) {
+        currentEventRendered = true
+    }
 }
 
 function handleRender(payload) {
@@ -69,60 +120,50 @@ function handleRender(payload) {
         return
     }
 
+    if (payload.canvasWidth) lastCanvasWidth = payload.canvasWidth
+    if (payload.canvasHeight) lastCanvasHeight = payload.canvasHeight
+    lastTime = payload.currentTime
     const currentTime = payload.currentTime + timeOffset
 
-    // Find the event that should be displayed at current time
-    let eventToDisplay = null
+    const eventToDisplay = findEventAt(currentTime)
 
-    for (const event of events.values()) {
-        const startTime = event.startTime
-        const endTime = event.startTime + event.duration
-
-        if (currentTime >= startTime && currentTime <= endTime) {
-            eventToDisplay = event
-            break
-        }
+    if (eventToDisplay === currentEvent) {
+        if (eventToDisplay && !currentEventRendered) drawCurrent()
+        return
     }
 
-    // If event changed, clear canvas
-    if (eventToDisplay !== currentEvent) {
-        ctx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height)
-        currentEventRendered = false
+    clearCanvas()
+    currentEventRendered = false
 
-        if (eventToDisplay) {
-            logDebug("Displaying new PGS event", {
-                currentTime,
-                startTime: eventToDisplay.startTime,
-                endTime: eventToDisplay.startTime + eventToDisplay.duration,
-                canvasWidth: offscreenCanvas.width,
-                canvasHeight: offscreenCanvas.height,
-            })
-        } else if (currentEvent) {
-            logDebug("Cleared PGS event", { currentTime })
-        }
-
-        currentEvent = eventToDisplay
+    if (eventToDisplay) {
+        logDebug("Displaying new PGS event", {
+            currentTime,
+            startTime: eventToDisplay.startTime,
+            endTime: eventToDisplay.startTime + eventToDisplay.duration,
+            canvasWidth: offscreenCanvas.width,
+            canvasHeight: offscreenCanvas.height,
+        })
+    } else if (currentEvent) {
+        logDebug("Cleared PGS event", { currentTime })
     }
 
-    // Render current event only if it hasn't been rendered yet
-    if (eventToDisplay && !currentEventRendered) {
-        renderEvent(eventToDisplay, payload.canvasWidth, payload.canvasHeight)
-        currentEventRendered = true
-    } else if (!eventToDisplay) {
-        ctx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height)
-        currentEventRendered = false
-    }
+    currentEvent = eventToDisplay
+    drawCurrent()
 }
 
+// Returns false when the image is not decoded yet.
 function renderEvent(event, canvasWidth, canvasHeight) {
     if (!ctx || !offscreenCanvas) {
-        return
+        return false
     }
 
-    const img = imageCache.get(event.imageData)
+    const img = event.bitmap
     if (!img) {
-        return
+        return false
     }
+
+    if (!canvasWidth) canvasWidth = offscreenCanvas.width
+    if (!canvasHeight) canvasHeight = offscreenCanvas.height
 
     // Video canvas dimensions from event or use canvas size
     const videoCanvasWidth = event.canvasWidth || canvasWidth
@@ -157,15 +198,9 @@ function renderEvent(event, canvasWidth, canvasHeight) {
     // Handle cropping if specified
     if (event.cropX !== undefined && event.cropY !== undefined &&
         event.cropWidth !== undefined && event.cropHeight !== undefined) {
-
-        const sx = event.cropX
-        const sy = event.cropY
-        const sWidth = event.cropWidth
-        const sHeight = event.cropHeight
-
         ctx.drawImage(
             img,
-            sx, sy, sWidth, sHeight,
+            event.cropX, event.cropY, event.cropWidth, event.cropHeight,
             x, y, width, height,
         )
     } else {
@@ -182,6 +217,7 @@ function renderEvent(event, canvasWidth, canvasHeight) {
         ctx.lineWidth = 2
         ctx.strokeRect(x, y, width, height)
     }
+    return true
 }
 
 function handleResize(payload) {
@@ -189,9 +225,13 @@ function handleResize(payload) {
         return
     }
 
+    // Setting width/height wipes the canvas, so the current event is drawn again at the new size.
     offscreenCanvas.width = payload.width
     offscreenCanvas.height = payload.height
+    lastCanvasWidth = payload.width
+    lastCanvasHeight = payload.height
     currentEventRendered = false
+    drawCurrent()
 
     logDebug("Resized canvas", {
         width: payload.width,
@@ -200,14 +240,12 @@ function handleResize(payload) {
 }
 
 function handleClear() {
-    events.clear()
-    imageCache.clear()
+    for (const event of events) event.bitmap?.close?.()
+    events = []
+    eventKeys.clear()
     currentEvent = null
     currentEventRendered = false
-
-    if (ctx && offscreenCanvas) {
-        ctx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height)
-    }
+    clearCanvas()
 }
 
 self.onmessage = async (e) => {
@@ -248,6 +286,7 @@ self.onmessage = async (e) => {
 
         case "setTimeOffset":
             timeOffset = payload.offset
+            if (lastTime !== null) handleRender({ currentTime: lastTime })
             break
 
         case "setDebug":
@@ -255,4 +294,3 @@ self.onmessage = async (e) => {
             break
     }
 }
-

@@ -49,6 +49,12 @@ func (m *BaseAnime) FetchMediaTree(rel FetchMediaTreeRelation, anilistClient Ani
 // It also takes a CompleteAnimeCache to store the fetched media in and avoid duplicate fetches.
 // It also takes a limiter.Limiter to limit the number of requests made to the AniList API.
 func (m *CompleteAnime) FetchMediaTree(rel FetchMediaTreeRelation, anilistClient AnilistClient, rl *limiter.Limiter, tree *CompleteAnimeRelationTree, cache *CompleteAnimeCache) (err error) {
+	return m.FetchMediaTreeContext(context.Background(), rel, anilistClient, rl, tree, cache)
+}
+
+// FetchMediaTreeContext is FetchMediaTree with the context its AniList requests are sent with (so
+// they can, for one, wait on the rate budget: see WithBudgetWait).
+func (m *CompleteAnime) FetchMediaTreeContext(ctx context.Context, rel FetchMediaTreeRelation, anilistClient AnilistClient, rl *limiter.Limiter, tree *CompleteAnimeRelationTree, cache *CompleteAnimeCache) (err error) {
 	if m == nil {
 		return nil
 	}
@@ -80,19 +86,15 @@ func (m *CompleteAnime) FetchMediaTree(rel FetchMediaTreeRelation, anilistClient
 	}
 
 	doneCh := make(chan struct{})
-	processEdges(edges, rel, anilistClient, rl, tree, cache, doneCh)
+	processEdges(ctx, edges, rel, anilistClient, rl, tree, cache, doneCh)
 
-	for {
-		select {
-		case <-doneCh:
-			return nil
-		default:
-		}
-	}
+	// Blocking receive: this used to poll the channel in a loop with a default case, spinning a core.
+	<-doneCh
+	return nil
 }
 
 // processEdges fetches the next node(s) for each edge in parallel.
-func processEdges(edges []*CompleteAnime_Relations_Edges, rel FetchMediaTreeRelation, anilistClient AnilistClient, rl *limiter.Limiter, tree *CompleteAnimeRelationTree, cache *CompleteAnimeCache, doneCh chan struct{}) {
+func processEdges(ctx context.Context, edges []*CompleteAnime_Relations_Edges, rel FetchMediaTreeRelation, anilistClient AnilistClient, rl *limiter.Limiter, tree *CompleteAnimeRelationTree, cache *CompleteAnimeCache, doneCh chan struct{}) {
 	var wg sync.WaitGroup
 	wg.Add(len(edges))
 
@@ -102,7 +104,7 @@ func processEdges(edges []*CompleteAnime_Relations_Edges, rel FetchMediaTreeRela
 			if edge == nil {
 				return
 			}
-			processEdge(edge, rel, anilistClient, rl, tree, cache)
+			processEdge(ctx, edge, rel, anilistClient, rl, tree, cache)
 		}(item, i)
 	}
 
@@ -113,14 +115,14 @@ func processEdges(edges []*CompleteAnime_Relations_Edges, rel FetchMediaTreeRela
 	}()
 }
 
-func processEdge(edge *CompleteAnime_Relations_Edges, rel FetchMediaTreeRelation, anilistClient AnilistClient, rl *limiter.Limiter, tree *CompleteAnimeRelationTree, cache *CompleteAnimeCache) {
+func processEdge(ctx context.Context, edge *CompleteAnime_Relations_Edges, rel FetchMediaTreeRelation, anilistClient AnilistClient, rl *limiter.Limiter, tree *CompleteAnimeRelationTree, cache *CompleteAnimeCache) {
 	defer util.HandlePanicInModuleThen("anilist/processEdge", func() {})
 	cacheV, ok := cache.Get(edge.GetNode().ID)
 	edgeCompleteAnime := cacheV
 	if !ok {
 		rl.Wait()
 		// Fetch the next node
-		res, err := anilistClient.CompleteAnimeByID(context.Background(), &edge.GetNode().ID)
+		res, err := anilistClient.CompleteAnimeByID(ctx, &edge.GetNode().ID)
 		if err == nil {
 			edgeCompleteAnime = res.GetMedia()
 			cache.Set(edgeCompleteAnime.ID, edgeCompleteAnime)
@@ -132,7 +134,7 @@ func processEdge(edge *CompleteAnime_Relations_Edges, rel FetchMediaTreeRelation
 	// Get the relation type to fetch for the next node
 	edgeRel := getEdgeRelation(edge, rel)
 	// Fetch the next node(s)
-	err := edgeCompleteAnime.FetchMediaTree(edgeRel, anilistClient, rl, tree, cache)
+	err := edgeCompleteAnime.FetchMediaTreeContext(ctx, edgeRel, anilistClient, rl, tree, cache)
 	if err != nil {
 		return
 	}

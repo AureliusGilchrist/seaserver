@@ -25,6 +25,8 @@ const DENSHI_SETTINGS_DEFAULTS = {
     sourceRepoPath: "",
     // Frontend auto-update from GitHub releases (see github-frontend-update.js)
     autoUpdateFrontend: true,
+    // GPU tuning switches for Chromium (see setupChromiumFlags). Read once at startup.
+    gpuAcceleration: true,
 }
 
 const MAIN_WINDOW_DEFAULT_BOUNDS = {
@@ -301,75 +303,90 @@ const _isRsbuildFrontend = true
 // Chromium flags
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// Chromium only reads most of these switches (enable-features, GPU blocklist, zero-copy,
+// rasterization, WebGPU, disk cache) while the GPU and network processes start, which happens
+// before `ready`. That is why setupChromiumFlags() runs at module scope, right below.
 function setupChromiumFlags() {
-    app.commandLine.appendSwitch("no-zygote")
+    const sw = (name, value) => value === undefined
+        ? app.commandLine.appendSwitch(name)
+        : app.commandLine.appendSwitch(name, value)
 
-    app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required")
-    app.commandLine.appendSwitch("force_high_performance_gpu")
+    sw("autoplay-policy", "no-user-gesture-required")
 
     // 2 GB: a few thousand anime and manga covers stay cached between sessions. At 400 MB the
     // cache was full and Chromium kept evicting covers, so they downloaded again on every visit.
-    app.commandLine.appendSwitch("disk-cache-size", (2000 * 1000 * 1000).toString())
-    app.commandLine.appendSwitch("force-effective-connection-type", "4g")
+    sw("disk-cache-size", (2000 * 1000 * 1000).toString())
+    sw("force-effective-connection-type", "4g")
 
-    // Disable features that can interfere with playback
-    app.commandLine.appendSwitch("disable-features", [
-        "WidgetLayering",
-        "ColorProviderRedirection",
-        "WebContentsForceDarkMode",
-        "HardwareMediaKeyHandling"
-    ].join(","))
+    // The "GPU acceleration" app setting. Only a settings file can be read this early (before
+    // `ready`); a change applies after a restart.
+    const gpuAcceleration = loadDenshiSettings().gpuAcceleration !== false
+    log.info(`[Denshi] GPU acceleration tuning: ${gpuAcceleration ? "on" : "off"}`)
 
-    // Hardware acceleration and GPU optimizations
-    app.commandLine.appendSwitch("force-high-performance-gpu")
-    // app.commandLine.appendSwitch('enable-gpu-rasterization');
-    app.commandLine.appendSwitch("enable-zero-copy")
-    app.commandLine.appendSwitch("enable-hardware-overlays", "single-fullscreen,single-on-top,underlay")
-    app.commandLine.appendSwitch("ignore-gpu-blocklist")
-
-    // Video-specific optimizations
-    app.commandLine.appendSwitch("enable-accelerated-video-decode")
+    // GPU: use the discrete GPU, ignore the blocklist, rasterize on the GPU and upload decoded
+    // frames/tiles without an extra copy. Off leaves these to Chromium's defaults.
+    if (gpuAcceleration) {
+        sw("force-high-performance-gpu")
+        sw("ignore-gpu-blocklist")
+        sw("enable-gpu-rasterization")
+        sw("enable-zero-copy")
+    }
+    // WebGPU is needed by Anime4K either way.
+    sw("enable-unsafe-webgpu")
 
     // Animated wheel scrolling for every scrollable panel (the page itself is eased by the web
     // app's smooth scroll; drawers, lists and modals scroll natively and get Chromium's own).
-    app.commandLine.appendSwitch("enable-smooth-scrolling")
+    sw("enable-smooth-scrolling")
 
-    // Enable advanced features
-    app.commandLine.appendSwitch("enable-features", [
+    // Only one --enable-features / --disable-features switch is honoured, so every feature
+    // goes into a single list per switch.
+    const enableFeatures = [
         "WebAssemblyLazyCompilation",
         "ThrottleDisplayNoneAndVisibilityHiddenCrossOriginIframes",
-        "CanvasOopRasterization",
-        "UseSkiaRenderer",
         "PlatformEncryptedDolbyVision",
-    ].join(","))
+    ]
+    // Features that can interfere with playback.
+    const disableFeatures = [
+        "WidgetLayering",
+        "ColorProviderRedirection",
+        "WebContentsForceDarkMode",
+        "HardwareMediaKeyHandling",
+    ]
 
-    app.commandLine.appendSwitch("enable-unsafe-webgpu")
-    app.commandLine.appendSwitch("enable-gpu-rasterization")
-    app.commandLine.appendSwitch("enable-oop-rasterization")
+    if (process.platform === "linux") {
+        // VA-API hardware decode. Chromium on Linux only decodes on the GPU with these features,
+        // and VaapiVideoDecodeLinuxGL needs the ANGLE-on-GL backend.
+        if (gpuAcceleration) {
+            enableFeatures.push("VaapiVideoDecoder", "VaapiVideoDecodeLinuxGL")
+            sw("use-gl", "angle")
+            sw("use-angle", "gl")
+        }
+        log.info(`Passing --gtk-version=3 to Electron`)
+        sw("gtk-version", "3")
+    }
+
+    sw("enable-features", enableFeatures.join(","))
+    sw("disable-features", disableFeatures.join(","))
 
     // Background processing optimizations
-    app.commandLine.appendSwitch("disable-background-timer-throttling")
-    app.commandLine.appendSwitch("disable-backgrounding-occluded-windows")
-    app.commandLine.appendSwitch("disable-renderer-backgrounding")
-    app.commandLine.appendSwitch("disable-background-media-suspend")
+    sw("disable-background-timer-throttling")
+    sw("disable-backgrounding-occluded-windows")
+    sw("disable-renderer-backgrounding")
+    sw("disable-background-media-suspend")
 
-    app.commandLine.appendSwitch("double-buffer-compositing")
     // NOTE: Do NOT disable DirectComposition video overlays. On Windows this is the
     // zero-copy hardware path that presents decoded video frames straight to an overlay
     // plane. Disabling it forces every frame through the GPU compositor, which is cheap
     // windowed but drops frames at full-screen size — perceived as constant buffering/
-    // stutter in fullscreen. It also contradicts the enable-hardware-overlays /
-    // enable-zero-copy switches above.
+    // stutter in fullscreen. The web player keeps nothing drawn over a playing <video>
+    // (the vignette only shows with the controls) so the overlay can be used.
     // app.commandLine.appendSwitch("disable-direct-composition-video-overlays")
 
     // Cap camera capture without disabling Chromium's display frame pacing.
-    app.commandLine.appendSwitch("max-gum-fps", "120")
-
-    if (process.platform === "linux") {
-        log.info(`Passing --gtk-version=3 to Electron`)
-        app.commandLine.appendSwitch("gtk-version", "3")
-    }
+    sw("max-gum-fps", "120")
 }
+
+setupChromiumFlags()
 
 log.transports.file.level = "debug"
 
@@ -1495,9 +1512,6 @@ app.whenReady().then(async () => {
             openAtLogin: denshiSettings.openAtLaunch,
         })
     }
-
-    // Set up Chromium flags for better video playback
-    setupChromiumFlags()
 
     // Log environment information
     logEnvironmentInfo()

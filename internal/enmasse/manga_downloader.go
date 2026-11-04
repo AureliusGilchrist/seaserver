@@ -1109,12 +1109,43 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 		}
 	}
 
-	// Step 3: Queue all chapters for download using semaphore for rate limiting
-	queuedCount := 0
+	// Step 3: Queue all chapters for download. Each chapter's page list is fetched and queued in its
+	// own goroutine, up to MaxConcurrentChapters at once (the goroutine gives its slot back). Pacing
+	// stays with the provider: acquireProvider is shared, and WeebCentral serializes its own requests
+	// and backs off on 429.
+	var (
+		queuedMu    sync.Mutex
+		queuedCount int
+		chapterWG   sync.WaitGroup
+		firstErr    error
+		firstErrMu  sync.Mutex
+	)
+	seriesCtx, cancelSeries := context.WithCancel(ctx)
+	defer cancelSeries()
+	// stop records the error that ends the series (the first one wins) and stops the other chapters.
+	stop := func(err error) {
+		firstErrMu.Lock()
+		if firstErr == nil {
+			firstErr = err
+		}
+		firstErrMu.Unlock()
+		cancelSeries()
+	}
+	// finish waits for the chapters in flight; it returns the error that stopped the series, if any.
+	finish := func() error {
+		chapterWG.Wait()
+		firstErrMu.Lock()
+		defer firstErrMu.Unlock()
+		if firstErr != nil {
+			return firstErr
+		}
+		return ctx.Err()
+	}
+
 	for chapterIdx, chapter := range chapters {
 		select {
-		case <-ctx.Done():
-			return ctx.Err()
+		case <-seriesCtx.Done():
+			return finish()
 		default:
 		}
 
@@ -1146,136 +1177,35 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 
 		// Acquire chapter semaphore (context-aware)
 		select {
-		case <-ctx.Done():
-			return ctx.Err()
+		case <-seriesCtx.Done():
+			return finish()
 		case d.chapterSemaphore <- struct{}{}:
 		}
 
-		// Fetch chapter pages with retry for rate limiting
-		var pages []*hibikemanga.ChapterPage
-		for {
-			select {
-			case <-ctx.Done():
-				<-d.chapterSemaphore
-				return ctx.Err()
-			default:
-			}
-
-			time.Sleep(DelayBetweenAPIRequests)
-			if err := acquireProvider(ctx); err != nil {
-				<-d.chapterSemaphore
-				return err
-			}
-			pages, err = providerClient.FindChapterPages(chapter.ID)
-			if err == nil {
-				watch.succeeded()
-			}
-			if err != nil {
-				// Without this an outage part way through a series drops every remaining chapter and
-				// still reports the series as downloaded.
-				retry, waitErr := watch.await(ctx, providerClient, err)
-				if waitErr != nil {
-					<-d.chapterSemaphore
-					return waitErr
-				}
-				if retry {
-					continue
-				}
-				d.logger.Warn().Err(err).
-					Str("title", mangaItem.Title).
-					Str("chapterId", chapter.ID).
-					Msg("enmasse-manga: Failed to get chapter pages")
-				break
-			}
-			break
-		}
-
-		d.updateDetails(func(details *MangaDownloadDetails) {
-			details.Step = "chapter pages fetched"
-			details.PageTotal = len(pages)
-		})
-
-		if err != nil || len(pages) == 0 {
-			<-d.chapterSemaphore
-			continue
-		}
-
-		// Add to download queue with retry for queue full
-		queueFullLogged := false
-		for {
-			select {
-			case <-ctx.Done():
-				<-d.chapterSemaphore
-				return ctx.Err()
-			default:
-			}
-
-			err = d.mangaDownloader.DownloadChapterDirect(manga.DownloadChapterDirectOptions{
-				Provider:      provider,
-				MediaId:       mediaId,
-				ChapterId:     chapter.ID,
-				ChapterNumber: manga_providers.GetNormalizedChapter(chapter.Chapter),
-				ChapterTitle:  chapter.Title,
-				MediaTitle:    mediaTitle,
-				Pages:         pages,
-				StartNow:      false,
-				EnMasse:       true,
-			})
-
-			if err != nil {
-				if d.isQueueFullError(err) {
-					// Info on the first wait for this chapter, Debug on every retry after
-					logEvent := d.logger.Debug()
-					if !queueFullLogged {
-						logEvent = d.logger.Info()
-						queueFullLogged = true
-					}
-					logEvent.
-						Str("title", mangaItem.Title).
-						Str("chapterId", chapter.ID).
-						Msg("enmasse-manga: Queue full (50 series limit), waiting for space...")
-					d.setStatus(fmt.Sprintf("Queue full - waiting %v for space (processing %s)...", QueueFullRetryDelay, mangaItem.Title))
-					select {
-					case <-ctx.Done():
-						<-d.chapterSemaphore
-						return ctx.Err()
-					case <-time.After(QueueFullRetryDelay):
-					}
-					continue
-				}
-				if d.isRetryableError(err) {
-					d.logger.Warn().Err(err).
-						Str("title", mangaItem.Title).
-						Str("chapterId", chapter.ID).
-						Msg("enmasse-manga: Rate limited queuing chapter, waiting to retry...")
-					d.setStatus(fmt.Sprintf("Rate limited - waiting %v to retry...", RateLimitRetryDelay))
-					select {
-					case <-ctx.Done():
-						<-d.chapterSemaphore
-						return ctx.Err()
-					case <-time.After(RateLimitRetryDelay):
-					}
-					continue
-				}
-				d.logger.Warn().Err(err).
-					Str("title", mangaItem.Title).
-					Str("chapterId", chapter.ID).
-					Msg("enmasse-manga: Failed to queue chapter download")
-			} else {
+		chapterWG.Add(1)
+		go func(chapter *hibikemanga.ChapterDetails) {
+			defer chapterWG.Done()
+			defer func() { <-d.chapterSemaphore }()
+			if err := d.fetchAndQueueChapter(seriesCtx, chapter, mangaItem, providerClient, watch, provider, mediaId, mediaTitle, func() {
+				queuedMu.Lock()
 				queuedCount++
+				queued := queuedCount
+				queuedMu.Unlock()
 				d.updateDetails(func(details *MangaDownloadDetails) {
 					details.Step = "chapter queued"
-					details.QueuedChapters = queuedCount
+					details.QueuedChapters = queued
 					details.PageIndex = details.PageTotal
 				})
+			}); err != nil {
+				stop(err)
 			}
-			break
-		}
-
-		<-d.chapterSemaphore
+		}(chapter)
 
 		// Small delay between chapter queuing
 		time.Sleep(DelayBetweenChapters)
+	}
+	if err := finish(); err != nil {
+		return err
 	}
 
 	d.logger.Info().
@@ -1292,6 +1222,132 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 	})
 
 	return nil
+}
+
+// fetchAndQueueChapter fetches one chapter's page list (sitting out provider outages) and queues it
+// with the chapter downloader, waiting while the queue is full. It runs concurrently with the
+// other chapters of the series; the error it returns ends the series.
+func (d *MangaDownloader) fetchAndQueueChapter(
+	ctx context.Context,
+	chapter *hibikemanga.ChapterDetails,
+	mangaItem *HakunekoMangaItem,
+	providerClient hibikemanga.Provider,
+	watch *providerWatchdog,
+	provider string,
+	mediaId int,
+	mediaTitle string,
+	onQueued func(),
+) error {
+	var err error
+	var pages []*hibikemanga.ChapterPage
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		time.Sleep(DelayBetweenAPIRequests)
+		if err := acquireProvider(ctx); err != nil {
+			return err
+		}
+		pages, err = providerClient.FindChapterPages(chapter.ID)
+		if err == nil {
+			watch.succeeded()
+		}
+		if err != nil {
+			// Without this an outage part way through a series drops every remaining chapter and
+			// still reports the series as downloaded.
+			retry, waitErr := watch.await(ctx, providerClient, err)
+			if waitErr != nil {
+				return waitErr
+			}
+			if retry {
+				continue
+			}
+			d.logger.Warn().Err(err).
+				Str("title", mangaItem.Title).
+				Str("chapterId", chapter.ID).
+				Msg("enmasse-manga: Failed to get chapter pages")
+			break
+		}
+		break
+	}
+
+	d.updateDetails(func(details *MangaDownloadDetails) {
+		details.Step = "chapter pages fetched"
+		details.PageTotal = len(pages)
+	})
+
+	if err != nil || len(pages) == 0 {
+		return nil
+	}
+
+	// Add to download queue with retry for queue full
+	queueFullLogged := false
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		err = d.mangaDownloader.DownloadChapterDirect(manga.DownloadChapterDirectOptions{
+			Provider:      provider,
+			MediaId:       mediaId,
+			ChapterId:     chapter.ID,
+			ChapterNumber: manga_providers.GetNormalizedChapter(chapter.Chapter),
+			ChapterTitle:  chapter.Title,
+			MediaTitle:    mediaTitle,
+			Pages:         pages,
+			StartNow:      false,
+			EnMasse:       true,
+		})
+
+		if err != nil {
+			if d.isQueueFullError(err) {
+				// Info on the first wait for this chapter, Debug on every retry after
+				logEvent := d.logger.Debug()
+				if !queueFullLogged {
+					logEvent = d.logger.Info()
+					queueFullLogged = true
+				}
+				logEvent.
+					Str("title", mangaItem.Title).
+					Str("chapterId", chapter.ID).
+					Msg("enmasse-manga: Queue full (50 series limit), waiting for space...")
+				d.setStatus(fmt.Sprintf("Queue full - waiting %v for space (processing %s)...", QueueFullRetryDelay, mangaItem.Title))
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-time.After(QueueFullRetryDelay):
+				}
+				continue
+			}
+			if d.isRetryableError(err) {
+				d.logger.Warn().Err(err).
+					Str("title", mangaItem.Title).
+					Str("chapterId", chapter.ID).
+					Msg("enmasse-manga: Rate limited queuing chapter, waiting to retry...")
+				d.setStatus(fmt.Sprintf("Rate limited - waiting %v to retry...", RateLimitRetryDelay))
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-time.After(RateLimitRetryDelay):
+				}
+				continue
+			}
+			d.logger.Warn().Err(err).
+				Str("title", mangaItem.Title).
+				Str("chapterId", chapter.ID).
+				Msg("enmasse-manga: Failed to queue chapter download")
+		} else {
+			onQueued()
+		}
+		break
+	}
+	return nil
+
 }
 
 // generatePseudoMediaId generates a consistent pseudo media ID from a title

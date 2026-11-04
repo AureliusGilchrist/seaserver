@@ -16,7 +16,9 @@ import (
 const (
 	artworkCacheInterval = 6 * time.Hour
 	artworkCacheDelay    = 2 * time.Minute
-	artworkCacheWorkers  = 6
+	// Pinning has its own two download slots in the image proxy (imagePinSlots), apart from the
+	// images users are waiting on; more workers than that would only queue there.
+	artworkCacheWorkers = 2
 )
 
 var artworkCacheRunning atomic.Bool

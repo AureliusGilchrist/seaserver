@@ -155,7 +155,8 @@ export class VideoCorePreviewManager {
             if (Hls.isSupported()) {
                 this.hlsInstance = new Hls({
                 ...mobileShellHlsConfig,
-                    enableWorker: false,
+                    // Demux thumbnail segments off the main thread, like the main player does.
+                    enableWorker: true,
                     lowLatencyMode: false,
                     backBufferLength: 0,
                     maxBufferLength: 5,

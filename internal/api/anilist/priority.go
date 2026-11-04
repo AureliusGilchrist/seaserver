@@ -43,6 +43,21 @@ func IsUserInitiated(ctx context.Context) bool {
 	return ok && value
 }
 
+type budgetWaitKey struct{}
+
+// WithBudgetWait marks background work that would rather wait its turn for a slot than be refused
+// with ErrRateBudgetWait: a library scan, say, that asks for every title it found at once. Nobody's
+// browser connection is held by it, so the maxBudgetWait bound has nothing to protect; refusing it
+// only turns a slow scan into an incomplete one. The wait still ends with the context.
+func WithBudgetWait(ctx context.Context) context.Context {
+	return context.WithValue(ctx, budgetWaitKey{}, true)
+}
+
+func waitsForBudget(ctx context.Context) bool {
+	value, ok := ctx.Value(budgetWaitKey{}).(bool)
+	return ok && value
+}
+
 type writeKey struct{}
 
 // Writes — saving a score, progress, a status, dates, deleting an entry, toggling a favourite —
@@ -385,7 +400,11 @@ func (b *rateBudget) takeLane(ctx context.Context, lane budgetLane) bool {
 		wait = maxWriteBudgetWait
 	}
 
-	giveUp := time.After(wait)
+	// A nil channel never fires: work marked WithBudgetWait waits until its context ends.
+	var giveUp <-chan time.Time
+	if !waitsForBudget(ctx) {
+		giveUp = time.After(wait)
+	}
 
 	for {
 		b.mu.Lock()

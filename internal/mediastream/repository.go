@@ -211,7 +211,7 @@ func (r *Repository) StartMediaOptimization(opts *StartMediaOptimizationOptions)
 		return errors.New("module not initialized")
 	}
 
-	mediaInfo, err := r.mediaInfoExtractor.GetInfo(r.settings.MustGet().FfmpegPath, opts.Filepath)
+	mediaInfo, err := r.mediaInfoExtractor.GetInfo(r.settings.MustGet().FfprobePath, opts.Filepath)
 	if err != nil {
 		return
 	}
@@ -397,6 +397,7 @@ func (r *Repository) createTranscoder(settings mo.Option[*models.MediastreamSett
 		FfprobePath:           settings.MustGet().FfprobePath,
 		HwAccelCustomSettings: settings.MustGet().TranscodeHwAccelCustomSettings,
 		TempOutDir:            r.transcodeDir,
+		Threads:               settings.MustGet().TranscodeThreads,
 	}
 
 	tc, err := transcoder.NewTranscoder(opts)

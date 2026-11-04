@@ -182,6 +182,7 @@ export function VideoCorePreferencesModal({ isWebPlayer }: { isWebPlayer: boolea
     const [editedAudioLanguage, setEditedAudioLanguage] = useState(settings.preferredAudioLanguage)
     const [editedSubsBlacklist, setEditedSubsBlacklist] = useState(settings.preferredSubtitleBlacklist)
     const [editedSubtitleDelay, setEditedSubtitleDelay] = useState(settings.subtitleDelay ?? 0)
+    const [editedGpuOptimized, setEditedGpuOptimized] = useState(settings.gpuOptimizedPlayback ?? true)
     // const [editedSubCustomization, setEditedSubCustomization] = useState<VideoCoreSettings["subtitleCustomization"]>(
     //     settings.subtitleCustomization || vc_initialSettings.subtitleCustomization
     // )
@@ -196,6 +197,7 @@ export function VideoCorePreferencesModal({ isWebPlayer }: { isWebPlayer: boolea
             setEditedAudioLanguage(settings.preferredAudioLanguage)
             setEditedSubsBlacklist(settings.preferredSubtitleBlacklist)
             setEditedSubtitleDelay(settings.subtitleDelay ?? 0)
+            setEditedGpuOptimized(settings.gpuOptimizedPlayback ?? true)
             setEditedUseLibassRenderer(useLibassRenderer)
             // setEditedSubCustomization(settings.subtitleCustomization || vc_initialSettings.subtitleCustomization)
         }
@@ -232,6 +234,7 @@ export function VideoCorePreferencesModal({ isWebPlayer }: { isWebPlayer: boolea
             preferredAudioLanguage: editedAudioLanguage,
             preferredSubtitleBlacklist: editedSubsBlacklist,
             subtitleDelay: editedSubtitleDelay,
+            gpuOptimizedPlayback: editedGpuOptimized,
             // subtitleCustomization: editedSubCustomization,
         }
         setSettings(newSettings)
@@ -248,6 +251,7 @@ export function VideoCorePreferencesModal({ isWebPlayer }: { isWebPlayer: boolea
         setEditedAudioLanguage(vc_initialSettings.preferredAudioLanguage)
         setEditedSubsBlacklist(vc_initialSettings.preferredSubtitleBlacklist)
         setEditedSubtitleDelay(vc_initialSettings.subtitleDelay)
+        setEditedGpuOptimized(vc_initialSettings.gpuOptimizedPlayback)
         setEditedUseLibassRenderer(true)
         // setEditedSubCustomization(vc_initialSettings.subtitleCustomization)
     }
@@ -632,6 +636,13 @@ export function VideoCorePreferencesModal({ isWebPlayer }: { isWebPlayer: boolea
                                 value={editedUseLibassRenderer}
                                 onValueChange={setEditedUseLibassRenderer}
                                 help="The player will convert other subtitle formats (SRT, VTT, ...) to ASS. In case your language is not supported, you can add a new font or disable this feature. Reloading the player is required after changing this setting."
+                            />
+                            <Switch
+                                side="right"
+                                label="GPU-optimized playback"
+                                value={editedGpuOptimized}
+                                onValueChange={setEditedGpuOptimized}
+                                help="Recommended: keeping this on should improve performance. While the video plays, nothing is drawn over it, so the GPU can show it directly (the edge vignette only appears with the controls). Picture-in-picture moves the real video into the floating window instead of copying frames at 30fps. Turn it off only if playback or picture-in-picture misbehaves."
                             />
                         </div>
                     </div>}

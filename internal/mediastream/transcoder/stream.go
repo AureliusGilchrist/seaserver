@@ -208,7 +208,7 @@ func (ts *Stream) GetSegment(segment int32) (string, error) {
 		// Only start a new encode if there is too big a distance between the current encoder and the segment.
 		if distance > 60 || !isScheduled {
 			streamLogger.Trace().Msgf("transcoder: New encoder for segment %d", segment)
-			err := ts.run(segment)
+			err := ts.run(segment, false)
 			if err != nil {
 				return "", err
 			}
@@ -262,7 +262,7 @@ func (ts *Stream) prepareNextSegments(segment int32) {
 		}
 		streamLogger.Trace().Msgf("transcoder: Creating new encoder head for future segment %d", i)
 		go func() {
-			_ = ts.run(i)
+			_ = ts.run(i, true)
 		}()
 		return
 	}
@@ -368,7 +368,9 @@ func toSegmentStr(segments []float64) string {
 	}), ",")
 }
 
-func (ts *Stream) run(start int32) error {
+// run starts an encoder head at start. ahead=true is for segments the player has not asked for yet: if
+// every encode slot is taken, it does nothing rather than wait.
+func (ts *Stream) run(start int32, ahead bool) error {
 	//if ts.IsKilled() {
 	//	return nil
 	//}
@@ -450,10 +452,31 @@ func (ts *Stream) run(start int32) error {
 		segments = []float64{9999999}
 	}
 
+	// Video encodes take a slot of the transcoder-wide cap; copies and audio are cheap and don't.
+	isEncode := ts.handle.getFlags()&VideoF != 0 && ts.handle.getFlags()&Transmux == 0
+	releaseSlot := func() {}
+	if isEncode {
+		// The player gives up on a segment after 25s (GetSegment), so don't wait longer than that.
+		slotCtx, slotCancel := context.WithTimeout(headCtx, 25*time.Second)
+		release, ok := ts.settings.acquireEncodeSlot(slotCtx, !ahead)
+		slotCancel()
+		if !ok {
+			headCancel()
+			ts.markHeadDeleted(encoderId)
+			if ahead || headCtx.Err() != nil {
+				return nil
+			}
+			return fmt.Errorf("transcoder: every encode slot is busy, could not start %s from segment %d", ts.kind, start)
+		}
+		var once sync.Once
+		releaseSlot = func() { once.Do(release) }
+	}
+
 	outpath := ts.handle.getOutPath(encoderId)
 	err := os.MkdirAll(filepath.Dir(outpath), 0755)
 	if err != nil {
 		headCancel()
+		releaseSlot()
 		ts.markHeadDeleted(encoderId)
 		return err
 	}
@@ -467,6 +490,9 @@ func (ts *Stream) run(start int32) error {
 	// A copy decodes nothing, and must not depend on a decoder being there.
 	if ts.handle.getFlags()&Transmux == 0 {
 		args = append(args, hwAccel.DecodeFlags...)
+		if ts.handle.getFlags()&VideoF != 0 && ts.file.Info != nil && ts.file.Info.Video != nil {
+			args = append(args, cuvidDecoderFlags(hwAccel, ts.file.Info.Video.Codec, getFFmpegDecoderNames(ts.settings.FfmpegPath))...)
+		}
 	}
 
 	if startRef != 0 {
@@ -541,12 +567,14 @@ func (ts *Stream) run(start int32) error {
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		headCancel()
+		releaseSlot()
 		ts.markHeadDeleted(encoderId)
 		return err
 	}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		headCancel()
+		releaseSlot()
 		ts.markHeadDeleted(encoderId)
 		return err
 	}
@@ -556,6 +584,7 @@ func (ts *Stream) run(start int32) error {
 	err = cmd.Start()
 	if err != nil {
 		headCancel()
+		releaseSlot()
 		ts.markHeadDeleted(encoderId)
 		return err
 	}
@@ -646,6 +675,7 @@ func (ts *Stream) run(start int32) error {
 	// Listen for process termination
 	go func() {
 		err := cmd.Wait()
+		releaseSlot()
 		// Exit code 255 alone does not mean we stopped it: an encoder that cannot start exits the same way.
 		stoppedByUs := headCtx.Err() != nil
 		headCancel()
@@ -669,11 +699,10 @@ func (ts *Stream) run(start int32) error {
 
 		// Whoever asked for this segment is still waiting for it, so a hardware encoder that failed
 		// before its first segment is replaced now rather than left to time out.
-		isEncode := ts.handle.getFlags()&VideoF != 0 && ts.handle.getFlags()&Transmux == 0
 		if err != nil && !stoppedByUs && !startReady && isEncode && hwAccel.Name != softwareHwAccelName {
 			streamLogger.Warn().Int("eid", encoderId).Msgf("transcoder: %s encoder failed, falling back until the transcoder restarts", hwAccel.Name)
 			ts.settings.fallBackFrom(hwAccel)
-			if err := ts.run(start); err != nil {
+			if err := ts.run(start, false); err != nil {
 				streamLogger.Error().Int("eid", encoderId).Err(err).Msgf("transcoder: Could not restart %s after falling back", ts.kind)
 			}
 		}

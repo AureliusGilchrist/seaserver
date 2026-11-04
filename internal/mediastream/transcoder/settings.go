@@ -16,6 +16,9 @@ type HwAccelSettings struct {
 	EncodeFlags   []string `json:"encodeFlags"`
 	ScaleFilter   string   `json:"scaleFilter"`
 	WithForcedIdr bool     `json:"removeForcedIdr"`
+	// CPUFrames is the same hardware with its frames scaled on the CPU, the first fallback for
+	// settings that keep frames on the GPU.
+	CPUFrames *HwAccelSettings `json:"-"`
 }
 
 // softwareHwAccelName is the name of the settings that use no hardware at all.
@@ -28,6 +31,7 @@ const softwareFallbackPreset = "veryfast"
 // How far the hardware has been given up on (Settings.hwAccelStep).
 const (
 	hwAccelFull int32 = iota
+	hwAccelCPUFrames
 	hwAccelEncodeOnly
 	hwAccelSoftware
 )
@@ -36,8 +40,15 @@ const (
 // failed (see fallBackFrom).
 func (s *Settings) activeHwAccel() HwAccelSettings {
 	switch s.hwAccelStep.Load() {
+	case hwAccelCPUFrames:
+		if s.HwAccel.CPUFrames != nil {
+			return *s.HwAccel.CPUFrames
+		}
 	case hwAccelEncodeOnly:
 		encodeOnly := s.HwAccel
+		if s.HwAccel.CPUFrames != nil {
+			encodeOnly = *s.HwAccel.CPUFrames
+		}
 		encodeOnly.DecodeFlags = nil
 		return encodeOnly
 	case hwAccelSoftware:
@@ -50,8 +61,14 @@ func (s *Settings) activeHwAccel() HwAccelSettings {
 // recreated: a GPU that cannot decode can often still encode, which is far faster than the CPU.
 // Encoders failing together were all on the same settings, so they only take one step between them.
 func (s *Settings) fallBackFrom(failed HwAccelSettings) {
+	if failed.CPUFrames != nil {
+		s.hwAccelStep.CompareAndSwap(hwAccelFull, hwAccelCPUFrames)
+		return
+	}
 	if len(failed.DecodeFlags) > 0 {
-		s.hwAccelStep.CompareAndSwap(hwAccelFull, hwAccelEncodeOnly)
+		if !s.hwAccelStep.CompareAndSwap(hwAccelFull, hwAccelEncodeOnly) {
+			s.hwAccelStep.CompareAndSwap(hwAccelCPUFrames, hwAccelEncodeOnly)
+		}
 		return
 	}
 	s.hwAccelStep.Store(hwAccelSoftware)

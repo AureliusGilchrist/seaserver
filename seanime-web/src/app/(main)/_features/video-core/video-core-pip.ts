@@ -59,6 +59,13 @@ export class VideoCorePipManager extends EventTarget {
     private readonly onPipElementChange: (element: HTMLVideoElement | null) => void
     private readonly onDocPipWindowChange: ((win: Window | null) => void) | null
     private docPipWindow: Window | null = null
+    // Document PiP moves the real <video> and its subtitle layers into the PiP window. This marks
+    // where they came from so they can go back; the stage is their box in the PiP window.
+    private docPipController: AbortController | null = null
+    private docPipPlaceholder: Comment | null = null
+    private docPipStage: HTMLElement | null = null
+    // "GPU-optimized playback" setting. Off: Document PiP gets the old canvas copy of the video.
+    private gpuOptimized = true
     private pipProxy: HTMLVideoElement | null = null
     private isSyncingFromMain = false
     private isSyncingFromPip = false
@@ -156,6 +163,10 @@ export class VideoCorePipManager extends EventTarget {
         this.popoutHandler = handler
     }
 
+    setGpuOptimized(enabled: boolean) {
+        this.gpuOptimized = enabled
+    }
+
     setSubtitleManager(subtitleManager: VideoCoreSubtitleManager) {
         this.subtitleManager = subtitleManager
     }
@@ -185,7 +196,9 @@ export class VideoCorePipManager extends EventTarget {
 
     exitPip() {
         if (this.docPipWindow) {
-            // Closing the Document PiP window fires "pagehide", which runs the cleanup.
+            // Put the video back now, while React still has the page it belongs to; closing the
+            // window then fires "pagehide", which runs the rest of the cleanup.
+            this.restoreDocPipNodes()
             this.docPipWindow.close()
             return
         }
@@ -223,18 +236,40 @@ export class VideoCorePipManager extends EventTarget {
             const hasMediaCaptions = this.mediaCaptionsManager?.getSelectedTrackIndexOrNull?.() != null
             const hasActiveSubtitles = hasLibassSubtitles || hasMediaCaptions
 
-            if (!hasActiveSubtitles && !getDocumentPictureInPicture()) {
-                // No subtitles and no Document PiP support: the browser's native video PiP
-                // is both the cheapest and the only floating window available.
+            // Electron does not support the Document PiP API — requestWindow() silently
+            // opens nothing there (electron/electron#39633) — so only attempt it outside
+            // the desktop client.
+            const docPip = __isElectronDesktop__ ? null : getDocumentPictureInPicture()
+            if (docPip && !this.gpuOptimized) {
+                // GPU-optimized playback off: the Document PiP window shows a canvas copy of the
+                // video with subtitles burned in (the original behaviour).
+                log.info("Entering Document PiP with a canvas copy", { hasLibassSubtitles, hasMediaCaptions })
+                await this.enterPipWithSubtitles(docPip)
+                return
+            }
+            if (docPip) {
+                // Document PiP: the real <video> (still hardware-decoded and composited, no copy)
+                // and its subtitle canvases move into the window together with the app's controls.
+                const pipWindow = await this.openDocPipWindow(docPip)
+                if (pipWindow) {
+                    log.info("Entering Document PiP", { hasLibassSubtitles, hasMediaCaptions })
+                    this.enterDocPipWithVideo(pipWindow)
+                    return
+                }
+                // A requestWindow that fails or hangs falls back to the native video PiP rather
+                // than leaving the button dead.
+            }
+
+            if (!hasActiveSubtitles) {
+                // No subtitles: the browser's native video PiP on the real element is the cheapest.
                 log.info("Entering native PiP without subtitles")
                 await this.video.requestPictureInPicture()
                 return
             }
 
-            // The canvas-stream path serves both remaining cases: with subtitles it burns
-            // them into the PiP picture; without subtitles it feeds the Document PiP
-            // window, which carries the app's own controls.
-            log.info("Entering PiP", { hasLibassSubtitles, hasMediaCaptions })
+            // Native video PiP can only show a <video>, so subtitles are burned in by drawing
+            // video + subtitles into a canvas and streaming that.
+            log.info("Entering native PiP with burned-in subtitles", { hasLibassSubtitles, hasMediaCaptions })
             await this.enterPipWithSubtitles()
         }
         catch (error) {
@@ -250,6 +285,9 @@ export class VideoCorePipManager extends EventTarget {
 
     destroy() {
         this.exitPip()
+        this.restoreDocPipNodes()
+        this.docPipController?.abort()
+        this.docPipController = null
         this.canvasController?.abort()
         this.controller.abort()
         this.docPipWindow = null
@@ -314,6 +352,9 @@ export class VideoCorePipManager extends EventTarget {
     private handleDocPipClosed() {
         log.info("Exited Document PiP")
 
+        this.restoreDocPipNodes()
+        this.docPipController?.abort()
+        this.docPipController = null
         this.canvasController?.abort()
         this.docPipWindow = null
         this.onDocPipWindowChange?.(null)
@@ -370,7 +411,7 @@ export class VideoCorePipManager extends EventTarget {
         })
     }
 
-    private setupDocPipBody(pipWindow: Window, pipVideo: HTMLVideoElement) {
+    private setupDocPipBody(pipWindow: Window) {
         const body = pipWindow.document.body
         body.style.margin = "0"
         body.style.background = "#000"
@@ -378,30 +419,133 @@ export class VideoCorePipManager extends EventTarget {
         body.style.flexDirection = "column"
         body.style.overflow = "hidden"
 
-        // The picture sits in its own box so the vignette can cover exactly the video and nothing
-        // else — the controls below keep their own surface.
+        // The picture sits in its own box, laid out like the player's inner container (relative,
+        // centred flex), because the subtitle canvases position themselves against the video's
+        // offset parent. Nothing is drawn over the video itself, so it can stay on a hardware
+        // overlay plane.
         const stage = pipWindow.document.createElement("div")
+        stage.dataset.vcElement = "docpip-stage"
         stage.style.position = "relative"
         stage.style.flex = "1 1 0%"
         stage.style.minHeight = "0"
         stage.style.display = "flex"
-
-        pipVideo.style.width = "100%"
-        pipVideo.style.height = "100%"
-        pipVideo.style.minHeight = "0"
-        pipVideo.style.objectFit = "contain"
-
-        // The same light vignette the main player draws over its picture, so the floating window
-        // reads as the same player rather than a bare video element.
-        const vignette = pipWindow.document.createElement("div")
-        vignette.style.position = "absolute"
-        vignette.style.inset = "0"
-        vignette.style.pointerEvents = "none"
-        vignette.style.background = "radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.15) 75%, rgba(0,0,0,0.35) 100%)"
-
-        stage.appendChild(pipVideo)
-        stage.appendChild(vignette)
+        stage.style.alignItems = "center"
+        stage.style.justifyContent = "center"
+        stage.style.overflow = "hidden"
         body.appendChild(stage)
+        return stage
+    }
+
+    // Requests a Document PiP window; null when it fails or does not open within 2s.
+    private async openDocPipWindow(docPip: DocumentPictureInPicture): Promise<Window | null> {
+        let settled = false
+
+        const request = docPip.requestWindow({
+            width: 480,
+            height: 270,
+        }).then(win => {
+            if (settled) {
+                // We already fell back to native PiP; close the late window so it
+                // doesn't linger unmanaged alongside it.
+                win.close()
+                return null
+            }
+            settled = true
+            return win
+        }).catch(err => {
+            log.warning("Document PiP requestWindow failed, falling back to native video PiP", err)
+            settled = true
+            return null
+        })
+
+        const timeout = new Promise<null>(resolve => setTimeout(() => {
+            if (!settled) {
+                settled = true
+                log.warning("Document PiP window did not open in time — falling back to native video PiP")
+            }
+            resolve(null)
+        }, 2000))
+
+        return Promise.race([request, timeout])
+    }
+
+    // The video's subtitle layers: JASSUB's canvas, the PGS canvas and the media-captions overlay.
+    // All three are siblings the renderers add next to the <video>.
+    private subtitleLayersOf(video: HTMLVideoElement): HTMLElement[] {
+        const parent = video.parentElement
+        if (!parent) return []
+        return Array.from(parent.children).filter((el): el is HTMLElement =>
+            el !== video && el instanceof HTMLElement &&
+            el.matches("canvas.JASSUB, canvas.vc-pgs-canvas, #video-core-captions-wrapper"),
+        )
+    }
+
+    private resizeSubtitleLayers() {
+        this.subtitleManager?.pgsRenderer?.resize()
+        this.subtitleManager?.libassRenderer?.resize?.()?.catch?.(() => {})
+    }
+
+    private enterDocPipWithVideo(pipWindow: Window) {
+        const video = this.video
+        if (!video || !video.parentElement) {
+            pipWindow.close()
+            return
+        }
+
+        this.docPipController?.abort()
+        this.docPipController = new AbortController()
+        const signal = this.docPipController.signal
+
+        this.docPipWindow = pipWindow
+        this.copyStylesToPipWindow(pipWindow)
+        const stage = this.setupDocPipBody(pipWindow)
+        this.docPipStage = stage
+
+        // Keep the video playing across the move: Chromium reuses the media player when an
+        // element moves into its opener's Document PiP window (and back), so there is no reload.
+        const wasPlaying = !video.paused
+        const placeholder = document.createComment("vc-docpip-placeholder")
+        video.parentElement.insertBefore(placeholder, video)
+        this.docPipPlaceholder = placeholder
+        const layers = this.subtitleLayersOf(video)
+        stage.appendChild(video)
+        for (const layer of layers) stage.appendChild(layer)
+        if (wasPlaying && video.paused) video.play().catch(() => {})
+
+        // The renderers' ResizeObservers belong to the main window, so resizes in the PiP window
+        // are forwarded by hand.
+        pipWindow.addEventListener("resize", () => this.resizeSubtitleLayers(), { signal })
+        pipWindow.requestAnimationFrame(() => this.resizeSubtitleLayers())
+
+        pipWindow.addEventListener("pagehide", () => {
+            this.handleDocPipClosed()
+        }, { signal })
+
+        this.onDocPipWindowChange?.(pipWindow)
+        this.handleDocPipEntered(video)
+    }
+
+    // Moves the video and everything placed next to it in the PiP window (including subtitle
+    // layers created there after an episode change) back to where the video was. Idempotent.
+    private restoreDocPipNodes() {
+        const placeholder = this.docPipPlaceholder
+        const stage = this.docPipStage
+        this.docPipPlaceholder = null
+        this.docPipStage = null
+        if (!placeholder || !stage) return
+
+        const video = this.video
+        const wasPlaying = !!video && !video.paused
+        const parent = placeholder.parentNode
+        const nodes = Array.from(stage.childNodes)
+        if (parent) {
+            for (const node of nodes) parent.insertBefore(node, placeholder)
+            placeholder.remove()
+        }
+        // Without a parent the player was unmounted while in PiP; the nodes are left to close
+        // with the window.
+        if (video && wasPlaying && video.paused && video.isConnected) video.play().catch(() => {})
+        requestAnimationFrame(() => this.resizeSubtitleLayers())
     }
 
     private newPipVideo() {
@@ -483,8 +627,8 @@ export class VideoCorePipManager extends EventTarget {
         }
     }
 
-    private async enterPipWithSubtitles() {
-        if (!this.video || (!this.subtitleManager && !this.mediaCaptionsManager)) return
+    private async enterPipWithSubtitles(docPip: DocumentPictureInPicture | null = null) {
+        if (!this.video || (!docPip && !this.subtitleManager && !this.mediaCaptionsManager)) return
 
         const canvas = document.createElement("canvas")
         const context = canvas.getContext("2d")
@@ -608,61 +752,34 @@ export class VideoCorePipManager extends EventTarget {
                 }
             }
 
-            // Electron does not support the Document PiP API — requestWindow() silently
-            // opens nothing there (electron/electron#39633) — so only attempt it outside
-            // the desktop client. A requestWindow that fails or hangs falls back to the
-            // native video PiP rather than leaving the button dead.
-            const docPip = __isElectronDesktop__ ? null : getDocumentPictureInPicture()
+            // With GPU-optimized playback on, Document PiP moves the real video instead and this
+            // stream only feeds the native video PiP. With it off, the stream feeds the Document
+            // PiP window when one opens.
+            const pipWindow = docPip ? await this.openDocPipWindow(docPip) : null
+            if (pipWindow) {
+                this.docPipWindow = pipWindow
+                this.onDocPipWindowChange?.(pipWindow)
+                this.copyStylesToPipWindow(pipWindow)
+                const stage = this.setupDocPipBody(pipWindow)
+                pipVideo.style.width = "100%"
+                pipVideo.style.height = "100%"
+                pipVideo.style.minHeight = "0"
+                pipVideo.style.objectFit = "contain"
+                stage.appendChild(pipVideo)
+                // The same light vignette the main player draws over its picture.
+                const vignette = pipWindow.document.createElement("div")
+                vignette.style.position = "absolute"
+                vignette.style.inset = "0"
+                vignette.style.pointerEvents = "none"
+                vignette.style.background = "radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.15) 75%, rgba(0,0,0,0.35) 100%)"
+                stage.appendChild(vignette)
 
-            if (docPip) {
-                let pipWindow: Window | null = null
-                let settled = false
+                pipWindow.addEventListener("pagehide", () => {
+                    this.handleDocPipClosed()
+                }, { signal: this.canvasController.signal })
 
-                const request = docPip.requestWindow({
-                    width: 480,
-                    height: 270,
-                }).then(win => {
-                    if (settled) {
-                        // We already fell back to native PiP; close the late window so it
-                        // doesn't linger unmanaged alongside it.
-                        win.close()
-                        return null
-                    }
-                    settled = true
-                    return win
-                }).catch(err => {
-                    log.warning("Document PiP requestWindow failed, falling back to native video PiP", err)
-                    settled = true
-                    return null
-                })
-
-                const timeout = new Promise<null>(resolve => setTimeout(() => {
-                    if (!settled) {
-                        settled = true
-                        log.warning("Document PiP window did not open in time — falling back to native video PiP")
-                    }
-                    resolve(null)
-                }, 2000))
-
-                pipWindow = await Promise.race([request, timeout])
-
-                if (pipWindow) {
-                    this.docPipWindow = pipWindow
-                    this.onDocPipWindowChange?.(pipWindow)
-                    this.copyStylesToPipWindow(pipWindow)
-                    this.setupDocPipBody(pipWindow, pipVideo)
-
-                    pipWindow.addEventListener("pagehide", () => {
-                        this.handleDocPipClosed()
-                    }, { signal: this.canvasController.signal })
-
-                    this.handleDocPipEntered(pipVideo)
-                }
-                else {
-                    await this.enterNativePip(pipVideo, this.canvasController!.signal)
-                }
-            }
-            else {
+                this.handleDocPipEntered(pipVideo)
+            } else {
                 await this.enterNativePip(pipVideo, this.canvasController!.signal)
             }
 

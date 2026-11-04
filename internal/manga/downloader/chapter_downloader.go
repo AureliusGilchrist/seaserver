@@ -2,12 +2,14 @@ package chapter_downloader
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"image"
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"seanime/internal/database/db"
@@ -25,9 +27,27 @@ import (
 	"github.com/rs/zerolog"
 	_ "golang.org/x/image/bmp"  // Register BMP format
 	_ "golang.org/x/image/tiff" // Register Tiff format
+	_ "golang.org/x/image/webp" // Register WebP format (also registered by the manga repository)
 )
 
 const chapterDownloadTimeout = 5 * time.Minute
+
+const (
+	// maxConcurrentPages is how many pages of one chapter download at once.
+	maxConcurrentPages = 6
+	// progressEvery is how many pages go by between progress writes (and the last page always writes).
+	// Writing the database and telling every client after each page was a write and a queue refetch
+	// per image.
+	progressEvery = 5
+)
+
+// errNotAnImage is a 200 answer whose body is not an image: typically an HTML challenge or error
+// page from the image host. Trying again later can work, unlike an image format we can't read.
+type errNotAnImage struct{ contentType string }
+
+func (e errNotAnImage) Error() string {
+	return fmt.Sprintf("the image host answered with %s instead of an image", e.contentType)
+}
 
 // 📁 cache/manga
 // └── 📁 {provider}_{mediaId}_{chapterId}_{chapterNumber}      <- Downloader generates
@@ -46,6 +66,10 @@ type (
 		downloadDir     string
 		mu              sync.Mutex
 		downloadMu      sync.Mutex
+		// registryMu guards the series registries (shared by chapters of a series downloading at
+		// once) and reservedFolders, the chapter folders being downloaded into.
+		registryMu      sync.Mutex
+		reservedFolders map[string]struct{}
 		registryManager *SeriesRegistryManager
 		// cancelChannel is used to cancel some or all downloads.
 		cancelChannels      map[DownloadID]chan struct{}
@@ -110,6 +134,7 @@ func NewDownloader(opts *NewDownloaderOptions) *Downloader {
 		downloadDir:         opts.DownloadDir,
 		database:            opts.Database,
 		registryManager:     NewSeriesRegistryManager(opts.Logger),
+		reservedFolders:     make(map[string]struct{}),
 		cancelChannels:      make(map[DownloadID]chan struct{}),
 		runCh:               runCh,
 		queue:               NewQueue(opts.Database, opts.Logger, opts.WSEventManager, runCh, opts.DownloadDir),
@@ -127,7 +152,8 @@ func (cd *Downloader) Start() {
 			// Listen for new queue items
 			case queueInfo := <-cd.runCh:
 				cd.logger.Debug().Msgf("chapter downloader: Received queue item to download: %s", queueInfo.ChapterId)
-				cd.run(queueInfo)
+				// The queue sends at most MaxConcurrentChapterDownloads items at once.
+				go cd.run(queueInfo)
 			}
 		}
 	}()
@@ -147,6 +173,8 @@ func (cd *Downloader) AddToQueue(opts DownloadOptions) error {
 
 	// Get series directory and registry
 	seriesDir := cd.getSeriesDir(downloadId)
+	cd.registryMu.Lock()
+	defer cd.registryMu.Unlock()
 	registry, err := cd.registryManager.GetRegistry(seriesDir)
 	if err != nil {
 		cd.logger.Error().Err(err).Msg("chapter downloader: Failed to load series registry")
@@ -178,6 +206,8 @@ func (cd *Downloader) DeleteChapter(id DownloadID) error {
 	cd.logger.Debug().Msgf("chapter downloader: Deleting chapter %s", id.ChapterId)
 
 	seriesDir := cd.getSeriesDir(id)
+	cd.registryMu.Lock()
+	defer cd.registryMu.Unlock()
 	registry, err := cd.registryManager.GetRegistry(seriesDir)
 	if err != nil {
 		cd.logger.Error().Err(err).Msg("chapter downloader: Failed to load series registry")
@@ -286,8 +316,10 @@ func (cd *Downloader) downloadChapterImages(queueInfo *QueueInfo, timeoutCh <-ch
 	}
 
 	// Load or create series registry
+	cd.registryMu.Lock()
 	seriesRegistry, err := cd.registryManager.GetRegistry(seriesDir)
 	if err != nil {
+		cd.registryMu.Unlock()
 		cd.logger.Error().Err(err).Msg("chapter downloader: Failed to load series registry")
 		return err
 	}
@@ -300,9 +332,23 @@ func (cd *Downloader) downloadChapterImages(queueInfo *QueueInfo, timeoutCh <-ch
 		seriesRegistry.Provider = downloadId.Provider
 	}
 
-	// Generate folder name from chapter title
+	// Generate folder name from chapter title. Another chapter of the series downloading at the
+	// same time is not in the registry yet, so its folder is reserved until it is.
 	folderName := seriesRegistry.GenerateUniqueFolderName(downloadId.ChapterTitle, downloadId.ChapterNumber)
+	for n := 2; ; n++ {
+		if _, taken := cd.reservedFolders[filepath.Join(seriesDir, folderName)]; !taken {
+			break
+		}
+		folderName = seriesRegistry.GenerateUniqueFolderName(fmt.Sprintf("%s (%d)", downloadId.ChapterTitle, n), downloadId.ChapterNumber)
+	}
 	destination := filepath.Join(seriesDir, folderName)
+	cd.reservedFolders[destination] = struct{}{}
+	cd.registryMu.Unlock()
+	defer func() {
+		cd.registryMu.Lock()
+		delete(cd.reservedFolders, destination)
+		cd.registryMu.Unlock()
+	}()
 
 	if err = os.MkdirAll(destination, os.ModePerm); err != nil {
 		cd.logger.Error().Err(err).Msgf("chapter downloader: Failed to create download directory for chapter %s", queueInfo.ChapterId)
@@ -313,23 +359,27 @@ func (cd *Downloader) downloadChapterImages(queueInfo *QueueInfo, timeoutCh <-ch
 
 	pageRegistry := make(map[int]PageInfo)
 
-	// calculateBatchSize calculates the batch size based on the number of URLs.
-	calculateBatchSize := func(numURLs int) int {
-		maxBatchSize := 3 // Reduced from 5 to 3 for better rate limiting
-		batchSize := numURLs / 10
-		if batchSize < 1 {
-			return 1
-		} else if batchSize > maxBatchSize {
-			return maxBatchSize
-		}
-		return batchSize
-	}
-
 	// Download images
-	batchSize := calculateBatchSize(len(queueInfo.Pages))
+	batchSize := max(1, min(len(queueInfo.Pages), maxConcurrentPages))
 
 	var wg sync.WaitGroup
 	var downloadedCount int32
+	// Progress is written every progressEvery pages, never going backwards.
+	var progressMu sync.Mutex
+	writtenProgress := 0
+	reportProgress := func(count int) {
+		if count%progressEvery != 0 && count != len(queueInfo.Pages) {
+			return
+		}
+		progressMu.Lock()
+		defer progressMu.Unlock()
+		if count <= writtenProgress {
+			return
+		}
+		writtenProgress = count
+		_ = cd.database.UpdateChapterDownloadProgress(queueInfo.Provider, queueInfo.MediaId, queueInfo.ChapterId, count)
+		cd.wsEventManager.SendEvent(events.ChapterDownloadQueueUpdated, nil)
+	}
 	semaphore := make(chan struct{}, batchSize) // Semaphore to control concurrency
 	for _, page := range queueInfo.Pages {
 		// Check cancel before acquiring semaphore to avoid blocking on cancelled downloads
@@ -372,21 +422,30 @@ func (cd *Downloader) downloadChapterImages(queueInfo *QueueInfo, timeoutCh <-ch
 						return
 					default:
 					}
-					cd.downloadPageToRegistry(page, destination, registry)
+					pageErr := cd.downloadPageToRegistry(page, destination, registry)
 					cd.downloadMu.Lock()
 					_, ok := (*registry)[page.Index]
 					cd.downloadMu.Unlock()
 					if ok {
 						break // Success
 					}
+					if pageErr == errUnreadableImage {
+						break // the same bytes would come back
+					}
 					if attempt < 2 {
+						// A web page instead of the image is usually the host pushing back: give it longer.
+						wait := 2 * time.Second
+						var notImage errNotAnImage
+						if errors.As(pageErr, &notImage) {
+							wait = time.Duration(5*(attempt+1)) * time.Second
+						}
 						cd.logger.Warn().Int("attempt", attempt+1).Str("url", page.URL).Msg("chapter downloader: Retrying failed page download")
 						select {
 						case <-cd.cancelCh:
 							return
 						case <-timeoutCh:
 							return
-						case <-time.After(2 * time.Second):
+						case <-time.After(wait):
 						}
 					}
 				}
@@ -395,9 +454,7 @@ func (cd *Downloader) downloadChapterImages(queueInfo *QueueInfo, timeoutCh <-ch
 				cd.downloadMu.Unlock()
 				if ok {
 					// Update progress after each page
-					newCount := atomic.AddInt32(&downloadedCount, 1)
-					_ = cd.database.UpdateChapterDownloadProgress(queueInfo.Provider, queueInfo.MediaId, queueInfo.ChapterId, int(newCount))
-					cd.wsEventManager.SendEvent(events.ChapterDownloadQueueUpdated, nil)
+					reportProgress(int(atomic.AddInt32(&downloadedCount, 1)))
 				}
 			}
 		}(page, &pageRegistry)
@@ -442,10 +499,13 @@ func (cd *Downloader) downloadChapterImages(queueInfo *QueueInfo, timeoutCh <-ch
 		FolderName:    folderName,
 		Pages:         pageRegistry,
 	}
+	cd.registryMu.Lock()
 	seriesRegistry.AddChapter(folderName, chapterEntry)
 
 	// Save series registry
-	if err = cd.registryManager.SaveRegistry(seriesDir, seriesRegistry); err != nil {
+	err = cd.registryManager.SaveRegistry(seriesDir, seriesRegistry)
+	cd.registryMu.Unlock()
+	if err != nil {
 		cd.logger.Error().Err(err).Msg("chapter downloader: Failed to save series registry")
 		return err
 	}
@@ -513,10 +573,16 @@ func (cd *Downloader) downloadPage(page *hibikemanga.ChapterPage, destination st
 	return
 }
 
-// downloadPageToRegistry downloads a single page and updates the page registry map.
-func (cd *Downloader) downloadPageToRegistry(page *hibikemanga.ChapterPage, destination string, registry *map[int]PageInfo) {
+// errUnreadableImage is an image in a format no registered decoder reads (AVIF, for one: there is
+// no pure-Go decoder among the dependencies). Downloading it again gives the same bytes.
+var errUnreadableImage = errors.New("unreadable image format")
+
+// downloadPageToRegistry downloads a single page and updates the page registry map. The error says
+// why a page did not make it, so the caller knows whether trying again can help.
+func (cd *Downloader) downloadPageToRegistry(page *hibikemanga.ChapterPage, destination string, registry *map[int]PageInfo) (pageErr error) {
 
 	defer util.HandlePanicInModuleThen("manga/downloader/downloadPageToRegistry", func() {
+		pageErr = errors.New("panic while downloading page")
 	})
 
 	// Download image from URL
@@ -525,14 +591,20 @@ func (cd *Downloader) downloadPageToRegistry(page *hibikemanga.ChapterPage, dest
 	buf, err := manga_providers.GetImageByProxy(page.URL, page.Headers)
 	if err != nil {
 		cd.logger.Error().Err(err).Msgf("chapter downloader: Failed to get image from URL %s", page.URL)
-		return
+		return err
 	}
 
 	// Get the image format
 	config, format, err := image.DecodeConfig(bytes.NewReader(buf))
 	if err != nil {
+		// HTML (a challenge or error page) or other text: the host did not send the image.
+		if detected := http.DetectContentType(buf); strings.HasPrefix(detected, "text/") {
+			notImage := errNotAnImage{contentType: detected}
+			cd.logger.Warn().Err(notImage).Int("bytes", len(buf)).Msgf("chapter downloader: Not an image from URL %s", page.URL)
+			return notImage
+		}
 		cd.logger.Error().Err(err).Msgf("chapter downloader: Failed to decode image format from URL %s", page.URL)
-		return
+		return errUnreadableImage
 	}
 
 	filename := imgID + "." + format
@@ -542,7 +614,7 @@ func (cd *Downloader) downloadPageToRegistry(page *hibikemanga.ChapterPage, dest
 	file, err := os.Create(filePath)
 	if err != nil {
 		cd.logger.Error().Err(err).Msgf("chapter downloader: Failed to create file for image %s", imgID)
-		return
+		return err
 	}
 	defer file.Close()
 
@@ -550,7 +622,7 @@ func (cd *Downloader) downloadPageToRegistry(page *hibikemanga.ChapterPage, dest
 	_, err = io.Copy(file, bytes.NewReader(buf))
 	if err != nil {
 		cd.logger.Error().Err(err).Msgf("chapter downloader: Failed to write image data to file for image from %s", page.URL)
-		return
+		return err
 	}
 
 	// Update registry
@@ -564,6 +636,7 @@ func (cd *Downloader) downloadPageToRegistry(page *hibikemanga.ChapterPage, dest
 		Size:        int64(len(buf)),
 	}
 	cd.downloadMu.Unlock()
+	return nil
 }
 
 ////////////////////////

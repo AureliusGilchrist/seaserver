@@ -41,7 +41,12 @@ type ImageProxy struct {
 // goroutine behind until the server ran out.
 var imageProxyClient = req.C().SetTimeout(60 * time.Second)
 
-var imageProxySlots = make(chan struct{}, 6)
+// User-facing image requests and background artwork pinning take slots from separate pools, so
+// covers the user is looking at never queue behind a library-wide pinning run.
+var (
+	imageProxySlots = make(chan struct{}, 8)
+	imagePinSlots   = make(chan struct{}, 2)
+)
 
 const (
 	imageCacheMaxAge   = 30 * 24 * time.Hour // refetched after this

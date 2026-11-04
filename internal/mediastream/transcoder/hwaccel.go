@@ -2,6 +2,8 @@ package transcoder
 
 import (
 	"runtime"
+	"slices"
+	"strings"
 
 	"github.com/goccy/go-json"
 )
@@ -12,6 +14,9 @@ type (
 		Preset         string
 		CustomSettings string
 		FfmpegPath     string
+		// Role says which settings these are in the log: the configured ones, or the CPU spare the
+		// transcoder keeps for when the hardware fails. Empty means "configured".
+		Role string
 	}
 )
 
@@ -26,7 +31,11 @@ func GetHardwareAccelSettings(opts HwAccelOptions) HwAccelSettings {
 	if name == "" || name == "auto" || name == "cpu" || name == "none" {
 		name = "disabled"
 	}
-	streamLogger.Debug().Msgf("transcoder: Hardware acceleration: %s", name)
+	role := opts.Role
+	if role == "" {
+		role = "configured"
+	}
+	streamLogger.Debug().Msgf("transcoder: Hardware acceleration (%s): %s", role, name)
 
 	var customHwAccelSettings HwAccelSettings
 	if opts.CustomSettings != "" && name == "custom" {
@@ -127,23 +136,32 @@ func GetHardwareAccelSettings(opts HwAccelOptions) HwAccelSettings {
 			WithForcedIdr: true,
 		}
 	case "nvidia":
-		// Frames stay in CPU memory and are scaled there, even when ffmpeg has scale_cuda. A GPU-only
-		// pipeline cannot take the -pix_fmt below, and breaks on whatever the GPU cannot decode itself.
+		// Frames stay on the GPU from the decoder to the encoder: decoded into CUDA memory, scaled
+		// there with scale_cuda (which also brings 10-bit down to 8-bit nv12) and handed to NVENC.
+		// "format=nv12|cuda,hwupload" passes CUDA frames through, and uploads the frames of anything
+		// the GPU could not decode itself, which ffmpeg then decodes on the CPU instead.
+		// If this pipeline fails, the first fallback (CPUFrames) is the older one: GPU decode, frames
+		// copied back and scaled on the CPU.
+		cpuFrames := nvidiaCPUScaleSettings(preset)
 		return HwAccelSettings{
 			Name: "nvidia",
 			DecodeFlags: []string{
+				"-init_hw_device", "cuda=cu",
+				"-filter_hw_device", "cu",
 				"-hwaccel", "cuda",
+				"-hwaccel_device", "cu",
+				"-hwaccel_output_format", "cuda",
 			},
 			EncodeFlags: []string{
 				"-c:v", "h264_nvenc",
 				"-preset", preset,
 				// the equivalent of -sc_threshold on nvidia.
 				"-no-scenecut", "1",
-				// Force 8-bit output — older GPUs (e.g. GTX 980 / Maxwell) don't support 10-bit NVENC.
-				"-pix_fmt", "yuv420p",
+				// no -pix_fmt: the frames are CUDA frames, scale_cuda's format=nv12 makes them 8-bit.
 			},
-			ScaleFilter:   "scale=%d:%d",
+			ScaleFilter:   "format=nv12|cuda,hwupload,scale_cuda=%d:%d:format=nv12",
 			WithForcedIdr: true,
+			CPUFrames:     &cpuFrames,
 		}
 	case "nvidia-decode":
 		// NVDEC decode on GPU, libx264 encode on CPU.
@@ -179,7 +197,55 @@ func GetHardwareAccelSettings(opts HwAccelOptions) HwAccelSettings {
 	case "custom":
 		return customHwAccelSettings
 	default:
-		streamLogger.Fatal().Msgf("No hardware accelerator named: %s", name)
-		panic("unreachable")
+		streamLogger.Warn().Msgf("transcoder: No hardware accelerator named %q, using the CPU", name)
+		return GetHardwareAccelSettings(HwAccelOptions{Kind: softwareHwAccelName, Preset: preset, FfmpegPath: opts.FfmpegPath, Role: role})
 	}
+}
+
+// nvidiaCPUScaleSettings decodes on the GPU and scales and converts on the CPU before NVENC. Slower
+// than keeping the frames on the GPU, but it takes -pix_fmt and works with any ffmpeg filter build.
+func nvidiaCPUScaleSettings(preset string) HwAccelSettings {
+	return HwAccelSettings{
+		Name: "nvidia",
+		DecodeFlags: []string{
+			"-hwaccel", "cuda",
+		},
+		EncodeFlags: []string{
+			"-c:v", "h264_nvenc",
+			"-preset", preset,
+			"-no-scenecut", "1",
+			// Force 8-bit output — older GPUs (e.g. GTX 980 / Maxwell) don't support 10-bit NVENC.
+			"-pix_fmt", "yuv420p",
+		},
+		ScaleFilter:   "scale=%d:%d",
+		WithForcedIdr: true,
+	}
+}
+
+// usesNvidiaDecoder reports whether these settings decode with NVDEC.
+func usesNvidiaDecoder(hw HwAccelSettings) bool {
+	return slices.Contains(hw.DecodeFlags, "cuda")
+}
+
+// cuvidDecoderFlags picks the NVDEC decoder itself (h264_cuvid...) for a source codec the ffmpeg build
+// has no regular decoder for: "-hwaccel cuda" attaches to the regular decoder, so without one the
+// stream cannot be opened at all. Builds like Fedora's ship cuvid decoders but no h264 or hevc.
+func cuvidDecoderFlags(hw HwAccelSettings, sourceCodec string, decoders map[string]bool) []string {
+	if decoders == nil || sourceCodec == "" || !usesNvidiaDecoder(hw) || decoders[sourceCodec] {
+		return nil
+	}
+	if cuvid := sourceCodec + "_cuvid"; decoders[cuvid] {
+		return []string{"-c:v", cuvid}
+	}
+	return nil
+}
+
+// isSoftwareEncode reports whether these settings encode the video on the CPU.
+func isSoftwareEncode(hw HwAccelSettings) bool {
+	for i, flag := range hw.EncodeFlags {
+		if flag == "-c:v" && i+1 < len(hw.EncodeFlags) {
+			return strings.HasPrefix(hw.EncodeFlags[i+1], "libx26")
+		}
+	}
+	return hw.Name == softwareHwAccelName
 }

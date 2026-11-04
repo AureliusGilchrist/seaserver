@@ -230,5 +230,6 @@ declare global {
         openAtLaunch: boolean;
         sourceRepoPath?: string;
         autoUpdateFrontend?: boolean;
+        gpuAcceleration?: boolean;
     }
 }

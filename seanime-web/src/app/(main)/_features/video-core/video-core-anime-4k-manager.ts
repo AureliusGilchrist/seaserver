@@ -1,6 +1,7 @@
 import { VideoCoreSettings } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { logger } from "@/lib/helpers/debug"
 import type { Anime4KPipeline } from "anime4k-webgpu"
+import { Anime4KRenderHandle, renderAnime4K } from "@/app/(main)/_features/video-core/video-core-anime-4k-renderer"
 
 const log = logger("VIDEO CORE ANIME 4K MANAGER")
 
@@ -106,7 +107,9 @@ export class VideoCoreAnime4KManager extends EventTarget {
     private settings: VideoCoreSettings
     private _currentOption: Anime4KOption = "off"
     private _webgpuResources: Anime4KWebGPUResources | null = null
-    private _renderLoopId: number | null = null
+    // Device from the WebGPU probe, reused for rendering so only one device ever exists.
+    private _gpuDevice: GPUDevice | null = null
+    private _renderHandle: Anime4KRenderHandle | null = null
     private _abortController: AbortController | null = null
     private _frameDropState: FrameDropState = {
         enabled: true,
@@ -464,20 +467,14 @@ export class VideoCoreAnime4KManager extends EventTarget {
             this.canvas = null
         }
 
-        if (this._renderLoopId) {
-            cancelAnimationFrame(this._renderLoopId)
-            this._renderLoopId = null
-        }
+        // Stop the per-frame loop before the device goes away.
+        this._renderHandle?.stop()
+        this._renderHandle = null
 
-        if (this._renderStats.renderCallbackId !== null) {
-            this.videoElement.cancelVideoFrameCallback(this._renderStats.renderCallbackId)
-            this._renderStats.renderCallbackId = null
-        }
-
-        if (this._webgpuResources?.device) {
-            this._webgpuResources.device.destroy()
-            this._webgpuResources = null
-        }
+        const device = this._webgpuResources?.device ?? this._gpuDevice
+        device?.destroy()
+        this._webgpuResources = null
+        this._gpuDevice = null
 
         if (this._abortController) {
             this._abortController.abort()
@@ -525,7 +522,12 @@ export class VideoCoreAnime4KManager extends EventTarget {
                 throw new Error("WebGPU not supported")
             }
 
-            if (this._abortController.signal.aborted) return
+            if (this._abortController.signal.aborted) {
+                gpuInfo.device.destroy()
+                return
+            }
+            this._gpuDevice?.destroy()
+            this._gpuDevice = gpuInfo.device
 
             this._createCanvas()
 
@@ -619,9 +621,17 @@ export class VideoCoreAnime4KManager extends EventTarget {
 
         log.info("Rendering started")
 
-        await anime4k.render({
+        if (!this._gpuDevice || !this._abortController) {
+            throw new Error("WebGPU device missing")
+        }
+
+        this._renderHandle?.stop()
+        this._renderHandle = await renderAnime4K({
             video: this.videoElement,
             canvas: this.canvas,
+            device: this._gpuDevice,
+            signal: this._abortController.signal,
+            onFrame: (now) => this._onRenderedFrame(now),
             pipelineBuilder: (device, inputTexture) => {
                 const commonProps = {
                     device,
@@ -666,7 +676,6 @@ export class VideoCoreAnime4KManager extends EventTarget {
                     const event: Anime4KManagerCanvasCreatedEvent = new CustomEvent("canvascreated", { detail: { canvas: this.canvas } })
                     this.dispatchEvent(event)
 
-                    this._startRenderFpsTracking()
                 }
             })
         }, 100)
@@ -688,10 +697,6 @@ export class VideoCoreAnime4KManager extends EventTarget {
             })
         }, 500)
 
-        // Start frame drop detection if enabled
-        if (this._frameDropState.enabled && this._isOptionSelected(this._currentOption)) {
-            this._startFrameDropDetection()
-        }
     }
 
     private createPipeline(commonProps: any, anime4k: typeof import("anime4k-webgpu")): [Anime4KPipeline] {
@@ -725,24 +730,35 @@ export class VideoCoreAnime4KManager extends EventTarget {
         }
     }
 
-    // Start frame drop detection loop
-    private _startFrameDropDetection() {
-        const frameDetectionLoop = () => {
-            if (this._isOptionSelected(this._currentOption) && this._renderLoopId !== null) {
-                this._detectFrameDrops()
-                this._renderLoopId = requestAnimationFrame(frameDetectionLoop)
+    // Runs from the render loop's video-frame callback: FPS stats and frame-drop detection ride on
+    // the frames Anime4K already draws instead of a separate rAF/rVFC loop.
+    private _onRenderedFrame(now: number) {
+        if (this._renderStats.lastRenderTime > 0) {
+            const frameTime = now - this._renderStats.lastRenderTime
+            this._renderStats.frameTimeSamples.push(frameTime)
+            if (this._renderStats.frameTimeSamples.length > 10) {
+                this._renderStats.frameTimeSamples.shift()
             }
+            const avgFrameTime = this._renderStats.frameTimeSamples.reduce((a, b) => a + b, 0) / this._renderStats.frameTimeSamples.length
+            this._renderStats.currentFps = avgFrameTime > 0 ? 1000 / avgFrameTime : 0
         }
-        this._renderLoopId = requestAnimationFrame(frameDetectionLoop)
+        this._renderStats.lastRenderTime = now
+
+        if (!this._frameDropState.enabled) return
+        // Gaps while paused or seeking are not drops.
+        if (this.videoElement.paused || this.videoElement.seeking) {
+            this._frameDropState.lastFrameTime = 0
+            return
+        }
+        this._detectFrameDrops(now)
     }
 
     // Detect frame drops and stop when it gets bad
-    private _detectFrameDrops() {
+    private _detectFrameDrops(now: number) {
         if (!this._isOptionSelected(this._currentOption)) {
             return
         }
 
-        const now = performance.now()
         const timeSinceInit = now - this._frameDropState.initTime
 
         // Skip detection during grace period
@@ -838,29 +854,4 @@ export class VideoCoreAnime4KManager extends EventTarget {
         return this.canvas ? this.canvas.style.display === "none" : false
     }
 
-    private _startRenderFpsTracking() {
-        if (!this.videoElement.requestVideoFrameCallback) return
-
-        const trackFrame = (now: number, metadata: VideoFrameCallbackMetadata) => {
-            if (this._renderStats.lastRenderTime > 0) {
-                const frameTime = now - this._renderStats.lastRenderTime
-
-                this._renderStats.frameTimeSamples.push(frameTime)
-                if (this._renderStats.frameTimeSamples.length > 10) {
-                    this._renderStats.frameTimeSamples.shift()
-                }
-
-                const avgFrameTime = this._renderStats.frameTimeSamples.reduce((a, b) => a + b, 0) / this._renderStats.frameTimeSamples.length
-                this._renderStats.currentFps = avgFrameTime > 0 ? 1000 / avgFrameTime : 0
-            }
-
-            this._renderStats.lastRenderTime = now
-
-            if (this._isOptionSelected(this._currentOption)) {
-                this._renderStats.renderCallbackId = this.videoElement.requestVideoFrameCallback(trackFrame)
-            }
-        }
-
-        this._renderStats.renderCallbackId = this.videoElement.requestVideoFrameCallback(trackFrame)
-    }
 }

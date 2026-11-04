@@ -64,6 +64,16 @@ export function DenshiSettings() {
                 />
             </SettingsCard>
 
+            <SettingsCard title="Performance">
+                <Switch
+                    side="right"
+                    value={settings.gpuAcceleration !== false}
+                    onValueChange={(v) => updateSetting("gpuAcceleration", v)}
+                    label="GPU acceleration"
+                    help="Recommended: keeping this on should improve performance. Uses the high-performance GPU, rasterizes the app on the GPU, skips copies of decoded video, and turns on hardware video decoding on Linux. Turn it off only if you see glitches, black video or crashes on your graphics driver. Applied after a restart."
+                />
+            </SettingsCard>
+
             <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 dark:bg-gray-900/30 rounded-lg p-3 border border-gray-200 dark:border-gray-800 border-dashed">
                 <RiSettings3Fill className="text-base" />
                 <span>Settings are saved automatically and applied after a restart</span>
