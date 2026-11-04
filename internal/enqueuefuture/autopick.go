@@ -53,6 +53,10 @@ type AutoPick struct {
 	Files     int                         `json:"files"`
 	DualAudio bool                        `json:"dualAudio"`
 	Reason    string                      `json:"reason,omitempty"`
+	// Flag is a warning about the pick, for the review list: set when the anime is a special or an
+	// OVA but no release that looks like the special on its own passed the rules, so the pick is
+	// most likely the whole series it belongs to.
+	Flag string `json:"flag,omitempty"`
 	// Media and ExistingDir are what the download needs: the anime to attach it to, and the folder
 	// its files already live in when there are any. Empty ExistingDir means "library root + title".
 	Media       *anilist.BaseAnime `json:"media,omitempty"`
@@ -60,6 +64,38 @@ type AutoPick struct {
 }
 
 var dualAudioPattern = regexp.MustCompile(`(?i)dual[\s._-]*audio`)
+
+// specialNamePattern matches the words a release uses for specials and OVAs.
+var specialNamePattern = regexp.MustCompile(`(?i)(^|[^a-z0-9])(specials?|sps?|sp\d{1,2}|ovas?|oads?|oavs?|extras?|bonus|omake|picture[\s._-]*drama)([^a-z0-9]|$)`)
+
+// isSpecialEntry reports whether an anime is a special or an OVA rather than a series or a film.
+func isSpecialEntry(media *anilist.BaseAnime) bool {
+	if media == nil || media.Format == nil {
+		return false
+	}
+	switch *media.Format {
+	case anilist.MediaFormatSpecial, anilist.MediaFormatOva:
+		return true
+	}
+	return false
+}
+
+// looksLikeSpecialRelease reports whether a release is plausibly the special itself, rather than the
+// series it hangs off. SeaDex files a special under its own entry but often answers with the
+// series' batch, which carries the special inside it.
+//
+// Either the name says so, or the release is about the special's size: no more files than its
+// episodes plus a few for subtitles and extras. A series batch has a file per episode of the
+// series, far past that. A release whose contents are unknown is judged on its name alone.
+func looksLikeSpecialRelease(name string, files int, episodes int) bool {
+	if specialNamePattern.MatchString(name) {
+		return true
+	}
+	if episodes <= 0 {
+		episodes = 1
+	}
+	return files > 0 && files <= episodes+3
+}
 
 // SettledReason says why an anime should not be auto-torrented any more — already matched,
 // downloading, downloaded, skipped or ignored — or "" when it is still open. Read fresh each time:
@@ -177,9 +213,17 @@ func (r *Repository) autoPickOne(ctx context.Context, mediaID int, client *http.
 	}
 
 	isShow := isTVShow(media)
-	kind := "movie / special"
-	if isShow {
+	isSpecial := isSpecialEntry(media)
+	kind := "movie"
+	switch {
+	case isShow:
 		kind = "TV batch"
+	case isSpecial:
+		kind = "special / OVA"
+	}
+	episodes := 0
+	if media.Episodes != nil {
+		episodes = *media.Episodes
 	}
 	pick.SearchedFor = media.GetRomajiTitleSafe() + " · " + kind + " on SeaDex"
 
@@ -228,8 +272,9 @@ func (r *Repository) autoPickOne(ctx context.Context, mediaID int, client *http.
 
 	type candidate struct {
 		t     *hibiketorrent.AnimeTorrent
-		files int
-		dual  bool
+		files   int
+		dual    bool
+		special bool
 	}
 	var candidates []candidate
 	seeded := 0
@@ -239,6 +284,9 @@ func (r *Repository) autoPickOne(ctx context.Context, mediaID int, client *http.
 		}
 		seeded++
 		files := contentsFiles(t, client)
+		// Kept as counted, before a film's unknown count is taken as one: the special check below
+		// must tell "one file" from "could not tell".
+		counted := files
 		if isShow {
 			if files <= 1 {
 				continue
@@ -247,7 +295,11 @@ func (r *Repository) autoPickOne(ctx context.Context, mediaID int, client *http.
 			// Unknown contents for a film: one file is all it needs, so assume that.
 			files = 1
 		}
-		candidates = append(candidates, candidate{t: t, files: files, dual: IsDualAudio(t.Name)})
+		c := candidate{t: t, files: files, dual: IsDualAudio(t.Name)}
+		if isSpecial {
+			c.special = looksLikeSpecialRelease(t.Name, counted, episodes)
+		}
+		candidates = append(candidates, c)
 	}
 
 	if len(candidates) == 0 {
@@ -262,10 +314,17 @@ func (r *Repository) autoPickOne(ctx context.Context, mediaID int, client *http.
 
 	sort.SliceStable(candidates, func(i, j int) bool {
 		a, b := candidates[i], candidates[j]
+		// For a special, the release that is the special beats everything — the most files
+		// would otherwise always be the series batch it sits inside.
+		if isSpecial && a.special != b.special {
+			return a.special
+		}
 		if a.dual != b.dual {
 			return a.dual
 		}
-		if a.files != b.files {
+		// Most files wins for a series. Not for a special: among releases of the special itself,
+		// more files is no better.
+		if !isSpecial && a.files != b.files {
 			return a.files > b.files
 		}
 		return a.t.Seeders > b.t.Seeders
@@ -275,6 +334,9 @@ func (r *Repository) autoPickOne(ctx context.Context, mediaID int, client *http.
 	pick.Torrent = best.t
 	pick.Files = best.files
 	pick.DualAudio = best.dual
+	if isSpecial && !best.special {
+		pick.Flag = "This is a special, but no SeaDex release looks like the special on its own — this is probably the whole series. Check it before downloading."
+	}
 	return pick
 }
 

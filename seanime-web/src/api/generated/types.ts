@@ -2909,6 +2909,7 @@ export type EnqueueFuture_AutoPick = {
     files: number
     dualAudio: boolean
     reason?: string
+    flag?: string
     media?: AL_BaseAnime
     existingDir?: string
 }

@@ -50614,6 +50614,15 @@
         "comments": []
       },
       {
+        "name": "Flag",
+        "jsonName": "flag",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "Media",
         "jsonName": "media",
         "goType": "anilist.BaseAnime",

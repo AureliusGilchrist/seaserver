@@ -9,9 +9,10 @@ import { Button, IconButton } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Modal } from "@/components/ui/modal"
 import { Switch } from "@/components/ui/switch"
+import { cn } from "@/components/ui/core/styling"
 import { useAtom } from "jotai/react"
 import React from "react"
-import { LuX } from "react-icons/lu"
+import { LuTriangleAlert, LuX } from "react-icons/lu"
 import { toast } from "sonner"
 
 /** How many anime are proposed for review at once. */
@@ -99,6 +100,9 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
             const result = await autoPick({ mediaIds: next })
             if (req !== requestRef.current) return
             setPicks(result ?? [])
+            // A flagged pick is most likely the whole series for a special — filing that into the
+            // special's entry automatically would be wrong, so those start with auto-match off.
+            setAutoMatchOff(new Set((result ?? []).filter(p => !!p.torrent && !!p.flag).map(p => p.mediaId)))
         }
         catch (e: any) {
             if (req !== requestRef.current) return
@@ -187,6 +191,9 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
                     <span>
                         <span className="text-[--foreground] font-semibold">{toDownload.length}</span> to download
                         {withoutTorrent.length ? ` · ${withoutTorrent.length} with no pick` : ""}
+                        {toDownload.some(p => !!p.flag) && (
+                            <span className="text-orange-300">{` · ${toDownload.filter(p => !!p.flag).length} flagged`}</span>
+                        )}
                     </span>
                 )}
             </div>
@@ -216,7 +223,10 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
                         return (
                             <div
                                 key={pick.mediaId}
-                                className="flex items-start gap-3 rounded-[--radius-md] border bg-gray-950 px-3 py-2"
+                                className={cn(
+                                    "flex items-start gap-3 rounded-[--radius-md] border bg-gray-950 px-3 py-2",
+                                    !!pick.flag && "border-orange-500/50",
+                                )}
                                 data-enqueue-future-auto-torrent-row
                             >
                                 <div className="min-w-0 flex-1">
@@ -230,6 +240,12 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
                                         {pick.torrent!.formattedSize ? ` · ${pick.torrent!.formattedSize}` : ""}
                                         {pick.dualAudio && <span className="ml-2 text-[--brand] font-semibold">Dual Audio</span>}
                                     </p>
+                                    {!!pick.flag && (
+                                        <p className="mt-1 flex items-start gap-1.5 text-xs text-orange-300" data-enqueue-future-auto-torrent-flag>
+                                            <LuTriangleAlert className="mt-0.5 flex-none" />
+                                            <span>{pick.flag}</span>
+                                        </p>
+                                    )}
                                 </div>
                                 <div className="flex-none pt-0.5" title="Match this one into your library automatically when it finishes">
                                     <Switch
