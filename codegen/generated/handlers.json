@@ -9096,6 +9096,38 @@
     }
   },
   {
+    "name": "HandleGetLibraryMissedSequels",
+    "trimmedName": "GetLibraryMissedSequels",
+    "comments": [
+      "HandleGetLibraryMissedSequels",
+      "",
+      "\t@summary returns completed anime whose released sequel the user has not started.",
+      "\t@desc Each item is a completed show and its sequel. Sequels that are not yet released, or that are",
+      "\t@desc already on a list other than Planning, are left out.",
+      "\t@route /api/v1/library/missed-sequels [GET]",
+      "\t@returns []anilist.MissedSequel",
+      ""
+    ],
+    "filepath": "internal/handlers/library_missed_sequels.go",
+    "filename": "library_missed_sequels.go",
+    "api": {
+      "summary": "returns completed anime whose released sequel the user has not started.",
+      "descriptions": [
+        "Each item is a completed show and its sequel. Sequels that are not yet released, or that are",
+        "already on a list other than Planning, are left out."
+      ],
+      "endpoint": "/api/v1/library/missed-sequels",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]anilist.MissedSequel",
+      "returnGoType": "anilist.MissedSequel",
+      "returnTypescriptType": "Array\u003cAL_MissedSequel\u003e"
+    }
+  },
+  {
     "name": "HandleSetOfflineMode",
     "trimmedName": "SetOfflineMode",
     "comments": [

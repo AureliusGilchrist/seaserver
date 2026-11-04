@@ -14700,6 +14700,52 @@
     "comments": []
   },
   {
+    "filepath": "../internal/api/anilist/missed_sequels.go",
+    "filename": "missed_sequels.go",
+    "name": "MissedSequel",
+    "formattedName": "AL_MissedSequel",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "Media",
+        "jsonName": "media",
+        "goType": "BaseAnime",
+        "typescriptType": "AL_BaseAnime",
+        "usedTypescriptType": "AL_BaseAnime",
+        "usedStructName": "anilist.BaseAnime",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Sequel",
+        "jsonName": "sequel",
+        "goType": "BaseAnime",
+        "typescriptType": "AL_BaseAnime",
+        "usedTypescriptType": "AL_BaseAnime",
+        "usedStructName": "anilist.BaseAnime",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SequelListStatus",
+        "jsonName": "sequelListStatus",
+        "goType": "MediaListStatus",
+        "typescriptType": "AL_MediaListStatus",
+        "usedTypescriptType": "AL_MediaListStatus",
+        "usedStructName": "anilist.MediaListStatus",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " MissedSequel is a show on the user's Completed list whose sequel is out (finished or airing)",
+      " but which the user has not started."
+    ]
+  },
+  {
     "filepath": "../internal/api/anilist/models_gen.go",
     "filename": "models_gen.go",
     "name": "ActivityLikeNotification",

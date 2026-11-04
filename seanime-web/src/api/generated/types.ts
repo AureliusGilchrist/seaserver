@@ -1537,6 +1537,20 @@ export type AL_MediaStatus = "FINISHED" | "RELEASING" | "NOT_YET_RELEASED" | "CA
 export type AL_MediaType = "ANIME" | "MANGA"
 
 /**
+ * - Filepath: internal/api/anilist/missed_sequels.go
+ * - Filename: missed_sequels.go
+ * - Package: anilist
+ * @description
+ *  MissedSequel is a show on the user's Completed list whose sequel is out (finished or airing)
+ *  but which the user has not started.
+ */
+export type AL_MissedSequel = {
+    media?: AL_BaseAnime
+    sequel?: AL_BaseAnime
+    sequelListStatus?: AL_MediaListStatus
+}
+
+/**
  * - Filepath: internal/api/anilist/client_gen.go
  * - Filename: client_gen.go
  * - Package: anilist

@@ -1841,6 +1841,19 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/library/explorer/directory-children",
         },
     },
+    LIBRARY_MISSED_SEQUELS: {
+        /**
+         *  @description
+         *  Route returns completed anime whose released sequel the user has not started.
+         *  Each item is a completed show and its sequel. Sequels that are not yet released, or that are
+         *  already on a list other than Planning, are left out.
+         */
+        GetLibraryMissedSequels: {
+            key: "LIBRARY-MISSED-SEQUELS-get-library-missed-sequels",
+            methods: ["GET"],
+            endpoint: "/api/v1/library/missed-sequels",
+        },
+    },
     LOCAL: {
         /**
          *  @description

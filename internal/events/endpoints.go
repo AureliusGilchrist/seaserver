@@ -187,6 +187,7 @@ const (
 	GetLevelEndpoint                                   = "PROFILE-PAGE-get-level"
 	GetLibraryCollectionEndpoint                       = "ANIME-COLLECTION-get-library-collection"
 	GetLibraryExplorerFileTreeEndpoint                 = "LIBRARY-EXPLORER-get-library-explorer-file-tree"
+	GetLibraryMissedSequelsEndpoint                    = "LIBRARY-MISSED-SEQUELS-get-library-missed-sequels"
 	GetLocalFilesEndpoint                              = "LOCALFILES-get-local-files"
 	GetLocalMangaPageEndpoint                          = "MANGA-get-local-manga-page"
 	GetLogFilenamesEndpoint                            = "STATUS-get-log-filenames"

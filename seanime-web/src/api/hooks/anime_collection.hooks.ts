@@ -1,7 +1,7 @@
 import { useServerMutation, useServerQuery } from "@/api/client/requests"
 import { AddUnknownMedia_Variables } from "@/api/generated/endpoint.types"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
-import { AL_AnimeCollection, Anime_LibraryCollection, Anime_ScheduleItem } from "@/api/generated/types"
+import { AL_AnimeCollection, AL_MissedSequel, Anime_LibraryCollection, Anime_ScheduleItem } from "@/api/generated/types"
 import { useRefreshAnimeCollection } from "@/api/hooks/anilist.hooks"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -26,6 +26,21 @@ export function useGetLibraryCollection({ enabled, refetchInterval, staleTime, r
         // client, and the player sat on "Setting up stream…" until it timed out. At most one
         // connection now, and never for longer than the server's own lookup deadline plus the build.
         abortOnCancel: true,
+        timeout: 180_000,
+    })
+}
+
+/**
+ * Completed shows whose released sequel is not started yet. The server fetches relations once per
+ * account and caches them for hours, so this is cheap to ask for; still, only ask while the tab is open.
+ */
+export function useGetLibraryMissedSequels({ enabled }: { enabled?: boolean } = { enabled: true }) {
+    return useServerQuery<Array<AL_MissedSequel>>({
+        endpoint: API_ENDPOINTS.LIBRARY_MISSED_SEQUELS.GetLibraryMissedSequels.endpoint,
+        method: API_ENDPOINTS.LIBRARY_MISSED_SEQUELS.GetLibraryMissedSequels.methods[0],
+        queryKey: [API_ENDPOINTS.LIBRARY_MISSED_SEQUELS.GetLibraryMissedSequels.key],
+        enabled: enabled,
+        staleTime: 5 * 60_000,
         timeout: 180_000,
     })
 }

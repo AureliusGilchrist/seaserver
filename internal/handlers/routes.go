@@ -583,6 +583,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Library.PATCH("/local-files/super-update", h.HandleSuperUpdateLocalFiles)
 
 	v1Library.GET("/collection", h.HandleGetLibraryCollection, h.RequireProfileSession)
+	v1Library.GET("/missed-sequels", h.HandleGetLibraryMissedSequels, h.RequireProfileSession)
 	v1Library.GET("/schedule", h.HandleGetAnimeCollectionSchedule)
 
 	v1Library.GET("/scan-summaries", h.HandleGetScanSummaries)
