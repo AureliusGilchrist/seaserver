@@ -3,6 +3,9 @@ package handlers
 import (
 	"errors"
 	"fmt"
+	"net/url"
+	"regexp"
+	"strings"
 
 	"seanime/internal/api/anilist"
 	hibiketorrent "seanime/internal/extension/hibike/torrent"
@@ -64,7 +67,15 @@ func (h *Handler) addTorrentToClient(
 
 	magnet, err := providerExtension.GetProvider().GetTorrentMagnetLink(&t)
 	if err != nil {
-		return false, err
+		// The provider fetches its magnet from the tracker's page — SeaDex reads nyaa — and a
+		// tracker site that is down for a minute failed the whole add. With the info hash in hand
+		// the magnet does not need the page at all.
+		fallback, ok := magnetFromInfoHash(t)
+		if !ok {
+			return false, err
+		}
+		h.App.Logger.Warn().Err(err).Str("torrent", t.Name).Msg("torrent client: Provider could not give a magnet link, using one built from the info hash")
+		magnet = fallback
 	}
 
 	// Already in the client: nothing new is downloading, so nothing here may claim otherwise,
@@ -112,4 +123,37 @@ func (h *Handler) addTorrentToClient(
 
 	h.App.Logger.Info().Str("torrent", t.Name).Str("destination", destination).Bool("autoMatch", autoMatch && media != nil).Msg("torrent client: Added torrent to unmatched directory")
 	return true, nil
+}
+
+// magnetFallbackTrackers are announced alongside a magnet built from an info hash, so the client
+// finds peers at once rather than waiting on DHT. Nyaa's own tracker first: it is where SeaDex's
+// releases live.
+var magnetFallbackTrackers = []string{
+	"http://nyaa.tracker.wf:7777/announce",
+	"udp://open.stealth.si:80/announce",
+	"udp://tracker.opentrackr.org:1337/announce",
+	"udp://exodus.desync.com:6969/announce",
+	"udp://tracker.torrent.eu.org:451/announce",
+}
+
+var infoHashPattern = regexp.MustCompile(`^(?i:[0-9a-f]{40}|[a-z2-7]{32})$`)
+
+// magnetFromInfoHash builds a magnet link from a torrent's info hash, when it has a usable one.
+func magnetFromInfoHash(t hibiketorrent.AnimeTorrent) (string, bool) {
+	hash := strings.TrimSpace(t.InfoHash)
+	if !infoHashPattern.MatchString(hash) {
+		return "", false
+	}
+	var b strings.Builder
+	b.WriteString("magnet:?xt=urn:btih:")
+	b.WriteString(strings.ToLower(hash))
+	if name := strings.TrimSpace(t.Name); name != "" {
+		b.WriteString("&dn=")
+		b.WriteString(url.QueryEscape(name))
+	}
+	for _, tr := range magnetFallbackTrackers {
+		b.WriteString("&tr=")
+		b.WriteString(url.QueryEscape(tr))
+	}
+	return b.String(), true
 }
