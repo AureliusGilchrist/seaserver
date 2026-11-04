@@ -50881,6 +50881,15 @@
         "comments": []
       },
       {
+        "name": "Searched",
+        "jsonName": "searched",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "PickError",
         "jsonName": "pickError",
         "goType": "string",
@@ -51495,6 +51504,17 @@
         "typescriptType": "EnqueueFuture_autoTorrent",
         "usedTypescriptType": "EnqueueFuture_autoTorrent",
         "usedStructName": "enqueuefuture.autoTorrent",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "autoPickPacer",
+        "jsonName": "autoPickPacer",
+        "goType": "pacer",
+        "typescriptType": "EnqueueFuture_pacer",
+        "usedTypescriptType": "EnqueueFuture_pacer",
+        "usedStructName": "enqueuefuture.pacer",
         "required": false,
         "public": false,
         "comments": []

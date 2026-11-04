@@ -84,7 +84,9 @@ type AutoTorrentView struct {
 	MoreAfter int   `json:"moreAfter"`
 	Batch     []int `json:"batch"`
 	// Picking is true while the batch on screen is still being searched.
-	Picking   bool        `json:"picking"`
+	Picking bool `json:"picking"`
+	// Searched is how many of the batch on screen have been searched so far, while Picking.
+	Searched  int         `json:"searched"`
 	PickError string      `json:"pickError,omitempty"`
 	Picks     []*AutoPick `json:"picks"`
 	// Removed and AutoMatchOff are your edits to the batch on screen.
@@ -139,14 +141,21 @@ type autoTorrent struct {
 	// pickingNext is true while the background search is for the batch after the one on screen.
 	pickingNext bool
 	pickCancel  context.CancelFunc
+	// progressIDs and progress are how far the search for one batch has got. Matched to a batch by
+	// its ids, so the count follows a search that started as the next batch and became this one.
+	progressIDs []int
+	progress    int
 	// pickerRun identifies the picker goroutine that owns the picking flag. A cancelled one finds
 	// it changed, or the flag down, and stops without touching anything.
 	pickerRun int
 	adding    bool
+
+	// pick searches a batch. AutoPickTorrents, replaced in tests.
+	pick func(ctx context.Context, ids []int, client *http.Client, onPicked ...func(int)) []*AutoPick
 }
 
 func newAutoTorrent(r *Repository) *autoTorrent {
-	a := &autoTorrent{r: r}
+	a := &autoTorrent{r: r, pick: r.AutoPickTorrents}
 	a.load()
 	return a
 }
@@ -245,6 +254,9 @@ func (a *autoTorrent) viewLocked() AutoTorrentView {
 	}
 	v.Done = len(st.Batch) == 0
 	v.Picking = len(st.Batch) > 0 && st.Picks == nil && st.PickError == ""
+	if v.Picking && slices.Equal(a.progressIDs, st.Batch) {
+		v.Searched = a.progress
+	}
 	v.TotalBatches = max(1, (len(st.Candidates)+AutoTorrentBatchSize-1)/AutoTorrentBatchSize)
 	v.BatchNumber = min(v.TotalBatches, len(st.Handled)/AutoTorrentBatchSize+1)
 	v.MoreAfter = max(0, len(st.Candidates)-len(st.Handled)-len(st.Batch))
@@ -354,8 +366,16 @@ func (r *Repository) ConfirmAutoTorrent(matchSeasonOneOnly bool) (AutoTorrentVie
 		st.Batch, st.Picks, st.PickError = st.NextBatch, st.NextPicks, ""
 		st.Removed, st.AutoMatchOff = []int{}, flaggedIDs(st.NextPicks)
 		st.NextBatch, st.NextPicks = nil, nil
+	} else if a.pickingNext && len(st.NextBatch) > 0 && slices.Equal(st.NextBatch, a.upcomingLocked(nil)) {
+		// The next batch is still being searched: it becomes this one, and the search carries on.
+		// Cancelling it to start the same search over again is what stalled batch 11 — and threw
+		// away every lookup it had already done.
+		st.Batch, st.Picks, st.PickError = st.NextBatch, nil, ""
+		st.Removed, st.AutoMatchOff = []int{}, []int{}
+		st.NextBatch, st.NextPicks = nil, nil
+		a.pickingNext = false
 	} else {
-		if a.pickingNext {
+		if a.picking {
 			a.cancelPickLocked()
 		}
 		a.nextBatchLocked()
@@ -504,7 +524,14 @@ func (a *autoTorrent) runPicker(run int) {
 		}
 		a.mu.Unlock()
 
-		picks := a.r.AutoPickTorrents(ctx, ids, client)
+		a.progressIDs, a.progress = ids, 0
+		picks := a.pick(ctx, ids, client, func(done int) {
+			a.mu.Lock()
+			if slices.Equal(a.progressIDs, ids) {
+				a.progress = done
+			}
+			a.mu.Unlock()
+		})
 		failed := ctx.Err() != nil
 		cancel()
 
@@ -519,13 +546,15 @@ func (a *autoTorrent) runPicker(run int) {
 			continue
 		}
 		st = &a.state
+		// Stored by which batch it turned out to be for, not which it was started for: a search for
+		// the next batch becomes this batch's when you confirm before it finishes.
 		switch {
-		case !next && slices.Equal(st.Batch, ids):
+		case slices.Equal(st.Batch, ids) && st.Picks == nil:
 			st.Picks = picks
 			// A flagged pick is most likely the whole series for a special; filing that into the
 			// special's entry automatically would be wrong, so those start with auto-match off.
 			st.AutoMatchOff = flaggedIDs(picks)
-		case next && slices.Equal(st.NextBatch, ids):
+		case slices.Equal(st.NextBatch, ids):
 			st.NextPicks = picks
 		}
 		a.saveLocked()

@@ -2949,6 +2949,7 @@ export type EnqueueFuture_AutoTorrentView = {
     moreAfter: number
     batch?: Array<number>
     picking: boolean
+    searched: number
     pickError?: string
     picks?: Array<EnqueueFuture_AutoPick>
     removed?: Array<number>

@@ -72,6 +72,9 @@ type (
 
 		// autoTorrent is the auto torrent session. See autotorrent.go.
 		autoTorrent *autoTorrent
+		// autoPickPacer paces auto torrent's AniList lookups of anime the queue has not prepared, on
+		// the share of the budget the run leaves free. See autoPickLookupsPerMinute.
+		autoPickPacer *pacer
 	}
 
 	NewRepositoryOptions struct {
@@ -110,6 +113,7 @@ func NewRepository(opts *NewRepositoryOptions) *Repository {
 			BackoffAttempts: MaxBackoffAttempts,
 		},
 	}
+	r.autoPickPacer = newPacer(autoPickLookupsPerMinute, autoPickLookupsPerMinute)
 	r.autoTorrent = newAutoTorrent(r)
 	return r
 }

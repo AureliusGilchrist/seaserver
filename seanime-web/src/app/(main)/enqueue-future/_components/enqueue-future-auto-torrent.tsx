@@ -175,11 +175,18 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
                 <div className="py-12 text-center space-y-3">
                     <LoadingSpinner />
                     <p className="text-sm text-[--muted]">
-                        Searching SeaDex for {view.batch?.length ?? 0} anime… this runs on the server, so you can close this and come back.
+                        Searching SeaDex · <span className="text-[--foreground] font-semibold">{view.searched}</span> of {view.batch?.length ?? 0} done
                     </p>
+                    <div className="mx-auto h-1.5 w-64 overflow-hidden rounded-full bg-gray-800">
+                        <div
+                            className="h-full bg-[--brand] transition-all"
+                            style={{ width: `${Math.round((view.searched / Math.max(1, view.batch?.length ?? 1)) * 100)}%` }}
+                        />
+                    </div>
                     <p className="text-xs text-[--muted] max-w-md mx-auto">
-                        Anime that have not been prepared yet are looked up on AniList first, about four a minute, so a batch of
-                        those takes a while.
+                        This runs on the server, so you can close this and come back. Anime the queue has not prepared yet are
+                        looked up on AniList first, about six a minute to stay inside AniList's limits, so a batch of those takes a
+                        few minutes.
                     </p>
                 </div>
             ) : view.pickError ? (

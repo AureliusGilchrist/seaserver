@@ -97,3 +97,37 @@ func TestNewPacerRejectsNonsense(t *testing.T) {
 		t.Errorf("first call: %v", err)
 	}
 }
+
+// The auto torrent stall: a cancelled search had forty lookups queued on the pacer, each of which
+// reserved a slot on its way through, and everyone after them — the queue's own run included —
+// waited out every one. Cancelled callers must not cost anyone else any time.
+func TestPacerCancelledCallersDoNotDelayOthers(t *testing.T) {
+	// 600/minute with one slot: every reserved turn costs the next caller 100ms.
+	p := newPacer(600, 1)
+	if err := p.wait(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	for i := 0; i < 40; i++ {
+		_ = p.wait(ctx)
+	}
+
+	// One caller cancelled mid-wait hands its turn back too.
+	ctx2, cancel2 := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		cancel2()
+	}()
+	_ = p.wait(ctx2)
+
+	start := time.Now()
+	if err := p.wait(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	// Without the cancelled callers this waits at most one interval.
+	if elapsed := time.Since(start); elapsed > 300*time.Millisecond {
+		t.Fatalf("cancelled callers delayed the next one by %s", elapsed)
+	}
+}

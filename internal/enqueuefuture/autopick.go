@@ -11,6 +11,7 @@ import (
 
 	"seanime/internal/api/anilist"
 	"seanime/internal/database/db"
+	"seanime/internal/database/db_bridge"
 	hibiketorrent "seanime/internal/extension/hibike/torrent"
 	"seanime/internal/library/anime"
 	"seanime/internal/torrents/torrent"
@@ -138,9 +139,15 @@ func IsDualAudio(name string) bool {
 	return dualAudioPattern.MatchString(name)
 }
 
+// autoPickLookupsPerMinute is how many unprepared anime auto-pick looks up on AniList a minute: the
+// share of the background budget the queue's own run leaves free. One request each — see
+// autoPickOne — so this is requests and anime alike.
+var autoPickLookupsPerMinute = max(1, int(float64(anilist.BackgroundRequestsPerMinute)*(1-walkShareOfBackground)))
+
 // AutoPickTorrents proposes a torrent for each anime. The order of the result follows mediaIDs.
-// client fetches .torrent files whose contents SeaDex did not record.
-func (r *Repository) AutoPickTorrents(ctx context.Context, mediaIDs []int, client *http.Client) []*AutoPick {
+// client fetches .torrent files whose contents SeaDex did not record. onPicked, when set, is called
+// as each anime is done, with how many are done so far.
+func (r *Repository) AutoPickTorrents(ctx context.Context, mediaIDs []int, client *http.Client, onPicked ...func(done int)) []*AutoPick {
 	if len(mediaIDs) > AutoPickMaxBatch {
 		mediaIDs = mediaIDs[:AutoPickMaxBatch]
 	}
@@ -148,6 +155,8 @@ func (r *Repository) AutoPickTorrents(ctx context.Context, mediaIDs []int, clien
 	out := make([]*AutoPick, len(mediaIDs))
 	sem := make(chan struct{}, autoPickConcurrency)
 	var wg sync.WaitGroup
+	var doneMu sync.Mutex
+	done := 0
 	for i, id := range mediaIDs {
 		wg.Add(1)
 		go func(i, id int) {
@@ -155,6 +164,15 @@ func (r *Repository) AutoPickTorrents(ctx context.Context, mediaIDs []int, clien
 			sem <- struct{}{}
 			defer func() { <-sem }()
 			out[i] = r.autoPickOne(ctx, id, client)
+			doneMu.Lock()
+			done++
+			n := done
+			for _, fn := range onPicked {
+				if fn != nil {
+					fn(n)
+				}
+			}
+			doneMu.Unlock()
 		}(i, id)
 	}
 	wg.Wait()
@@ -163,6 +181,11 @@ func (r *Repository) AutoPickTorrents(ctx context.Context, mediaIDs []int, clien
 
 func (r *Repository) autoPickOne(ctx context.Context, mediaID int, client *http.Client) (pick *AutoPick) {
 	pick = &AutoPick{MediaID: mediaID}
+	// A cancelled search stops here rather than making every remaining request first.
+	if ctx.Err() != nil {
+		pick.Reason = "Search was stopped"
+		return pick
+	}
 	defer func() {
 		if rec := recover(); rec != nil {
 			pick.Torrent = nil
@@ -180,21 +203,18 @@ func (r *Repository) autoPickOne(ctx context.Context, mediaID int, client *http.
 		pick.Reason = reason
 		return pick
 	}
-	// Prepared rows carry their entry. Anything else in the queue — still waiting for the worker,
-	// or prepared once and found nothing on the provider it tried — has its entry built here, the
-	// same way preparation would, so the whole queue can be worked through and not only the part a
-	// run has reached. Paced like preparation, since it is AniList requests.
+	// Prepared rows carry their entry. Anything else in the queue — still waiting for the worker, or
+	// prepared once and found nothing on the provider it tried — is looked up here with a single
+	// AniList request for the anime itself, which is all a SeaDex search needs. A full entry, as
+	// preparation builds, costs three and runs at a third of the speed. Paced on its own share of
+	// the background budget, so it neither waits behind the queue's own run nor starves it.
 	var entry *anime.Entry
 	if item.Snapshot != nil && item.Snapshot.Entry != nil && item.Snapshot.Entry.Media != nil {
 		entry = item.Snapshot.Entry
 	} else {
-		if err := r.pacer.wait(ctx); err != nil {
-			pick.Reason = "Stopped before this one was looked up"
-			return pick
-		}
-		built, err := r.buildEntry(ctx, mediaID)
-		if err != nil {
-			pick.Reason = "Could not load this anime: " + err.Error()
+		built, reason := r.lightEntry(ctx, mediaID)
+		if built == nil {
+			pick.Reason = reason
 			return pick
 		}
 		entry = built
@@ -371,4 +391,28 @@ func isTVShow(media *anilist.BaseAnime) bool {
 		return media.Episodes == nil || *media.Episodes != 1
 	}
 	return false
+}
+
+// lightEntry is the least an auto-pick needs for an anime the queue has not prepared: the anime from
+// AniList and whatever of it is already in the library. Returns why not when it cannot be had.
+func (r *Repository) lightEntry(ctx context.Context, mediaID int) (*anime.Entry, string) {
+	if err := r.autoPickPacer.wait(ctx); err != nil {
+		return nil, "Search was stopped"
+	}
+	platform := r.platformRef.Get()
+	if platform == nil {
+		return nil, "AniList is unavailable"
+	}
+	media, err := platform.GetAnime(ctx, mediaID)
+	if err != nil {
+		return nil, "Could not load this anime: " + err.Error()
+	}
+	if media == nil {
+		return nil, "AniList returned nothing for this anime"
+	}
+	entry := &anime.Entry{MediaId: mediaID, Media: media}
+	if localFiles, _, err := db_bridge.GetLocalFiles(r.database); err == nil {
+		entry.LocalFiles = anime.GetLocalFilesFromMediaId(localFiles, mediaID)
+	}
+	return entry, ""
 }

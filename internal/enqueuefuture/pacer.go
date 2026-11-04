@@ -93,6 +93,13 @@ func newPacer(itemsPerMinute int, burst int) *pacer {
 // The slot is reserved before sleeping, so a cancelled wait still leaves the schedule intact and a
 // resumed run does not get a free burst it has not earned.
 func (p *pacer) wait(ctx context.Context) error {
+	// A caller that has already been cancelled takes no slot. Reserving one anyway is how a
+	// cancelled auto torrent search — forty lookups queued behind a four-a-minute pacer — pushed
+	// every later caller, the queue's own run included, ten minutes into the future.
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	p.mu.Lock()
 	window := p.interval * time.Duration(len(p.slots))
 	earliest := p.slots[p.index].Add(window)
@@ -102,7 +109,9 @@ func (p *pacer) wait(ctx context.Context) error {
 	if now.Before(earliest) {
 		at = earliest
 	}
-	p.slots[p.index] = at
+	reserved := p.index
+	previous := p.slots[reserved]
+	p.slots[reserved] = at
 	p.index = (p.index + 1) % len(p.slots)
 	p.mu.Unlock()
 
@@ -116,6 +125,15 @@ func (p *pacer) wait(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
+		// Hand the slot back when nobody has reserved after it, so a cancelled wait does not
+		// leave a gap in the schedule that everyone behind it has to sit through.
+		p.mu.Lock()
+		last := (p.index - 1 + len(p.slots)) % len(p.slots)
+		if last == reserved && p.slots[reserved].Equal(at) {
+			p.slots[reserved] = previous
+			p.index = reserved
+		}
+		p.mu.Unlock()
 		return ctx.Err()
 	case <-timer.C:
 		return ctx.Err()
