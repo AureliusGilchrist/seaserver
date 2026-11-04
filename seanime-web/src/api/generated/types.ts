@@ -3603,6 +3603,7 @@ export type AutoTorrentQueueStatus = {
     waiting?: string
     added: number
     skipped: number
+    settled: number
     failed: number
     lastError?: string
 }

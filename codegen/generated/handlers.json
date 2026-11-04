@@ -5089,15 +5089,151 @@
       "serveExtractedAudio extracts one audio track of a file with FFmpeg (once, cached on disk) and",
       "serves it with range support.",
       "",
-      "The track is written as AAC in an MP4 container with the index at the front (M4A, faststart).",
+      "The cached track is AAC in an MP4 container with the index at the front (M4A, faststart).",
       "It used to be raw ADTS AAC, which has no seek index: the browser guessed where a time lands from",
       "the bitrate, so every seek of the hidden audio element landed slightly off, differently each time",
       "and worse the further into the episode — the audio drifted against the picture and the sync loop",
       "kept seeking it, which sounded like a record being scratched. An indexed file seeks exactly.",
+      "",
+      "A track that is already AAC is copied, which takes seconds. Any other track has to be encoded;",
+      "the first request then gets the encode as it happens, as fragmented MP4 (timestamped, so it also",
+      "seeks exactly), instead of waiting for the whole episode. The faststart copy is made from it",
+      "afterwards and is what later requests get.",
       ""
     ],
     "filepath": "internal/handlers/directstream_audio.go",
     "filename": "directstream_audio.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "audioExtractArgs",
+    "trimmedName": "audioExtractArgs",
+    "comments": [
+      "audioExtractArgs are the ffmpeg arguments picking one audio track out of filePath.",
+      ""
+    ],
+    "filepath": "internal/handlers/directstream_audio.go",
+    "filename": "directstream_audio.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "probeAudioCodec",
+    "trimmedName": "probeAudioCodec",
+    "comments": [
+      "probeAudioCodec returns the codec of the trackIndex-th audio stream, or \"\" if ffprobe can't tell.",
+      ""
+    ],
+    "filepath": "internal/handlers/directstream_audio.go",
+    "filename": "directstream_audio.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "copyAudioTrack",
+    "trimmedName": "copyAudioTrack",
+    "comments": [
+      "copyAudioTrack copies an AAC track as it is into the faststart M4A at outputPath.",
+      ""
+    ],
+    "filepath": "internal/handlers/directstream_audio.go",
+    "filename": "directstream_audio.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "streamAudioEncode",
+    "trimmedName": "streamAudioEncode",
+    "comments": [
+      "streamAudioEncode encodes the track to AAC and sends it to w while it is being encoded, as",
+      "fragmented MP4, writing the same bytes to disk: the client can start playing after the first",
+      "fragment instead of after the whole episode. A client that goes away (clientGone) does not stop",
+      "the encode. When the encode succeeds, the fragments are remuxed (no re-encode) in the background",
+      "into the faststart M4A at outputPath that later requests are served; done runs after that, or",
+      "right away when the encode fails. sent reports whether any of the response was written.",
+      ""
+    ],
+    "filepath": "internal/handlers/directstream_audio.go",
+    "filename": "directstream_audio.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "makeTwoTrackSource",
+    "trimmedName": "makeTwoTrackSource",
+    "comments": [
+      "makeTwoTrackSource writes a 20s file with an AAC track (a:0) and a FLAC track (a:1).",
+      ""
+    ],
+    "filepath": "internal/handlers/directstream_audio_test.go",
+    "filename": "directstream_audio_test.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "isFaststart",
+    "trimmedName": "isFaststart",
+    "comments": [
+      "faststart puts the moov box before mdat.",
+      ""
+    ],
+    "filepath": "internal/handlers/directstream_audio_test.go",
+    "filename": "directstream_audio_test.go",
     "api": {
       "summary": "",
       "descriptions": [],

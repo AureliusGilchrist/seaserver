@@ -336,7 +336,7 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
 function AutoTorrentAddProgress({ status }: { status: AutoTorrentQueueStatus | undefined }) {
     if (!status) return null
     const busy = status.pending > 0 || !!status.current
-    if (!busy && !status.added && !status.failed && !status.skipped) return null
+    if (!busy && !status.added && !status.failed && !status.skipped && !status.settled) return null
     return (
         <div className="rounded-[--radius-md] border bg-gray-950 px-3 py-2 text-xs text-[--muted] space-y-0.5" data-enqueue-future-auto-torrent-progress>
             <p>
@@ -345,6 +345,7 @@ function AutoTorrentAddProgress({ status }: { status: AutoTorrentQueueStatus | u
                     : "Background adds finished"}
                 {` · ${status.added} added`}
                 {status.skipped ? ` · ${status.skipped} already in the client` : ""}
+                {status.settled ? ` · ${status.settled} dropped, already dealt with` : ""}
                 {status.failed ? ` · ${status.failed} failed` : ""}
             </p>
             {!!status.waiting && <p className="text-orange-300">{status.waiting}</p>}

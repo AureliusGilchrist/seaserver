@@ -57898,6 +57898,15 @@
         "comments": []
       },
       {
+        "name": "Settled",
+        "jsonName": "settled",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "Failed",
         "jsonName": "failed",
         "goType": "int",
@@ -78718,6 +78727,28 @@
         "comments": []
       },
       {
+        "name": "registryMu",
+        "jsonName": "registryMu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "reservedFolders",
+        "jsonName": "reservedFolders",
+        "goType": "map[string]__STRUCT__",
+        "inlineStructType": "map[string]struct{\n}",
+        "typescriptType": "Record\u003cstring, { }\u003e",
+        "usedTypescriptType": "{ }",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "registryManager",
         "jsonName": "registryManager",
         "goType": "SeriesRegistryManager",
@@ -79187,10 +79218,10 @@
         "comments": []
       },
       {
-        "name": "current",
-        "jsonName": "current",
-        "goType": "QueueInfo",
-        "typescriptType": "ChapterDownloader_QueueInfo",
+        "name": "running",
+        "jsonName": "running",
+        "goType": "[]QueueInfo",
+        "typescriptType": "Array\u003cChapterDownloader_QueueInfo\u003e",
         "usedTypescriptType": "ChapterDownloader_QueueInfo",
         "usedStructName": "chapter_downloader.QueueInfo",
         "required": false,
@@ -86297,6 +86328,15 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "Role",
+        "jsonName": "Role",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": []
@@ -86494,6 +86534,17 @@
         "goType": "bool",
         "typescriptType": "boolean",
         "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CPUFrames",
+        "jsonName": "",
+        "goType": "HwAccelSettings",
+        "typescriptType": "HwAccelSettings",
+        "usedTypescriptType": "HwAccelSettings",
+        "usedStructName": "transcoder.HwAccelSettings",
+        "required": false,
         "public": true,
         "comments": []
       }
@@ -87070,6 +87121,24 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "Threads",
+        "jsonName": "Threads",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "encodeSlots",
+        "jsonName": "encodeSlots",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
       }
     ],
     "comments": []
@@ -87142,6 +87211,24 @@
         "jsonName": "HwAccelCustomSettings",
         "goType": "string",
         "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Threads",
+        "jsonName": "Threads",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MaxConcurrentEncodes",
+        "jsonName": "MaxConcurrentEncodes",
+        "goType": "int",
+        "typescriptType": "number",
         "required": true,
         "public": true,
         "comments": []
