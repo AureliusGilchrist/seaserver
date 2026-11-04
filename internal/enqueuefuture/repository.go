@@ -69,6 +69,9 @@ type (
 		catalogMu      sync.Mutex
 		catalogRunning bool
 		catalogCancel  context.CancelFunc
+
+		// autoTorrent is the auto torrent session. See autotorrent.go.
+		autoTorrent *autoTorrent
 	}
 
 	NewRepositoryOptions struct {
@@ -89,7 +92,7 @@ type (
 )
 
 func NewRepository(opts *NewRepositoryOptions) *Repository {
-	return &Repository{
+	r := &Repository{
 		logger:              opts.Logger,
 		database:            opts.Database,
 		platformRef:         opts.PlatformRef,
@@ -107,6 +110,8 @@ func NewRepository(opts *NewRepositoryOptions) *Repository {
 			BackoffAttempts: MaxBackoffAttempts,
 		},
 	}
+	r.autoTorrent = newAutoTorrent(r)
+	return r
 }
 
 // SetTorrentRepository swaps in the torrent repository. It is created after this one and can be

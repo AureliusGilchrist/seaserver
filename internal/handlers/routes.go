@@ -216,6 +216,9 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 
 	h := &Handler{App: app}
 
+	// Resumes an auto torrent session left open when the server last stopped. See auto_torrent.go.
+	h.wireAutoTorrent(app)
+
 	// The match queue. Started here rather than lazily so a queue left behind by a stop picks
 	// itself back up — the matches are in the database, and the worker is what carries them out.
 	//
@@ -1049,8 +1052,12 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1EnqueueFuture.POST("/catalog/stop", h.HandleStopEnqueueFutureCatalog)
 	v1EnqueueFuture.GET("/catalog/waiting", h.HandleGetEnqueueFutureCatalogWaiting)
 	v1EnqueueFuture.POST("/auto-pick", h.HandleAutoPickEnqueueFuture)
-	v1EnqueueFuture.POST("/auto-pick/add", h.HandleAutoTorrentAdd)
-	v1EnqueueFuture.GET("/auto-pick/add", h.HandleGetAutoTorrentAddStatus)
+	v1EnqueueFuture.GET("/auto-torrent", h.HandleGetAutoTorrent)
+	v1EnqueueFuture.POST("/auto-torrent/start", h.HandleStartAutoTorrent)
+	v1EnqueueFuture.POST("/auto-torrent/edit", h.HandleEditAutoTorrent)
+	v1EnqueueFuture.POST("/auto-torrent/confirm", h.HandleConfirmAutoTorrent)
+	v1EnqueueFuture.POST("/auto-torrent/retry", h.HandleRetryAutoTorrent)
+	v1EnqueueFuture.POST("/auto-torrent/end", h.HandleEndAutoTorrent)
 	v1EnqueueFuture.GET("/dropped", h.HandleGetEnqueueFutureDropped)
 	v1EnqueueFuture.POST("/dropped/clear", h.HandleClearEnqueueFutureDropped)
 	v1EnqueueFuture.POST("/dropped/:mediaId/restore", h.HandleRestoreEnqueueFutureDropped)

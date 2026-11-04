@@ -50648,6 +50648,341 @@
     ]
   },
   {
+    "filepath": "../internal/enqueuefuture/autotorrent.go",
+    "filename": "autotorrent.go",
+    "name": "AutoTorrentJob",
+    "formattedName": "EnqueueFuture_AutoTorrentJob",
+    "package": "enqueuefuture",
+    "fields": [
+      {
+        "name": "MediaID",
+        "jsonName": "mediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Torrent",
+        "jsonName": "torrent",
+        "goType": "hibiketorrent.AnimeTorrent",
+        "typescriptType": "HibikeTorrent_AnimeTorrent",
+        "usedTypescriptType": "HibikeTorrent_AnimeTorrent",
+        "usedStructName": "hibiketorrent.AnimeTorrent",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Media",
+        "jsonName": "media",
+        "goType": "anilist.BaseAnime",
+        "typescriptType": "AL_BaseAnime",
+        "usedTypescriptType": "AL_BaseAnime",
+        "usedStructName": "anilist.BaseAnime",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AutoMatch",
+        "jsonName": "autoMatch",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MatchSeasonOneOnly",
+        "jsonName": "matchSeasonOneOnly",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " AutoTorrentJob is one confirmed pick waiting to be sent to the torrent client."
+    ]
+  },
+  {
+    "filepath": "../internal/enqueuefuture/autotorrent.go",
+    "filename": "autotorrent.go",
+    "name": "AutoTorrentAddStatus",
+    "formattedName": "EnqueueFuture_AutoTorrentAddStatus",
+    "package": "enqueuefuture",
+    "fields": [
+      {
+        "name": "Pending",
+        "jsonName": "pending",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Current",
+        "jsonName": "current",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Waiting",
+        "jsonName": "waiting",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Added",
+        "jsonName": "added",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Skipped",
+        "jsonName": "skipped",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Settled",
+        "jsonName": "settled",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Failed",
+        "jsonName": "failed",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastError",
+        "jsonName": "lastError",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " AutoTorrentAddStatus is the progress of the background adds."
+    ]
+  },
+  {
+    "filepath": "../internal/enqueuefuture/autotorrent.go",
+    "filename": "autotorrent.go",
+    "name": "AutoTorrentView",
+    "formattedName": "EnqueueFuture_AutoTorrentView",
+    "package": "enqueuefuture",
+    "fields": [
+      {
+        "name": "Active",
+        "jsonName": "active",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Done",
+        "jsonName": "done",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Total",
+        "jsonName": "total",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Reviewed",
+        "jsonName": "reviewed",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BatchNumber",
+        "jsonName": "batchNumber",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalBatches",
+        "jsonName": "totalBatches",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MoreAfter",
+        "jsonName": "moreAfter",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Batch",
+        "jsonName": "batch",
+        "goType": "[]int",
+        "typescriptType": "Array\u003cnumber\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Picking",
+        "jsonName": "picking",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PickError",
+        "jsonName": "pickError",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Picks",
+        "jsonName": "picks",
+        "goType": "[]AutoPick",
+        "typescriptType": "Array\u003cEnqueueFuture_AutoPick\u003e",
+        "usedTypescriptType": "EnqueueFuture_AutoPick",
+        "usedStructName": "enqueuefuture.AutoPick",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Removed",
+        "jsonName": "removed",
+        "goType": "[]int",
+        "typescriptType": "Array\u003cnumber\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AutoMatchOff",
+        "jsonName": "autoMatchOff",
+        "goType": "[]int",
+        "typescriptType": "Array\u003cnumber\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NextReady",
+        "jsonName": "nextReady",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Adds",
+        "jsonName": "adds",
+        "goType": "AutoTorrentAddStatus",
+        "typescriptType": "EnqueueFuture_AutoTorrentAddStatus",
+        "usedTypescriptType": "EnqueueFuture_AutoTorrentAddStatus",
+        "usedStructName": "enqueuefuture.AutoTorrentAddStatus",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " AutoTorrentView is the session as the popup sees it."
+    ]
+  },
+  {
+    "filepath": "../internal/enqueuefuture/autotorrent.go",
+    "filename": "autotorrent.go",
+    "name": "AutoTorrentHooks",
+    "formattedName": "EnqueueFuture_AutoTorrentHooks",
+    "package": "enqueuefuture",
+    "fields": [
+      {
+        "name": "Add",
+        "jsonName": "Add",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ClientUnavailable",
+        "jsonName": "ClientUnavailable",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ContentsClient",
+        "jsonName": "ContentsClient",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " AutoTorrentHooks is what the session needs from outside this package."
+    ]
+  },
+  {
     "filepath": "../internal/enqueuefuture/catalog.go",
     "filename": "catalog.go",
     "name": "CatalogStatus",
@@ -51149,6 +51484,17 @@
         "typescriptType": "CancelFunc",
         "usedTypescriptType": "CancelFunc",
         "usedStructName": "context.CancelFunc",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "autoTorrent",
+        "jsonName": "autoTorrent",
+        "goType": "autoTorrent",
+        "typescriptType": "EnqueueFuture_autoTorrent",
+        "usedTypescriptType": "EnqueueFuture_autoTorrent",
+        "usedStructName": "enqueuefuture.autoTorrent",
         "required": false,
         "public": false,
         "comments": []
@@ -57801,142 +58147,6 @@
       }
     ],
     "comments": []
-  },
-  {
-    "filepath": "../internal/handlers/auto_torrent_queue.go",
-    "filename": "auto_torrent_queue.go",
-    "name": "AutoTorrentJob",
-    "formattedName": "AutoTorrentJob",
-    "package": "handlers",
-    "fields": [
-      {
-        "name": "Torrent",
-        "jsonName": "torrent",
-        "goType": "hibiketorrent.AnimeTorrent",
-        "typescriptType": "HibikeTorrent_AnimeTorrent",
-        "usedTypescriptType": "HibikeTorrent_AnimeTorrent",
-        "usedStructName": "hibiketorrent.AnimeTorrent",
-        "required": false,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "Media",
-        "jsonName": "media",
-        "goType": "anilist.BaseAnime",
-        "typescriptType": "AL_BaseAnime",
-        "usedTypescriptType": "AL_BaseAnime",
-        "usedStructName": "anilist.BaseAnime",
-        "required": false,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "AutoMatch",
-        "jsonName": "autoMatch",
-        "goType": "bool",
-        "typescriptType": "boolean",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "MatchSeasonOneOnly",
-        "jsonName": "matchSeasonOneOnly",
-        "goType": "bool",
-        "typescriptType": "boolean",
-        "required": true,
-        "public": true,
-        "comments": []
-      }
-    ],
-    "comments": [
-      " AutoTorrentJob is one confirmed pick waiting to be sent to the torrent client."
-    ]
-  },
-  {
-    "filepath": "../internal/handlers/auto_torrent_queue.go",
-    "filename": "auto_torrent_queue.go",
-    "name": "AutoTorrentQueueStatus",
-    "formattedName": "AutoTorrentQueueStatus",
-    "package": "handlers",
-    "fields": [
-      {
-        "name": "Pending",
-        "jsonName": "pending",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "Current",
-        "jsonName": "current",
-        "goType": "string",
-        "typescriptType": "string",
-        "required": false,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "Waiting",
-        "jsonName": "waiting",
-        "goType": "string",
-        "typescriptType": "string",
-        "required": false,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "Added",
-        "jsonName": "added",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "Skipped",
-        "jsonName": "skipped",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "Settled",
-        "jsonName": "settled",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "Failed",
-        "jsonName": "failed",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "LastError",
-        "jsonName": "lastError",
-        "goType": "string",
-        "typescriptType": "string",
-        "required": false,
-        "public": true,
-        "comments": []
-      }
-    ],
-    "comments": [
-      " AutoTorrentQueueStatus is what the popup shows about the background adds."
-    ]
   },
   {
     "filepath": "../internal/handlers/character.go",

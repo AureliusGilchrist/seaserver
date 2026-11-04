@@ -4,6 +4,7 @@ import { EnqueueFuture_Item, EnqueueFuture_Snapshot } from "@/api/generated/type
 import {
     ENQUEUE_FUTURE_STATUS,
     useClearEnqueueFuture,
+    useGetAutoTorrent,
     useGetEnqueueFutureItem,
     useGetEnqueueFutureCatalogWaiting,
     useGetEnqueueFutureQueue,
@@ -312,6 +313,14 @@ export function EnqueueFuturePage() {
         const open = orderedItems.filter(isOpenable)
         return [...open.filter(isReady), ...open.filter(item => !isReady(item))]
     }, [orderedItems])
+    // The run itself lives on the server and outlasts this page, so the button says where it is.
+    const { data: autoTorrent } = useGetAutoTorrent()
+    const autoTorrentAdding = (autoTorrent?.adds?.pending ?? 0) + (autoTorrent?.adds?.current ? 1 : 0)
+    const autoTorrentLabel = autoTorrent?.active
+        ? autoTorrent.done
+            ? "Auto torrent · done"
+            : `Auto torrent · batch ${autoTorrent.batchNumber}/${autoTorrent.totalBatches}${autoTorrent.picking ? " (searching)" : ""}`
+        : `Auto torrent${autoTorrentCandidates.length ? ` (${autoTorrentCandidates.length})` : ""}`
 
     React.useEffect(() => {
         if (index >= 0) lastIndexRef.current = index
@@ -438,10 +447,11 @@ export function EnqueueFuturePage() {
                         size="sm"
                         leftIcon={<LuWandSparkles />}
                         onClick={() => setAutoTorrentOpen(true)}
-                        disabled={!autoTorrentCandidates.length}
+                        disabled={!autoTorrentCandidates.length && !autoTorrent?.active && !autoTorrentAdding}
                         data-enqueue-future-auto-torrent-button
                     >
-                        {`Auto torrent${autoTorrentCandidates.length ? ` (${autoTorrentCandidates.length})` : ""}`}
+                        {autoTorrentLabel}
+                        {autoTorrentAdding > 0 && ` · adding ${autoTorrentAdding}`}
                     </Button>
                     <Button
                         intent="gray-outline"

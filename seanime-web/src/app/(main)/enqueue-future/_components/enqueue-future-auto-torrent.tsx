@@ -1,40 +1,46 @@
-import { AutoTorrentQueueStatus, EnqueueFuture_AutoPick, EnqueueFuture_Item } from "@/api/generated/types"
-import { useAutoPickEnqueueFuture, useAutoTorrentAdd, useGetAutoTorrentAddStatus } from "@/api/hooks/enqueue_future.hooks"
+import { API_ENDPOINTS } from "@/api/generated/endpoints"
+import { EnqueueFuture_AutoTorrentAddStatus, EnqueueFuture_AutoTorrentView, EnqueueFuture_Item } from "@/api/generated/types"
+import {
+    useConfirmAutoTorrent,
+    useEditAutoTorrent,
+    useEndAutoTorrent,
+    useGetAutoTorrent,
+    useRetryAutoTorrent,
+    useStartAutoTorrent,
+} from "@/api/hooks/enqueue_future.hooks"
 import {
     __torrentDownload_matchSeasonOneAtom as matchSeasonOneAtom,
     MATCH_SEASON_ONE_HELP,
     MATCH_SEASON_ONE_LABEL,
 } from "@/app/(main)/entry/_containers/torrent-search/torrent-download-auto-match"
 import { Button, IconButton } from "@/components/ui/button"
+import { cn } from "@/components/ui/core/styling"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Modal } from "@/components/ui/modal"
 import { Switch } from "@/components/ui/switch"
-import { cn } from "@/components/ui/core/styling"
+import { useQueryClient } from "@tanstack/react-query"
 import { useAtom } from "jotai/react"
 import React from "react"
 import { LuTriangleAlert, LuX } from "react-icons/lu"
 import { toast } from "sonner"
 
-/** How many anime are proposed for review at once. */
-export const AUTO_TORRENT_BATCH_SIZE = 40
-
 /**
  * Auto torrent: proposes a SeaDex release for each queued anime, forty at a time, for you to review.
  *
- * The server does the choosing (see internal/enqueuefuture/autopick.go): SeaDex only, at least two
- * seeders, Dual Audio first, then the most files — and a TV show must have more than one file. Here
- * you strike out anything that looks wrong with ×, then confirm; what is left is handed to the server
- * and the next forty are fetched straight away. The server sends them to the torrent client in the
- * background, paced so the client is never flooded (internal/handlers/auto_torrent_queue.go) —
- * closing the popup does not stop that, it only stops reviewing.
+ * This popup is only a window onto a session that runs on the server (internal/enqueuefuture/
+ * autotorrent.go). The server keeps the list, your place in it, the batch on screen with its picks
+ * and every edit you make, searches the next batch while you review this one, and sends confirmed
+ * picks to the torrent client in the background, paced so the client is never flooded. All of it
+ * is saved to disk: closing this popup, leaving the page or restarting the server loses nothing.
  *
- * The list of anime to work through is frozen when the popup opens, so the queue changing underneath
- * (a run still going, a download badge arriving) never reshuffles a batch you are looking at.
+ * The picking rules live with the server too (autopick.go): SeaDex only, at least two seeders,
+ * Dual Audio first, then the most files — a TV show must have more than one — and for a special,
+ * the special's own release, or a flag saying it could only find the series.
  */
 export function EnqueueFutureAutoTorrent({ open, onOpenChange, candidates }: {
     open: boolean
     onOpenChange: (open: boolean) => void
-    /** Ready, actionable queue rows in the order the queue shows them. */
+    /** Every undecided anime in the queue, in the order to work through them. Used to start a session. */
     candidates: EnqueueFuture_Item[]
 }) {
     return (
@@ -43,7 +49,7 @@ export function EnqueueFutureAutoTorrent({ open, onOpenChange, candidates }: {
             onOpenChange={onOpenChange}
             contentClass="max-w-4xl"
             title="Auto torrent"
-            description="SeaDex releases only · 2+ seeders · Dual Audio preferred · most files wins (TV needs more than 1)"
+            description="SeaDex releases only · 2+ seeders · Dual Audio preferred · most files wins (TV needs more than 1) · specials get their own release"
             data-enqueue-future-auto-torrent-modal
         >
             {open && <AutoTorrentBody candidates={candidates} onExit={() => onOpenChange(false)} />}
@@ -52,142 +58,107 @@ export function EnqueueFutureAutoTorrent({ open, onOpenChange, candidates }: {
 }
 
 function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Item[], onExit: () => void }) {
-    // Frozen on open — see the component comment.
-    const [frozen] = React.useState(() => candidates.map(c => c.mediaId))
-    // Which of them have not been prepared yet: those are looked up on AniList first, slowly.
-    const [unprepared] = React.useState(() => new Set(candidates.filter(c => c.status !== "ready").map(c => c.mediaId)))
-
-    // Every anime already put in front of you this session, whether downloaded or struck out.
-    const [handled, setHandled] = React.useState<Set<number>>(() => new Set())
-    const [batchIds, setBatchIds] = React.useState<number[]>([])
-    const [picks, setPicks] = React.useState<EnqueueFuture_AutoPick[]>([])
-    const [removed, setRemoved] = React.useState<Set<number>>(() => new Set())
-
-    // Decided per torrent: on unless you turned it off for that row. Reset with each batch.
-    const [autoMatchOff, setAutoMatchOff] = React.useState<Set<number>>(() => new Set())
-    const isAutoMatch = (mediaId: number) => !autoMatchOff.has(mediaId)
-    function setAutoMatchFor(mediaId: number, value: boolean) {
-        setAutoMatchOff(prev => {
-            const next = new Set(prev)
-            if (value) next.delete(mediaId)
-            else next.add(mediaId)
-            return next
-        })
-    }
+    const queryClient = useQueryClient()
+    const { data: view, isLoading } = useGetAutoTorrent(true)
+    const { mutate: start, isPending: isStarting } = useStartAutoTorrent()
+    const { mutate: edit } = useEditAutoTorrent()
+    const { mutate: confirm, isPending: isConfirming } = useConfirmAutoTorrent()
+    const { mutate: retry, isPending: isRetrying } = useRetryAutoTorrent()
+    const { mutate: end, isPending: isEnding } = useEndAutoTorrent()
     const [matchSeasonOne, setMatchSeasonOne] = useAtom(matchSeasonOneAtom)
 
-    const { mutateAsync: autoPick, isPending: isPicking } = useAutoPickEnqueueFuture()
-    const { mutateAsync: queueAdds, isPending: isQueueing } = useAutoTorrentAdd()
-    const { data: addStatus } = useGetAutoTorrentAddStatus(true)
+    function startSession() {
+        start({ mediaIds: candidates.map(c => c.mediaId) })
+    }
 
-    const [error, setError] = React.useState<string | null>(null)
-
-    const remaining = React.useMemo(() => frozen.filter(id => !handled.has(id)), [frozen, handled])
-
-    // Guards against a stale response landing after the popup moved on (or closed).
-    const requestRef = React.useRef(0)
-
-    const loadNextBatch = React.useCallback(async (from: number[]) => {
-        const next = from.slice(0, AUTO_TORRENT_BATCH_SIZE)
-        setBatchIds(next)
-        setPicks([])
-        setRemoved(new Set())
-        setAutoMatchOff(new Set())
-        setError(null)
-        if (!next.length) return
-        const req = ++requestRef.current
-        try {
-            const result = await autoPick({ mediaIds: next })
-            if (req !== requestRef.current) return
-            setPicks(result ?? [])
-            // A flagged pick is most likely the whole series for a special — filing that into the
-            // special's entry automatically would be wrong, so those start with auto-match off.
-            setAutoMatchOff(new Set((result ?? []).filter(p => !!p.torrent && !!p.flag).map(p => p.mediaId)))
-        }
-        catch (e: any) {
-            if (req !== requestRef.current) return
-            setError(e?.response?.data?.error || e?.message || "Could not search SeaDex")
-        }
-    }, [autoPick])
-
-    // First batch on open.
+    // Opening the popup with no session starts one straight away, as it always did. Once.
+    const startedRef = React.useRef(false)
     React.useEffect(() => {
-        void loadNextBatch(frozen)
-        return () => {
-            requestRef.current++
-        }
+        if (startedRef.current || isLoading || !view || view.active || !candidates.length) return
+        startedRef.current = true
+        startSession()
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
+    }, [isLoading, view?.active])
 
-    const withTorrent = picks.filter(p => !!p.torrent)
-    const withoutTorrent = picks.filter(p => !p.torrent)
-    const toDownload = withTorrent.filter(p => !removed.has(p.mediaId))
-
-    function remove(mediaId: number) {
-        setRemoved(prev => new Set(prev).add(mediaId))
+    // Edits are applied to the cached session at once and saved in the background, so striking
+    // rows out never waits on the server.
+    function saveEdits(removed: number[], autoMatchOff: number[]) {
+        queryClient.setQueryData<EnqueueFuture_AutoTorrentView>([API_ENDPOINTS.AUTO_TORRENT.GetAutoTorrent.key], prev =>
+            prev ? { ...prev, removed, autoMatchOff } : prev)
+        edit({ removed, autoMatchOff })
     }
 
-    function finishBatch() {
-        const nextHandled = new Set(handled)
-        batchIds.forEach(id => nextHandled.add(id))
-        setHandled(nextHandled)
-        void loadNextBatch(frozen.filter(id => !nextHandled.has(id)))
+    if (isLoading || !view) {
+        return <div className="py-12"><LoadingSpinner /></div>
     }
 
-    async function handleConfirm() {
-        if (!toDownload.length) {
-            finishBatch()
-            return
-        }
-        try {
-            await queueAdds({
-                items: toDownload.map(pick => ({
-                    torrent: pick.torrent!,
-                    media: pick.media,
-                    autoMatch: isAutoMatch(pick.mediaId),
-                    matchSeasonOneOnly: isAutoMatch(pick.mediaId) && matchSeasonOne,
-                })),
-            })
-        }
-        catch {
-            // The request itself failed — nothing was queued, so stay on this batch to retry.
-            toast.error("Could not hand the torrents to the server. Nothing was added.")
-            return
-        }
-        toast.success(`${toDownload.length} torrent${toDownload.length === 1 ? "" : "s"} queued — the server adds them in the background`)
-        finishBatch()
-    }
-
-    const batchNumber = Math.floor((frozen.length - remaining.length) / AUTO_TORRENT_BATCH_SIZE) + 1
-    const totalBatches = Math.max(1, Math.ceil(frozen.length / AUTO_TORRENT_BATCH_SIZE))
-
-    if (!frozen.length) {
+    if (!view.active) {
         return (
             <div className="py-10 text-center space-y-3">
-                <p className="text-sm text-[--muted]">Nothing in the queue is ready to auto torrent.</p>
-                <Button intent="gray-outline" onClick={onExit}>Back to Enqueue Future</Button>
+                <AutoTorrentAddProgress status={view.adds} />
+                {candidates.length ? (
+                    <>
+                        <p className="text-sm text-[--muted]">{candidates.length} anime in the queue to work through.</p>
+                        <Button intent="white" loading={isStarting} onClick={startSession}>Start auto torrent</Button>
+                    </>
+                ) : (
+                    <p className="text-sm text-[--muted]">Nothing in the queue is left to auto torrent.</p>
+                )}
+                <div><Button intent="gray-outline" onClick={onExit}>Back to Enqueue Future</Button></div>
             </div>
         )
     }
 
-    if (!batchIds.length) {
+    if (view.done) {
         return (
             <div className="py-10 text-center space-y-3" data-enqueue-future-auto-torrent-done>
+                <AutoTorrentAddProgress status={view.adds} />
                 <p className="text-lg font-semibold">All done</p>
-                <p className="text-sm text-[--muted]">Every ready anime in the queue has been reviewed.</p>
-                <Button intent="white" onClick={onExit}>Back to Enqueue Future</Button>
+                <p className="text-sm text-[--muted]">All {view.total} anime in this run have been reviewed.</p>
+                <div className="flex justify-center gap-2">
+                    <Button intent="gray-outline" onClick={onExit}>Back to Enqueue Future</Button>
+                    <Button intent="white" loading={isEnding} onClick={() => end()}>Close this run</Button>
+                </div>
             </div>
         )
+    }
+
+    const picks = view.picks ?? []
+    const removed = view.removed ?? []
+    const autoMatchOff = view.autoMatchOff ?? []
+    const withTorrent = picks.filter(p => !!p.torrent)
+    const withoutTorrent = picks.filter(p => !p.torrent)
+    const toDownload = withTorrent.filter(p => !removed.includes(p.mediaId))
+    const isAutoMatch = (mediaId: number) => !autoMatchOff.includes(mediaId)
+
+    function setAutoMatchFor(mediaId: number, value: boolean) {
+        const next = value ? autoMatchOff.filter(id => id !== mediaId) : [...autoMatchOff, mediaId]
+        saveEdits(removed, next)
+    }
+
+    function handleConfirm() {
+        confirm({ matchSeasonOneOnly: matchSeasonOne }, {
+            onSuccess: () => {
+                if (toDownload.length) {
+                    toast.success(`${toDownload.length} torrent${toDownload.length === 1 ? "" : "s"} queued — added in the background`)
+                }
+            },
+        })
     }
 
     return (
         <div className="space-y-4" data-enqueue-future-auto-torrent>
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-[--muted]">
                 <span>
-                    Batch {batchNumber} of {totalBatches} · {batchIds.length} anime
-                    {remaining.length > batchIds.length ? ` · ${remaining.length - batchIds.length} more after this` : ""}
+                    Batch {view.batchNumber} of {view.totalBatches} · {view.batch?.length ?? 0} anime
+                    {view.moreAfter ? ` · ${view.moreAfter} more after this` : ""}
+                    {view.moreAfter > 0 && !view.picking && (
+                        <span className={view.nextReady ? "text-green-300" : ""}>
+                            {view.nextReady ? " · next batch ready" : " · next batch being searched"}
+                        </span>
+                    )}
                 </span>
-                {!isPicking && !!picks.length && (
+                {!view.picking && !!picks.length && (
                     <span>
                         <span className="text-[--foreground] font-semibold">{toDownload.length}</span> to download
                         {withoutTorrent.length ? ` · ${withoutTorrent.length} with no pick` : ""}
@@ -198,28 +169,28 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
                 )}
             </div>
 
-            <AutoTorrentAddProgress status={addStatus} />
+            <AutoTorrentAddProgress status={view.adds} />
 
-            {isPicking ? (
+            {view.picking ? (
                 <div className="py-12 text-center space-y-3">
                     <LoadingSpinner />
-                    <p className="text-sm text-[--muted]">Searching SeaDex for {batchIds.length} anime… this can take a minute.</p>
-                    {batchIds.some(id => unprepared.has(id)) && (
-                        <p className="text-xs text-[--muted] max-w-md mx-auto">
-                            {batchIds.filter(id => unprepared.has(id)).length} of these have not been prepared yet, so each is looked
-                            up on AniList first — about four a minute, to stay inside AniList's limits. This batch will take a while.
-                        </p>
-                    )}
+                    <p className="text-sm text-[--muted]">
+                        Searching SeaDex for {view.batch?.length ?? 0} anime… this runs on the server, so you can close this and come back.
+                    </p>
+                    <p className="text-xs text-[--muted] max-w-md mx-auto">
+                        Anime that have not been prepared yet are looked up on AniList first, about four a minute, so a batch of
+                        those takes a while.
+                    </p>
                 </div>
-            ) : error ? (
+            ) : view.pickError ? (
                 <div className="py-10 text-center space-y-3">
-                    <p className="text-sm text-red-300">{error}</p>
-                    <Button intent="gray-outline" onClick={() => void loadNextBatch(remaining)}>Try again</Button>
+                    <p className="text-sm text-red-300">{view.pickError}</p>
+                    <Button intent="gray-outline" loading={isRetrying} onClick={() => retry()}>Try again</Button>
                 </div>
             ) : (
                 <div className="max-h-[60vh] overflow-y-auto space-y-1 pr-1" data-enqueue-future-auto-torrent-list>
                     {withTorrent.map(pick => {
-                        if (removed.has(pick.mediaId)) return null
+                        if (removed.includes(pick.mediaId)) return null
                         return (
                             <div
                                 key={pick.mediaId}
@@ -261,7 +232,7 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
                                     intent="gray-basic"
                                     icon={<LuX />}
                                     aria-label="Remove from this batch"
-                                    onClick={() => remove(pick.mediaId)}
+                                    onClick={() => saveEdits([...removed, pick.mediaId], autoMatchOff)}
                                     data-enqueue-future-auto-torrent-remove
                                 />
                             </div>
@@ -269,9 +240,7 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
                     })}
 
                     {!toDownload.length && !!withTorrent.length && (
-                        <p className="py-4 text-center text-sm text-[--muted]">
-                            Everything in this batch was removed.
-                        </p>
+                        <p className="py-4 text-center text-sm text-[--muted]">Everything in this batch was removed.</p>
                     )}
 
                     {!!withoutTorrent.length && (
@@ -301,7 +270,7 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
                     <Button
                         size="xs"
                         intent="gray-subtle"
-                        onClick={() => setAutoMatchOff(new Set())}
+                        onClick={() => saveEdits(removed, [])}
                         data-enqueue-future-auto-torrent-auto-match-all-on
                     >
                         All on
@@ -309,7 +278,7 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
                     <Button
                         size="xs"
                         intent="gray-subtle"
-                        onClick={() => setAutoMatchOff(new Set(withTorrent.map(p => p.mediaId)))}
+                        onClick={() => saveEdits(removed, withTorrent.map(p => p.mediaId))}
                         data-enqueue-future-auto-torrent-auto-match-all-off
                     >
                         All off
@@ -323,38 +292,51 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
                 />
             </div>
 
-            <div className="flex flex-wrap justify-end gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
                 <Button
-                    intent="gray-outline"
-                    onClick={onExit}
-                    disabled={isQueueing}
-                    data-enqueue-future-auto-torrent-exit
+                    intent="alert-subtle"
+                    size="sm"
+                    loading={isEnding}
+                    onClick={() => end()}
+                    data-enqueue-future-auto-torrent-end
                 >
-                    Exit
+                    End this run
                 </Button>
-                <Button
-                    intent="white"
-                    onClick={() => void handleConfirm()}
-                    loading={isQueueing}
-                    disabled={isPicking || !!error}
-                    data-enqueue-future-auto-torrent-confirm
-                >
-                    {toDownload.length
-                            ? `Download ${toDownload.length}${remaining.length > batchIds.length ? " & next batch" : ""}`
-                            : remaining.length > batchIds.length ? "Next batch" : "Finish"}
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                    <Button
+                        intent="gray-outline"
+                        onClick={onExit}
+                        data-enqueue-future-auto-torrent-exit
+                    >
+                        Exit
+                    </Button>
+                    <Button
+                        intent="white"
+                        onClick={handleConfirm}
+                        loading={isConfirming}
+                        disabled={view.picking || !!view.pickError}
+                        data-enqueue-future-auto-torrent-confirm
+                    >
+                        {toDownload.length
+                            ? `Download ${toDownload.length}${view.moreAfter ? " & next batch" : ""}`
+                            : view.moreAfter ? "Next batch" : "Finish"}
+                    </Button>
+                </div>
             </div>
+            <p className="text-xs text-[--muted] text-right">
+                Exit keeps your place — this run carries on in the background and is here when you come back.
+            </p>
         </div>
     )
 }
 
 /** One line about the server's background adds, while it has any. */
-function AutoTorrentAddProgress({ status }: { status: AutoTorrentQueueStatus | undefined }) {
+function AutoTorrentAddProgress({ status }: { status: EnqueueFuture_AutoTorrentAddStatus | undefined }) {
     if (!status) return null
     const busy = status.pending > 0 || !!status.current
     if (!busy && !status.added && !status.failed && !status.skipped && !status.settled) return null
     return (
-        <div className="rounded-[--radius-md] border bg-gray-950 px-3 py-2 text-xs text-[--muted] space-y-0.5" data-enqueue-future-auto-torrent-progress>
+        <div className="rounded-[--radius-md] border bg-gray-950 px-3 py-2 text-left text-xs text-[--muted] space-y-0.5" data-enqueue-future-auto-torrent-progress>
             <p>
                 {busy
                     ? <><span className="text-[--foreground] font-semibold">{status.pending + (status.current ? 1 : 0)}</span> still being added in the background, one every 10s</>

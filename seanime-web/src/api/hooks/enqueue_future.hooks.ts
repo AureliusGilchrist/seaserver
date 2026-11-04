@@ -1,8 +1,8 @@
 import React from "react"
 import { buildSeaQuery, useServerMutation, useServerQuery } from "@/api/client/requests"
-import { AutoPickEnqueueFuture_Variables, AutoTorrentAdd_Variables, EnqueueFuture_Variables, SetEnqueueFutureItemStatus_Variables } from "@/api/generated/endpoint.types"
+import { ConfirmAutoTorrent_Variables, EditAutoTorrent_Variables, EnqueueFuture_Variables, StartAutoTorrent_Variables, SetEnqueueFutureItemStatus_Variables } from "@/api/generated/endpoint.types"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
-import { AutoTorrentQueueStatus, EnqueueFuture_AutoPick, EnqueueFuture_DroppedItem, EnqueueFuture_Item, EnqueueFuture_Status, EnqueueFuture_WaitingPage } from "@/api/generated/types"
+import { EnqueueFuture_AutoTorrentView, EnqueueFuture_DroppedItem, EnqueueFuture_Item, EnqueueFuture_Status, EnqueueFuture_WaitingPage } from "@/api/generated/types"
 import { serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
 import { InfiniteData, keepPreviousData, useInfiniteQuery, useQueryClient } from "@tanstack/react-query"
@@ -411,41 +411,61 @@ export function useClearEnqueueFutureDropped() {
     })
 }
 
-/**
- * Proposes one SeaDex torrent for each of up to 40 queued anime, for the auto-torrent review popup.
- * Nothing is downloaded. Searches are live, so a batch can take a minute or two.
- */
-export function useAutoPickEnqueueFuture() {
-    return useServerMutation<Array<EnqueueFuture_AutoPick>, AutoPickEnqueueFuture_Variables>({
-        endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.AutoPickEnqueueFuture.endpoint,
-        method: API_ENDPOINTS.ENQUEUE_FUTURE.AutoPickEnqueueFuture.methods[0],
-        mutationKey: [API_ENDPOINTS.ENQUEUE_FUTURE.AutoPickEnqueueFuture.key],
-        // Anime not prepared yet are looked up on AniList first, at about four a minute, so a batch
-        // of them can take ten minutes and more.
-        timeout: 20 * 60 * 1000,
-    })
-}
+// +---------------------+
+// |    Auto torrent     |
+// +---------------------+
+//
+// The session lives on the server (internal/enqueuefuture/autotorrent.go) and survives restarts;
+// these read and change it. Every change answers with the whole session, which goes straight into
+// the cache so the popup never waits for the next poll.
 
-/** Hands confirmed auto torrent picks to the server, which adds them in the background. Returns at once. */
-export function useAutoTorrentAdd() {
-    const queryClient = useQueryClient()
-    return useServerMutation<AutoTorrentQueueStatus, AutoTorrentAdd_Variables>({
-        endpoint: API_ENDPOINTS.AUTO_TORRENT_QUEUE.AutoTorrentAdd.endpoint,
-        method: API_ENDPOINTS.AUTO_TORRENT_QUEUE.AutoTorrentAdd.methods[0],
-        mutationKey: [API_ENDPOINTS.AUTO_TORRENT_QUEUE.AutoTorrentAdd.key],
-        onSuccess: async () => {
-            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.AUTO_TORRENT_QUEUE.GetAutoTorrentAddStatus.key] })
+const AUTO_TORRENT_KEY = API_ENDPOINTS.AUTO_TORRENT.GetAutoTorrent.key
+
+/** The auto torrent session. Polls quickly while it is searching or adding, slowly otherwise. */
+export function useGetAutoTorrent(enabled: boolean = true) {
+    return useServerQuery<EnqueueFuture_AutoTorrentView>({
+        endpoint: API_ENDPOINTS.AUTO_TORRENT.GetAutoTorrent.endpoint,
+        method: API_ENDPOINTS.AUTO_TORRENT.GetAutoTorrent.methods[0],
+        queryKey: [AUTO_TORRENT_KEY],
+        enabled,
+        refetchInterval: query => {
+            const v = query.state.data
+            if (!v) return false
+            const busy = v.picking || (v.active && !v.nextReady && v.moreAfter > 0) || v.adds.pending > 0 || !!v.adds.current
+            return busy ? 2_000 : (v.active ? 10_000 : false)
         },
     })
 }
 
-/** Progress of the background auto torrent adds. Polls while there is anything left to send. */
-export function useGetAutoTorrentAddStatus(enabled: boolean) {
-    return useServerQuery<AutoTorrentQueueStatus>({
-        endpoint: API_ENDPOINTS.AUTO_TORRENT_QUEUE.GetAutoTorrentAddStatus.endpoint,
-        method: API_ENDPOINTS.AUTO_TORRENT_QUEUE.GetAutoTorrentAddStatus.methods[0],
-        queryKey: [API_ENDPOINTS.AUTO_TORRENT_QUEUE.GetAutoTorrentAddStatus.key],
-        enabled,
-        refetchInterval: query => ((query.state.data?.pending ?? 0) > 0 || !!query.state.data?.current ? 3_000 : false),
+function useAutoTorrentMutation<V = void>(endpoint: string, key: string) {
+    const queryClient = useQueryClient()
+    return useServerMutation<EnqueueFuture_AutoTorrentView, V>({
+        endpoint,
+        method: "POST",
+        mutationKey: [key],
+        onSuccess: async data => {
+            if (data) queryClient.setQueryData([AUTO_TORRENT_KEY], data)
+            await queryClient.invalidateQueries({ queryKey: [AUTO_TORRENT_KEY] })
+        },
     })
+}
+
+export function useStartAutoTorrent() {
+    return useAutoTorrentMutation<StartAutoTorrent_Variables>(API_ENDPOINTS.AUTO_TORRENT.StartAutoTorrent.endpoint, API_ENDPOINTS.AUTO_TORRENT.StartAutoTorrent.key)
+}
+
+export function useEditAutoTorrent() {
+    return useAutoTorrentMutation<EditAutoTorrent_Variables>(API_ENDPOINTS.AUTO_TORRENT.EditAutoTorrent.endpoint, API_ENDPOINTS.AUTO_TORRENT.EditAutoTorrent.key)
+}
+
+export function useConfirmAutoTorrent() {
+    return useAutoTorrentMutation<ConfirmAutoTorrent_Variables>(API_ENDPOINTS.AUTO_TORRENT.ConfirmAutoTorrent.endpoint, API_ENDPOINTS.AUTO_TORRENT.ConfirmAutoTorrent.key)
+}
+
+export function useRetryAutoTorrent() {
+    return useAutoTorrentMutation(API_ENDPOINTS.AUTO_TORRENT.RetryAutoTorrent.endpoint, API_ENDPOINTS.AUTO_TORRENT.RetryAutoTorrent.key)
+}
+
+export function useEndAutoTorrent() {
+    return useAutoTorrentMutation(API_ENDPOINTS.AUTO_TORRENT.EndAutoTorrent.endpoint, API_ENDPOINTS.AUTO_TORRENT.EndAutoTorrent.key)
 }

@@ -11,8 +11,8 @@ import (
 
 	"seanime/internal/api/anilist"
 	"seanime/internal/database/db"
-	"seanime/internal/library/anime"
 	hibiketorrent "seanime/internal/extension/hibike/torrent"
+	"seanime/internal/library/anime"
 	"seanime/internal/torrents/torrent"
 )
 
@@ -271,7 +271,7 @@ func (r *Repository) autoPickOne(ctx context.Context, mediaID int, client *http.
 	torrent.PopulateSeaDexContents(mediaID)
 
 	type candidate struct {
-		t     *hibiketorrent.AnimeTorrent
+		t       *hibiketorrent.AnimeTorrent
 		files   int
 		dual    bool
 		special bool

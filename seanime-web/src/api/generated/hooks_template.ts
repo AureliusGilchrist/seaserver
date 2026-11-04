@@ -851,26 +851,70 @@
 // }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// auto_torrent_queue
+// auto_torrent
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// export function useAutoTorrentAdd() {
-//     return useServerMutation<AutoTorrentQueueStatus, AutoTorrentAdd_Variables>({
-//         endpoint: API_ENDPOINTS.AUTO_TORRENT_QUEUE.AutoTorrentAdd.endpoint,
-//         method: API_ENDPOINTS.AUTO_TORRENT_QUEUE.AutoTorrentAdd.methods[0],
-//         mutationKey: [API_ENDPOINTS.AUTO_TORRENT_QUEUE.AutoTorrentAdd.key],
+// export function useGetAutoTorrent() {
+//     return useServerQuery<EnqueueFuture_AutoTorrentView>({
+//         endpoint: API_ENDPOINTS.AUTO_TORRENT.GetAutoTorrent.endpoint,
+//         method: API_ENDPOINTS.AUTO_TORRENT.GetAutoTorrent.methods[0],
+//         queryKey: [API_ENDPOINTS.AUTO_TORRENT.GetAutoTorrent.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useStartAutoTorrent() {
+//     return useServerMutation<EnqueueFuture_AutoTorrentView, StartAutoTorrent_Variables>({
+//         endpoint: API_ENDPOINTS.AUTO_TORRENT.StartAutoTorrent.endpoint,
+//         method: API_ENDPOINTS.AUTO_TORRENT.StartAutoTorrent.methods[0],
+//         mutationKey: [API_ENDPOINTS.AUTO_TORRENT.StartAutoTorrent.key],
 //         onSuccess: async () => {
 // 
 //         },
 //     })
 // }
 
-// export function useGetAutoTorrentAddStatus() {
-//     return useServerQuery<AutoTorrentQueueStatus>({
-//         endpoint: API_ENDPOINTS.AUTO_TORRENT_QUEUE.GetAutoTorrentAddStatus.endpoint,
-//         method: API_ENDPOINTS.AUTO_TORRENT_QUEUE.GetAutoTorrentAddStatus.methods[0],
-//         queryKey: [API_ENDPOINTS.AUTO_TORRENT_QUEUE.GetAutoTorrentAddStatus.key],
-//         enabled: true,
+// export function useEditAutoTorrent() {
+//     return useServerMutation<EnqueueFuture_AutoTorrentView, EditAutoTorrent_Variables>({
+//         endpoint: API_ENDPOINTS.AUTO_TORRENT.EditAutoTorrent.endpoint,
+//         method: API_ENDPOINTS.AUTO_TORRENT.EditAutoTorrent.methods[0],
+//         mutationKey: [API_ENDPOINTS.AUTO_TORRENT.EditAutoTorrent.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useConfirmAutoTorrent() {
+//     return useServerMutation<EnqueueFuture_AutoTorrentView, ConfirmAutoTorrent_Variables>({
+//         endpoint: API_ENDPOINTS.AUTO_TORRENT.ConfirmAutoTorrent.endpoint,
+//         method: API_ENDPOINTS.AUTO_TORRENT.ConfirmAutoTorrent.methods[0],
+//         mutationKey: [API_ENDPOINTS.AUTO_TORRENT.ConfirmAutoTorrent.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useRetryAutoTorrent() {
+//     return useServerMutation<EnqueueFuture_AutoTorrentView>({
+//         endpoint: API_ENDPOINTS.AUTO_TORRENT.RetryAutoTorrent.endpoint,
+//         method: API_ENDPOINTS.AUTO_TORRENT.RetryAutoTorrent.methods[0],
+//         mutationKey: [API_ENDPOINTS.AUTO_TORRENT.RetryAutoTorrent.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useEndAutoTorrent() {
+//     return useServerMutation<EnqueueFuture_AutoTorrentView>({
+//         endpoint: API_ENDPOINTS.AUTO_TORRENT.EndAutoTorrent.endpoint,
+//         method: API_ENDPOINTS.AUTO_TORRENT.EndAutoTorrent.methods[0],
+//         mutationKey: [API_ENDPOINTS.AUTO_TORRENT.EndAutoTorrent.key],
+//         onSuccess: async () => {
+// 
+//         },
 //     })
 // }
 

@@ -13,7 +13,6 @@ import type {
     Anime_AutoSelectProfile,
     Anime_LocalFileMetadata,
     Anime_PlaylistEpisode,
-    AutoTorrentJob,
     ChapterDownloader_DownloadID,
     Continuity_UpdateWatchHistoryItemOptions,
     DebridClient_CancelStreamOptions,
@@ -624,18 +623,41 @@ export type DeleteAutoDownloaderItem_Variables = {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// auto_torrent_queue
+// auto_torrent
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * - Filepath: internal/handlers/auto_torrent_queue.go
- * - Filename: auto_torrent_queue.go
- * - Endpoint: /api/v1/enqueue-future/auto-pick/add
+ * - Filepath: internal/handlers/auto_torrent.go
+ * - Filename: auto_torrent.go
+ * - Endpoint: /api/v1/enqueue-future/auto-torrent/start
  * @description
- * Route hands confirmed auto torrent picks to the server to add in the background.
+ * Route opens an auto torrent session over the given anime, in order.
  */
-export type AutoTorrentAdd_Variables = {
-    items: Array<AutoTorrentJob>
+export type StartAutoTorrent_Variables = {
+    mediaIds: Array<number>
+}
+
+/**
+ * - Filepath: internal/handlers/auto_torrent.go
+ * - Filename: auto_torrent.go
+ * - Endpoint: /api/v1/enqueue-future/auto-torrent/edit
+ * @description
+ * Route saves your edits to the batch on screen.
+ */
+export type EditAutoTorrent_Variables = {
+    removed: Array<number>
+    autoMatchOff: Array<number>
+}
+
+/**
+ * - Filepath: internal/handlers/auto_torrent.go
+ * - Filename: auto_torrent.go
+ * - Endpoint: /api/v1/enqueue-future/auto-torrent/confirm
+ * @description
+ * Route confirms the batch on screen and moves to the next.
+ */
+export type ConfirmAutoTorrent_Variables = {
+    matchSeasonOneOnly: boolean
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

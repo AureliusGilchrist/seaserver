@@ -3400,14 +3400,15 @@
     }
   },
   {
-    "name": "enqueueAutoTorrents",
-    "trimmedName": "enqueueAutoTorrents",
+    "name": "wireAutoTorrent",
+    "trimmedName": "wireAutoTorrent",
     "comments": [
-      "enqueueAutoTorrents adds jobs to the queue and starts the worker if it is not already running.",
+      "wireAutoTorrent hands the auto torrent session what it needs from the handlers, which also",
+      "resumes a session the server was in the middle of when it last stopped.",
       ""
     ],
-    "filepath": "internal/handlers/auto_torrent_queue.go",
-    "filename": "auto_torrent_queue.go",
+    "filepath": "internal/handlers/auto_torrent.go",
+    "filename": "auto_torrent.go",
     "api": {
       "summary": "",
       "descriptions": [],
@@ -3421,93 +3422,221 @@
     }
   },
   {
-    "name": "autoTorrentWait",
-    "trimmedName": "autoTorrentWait",
+    "name": "HandleGetAutoTorrent",
+    "trimmedName": "GetAutoTorrent",
     "comments": [
-      "autoTorrentWait records why the queue is holding off and waits before looking again.",
-      ""
-    ],
-    "filepath": "internal/handlers/auto_torrent_queue.go",
-    "filename": "auto_torrent_queue.go",
-    "api": {
-      "summary": "",
-      "descriptions": [],
-      "endpoint": "",
-      "methods": null,
-      "params": [],
-      "bodyFields": [],
-      "returns": "bool",
-      "returnGoType": "bool",
-      "returnTypescriptType": "boolean"
-    }
-  },
-  {
-    "name": "HandleAutoTorrentAdd",
-    "trimmedName": "AutoTorrentAdd",
-    "comments": [
-      "HandleAutoTorrentAdd",
+      "HandleGetAutoTorrent",
       "",
-      "\t@summary hands confirmed auto torrent picks to the server to add in the background.",
-      "\t@desc Returns immediately. The server adds the torrents one at a time, 10 seconds apart, and",
-      "\t@desc holds off while the torrent client is offline or slow, so a batch never floods it.",
-      "\t@route /api/v1/enqueue-future/auto-pick/add [POST]",
-      "\t@returns handlers.AutoTorrentQueueStatus",
+      "\t@summary returns the auto torrent session.",
+      "\t@desc The session lives on the server and survives restarts: the anime being worked through, the",
+      "\t@desc batch on screen with its picks and your edits, and the torrents still being added.",
+      "\t@route /api/v1/enqueue-future/auto-torrent [GET]",
+      "\t@returns enqueuefuture.AutoTorrentView",
       ""
     ],
-    "filepath": "internal/handlers/auto_torrent_queue.go",
-    "filename": "auto_torrent_queue.go",
+    "filepath": "internal/handlers/auto_torrent.go",
+    "filename": "auto_torrent.go",
     "api": {
-      "summary": "hands confirmed auto torrent picks to the server to add in the background.",
+      "summary": "returns the auto torrent session.",
       "descriptions": [
-        "Returns immediately. The server adds the torrents one at a time, 10 seconds apart, and",
-        "holds off while the torrent client is offline or slow, so a batch never floods it."
+        "The session lives on the server and survives restarts: the anime being worked through, the",
+        "batch on screen with its picks and your edits, and the torrents still being added."
       ],
-      "endpoint": "/api/v1/enqueue-future/auto-pick/add",
+      "endpoint": "/api/v1/enqueue-future/auto-torrent",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "enqueuefuture.AutoTorrentView",
+      "returnGoType": "enqueuefuture.AutoTorrentView",
+      "returnTypescriptType": "EnqueueFuture_AutoTorrentView"
+    }
+  },
+  {
+    "name": "HandleStartAutoTorrent",
+    "trimmedName": "StartAutoTorrent",
+    "comments": [
+      "HandleStartAutoTorrent",
+      "",
+      "\t@summary opens an auto torrent session over the given anime, in order.",
+      "\t@desc Fails with 409 while another session is open. The first batch is searched in the background.",
+      "\t@route /api/v1/enqueue-future/auto-torrent/start [POST]",
+      "\t@returns enqueuefuture.AutoTorrentView",
+      ""
+    ],
+    "filepath": "internal/handlers/auto_torrent.go",
+    "filename": "auto_torrent.go",
+    "api": {
+      "summary": "opens an auto torrent session over the given anime, in order.",
+      "descriptions": [
+        "Fails with 409 while another session is open. The first batch is searched in the background."
+      ],
+      "endpoint": "/api/v1/enqueue-future/auto-torrent/start",
       "methods": [
         "POST"
       ],
       "params": [],
       "bodyFields": [
         {
-          "name": "Items",
-          "jsonName": "items",
-          "goType": "[]AutoTorrentJob",
-          "usedStructType": "handlers.AutoTorrentJob",
-          "typescriptType": "Array\u003cAutoTorrentJob\u003e",
+          "name": "MediaIds",
+          "jsonName": "mediaIds",
+          "goType": "[]int",
+          "usedStructType": "",
+          "typescriptType": "Array\u003cnumber\u003e",
           "required": true,
           "descriptions": []
         }
       ],
-      "returns": "handlers.AutoTorrentQueueStatus",
-      "returnGoType": "handlers.AutoTorrentQueueStatus",
-      "returnTypescriptType": "AutoTorrentQueueStatus"
+      "returns": "enqueuefuture.AutoTorrentView",
+      "returnGoType": "enqueuefuture.AutoTorrentView",
+      "returnTypescriptType": "EnqueueFuture_AutoTorrentView"
     }
   },
   {
-    "name": "HandleGetAutoTorrentAddStatus",
-    "trimmedName": "GetAutoTorrentAddStatus",
+    "name": "HandleEditAutoTorrent",
+    "trimmedName": "EditAutoTorrent",
     "comments": [
-      "HandleGetAutoTorrentAddStatus",
+      "HandleEditAutoTorrent",
       "",
-      "\t@summary returns the progress of the background auto torrent adds.",
-      "\t@route /api/v1/enqueue-future/auto-pick/add [GET]",
-      "\t@returns handlers.AutoTorrentQueueStatus",
+      "\t@summary saves your edits to the batch on screen.",
+      "\t@desc Removed is what you struck out; autoMatchOff is which picks should not be matched automatically.",
+      "\t@route /api/v1/enqueue-future/auto-torrent/edit [POST]",
+      "\t@returns enqueuefuture.AutoTorrentView",
       ""
     ],
-    "filepath": "internal/handlers/auto_torrent_queue.go",
-    "filename": "auto_torrent_queue.go",
+    "filepath": "internal/handlers/auto_torrent.go",
+    "filename": "auto_torrent.go",
     "api": {
-      "summary": "returns the progress of the background auto torrent adds.",
-      "descriptions": [],
-      "endpoint": "/api/v1/enqueue-future/auto-pick/add",
+      "summary": "saves your edits to the batch on screen.",
+      "descriptions": [
+        "Removed is what you struck out; autoMatchOff is which picks should not be matched automatically."
+      ],
+      "endpoint": "/api/v1/enqueue-future/auto-torrent/edit",
       "methods": [
-        "GET"
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "Removed",
+          "jsonName": "removed",
+          "goType": "[]int",
+          "usedStructType": "",
+          "typescriptType": "Array\u003cnumber\u003e",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "AutoMatchOff",
+          "jsonName": "autoMatchOff",
+          "goType": "[]int",
+          "usedStructType": "",
+          "typescriptType": "Array\u003cnumber\u003e",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "enqueuefuture.AutoTorrentView",
+      "returnGoType": "enqueuefuture.AutoTorrentView",
+      "returnTypescriptType": "EnqueueFuture_AutoTorrentView"
+    }
+  },
+  {
+    "name": "HandleConfirmAutoTorrent",
+    "trimmedName": "ConfirmAutoTorrent",
+    "comments": [
+      "HandleConfirmAutoTorrent",
+      "",
+      "\t@summary confirms the batch on screen and moves to the next.",
+      "\t@desc What is left of the batch is added to the torrent client in the background, one at a time.",
+      "\t@route /api/v1/enqueue-future/auto-torrent/confirm [POST]",
+      "\t@returns enqueuefuture.AutoTorrentView",
+      ""
+    ],
+    "filepath": "internal/handlers/auto_torrent.go",
+    "filename": "auto_torrent.go",
+    "api": {
+      "summary": "confirms the batch on screen and moves to the next.",
+      "descriptions": [
+        "What is left of the batch is added to the torrent client in the background, one at a time."
+      ],
+      "endpoint": "/api/v1/enqueue-future/auto-torrent/confirm",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "MatchSeasonOneOnly",
+          "jsonName": "matchSeasonOneOnly",
+          "goType": "bool",
+          "usedStructType": "",
+          "typescriptType": "boolean",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "enqueuefuture.AutoTorrentView",
+      "returnGoType": "enqueuefuture.AutoTorrentView",
+      "returnTypescriptType": "EnqueueFuture_AutoTorrentView"
+    }
+  },
+  {
+    "name": "HandleRetryAutoTorrent",
+    "trimmedName": "RetryAutoTorrent",
+    "comments": [
+      "HandleRetryAutoTorrent",
+      "",
+      "\t@summary searches the batch on screen again.",
+      "\t@route /api/v1/enqueue-future/auto-torrent/retry [POST]",
+      "\t@returns enqueuefuture.AutoTorrentView",
+      ""
+    ],
+    "filepath": "internal/handlers/auto_torrent.go",
+    "filename": "auto_torrent.go",
+    "api": {
+      "summary": "searches the batch on screen again.",
+      "descriptions": [],
+      "endpoint": "/api/v1/enqueue-future/auto-torrent/retry",
+      "methods": [
+        "POST"
       ],
       "params": [],
       "bodyFields": [],
-      "returns": "handlers.AutoTorrentQueueStatus",
-      "returnGoType": "handlers.AutoTorrentQueueStatus",
-      "returnTypescriptType": "AutoTorrentQueueStatus"
+      "returns": "enqueuefuture.AutoTorrentView",
+      "returnGoType": "enqueuefuture.AutoTorrentView",
+      "returnTypescriptType": "EnqueueFuture_AutoTorrentView"
+    }
+  },
+  {
+    "name": "HandleEndAutoTorrent",
+    "trimmedName": "EndAutoTorrent",
+    "comments": [
+      "HandleEndAutoTorrent",
+      "",
+      "\t@summary closes the auto torrent session.",
+      "\t@desc Torrents already confirmed keep being added in the background.",
+      "\t@route /api/v1/enqueue-future/auto-torrent/end [POST]",
+      "\t@returns enqueuefuture.AutoTorrentView",
+      ""
+    ],
+    "filepath": "internal/handlers/auto_torrent.go",
+    "filename": "auto_torrent.go",
+    "api": {
+      "summary": "closes the auto torrent session.",
+      "descriptions": [
+        "Torrents already confirmed keep being added in the background."
+      ],
+      "endpoint": "/api/v1/enqueue-future/auto-torrent/end",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "enqueuefuture.AutoTorrentView",
+      "returnGoType": "enqueuefuture.AutoTorrentView",
+      "returnTypescriptType": "EnqueueFuture_AutoTorrentView"
     }
   },
   {

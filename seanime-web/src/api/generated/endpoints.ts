@@ -746,22 +746,62 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/auto-downloader/item",
         },
     },
-    AUTO_TORRENT_QUEUE: {
+    AUTO_TORRENT: {
         /**
          *  @description
-         *  Route hands confirmed auto torrent picks to the server to add in the background.
-         *  Returns immediately. The server adds the torrents one at a time, 10 seconds apart, and
-         *  holds off while the torrent client is offline or slow, so a batch never floods it.
+         *  Route returns the auto torrent session.
+         *  The session lives on the server and survives restarts: the anime being worked through, the
+         *  batch on screen with its picks and your edits, and the torrents still being added.
          */
-        AutoTorrentAdd: {
-            key: "AUTO-TORRENT-QUEUE-auto-torrent-add",
-            methods: ["POST"],
-            endpoint: "/api/v1/enqueue-future/auto-pick/add",
-        },
-        GetAutoTorrentAddStatus: {
-            key: "AUTO-TORRENT-QUEUE-get-auto-torrent-add-status",
+        GetAutoTorrent: {
+            key: "AUTO-TORRENT-get-auto-torrent",
             methods: ["GET"],
-            endpoint: "/api/v1/enqueue-future/auto-pick/add",
+            endpoint: "/api/v1/enqueue-future/auto-torrent",
+        },
+        /**
+         *  @description
+         *  Route opens an auto torrent session over the given anime, in order.
+         *  Fails with 409 while another session is open. The first batch is searched in the background.
+         */
+        StartAutoTorrent: {
+            key: "AUTO-TORRENT-start-auto-torrent",
+            methods: ["POST"],
+            endpoint: "/api/v1/enqueue-future/auto-torrent/start",
+        },
+        /**
+         *  @description
+         *  Route saves your edits to the batch on screen.
+         *  Removed is what you struck out; autoMatchOff is which picks should not be matched automatically.
+         */
+        EditAutoTorrent: {
+            key: "AUTO-TORRENT-edit-auto-torrent",
+            methods: ["POST"],
+            endpoint: "/api/v1/enqueue-future/auto-torrent/edit",
+        },
+        /**
+         *  @description
+         *  Route confirms the batch on screen and moves to the next.
+         *  What is left of the batch is added to the torrent client in the background, one at a time.
+         */
+        ConfirmAutoTorrent: {
+            key: "AUTO-TORRENT-confirm-auto-torrent",
+            methods: ["POST"],
+            endpoint: "/api/v1/enqueue-future/auto-torrent/confirm",
+        },
+        RetryAutoTorrent: {
+            key: "AUTO-TORRENT-retry-auto-torrent",
+            methods: ["POST"],
+            endpoint: "/api/v1/enqueue-future/auto-torrent/retry",
+        },
+        /**
+         *  @description
+         *  Route closes the auto torrent session.
+         *  Torrents already confirmed keep being added in the background.
+         */
+        EndAutoTorrent: {
+            key: "AUTO-TORRENT-end-auto-torrent",
+            methods: ["POST"],
+            endpoint: "/api/v1/enqueue-future/auto-torrent/end",
         },
     },
     CHARACTER: {

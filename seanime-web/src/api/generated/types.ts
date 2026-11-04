@@ -2915,6 +2915,49 @@ export type EnqueueFuture_AutoPick = {
 }
 
 /**
+ * - Filepath: internal/enqueuefuture/autotorrent.go
+ * - Filename: autotorrent.go
+ * - Package: enqueuefuture
+ * @description
+ *  AutoTorrentAddStatus is the progress of the background adds.
+ */
+export type EnqueueFuture_AutoTorrentAddStatus = {
+    pending: number
+    current?: string
+    waiting?: string
+    added: number
+    skipped: number
+    settled: number
+    failed: number
+    lastError?: string
+}
+
+/**
+ * - Filepath: internal/enqueuefuture/autotorrent.go
+ * - Filename: autotorrent.go
+ * - Package: enqueuefuture
+ * @description
+ *  AutoTorrentView is the session as the popup sees it.
+ */
+export type EnqueueFuture_AutoTorrentView = {
+    active: boolean
+    done: boolean
+    total: number
+    reviewed: number
+    batchNumber: number
+    totalBatches: number
+    moreAfter: number
+    batch?: Array<number>
+    picking: boolean
+    pickError?: string
+    picks?: Array<EnqueueFuture_AutoPick>
+    removed?: Array<number>
+    autoMatchOff?: Array<number>
+    nextReady: boolean
+    adds: EnqueueFuture_AutoTorrentAddStatus
+}
+
+/**
  * - Filepath: internal/enqueuefuture/catalog.go
  * - Filename: catalog.go
  * - Package: enqueuefuture
@@ -3575,38 +3618,6 @@ export type ApiDocsGroup = {
     filename: string
     name: string
     handlers?: Array<RouteHandler>
-}
-
-/**
- * - Filepath: internal/handlers/auto_torrent_queue.go
- * - Filename: auto_torrent_queue.go
- * - Package: handlers
- * @description
- *  AutoTorrentJob is one confirmed pick waiting to be sent to the torrent client.
- */
-export type AutoTorrentJob = {
-    torrent?: HibikeTorrent_AnimeTorrent
-    media?: AL_BaseAnime
-    autoMatch: boolean
-    matchSeasonOneOnly: boolean
-}
-
-/**
- * - Filepath: internal/handlers/auto_torrent_queue.go
- * - Filename: auto_torrent_queue.go
- * - Package: handlers
- * @description
- *  AutoTorrentQueueStatus is what the popup shows about the background adds.
- */
-export type AutoTorrentQueueStatus = {
-    pending: number
-    current?: string
-    waiting?: string
-    added: number
-    skipped: number
-    settled: number
-    failed: number
-    lastError?: string
 }
 
 /**
