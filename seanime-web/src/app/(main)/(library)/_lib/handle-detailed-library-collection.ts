@@ -2,10 +2,17 @@ import { Anime_LibraryCollectionEntry, Anime_LibraryCollectionList } from "@/api
 import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
 import { useGetContinuityWatchHistory } from "@/api/hooks/continuity.hooks"
 import { useGetAnimeGojuuonMap } from "@/api/hooks/services.hooks"
+import { useLibrarySort } from "@/app/(main)/_features/sorting/library-sort-menu"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { useDebounce } from "@/hooks/use-debounce"
-import { CollectionParams, DEFAULT_ANIME_COLLECTION_PARAMS, filterAnimeCollectionEntries, filterEntriesByTitle } from "@/lib/helpers/filtering"
+import {
+    CollectionParams,
+    DEFAULT_ANIME_COLLECTION_PARAMS,
+    filterAnimeCollectionEntries,
+    filterEntriesByTitle,
+    withLocallyStartedInCurrent,
+} from "@/lib/helpers/filtering"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import { atomWithImmer } from "jotai-immer"
 import { useAtom, useAtomValue } from "jotai/index"
@@ -28,7 +35,8 @@ export function useHandleDetailedLibraryCollection({ enabled = true }: { enabled
     const serverStatus = useServerStatus()
     const personal = usePersonalSettings()
 
-    const { animeLibraryCollectionDefaultSorting } = useThemeSettings()
+    const { animeLibraryCollectionDefaultSorting: themeSorting } = useThemeSettings()
+    const { sorting: animeLibraryCollectionDefaultSorting } = useLibrarySort("anime-library", themeSorting)
 
     const { data: watchHistory } = useGetContinuityWatchHistory()
     const { data: animeGojuuonMap } = useGetAnimeGojuuonMap()
@@ -56,7 +64,7 @@ export function useHandleDetailedLibraryCollection({ enabled = true }: { enabled
     const _filteredCollection: Anime_LibraryCollectionList[] = React.useMemo(() => {
         if (!data || !data.lists) return []
 
-        let _lists = data.lists.map(obj => {
+        let _lists = withLocallyStartedInCurrent(data.lists, animeLibraryCollectionDefaultSorting, watchHistory).map(obj => {
             if (!obj) return obj
             const arr = filterAnimeCollectionEntries(obj.entries,
                 paramsToDebounce,
@@ -77,7 +85,8 @@ export function useHandleDetailedLibraryCollection({ enabled = true }: { enabled
             personal.showCompletedInLibrary ? _lists.find(n => n.type === "COMPLETED") : undefined,
             _lists.find(n => n.type === "DROPPED"),
         ].filter(Boolean)
-    }, [data, debouncedParams, serverStatus?.settings?.anilist?.enableAdultContent, watchHistory, animeGojuuonMap, personal.showCompletedInLibrary])
+    }, [data, debouncedParams, serverStatus?.settings?.anilist?.enableAdultContent, watchHistory, animeGojuuonMap, personal.showCompletedInLibrary,
+        animeLibraryCollectionDefaultSorting])
 
     const filteredCollection: Anime_LibraryCollectionList[] = React.useMemo(() => {
         return _filteredCollection.map(obj => {

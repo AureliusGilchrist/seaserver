@@ -39,7 +39,9 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { ThemeLibraryScreenBannerType, useThemeSettings } from "@/lib/theme/hooks"
 import { formatNumber } from "@/lib/helpers/number"
-import { sortByGojuuon } from "@/lib/helpers/filtering"
+import { DEFAULT_ANIME_COLLECTION_PARAMS, filterAnimeCollectionEntries, LOCAL_ANIME_LIBRARY_SORT_FIELDS } from "@/lib/helpers/filtering"
+import { useGetContinuityWatchHistory } from "@/api/hooks/continuity.hooks"
+import { LibrarySortMenu, useLibrarySort } from "@/app/(main)/_features/sorting/library-sort-menu"
 import { useDebounce } from "use-debounce"
 import { addDays } from "date-fns/addDays"
 import { atom, useAtomValue, useSetAtom } from "jotai"
@@ -818,6 +820,9 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
     const libraryPath = serverStatus?.settings?.library?.libraryPath
     const stagingPath = serverStatus?.settings?.torrent?.builtinDownloadDir || DEFAULT_STAGING_DIR
     const { data: gojuuonMap } = useGetAnimeGojuuonMap()
+    const { data: watchHistory } = useGetContinuityWatchHistory()
+    // Gojuuon until the viewer picks another order.
+    const { sorting, setSorting } = useLibrarySort("local-anime-library", "GOJUUON")
     const localEntries: Anime_LibraryCollectionEntry[] = React.useMemo(() => {
         if (!collectionList?.length) return []
         const isInLibraryFolder = (entry: Anime_LibraryCollectionEntry) => {
@@ -859,12 +864,14 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
                     || e.media?.synonyms?.some(s => s?.toLowerCase().includes(q))
             })
         }
-        // Gojuuon order: kana ordering by title, with a franchise kept together and in chronological
-        // order under its root when the server's map knows about it. The same ordering the rest of
-        // the collection offers, rather than a plain A-Z that puts 「うたわれるもの」 wherever its romaji
-        // spelling happens to land.
-        return sortByGojuuon(filtered, gojuuonMap)
-    }, [collectionList, serverStatus?.settings?.anilist?.enableAdultContent, debouncedSearch, libraryPath, stagingPath, gojuuonMap])
+        // The chosen order, Gojuuon by default: kana ordering by title, with a franchise kept together
+        // and in chronological order under its root when the server's map knows about it, rather than
+        // a plain A-Z that puts 「うたわれるもの」 wherever its romaji spelling happens to land.
+        // Filtering is done above, so this pass only sorts.
+        return filterAnimeCollectionEntries(filtered, { ...DEFAULT_ANIME_COLLECTION_PARAMS, sorting: sorting as any }, true, [], watchHistory, gojuuonMap)
+    }, [collectionList, serverStatus?.settings?.anilist?.enableAdultContent, debouncedSearch, libraryPath, stagingPath, gojuuonMap, sorting, watchHistory])
+
+    const sortMenu = <LibrarySortMenu fields={LOCAL_ANIME_LIBRARY_SORT_FIELDS} value={sorting} onChange={setSorting} />
 
     if (props.libraryCollectionProps.isLoading) return <LoadingSpinner />
     // Keep the section (and its search box) mounted when a search simply matched nothing.
@@ -873,6 +880,7 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
     if (layout === "carousel") {
         return (
             <PageWrapper className="px-4 space-y-8">
+                <div className="flex justify-end">{sortMenu}</div>
                 <Carousel
                     className="w-full"
                     gap="md"
@@ -901,15 +909,18 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
 
     return (
         <PageWrapper className="px-4 space-y-8">
-            <div className="relative max-w-sm">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-[--muted] size-4" />
-                <input
-                    type="text"
-                    placeholder="Search local library..."
-                    value={searchInput}
-                    onChange={e => setSearchInput(e.target.value)}
-                    className="w-full pl-10 pr-3 py-2 rounded-lg bg-[--paper] border border-[--border] text-sm placeholder:text-[--muted] focus:outline-none focus:ring-1 focus:ring-brand-500"
-                />
+            <div className="flex flex-wrap items-center gap-3">
+                <div className="relative w-full max-w-sm">
+                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-[--muted] size-4" />
+                    <input
+                        type="text"
+                        placeholder="Search local library..."
+                        value={searchInput}
+                        onChange={e => setSearchInput(e.target.value)}
+                        className="w-full pl-10 pr-3 py-2 rounded-lg bg-[--paper] border border-[--border] text-sm placeholder:text-[--muted] focus:outline-none focus:ring-1 focus:ring-brand-500"
+                    />
+                </div>
+                <div className="ml-auto">{sortMenu}</div>
             </div>
             <PaginatedMediaGrid
                 items={localEntries}

@@ -141,15 +141,22 @@ export function useHomeListTab(library: "anime" | "manga", ids: string[]) {
     return [selected && ids.includes(selected) ? selected : ids[0], select] as const
 }
 
-export function HomeListTabs({ tabs, value, onChange }: {
-    tabs: { id: string, label: string, count: number }[]
+export function HomeListTabs({ tabs, value, onChange, trailing }: {
+    /** `count` is left out while it is not known yet. */
+    tabs: { id: string, label: string, count?: number }[]
     value: string | undefined
     onChange: (id: string) => void
+    /** Drawn at the end of the row, e.g. the list's sort menu. Shown even when there is a single tab. */
+    trailing?: React.ReactNode
 }) {
     const groupId = React.useId()
-    if (tabs.length < 2) return null
+    if (tabs.length < 2) {
+        if (!trailing) return null
+        return <div className="flex justify-end pb-1" data-home-list-tabs-trailing>{trailing}</div>
+    }
     return (
-        <div className="flex flex-wrap gap-1.5 pb-1" role="tablist" data-home-list-tabs>
+        <div className="flex flex-wrap items-center gap-1.5 pb-1" data-home-list-tabs>
+            <div className="flex flex-wrap gap-1.5" role="tablist">
             {tabs.map(tab => {
                 const active = tab.id === value
                 return (
@@ -170,10 +177,13 @@ export function HomeListTabs({ tabs, value, onChange }: {
                             transition={{ type: "spring", stiffness: 380, damping: 32 }}
                         />}
                         <span className="relative">{tab.label}</span>
-                        <span className="relative text-xs tabular-nums text-white/55">{tab.count.toLocaleString()}</span>
+                        {tab.count !== undefined &&
+                            <span className="relative text-xs tabular-nums text-white/55">{tab.count.toLocaleString()}</span>}
                     </button>
                 )
             })}
+            </div>
+            {trailing && <div className="ml-auto pl-2">{trailing}</div>}
         </div>
     )
 }

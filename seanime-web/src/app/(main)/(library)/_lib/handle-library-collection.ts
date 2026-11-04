@@ -3,6 +3,7 @@ import { useGetLibraryCollection, useGetLightLibraryCollection } from "@/api/hoo
 import { useGetContinuityWatchHistory } from "@/api/hooks/continuity.hooks"
 import { useGetAnimeGojuuonMap } from "@/api/hooks/services.hooks"
 import { animeLibraryCollectionAtom } from "@/app/(main)/_atoms/anime-library-collection.atoms"
+import { useLibrarySort } from "@/app/(main)/_features/sorting/library-sort-menu"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import {
@@ -10,6 +11,7 @@ import {
     DEFAULT_ANIME_COLLECTION_PARAMS,
     filterAnimeCollectionEntries,
     sortContinueWatchingEntries,
+    withLocallyStartedInCurrent,
 } from "@/lib/helpers/filtering"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import { atomWithImmer } from "jotai-immer"
@@ -32,7 +34,9 @@ export function useHandleLibraryCollection() {
 
     const atom_setLibraryCollection = useSetAtom(animeLibraryCollectionAtom)
 
-    const { animeLibraryCollectionDefaultSorting, continueWatchingDefaultSorting } = useThemeSettings()
+    const { animeLibraryCollectionDefaultSorting: themeSorting, continueWatchingDefaultSorting } = useThemeSettings()
+    // The order picked in the library's sort menu; the theme setting until one is picked.
+    const { sorting: animeLibraryCollectionDefaultSorting } = useLibrarySort("anime-library", themeSorting)
 
     const { data: watchHistory } = useGetContinuityWatchHistory()
     const { data: animeGojuuonMap } = useGetAnimeGojuuonMap()
@@ -141,7 +145,7 @@ export function useHandleLibraryCollection() {
         //     }
         // }
 
-        let _lists = data.lists.map(obj => {
+        let _lists = withLocallyStartedInCurrent(data.lists, animeLibraryCollectionDefaultSorting, watchHistory).map(obj => {
             if (!obj) return obj
 
             //
@@ -209,7 +213,7 @@ export function useHandleLibraryCollection() {
     const filteredCollection = React.useMemo(() => {
         if (!data || !data.lists) return []
 
-        let _lists = data.lists.map(obj => {
+        let _lists = withLocallyStartedInCurrent(data.lists, animeLibraryCollectionDefaultSorting, watchHistory).map(obj => {
             if (!obj) return obj
             const paramsToApply = {
                 ...params,
@@ -249,7 +253,7 @@ export function useHandleLibraryCollection() {
             _lists.find(n => n.type === "COMPLETED"),
             _lists.find(n => n.type === "DROPPED"),
         ].filter(Boolean)
-    }, [data, params, serverStatus?.settings?.anilist?.enableAdultContent, watchHistory, animeGojuuonMap])
+    }, [data, params, animeLibraryCollectionDefaultSorting, serverStatus?.settings?.anilist?.enableAdultContent, watchHistory, animeGojuuonMap])
 
     /**
      * Entries the user marked COMPLETED on their own AniList account that the full collection
@@ -310,10 +314,18 @@ export function useHandleLibraryCollection() {
             return [...allLists.slice(0, droppedIdx), completedList, ...allLists.slice(droppedIdx)]
         }
 
+        // Merged, then put back in the list's chosen order (filters are already applied to both
+        // halves, so this pass only sorts).
         return allLists.map(l => l.type !== "COMPLETED" ? l : {
             ...l,
-            entries: [...(l.entries ?? []), ...extra]
-                .sort((a, b) => (a.media?.title?.userPreferred ?? "").localeCompare(b.media?.title?.userPreferred ?? "")),
+            entries: filterAnimeCollectionEntries(
+                [...(l.entries ?? []), ...extra],
+                { ...extraCompletedParams, continueWatchingOnly: false },
+                serverStatus?.settings?.anilist?.enableAdultContent,
+                [],
+                watchHistory,
+                animeGojuuonMap,
+            ),
         })
     }, [
         completedEntriesWithoutLocalFiles,

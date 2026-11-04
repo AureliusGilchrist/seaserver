@@ -36,6 +36,27 @@ import { Carousel, CarouselContent, CarouselDotButtons, CarouselItem } from "@/c
 import { ThemeLibraryScreenBannerType, useThemeSettings } from "@/lib/theme/hooks"
 import { __isDesktop__ } from "@/types/constants"
 import { displayTitle } from "@/lib/helpers/media"
+import { LibrarySortMenu, useLibrarySort } from "@/app/(main)/_features/sorting/library-sort-menu"
+import {
+    LibrarySortField,
+    SORT_FIELD_AIRING_STATUS,
+    SORT_FIELD_AVERAGE_SCORE,
+    SORT_FIELD_RELEASE_DATE,
+    SORT_FIELD_SCORE,
+    SORT_FIELD_TITLE,
+    sortByMediaField,
+    sortMissingLast,
+} from "@/lib/helpers/filtering"
+
+/** The downloads grid: what is on disk, ordered by title until the viewer picks otherwise. */
+const LOCAL_MANGA_LIBRARY_SORT_FIELDS: LibrarySortField[] = [
+    SORT_FIELD_TITLE,
+    SORT_FIELD_RELEASE_DATE,
+    { label: "Downloaded chapters", asc: "DOWNLOADED_CHAPTERS", desc: "DOWNLOADED_CHAPTERS_DESC", ascLabel: "Fewest first", descLabel: "Most first", defaultDesc: true },
+    SORT_FIELD_SCORE,
+    SORT_FIELD_AVERAGE_SCORE,
+    SORT_FIELD_AIRING_STATUS,
+]
 import { AnimatePresence } from "motion/react"
 import { useAtomValue } from "jotai/react"
 import { useWindowSize } from "react-use"
@@ -100,6 +121,7 @@ export default function Page() {
         return changed ? mapped : list
     }, [downloadedList, withProxiedCover])
 
+    const localMangaSort = useLibrarySort("local-manga-library", "TITLE")
     const filteredDownloads = React.useMemo(() => {
         const list = proxiedDownloads
         const q = downloadSearch.trim().toLowerCase()
@@ -113,12 +135,28 @@ export default function Page() {
         // like a different list: new array identity, new object identities, every memo below
         // invalidated and every card unmounted and remounted. That is the library reshuffling itself
         // every few seconds.
-        return [...filtered].sort((a, b) => {
+        const byTitle = [...filtered].sort((a, b) => {
             const titleA = displayTitle(a.media?.title) || `Unknown ${a.mediaId}`
             const titleB = displayTitle(b.media?.title) || `Unknown ${b.mediaId}`
             return titleA.localeCompare(titleB, undefined, { numeric: true, sensitivity: "base" })
         })
-    }, [downloadSearch, proxiedDownloads])
+        // Every other order starts from title order, so ties read alphabetically.
+        const sorting = localMangaSort.sorting
+        switch (sorting) {
+            case "TITLE":
+                return byTitle
+            case "TITLE_DESC":
+                return byTitle.reverse()
+            case "DOWNLOADED_CHAPTERS":
+            case "DOWNLOADED_CHAPTERS_DESC":
+                return sortMissingLast(byTitle, n => Object.values(n.downloadData ?? {}).flatMap(c => c).length,
+                    sorting === "DOWNLOADED_CHAPTERS_DESC")
+            case "SCORE":
+            case "SCORE_DESC":
+                return sortMissingLast(byTitle, n => n.listData?.score || undefined, sorting === "SCORE_DESC")
+        }
+        return sortByMediaField(byTitle, sorting, n => n.media ?? undefined) ?? byTitle
+    }, [downloadSearch, proxiedDownloads, localMangaSort.sorting])
     const downloadedChaptersTotal = React.useMemo(() => downloadedList?.reduce((acc, d) => acc + Object.values(d.downloadData).flatMap(n => n).length, 0) || 0, [downloadedList])
 
     // Pre-compute filtered downloads for all possible source filters
@@ -429,6 +467,9 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
         cardSizeClass,
     } = props
 
+    // Same stored order the page sorts the downloads by.
+    const localMangaSort = useLibrarySort("local-manga-library", "TITLE")
+
     // Centered title
     if (item.type === "centered-title") {
         return (
@@ -541,12 +582,17 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
 
                 {!downloadsLoading && !downloadsError && (
                     <div className="space-y-4">
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-3">
                             <input
                                 value={downloadSearch}
                                 onChange={(e) => setDownloadSearch(e.target.value)}
                                 placeholder="Search downloaded manga"
-                                className="w-full rounded-full bg-black/25 px-4 py-2 text-sm text-white ring-1 ring-white/10 backdrop-blur-md placeholder:text-white/40 focus:outline-none focus:ring-brand-400/50"
+                                className="min-w-0 flex-1 rounded-full bg-black/25 px-4 py-2 text-sm text-white ring-1 ring-white/10 backdrop-blur-md placeholder:text-white/40 focus:outline-none focus:ring-brand-400/50"
+                            />
+                            <LibrarySortMenu
+                                fields={LOCAL_MANGA_LIBRARY_SORT_FIELDS}
+                                value={localMangaSort.sorting}
+                                onChange={localMangaSort.setSorting}
                             />
                         </div>
 

@@ -1,6 +1,7 @@
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
-import { AL_MissedSequel, Anime_Episode, Anime_LibraryCollectionEntry, Anime_LibraryCollectionList } from "@/api/generated/types"
-import { useGetLibraryMissedSequels } from "@/api/hooks/anime_collection.hooks"
+import { Anime_Episode, Anime_LibraryCollectionEntry, Anime_LibraryCollectionList } from "@/api/generated/types"
+import { MISSED_SEQUELS_TAB, MissedSequelsList, MissedSequelsSortMenu } from "@/app/(main)/(library)/_containers/missed-sequels"
+import { AnimeLibrarySortMenu } from "@/app/(main)/(library)/_containers/library-collection"
 import { __home_currentView } from "@/app/(main)/(library)/_home/home-screen"
 import {
     __library_debouncedSearchInputAtom,
@@ -27,7 +28,6 @@ import { StaticTabs } from "@/components/ui/tabs"
 import { TextInput } from "@/components/ui/text-input"
 import { formatNumber } from "@/lib/helpers/number"
 import { useDebounce } from "@/hooks/use-debounce"
-import { ANIME_COLLECTION_SORTING_OPTIONS } from "@/lib/helpers/filtering"
 import { getLibraryCollectionTitle } from "@/lib/server/utils"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import { getYear } from "date-fns"
@@ -36,7 +36,6 @@ import { useAtom, useAtomValue } from "jotai/react"
 import React from "react"
 import { AiOutlineArrowLeft } from "react-icons/ai"
 import { BiTrash } from "react-icons/bi"
-import { FaSortAmountDown } from "react-icons/fa"
 import { FiSearch } from "react-icons/fi"
 import { LuCalendar, LuLeaf } from "react-icons/lu"
 import { MdPersonalVideo } from "react-icons/md"
@@ -79,6 +78,7 @@ export function DetailedLibraryView(props: LibraryViewProps) {
     } = useHandleDetailedLibraryCollection()
 
     const [selectedList, setSelectedList] = useAtom(__library_selectedListAtom)
+    const debouncedSearchInput = useAtomValue(__library_debouncedSearchInputAtom)
 
     React.useLayoutEffect(() => {
         if (selectedList !== "-" && selectedList !== "all") {
@@ -179,7 +179,7 @@ export function DetailedLibraryView(props: LibraryViewProps) {
 
             <GenreSelector genres={libraryGenres} />
 
-            {selectedList === MISSED_SEQUELS_TAB && <MissedSequelsList />}
+            {selectedList === MISSED_SEQUELS_TAB && <MissedSequelsList searchInput={debouncedSearchInput} />}
 
             {selectedList !== "all" && selectedList !== MISSED_SEQUELS_TAB && libraryCollectionList.map(collection => {
                 if (!collection.entries?.length) return null
@@ -190,81 +190,6 @@ export function DetailedLibraryView(props: LibraryViewProps) {
         </PageWrapper>
     )
 }
-
-/** Value of the selected-list atom for the "Missed sequels" tab. Not a list status. */
-const MISSED_SEQUELS_TAB = "MISSED_SEQUELS"
-
-const MEDIA_STATUS_LABEL: Record<string, string> = {
-    FINISHED: "Finished",
-    RELEASING: "Airing",
-}
-
-/**
- * Completed shows whose sequel is out (finished or airing) and not started: not on any list, or only
- * on Planning. The card is the sequel and links to its page; the overlay names the show it follows.
- */
-function MissedSequelsList() {
-    const { data, isLoading, isError } = useGetLibraryMissedSequels()
-    const debouncedSearchInput = useAtomValue(__library_debouncedSearchInputAtom)
-    const serverStatus = useServerStatus()
-    const enableAdult = !!serverStatus?.settings?.anilist?.enableAdultContent
-
-    const items = React.useMemo(() => {
-        const q = debouncedSearchInput.trim().toLowerCase()
-        return (data ?? []).filter(item => {
-            if (!item.sequel || !item.media) return false
-            if (!enableAdult && (item.sequel.isAdult || item.media.isAdult)) return false
-            if (!q) return true
-            return [item.sequel.title, item.media.title].some(t =>
-                [t?.userPreferred, t?.english, t?.romaji, t?.native].some(v => v?.toLowerCase().includes(q)))
-        })
-    }, [data, debouncedSearchInput, enableAdult])
-
-    if (isLoading) return <LoadingSpinner />
-
-    return (
-        <React.Fragment>
-            <h2>Missed sequels <span className="text-[--muted] font-medium ml-3">{formatNumber(items.length)}</span></h2>
-            {isError && <p className="text-[--muted]">Could not load sequels from AniList. Try again later.</p>}
-            {!isError && !items.length && <p className="text-[--muted]">
-                No missed sequels. Every released sequel to a show you completed is already on one of your lists.
-            </p>}
-            {!!items.length && <PaginatedMediaGrid
-                items={items}
-                renderItem={item => <MissedSequelItem key={item.sequel!.id} item={item} />}
-            />}
-        </React.Fragment>
-    )
-}
-
-const MissedSequelItem = React.memo(({ item }: { item: AL_MissedSequel }) => {
-    const prequelTitle = item.media?.title?.userPreferred || item.media?.title?.english || item.media?.title?.romaji || ""
-    const status = MEDIA_STATUS_LABEL[item.sequel?.status ?? ""] ?? item.sequel?.status
-    return (
-        <MediaEntryCard
-            media={item.sequel!}
-            type="anime"
-            withAudienceScore={false}
-            showAddToPlanning={!item.sequelListStatus}
-            overlay={<div className="flex flex-col items-start gap-1 p-2 pointer-events-none" data-missed-sequel-overlay>
-                <span
-                    className="max-w-full truncate rounded-md bg-gray-950/85 px-2 py-0.5 text-xs font-semibold text-white"
-                    title={`Sequel to ${prequelTitle}`}
-                >Sequel to {prequelTitle}</span>
-                <span className="flex gap-1">
-                    {status && <span
-                        className={cn(
-                            "rounded-md px-2 py-0.5 text-xs font-semibold",
-                            item.sequel?.status === "RELEASING" ? "bg-green-700/90 text-white" : "bg-gray-800/90 text-gray-100",
-                        )}
-                    >{status}</span>}
-                    {item.sequelListStatus === "PLANNING" &&
-                        <span className="rounded-md bg-indigo-700/90 px-2 py-0.5 text-xs font-semibold text-white">On Planning</span>}
-                </span>
-            </div>}
-        />
-    )
-})
 
 const LibraryCollectionListItem = React.memo(({ list, streamingMediaIds, type }: {
     list: Anime_LibraryCollectionList,
@@ -425,21 +350,9 @@ export function SearchOptions() {
                 className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-[1fr_1fr_1fr_1fr_1fr_auto_auto] gap-4"
                 data-detailed-library-view-search-options-grid
             >
-                <Select
-                    label="Sorting"
-                    leftAddon={<FaSortAmountDown className={cn(params.sorting !== "TITLE" && "text-indigo-300 font-bold text-xl")} />}
-                    className="w-full"
-                    fieldClass="flex items-center"
-                    inputContainerClass="w-full"
-                    options={ANIME_COLLECTION_SORTING_OPTIONS}
-                    value={params.sorting || "TITLE"}
-                    onValueChange={v => setParams(draft => {
-                        draft.sorting = v as any
-                        return
-                    })}
-                    fieldLabelClass="hidden"
-                    // disabled={!!params.title && params.title.length > 0}
-                />
+                <div className="flex items-center">
+                    {selectedIndex === MISSED_SEQUELS_TAB ? <MissedSequelsSortMenu /> : <AnimeLibrarySortMenu />}
+                </div>
                 <Select
                     leftAddon={
                         <MdPersonalVideo className={cn((params.format as any) !== null && (params.format as any) !== "" && "text-indigo-300 font-bold text-xl")} />}

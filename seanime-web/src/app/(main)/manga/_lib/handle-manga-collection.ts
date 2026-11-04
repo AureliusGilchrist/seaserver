@@ -2,6 +2,7 @@ import { Manga_Collection, Manga_MangaLatestChapterNumberItem } from "@/api/gene
 import { useListMangaProviderExtensions } from "@/api/hooks/extensions.hooks"
 import { useGetMangaCollection, useGetMangaLatestChapterNumbersMap } from "@/api/hooks/manga.hooks"
 import { useGetMangaGojuuonMap } from "@/api/hooks/services.hooks"
+import { useLibrarySort } from "@/app/(main)/_features/sorting/library-sort-menu"
 import { CollectionParams, DEFAULT_COLLECTION_PARAMS, filterMangaCollectionEntries } from "@/lib/helpers/filtering"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import { atomWithImmer } from "jotai-immer"
@@ -43,7 +44,8 @@ export function useHandleMangaCollection() {
     const { data: mangaGojuuonMap } = useGetMangaGojuuonMap()
     const { data: _extensions } = useListMangaProviderExtensions()
 
-    const { mangaLibraryCollectionDefaultSorting } = useThemeSettings()
+    const { mangaLibraryCollectionDefaultSorting: themeSorting } = useThemeSettings()
+    const { sorting: mangaLibraryCollectionDefaultSorting } = useLibrarySort("manga-library", themeSorting)
 
     const { storedProviders } = useStoredMangaProviders(_extensions)
     const { storedFilters } = useStoredMangaFilters(_extensions, storedProviders)

@@ -3,6 +3,7 @@ import { useGetRawAnimeCollection } from "@/api/hooks/anilist.hooks"
 import { useGetRawAnilistMangaCollection } from "@/api/hooks/manga.hooks"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { CollectionParams, CollectionType, DEFAULT_COLLECTION_PARAMS, filterEntriesByTitle, filterListEntries } from "@/lib/helpers/filtering"
+import { useLibrarySort } from "@/app/(main)/_features/sorting/library-sort-menu"
 import { atomWithImmer } from "jotai-immer"
 import { useAtom } from "jotai/react"
 import React from "react"
@@ -33,6 +34,11 @@ function isUnreleasedEntry(entry: AL_AnimeCollection_MediaListCollection_Lists_E
     return entry?.media?.status === "NOT_YET_RELEASED"
 }
 
+/** Highest score first until the viewer picks another order. */
+export function useAniListListsSort(type: CollectionType) {
+    return useLibrarySort(type === "manga" ? "anilist-lists-manga" : "anilist-lists-anime", "SCORE_DESC")
+}
+
 export function useHandleUserAnilistLists(debouncedSearchInput: string, type?: "anime" | "manga") {
 
     const serverStatus = useServerStatus()
@@ -51,6 +57,8 @@ export function useHandleUserAnilistLists(debouncedSearchInput: string, type?: "
 
     const [params, _setParams] = useAtom(__myListsSearch_paramsAtom)
     const [debouncedParams] = useDebounce(params, 500)
+    // The order comes from the page's sort menu, remembered per list type.
+    const { sorting: listSorting } = useAniListListsSort((type ?? selectedType) === "manga" ? "manga" : "anime")
 
     React.useLayoutEffect(() => {
         if (selectedType === "manga" && !serverStatus?.settings?.library?.enableManga) {
@@ -65,7 +73,8 @@ export function useHandleUserAnilistLists(debouncedSearchInput: string, type?: "
     const _filteredLists: AL_AnimeCollection_MediaListCollection_Lists[] = React.useMemo(() => {
         return lists?.map(obj => {
             if (!obj) return undefined
-            const arr = filterListEntries(selectedType as CollectionType, obj?.entries, params, serverStatus?.settings?.anilist?.enableAdultContent)
+            const arr = filterListEntries(selectedType as CollectionType, obj?.entries, { ...params, sorting: listSorting as any },
+                serverStatus?.settings?.anilist?.enableAdultContent)
             return {
                 name: obj?.name,
                 isCustomList: obj?.isCustomList,
@@ -73,7 +82,7 @@ export function useHandleUserAnilistLists(debouncedSearchInput: string, type?: "
                 entries: arr,
             }
         }).filter(Boolean) ?? []
-    }, [lists, debouncedParams, selectedType, serverStatus?.settings?.anilist?.enableAdultContent])
+    }, [lists, debouncedParams, selectedType, serverStatus?.settings?.anilist?.enableAdultContent, listSorting])
 
     const filteredLists: AL_AnimeCollection_MediaListCollection_Lists[] = React.useMemo(() => {
         return _filteredLists?.map(obj => {

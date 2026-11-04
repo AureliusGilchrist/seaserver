@@ -8,6 +8,7 @@ import {
     __myListsSearch_paramsAtom,
     __myListsSearch_paramsInputAtom,
     TO_BE_RELEASED_LIST_NAME,
+    useAniListListsSort,
     useHandleUserAnilistLists,
 } from "@/app/(main)/lists/_lib/handle-user-anilist-lists"
 import {
@@ -27,14 +28,14 @@ import { StaticTabs } from "@/components/ui/tabs"
 import { TextInput } from "@/components/ui/text-input"
 import { formatNumber } from "@/lib/helpers/number"
 import { useDebounce } from "@/hooks/use-debounce"
-import { COLLECTION_SORTING_OPTIONS } from "@/lib/helpers/filtering"
+import { anilistListSortFields, CollectionType } from "@/lib/helpers/filtering"
+import { LibrarySortMenu } from "@/app/(main)/_features/sorting/library-sort-menu"
 import { getYear } from "date-fns"
 import { atom } from "jotai/index"
 import { useAtom, useAtomValue, useSetAtom } from "jotai/react"
 import { AnimatePresence } from "motion/react"
 import React from "react"
 import { BiTrash } from "react-icons/bi"
-import { FaSortAmountDown } from "react-icons/fa"
 import { FiSearch } from "react-icons/fi"
 import { LuCalendar, LuLeaf } from "react-icons/lu"
 import { MdPersonalVideo } from "react-icons/md"
@@ -205,6 +206,11 @@ const SearchInput = () => {
     )
 }
 
+function AniListListsSortMenu({ type }: { type: CollectionType }) {
+    const { sorting, setSorting } = useAniListListsSort(type)
+    return <LibrarySortMenu fields={anilistListSortFields(type)} value={sorting} onChange={setSorting} />
+}
+
 export function SearchOptions({
     customLists,
 }: {
@@ -301,21 +307,9 @@ export function SearchOptions({
                     })}
                     fieldLabelClass="hidden"
                 />
-                <Select
-                    label="Sorting"
-                    leftAddon={<FaSortAmountDown className={cn((params.sorting !== "SCORE_DESC") && "text-indigo-300 font-bold text-xl")} />}
-                    className="w-full"
-                    fieldClass="flex items-center"
-                    inputContainerClass="w-full"
-                    options={COLLECTION_SORTING_OPTIONS}
-                    value={params.sorting || "SCORE_DESC"}
-                    onValueChange={v => setParams(draft => {
-                        draft.sorting = v as any
-                        return
-                    })}
-                    fieldLabelClass="hidden"
-                    // disabled={!!params.title && params.title.length > 0}
-                />
+                <div className="flex items-center">
+                    {pageType !== "stats" && <AniListListsSortMenu type={pageType === "manga" ? "manga" : "anime"} />}
+                </div>
                 {pageType === "anime" && <Select
                     leftAddon={
                         <MdPersonalVideo className={cn((params.format !== null && !!params.format?.length) && "text-indigo-300 font-bold text-xl")} />}

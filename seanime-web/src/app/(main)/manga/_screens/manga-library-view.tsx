@@ -1,4 +1,6 @@
 import { HomeListTabs, useHomeListTab } from "@/app/(main)/_features/home/home-sections"
+import { LibrarySortMenu, useLibrarySort } from "@/app/(main)/_features/sorting/library-sort-menu"
+import { MANGA_LIBRARY_SORT_FIELDS, sortMissingLast } from "@/lib/helpers/filtering"
 import { AL_MediaListStatus, Manga_Collection, Manga_CollectionList } from "@/api/generated/types"
 import { useGetMangaReadingHistory, useGetRecentlyReadSyntheticManga, useRefetchMangaChapterContainers } from "@/api/hooks/manga.hooks"
 import { PaginatedMediaGrid } from "@/app/(main)/_features/media/_components/paginated-media-grid"
@@ -33,6 +35,17 @@ import { Badge } from "@/components/ui/badge"
 import { SeaImage } from "@/components/shared/sea-image"
 import { imageShimmer } from "@/components/shared/image-helpers"
 import { displayTitle } from "@/lib/helpers/media"
+
+/** The order of the manga library's lists (stored per viewer; the theme setting until one is picked). */
+function useMangaLibrarySort() {
+    const { mangaLibraryCollectionDefaultSorting } = useThemeSettings()
+    return useLibrarySort("manga-library", mangaLibraryCollectionDefaultSorting)
+}
+
+export function MangaLibrarySortMenu({ className }: { className?: string }) {
+    const { sorting, setSorting } = useMangaLibrarySort()
+    return <LibrarySortMenu fields={MANGA_LIBRARY_SORT_FIELDS} value={sorting} onChange={setSorting} className={className} />
+}
 
 type MangaLibraryViewProps = {
     collection: Manga_Collection
@@ -160,6 +173,7 @@ export function CollectionLists({ collectionList, genres, storedProviders, showS
                 }))}
                 value={activeList}
                 onChange={setActiveList}
+                trailing={<MangaLibrarySortMenu />}
             />
 
             {lists.map(collection => (
@@ -213,6 +227,10 @@ export function FilteredCollectionLists({ collectionList, genres, showStatuses, 
             {!!genres?.length && <div className="mt-24">
                 <GenreSelector genres={genres} />
             </div>}
+
+            <div className="flex justify-end">
+                <MangaLibrarySortMenu />
+            </div>
 
             {type === "grid" && <PaginatedMediaGrid type="manga"
                 items={entries}
@@ -303,6 +321,20 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
     const { data: readingHistory } = useGetMangaReadingHistory()
     const { data: syntheticMangaList } = useGetRecentlyReadSyntheticManga()
 
+    // Until an order is picked, Currently reading keeps its own most-recently-read order; once one is,
+    // every list follows it. "Last read" is applied here because reading history lives here.
+    const mangaSort = useMangaLibrarySort()
+    const byLastRead = !mangaSort.isChosen || mangaSort.sorting === "LAST_READ" || mangaSort.sorting === "LAST_READ_DESC"
+    const lastReadDesc = mangaSort.sorting !== "LAST_READ"
+
+    const sortedEntries = React.useMemo(() => {
+        if (!list.entries || list.type === "CURRENT") return list.entries
+        if (mangaSort.sorting !== "LAST_READ" && mangaSort.sorting !== "LAST_READ_DESC") return list.entries
+        const readAt = new Map<number, number>()
+        for (const h of readingHistory ?? []) readAt.set(h.mediaId, new Date(h.lastReadAt).getTime())
+        return sortMissingLast(list.entries, e => readAt.get(e.mediaId), mangaSort.sorting === "LAST_READ_DESC")
+    }, [list.entries, list.type, mangaSort.sorting, readingHistory])
+
     // Create a merged and sorted list for CURRENT type
     const mergedEntries = React.useMemo((): UnifiedMangaItem[] => {
         if (list.type !== "CURRENT") return []
@@ -354,18 +386,15 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
             }
         }
 
-        // Sort by lastReadAt (most recent first), items without history go to end
-        items.sort((a, b) => {
-            if (a.lastReadAt && b.lastReadAt) {
-                return b.lastReadAt.getTime() - a.lastReadAt.getTime()
-            }
-            if (a.lastReadAt) return -1
-            if (b.lastReadAt) return 1
-            return 0
-        })
+        // By last read (most recent first unless reversed), items without history at the end. Under any
+        // other order the regular entries keep the order the list was sorted into and the synthetic
+        // ones, which that sort never saw, follow them.
+        if (byLastRead) {
+            return sortMissingLast(items, i => i.lastReadAt?.getTime(), lastReadDesc)
+        }
 
         return items
-    }, [list.type, list.entries, readingHistory, syntheticMangaList])
+    }, [list.type, list.entries, readingHistory, syntheticMangaList, byLastRead, lastReadDesc])
 
     React.useEffect(() => {
         if (list.type === "CURRENT") {
@@ -606,7 +635,7 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
             {/* Non-CURRENT lists: Use original entries */}
             {list.type !== "CURRENT" && type === "grid" && (
                 <PaginatedMediaGrid type="manga"
-                    items={list.entries}
+                    items={sortedEntries}
                     renderItem={entry => (
                         <div key={entry.media?.id}>
                             <MediaEntryCard
@@ -635,7 +664,7 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
                 >
                     <CarouselDotButtons className="-top-2" />
                     <CarouselContent className="px-6">
-                        {list.entries?.map(entry => {
+                        {sortedEntries?.map(entry => {
                             return <div
                                 key={entry.media?.id}
                                 className="relative sea-card-item sea-card-manga col-span-1 place-content-stretch flex-none mx-2 mt-8 mb-0"

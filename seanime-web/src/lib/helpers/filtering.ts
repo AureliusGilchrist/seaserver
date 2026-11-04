@@ -8,6 +8,7 @@ import {
     AL_MediaStatus,
     Anime_Episode,
     Anime_LibraryCollectionEntry,
+    Anime_LibraryCollectionList,
     Continuity_WatchHistory,
     Manga_MangaLatestChapterNumberItem,
 } from "@/api/generated/types"
@@ -30,6 +31,13 @@ type BaseCollectionSorting =
     | "TITLE"
     | "TITLE_DESC"
     | "GOJUUON"
+    | "GOJUUON_DESC"
+    | "AVERAGE_SCORE"
+    | "AVERAGE_SCORE_DESC"
+    | "EPISODE_COUNT"
+    | "EPISODE_COUNT_DESC"
+    | "AIRING_STATUS"
+    | "AIRING_STATUS_DESC"
 
 
 type CollectionSorting<T extends CollectionType> = BaseCollectionSorting | (T extends "anime" ?
@@ -46,6 +54,8 @@ type CollectionSorting<T extends CollectionType> = BaseCollectionSorting | (T ex
         | "PROGRESS_DESC"
         | "UNREAD_CHAPTERS"
         | "UNREAD_CHAPTERS_DESC"
+        | "LAST_READ"
+        | "LAST_READ_DESC"
         : never)
 
 
@@ -111,6 +121,161 @@ export const MANGA_COLLECTION_SORTING_OPTIONS = [
     { label: "Least unread chapters", value: "UNREAD_CHAPTERS" },
     ...COLLECTION_SORTING_OPTIONS,
 ]
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * One way to order a library list, in both directions. The sort menu shows the field and flips
+ * between `asc` and `desc`; both are ordinary sorting values, the same kind of string the theme's
+ * default sorting settings already hold.
+ */
+export type LibrarySortField = {
+    label: string
+    asc: string
+    desc: string
+    ascLabel: string
+    descLabel: string
+    /** Direction picked when switching to this field. */
+    defaultDesc?: boolean
+}
+
+const NEWEST = { ascLabel: "Oldest first", descLabel: "Newest first", defaultDesc: true }
+const RECENT = { ascLabel: "Least recent first", descLabel: "Most recent first", defaultDesc: true }
+const HIGHEST = { ascLabel: "Lowest first", descLabel: "Highest first", defaultDesc: true }
+const MOST = { ascLabel: "Fewest first", descLabel: "Most first", defaultDesc: true }
+
+export const SORT_FIELD_RELEASE_DATE: LibrarySortField = { label: "Release date", asc: "RELEASE_DATE", desc: "RELEASE_DATE_DESC", ...NEWEST }
+export const SORT_FIELD_TITLE: LibrarySortField = { label: "Title", asc: "TITLE", desc: "TITLE_DESC", ascLabel: "A to Z", descLabel: "Z to A" }
+export const SORT_FIELD_GOJUUON: LibrarySortField = {
+    label: "Gojuuon", asc: "GOJUUON", desc: "GOJUUON_DESC", ascLabel: "あ to ん", descLabel: "ん to あ",
+}
+export const SORT_FIELD_SCORE: LibrarySortField = { label: "Your score", asc: "SCORE", desc: "SCORE_DESC", ...HIGHEST }
+export const SORT_FIELD_AVERAGE_SCORE: LibrarySortField = { label: "Average score", asc: "AVERAGE_SCORE", desc: "AVERAGE_SCORE_DESC", ...HIGHEST }
+export const SORT_FIELD_PROGRESS: LibrarySortField = { label: "Progress", asc: "PROGRESS", desc: "PROGRESS_DESC", ...MOST }
+export const SORT_FIELD_STARTED: LibrarySortField = { label: "Date started", asc: "START_DATE", desc: "START_DATE_DESC", ...NEWEST }
+export const SORT_FIELD_COMPLETED: LibrarySortField = { label: "Date completed", asc: "END_DATE", desc: "END_DATE_DESC", ...NEWEST }
+export const SORT_FIELD_AIRING_STATUS: LibrarySortField = {
+    label: "Airing status", asc: "AIRING_STATUS", desc: "AIRING_STATUS_DESC", ascLabel: "Airing first", descLabel: "Finished first",
+}
+
+const SORT_FIELD_EPISODES: LibrarySortField = { label: "Episode count", asc: "EPISODE_COUNT", desc: "EPISODE_COUNT_DESC", ...MOST }
+const SORT_FIELD_CHAPTERS: LibrarySortField = { label: "Chapter count", asc: "EPISODE_COUNT", desc: "EPISODE_COUNT_DESC", ...MOST }
+const SORT_FIELD_UNWATCHED: LibrarySortField = { label: "Unwatched episodes", asc: "UNWATCHED_EPISODES", desc: "UNWATCHED_EPISODES_DESC", ...MOST }
+const SORT_FIELD_LATEST_AIRED: LibrarySortField = { label: "Latest episode aired", asc: "AIRDATE", desc: "AIRDATE_DESC", ...NEWEST }
+const SORT_FIELD_LAST_WATCHED: LibrarySortField = { label: "Last watched", asc: "LAST_WATCHED", desc: "LAST_WATCHED_DESC", ...RECENT }
+const SORT_FIELD_UNREAD: LibrarySortField = { label: "Unread chapters", asc: "UNREAD_CHAPTERS", desc: "UNREAD_CHAPTERS_DESC", ...MOST }
+const SORT_FIELD_LAST_READ: LibrarySortField = { label: "Last read", asc: "LAST_READ", desc: "LAST_READ_DESC", ...RECENT }
+
+/** The anime library's lists (home and detailed views). */
+export const ANIME_LIBRARY_SORT_FIELDS: LibrarySortField[] = [
+    SORT_FIELD_RELEASE_DATE,
+    SORT_FIELD_LAST_WATCHED,
+    SORT_FIELD_LATEST_AIRED,
+    SORT_FIELD_TITLE,
+    SORT_FIELD_GOJUUON,
+    SORT_FIELD_SCORE,
+    SORT_FIELD_AVERAGE_SCORE,
+    SORT_FIELD_PROGRESS,
+    SORT_FIELD_UNWATCHED,
+    SORT_FIELD_EPISODES,
+    SORT_FIELD_AIRING_STATUS,
+    SORT_FIELD_STARTED,
+    SORT_FIELD_COMPLETED,
+]
+
+/** The local library grid: what is on disk, so nothing that depends on a list entry. */
+export const LOCAL_ANIME_LIBRARY_SORT_FIELDS: LibrarySortField[] = [
+    SORT_FIELD_GOJUUON,
+    SORT_FIELD_RELEASE_DATE,
+    SORT_FIELD_LAST_WATCHED,
+    SORT_FIELD_TITLE,
+    SORT_FIELD_AVERAGE_SCORE,
+    SORT_FIELD_UNWATCHED,
+    SORT_FIELD_EPISODES,
+    SORT_FIELD_AIRING_STATUS,
+]
+
+export const MANGA_LIBRARY_SORT_FIELDS: LibrarySortField[] = [
+    SORT_FIELD_LAST_READ,
+    SORT_FIELD_RELEASE_DATE,
+    SORT_FIELD_TITLE,
+    SORT_FIELD_GOJUUON,
+    SORT_FIELD_SCORE,
+    SORT_FIELD_AVERAGE_SCORE,
+    SORT_FIELD_PROGRESS,
+    SORT_FIELD_UNREAD,
+    SORT_FIELD_CHAPTERS,
+    SORT_FIELD_AIRING_STATUS,
+    SORT_FIELD_STARTED,
+    SORT_FIELD_COMPLETED,
+]
+
+/** The AniList list pages (/lists), which hold list entries rather than library entries. */
+export function anilistListSortFields(type: CollectionType): LibrarySortField[] {
+    return [
+        SORT_FIELD_RELEASE_DATE,
+        SORT_FIELD_TITLE,
+        SORT_FIELD_SCORE,
+        SORT_FIELD_AVERAGE_SCORE,
+        SORT_FIELD_PROGRESS,
+        type === "manga" ? SORT_FIELD_CHAPTERS : SORT_FIELD_EPISODES,
+        SORT_FIELD_AIRING_STATUS,
+        SORT_FIELD_STARTED,
+        SORT_FIELD_COMPLETED,
+    ]
+}
+
+// Entries missing the value being sorted on go last in either direction instead of being dropped from
+// the list — which is what the date sorts used to do, so "Date completed" on the Watching tab emptied it.
+
+type FuzzyDateLike = { year?: number | null, month?: number | null, day?: number | null } | null | undefined
+
+export function fuzzyDateValue(d: FuzzyDateLike): number | undefined {
+    if (!d?.year) return undefined
+    return d.year * 10000 + (d.month || 0) * 100 + (d.day || 0)
+}
+
+function isoDateValue(s: string | null | undefined): number | undefined {
+    if (!s) return undefined
+    const t = new Date(s).getTime()
+    return Number.isFinite(t) ? t : undefined
+}
+
+export function sortMissingLast<T>(arr: T[], key: (n: T) => number | null | undefined, desc: boolean): T[] {
+    const has: T[] = []
+    const missing: T[] = []
+    for (const n of arr) {
+        const v = key(n)
+        if (v === null || v === undefined || !Number.isFinite(v)) missing.push(n)
+        else has.push(n)
+    }
+    // Negating rather than reversing keeps ties in their previous (title) order in both directions.
+    return [...sortBy(has, n => desc ? -(key(n) as number) : (key(n) as number)), ...missing]
+}
+
+const AIRING_STATUS_ORDER: Record<string, number> = { RELEASING: 0, NOT_YET_RELEASED: 1, HIATUS: 2, FINISHED: 3, CANCELLED: 4 }
+
+/** Media-level sorts shared by every list type. Undefined when `sorting` is not one of them. */
+export function sortByMediaField<T>(arr: T[], sorting: string, media: (n: T) => AL_BaseAnime | AL_BaseManga | undefined): T[] | undefined {
+    switch (sorting) {
+        case "RELEASE_DATE":
+        case "RELEASE_DATE_DESC":
+            return sortMissingLast(arr, n => fuzzyDateValue(media(n)?.startDate), sorting === "RELEASE_DATE_DESC")
+        case "AVERAGE_SCORE":
+        case "AVERAGE_SCORE_DESC":
+            return sortMissingLast(arr, n => media(n)?.meanScore || undefined, sorting === "AVERAGE_SCORE_DESC")
+        case "EPISODE_COUNT":
+        case "EPISODE_COUNT_DESC":
+            return sortMissingLast(arr, n => {
+                const m = media(n) as (AL_BaseAnime & AL_BaseManga) | undefined
+                return (m?.episodes ?? m?.chapters) || undefined
+            }, sorting === "EPISODE_COUNT_DESC")
+        case "AIRING_STATUS":
+        case "AIRING_STATUS_DESC":
+            return sortMissingLast(arr, n => AIRING_STATUS_ORDER[media(n)?.status ?? ""], sorting === "AIRING_STATUS_DESC")
+    }
+    return undefined
+}
 
 type GojuuonSortEntry = {
     mediaId: number
@@ -278,16 +443,10 @@ export function filterListEntries<T extends AL_MangaCollection_MediaListCollecti
         arr.sort((a, b) => displayTitle(a?.media?.title).localeCompare(displayTitle(b?.media?.title)) || 0)
     if (getParamValue(params.sorting) === "TITLE_DESC")
         // arr = sortBy(arr, n => n?.media?.title?.userPreferred).reverse()
-        arr.sort((a, b) => displayTitle(b?.media?.title).localeCompare(displayTitle(a?.media?.title)) || 0).reverse()
+        arr.sort((a, b) => displayTitle(b?.media?.title).localeCompare(displayTitle(a?.media?.title)) || 0)
 
-    // Sort by release date
-    if (getParamValue(params.sorting) === "RELEASE_DATE" || getParamValue(params.sorting) === "RELEASE_DATE_DESC") {
-        arr = arr?.filter(n => n.media?.startDate && !!n.media.startDate.year && !!n.media.startDate.month)
-    }
-    if (getParamValue(params.sorting) === "RELEASE_DATE")
-        arr = sortBy(arr, n => new Date(n?.media?.startDate?.year!, n?.media?.startDate?.month! - 1))
-    if (getParamValue(params.sorting) === "RELEASE_DATE_DESC")
-        arr = sortBy(arr, n => new Date(n?.media?.startDate?.year!, n?.media?.startDate?.month! - 1)).reverse()
+    // Release date, average score, episode count, airing status
+    arr = (sortByMediaField(arr, getParamValue(params.sorting), n => n.media) as typeof arr | undefined) ?? arr
 
     // Sort by score
     if (getParamValue(params.sorting) === "SCORE")
@@ -305,13 +464,8 @@ export function filterListEntries<T extends AL_MangaCollection_MediaListCollecti
         arr = sortBy(arr, n => new Date(n?.startedAt?.year || 1000, (n?.startedAt?.month || 1) - 1, n?.startedAt?.day || 1)).reverse()
 
     // Sort by end date
-    if (getParamValue(params.sorting) === "END_DATE" || getParamValue(params.sorting) === "END_DATE_DESC") {
-        arr = arr?.filter(n => n.completedAt && !!n.completedAt.year && !!n.completedAt.month && !!n.completedAt.day)
-    }
-    if (getParamValue(params.sorting) === "END_DATE")
-        arr = sortBy(arr, n => new Date(n?.completedAt?.year!, n?.completedAt?.month! - 1, n?.completedAt?.day))
-    if (getParamValue(params.sorting) === "END_DATE_DESC")
-        arr = sortBy(arr, n => new Date(n?.completedAt?.year!, n?.completedAt?.month! - 1, n?.completedAt?.day)).reverse()
+    if (getParamValue(params.sorting) === "END_DATE" || getParamValue(params.sorting) === "END_DATE_DESC")
+        arr = sortMissingLast(arr, n => fuzzyDateValue(n?.completedAt), getParamValue(params.sorting) === "END_DATE_DESC")
 
     // Sort by progress
     if (getParamValue(params.sorting) === "PROGRESS")
@@ -365,16 +519,10 @@ export function filterCollectionEntries<T extends Anime_LibraryCollectionEntry[]
         arr.sort((a, b) => displayTitle(a?.media?.title).localeCompare(displayTitle(b?.media?.title)) || 0)
     if (getParamValue(params.sorting) === "TITLE_DESC")
         // arr = sortBy(arr, n => n?.media?.title?.userPreferred).reverse()
-        arr.sort((a, b) => displayTitle(b?.media?.title).localeCompare(displayTitle(a?.media?.title)) || 0).reverse()
+        arr.sort((a, b) => displayTitle(b?.media?.title).localeCompare(displayTitle(a?.media?.title)) || 0)
 
-    // Sort by release date
-    if (getParamValue(params.sorting) === "RELEASE_DATE" || getParamValue(params.sorting) === "RELEASE_DATE_DESC") {
-        arr = arr?.filter(n => n.media?.startDate && !!n.media.startDate.year && !!n.media.startDate.month)
-    }
-    if (getParamValue(params.sorting) === "RELEASE_DATE")
-        arr = sortBy(arr, n => new Date(n?.media?.startDate?.year!, n?.media?.startDate?.month! - 1))
-    if (getParamValue(params.sorting) === "RELEASE_DATE_DESC")
-        arr = sortBy(arr, n => new Date(n?.media?.startDate?.year!, n?.media?.startDate?.month! - 1)).reverse()
+    // Release date, average score, episode count, airing status
+    arr = sortByMediaField(arr, getParamValue(params.sorting), n => n.media) ?? arr
 
     // Sort by score
     if (getParamValue(params.sorting) === "SCORE")
@@ -394,13 +542,8 @@ export function filterCollectionEntries<T extends Anime_LibraryCollectionEntry[]
         arr = sortBy(arr, n => new Date(n?.listData?.startedAt ?? new Date(1000, 1, 1).toISOString())).reverse()
 
     // Sort by end date
-    if (getParamValue(params.sorting) === "END_DATE" || getParamValue(params.sorting) === "END_DATE_DESC") {
-        arr = arr?.filter(n => !!n.listData?.completedAt)
-    }
-    if (getParamValue(params.sorting) === "END_DATE")
-        arr = sortBy(arr, n => new Date(n?.listData?.completedAt!))
-    if (getParamValue(params.sorting) === "END_DATE_DESC")
-        arr = sortBy(arr, n => new Date(n?.listData?.completedAt!)).reverse()
+    if (getParamValue(params.sorting) === "END_DATE" || getParamValue(params.sorting) === "END_DATE_DESC")
+        arr = sortMissingLast(arr, n => isoDateValue(n?.listData?.completedAt), getParamValue(params.sorting) === "END_DATE_DESC")
 
     // Sort by progress
     if (getParamValue(params.sorting) === "PROGRESS")
@@ -409,6 +552,37 @@ export function filterCollectionEntries<T extends Anime_LibraryCollectionEntry[]
         arr = sortBy(arr, n => n?.listData?.progress || 0).reverse()
 
     return arr
+}
+
+/**
+ * Under a "Last watched" order, Currently watching also takes the shows started here that never made it
+ * onto one of the user's AniList lists — a few minutes of an episode, stopped well before the progress
+ * update that would have added it. Those are in the library's LOCAL list (files on disk, no list entry)
+ * and the local watch history knows them, so they can be ordered with everything else; without this
+ * they could not appear in any list, whatever the order.
+ *
+ * Every other order leaves the lists alone: the Currently watching tab is the AniList list again.
+ */
+export function withLocallyStartedInCurrent(
+    lists: Anime_LibraryCollectionList[],
+    sorting: string,
+    watchHistory: Continuity_WatchHistory | null | undefined,
+): Anime_LibraryCollectionList[] {
+    if ((sorting !== "LAST_WATCHED" && sorting !== "LAST_WATCHED_DESC") || !watchHistory) return lists
+    const local = lists.find(l => (l.type as string) === "LOCAL")
+    if (!local?.entries?.length) return lists
+
+    const onAList = new Set(lists
+        .filter(l => (l.type as string) !== "LOCAL")
+        .flatMap(l => l.entries ?? [])
+        .map(e => e.mediaId))
+    const started = local.entries.filter(e => !!e.mediaId && !onAList.has(e.mediaId) && !!watchHistory[e.mediaId])
+    if (!started.length) return lists
+
+    if (!lists.some(l => l.type === "CURRENT")) {
+        return [...lists, { type: "CURRENT", status: "CURRENT", entries: started } as Anime_LibraryCollectionList]
+    }
+    return lists.map(l => l.type === "CURRENT" ? { ...l, entries: [...(l.entries ?? []), ...started] } : l)
 }
 
 /** */
@@ -424,6 +598,9 @@ export function filterAnimeCollectionEntries<T extends Anime_LibraryCollectionEn
 
     if (getParamValue(params.sorting) === "GOJUUON") {
         arr = sortByGojuuon(arr, gojuuonMap)
+    }
+    if (getParamValue(params.sorting) === "GOJUUON_DESC") {
+        arr = sortByGojuuon(arr, gojuuonMap).reverse()
     }
 
     if (params.continueWatchingOnly) {
@@ -518,6 +695,9 @@ export function filterMangaCollectionEntries<T extends Anime_LibraryCollectionEn
 
     if (getParamValue(params.sorting) === "GOJUUON") {
         arr = sortByGojuuon(arr, gojuuonMap)
+    }
+    if (getParamValue(params.sorting) === "GOJUUON_DESC") {
+        arr = sortByGojuuon(arr, gojuuonMap).reverse()
     }
 
     return arr
