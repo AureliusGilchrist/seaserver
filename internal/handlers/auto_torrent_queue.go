@@ -50,7 +50,10 @@ type AutoTorrentQueueStatus struct {
 	Waiting string `json:"waiting,omitempty"`
 	Added   int    `json:"added"`
 	// Skipped counts torrents the client already had.
-	Skipped   int    `json:"skipped"`
+	Skipped int `json:"skipped"`
+	// Settled counts picks dropped because the anime was matched, downloading, downloaded, skipped
+	// or ignored by the time its turn came.
+	Settled   int    `json:"settled"`
 	Failed    int    `json:"failed"`
 	LastError string `json:"lastError,omitempty"`
 }
@@ -124,6 +127,19 @@ func (h *Handler) runAutoTorrentQueue() {
 		if view := repo.GetAddQueueView(); view != nil && view.Total > 0 {
 			h.autoTorrentWait("The torrent client is offline or busy, waiting for it")
 			continue
+		}
+
+		// Dealt with since you confirmed it — downloaded by hand, matched, skipped. Dropped without
+		// touching the client, and without the gap: nothing was sent.
+		if job.Media != nil && h.App.EnqueueFutureRepository != nil {
+			if reason := h.App.EnqueueFutureRepository.SettledReason(job.Media.ID); reason != "" {
+				h.App.Logger.Debug().Str("torrent", job.Torrent.Name).Str("reason", reason).Msg("auto torrent: Skipping, anime already dealt with")
+				q.mu.Lock()
+				q.jobs = q.jobs[1:]
+				q.status.Settled++
+				q.mu.Unlock()
+				continue
+			}
 		}
 
 		q.mu.Lock()

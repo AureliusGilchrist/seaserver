@@ -147,38 +147,9 @@ func (r *Repository) prepare(ctx context.Context, mediaID int) (*prepared, error
 	// |        Entry        |
 	// +---------------------+
 
-	localFiles, _, err := db_bridge.GetLocalFiles(r.database)
-	if err != nil {
-		// An anime not in the library has no local files anyway, and that is the normal case here.
-		// Losing the list means losing library data on the entry, not the entry itself.
-		r.logger.Warn().Err(err).Msg("enqueuefuture: Failed to read local files, continuing without them")
-		localFiles = nil
-	}
-
-	animeCollection, err := r.animeCollectionFunc()
-	if err != nil || animeCollection == nil {
-		// NewEntry refuses a nil collection outright, and an empty one is correct for what this is:
-		// almost everything a recommendation chain finds is not on any of your lists.
-		animeCollection = &anilist.AnimeCollection{
-			MediaListCollection: &anilist.AnimeCollection_MediaListCollection{
-				Lists: []*anilist.AnimeCollection_MediaListCollection_Lists{},
-			},
-		}
-	}
-
-	entry, err := anime.NewEntry(ctx, &anime.NewEntryOptions{
-		MediaId:             mediaID,
-		LocalFiles:          localFiles,
-		AnimeCollection:     animeCollection,
-		PlatformRef:         r.platformRef,
-		MetadataProviderRef: r.metadataProviderRef,
-		IsSimulated:         r.isSimulatedFunc(),
-	})
+	entry, err := r.buildEntry(ctx, mediaID)
 	if err != nil {
 		return nil, err
-	}
-	if entry == nil || entry.Media == nil {
-		return nil, errors.New("no entry could be built")
 	}
 
 	// +---------------------+
@@ -581,4 +552,44 @@ func entryCoverImage(entry *anime.Entry) string {
 		return *entry.Media.CoverImage.Large
 	}
 	return ""
+}
+
+// buildEntry builds the same anime entry the details page is built from: library files, list
+// status, episode counts and the absolute offset smart search needs. Not paced — callers wait on
+// the pacer first, since this is AniList requests.
+func (r *Repository) buildEntry(ctx context.Context, mediaID int) (*anime.Entry, error) {
+	localFiles, _, err := db_bridge.GetLocalFiles(r.database)
+	if err != nil {
+		// An anime not in the library has no local files anyway, and that is the normal case here.
+		// Losing the list means losing library data on the entry, not the entry itself.
+		r.logger.Warn().Err(err).Msg("enqueuefuture: Failed to read local files, continuing without them")
+		localFiles = nil
+	}
+
+	animeCollection, err := r.animeCollectionFunc()
+	if err != nil || animeCollection == nil {
+		// NewEntry refuses a nil collection outright, and an empty one is correct for what this is:
+		// almost everything a recommendation chain finds is not on any of your lists.
+		animeCollection = &anilist.AnimeCollection{
+			MediaListCollection: &anilist.AnimeCollection_MediaListCollection{
+				Lists: []*anilist.AnimeCollection_MediaListCollection_Lists{},
+			},
+		}
+	}
+
+	entry, err := anime.NewEntry(ctx, &anime.NewEntryOptions{
+		MediaId:             mediaID,
+		LocalFiles:          localFiles,
+		AnimeCollection:     animeCollection,
+		PlatformRef:         r.platformRef,
+		MetadataProviderRef: r.metadataProviderRef,
+		IsSimulated:         r.isSimulatedFunc(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	if entry == nil || entry.Media == nil {
+		return nil, errors.New("no entry could be built")
+	}
+	return entry, nil
 }

@@ -303,12 +303,15 @@ export function EnqueueFuturePage() {
 
     const listItem = index >= 0 ? orderedItems[index] : undefined
 
-    // Auto torrent popup: works through every ready, undecided anime in the order drawn above.
+    // Auto torrent popup: works through the whole queue — every anime still undecided, in the order
+    // drawn above. Prepared ones come first: their details are already here, so their batches are
+    // quick. The rest (still waiting, or a provider found nothing last time) follow; the server looks
+    // each of those up on AniList first. Only a row the worker is holding right now is left out.
     const [isAutoTorrentOpen, setAutoTorrentOpen] = React.useState(false)
-    const autoTorrentCandidates = React.useMemo(
-        () => orderedItems.filter(item => isActionable(item) && isReady(item)),
-        [orderedItems],
-    )
+    const autoTorrentCandidates = React.useMemo(() => {
+        const open = orderedItems.filter(isOpenable)
+        return [...open.filter(isReady), ...open.filter(item => !isReady(item))]
+    }, [orderedItems])
 
     React.useEffect(() => {
         if (index >= 0) lastIndexRef.current = index

@@ -53,6 +53,8 @@ export function EnqueueFutureAutoTorrent({ open, onOpenChange, candidates }: {
 function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Item[], onExit: () => void }) {
     // Frozen on open — see the component comment.
     const [frozen] = React.useState(() => candidates.map(c => c.mediaId))
+    // Which of them have not been prepared yet: those are looked up on AniList first, slowly.
+    const [unprepared] = React.useState(() => new Set(candidates.filter(c => c.status !== "ready").map(c => c.mediaId)))
 
     // Every anime already put in front of you this session, whether downloaded or struck out.
     const [handled, setHandled] = React.useState<Set<number>>(() => new Set())
@@ -195,6 +197,12 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
                 <div className="py-12 text-center space-y-3">
                     <LoadingSpinner />
                     <p className="text-sm text-[--muted]">Searching SeaDex for {batchIds.length} anime… this can take a minute.</p>
+                    {batchIds.some(id => unprepared.has(id)) && (
+                        <p className="text-xs text-[--muted] max-w-md mx-auto">
+                            {batchIds.filter(id => unprepared.has(id)).length} of these have not been prepared yet, so each is looked
+                            up on AniList first — about four a minute, to stay inside AniList's limits. This batch will take a while.
+                        </p>
+                    )}
                 </div>
             ) : error ? (
                 <div className="py-10 text-center space-y-3">

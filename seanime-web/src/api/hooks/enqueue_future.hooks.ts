@@ -420,7 +420,9 @@ export function useAutoPickEnqueueFuture() {
         endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.AutoPickEnqueueFuture.endpoint,
         method: API_ENDPOINTS.ENQUEUE_FUTURE.AutoPickEnqueueFuture.methods[0],
         mutationKey: [API_ENDPOINTS.ENQUEUE_FUTURE.AutoPickEnqueueFuture.key],
-        timeout: 10 * 60 * 1000,
+        // Anime not prepared yet are looked up on AniList first, at about four a minute, so a batch
+        // of them can take ten minutes and more.
+        timeout: 20 * 60 * 1000,
     })
 }
 

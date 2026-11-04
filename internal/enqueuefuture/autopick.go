@@ -10,6 +10,8 @@ import (
 	"sync"
 
 	"seanime/internal/api/anilist"
+	"seanime/internal/database/db"
+	"seanime/internal/library/anime"
 	hibiketorrent "seanime/internal/extension/hibike/torrent"
 	"seanime/internal/torrents/torrent"
 )
@@ -59,6 +61,42 @@ type AutoPick struct {
 
 var dualAudioPattern = regexp.MustCompile(`(?i)dual[\s._-]*audio`)
 
+// SettledReason says why an anime should not be auto-torrented any more — already matched,
+// downloading, downloaded, skipped or ignored — or "" when it is still open. Read fresh each time:
+// the auto torrent popup works from a list frozen when it opened, and the background adds run long
+// after that, so either can reach an anime you have dealt with since.
+func (r *Repository) SettledReason(mediaID int) string {
+	if r.database == nil || mediaID <= 0 {
+		return ""
+	}
+	state, _ := r.database.GetAnimeDownloadState(mediaID)
+	status := ""
+	if record, err := r.database.GetEnqueueFutureItem(mediaID); err == nil && record != nil {
+		status = record.Status
+	}
+	return settledReason(state, status)
+}
+
+func settledReason(downloadState string, status string) string {
+	switch downloadState {
+	case "matched":
+		return "Already matched into your library"
+	case "downloading":
+		return "Already downloading"
+	case "downloaded":
+		return "Already downloaded"
+	}
+	switch status {
+	case db.EnqueueFutureStatusSkipped:
+		return "You skipped this one"
+	case db.EnqueueFutureStatusIgnored:
+		return "You ignored this one"
+	case db.EnqueueFutureStatusDownloaded:
+		return "Already downloaded"
+	}
+	return ""
+}
+
 // IsDualAudio reports whether a release name advertises two audio tracks.
 func IsDualAudio(name string) bool {
 	return dualAudioPattern.MatchString(name)
@@ -102,12 +140,30 @@ func (r *Repository) autoPickOne(ctx context.Context, mediaID int, client *http.
 		return pick
 	}
 	pick.Title = item.Title
-	if item.Snapshot == nil || item.Snapshot.Entry == nil || item.Snapshot.Entry.Media == nil {
-		pick.Reason = "Not prepared yet"
+	if reason := settledReason(item.DownloadState, item.Status); reason != "" {
+		pick.Reason = reason
 		return pick
 	}
+	// Prepared rows carry their entry. Anything else in the queue — still waiting for the worker,
+	// or prepared once and found nothing on the provider it tried — has its entry built here, the
+	// same way preparation would, so the whole queue can be worked through and not only the part a
+	// run has reached. Paced like preparation, since it is AniList requests.
+	var entry *anime.Entry
+	if item.Snapshot != nil && item.Snapshot.Entry != nil && item.Snapshot.Entry.Media != nil {
+		entry = item.Snapshot.Entry
+	} else {
+		if err := r.pacer.wait(ctx); err != nil {
+			pick.Reason = "Stopped before this one was looked up"
+			return pick
+		}
+		built, err := r.buildEntry(ctx, mediaID)
+		if err != nil {
+			pick.Reason = "Could not load this anime: " + err.Error()
+			return pick
+		}
+		entry = built
+	}
 
-	entry := item.Snapshot.Entry
 	media := entry.Media
 	pick.Media = media
 	if pick.Title == "" {
