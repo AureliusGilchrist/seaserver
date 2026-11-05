@@ -1,7 +1,9 @@
 // Fork (Electron): only one window plays at a time, and the popout player always wins.
 //
 // The popout window reports whether it is playing over a BroadcastChannel (on every change, plus
-// a heartbeat so a main window that reloads, or a popout that crashed, is still right). While the
+// a heartbeat so a main window that reloads, or a popout that crashed, is still right), and — on
+// the same heartbeat — that it exists at all, which is what keeps the main window's player
+// blurred with a "Return pip" box for as long as the pip is open, paused or not. While the
 // popout plays, the main window pauses everything it is playing and refuses to start anything
 // else. The main window lets go of that rule only when it takes playback back from the popout
 // (the user asked for that, and the popout is closing).
@@ -16,6 +18,8 @@ const RETURN_GRACE_MS = 10_000
 
 type Message =
     | { type: "popout-state", playing: boolean }
+    | { type: "popout-open" }
+    | { type: "popout-closed" }
     | { type: "query" }
 
 function openChannel(): BroadcastChannel | null {
@@ -70,24 +74,35 @@ export function startPopoutPlaybackBeacon(): () => void {
     }
     const onChange = () => report()
 
+    // Presence: the main window blurs its player for as long as this window exists — paused
+    // or playing — so the heartbeat reports "open" every tick, not just the playing state.
+    const post = (message: Message) => {
+        try {
+            channel.postMessage(message)
+        }
+        catch {
+        }
+    }
     const events = ["play", "playing", "pause", "ended", "emptied"] as const
     events.forEach(e => document.addEventListener(e, onChange, true))
     channel.onmessage = (event: MessageEvent<Message>) => {
-        if (event.data?.type === "query") report(true)
+        if (event.data?.type === "query") {
+            report(true)
+            post({ type: "popout-open" })
+        }
     }
     const heartbeat = window.setInterval(() => {
+        post({ type: "popout-open" })
         if (playing()) report(true)
         else report()
     }, HEARTBEAT_MS)
     const onHide = () => {
         last = false
-        try {
-            channel.postMessage({ type: "popout-state", playing: false } satisfies Message)
-        }
-        catch {
-        }
+        post({ type: "popout-state", playing: false })
+        post({ type: "popout-closed" })
     }
     window.addEventListener("pagehide", onHide)
+    post({ type: "popout-open" })
     report(true)
 
     return () => {
@@ -109,6 +124,12 @@ let ignorePopoutUntil = 0
 let popoutPlayingNow = false
 const popoutPlayingListeners = new Set<(playing: boolean) => void>()
 
+// Whether the popout window exists at all — playing or paused. Its player here stays
+// blurred with a "Return pip" box for as long as it does.
+let popoutOpenUntil = 0
+let popoutPresentNow = false
+const popoutPresentListeners = new Set<(present: boolean) => void>()
+
 export function isPopoutPlaying() {
     return Date.now() < popoutPlayingUntil && Date.now() >= ignorePopoutUntil
 }
@@ -120,12 +141,31 @@ export function onPopoutPlayingChange(listener: (playing: boolean) => void): () 
     return () => popoutPlayingListeners.delete(listener)
 }
 
+/** Main window: subscribe to whether the popout window exists (even paused). */
+export function onPopoutPresentChange(listener: (present: boolean) => void): () => void {
+    popoutPresentListeners.add(listener)
+    listener(popoutPresentNow)
+    return () => popoutPresentListeners.delete(listener)
+}
+
 function setPopoutPlayingNow(playing: boolean) {
     if (playing === popoutPlayingNow) return
     popoutPlayingNow = playing
     popoutPlayingListeners.forEach(l => {
         try {
             l(playing)
+        }
+        catch {
+        }
+    })
+}
+
+function setPopoutPresent(present: boolean) {
+    if (present === popoutPresentNow) return
+    popoutPresentNow = present
+    popoutPresentListeners.forEach(l => {
+        try {
+            l(present)
         }
         catch {
         }
@@ -156,6 +196,16 @@ export function startMainWindowPlaybackGuard(onBlocked?: () => void): () => void
 
     channel.onmessage = (event: MessageEvent<Message>) => {
         const msg = event.data
+        if (msg?.type === "popout-open") {
+            popoutOpenUntil = Date.now() + STALE_MS
+            setPopoutPresent(true)
+            return
+        }
+        if (msg?.type === "popout-closed") {
+            popoutOpenUntil = 0
+            setPopoutPresent(false)
+            return
+        }
         if (msg?.type !== "popout-state") return
         if (Date.now() < ignorePopoutUntil) return
         if (msg.playing) {
@@ -169,11 +219,12 @@ export function startMainWindowPlaybackGuard(onBlocked?: () => void): () => void
         }
     }
 
-    // A popout that went away without a final "not playing" (crashed, closed without "pagehide")
-    // stops counting as playing once its last report goes stale — the "Return pip" overlay has
-    // to come down with it, not hang over the window forever.
+    // A popout that went away without a final word (crashed, closed without "pagehide") stops
+    // counting — as playing and as open — once its last report goes stale, so the "Return pip"
+    // overlay comes down with it instead of hanging over the player forever.
     const staleTimer = window.setInterval(() => {
         if (popoutPlayingNow && !isPopoutPlaying()) setPopoutPlayingNow(false)
+        if (popoutPresentNow && Date.now() >= popoutOpenUntil) setPopoutPresent(false)
     }, HEARTBEAT_MS)
 
     const onPlay = (event: Event) => {
@@ -198,6 +249,7 @@ export function startMainWindowPlaybackGuard(onBlocked?: () => void): () => void
         document.removeEventListener("playing", onPlay, true)
         window.clearInterval(staleTimer)
         setPopoutPlayingNow(false)
+        setPopoutPresent(false)
         channel.close()
     }
 }

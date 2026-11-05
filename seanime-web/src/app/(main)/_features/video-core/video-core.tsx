@@ -108,12 +108,17 @@ import { VideoCoreTopPlaybackInfo, VideoCoreTopSection } from "@/app/(main)/_fea
 import {
     announcePopoutHandoffFailed,
     announcePopoutHandoffStarted,
+    askPopoutToReturn,
     hasPendingPopoutHandoff,
     newPopoutHandoffId,
     requestPopoutHandoffPosition,
     startPopoutHandoffGiver,
     takePendingPopoutResume,
 } from "@/app/(main)/_features/video-core/video-core-popout-resume"
+import {
+    isPopoutPlayerWindow,
+    onPopoutPresentChange,
+} from "@/app/(main)/_features/video-core/video-core-single-playback"
 import { markEpisodePlayed } from "@/lib/progress-queue/progress-queue"
 import { takePendingAutoFullscreen } from "@/app/(main)/_features/video-core/video-core-auto-fullscreen"
 import { finishPreviewTransition, takePendingPreviewResume } from "@/app/(main)/_features/anime/_lib/preview-handoff"
@@ -173,6 +178,7 @@ import React, { useMemo, useRef, useState } from "react"
 import { BiExpand, BiX } from "react-icons/bi"
 import { FiMinimize2 } from "react-icons/fi"
 import { ImSpinner2 } from "react-icons/im"
+import { LuArrowDownLeft } from "react-icons/lu"
 import { PiSpinnerDuotone } from "react-icons/pi"
 import { TbPictureInPicture } from "react-icons/tb"
 import { RemoveScrollBar } from "react-remove-scroll-bar"
@@ -744,12 +750,56 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                         )}
                     </div>
                 )}
+
+                {/* While the pip window exists, this player is off: it stays blurred and disabled,
+                    with a "Return pip" box, for as long as the pip is open — paused or playing.
+                    Rendered over the container (not the whole window) so the rest of the app stays
+                    usable, and never in the pip window, whose player draws unblurred. */}
+                <PopoutReturnOverlay />
             </div>
         </>
     )
 })
 
 PlayerContent.displayName = "PlayerContent"
+
+/**
+ * The main window's player, disabled while the pip window holds playback: blurred, with a
+ * "Return pip" box in the middle — clicking it asks the pip to hand playback back, which
+ * restores the normal player here (at the pip's exact position) and closes the pip. Shows for
+ * as long as the pip window exists, even while it is paused. The pip window never renders
+ * this — its player keeps drawing unblurred.
+ */
+function PopoutReturnOverlay() {
+    const [present, setPresent] = React.useState(false)
+    React.useEffect(() => onPopoutPresentChange(setPresent), [])
+
+    if (isPopoutPlayerWindow() || !present) return null
+
+    return (
+        <div
+            data-vc-element="popout-return-overlay"
+            className="absolute inset-0 z-[120] flex items-center justify-center select-none"
+            style={{
+                backdropFilter: "blur(18px)",
+                WebkitBackdropFilter: "blur(18px)",
+                backgroundColor: "rgba(0, 0, 0, 0.45)",
+            }}
+        >
+            <div className="flex flex-col items-center gap-4 rounded-2xl border border-white/15 bg-black/50 px-10 py-8 shadow-2xl">
+                <p className="text-white/80 text-sm font-medium">Playing in the pip window</p>
+                <button
+                    type="button"
+                    onClick={() => askPopoutToReturn()}
+                    className="flex items-center gap-2.5 rounded-full bg-white/10 px-6 py-2.5 text-white text-sm font-semibold border border-white/25 transition-colors hover:bg-white/20"
+                >
+                    <LuArrowDownLeft className="size-5" />
+                    Return pip
+                </button>
+            </div>
+        </div>
+    )
+}
 
 const PLAYBACK_STALL_TIMEOUT_MS = 12_000
 
