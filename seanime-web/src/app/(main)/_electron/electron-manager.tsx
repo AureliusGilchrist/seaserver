@@ -37,8 +37,15 @@ export function ElectronManager() {
         }
     }, [])
 
-    // Only one window plays at a time, and the popout player always wins: the popout reports
-    // its playback, and the main window pauses (and refuses to start) while it plays.
+    return null
+}
+
+/**
+ * Only one window plays at a time, and the popout player always wins: the popout reports its
+ * playback, and the main window pauses (and refuses to start) while it plays. Mounted from the
+ * root template, so it runs in both windows (app/layout.tsx is not used by the router).
+ */
+export function ElectronSinglePlayback() {
     React.useEffect(() => {
         if (!window.electron) return
         if (isPopoutPlayerWindow()) return startPopoutPlaybackBeacon()
