@@ -1,8 +1,8 @@
 import { BACKEND_UPDATE_STATUS_KEY, serverErrorMessage, useCheckBackendUpdate, useUpdateBackend } from "@/api/hooks/update-notice.hooks"
-import { ServerUpdateCard } from "@/app/(main)/settings/_containers/server-update-card"
+import { ServerUpdateCard, timeAgo } from "@/app/(main)/settings/_containers/server-update-card"
 import { FrontendUpdateCard } from "@/app/(main)/settings/_containers/frontend-update-card"
 import { useQueryClient } from "@tanstack/react-query"
-import { LuChevronDown, LuHammer, LuRefreshCw, LuScrollText, LuTerminal } from "react-icons/lu"
+import { LuCheck, LuChevronDown, LuCircleAlert, LuClock3, LuFiles, LuHammer, LuLoaderCircle, LuRefreshCw, LuScrollText, LuSparkles, LuTerminal } from "react-icons/lu"
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
 import { WSEvents } from "@/lib/server/ws-events"
 import { SettingsCard } from "@/app/(main)/settings/_components/settings-card"
@@ -14,6 +14,25 @@ import React from "react"
 import { toast } from "sonner"
 
 type Target = "backend" | "frontend"
+type DevChangedFile = { path: string, insertions: number, deletions: number }
+type DevCheckResult = {
+    at: number
+    ok: boolean
+    summary: string
+    files: DevChangedFile[]
+    insertions: number
+    deletions: number
+    baseline: boolean | null
+}
+type DevBuildResult = {
+    at: number
+    ok: boolean
+    files: number
+    insertions: number
+    deletions: number
+    lines: number
+    message?: string
+}
 
 const UPDATE_LOG_STORAGE_KEY = "sea-settings-update-log"
 export const MAX_LOG_LINES = 500
@@ -244,6 +263,8 @@ function LiveUpdates() {
     // axios's "Request failed with status code 500" and lose the reason).
     const [errorText, setErrorText] = React.useState<string | null>(null)
     const [showLog, setShowLog] = React.useState(false)
+    const [devCheckResult, setDevCheckResult] = React.useState<DevCheckResult | null>(null)
+    const [devBuildResult, setDevBuildResult] = React.useState<DevBuildResult | null>(null)
     const qc = useQueryClient()
 
     const appendLines = React.useCallback((next: string[]) => {
@@ -330,9 +351,11 @@ function LiveUpdates() {
         setChecking(target)
         if (target === "backend") setErrorText(null)
         const label = target === "backend" ? "Backend" : "Frontend"
+        const checkedAt = Math.round(Date.now() / 1000)
         try {
             let files: { path: string, insertions: number, deletions: number }[] = []
             let summary: string
+            let baseline: boolean | null = null
             if (target === "backend" && (remote || !liveUpdate)) {
                 const res = await checkRemoteBackend({})
                 files = res?.files ?? []
@@ -346,11 +369,25 @@ function LiveUpdates() {
                 if (!res.ok) throw new Error(res.error ?? "check failed")
                 files = res.files ?? []
                 if (target === "backend") summary = res.behind ? `Update available (${res.behind} new commit${res.behind === 1 ? "" : "s"})` : "Up to date"
-                else if (!res.baseline) summary = "No previous build recorded yet. The next build becomes the baseline"
-                else summary = files.length ? "Changes since the last build" : "No changes since the last build"
+                else {
+                    baseline = !!res.baseline
+                    if (!res.baseline) summary = "No previous build recorded yet. The next build becomes the baseline"
+                    else summary = files.length ? "Changes since the last build" : "No changes since the last build"
+                }
             }
             const ins = files.reduce((n, f) => n + f.insertions, 0)
             const del = files.reduce((n, f) => n + f.deletions, 0)
+            if (target === "frontend") {
+                setDevCheckResult({
+                    at: checkedAt,
+                    ok: true,
+                    summary,
+                    files,
+                    insertions: ins,
+                    deletions: del,
+                    baseline,
+                })
+            }
             appendLines([
                 "",
                 stamp(`${label}: ${summary}`),
@@ -360,6 +397,17 @@ function LiveUpdates() {
         catch (e: any) {
             const reason = serverErrorMessage(e)
             if (target === "backend") setErrorText(reason)
+            if (target === "frontend") {
+                setDevCheckResult({
+                    at: checkedAt,
+                    ok: false,
+                    summary: `Check failed: ${reason}`,
+                    files: [],
+                    insertions: 0,
+                    deletions: 0,
+                    baseline: null,
+                })
+            }
             toast.error(`${label} check failed: ${reason}`)
             appendLines(["", stamp(`${label} check: Failed - ${reason}`)])
         }
@@ -371,6 +419,7 @@ function LiveUpdates() {
 
     async function run(target: Target) {
         const label = target === "backend" ? "Backend" : "Frontend"
+        const startedAt = Math.round(Date.now() / 1000)
         currentProgressRef.current = 0
         currentFrontendProgressRef.current = 0
         failureReceivedRef.current = false
@@ -433,10 +482,32 @@ function LiveUpdates() {
                 toast.success(`${label} update succeeded${changed}. ${res.message ?? ""}`.trim())
                 if (target === "backend") currentProgressRef.current = 100
                 else currentFrontendProgressRef.current = 100
+                if (target === "frontend") {
+                    setDevBuildResult({
+                        at: startedAt,
+                        ok: true,
+                        files: s?.files ?? 0,
+                        insertions: s?.insertions ?? 0,
+                        deletions: s?.deletions ?? 0,
+                        lines: s?.lines ?? 0,
+                        message: res.message,
+                    })
+                }
                 appendLines(["", stamp(target === "backend"
                     ? `Backend update: [100%] Succeeded${changed}`
                     : `Frontend update: [100%] Succeeded${changed}`)])
             } else {
+                if (target === "frontend") {
+                    setDevBuildResult({
+                        at: startedAt,
+                        ok: false,
+                        files: s?.files ?? 0,
+                        insertions: s?.insertions ?? 0,
+                        deletions: s?.deletions ?? 0,
+                        lines: s?.lines ?? 0,
+                        message: (res.error ?? "").split("\n")[0] || "unknown error",
+                    })
+                }
                 toast.error(`${label} update failed${changed}: ${(res.error ?? "").split("\n")[0]}`)
                 appendLines(["", stamp(`ERROR: ${res.error}`), stamp(target === "backend"
                     ? `Backend update: [${String(currentProgressRef.current).padStart(2, "0")}%] Failed${changed}`
@@ -445,6 +516,17 @@ function LiveUpdates() {
         }
         catch (e: any) {
             if (target === "backend" && remote) pendingRef.current = false
+            if (target === "frontend") {
+                setDevBuildResult({
+                    at: startedAt,
+                    ok: false,
+                    files: 0,
+                    insertions: 0,
+                    deletions: 0,
+                    lines: 0,
+                    message: e?.message ?? "unknown error",
+                })
+            }
             toast.error(`Update failed: ${e?.message ?? "unknown error"}`)
             appendLines(["", stamp(target === "backend"
                 ? `Backend update: [${String(currentProgressRef.current).padStart(2, "0")}%] Failed - ${e?.message ?? "unknown error"}`
@@ -498,6 +580,10 @@ function LiveUpdates() {
                 running={running === "frontend"}
                 checking={checking === "frontend"}
                 lines={lines}
+                repoRoot={detectedRoot}
+                repoOrigin={detectedOrigin}
+                checkResult={devCheckResult}
+                buildResult={devBuildResult}
                 onUpdate={runDevUpdate}
                 onCheck={() => check("frontend")}
             />}
@@ -538,28 +624,73 @@ function LiveUpdates() {
     )
 }
 
-function DevUpdateCard({ running, checking, lines, onUpdate, onCheck }: {
+function DevUpdateCard({ running, checking, lines, repoRoot, repoOrigin, checkResult, buildResult, onUpdate, onCheck }: {
     running: boolean
     checking: boolean
     lines: string[]
+    repoRoot: string | null
+    repoOrigin: string | null
+    checkResult: DevCheckResult | null
+    buildResult: DevBuildResult | null
     onUpdate: () => void
     onCheck: () => void
 }) {
     // Progress only shows while a dev update is actually running; the shared log also carries
     // the GitHub updater's frontend lines, which would otherwise light this card up too.
     const [devActive] = useAtom(__devUpdateActiveAtom)
+    const [showAllFiles, setShowAllFiles] = React.useState(false)
     const progress = devActive ? readProgress(lines) : null
     const frontProgress = progress?.target === "frontend" ? progress : null
     const failed = !!frontProgress && /fail(ed|ure)?|error/i.test(frontProgress.step)
+    const runningNow = running || (devActive && !!frontProgress)
+    const state = runningNow
+        ? "running"
+        : checking
+            ? "checking"
+            : failed || buildResult?.ok === false || checkResult?.ok === false
+                ? "failed"
+                : checkResult?.ok
+                    ? checkResult.files.length > 0 ? "changes" : "clean"
+                    : "idle"
+    const pill = state === "running"
+        ? { label: "Building", className: "bg-brand-500/15 text-brand-200 ring-brand-400/30", icon: <LuLoaderCircle className="size-3 animate-spin" /> }
+        : state === "checking"
+            ? { label: "Checking", className: "bg-white/10 text-white/80 ring-white/15", icon: <LuLoaderCircle className="size-3 animate-spin" /> }
+            : state === "failed"
+                ? { label: "Issue detected", className: "bg-red-500/15 text-red-300 ring-red-400/30", icon: <LuCircleAlert className="size-3" /> }
+                : state === "changes"
+                    ? { label: "Local changes found", className: "bg-amber-400/15 text-amber-200 ring-amber-300/30", icon: <LuSparkles className="size-3" /> }
+                    : state === "clean"
+                        ? { label: "Ready", className: "bg-emerald-500/15 text-emerald-300 ring-emerald-400/30", icon: <LuCheck className="size-3" /> }
+                        : { label: "Not scanned yet", className: "bg-white/10 text-white/60 ring-white/10", icon: null }
+    const visibleFiles = showAllFiles ? (checkResult?.files ?? []) : (checkResult?.files ?? []).slice(0, 6)
+    const sourceLabel = repoOrigin ?? repoRoot ?? "Not found"
+    const progressPercent = frontProgress?.percent ?? 0
+    const progressStep = frontProgress?.step || "Preparing the dev update…"
+    const steps = [
+        { at: 5, label: "Detect repo" },
+        { at: 20, label: "Inspect changes" },
+        { at: 55, label: "Build frontend" },
+        { at: 80, label: "Swap in" },
+        { at: 100, label: "Reload app" },
+    ]
 
     return (
         <section className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-br from-white/[0.05] via-black/25 to-black/40 p-5 shadow-xl shadow-black/20 backdrop-blur-md sm:p-6">
+            {(state === "changes" || state === "running") && <div className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-emerald-400/15 blur-3xl" />}
+            {state === "failed" && <div className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-red-500/15 blur-3xl" />}
+
             <div className="flex flex-wrap items-start gap-4">
                 <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400/25 to-emerald-700/15 text-emerald-100 ring-1 ring-white/10">
                     <LuTerminal className="size-5" />
                 </span>
                 <div className="min-w-0 flex-1">
-                    <h3 className="text-lg font-semibold">Dev update</h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-lg font-semibold">Dev update</h3>
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${pill.className}`}>
+                            {pill.icon}{pill.label}
+                        </span>
+                    </div>
                     <p className="mt-0.5 text-sm text-[--muted]">
                         Build the frontend on this machine from the local source files and swap it in live — no
                         GitHub, no release download. Picks up your working tree exactly as it is, uncommitted
@@ -568,20 +699,95 @@ function DevUpdateCard({ running, checking, lines, onUpdate, onCheck }: {
                 </div>
             </div>
 
+            <div className="relative mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
+                    <div className="text-[10px] uppercase tracking-wide text-[--muted]">Source</div>
+                    <div className="mt-1 truncate text-xs font-medium" title={sourceLabel}>{sourceLabel}</div>
+                </div>
+                <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
+                    <div className="text-[10px] uppercase tracking-wide text-[--muted]">Last scan</div>
+                    <div className="mt-1 flex items-center gap-1.5 text-xs font-medium"><LuClock3 className="size-3.5 opacity-70" />{timeAgo(checkResult?.at)}</div>
+                </div>
+                <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
+                    <div className="text-[10px] uppercase tracking-wide text-[--muted]">Changed files</div>
+                    <div className="mt-1 flex items-center gap-1.5 text-xs font-medium"><LuFiles className="size-3.5 opacity-70" />{checkResult?.ok ? `${checkResult.files.length} (+${checkResult.insertions} -${checkResult.deletions})` : "—"}</div>
+                </div>
+                <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
+                    <div className="text-[10px] uppercase tracking-wide text-[--muted]">Last build</div>
+                    <div className="mt-1 text-xs font-medium">{buildResult ? `${timeAgo(buildResult.at)} • ${buildResult.ok ? "Succeeded" : "Failed"}` : "never"}</div>
+                </div>
+            </div>
+
+            {!!checkResult && (
+                <div className={`mt-4 rounded-xl border px-3 py-2.5 text-xs ${checkResult.ok ? "border-white/[0.08] bg-white/[0.03] text-[--muted]" : "border-red-500/30 bg-red-500/10 text-red-200"}`}>
+                    {checkResult.summary}
+                    {checkResult.ok && checkResult.baseline === false && (
+                        <span className="block pt-1 text-[11px] text-amber-200/90">First build on this machine creates the baseline for future change checks.</span>
+                    )}
+                </div>
+            )}
+
             {/* Progress */}
             {devActive && frontProgress && (
                 <div className="relative mt-5 rounded-2xl bg-brand-500/[0.07] p-3.5 ring-1 ring-brand-400/20">
                     <div className="mb-2 flex items-center justify-between gap-3 text-xs">
-                        <span className="truncate font-medium text-brand-100">{frontProgress.step || "Preparing the dev update…"}</span>
-                        <span className="font-mono text-sm font-semibold tabular-nums text-brand-100">{String(frontProgress.percent).padStart(2, "0")}%</span>
+                        <span className="truncate font-medium text-brand-100">{progressStep}</span>
+                        <span className="font-mono text-sm font-semibold tabular-nums text-brand-100">{String(progressPercent).padStart(2, "0")}%</span>
                     </div>
                     <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
                         <div
-                            className={`h-full rounded-full transition-[width] duration-1000 ${failed ? "bg-red-400" : frontProgress.percent === 100 ? "bg-green-400" : "bg-gradient-to-r from-brand-400 to-cyan-300"}`}
-                            style={{ width: `${Math.max(frontProgress.percent, 3)}%` }}
+                            className={`h-full rounded-full transition-[width] duration-1000 ${failed ? "bg-red-400" : progressPercent === 100 ? "bg-green-400" : "bg-gradient-to-r from-brand-400 to-cyan-300"}`}
+                            style={{ width: `${Math.max(progressPercent, 3)}%` }}
                         />
                     </div>
+                    <div className="mt-3 grid grid-cols-2 gap-1.5 sm:grid-cols-5">
+                        {steps.map(s => (
+                            <div key={s.label} className={`rounded-md border px-2 py-1 text-center text-[10px] ${progressPercent >= s.at ? "border-brand-300/50 bg-brand-400/10 text-brand-100" : "border-white/[0.08] bg-white/[0.03] text-[--muted]"}`}>
+                                {s.label}
+                            </div>
+                        ))}
+                    </div>
                     <p className="mt-3 text-[11px] text-[--muted]">The app reloads by itself when the build is in place.</p>
+                </div>
+            )}
+            {!devActive && !!buildResult && (
+                <div className={`mt-5 rounded-2xl border p-3.5 ${buildResult.ok ? "border-emerald-400/25 bg-emerald-500/[0.08]" : "border-red-500/30 bg-red-500/10"}`}>
+                    <div className="flex items-center justify-between gap-3 text-xs">
+                        <span className={`font-medium ${buildResult.ok ? "text-emerald-100" : "text-red-200"}`}>
+                            {buildResult.ok ? "Last local build succeeded" : "Last local build failed"}
+                        </span>
+                        <span className="font-mono text-[11px] tabular-nums text-white/80">{timeAgo(buildResult.at)}</span>
+                    </div>
+                    <p className="mt-2 text-xs text-[--muted]">
+                        {buildResult.files} file{buildResult.files === 1 ? "" : "s"} changed • +{buildResult.insertions} / -{buildResult.deletions} • {buildResult.lines} lines
+                    </p>
+                    {!!buildResult.message && <p className="mt-1 text-[11px] text-[--muted]">{buildResult.message}</p>}
+                </div>
+            )}
+
+            {!!checkResult?.ok && checkResult.files.length > 0 && (
+                <div className="mt-5 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3.5">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                        <p className="text-xs font-medium text-white/90">Files that will be included in the next dev update</p>
+                        {checkResult.files.length > 6 && (
+                            <button
+                                type="button"
+                                className="text-[11px] text-brand-200 hover:text-brand-100"
+                                onClick={() => setShowAllFiles(v => !v)}
+                            >
+                                {showAllFiles ? "Show less" : `Show all (${checkResult.files.length})`}
+                            </button>
+                        )}
+                    </div>
+                    <div className="space-y-1.5">
+                        {visibleFiles.map(f => (
+                            <div key={f.path} className="flex items-center gap-2 rounded-md border border-white/[0.06] bg-black/20 px-2.5 py-1.5 text-[11px]">
+                                <span className="min-w-0 flex-1 truncate font-mono text-white/85">{f.path}</span>
+                                <span className="shrink-0 text-emerald-300">+{f.insertions}</span>
+                                <span className="shrink-0 text-red-300">-{f.deletions}</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
 
