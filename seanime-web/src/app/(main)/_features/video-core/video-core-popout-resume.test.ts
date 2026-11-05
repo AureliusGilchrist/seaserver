@@ -8,14 +8,18 @@ const mod = await import("./video-core-popout-resume")
 // Stands in for the giving window's <video>.
 function fakeVideo(time: number, paused: boolean) {
     const v = new EventTarget() as EventTarget & { currentTime: number, paused: boolean, playbackRate: number, isConnected: boolean }
-    Object.assign(v, { currentTime: time, paused, playbackRate: 1, isConnected: true })
+    Object.assign(v, {
+        currentTime: time, paused, playbackRate: 1, isConnected: true,
+        pause() { (v as any).paused = true },
+        play() { (v as any).paused = false; return Promise.resolve() },
+    })
     return v as unknown as HTMLVideoElement
 }
 
 const wait = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 describe("popout live handoff", () => {
-    it("hands over the live position and stops the giver only once the taker plays", async () => {
+    it("hands over the live position, pausing the giver on it, and stops it once the taker plays", async () => {
         const id = mod.newPopoutHandoffId()
         const onStarted = vi.fn()
         const video = fakeVideo(100, false)
@@ -26,10 +30,15 @@ describe("popout live handoff", () => {
         const position = await mod.requestPopoutHandoffPosition(id, { time: 100, paused: false })
         expect(position.live).toBe(true)
         expect(position.paused).toBe(false)
-        // Live time plus the small lead, not the stale URL time.
-        expect(position.time).toBeGreaterThan(112)
-        expect(position.time).toBeLessThan(113)
+        // The live time, not the stale URL time.
+        expect(position.time).toBe(112)
+        // Only one window plays: the giver holds that frame while the taker starts.
+        expect(video.paused).toBe(true)
         expect(onStarted).not.toHaveBeenCalled()
+
+        // Asked again (a retried "ready"): the same answer, still "was playing".
+        const again = await mod.requestPopoutHandoffPosition(id, { time: 100, paused: false })
+        expect(again).toEqual({ time: 112, paused: false, live: true })
 
         mod.announcePopoutHandoffStarted(id)
         await wait(20)
@@ -47,10 +56,15 @@ describe("popout live handoff", () => {
         const id = mod.newPopoutHandoffId()
         const onStarted = vi.fn()
         const onFailed = vi.fn()
-        mod.startPopoutHandoffGiver({ id, video: fakeVideo(10, false), onStarted, onFailed, timeoutMs: 5000 })
+        const video = fakeVideo(10, false)
+        mod.startPopoutHandoffGiver({ id, video, onStarted, onFailed, timeoutMs: 5000 })
+        await mod.requestPopoutHandoffPosition(id, { time: 10, paused: false })
+        expect(video.paused).toBe(true)
         mod.announcePopoutHandoffFailed(id)
         await wait(20)
         expect(onFailed).toHaveBeenCalledTimes(1)
+        // Paused for the handoff, so it plays on.
+        expect(video.paused).toBe(false)
         expect(onStarted).not.toHaveBeenCalled()
     })
 

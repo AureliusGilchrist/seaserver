@@ -1,10 +1,11 @@
 // Fork: playback position handed between the main window and the desktop popout window.
 //
 // The window taking over playback starts its own stream, holds it paused at the handed-over
-// second and asks the window giving it up for its live position ("ready" → "position"). It then
-// seeks there and plays, and says "started" once it is really playing; only then does the giving
-// window stop. Both windows play the same frames for a moment instead of the picture going black
-// while the new stream loads, and neither side is left paused.
+// second and asks the window giving it up for its live position ("ready" → "position"). The giving
+// window pauses on that exact frame as it answers (only one window ever plays at a time), the
+// taking window seeks there and plays, and says "started" once it is really playing; only then
+// does the giving window stop. The giving window's last frame stays up instead of the picture
+// going black while the new stream loads, and neither side is left paused.
 //
 // The two windows are the same origin in the same Electron session, so a BroadcastChannel reaches
 // across them. Every step has a timeout that falls back to the old one-shot handoff.
@@ -68,10 +69,6 @@ export function newPopoutHandoffId() {
     return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 }
 
-// A seek in the window taking over lands a little after the position was read; reading slightly
-// ahead keeps the picture from stepping back.
-const POSITION_LEAD_SECONDS = 0.25
-
 /**
  * The window giving playback up. Answers the taking-over window's "ready" with the live position
  * and calls onStarted once that window is playing (onFailed if it gave up). When nothing comes
@@ -82,7 +79,8 @@ export function startPopoutHandoffGiver(opts: {
     video: HTMLVideoElement | null
     onStarted: () => void
     onFailed?: () => void
-    onTimeout?: () => void
+    /** pausedForHandoff: this window paused itself for the handoff, it was playing before. */
+    onTimeout?: (info: { pausedForHandoff: boolean }) => void
     timeoutMs?: number
 }): () => void {
     const { id, video } = opts
@@ -103,8 +101,27 @@ export function startPopoutHandoffGiver(opts: {
     const livePosition = () => {
         record()
         const elapsed = last.paused ? 0 : ((performance.now() - last.at) / 1000) * last.rate
-        const lead = last.paused ? 0 : POSITION_LEAD_SECONDS * last.rate
-        return { time: last.time + elapsed + lead, paused: last.paused }
+        return { time: last.time + elapsed, paused: last.paused }
+    }
+
+    // The first answer is final: this window pauses on that frame as it gives it, so a repeated
+    // "ready" gets the same position, still saying it was playing.
+    let answer: { time: number, paused: boolean } | null = null
+    let pausedForHandoff = false
+    const answerPosition = () => {
+        if (answer) return answer
+        answer = livePosition()
+        if (!answer.paused && video && video.isConnected && !video.paused) {
+            pausedForHandoff = true
+            video.pause()
+            answer = { ...answer, time: video.currentTime }
+        }
+        return answer
+    }
+    const resumeIfPaused = () => {
+        if (!pausedForHandoff) return
+        pausedForHandoff = false
+        if (video && video.isConnected && video.paused) video.play().catch(() => {})
     }
 
     let done = false
@@ -119,7 +136,7 @@ export function startPopoutHandoffGiver(opts: {
     const timer = window.setTimeout(() => {
         if (done) return
         finish()
-        opts.onTimeout?.()
+        opts.onTimeout?.({ pausedForHandoff })
     }, opts.timeoutMs ?? 30_000)
 
     if (channel) {
@@ -127,18 +144,25 @@ export function startPopoutHandoffGiver(opts: {
             const msg = event.data
             if (!msg || msg.id !== id || done) return
             if (msg.type === "ready") {
-                channel.postMessage({ type: "position", id, ...livePosition() } satisfies HandoffMessage)
+                channel.postMessage({ type: "position", id, ...answerPosition() } satisfies HandoffMessage)
             } else if (msg.type === "started") {
                 finish()
                 opts.onStarted()
             } else if (msg.type === "failed") {
                 finish()
+                // The other window could not take over: playback carries on here.
+                resumeIfPaused()
                 opts.onFailed?.()
             }
         }
     }
 
-    return finish
+    // Cancelled before the other window took over: playback carries on here.
+    return () => {
+        if (done) return
+        finish()
+        resumeIfPaused()
+    }
 }
 
 /**

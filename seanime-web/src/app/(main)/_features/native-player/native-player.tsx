@@ -6,6 +6,7 @@ import {
     setPendingPopoutResume,
     wasReturnedOverChannel,
 } from "@/app/(main)/_features/video-core/video-core-popout-resume"
+import { releasePopoutPriority } from "@/app/(main)/_features/video-core/video-core-single-playback"
 import { MKVParser_SubtitleEvent, NativePlayer_PlaybackInfo, NativePlayer_ServerEvent } from "@/api/generated/types"
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { vc_miniPlayer, vc_requestTranscodeForAudio, vc_videoElement, vc_directPlayAudioUrl, vc_directPlayAudioLoading } from "@/app/(main)/_features/video-core/video-core-atoms"
@@ -58,6 +59,8 @@ export function NativePlayer() {
     drawerActiveRef.current = !!state.active
     const terminateRef = React.useRef<(() => void) | null>(null)
     const resumeFromPopout = (payload: { path: string, time: number, paused: boolean, from?: string }, handoffId?: string) => {
+        // The user asked for playback back here: the popout no longer has priority over it.
+        releasePopoutPriority()
         setPendingPopoutResume(payload.time, payload.paused, handoffId)
         if (payload.from) {
             log.info("Returning popout playback to the local player", payload.from)

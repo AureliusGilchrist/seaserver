@@ -25,6 +25,7 @@ import {
     setPendingPopoutResume,
     startPopoutHandoffGiver,
 } from "@/app/(main)/_features/video-core/video-core-popout-resume"
+import { setPopoutHandingBack } from "@/app/(main)/_features/video-core/video-core-single-playback"
 import { clientIdAtom, websocketConnectedAtom } from "@/app/websocket-provider"
 import { AppLayoutStack } from "@/components/ui/app-layout"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
@@ -216,11 +217,12 @@ function PopoutReturnButton() {
             from: searchParams.get("from") ?? undefined,
         }
         // The shell raises the main window, tells it to resume, and closes this one.
-        const returnNow = () => {
+        // pausedForHandoff: this window paused itself for the main window, it was playing.
+        const returnNow = (info?: { pausedForHandoff: boolean }) => {
             window.electron?.window?.returnPlayerFromPopout?.({
                 ...request,
                 time: videoElement?.currentTime ?? request.time,
-                paused: videoElement?.paused ?? request.paused,
+                paused: info?.pausedForHandoff ? false : (videoElement?.paused ?? request.paused),
             })
         }
 
@@ -228,10 +230,12 @@ function PopoutReturnButton() {
         // window closes only once the main window plays on from the same moment.
         const handoffId = newPopoutHandoffId()
         setReturning(true)
+        // This window stops counting as playing: the main window is taking over.
+        setPopoutHandingBack(true)
         const cancel = startPopoutHandoffGiver({
             id: handoffId,
             video: videoElement,
-            onStarted: returnNow,
+            onStarted: () => returnNow(),
             onFailed: () => {
                 setReturning(false)
                 returnNow()
