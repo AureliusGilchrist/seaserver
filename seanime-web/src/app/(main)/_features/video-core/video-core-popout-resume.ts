@@ -144,7 +144,8 @@ export function startPopoutHandoffGiver(opts: {
     if (channel) {
         channel.onmessage = (event: MessageEvent<HandoffMessage>) => {
             const msg = event.data
-            if (!msg || msg.id !== id || done) return
+            // The "episode" message carries no id and belongs to another exchange.
+            if (!msg || !("id" in msg) || msg.id !== id || done) return
             if (msg.type === "ready") {
                 channel.postMessage({ type: "position", id, ...answerPosition() } satisfies HandoffMessage)
             } else if (msg.type === "started") {
