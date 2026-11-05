@@ -1,5 +1,6 @@
 "use client"
 
+import { useFlushBanner } from "@/app/(main)/profile/_components/use-flush-banner"
 import { lookupAvatarFrame, lookupBannerOverlay, lookupProfileLayout } from "@/lib/rewards/profile-style-definitions"
 import { lookupBackground, lookupBorder } from "@/lib/rewards/reward-provider"
 import { profileAvatarBorderStyle, profileHeaderBackgroundStyle, profileNameStyle } from "@/lib/rewards/profile-cosmetics"
@@ -62,6 +63,7 @@ function UserProfilePage() {
     const activeTab = searchParams.get("tab") || "activity"
 
     const { data, isLoading } = useGetUserProfile(id)
+    useFlushBanner(!!data?.profile?.bannerImage)
 
     if (isLoading) {
         return (

@@ -2596,3 +2596,14 @@ a:focus-visible > .sea-synthetic-card .sea-synthetic-outline::before {
 @media (prefers-reduced-motion: reduce) {
     .sea-synthetic-card:hover .sea-synthetic-outline::before { animation: none; }
 }
+
+/* Profile pages with a banner: no root scrollbar, so the banner runs to the window edge.
+   See app/(main)/profile/_components/use-flush-banner.ts. */
+html.sea-no-root-scrollbar {
+    scrollbar-width: none;
+}
+
+html.sea-no-root-scrollbar::-webkit-scrollbar {
+    display: none;
+    width: 0;
+}

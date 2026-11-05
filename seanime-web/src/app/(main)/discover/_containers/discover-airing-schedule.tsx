@@ -16,19 +16,29 @@ import { displayTitle } from "@/lib/helpers/media"
 
 
 export function DiscoverAiringSchedule() {
-    const { data, isLoading } = useAnilistListRecentAiringAnime({
+    // The window is fixed once per hour. Computed from `new Date()` on every render, its bounds
+    // changed every second, so each render asked for a new query key: the query restarted, the
+    // server-side caches never matched, and the schedule could sit loading indefinitely.
+    const hourBucket = Math.floor(Date.now() / 3_600_000)
+    const airingWindow = React.useMemo(() => {
+        const now = new Date(hourBucket * 3_600_000)
+        return {
+            airingAt_lesser: Math.floor(addDays(now, 14).getTime() / 1000),
+            airingAt_greater: Math.floor(subDays(now, 2).getTime() / 1000),
+        }
+    }, [hourBucket])
+
+    const { data, isLoading, isError } = useAnilistListRecentAiringAnime({
         page: 1,
         perPage: 50,
-        airingAt_lesser: Math.floor(addDays(new Date(), 14).getTime() / 1000),
-        airingAt_greater: Math.floor(subDays(new Date(), 2).getTime() / 1000),
+        ...airingWindow,
         notYetAired: true,
         sort: ["TIME"],
     })
     const { data: data2, isLoading: isLoading2 } = useAnilistListRecentAiringAnime({
         page: 2,
         perPage: 50,
-        airingAt_lesser: Math.floor(addDays(new Date(), 14).getTime() / 1000),
-        airingAt_greater: Math.floor(subDays(new Date(), 2).getTime() / 1000),
+        ...airingWindow,
         notYetAired: true,
         sort: ["TIME"],
     })
@@ -43,7 +53,7 @@ export function DiscoverAiringSchedule() {
         && item?.media?.countryOfOrigin === "JP"
         && item?.media?.format !== "TV_SHORT",
     ).filter(Boolean) || []),
-    ], [isLoading, isLoading2])
+    ], [data, data2])
 
     const router = useRouter()
     const { setPreviewModalMediaId } = useMediaPreviewModal()
@@ -62,7 +72,6 @@ export function DiscoverAiringSchedule() {
 
         while (day <= endDate) {
             const upcomingMedia = media.filter((item) => !!item?.airingAt && isSameDay(new Date(item.airingAt * 1000), day)).map((item) => {
-                if (item.media?.id === 162804) console.log(item.airingAt)
                 return {
                     id: item.id + item?.episode!,
                     name: displayTitle(item.media?.title),
@@ -87,6 +96,10 @@ export function DiscoverAiringSchedule() {
     }, [media, currentDate])
 
     if (isLoading || isLoading2) return <LoadingSpinner />
+
+    if (isError && !data) {
+        return <p className="text-center text-[--muted] py-10">Couldn't load the airing schedule. Try again in a moment.</p>
+    }
 
     if (!data?.Page?.airingSchedules?.length) return null
 

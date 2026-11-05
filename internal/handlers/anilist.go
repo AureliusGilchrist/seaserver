@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/goccy/go-json"
 	"github.com/labstack/echo/v4"
 )
 
@@ -875,6 +876,7 @@ func (h *Handler) HandleAnilistListAnime(c echo.Context) error {
 	}
 
 	ret, err := anilist.ListAnimeM(
+		anilist.WithUserInitiated(c.Request().Context()),
 		shared_platform.SharedCacheLayer(h.App.AnilistClientRef),
 		p.Page,
 		p.Search,
@@ -928,8 +930,10 @@ func (h *Handler) HandleAnilistListRecentAiringAnime(c echo.Context) error {
 	p.Page = paginationDefault(p.Page, 1)
 	p.PerPage = paginationDefault(p.PerPage, 50)
 
-	cacheKey := fmt.Sprintf("p%d-%v-%v-%v-%v-%v-%v-%v", h.GetProfileID(c),
-		p.Page, p.Search, p.PerPage, p.AiringAtGreater, p.AiringAtLesser, p.NotYetAired, p.Sort)
+	// Keyed by the values, not the pointers: %v of a *int prints its address, which made every
+	// request a new key and this cache a guaranteed miss.
+	keyBody, _ := json.Marshal(p)
+	cacheKey := fmt.Sprintf("p%d-%s", h.GetProfileID(c), keyBody)
 
 	cached, ok := anilistListRecentAnimeCache.Get(cacheKey)
 	if ok {
@@ -937,6 +941,7 @@ func (h *Handler) HandleAnilistListRecentAiringAnime(c echo.Context) error {
 	}
 
 	ret, err := anilist.ListRecentAiringAnimeM(
+		anilist.WithUserInitiated(c.Request().Context()),
 		shared_platform.SharedCacheLayer(h.App.AnilistClientRef),
 		p.Page,
 		p.Search,

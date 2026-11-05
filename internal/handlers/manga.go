@@ -684,6 +684,7 @@ func (h *Handler) HandleAnilistListManga(c echo.Context) error {
 	}
 
 	ret, err := anilist.ListMangaM(
+		anilist.WithUserInitiated(c.Request().Context()),
 		shared_platform.SharedCacheLayer(h.App.AnilistClientRef),
 		p.Page,
 		p.Search,

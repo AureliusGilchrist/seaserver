@@ -228,6 +228,34 @@ func (ac *AnilistClientImpl) CustomQuery(body []byte, logger *zerolog.Logger, to
 	return data, err
 }
 
+// CustomQueryCtx is CustomQuery on the caller's context, so a request marked WithUserInitiated
+// takes the user lane of the pacer instead of queueing behind background work.
+func (ac *AnilistClientImpl) CustomQueryCtx(ctx context.Context, body []byte, logger *zerolog.Logger, token ...string) (data interface{}, err error) {
+	t := ac.token
+	if len(token) > 0 && token[0] != "" {
+		t = token[0]
+	}
+	data, err = customQueryWithContext(ctx, body, logger, t)
+	if errors.Is(err, ErrTokenRejected) && t == ac.token {
+		ac.markTokenRejected()
+	}
+	return data, err
+}
+
+// ContextCustomQuerier is implemented by clients that can run a raw query on a context. It is not
+// part of AnilistClient so the mocks and wrappers that only know CustomQuery keep compiling.
+type ContextCustomQuerier interface {
+	CustomQueryCtx(ctx context.Context, body []byte, logger *zerolog.Logger, token ...string) (interface{}, error)
+}
+
+// CustomQueryOn runs a raw query through client, on ctx when the client supports it.
+func CustomQueryOn(ctx context.Context, client AnilistClient, body []byte, logger *zerolog.Logger, token ...string) (interface{}, error) {
+	if cq, ok := client.(ContextCustomQuerier); ok && ctx != nil {
+		return cq.CustomQueryCtx(ctx, body, logger, token...)
+	}
+	return client.CustomQuery(body, logger, token...)
+}
+
 ////////////////////////////////
 // Authenticated
 ////////////////////////////////

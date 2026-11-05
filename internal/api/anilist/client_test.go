@@ -219,6 +219,7 @@ func TestListAnime(t *testing.T) {
 			t.Log(cacheKey)
 
 			res, err := ListAnimeM(
+				context.Background(),
 				anilistClient,
 				tt.Page,
 				tt.Search,

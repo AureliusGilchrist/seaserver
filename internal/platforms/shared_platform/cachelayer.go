@@ -333,14 +333,25 @@ func (c *CacheLayer) GetCacheDir() string {
 }
 
 func (c *CacheLayer) CustomQuery(body []byte, logger *zerolog.Logger, token ...string) (interface{}, error) {
+	return c.CustomQueryCtx(context.Background(), body, logger, token...)
+}
+
+// CustomQueryCtx is CustomQuery on the caller's context. A handler passes its request context
+// marked anilist.WithUserInitiated, so the query takes the user lane of the pacer. Through the
+// context-free form every raw query (the Discover airing schedule among them) queued as background
+// work, was refused after the background wait on a busy server, and came back as a cache miss.
+func (c *CacheLayer) CustomQueryCtx(ctx context.Context, body []byte, logger *zerolog.Logger, token ...string) (interface{}, error) {
 	// Use the stringified body as cache key
 	cacheKey := string(body)
 	bucket := c.buckets[CustomQueryBucket]
 
+	var networkErr error
+
 	// Try network first if API is working
 	if IsWorking.Load() {
-		result, err := c.anilistClientRef.Get().CustomQuery(body, logger, token...)
+		result, err := anilist.CustomQueryOn(ctx, c.anilistClientRef.Get(), body, logger, token...)
 		c.checkAndUpdateWorkingState(err)
+		networkErr = err
 
 		if err == nil {
 			go func() {
@@ -384,6 +395,10 @@ func (c *CacheLayer) CustomQuery(body []byte, logger *zerolog.Logger, token ...s
 		return nil, fmt.Errorf("cache lookup failed: %w", err)
 	}
 	if !found {
+		// Say why the network answer was missing too; a bare cache miss hides the real failure.
+		if networkErr != nil {
+			return nil, fmt.Errorf("no cached data available: %w", networkErr)
+		}
 		return nil, fmt.Errorf("no cached data available")
 	}
 
@@ -396,6 +411,12 @@ func (c *CacheLayer) checkAndUpdateWorkingState(err error) {
 	if err != nil {
 		// Skip context.Canceled errors, not indicative of API issues
 		if errors.Is(err, context.Canceled) {
+			return
+		}
+		// Neither is a request our own pacer refused before sending it: that is a local queue
+		// being full, not AniList being down. Counting it switched the whole server to cache-only
+		// mode whenever background work kept the queue busy.
+		if errors.Is(err, anilist.ErrRateBudgetWait) {
 			return
 		}
 

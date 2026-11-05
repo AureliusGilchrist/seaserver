@@ -482,6 +482,7 @@ func (h *Handler) HandleFetchAnimeEntrySuggestions(c echo.Context) error {
 	h.App.Logger.Info().Str("title", title).Msg("handlers: Fetching anime suggestions")
 
 	res, err := anilist.ListAnimeM(
+		anilist.WithUserInitiated(c.Request().Context()),
 		shared_platform.SharedCacheLayer(h.App.AnilistClientRef),
 		lo.ToPtr(1),
 		&title,

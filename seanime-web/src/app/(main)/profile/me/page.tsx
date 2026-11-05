@@ -1,5 +1,6 @@
 "use client"
 
+import { useFlushBanner } from "@/app/(main)/profile/_components/use-flush-banner"
 import { lookupAvatarFrame, lookupBannerOverlay, lookupProfileLayout } from "@/lib/rewards/profile-style-definitions"
 import { EasterEggSecrets } from "@/app/(main)/profile/_components/easter-egg-secrets"
 import { profileAvatarBorderStyle, profileHeaderBackgroundStyle, profileNameStyle } from "@/lib/rewards/profile-cosmetics"
@@ -97,6 +98,7 @@ export function MyProfilePage() {
     // The banner sits in the page and scrolls with it, on the same fade as the anime/manga hero.
     const heroFade = useHeroScrollFade()
     const { data, isLoading } = useGetMyProfile()
+    useFlushBanner(!!data?.profile?.bannerImage)
     const { mutate: updateBio, isPending: isUpdatingBio } = useUpdateBio()
     const [editingBio, setEditingBio] = React.useState(false)
     const [bioText, setBioText] = React.useState("")
@@ -975,7 +977,7 @@ function FavoriteCardShell({
     subtitle?: string | null
     description?: string | null
     isLoading?: boolean
-    kind: string
+    kind?: string
 }) {
     return (
         <a
@@ -1002,9 +1004,11 @@ function FavoriteCardShell({
                         )
                 }
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent" />
-                <span className="absolute left-3 top-3 rounded-full border border-white/15 bg-black/55 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-white/80 shadow backdrop-blur-lg">
-                    {kind}
-                </span>
+                {kind && (
+                    <span className="absolute left-3 top-3 rounded-full border border-white/15 bg-black/55 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-white/80 shadow backdrop-blur-lg">
+                        {kind}
+                    </span>
+                )}
             </div>
             <div className="flex flex-1 flex-col gap-1.5 p-3">
                 <p className="line-clamp-2 text-sm font-bold leading-snug text-white" title={title ?? undefined}>
@@ -1075,17 +1079,20 @@ function FavoriteCharacterCard({ id }: { id: number }) {
 }
 
 function FavoriteStaffCard({ id }: { id: number }) {
+    // The staff endpoint answers with the AniList query root ({ Staff: {...} }), unlike the
+    // character endpoint, which returns the character itself. Reading image/name off the root
+    // left every staff favourite as "Artwork unavailable" with a bare #id.
     const { data, isLoading } = useGetAnilistStaffDetails(id)
-    const role = (data as any)?.primaryOccupations?.[0] ?? null
+    const staff = data?.Staff
+    const full = staff?.name?.full || staff?.name?.native
     return (
         <FavoriteCardShell
             href={`/staff?id=${id}`}
-            image={(data as any)?.image?.large || (data as any)?.image?.medium}
-            title={(data as any)?.name?.full || (data as any)?.name?.userPreferred || (data as any)?.name?.native}
-            subtitle={role ?? undefined}
-            description={stripHtml((data as any)?.description)}
+            image={staff?.image?.large}
+            title={full}
+            subtitle={staff?.name?.native && staff.name.native !== full ? staff.name.native : undefined}
+            description={stripHtml(staff?.description)}
             isLoading={isLoading}
-            kind="Staff"
         />
     )
 }

@@ -1,6 +1,7 @@
 package anilist
 
 import (
+	"context"
 	"fmt"
 	"seanime/internal/hook"
 
@@ -132,6 +133,7 @@ func ListMissedSequels(
 }
 
 func ListAnimeM(
+	ctx context.Context,
 	client AnilistClient,
 	Page *int,
 	Search *string,
@@ -194,7 +196,7 @@ func ListAnimeM(
 		return nil, err
 	}
 
-	data, err := client.CustomQuery(requestBody, logger, token)
+	data, err := CustomQueryOn(ctx, client, requestBody, logger, token)
 	if err != nil {
 		return nil, err
 	}
@@ -212,6 +214,7 @@ func ListAnimeM(
 }
 
 func ListMangaM(
+	ctx context.Context,
 	client AnilistClient,
 	Page *int,
 	Search *string,
@@ -272,7 +275,7 @@ func ListMangaM(
 		return nil, err
 	}
 
-	data, err := client.CustomQuery(requestBody, logger, token)
+	data, err := CustomQueryOn(ctx, client, requestBody, logger, token)
 	if err != nil {
 		return nil, err
 	}
@@ -290,6 +293,7 @@ func ListMangaM(
 }
 
 func ListRecentAiringAnimeM(
+	ctx context.Context,
 	client AnilistClient,
 	Page *int,
 	Search *string,
@@ -335,7 +339,7 @@ func ListRecentAiringAnimeM(
 		return nil, err
 	}
 
-	data, err := client.CustomQuery(requestBody, logger, token)
+	data, err := CustomQueryOn(ctx, client, requestBody, logger, token)
 	if err != nil {
 		return nil, err
 	}
