@@ -628,13 +628,23 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             const signal = this.abortController.signal
             const fontBuffers: Uint8Array[] = []
             const loadedKeys: string[] = []
-            await forEachLimited(newEntries, FONT_FETCH_CONCURRENCY, signal, async f => {
+            const load = async (f: { key: string, url: string }) => {
                 const data = await fetchFontData(f.url, f.key, signal)
                 if (data) {
                     fontBuffers.push(data)
                     loadedKeys.push(f.key)
                 }
-            })
+            }
+            // A mediastream font request is held by the server until the background extraction of
+            // the file's fonts and subtitles finishes, which on a large file over the NAS is a minute
+            // or more. Each one held is one of the browser's six connections to the server, so three
+            // at once (with the subtitle track and the video itself) left nothing for anything else:
+            // every API call in the app — adding to a list, a Save — sat in the browser's queue until
+            // extraction was done. One font goes first and waits alone; once it is back the rest are
+            // already on disk and come at once.
+            const waitsOnExtraction = newEntries.find(f => f.url.includes("/api/v1/mediastream/att/"))
+            if (waitsOnExtraction) await load(waitsOnExtraction)
+            await forEachLimited(newEntries.filter(f => f !== waitsOnExtraction), FONT_FETCH_CONCURRENCY, signal, load)
 
             // The renderer may have been replaced or destroyed, or the stream left, while the fonts
             // were in flight; never feed a stale or dead instance. The fetched fonts stay cached.

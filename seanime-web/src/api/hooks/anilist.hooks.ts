@@ -124,6 +124,13 @@ export function useEditAnilistListEntry(id: Nullish<string | number>, type: "ani
         endpoint: API_ENDPOINTS.ANILIST.EditAnilistListEntry.endpoint,
         method: API_ENDPOINTS.ANILIST.EditAnilistListEntry.methods[0],
         mutationKey: [API_ENDPOINTS.ANILIST.EditAnilistListEntry.key, String(id)],
+        // Edits to one entry are sent one after another, in the order they were made. Every caller
+        // gets its own mutation (the "+" button and the editor's Save are separate), so a Save made
+        // while the "+" is still in flight no longer waits behind a Save button frozen on the add's
+        // pending state — it applies to the page at once (onMutate runs straight away) and its
+        // request follows the add's. Sent side by side instead, the add could reach AniList last
+        // and put the entry back to Planning over the edit.
+        scope: { id: `anilist-list-entry-${type}-${id}` },
         // The server answers within ~10s by design; past this something is stuck.
         timeout: 30_000,
         onMutate: async (variables) => {
@@ -171,6 +178,10 @@ export function useEditAnilistListEntry(id: Nullish<string | number>, type: "ani
                     return next
                 }), 1800)
             }
+            // A later edit to this entry is already queued behind this one (see `scope`): refetching
+            // now would briefly show this edit's values over the newer ones the page already has.
+            // That edit refetches when it lands.
+            if (queryClient.isMutating({ mutationKey: [API_ENDPOINTS.ANILIST.EditAnilistListEntry.key, String(id)] }) > 1) return
             // Not awaited: the page already shows the edit, and these are only catching up.
             if (type === "anime") {
                 void queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANIME_ENTRIES.GetAnimeEntry.key, String(id)] })

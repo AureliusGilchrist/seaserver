@@ -92,7 +92,14 @@ export const AnilistMediaEntryModal = (props: AnilistMediaEntryModalProps) => {
 
     const user = useCurrentUser()
 
-    const { mutate, isPending: isEditing, isSuccess, reset } = useEditAnilistListEntry(media?.id, type)
+    // The "+" and the editor's Save are separate mutations. Shared, the editor (which appears the
+    // moment "+" is pressed, the entry being patched in straight away) showed the add's pending
+    // state on its Save button: frozen on "saving" for as long as the add's request took, which is
+    // however long the browser held it back for a free connection to the server — half a minute
+    // and more while the player was waiting on subtitle and font extraction. The two still reach
+    // the server in order (the hook runs edits to one entry one at a time).
+    const { mutate, isPending: isEditing } = useEditAnilistListEntry(media?.id, type)
+    const { mutate: addToList, isPending: isAdding, isSuccess: isAdded } = useEditAnilistListEntry(media?.id, type)
     const { mutate: mutateRepeat, isPending: _isPending2 } = useUpdateAnimeEntryRepeat(media?.id)
     const { mutate: deleteEntry, isPending: isDeleting } = useDeleteAnilistListEntry(media?.id, type, () => {
         toggle(false)
@@ -146,9 +153,9 @@ export const AnilistMediaEntryModal = (props: AnilistMediaEntryModalProps) => {
                         icon={<BiPlus />}
                         rounded
                         size="sm"
-                        loading={isEditing || isDeleting}
-                        className={cn({ "hidden": isSuccess })} // Hide button when mutation is successful
-                        onClick={() => mutate({
+                        loading={isAdding || isDeleting}
+                        className={cn({ "hidden": isAdded })} // Hide button when mutation is successful
+                        onClick={() => addToList({
                             mediaId: media?.id || 0,
                             status: "PLANNING",
                             score: 0,
