@@ -78,6 +78,10 @@ func (pm *PlaybackManager) discordSettingsForCurrentProfile() *models.DiscordSet
 	pm.activeProfileIDMu.RLock()
 	profileID := pm.activeProfileID
 	pm.activeProfileIDMu.RUnlock()
+	if profileID > 0 && pm.getProfileAniListUsernameFunc != nil {
+		ds.ProfileScoped = true
+		ds.ProfileAniListUsername = pm.getProfileAniListUsernameFunc(profileID)
+	}
 	if profileID > 0 && pm.getClientSettingsOverridesFunc != nil {
 		if ovr := pm.getClientSettingsOverridesFunc(profileID); ovr != nil {
 			if ovr.EnableRichPresence != nil {

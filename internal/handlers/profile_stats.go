@@ -104,6 +104,7 @@ func (h *Handler) HandleGetProfileStats(c echo.Context) error {
 		EstimatedReadingMinutes:        estimatedReadingMin,
 		AnimeHoursPerWeek:              animeHoursPerWeek,
 		MangaChaptersPerWeek:           mangaChaptersPerWeek,
+		Lifetime:                       h.lifetimeStatsForProfile(profileID, profileDB, animeCol, mangaCol),
 	}
 
 	return h.RespondWithData(c, result)
@@ -183,6 +184,7 @@ func (h *Handler) HandleGetUserProfileStats(c echo.Context) error {
 		WatchPatterns:        watchPatterns,
 		AnimeHoursPerWeek:    animeHoursPerWeek,
 		MangaChaptersPerWeek: mangaChaptersPerWeek,
+		Lifetime:             h.lifetimeStatsForProfile(uint(pid), profileDB, nil, nil),
 	}
 
 	return h.RespondWithData(c, result)

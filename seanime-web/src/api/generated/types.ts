@@ -6992,6 +6992,36 @@ export type ProfileStats_ProfileStats = {
     estimatedReadingMinutes: number
     animeHoursPerWeek: number
     mangaChaptersPerWeek: number
+    /**
+     *  Lifetime totals: an estimate of the history before tracking began, plus everything tracked since.
+     */
+    lifetime?: ProfileStats_LifetimeStats
+}
+
+/**
+ * - Filepath: internal/profilestats/types.go
+ * - Filename: types.go
+ * - Package: profilestats
+ * @description
+ *  LifetimeStats are a profile's all-time totals. The same shape, summed over every profile, is the
+ *  Community page's totals.
+ */
+export type ProfileStats_LifetimeStats = {
+    animeMinutes: number
+    animeEpisodes: number
+    mangaMinutes: number
+    mangaChapters: number
+    animeCompleted: number
+    mangaCompleted: number
+    activeDays: number
+    /**
+     *  IncludesEstimate is true when part of the totals was estimated from the AniList lists.
+     */
+    includesEstimate: boolean
+    /**
+     *  EstimatedAt is when that estimate was made (empty when there is none yet).
+     */
+    estimatedAt?: string
 }
 
 /**

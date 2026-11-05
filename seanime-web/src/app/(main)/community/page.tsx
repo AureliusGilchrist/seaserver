@@ -3,6 +3,8 @@
 import { useGetCommunityProfiles } from "@/api/hooks/community.hooks"
 import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { ProfileTimeline } from "@/app/(main)/_features/profile/profile-timeline"
+import { LifetimeStatsStrip } from "@/app/(main)/_features/profile/lifetime-stats-strip"
+import { ProfileStats_LifetimeStats } from "@/api/generated/types"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { cn } from "@/components/ui/core/styling"
@@ -40,6 +42,8 @@ type Handlers_CommunityProfile = {
     xpBarSkinId: string
     nameColorCss: string
     nameGradientCss: string
+    /** All-time watched / read totals. */
+    lifetime?: ProfileStats_LifetimeStats
 }
 
 /** Resolve a stored displayTitle — turns raw milestone IDs like "milestone-tokyo-ghoul-75"
@@ -99,6 +103,9 @@ export default function Page() {
                         )}
                     </div>
                 </header>
+
+                {/* Everyone's all-time totals, summed */}
+                <LifetimeStatsStrip lifetime={stats?.lifetime} title="Together, all time" />
 
                 {/* Mobile: members strip above the feed */}
                 <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] lg:hidden">

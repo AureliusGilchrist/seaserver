@@ -23,7 +23,11 @@ type Presence struct {
 	logger   *zerolog.Logger
 	hasSent  bool
 	username string
-	mu       sync.RWMutex
+	// multiProfile is true when the server has more than one profile. The server-wide
+	// username then belongs to one account only (often a shared one), so it is never used
+	// for a presence that was not resolved for a specific profile.
+	multiProfile bool
+	mu           sync.RWMutex
 
 	// Per-client Discord settings, resolved from each client's profile Personal settings
 	// (keyed by VideoCore clientId). When present, these override p.settings for that
@@ -177,6 +181,26 @@ func (p *Presence) SetUsername(username string) {
 	defer p.mu.Unlock()
 
 	p.username = username
+}
+
+// SetMultiProfile records whether several profiles share this server (see Presence.multiProfile).
+func (p *Presence) SetMultiProfile(multi bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.multiProfile = multi
+}
+
+// profileUsername returns the AniList username the "View Profile" button should link to for a
+// presence governed by settings, or "" when there is none. Callers hold p.mu.
+func (p *Presence) profileUsername(settings *models.DiscordSettings) string {
+	if settings != nil && settings.ProfileScoped {
+		return settings.ProfileAniListUsername
+	}
+	if p.multiProfile {
+		return ""
+	}
+	return p.username
 }
 
 // SetSettingsFor applies per-profile Discord settings for a single client's presence
@@ -413,10 +437,10 @@ func (p *Presence) setAnimeActivityImpl(clientId string, a *AnimeActivity) {
 
 	activity.Buttons = make([]*discordrpc_client.Button, 0)
 
-	if settings.RichPresenceShowAniListProfileButton {
+	if username := p.profileUsername(settings); settings.RichPresenceShowAniListProfileButton && username != "" {
 		activity.Buttons = append(activity.Buttons, &discordrpc_client.Button{
 			Label: "View Profile",
-			Url:   fmt.Sprintf("https://anilist.co/user/%s", p.username),
+			Url:   fmt.Sprintf("https://anilist.co/user/%s", username),
 		})
 	}
 
@@ -664,10 +688,10 @@ func (p *Presence) LegacySetAnimeActivityWithSettings(a *LegacyAnimeActivity, se
 	activity.Timestamps.End = nil
 	activity.Buttons = make([]*discordrpc_client.Button, 0)
 
-	if settings.RichPresenceShowAniListProfileButton {
+	if username := p.profileUsername(settings); settings.RichPresenceShowAniListProfileButton && username != "" {
 		activity.Buttons = append(activity.Buttons, &discordrpc_client.Button{
 			Label: "View Profile",
-			Url:   fmt.Sprintf("https://anilist.co/user/%s", p.username),
+			Url:   fmt.Sprintf("https://anilist.co/user/%s", username),
 		})
 	}
 
@@ -737,10 +761,10 @@ func (p *Presence) SetMangaActivityWithSettings(a *MangaActivity, settings *mode
 	event.EndTimestamp = nil
 	activity.Buttons = make([]*discordrpc_client.Button, 0)
 
-	if settings.RichPresenceShowAniListProfileButton && p.username != "" {
+	if username := p.profileUsername(settings); settings.RichPresenceShowAniListProfileButton && username != "" {
 		activity.Buttons = append(activity.Buttons, &discordrpc_client.Button{
 			Label: "View Profile",
-			Url:   fmt.Sprintf("https://anilist.co/user/%s", p.username),
+			Url:   fmt.Sprintf("https://anilist.co/user/%s", username),
 		})
 	}
 

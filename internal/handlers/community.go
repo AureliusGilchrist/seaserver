@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"sort"
+	"sync"
 	"time"
 
 	"seanime/internal/achievement"
 	"seanime/internal/database/db"
+	"seanime/internal/profilestats"
 
 	"github.com/labstack/echo/v4"
 )
@@ -33,6 +35,8 @@ type CommunityProfile struct {
 	XPBarSkinID     string `json:"xpBarSkinId"`
 	NameColorCss    string `json:"nameColorCss"`
 	NameGradientCss string `json:"nameGradientCss"`
+	// All-time watched / read totals (estimate before tracking + tracked since).
+	Lifetime *profilestats.LifetimeStats `json:"lifetime,omitempty"`
 }
 
 // CommunityResponse wraps the profiles list with aggregate statistics.
@@ -47,6 +51,8 @@ type AggregateStats struct {
 	TotalXP           int   `json:"totalXP"`
 	TotalAchievements int64 `json:"totalAchievements"`
 	HighestLevel      int   `json:"highestLevel"`
+	// Lifetime is every profile's all-time totals summed.
+	Lifetime *profilestats.LifetimeStats `json:"lifetime"`
 }
 
 // ActivityFeedEntry represents a single event in the community activity feed.
@@ -72,7 +78,7 @@ func (h *Handler) HandleGetCommunityProfiles(c echo.Context) error {
 	if h.App.ProfileManager == nil {
 		return h.RespondWithData(c, &CommunityResponse{
 			Profiles:       []*CommunityProfile{},
-			AggregateStats: &AggregateStats{},
+			AggregateStats: &AggregateStats{Lifetime: &profilestats.LifetimeStats{}},
 		})
 	}
 
@@ -135,6 +141,28 @@ func (h *Handler) HandleGetCommunityProfiles(c echo.Context) error {
 		result = append(result, cp)
 	}
 
+	// Lifetime totals, one profile per goroutine: the first call for a profile may wait on its
+	// AniList lists to make the backfill estimate.
+	communityLifetime := &profilestats.LifetimeStats{}
+	{
+		var wg sync.WaitGroup
+		for _, cp := range result {
+			database, dbErr := h.App.ProfileDatabaseManager.GetDatabase(cp.ID)
+			if dbErr != nil {
+				continue
+			}
+			wg.Add(1)
+			go func(cp *CommunityProfile, database *db.Database) {
+				defer wg.Done()
+				cp.Lifetime = h.lifetimeStatsForProfile(cp.ID, database, nil, nil)
+			}(cp, database)
+		}
+		wg.Wait()
+		for _, cp := range result {
+			communityLifetime.Add(cp.Lifetime)
+		}
+	}
+
 	return h.RespondWithData(c, &CommunityResponse{
 		Profiles: result,
 		AggregateStats: &AggregateStats{
@@ -142,6 +170,7 @@ func (h *Handler) HandleGetCommunityProfiles(c echo.Context) error {
 			TotalXP:           totalXP,
 			TotalAchievements: totalAchievements,
 			HighestLevel:      highestLevel,
+			Lifetime:          communityLifetime,
 		},
 	})
 }

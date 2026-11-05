@@ -8,6 +8,7 @@ import { AchievementsView } from "@/app/(main)/_features/achievement/achievement
 import { useGetMyProfile, useGetUserProfile } from "@/api/hooks/community.hooks"
 import { ProfileCommentsTab } from "@/app/(main)/_features/profile/profile-comments-tab"
 import { useGetUserProfileStats } from "@/api/hooks/profile-stats.hooks"
+import { LifetimeStatsStrip } from "@/app/(main)/_features/profile/lifetime-stats-strip"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
 import { useHeroScrollFade } from "@/app/(main)/_features/media/_lib/use-hero-scroll-fade"
 import { motion } from "motion/react"
@@ -333,6 +334,8 @@ function UserStatsTabContent({ userId, xpBarFillCss }: { userId: number; xpBarFi
 
     return (
         <>
+            <LifetimeStatsStrip lifetime={profileStats?.lifetime} title="All time" />
+
             <Stats
                 className="w-full grid-cols-2 gap-3 divide-y-0 divide-x-0 overflow-visible sm:grid-cols-3"
                 itemClass="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] via-black/25 to-black/35 p-4 shadow-xl shadow-black/20 backdrop-blur-md sm:p-5"

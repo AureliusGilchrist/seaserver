@@ -132,6 +132,16 @@ func (a *App) initModulesOnce() {
 			}
 			return a.AnilistClientManager.ResolveClientForWrites(profileID)
 		},
+		GetProfileAniListUsernameFunc: func(profileID uint) string {
+			if a.ProfileManager == nil || profileID == 0 {
+				return ""
+			}
+			prof, err := a.ProfileManager.GetProfile(profileID)
+			if err != nil || prof == nil {
+				return ""
+			}
+			return prof.AniListUsername
+		},
 		GetClientSettingsOverridesFunc: func(profileID uint) *db.ClientSettingsOverrides {
 			if a.ProfileDatabaseManager == nil || profileID == 0 {
 				return nil
@@ -1394,6 +1404,11 @@ func (a *App) InitOrRefreshAnilistData() {
 
 	go func(username string) {
 		a.DiscordPresence.SetUsername(username)
+		if a.ProfileManager != nil {
+			if profiles, err := a.ProfileManager.GetAllProfiles(); err == nil {
+				a.DiscordPresence.SetMultiProfile(len(profiles) > 1)
+			}
+		}
 	}(currUser.Viewer.Name)
 
 	a.Logger.Info().Msg("app: Fetched Anilist data")

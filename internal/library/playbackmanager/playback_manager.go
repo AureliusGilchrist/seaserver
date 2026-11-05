@@ -67,6 +67,9 @@ type (
 	// overrides (client-prefs), or nil when the profile has none. Used to apply per-profile
 	// values for server-side decisions (MPV auto-skip, Discord presence) during playback.
 	getClientSettingsOverridesFunc func(profileID uint) *db.ClientSettingsOverrides
+	// getProfileAniListUsernameFunc returns the profile's own AniList username ("" when none),
+	// so Discord presence links to whoever is actually watching.
+	getProfileAniListUsernameFunc func(profileID uint) string
 		// invalidateProfileAnimeCollectionFunc invalidates the profile's cached anime collection
 		// after a successful progress update so the next fetch returns fresh data.
 		invalidateProfileAnimeCollectionFunc func(profileID uint)
@@ -253,6 +256,7 @@ type (
 		ContinuityManager           *continuity.Manager
 		GetProfileAnilistClientFunc          func(profileID uint) (anilist.AnilistClient, uint)
 		GetClientSettingsOverridesFunc       func(profileID uint) *db.ClientSettingsOverrides
+		GetProfileAniListUsernameFunc        func(profileID uint) string
 		InvalidateProfileAnimeCollectionFunc func(profileID uint)
 		ApplyProgressWriteFunc               func(profileID uint, mediaID int, progress int, completed bool)
 		GetProfileAnimeCollectionFunc       func(profileID uint) *anilist.AnimeCollection
@@ -304,6 +308,7 @@ func New(opts *NewPlaybackManagerOptions) *PlaybackManager {
 		refreshAnimeCollectionFunc:   opts.RefreshAnimeCollectionFunc,
 		getProfileAnilistClientFunc:          opts.GetProfileAnilistClientFunc,
 		getClientSettingsOverridesFunc:       opts.GetClientSettingsOverridesFunc,
+		getProfileAniListUsernameFunc:        opts.GetProfileAniListUsernameFunc,
 		invalidateProfileAnimeCollectionFunc: opts.InvalidateProfileAnimeCollectionFunc,
 		applyProgressWriteFunc:               opts.ApplyProgressWriteFunc,
 		getProfileAnimeCollectionFunc:        opts.GetProfileAnimeCollectionFunc,

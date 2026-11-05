@@ -270,6 +270,13 @@ type DiscordSettings struct {
 	RichPresenceShowAniListMediaButton      bool `gorm:"column:rich_presence_show_anilist_media_button" json:"richPresenceShowAniListMediaButton"`
 	RichPresenceShowAniListProfileButton    bool `gorm:"column:rich_presence_show_anilist_profile_button" json:"richPresenceShowAniListProfileButton"`
 	RichPresenceUseMediaTitleStatus         bool `gorm:"column:rich_presence_use_media_title_status;default:true" json:"richPresenceUseMediaTitleStatus"`
+
+	// ProfileScoped marks settings resolved for one profile's request (never stored). When set,
+	// ProfileAniListUsername is the account the "View Profile" button links to — the profile
+	// that is actually watching or reading, not the server-wide AniList login. Empty means that
+	// profile has no AniList account, and the button is left out.
+	ProfileScoped          bool   `gorm:"-" json:"-"`
+	ProfileAniListUsername string `gorm:"-" json:"-"`
 }
 
 type NotificationSettings struct {
@@ -1286,6 +1293,24 @@ type ActivityLog struct {
 	MangaChapters int    `gorm:"column:manga_chapters;default:0" json:"mangaChapters"`
 	AnimeMinutes  int    `gorm:"column:anime_minutes;default:0" json:"animeMinutes"`
 	MangaMinutes  int    `gorm:"column:manga_minutes;default:0" json:"mangaMinutes"`
+}
+
+// LifetimeStatsBaseline is the one-row starting point for a profile's lifetime totals (stored in
+// per-profile DB). Watching and reading were only tracked from some point on, so the history before
+// it is estimated once from the profile's AniList lists (Est*). The Log* fields snapshot the
+// ActivityLog totals at that same moment: lifetime = max(Est, Log) + (ActivityLog now − Log), so
+// tracking adds to the estimate and nothing is counted twice, even if the estimate is redone.
+type LifetimeStatsBaseline struct {
+	BaseModel
+	EstAnimeMinutes   int       `gorm:"column:est_anime_minutes;default:0" json:"estAnimeMinutes"`
+	EstAnimeEpisodes  int       `gorm:"column:est_anime_episodes;default:0" json:"estAnimeEpisodes"`
+	EstMangaMinutes   int       `gorm:"column:est_manga_minutes;default:0" json:"estMangaMinutes"`
+	EstMangaChapters  int       `gorm:"column:est_manga_chapters;default:0" json:"estMangaChapters"`
+	LogAnimeMinutes   int       `gorm:"column:log_anime_minutes;default:0" json:"logAnimeMinutes"`
+	LogAnimeEpisodes  int       `gorm:"column:log_anime_episodes;default:0" json:"logAnimeEpisodes"`
+	LogMangaMinutes   int       `gorm:"column:log_manga_minutes;default:0" json:"logMangaMinutes"`
+	LogMangaChapters  int       `gorm:"column:log_manga_chapters;default:0" json:"logMangaChapters"`
+	EstimatedAt      time.Time `gorm:"column:estimated_at" json:"estimatedAt"`
 }
 
 // ActivityEvent stores individual, granular user actions (stored in per-profile DB).

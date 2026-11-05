@@ -440,6 +440,7 @@ export function ActivityBuffBadge({ multiplier }: { multiplier: number }) {
 // ─────────────────────── Activity Tab ───────────────────────
 
 import { ActivityTabContent } from "@/app/(main)/_features/profile/activity-tab-content"
+import { LifetimeStatsStrip } from "@/app/(main)/_features/profile/lifetime-stats-strip"
 import { LuMessagesSquare } from "react-icons/lu"
 
 // ─────────────────────── Stats Tab (lazy) ───────────────────────
@@ -463,6 +464,8 @@ function StatsTabContent() {
 
     return (
         <>
+            <LifetimeStatsStrip lifetime={profileStats?.lifetime} title="All time" />
+
             <HeroStats anilistStats={anilistStats} profileStats={profileStats} />
 
             <Separator />

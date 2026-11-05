@@ -16,6 +16,14 @@ func (h *Handler) effectiveDiscordSettings(c echo.Context) *models.DiscordSettin
 		return nil
 	}
 	ds := *settings.Discord
+	// Link the presence to the requesting profile's own AniList account, never the
+	// server-wide login (which on a shared server is some other account).
+	if pid := h.GetProfileID(c); pid > 0 && h.App.ProfileManager != nil {
+		if prof, err := h.App.ProfileManager.GetProfile(pid); err == nil && prof != nil {
+			ds.ProfileScoped = true
+			ds.ProfileAniListUsername = prof.AniListUsername
+		}
+	}
 	if pdb := h.GetProfileDatabase(c); pdb != nil {
 		if ovr, err := pdb.GetClientSettingsOverrides(); err == nil && ovr != nil {
 			if ovr.EnableRichPresence != nil {
