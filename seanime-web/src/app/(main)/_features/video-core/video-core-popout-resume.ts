@@ -41,6 +41,7 @@ type HandoffMessage =
     | { type: "position", id: string, time: number, paused: boolean }
     | { type: "started", id: string }
     | { type: "failed", id: string }
+    | { type: "episode", path: string }
     | ({ type: "return-request", id: string } & PopoutReturnRequest)
     | { type: "return-ack", id: string }
     | { type: "return-please", id: string }
@@ -208,6 +209,23 @@ export function announcePopoutHandoffStarted(id: string) {
 /** The window taking over could not start: the giving window keeps playing. */
 export function announcePopoutHandoffFailed(id: string) {
     post({ type: "failed", id })
+}
+
+/** Popout → main: keep the main player's selected episode in step without changing its time. */
+export function announcePopoutEpisode(path: string) {
+    if (!path) return
+    post({ type: "episode", path })
+}
+
+/** Main window: listen for episode selections made in the popout. */
+export function listenForPopoutEpisodes(onEpisode: (path: string) => void): () => void {
+    const channel = openChannel()
+    if (!channel) return () => {}
+    channel.onmessage = (event: MessageEvent<HandoffMessage>) => {
+        const msg = event.data
+        if (msg?.type === "episode" && typeof msg.path === "string" && msg.path) onEpisode(msg.path)
+    }
+    return () => channel.close()
 }
 
 /**

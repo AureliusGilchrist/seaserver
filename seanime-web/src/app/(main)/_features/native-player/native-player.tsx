@@ -2,6 +2,7 @@ import { attachHiddenAudioSync } from "@/app/(main)/_features/video-core/hidden-
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { useDirectstreamPlayLocalFile } from "@/api/hooks/directstream.hooks"
 import {
+    listenForPopoutEpisodes,
     listenForPopoutReturns,
     setPendingPopoutResume,
     wasReturnedOverChannel,
@@ -94,6 +95,11 @@ export function NativePlayer() {
             resumeFromPopoutRef.current(request, id)
             return true
         })
+        const stopListeningForEpisodes = listenForPopoutEpisodes(path => {
+            // Keep the hidden/local-player shell on the episode selected in PiP. Do not start or
+            // seek this stream: the return handoff supplies the PiP's live position.
+            setMediastreamFilePath(path)
+        })
 
         const off = window.electron.on("player:return-from-popout", (payload: { path: string, time: number, paused: boolean, from?: string }) => {
             if (!payload?.path) return
@@ -103,6 +109,7 @@ export function NativePlayer() {
         })
         return () => {
             stopListening()
+            stopListeningForEpisodes()
             off?.()
         }
     }, [clientId])

@@ -132,4 +132,13 @@ describe("popout live handoff", () => {
         mod.setPendingPopoutResume(0, false)
         expect(mod.takePendingPopoutResume()).toBeNull()
     })
+
+    it("broadcasts episode changes without a playback position", async () => {
+        const seen: string[] = []
+        const stop = mod.listenForPopoutEpisodes(path => seen.push(path))
+        mod.announcePopoutEpisode("/anime/episode-8.mkv")
+        await wait(20)
+        expect(seen).toEqual(["/anime/episode-8.mkv"])
+        stop()
+    })
 })

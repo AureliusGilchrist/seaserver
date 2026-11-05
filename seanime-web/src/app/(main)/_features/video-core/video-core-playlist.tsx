@@ -28,6 +28,7 @@ import {
 } from "@/app/(main)/entry/_containers/torrent-stream/torrent-stream-page"
 import { useHandlePlayMedia } from "@/app/(main)/entry/_lib/handle-play-media"
 import { isPopoutPlayerWindow } from "@/app/(main)/_features/video-core/video-core-single-playback"
+import { announcePopoutEpisode } from "@/app/(main)/_features/video-core/video-core-popout-resume"
 import { clientIdAtom } from "@/app/websocket-provider"
 import { HoverCard } from "@/components/ui/hover-card"
 import { logger } from "@/lib/helpers/debug"
@@ -163,6 +164,7 @@ export function useVideoCorePlaylist() {
     // server status and router belong to the main window): play the file natively here, like the
     // initial handoff does, so the pip can change episodes on its own.
     const playPopoutLocalFile = (path: string) => {
+        announcePopoutEpisode(path)
         directstreamPlayLocalFile({ path, clientId: clientId ?? "" })
     }
 
