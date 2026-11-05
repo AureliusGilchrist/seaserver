@@ -1,4 +1,5 @@
 import { Anime_Entry, Anime_Episode } from "@/api/generated/types"
+import { useDirectstreamPlayLocalFile } from "@/api/hooks/directstream.hooks"
 import { useGetAnimeEpisodeCollection } from "@/api/hooks/anime.hooks"
 import { useGetAnimeEntry } from "@/api/hooks/anime_entries.hooks"
 import { EpisodeGridItem } from "@/app/(main)/_features/anime/_components/episode-grid-item"
@@ -26,6 +27,8 @@ import {
     __torrentStream_currentSessionAutoSelectAtom,
 } from "@/app/(main)/entry/_containers/torrent-stream/torrent-stream-page"
 import { useHandlePlayMedia } from "@/app/(main)/entry/_lib/handle-play-media"
+import { isPopoutPlayerWindow } from "@/app/(main)/_features/video-core/video-core-single-playback"
+import { clientIdAtom } from "@/app/websocket-provider"
 import { HoverCard } from "@/components/ui/hover-card"
 import { logger } from "@/lib/helpers/debug"
 import { atom, useAtomValue } from "jotai"
@@ -151,7 +154,17 @@ export function useVideoCorePlaylist() {
     const playbackType = playlistState?.type
     const animeEntry = playlistState?.animeEntry
 
+    const clientId = useAtomValue(clientIdAtom)
+    const { mutate: directstreamPlayLocalFile } = useDirectstreamPlayLocalFile()
+
     const { isPeer: isWatchPartyPeer } = useNakamaWatchParty()
+
+    // In the popout window the playback-method resolution of playMediaFile does not apply (its
+    // server status and router belong to the main window): play the file natively here, like the
+    // initial handoff does, so the pip can change episodes on its own.
+    const playPopoutLocalFile = (path: string) => {
+        directstreamPlayLocalFile({ path, clientId: clientId ?? "" })
+    }
 
     const setTorrentSearch = useSetAtom(__torrentSearch_selectionAtom)
     const setTorrentSearchEpisode = useSetAtom(__torrentSearch_selectionEpisodeAtom)
@@ -340,6 +353,13 @@ export function useVideoCorePlaylist() {
                     toast.error("Local file not found")
                     return
                 }
+                if (isPopoutPlayerWindow()) {
+                    // The pip is the time keeper for the episode: auto-next and the episode
+                    // buttons play the file natively here, whatever the main window's playback
+                    // method is, so returning carries the episode it changed to.
+                    playPopoutLocalFile(episode.localFile.path)
+                    break
+                }
                 playMediaFile({
                     path: episode?.localFile?.path,
                     episode: episode,
@@ -375,6 +395,10 @@ export function useVideoCorePlaylist() {
                 if (!episode?.localFile?.path) {
                     toast.error("Local file not found")
                     return
+                }
+                if (isPopoutPlayerWindow()) {
+                    playPopoutLocalFile(episode.localFile.path)
+                    break
                 }
                 playMediaFile({
                     path: episode.localFile.path,
