@@ -1,7 +1,11 @@
 import { attachHiddenAudioSync } from "@/app/(main)/_features/video-core/hidden-audio-sync"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { useDirectstreamPlayLocalFile } from "@/api/hooks/directstream.hooks"
-import { setPendingPopoutResume } from "@/app/(main)/_features/video-core/video-core-popout-resume"
+import {
+    listenForPopoutReturns,
+    setPendingPopoutResume,
+    wasReturnedOverChannel,
+} from "@/app/(main)/_features/video-core/video-core-popout-resume"
 import { MKVParser_SubtitleEvent, NativePlayer_PlaybackInfo, NativePlayer_ServerEvent } from "@/api/generated/types"
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { vc_miniPlayer, vc_requestTranscodeForAudio, vc_videoElement, vc_directPlayAudioUrl, vc_directPlayAudioLoading } from "@/app/(main)/_features/video-core/video-core-atoms"
@@ -53,29 +57,52 @@ export function NativePlayer() {
     const drawerActiveRef = React.useRef(false)
     drawerActiveRef.current = !!state.active
     const terminateRef = React.useRef<(() => void) | null>(null)
+    const resumeFromPopout = (payload: { path: string, time: number, paused: boolean, from?: string }, handoffId?: string) => {
+        setPendingPopoutResume(payload.time, payload.paused, handoffId)
+        if (payload.from) {
+            log.info("Returning popout playback to the local player", payload.from)
+            // This drawer must not be left covering the page we go back to. The popout has its
+            // own client id now, so its stream no longer opens here — but if one got in by any
+            // route, it is closed rather than shown over the Local Player tab.
+            if (drawerActiveRef.current) terminateRef.current?.()
+            setMediastreamFilePath(payload.path)
+            setMediastreamReplay({ path: payload.path, nonce: Date.now() })
+            if (payload.from.startsWith("/entry")) setEntryPageView("localplayer")
+            React.startTransition(() => {
+                router.push(payload.from!)
+            })
+            return
+        }
+        playLocalFile({ path: payload.path, clientId: clientId! })
+    }
+    const resumeFromPopoutRef = React.useRef(resumeFromPopout)
+    resumeFromPopoutRef.current = resumeFromPopout
+
     React.useEffect(() => {
         if (typeof window === "undefined" || !window.electron?.on || !clientId) return
+        // The popout window renders this component too; only the main window takes playback back.
+        if (window.location.pathname.startsWith("/popout-player")) return
+
+        // Live return: the popout keeps playing while this window starts the stream (see
+        // video-core-popout-resume). Not while this window is hidden or minimized, where the
+        // stream would load in the background: the popout then falls back to the one-shot return.
+        const stopListening = listenForPopoutReturns((request, id) => {
+            if (document.visibilityState !== "visible") return false
+            resumeFromPopoutRef.current(request, id)
+            return true
+        })
+
         const off = window.electron.on("player:return-from-popout", (payload: { path: string, time: number, paused: boolean, from?: string }) => {
             if (!payload?.path) return
-            setPendingPopoutResume(payload.time, payload.paused)
-            if (payload.from) {
-                log.info("Returning popout playback to the local player", payload.from)
-                // This drawer must not be left covering the page we go back to. The popout has its
-                // own client id now, so its stream no longer opens here — but if one got in by any
-                // route, it is closed rather than shown over the Local Player tab.
-                if (drawerActiveRef.current) terminateRef.current?.()
-                setMediastreamFilePath(payload.path)
-                setMediastreamReplay({ path: payload.path, nonce: Date.now() })
-                if (payload.from.startsWith("/entry")) setEntryPageView("localplayer")
-                React.startTransition(() => {
-                    router.push(payload.from!)
-                })
-                return
-            }
-            playLocalFile({ path: payload.path, clientId })
+            // Already taken back over the channel: the shell's message only raised this window.
+            if (wasReturnedOverChannel(payload.path)) return
+            resumeFromPopoutRef.current(payload)
         })
-        return () => off?.()
-    }, [clientId, playLocalFile, router])
+        return () => {
+            stopListening()
+            off?.()
+        }
+    }, [clientId])
     // AniSkip
     const { data: aniSkipData } = useSkipData(state?.playbackInfo?.media?.idMal, state?.playbackInfo?.episode?.progressNumber ?? -1)
 

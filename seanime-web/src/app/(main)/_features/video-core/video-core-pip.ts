@@ -64,6 +64,8 @@ export class VideoCorePipManager extends EventTarget {
     private docPipController: AbortController | null = null
     private docPipPlaceholder: Comment | null = null
     private docPipStage: HTMLElement | null = null
+    private docPipPausedAt = 0
+    private docPipLastPlayingAt = 0
     // "GPU-optimized playback" setting. Off: Document PiP gets the old canvas copy of the video.
     private gpuOptimized = true
     private pipProxy: HTMLVideoElement | null = null
@@ -512,6 +514,21 @@ export class VideoCorePipManager extends EventTarget {
         for (const layer of layers) stage.appendChild(layer)
         if (wasPlaying && video.paused) video.play().catch(() => {})
 
+        // The browser can pause the video as the PiP window goes away ("back to tab", closing it),
+        // before "pagehide" moves it home. Remember when a pause comes right after playing, so the
+        // restore can tell that apart from the user pausing.
+        this.docPipLastPlayingAt = wasPlaying ? performance.now() : 0
+        video.addEventListener("pause", () => {
+            this.docPipPausedAt = performance.now()
+        }, { signal })
+        video.addEventListener("playing", () => {
+            this.docPipLastPlayingAt = performance.now()
+            this.docPipPausedAt = 0
+        }, { signal })
+        video.addEventListener("timeupdate", () => {
+            if (!video.paused) this.docPipLastPlayingAt = performance.now()
+        }, { signal })
+
         // The renderers' ResizeObservers belong to the main window, so resizes in the PiP window
         // are forwarded by hand.
         pipWindow.addEventListener("resize", () => this.resizeSubtitleLayers(), { signal })
@@ -535,7 +552,14 @@ export class VideoCorePipManager extends EventTarget {
         if (!placeholder || !stage) return
 
         const video = this.video
-        const wasPlaying = !!video && !video.paused
+        // Paused within the last moment while it had been playing: that pause came from the PiP
+        // window closing, not from the user, so playback carries on.
+        const now = performance.now()
+        const pausedByClose = !!video && video.paused && this.docPipPausedAt > 0
+            && now - this.docPipPausedAt < 400 && this.docPipPausedAt - this.docPipLastPlayingAt < 400
+        const wasPlaying = !!video && (!video.paused || pausedByClose)
+        this.docPipPausedAt = 0
+        this.docPipLastPlayingAt = 0
         const parent = placeholder.parentNode
         const nodes = Array.from(stage.childNodes)
         if (parent) {

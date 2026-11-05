@@ -93,6 +93,60 @@ export function wasPromptDismissed(mediaId: number, episodeNumber: number) {
     return !!dismissed[`${mediaId}:${episodeNumber}`]
 }
 
+// Episodes the user actually sat through (most of the way) recently, per media. Kept in
+// localStorage, not sessionStorage, because the desktop popout player is its own window with its
+// own sessionStorage: an episode finished in one window must be known to the other.
+const PLAYED_KEY = "sea-progress-played"
+const PLAYED_TTL_MS = 12 * 60 * 60 * 1000
+
+function readPlayed(): Record<string, Record<string, number>> {
+    try {
+        const raw = localStorage.getItem(PLAYED_KEY)
+        const parsed = raw ? JSON.parse(raw) : {}
+        return parsed && typeof parsed === "object" ? parsed as Record<string, Record<string, number>> : {}
+    }
+    catch {
+        return {}
+    }
+}
+
+/** Record that most of an episode was played (it counts as watched even if its update got lost). */
+export function markEpisodePlayed(mediaId: number, episodeNumber: number) {
+    if (!mediaId || !episodeNumber) return
+    const now = Date.now()
+    const all = readPlayed()
+    // Drop stale entries so the store stays small.
+    for (const [mid, eps] of Object.entries(all)) {
+        for (const [ep, at] of Object.entries(eps)) {
+            if (!(now - at < PLAYED_TTL_MS)) delete eps[ep]
+        }
+        if (!Object.keys(eps).length) delete all[mid]
+    }
+    all[String(mediaId)] = { ...all[String(mediaId)], [String(episodeNumber)]: now }
+    try {
+        localStorage.setItem(PLAYED_KEY, JSON.stringify(all))
+    }
+    catch {
+        // storage unavailable — the in-player counting still works
+    }
+}
+
+export function wasEpisodePlayed(mediaId: number, episodeNumber: number) {
+    const at = readPlayed()[String(mediaId)]?.[String(episodeNumber)]
+    return typeof at === "number" && Date.now() - at < PLAYED_TTL_MS
+}
+
+/**
+ * Progress once the episodes the user recently played are counted: from `progress`, every next
+ * episode that was played moves it up by one. The episode about to be counted is not included,
+ * so a real skip (episodes never played) still stands out.
+ */
+export function bridgePlayedProgress(mediaId: number, progress: number, upTo: number) {
+    let p = progress
+    while (p + 1 < upTo && wasEpisodePlayed(mediaId, p + 1)) p++
+    return p
+}
+
 /** Highest episode watched-but-maybe-not-on-AniList for a media (0 if none). */
 export function getQueuedUpTo(mediaId: number | null | undefined): number {
     if (!mediaId) return 0

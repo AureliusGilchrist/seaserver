@@ -18,7 +18,13 @@ import { vc_paused, vc_videoElement } from "@/app/(main)/_features/video-core/vi
 import { nativePlayer_stateAtom } from "@/app/(main)/_features/native-player/native-player.atoms"
 import { NativePlayer } from "@/app/(main)/_features/native-player/native-player"
 import { VideoCoreProvider } from "@/app/(main)/_features/video-core/video-core"
-import { setPendingPopoutResume } from "@/app/(main)/_features/video-core/video-core-popout-resume"
+import {
+    announcePopoutHandoffFailed,
+    newPopoutHandoffId,
+    requestPopoutReturn,
+    setPendingPopoutResume,
+    startPopoutHandoffGiver,
+} from "@/app/(main)/_features/video-core/video-core-popout-resume"
 import { clientIdAtom, websocketConnectedAtom } from "@/app/websocket-provider"
 import { AppLayoutStack } from "@/components/ui/app-layout"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
@@ -201,21 +207,51 @@ function PopoutReturnButton() {
                 path = null
             }
         }
-        if (!path || !window.electron?.window?.returnPlayerFromPopout) return
+        if (!path || !window.electron?.window?.returnPlayerFromPopout || returning) return
 
-        window.electron.window.returnPlayerFromPopout({
+        const request = {
             path,
             time: videoElement?.currentTime ?? 0,
             paused: videoElement?.paused ?? false,
             from: searchParams.get("from") ?? undefined,
+        }
+        // The shell raises the main window, tells it to resume, and closes this one.
+        const returnNow = () => {
+            window.electron?.window?.returnPlayerFromPopout?.({
+                ...request,
+                time: videoElement?.currentTime ?? request.time,
+                paused: videoElement?.paused ?? request.paused,
+            })
+        }
+
+        // Live handoff: the main window starts the stream while this one keeps playing, and this
+        // window closes only once the main window plays on from the same moment.
+        const handoffId = newPopoutHandoffId()
+        setReturning(true)
+        const cancel = startPopoutHandoffGiver({
+            id: handoffId,
+            video: videoElement,
+            onStarted: returnNow,
+            onFailed: () => {
+                setReturning(false)
+                returnNow()
+            },
+            onTimeout: returnNow,
+        })
+        void requestPopoutReturn(handoffId, request).then(accepted => {
+            if (accepted) return
+            // The main window did not take it (hidden or minimized): the one-shot return.
+            cancel()
+            returnNow()
         })
     }
+    const [returning, setReturning] = React.useState(false)
 
     // Same visibility rule as the player's other top controls: shown while paused, busy or
     // hovering the controls, and slid up and faded out otherwise.
     const paused = useAtomValue(vc_paused)
     const [hovered, setHovered] = React.useState(false)
-    const visible = paused || hovered
+    const visible = paused || hovered || returning
 
     const fade = `${visible ? "pointer-events-auto" : "pointer-events-none"} transition-opacity duration-200`
     return createPortal(
@@ -242,8 +278,8 @@ function PopoutReturnButton() {
                     style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
                     className={`${fade} flex items-center gap-2 text-white/90 hover:text-white text-sm font-semibold drop-shadow-md`}
                 >
-                    <LuArrowUpLeft className="size-5" />
-                    Return to Denshi
+                    {returning ? <ImSpinner2 className="size-4 animate-spin" /> : <LuArrowUpLeft className="size-5" />}
+                    {returning ? "Returning…" : "Return to Denshi"}
                 </button>
                 <button
                     type="button"
@@ -271,6 +307,16 @@ function PopoutReturnButton() {
 function PopoutPlaybackHandoff() {
     const searchParams = useSearchParams()
     const encodedPath = searchParams.get("path")
+    const handoffId = searchParams.get("handoff")
+
+    // Closed before the stream got going: the main window keeps playing. (Once the popout plays
+    // the main window has already let go, and this message is ignored.)
+    React.useEffect(() => {
+        if (!handoffId) return
+        const onHide = () => announcePopoutHandoffFailed(handoffId)
+        window.addEventListener("pagehide", onHide)
+        return () => window.removeEventListener("pagehide", onHide)
+    }, [handoffId])
 
     const clientId = useAtomValue(clientIdAtom)
     const isConnected = useAtomValue(websocketConnectedAtom)
@@ -307,9 +353,12 @@ function PopoutPlaybackHandoff() {
         }
         if (!filePath) return
 
-        // The main window's exact position, consumed by the player when the stream can play.
+        // The main window's exact position, consumed by the player when the stream can play. With
+        // a handoff id the main window is still playing, and the player asks it for the live
+        // position once this stream is ready.
         const t = Number(searchParams.get("t"))
-        if (Number.isFinite(t) && t > 0) setPendingPopoutResume(t, searchParams.get("paused") === "1")
+        const time = Number.isFinite(t) && t > 0 ? t : 0
+        if (handoffId || time > 0) setPendingPopoutResume(time, searchParams.get("paused") === "1", handoffId ?? undefined)
 
         log.info("Starting popout playback", filePath)
         playLocalFile({ path: filePath, clientId }, {
@@ -321,6 +370,7 @@ function PopoutPlaybackHandoff() {
                     ? "Your session has ended. Sign in again in the main window, then pop the player out once more."
                     : "The server could not start this stream. Check that it is running, then try again from the main window."
                 log.error("Popout playback handoff failed", error)
+                if (handoffId) announcePopoutHandoffFailed(handoffId)
                 setHandoffError(message)
             },
         })

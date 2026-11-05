@@ -23,7 +23,7 @@ import { cn } from "@/components/ui/core/styling"
 import { Modal } from "@/components/ui/modal"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import { logger } from "@/lib/helpers/debug"
-import { getEffectiveProgress, markPromptDismissed, markRunProgress, wasPromptDismissed } from "@/lib/progress-queue/progress-queue"
+import { bridgePlayedProgress, getEffectiveProgress, markPromptDismissed, markRunProgress, wasPromptDismissed } from "@/lib/progress-queue/progress-queue"
 import { WSEvents } from "@/lib/server/ws-events"
 import { useQueryClient } from "@tanstack/react-query"
 import { atom, useAtomValue } from "jotai"
@@ -251,7 +251,9 @@ export function PlaybackManagerProgressTracking() {
             if (wasPromptDismissed(data.mediaId, data.newProgress)) return
             // The server's view lags; this run may already account for the "skipped" episodes.
             // If so it's an ordinary next-episode update, applied without asking.
-            if (data.newProgress <= getEffectiveProgress(data.mediaId, data.currentProgress) + 1) {
+            // Episodes in between that were played in the app count too (see bridgePlayedProgress).
+            const known = getEffectiveProgress(data.mediaId, data.currentProgress)
+            if (data.newProgress <= bridgePlayedProgress(data.mediaId, known, data.newProgress) + 1) {
                 syncProgressRef.current()
                 return
             }

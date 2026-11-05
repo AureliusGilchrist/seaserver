@@ -3,7 +3,7 @@ import { useGetAnimeEntry, useUpdateAnimeEntryProgress } from "@/api/hooks/anime
 import { VideoCoreLifecycleState } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { Button } from "@/components/ui/button"
-import { getEffectiveProgress, markPromptDismissed, wasPromptDismissed } from "@/lib/progress-queue/progress-queue"
+import { bridgePlayedProgress, getEffectiveProgress, markEpisodePlayed, markPromptDismissed, wasPromptDismissed } from "@/lib/progress-queue/progress-queue"
 import { atom, useAtomValue, useSetAtom } from "jotai"
 import { useAtom } from "jotai/react"
 import React from "react"
@@ -61,10 +61,19 @@ export function useVideoCoreAutoProgress(state: VideoCoreLifecycleState) {
     const latestRef = React.useRef({ entry, autoUpdate, state, mediaId, episodeNumber, updateProgress, recordWatched })
     latestRef.current = { entry, autoUpdate, state, mediaId, episodeNumber, updateProgress, recordWatched }
 
-    const onReachedThreshold = React.useCallback(() => {
-        const { entry, autoUpdate, state, mediaId, episodeNumber, updateProgress, recordWatched } = latestRef.current
-        const media = state.playbackInfo?.media
+    // `target` counts an episode other than the one now loaded: the previous episode, when the
+    // player moved on to the next one before the threshold (ending skipped, "next episode").
+    const onReachedThreshold = React.useCallback((target?: { media: NonNullable<VideoCoreLifecycleState["playbackInfo"]>["media"], episodeNumber: number }) => {
+        const latest = latestRef.current
+        const { entry, autoUpdate, updateProgress, recordWatched } = latest
+        const media = target ? target.media : latest.state.playbackInfo?.media
+        const mediaId = target ? target.media?.id : latest.mediaId
+        const episodeNumber = target ? target.episodeNumber : latest.episodeNumber
         if (!media || !mediaId || !episodeNumber) return
+        // The cached entry belongs to the loaded media.
+        if (target && mediaId !== latest.mediaId) return
+
+        markEpisodePlayed(mediaId, episodeNumber)
 
         // The timeline entry is recorded for every watched episode, including rewatches and
         // resumed episodes where the AniList progress is already at or past this one.
@@ -86,12 +95,19 @@ export function useVideoCoreAutoProgress(state: VideoCoreLifecycleState) {
         // are still queued / in flight from this run. Comparing against the AniList value alone is
         // what produced the random "you're 2 episodes ahead" prompts — the previous episode's
         // update simply hadn't shown up in the cached entry yet.
-        const currentProgress = getEffectiveProgress(mediaId, realProgress)
-        if (episodeNumber === currentProgress) return
+        const knownProgress = getEffectiveProgress(mediaId, realProgress)
+        if (episodeNumber === knownProgress) return
         // Already watched-and-sent this run (e.g. rewatching the episode before it synced).
-        if (episodeNumber > realProgress && episodeNumber <= currentProgress) return
+        if (episodeNumber > realProgress && episodeNumber <= knownProgress) return
         // Asked about this exact episode earlier in the run and the user said no.
         if (wasPromptDismissed(mediaId, episodeNumber)) return
+
+        // Episodes in between that the user did play (most of the way) were watched, even if their
+        // own update never went out (left before the threshold, a dropped request, another
+        // window). They are counted here, so binge watching never asks to "skip ahead".
+        const currentProgress = episodeNumber > knownProgress
+            ? bridgePlayedProgress(mediaId, knownProgress, episodeNumber)
+            : knownProgress
 
         const totalEpisodes = media.episodes ?? 0
         const malId = media.idMal ?? undefined

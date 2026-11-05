@@ -105,7 +105,16 @@ import { VideoCoreSubtitleMenu } from "@/app/(main)/_features/video-core/video-c
 import { VideoCoreSubtitleManager } from "@/app/(main)/_features/video-core/video-core-subtitles"
 import { vc_timeRangeElement, VideoCoreTimeRange } from "@/app/(main)/_features/video-core/video-core-time-range"
 import { VideoCoreTopPlaybackInfo, VideoCoreTopSection } from "@/app/(main)/_features/video-core/video-core-top-section"
-import { takePendingPopoutResume } from "@/app/(main)/_features/video-core/video-core-popout-resume"
+import {
+    announcePopoutHandoffFailed,
+    announcePopoutHandoffStarted,
+    hasPendingPopoutHandoff,
+    newPopoutHandoffId,
+    requestPopoutHandoffPosition,
+    startPopoutHandoffGiver,
+    takePendingPopoutResume,
+} from "@/app/(main)/_features/video-core/video-core-popout-resume"
+import { markEpisodePlayed } from "@/lib/progress-queue/progress-queue"
 import { takePendingAutoFullscreen } from "@/app/(main)/_features/video-core/video-core-auto-fullscreen"
 import { finishPreviewTransition, takePendingPreviewResume } from "@/app/(main)/_features/anime/_lib/preview-handoff"
 import { VideoCoreWatchPartyChat } from "@/app/(main)/_features/video-core/video-core-watch-party-chat"
@@ -188,6 +197,8 @@ function exitVideoCoreFullscreen(fullscreenManager: VideoCoreFullscreenManager |
 export const VIDEOCORE_DEBUG_ELEMENTS = false
 
 const DELAY_BEFORE_NOT_BUSY = 1_000 //ms
+// Share of an episode that, once played, counts it as watched when the player moves on early.
+const EPISODE_PLAYED_FRACTION = 0.6
 
 export function startVideoCoreMiniPlayerTransition(update: () => void) {
     if (typeof document === "undefined" || typeof window === "undefined") {
@@ -557,7 +568,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                                 onWaiting={handleWaiting}
                                 onCanPlay={handleCanPlay}
                                 onStalled={handleStalled}
-                                autoPlay={autoPlay}
+                                autoPlay={autoPlay && !hasPendingPopoutHandoff()}
                                 muted={muted}
                                 playsInline
                                 controls={false}
@@ -1122,6 +1133,9 @@ export function VideoCore(props: VideoCoreProps) {
         _onTerminateStream?.()
         dispatchTerminatedEvent()
     }
+    // The latest terminate handler, for callbacks that outlive the render they were made in.
+    const onTerminateStreamRef = React.useRef(onTerminateStream)
+    onTerminateStreamRef.current = onTerminateStream
 
     // measure video element size using a throttled ResizeObserver
     const videoResizeObserverRef = React.useRef<ResizeObserver | null>(null)
@@ -1672,14 +1686,64 @@ export function VideoCore(props: VideoCoreProps) {
 
         // Video completed event
         const percent = v.currentTime / v.duration
+        if (Number.isFinite(percent)) trackEpisodeWatch(percent)
         if (!!v.duration && !videoCompletedRef.current && percent >= 0.85) {
-            videoCompletedRef.current = true
-            onCompleted?.()
-            dispatchVideoCompletedEvent()
-            onReachedProgressThreshold()
-            onEpisodeEnded()
+            completeEpisode()
         }
     }
+
+    function completeEpisode() {
+        if (videoCompletedRef.current) return
+        videoCompletedRef.current = true
+        if (episodeWatchRef.current) episodeWatchRef.current.completed = true
+        onCompleted?.()
+        dispatchVideoCompletedEvent()
+        onReachedProgressThreshold()
+        onEpisodeEnded()
+    }
+
+    // How far the loaded episode got, so leaving it for the next one can still count it (below).
+    const episodeWatchRef = React.useRef<{
+        playbackId: string
+        media: NonNullable<VideoCoreLifecycleState["playbackInfo"]>["media"]
+        episodeNumber: number
+        maxPercent: number
+        completed: boolean
+    } | null>(null)
+
+    function trackEpisodeWatch(percent: number) {
+        const info = state.playbackInfo
+        const episodeNumber = info?.episode?.progressNumber ?? 0
+        if (!info?.media?.id || !episodeNumber) return
+        let w = episodeWatchRef.current
+        if (!w || w.playbackId !== info.id) {
+            w = { playbackId: info.id, media: info.media, episodeNumber, maxPercent: 0, completed: false }
+            episodeWatchRef.current = w
+        }
+        if (percent > w.maxPercent) {
+            if (w.maxPercent < EPISODE_PLAYED_FRACTION && percent >= EPISODE_PLAYED_FRACTION) {
+                // Most of it was seen: the episode counts as watched for the progress check, even
+                // if its own update is never sent.
+                markEpisodePlayed(info.media.id, episodeNumber)
+            }
+            w.maxPercent = percent
+        }
+    }
+
+    // Moving on to the next episode before the 85% mark (the ending skipped, "next episode", a
+    // file whose reported duration runs past its real end) used to leave the episode uncounted, and
+    // the next one then asked to "skip ahead" two episodes. Counted here when most of it was seen.
+    React.useEffect(() => {
+        const prev = episodeWatchRef.current
+        const info = state.playbackInfo
+        if (!prev || !info || prev.playbackId === info.id) return
+        episodeWatchRef.current = null
+        if (prev.completed || prev.maxPercent < EPISODE_PLAYED_FRACTION) return
+        if (info.media?.id !== prev.media?.id) return
+        if ((info.episode?.progressNumber ?? 0) !== prev.episodeNumber + 1) return
+        log.info("Counting the previous episode as watched", prev.episodeNumber)
+        onReachedProgressThreshold({ media: prev.media, episodeNumber: prev.episodeNumber })
+    }, [state.playbackInfo?.id])
 
     const { playEpisode, isGlobalPlaylistActive } = useVideoCorePlaylist()
 
@@ -1695,6 +1759,9 @@ export function VideoCore(props: VideoCoreProps) {
         subtitleManager?.pgsRenderer?.stop()
         onEnded?.()
         onVideoEnded()
+        // Played to the end without timeupdate ever crossing 85% (the reported duration was
+        // longer than the stream): it is still a watched episode.
+        if (!videoCompletedRef.current) completeEpisode()
         if (autoNext && !isWatchPartyParticipant) {
             if (props.id === "native-player" && isGlobalPlaylistActive) {
                 log.info("Skipping frontend auto next for native global playlist")
@@ -1884,7 +1951,38 @@ export function VideoCore(props: VideoCoreProps) {
             const previewResume = popoutResume ? null : takePendingPreviewResume(state.playbackInfo?.localFile?.path || undefined)
             // Clicked an episode card on the entry page: go fullscreen once this can play.
             const autoFullscreen = takePendingAutoFullscreen()
-            if (popoutResume) {
+            if (popoutResume?.handoffId) {
+                // Live handoff from the other window, which is still playing: hold here, take its
+                // current position, then play from there (see video-core-popout-resume).
+                const handoffId = popoutResume.handoffId
+                if (popoutResume.time > 0) restoreSeekTime(popoutResume.time, false, true)
+                else videoRef.current.pause()
+                void requestPopoutHandoffPosition(handoffId, popoutResume).then(position => {
+                    const v = videoRef.current
+                    if (!v || !v.isConnected) {
+                        announcePopoutHandoffFailed(handoffId)
+                        return
+                    }
+                    log.info("Popout handoff: taking over", position)
+                    if (position.paused) {
+                        if (position.time > 0) restoreSeekTime(position.time, false, true)
+                        announcePopoutHandoffStarted(handoffId)
+                        return
+                    }
+                    let announced = false
+                    const announce = () => {
+                        if (announced) return
+                        announced = true
+                        v.removeEventListener("playing", announce)
+                        announcePopoutHandoffStarted(handoffId)
+                    }
+                    v.addEventListener("playing", announce)
+                    // Never leave the other window playing on: it stops a few seconds in at most.
+                    window.setTimeout(announce, 5000)
+                    if (position.time > 0) restoreSeekTime(position.time, false, false)
+                    else v.play().catch(() => {})
+                })
+            } else if (popoutResume) {
                 restoreSeekTime(popoutResume.time, false, popoutResume.paused)
             } else if (previewResume) {
                 restoreSeekTime(previewResume, false, false)
@@ -1916,7 +2014,7 @@ export function VideoCore(props: VideoCoreProps) {
                     // action({ type: "seekTo", payload: { time: state.playbackInfo.initialState.currentTime } })
                     restoreSeekTime(state.playbackInfo.initialState.currentTime, false, state.playbackInfo.initialState.paused)
                 }
-            } else if (autoPlay && !popoutResume?.paused) {
+            } else if (autoPlay && !popoutResume?.paused && !popoutResume?.handoffId) {
                 videoRef.current.play().catch()
             }
 
@@ -2011,13 +2109,23 @@ export function VideoCore(props: VideoCoreProps) {
                     const at = v && Number.isFinite(v.currentTime) && v.currentTime > 0
                         ? `&t=${v.currentTime.toFixed(2)}&paused=${v.paused ? 1 : 0}`
                         : ""
-                    const url = `${window.location.origin}/popout-player?path=${encoded}&launch=${encodeURIComponent(launchId)}${from}${at}`
+                    // Live handoff: this player keeps playing while the popout loads its stream,
+                    // and stops only once the popout plays on from this exact moment.
+                    const handoffId = newPopoutHandoffId()
+                    const url = `${window.location.origin}/popout-player?path=${encoded}&launch=${encodeURIComponent(launchId)}${from}${at}&handoff=${handoffId}`
+                    const stop = () => onTerminateStreamRef.current()
+                    const cancelHandoff = startPopoutHandoffGiver({
+                        id: handoffId,
+                        video: v,
+                        onStarted: stop,
+                        // The popout could not start: playback simply stays here.
+                        onFailed: () => toast.error("The popout player could not start this stream"),
+                        // No word from the popout at all: hand off the old way.
+                        onTimeout: stop,
+                    })
 
-                    window.electron!.window!.openPlayerPopout(url).then(() => {
-                        // Hand off: stop this client's stream; the popout resumes from
-                        // the server-tracked watch position.
-                        onTerminateStream()
-                    }).catch((err: unknown) => {
+                    window.electron!.window!.openPlayerPopout(url).catch((err: unknown) => {
+                        cancelHandoff()
                         log.error("Failed to open the popout player", err)
                         toast.error("Failed to open the popout player")
                     })
