@@ -2538,6 +2538,14 @@ html[data-sea-dock] .sea-float-bottom-2.left-5 { left: 50% !important; transform
 }
 .sea-card-preview .sea-card-anime > div, .sea-card-preview .sea-card-manga > div { will-change: width; }
 
+/* The "Alternative Titles" plugin (nnotwen) adds a `p.synonyms` line under the entry title. Its
+   already-added check reads a snapshot of the header taken before its own insert lands, and the
+   header re-renders several times while it animates in, so each pass adds another copy. Only the
+   first one is shown; the plugin keeps updating that one. */
+[data-media-page-header-entry-details-title-container] > p.synonyms ~ p.synonyms {
+    display: none !important;
+}
+
 /* Synthetic series — described locally rather than from AniList — are marked by a warm outline
    around the cover instead of a tag over it. Three layers: a soft orange halo outside the card
    (the card's own box-shadow, which overflow:hidden does not clip), a 2px amber→orange gradient
