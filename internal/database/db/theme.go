@@ -1,18 +1,22 @@
 package db
 
 import (
+	"errors"
 	"seanime/internal/database/models"
 
 	"github.com/goccy/go-json"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
-var themeCache *models.Theme
-
+// GetTheme returns the theme stored in this database, creating the default one when absent.
+// The main database holds the install-wide theme; a profile database holds that profile's.
 func (db *Database) GetTheme() (*models.Theme, error) {
+	db.themeMu.Lock()
+	defer db.themeMu.Unlock()
 
-	if themeCache != nil {
-		return themeCache, nil
+	if db.themeCache != nil {
+		return db.themeCache, nil
 	}
 
 	var theme models.Theme
@@ -20,7 +24,7 @@ func (db *Database) GetTheme() (*models.Theme, error) {
 
 	if err != nil {
 		// If theme doesn't exist, create a default one
-		if err.Error() == "record not found" {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			theme = models.Theme{
 				BaseModel: models.BaseModel{ID: 1},
 			}
@@ -35,19 +39,33 @@ func (db *Database) GetTheme() (*models.Theme, error) {
 		}
 	}
 
-	themeCache = &theme
+	db.themeCache = &theme
 
 	return &theme, nil
 }
 
-var themeCopyCache *models.Theme
+// HasTheme reports whether a theme row exists in this database (without creating one).
+func (db *Database) HasTheme() bool {
+	db.themeMu.Lock()
+	cached := db.themeCache != nil
+	db.themeMu.Unlock()
+	if cached {
+		return true
+	}
+	var count int64
+	if err := db.gormdb.Model(&models.Theme{}).Where("id = ?", 1).Count(&count).Error; err != nil {
+		return false
+	}
+	return count > 0
+}
 
 // GetThemeCopy returns a copy of the theme settings.
-// The copy will have the HomeItems removed.
 func (db *Database) GetThemeCopy() (*models.Theme, error) {
-
-	if themeCopyCache != nil {
-		return themeCopyCache, nil
+	db.themeMu.Lock()
+	cached := db.themeCopyCache
+	db.themeMu.Unlock()
+	if cached != nil {
+		return cached, nil
 	}
 
 	theme, err := db.GetTheme()
@@ -66,7 +84,9 @@ func (db *Database) GetThemeCopy() (*models.Theme, error) {
 		return nil, err
 	}
 
-	themeCopyCache = &themeCopy
+	db.themeMu.Lock()
+	db.themeCopyCache = &themeCopy
+	db.themeMu.Unlock()
 
 	return &themeCopy, nil
 }
@@ -86,8 +106,10 @@ func (db *Database) UpsertTheme(settings *models.Theme) (*models.Theme, error) {
 
 	db.Logger.Debug().Msg("db: Theme saved")
 
-	themeCache = settings
-	themeCopyCache = nil
+	db.themeMu.Lock()
+	db.themeCache = settings
+	db.themeCopyCache = nil
+	db.themeMu.Unlock()
 
 	return settings, nil
 

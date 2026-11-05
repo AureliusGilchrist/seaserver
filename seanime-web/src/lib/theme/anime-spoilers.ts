@@ -2,6 +2,7 @@ import { AL_BaseAnime } from "@/api/generated/types"
 import type { ThemeSettingsHook } from "@/lib/theme/theme-hooks"
 import { atom } from "jotai"
 import { useAtomValue, useSetAtom } from "jotai/react"
+import { seaJotaiStorage } from "@/lib/sea-storage/sea-storage"
 import { atomWithStorage, selectAtom } from "jotai/utils"
 import React from "react"
 
@@ -23,7 +24,8 @@ type EpisodeSpoilerStateOptions = {
 
 export const __animeSpoilers_unhiddenMediaAtom = atomWithStorage<Record<string, true>>("sea-anime-spoilers-unhidden-media",
     {},
-    undefined,
+    // Synced with the profile: the key matches seaStorage's "sea-anime-*" pattern.
+    seaJotaiStorage,
     { getOnInit: true })
 
 const emptyAnimeSpoilerOverrideAtom = atom(false)

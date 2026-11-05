@@ -110,8 +110,11 @@ func (h *Handler) NewStatus(c echo.Context) *Status {
 		clientInfoCache.Set(c.Request().UserAgent(), clientInfo)
 	}
 
-	theme, _ = h.App.Database.GetThemeCopy()
-	theme.HomeItems = nil
+	theme, _ = h.getThemeDatabase(c).GetThemeCopy()
+	if theme != nil {
+		theme.HomeItems = nil
+		theme.MangaHomeItems = nil
+	}
 
 	status := &Status{
 		OS:                    runtime.GOOS,

@@ -1,5 +1,5 @@
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
-import { useClientSettings } from "@/lib/client-settings"
+import { type ClientSettings, setClientSettings, useClientSettings } from "@/lib/client-settings"
 import React from "react"
 
 export type StillWatchingTimingMode = "night" | "always" | "custom"
@@ -204,4 +204,52 @@ export const CARD_WIDTH_DEFAULT = 220
 export function clampCardWidth(v: number | undefined | null): number {
     if (typeof v !== "number" || !Number.isFinite(v)) return CARD_WIDTH_DEFAULT
     return Math.min(CARD_WIDTH_MAX, Math.max(CARD_WIDTH_MIN, Math.round(v)))
+}
+
+/** Install-wide (admin) settings the Personal settings used to inherit, by client-settings key. */
+const SERVER_DEFAULT_SOURCES: Array<[keyof ClientSettings, (s: NonNullable<ReturnType<typeof useServerStatus>>["settings"]) => unknown]> = [
+    ["autoUpdateProgress", s => s?.library?.autoUpdateProgress],
+    ["enableWatchContinuity", s => s?.library?.enableWatchContinuity],
+    ["autoPlayNextEpisode", s => s?.library?.autoPlayNextEpisode],
+    ["disableAnimeCardTrailers", s => s?.library?.disableAnimeCardTrailers],
+    ["stillWatchingChecksEnabled", s => s?.mediaPlayer?.stillWatchingChecksEnabled],
+    ["stillWatchingEpisodes", s => s?.mediaPlayer?.stillWatchingEpisodes],
+    ["mpvAutoSkipOpening", s => s?.mediaPlayer?.mpvAutoSkipOpening],
+    ["mpvAutoSkipEnding", s => s?.mediaPlayer?.mpvAutoSkipEnding],
+    ["mpvAutoSkipFiller", s => s?.mediaPlayer?.mpvAutoSkipFiller],
+    ["hideAudienceScore", s => s?.anilist?.hideAudienceScore],
+    ["blurAdultContent", s => s?.anilist?.blurAdultContent],
+    ["autoPauseStaleWatchingDays", s => s?.anilist?.autoPauseStaleWatchingDays],
+    ["mangaAutoUpdateProgress", s => s?.manga?.mangaAutoUpdateProgress],
+    ["enableRichPresence", s => s?.discord?.enableRichPresence],
+    ["enableAnimeRichPresence", s => s?.discord?.enableAnimeRichPresence],
+    ["enableMangaRichPresence", s => s?.discord?.enableMangaRichPresence],
+    ["richPresenceHideSeanimeRepositoryButton", s => s?.discord?.richPresenceHideSeanimeRepositoryButton],
+    ["richPresenceShowAniListProfileButton", s => s?.discord?.richPresenceShowAniListProfileButton],
+]
+
+/**
+ * Once per profile: copies the install-wide values the profile was still inheriting into its own
+ * Personal settings, so they belong to the profile from now on (and stay put if the server-wide
+ * value ever changes). Values the profile had already set are kept. Must run after the profile's
+ * preferences were hydrated (inside ClientPrefsHydrator).
+ */
+export function useMigrateServerPersonalDefaults() {
+    const serverStatus = useServerStatus()
+    const clientSettings = useClientSettings()
+    const serverSettings = serverStatus?.settings
+
+    React.useEffect(() => {
+        if (!serverSettings || clientSettings.serverDefaultsMigrated) return
+        setClientSettings(prev => {
+            if (prev.serverDefaultsMigrated) return prev
+            const next: Record<string, unknown> = { ...prev, serverDefaultsMigrated: true }
+            for (const [key, read] of SERVER_DEFAULT_SOURCES) {
+                if (next[key] !== undefined) continue
+                const v = read(serverSettings)
+                if (v !== undefined && v !== null) next[key] = v
+            }
+            return next as ClientSettings
+        })
+    }, [serverSettings, clientSettings.serverDefaultsMigrated])
 }

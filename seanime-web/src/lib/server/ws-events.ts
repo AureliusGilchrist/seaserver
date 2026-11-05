@@ -34,6 +34,8 @@ export const enum WSEvents {
     UPDATE_BACKEND_STATUS = "update-backend-status",
     SERVER_GOING_DOWN = "server-going-down",
     ANILIST_OVERWRITE_COMPLETED = "anilist-overwrite-completed",
+    THEME_UPDATED = "theme-updated",
+    CLIENT_PREF_UPDATED = "client-pref-updated",
     MANGA_CHAPTER_MIGRATION_PROGRESS = "manga-chapter-migration-progress",
     OFFLINE_SNAPSHOT_CREATED = "offline-snapshot-created",
     MEDIASTREAM_SHUTDOWN_STREAM = "mediastream-shutdown-stream",

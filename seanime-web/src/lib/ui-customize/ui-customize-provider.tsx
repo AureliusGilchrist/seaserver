@@ -13,7 +13,7 @@ import {
     type UICustomizeCategoryId,
 } from "./ui-customize-definitions"
 import { applyRootCssVars } from "@/lib/helpers/css"
-import { seaStorage } from "@/lib/sea-storage/sea-storage"
+import { SEA_PREF_REMOTE_CHANGE_EVENT, seaStorage } from "@/lib/sea-storage/sea-storage"
 
 interface UICustomizeContextValue {
     state: UICustomizeState
@@ -59,6 +59,19 @@ export function UICustomizeProvider({ children, mouseTrail = true }: {
             const raw = seaStorage.getItem(storageKey)
             setState(raw ? { ...UI_CUSTOMIZE_DEFAULTS, ...(JSON.parse(raw) as Partial<UICustomizeState>) } : UI_CUSTOMIZE_DEFAULTS)
         } catch {}
+    }, [storageKey])
+
+    // Applied live when the profile changes it on another client (see seaStorage remote changes).
+    React.useEffect(() => {
+        const onRemote = (e: Event) => {
+            if ((e as CustomEvent<{ key: string }>).detail?.key !== storageKey) return
+            try {
+                const raw = seaStorage.getItem(storageKey)
+                setState(raw ? { ...UI_CUSTOMIZE_DEFAULTS, ...(JSON.parse(raw) as Partial<UICustomizeState>) } : UI_CUSTOMIZE_DEFAULTS)
+            } catch {}
+        }
+        window.addEventListener(SEA_PREF_REMOTE_CHANGE_EVENT, onRemote)
+        return () => window.removeEventListener(SEA_PREF_REMOTE_CHANGE_EVENT, onRemote)
     }, [storageKey])
 
     // Variables and body classes the previous presets set, so switching presets clears what the old

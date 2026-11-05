@@ -78,6 +78,11 @@ const (
 	UpdateBackendStatus           = "update-backend-status"
 	ServerGoingDown               = "server-going-down"
 	AnilistOverwriteCompleted     = "anilist-overwrite-completed"
+	// ThemeUpdated: the profile's theme changed on one client; its other clients refetch the status.
+	ThemeUpdated = "theme-updated"
+	// ClientPrefUpdated: a synced client preference changed (payload: key, value, deleted, scope,
+	// origin). Sent to the profile's clients, or to everyone for global-scope keys.
+	ClientPrefUpdated = "client-pref-updated"
 	MangaChapterMigrationProgress = "manga-chapter-migration-progress"
 	MangaScanProgress             = "manga-scan-progress"
 	MangaScanCompleted            = "manga-scan-completed"

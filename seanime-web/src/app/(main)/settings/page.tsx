@@ -156,14 +156,17 @@ export default function Page() {
         )
     }
 
-    // Non-admin profiles get the settings page too, but with only the Personal (per-profile)
-    // tab — server-wide settings remain admin-only.
+    // Non-admin profiles get the settings page too, but with only the per-profile tabs (Personal
+    // and User Interface, whose theme belongs to the profile) — server-wide settings remain
+    // admin-only.
     if (profileCount > 0 && !currentProfile?.isAdmin) {
+        const profileTab = tab === "ui" ? "ui" : "personal"
         return (
             <PageWrapper className="p-4 sm:p-8 space-y-4">
                 <CustomLibraryBanner discrete />
                 <Tabs
-                    value="personal"
+                    value={profileTab}
+                    onValueChange={setTab}
                     className={cn("w-full grid grid-cols-1 lg:grid lg:grid-cols-[300px,1fr] gap-4")}
                     triggerClass="text-base px-6 rounded-[--radius-md] w-fit lg:w-full rounded-lg border-0 data-[state=active]:bg-[--subtle] data-[state=active]:text-white dark:hover:text-white h-9 lg:justify-start px-3 transition-all duration-200 hover:bg-[--subtle]/50"
                     listClass="w-full flex flex-wrap lg:flex-nowrap h-fit lg:block p-2 lg:p-0"
@@ -183,6 +186,9 @@ export default function Page() {
                                     <TabsTrigger value="personal" className="group">
                                         <LuUserCog className="text-xl mr-3 transition-transform duration-200" /> Personal
                                     </TabsTrigger>
+                                    <TabsTrigger value="ui" className="group">
+                                        <LuPalette className="text-xl mr-3 transition-transform duration-200" /> User Interface
+                                    </TabsTrigger>
                                 </Card>
                             </div>
                         </SettingsNavCard>
@@ -190,6 +196,14 @@ export default function Page() {
 
                     <TabsContent value="personal" className={tabContentClass}>
                         <ClientSettings />
+                    </TabsContent>
+                    <TabsContent value="ui" className={tabContentClass}>
+                        <SettingsPageHeader
+                            title="User Interface"
+                            description="Customize the user interface for your profile"
+                            icon={LuPalette}
+                        />
+                        <UISettings />
                     </TabsContent>
                 </Tabs>
             </PageWrapper>

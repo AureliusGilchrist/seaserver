@@ -1,6 +1,7 @@
 package db
 
 import (
+	"sync"
 	"fmt"
 	"net/url"
 	"os"
@@ -22,6 +23,11 @@ type Database struct {
 	CurrMediaFillers mo.Option[map[int]*MediaFillerItem]
 	cleanupManager   *CleanupManager
 	accountCache     *models.Account
+	// Theme caches, per database: the main database holds the install-wide theme and each
+	// profile database holds that profile's own (see GetTheme).
+	themeMu        sync.Mutex
+	themeCache     *models.Theme
+	themeCopyCache *models.Theme
 }
 
 // Close releases the database file. The server keeps it open for its whole life, so this is for tests:

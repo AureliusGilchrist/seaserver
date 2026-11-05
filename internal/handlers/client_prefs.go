@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"seanime/internal/database/models"
+	"seanime/internal/events"
 	"strings"
 
 	"github.com/labstack/echo/v4"
@@ -69,6 +70,7 @@ func (h *Handler) HandleUpsertClientPref(c echo.Context) error {
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
+	h.broadcastClientPref(c, b.Key, b.Value, false)
 	return h.RespondWithData(c, pref)
 }
 
@@ -89,7 +91,34 @@ func (h *Handler) HandleDeleteClientPref(c echo.Context) error {
 	if err := database.DeleteClientPref(key); err != nil {
 		return h.RespondWithError(c, err)
 	}
+	h.broadcastClientPref(c, key, "", true)
 	return h.RespondWithData(c, true)
+}
+
+// broadcastClientPref tells the profile's other open clients (web, Denshi, Denshi Mobile) that a
+// synced preference changed, so they apply it live instead of on their next load. Global-scope
+// preferences go to every client. `origin` (the writing tab's id, from the query string) lets the
+// writer ignore its own echo.
+func (h *Handler) broadcastClientPref(c echo.Context, key string, value string, deleted bool) {
+	if h.App.WSEventManager == nil {
+		return
+	}
+	scope := "profile"
+	if c.QueryParam("scope") == "global" {
+		scope = "global"
+	}
+	payload := map[string]any{
+		"key":     key,
+		"value":   value,
+		"deleted": deleted,
+		"scope":   scope,
+		"origin":  c.QueryParam("origin"),
+	}
+	if scope == "global" {
+		h.App.WSEventManager.SendEvent(events.ClientPrefUpdated, payload)
+		return
+	}
+	h.App.WSEventManager.SendEventToProfile(h.GetProfileID(c), events.ClientPrefUpdated, payload)
 }
 
 var _ = models.ClientPref{} // ensure package import even if codegen drops the type reference

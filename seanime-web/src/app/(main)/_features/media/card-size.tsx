@@ -19,11 +19,11 @@ export function useCardSizeVariables() {
         root.style.setProperty("--sea-card-w-manga", `${mangaCardWidth}px`)
     }, [animeCardWidth, mangaCardWidth])
 
-    useMigrateLegacyCardSizes()
 }
 
-/** The old browser-only size multipliers (1 = default), carried into the synced settings once. */
-function useMigrateLegacyCardSizes() {
+/** The old browser-only size multipliers (1 = default), carried into the synced settings once.
+ * Runs inside ClientPrefsHydrator, after the profile's settings arrived, so it adds to them. */
+export function useMigrateLegacyCardSizes() {
     const clientSettings = useClientSettings()
     React.useEffect(() => {
         try {

@@ -117,6 +117,9 @@ export const clientSettingsSchema = z.object({
     enableMangaRichPresence: z.boolean().optional(),
     richPresenceHideSeanimeRepositoryButton: z.boolean().optional(),
     richPresenceShowAniListProfileButton: z.boolean().optional(),
+    /** Set once the install-wide values this profile inherited were copied into it (see
+     * useMigrateServerPersonalDefaults). Not a user-facing setting. */
+    serverDefaultsMigrated: z.boolean().optional(),
 })
 
 export type ClientSettings = z.infer<typeof clientSettingsSchema>
