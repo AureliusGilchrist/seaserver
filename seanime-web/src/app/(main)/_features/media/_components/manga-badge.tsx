@@ -98,6 +98,20 @@ const STATE_PRESENTATION: Record<MangaBadgeState, {
 /** A warm addon label that stays distinct from the download-state badge. */
 const SYNTHETIC_CLASS = "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-black/20"
 
+/**
+ * On cover art, "synthetic" is an orange outline around the card rather than a tag over it. The
+ * container gets `sea-synthetic-card` (the outer halo) and this goes inside it as the ring. Styles
+ * live in globals.css. The container must be `relative` and rounded; the ring inherits the radius.
+ */
+export function MangaSyntheticOutline() {
+    return (
+        <span data-manga-synthetic-outline className="sea-synthetic-outline" aria-hidden="true" />
+    )
+}
+
+/** Class for the container a `MangaSyntheticOutline` sits in. */
+export const SYNTHETIC_CARD_CLASS = "sea-synthetic-card"
+
 export type MangaBadgeProps = {
     mediaId: number | null | undefined
     /**
@@ -120,7 +134,9 @@ export function MangaBadge(props: MangaBadgeProps) {
     const { mediaId, variant = "badge", size = "sm", hideSyntheticTag = false, className } = props
 
     const { state, isSynthetic } = useMangaBadgeState(mediaId)
-    const showSynthetic = isSynthetic && !hideSyntheticTag
+    // Over artwork the outline says it instead (see MangaSyntheticOutline), so the overlay never
+    // draws the tag.
+    const showSynthetic = isSynthetic && !hideSyntheticTag && variant !== "overlay"
 
     if (!state && !showSynthetic) return null
 
@@ -132,7 +148,6 @@ export function MangaBadge(props: MangaBadgeProps) {
             <div
                 data-manga-badge-overlay
                 data-badge-state={state ?? "none"}
-                data-synthetic={showSynthetic || undefined}
                 // Above the card's own layers — the bottom gradient sits at z-5 and the
                 // adult-content blur at z-3, so anything lower gets painted over.
                 className={cn("absolute z-[15] left-1.5 top-1.5 flex max-w-full flex-wrap items-start gap-1.5 pointer-events-none", className)}
@@ -147,19 +162,6 @@ export function MangaBadge(props: MangaBadgeProps) {
                     >
                         <Icon className="h-5 w-5" />
                     </Badge>
-                )}
-                {showSynthetic && (
-                    <span
-                        data-manga-synthetic-tag
-                        title="Synthetic — described locally rather than from AniList"
-                        className={cn(
-                            "inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.12em]",
-                            SYNTHETIC_CLASS,
-                        )}
-                    >
-                        <LuSparkles className="size-3.5 shrink-0" aria-hidden="true" />
-                        Synthetic
-                    </span>
                 )}
             </div>
         )

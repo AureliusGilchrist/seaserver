@@ -4,7 +4,8 @@ import { AL_BaseAnime_NextAiringEpisode, AL_MediaListStatus, AL_MediaStatus } fr
 import { ElectronYoutubeEmbed } from "@/app/(main)/_electron/electron-embed"
 import { MediaCardBodyBottomGradient } from "@/app/(main)/_features/custom-ui/item-bottom-gradients"
 import { AnimeDownloadingBadge } from "@/app/(main)/_features/media/_components/anime-downloading-badge"
-import { MangaBadge } from "@/app/(main)/_features/media/_components/manga-badge"
+import { MangaBadge, MangaSyntheticOutline, SYNTHETIC_CARD_CLASS } from "@/app/(main)/_features/media/_components/manga-badge"
+import { useMangaBadgeState } from "@/app/(main)/_atoms/manga-badges.atoms"
 import { MediaEntryProgressBadge } from "@/app/(main)/_features/media/_components/media-entry-progress-badge"
 import { imageShimmer } from "@/components/shared/image-helpers"
 import { SeaImage } from "@/components/shared/sea-image"
@@ -366,6 +367,9 @@ export function MediaEntryCardBody(props: MediaEntryCardBodyProps) {
     // download states, manga from the four sets in `manga-badges.atoms` — so neither is computed
     // here any more, and the two cannot disagree with the screens that show the same series.
 
+    // Synthetic manga get an orange outline around the cover instead of a tag over it.
+    const { isSynthetic } = useMangaBadgeState(type === "manga" ? mediaId : null)
+
     return (
         <>
             <SeaLink
@@ -376,10 +380,14 @@ export function MediaEntryCardBody(props: MediaEntryCardBodyProps) {
             >
                 <div
                     data-media-entry-card-body
+                    data-synthetic={isSynthetic || undefined}
+                    title={isSynthetic ? "Synthetic — described locally rather than from AniList" : undefined}
                     className={cn(
                         "media-entry-card__body aspect-[6/8] flex-none rounded-[--radius] object-cover object-center relative overflow-hidden isolate select-none",
+                        isSynthetic && SYNTHETIC_CARD_CLASS,
                     )}
                 >
+                    {isSynthetic && <MangaSyntheticOutline />}
 
                     {/*[CUSTOM UI] BOTTOM GRADIENT*/}
                     <MediaCardBodyBottomGradient />
@@ -405,9 +413,8 @@ export function MediaEntryCardBody(props: MediaEntryCardBodyProps) {
                         </div>
                     )}
 
-                    {/* Manga: downloading, matched or downloaded — whichever it is, drawn once, with
-                     the synthetic tag beside it when the series is described from a local record.
-                     Same corner and shapes as the anime badge, so the two kinds of card read alike.
+                    {/* Manga: downloading, matched or downloaded — whichever it is, drawn once. (A
+                     synthetic series is marked by the outline above, not here.) Same corner and shapes as the anime badge, so the two kinds of card read alike.
                      Renders nothing when there is nothing to say.
 
                      `showMangaDownloadedBadge` used to decide this from a chapter-count ratio the

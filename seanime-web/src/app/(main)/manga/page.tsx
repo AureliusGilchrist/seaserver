@@ -2,7 +2,8 @@
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
 import { MediaCardLazyGrid } from "@/app/(main)/_features/media/_components/media-card-grid"
 import { PaginatedMediaGrid } from "@/app/(main)/_features/media/_components/paginated-media-grid"
-import { MangaBadge } from "@/app/(main)/_features/media/_components/manga-badge"
+import { MangaBadge, MangaSyntheticOutline, SYNTHETIC_CARD_CLASS } from "@/app/(main)/_features/media/_components/manga-badge"
+import { useMangaBadgeState } from "@/app/(main)/_atoms/manga-badges.atoms"
 import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-entry-card"
 import { MediaEntryPageLoadingDisplay } from "@/app/(main)/_features/media/_components/media-entry-page-loading-display"
 import { MangaLibraryHeader } from "@/app/(main)/manga/_components/library-header"
@@ -63,6 +64,61 @@ import { useWindowSize } from "react-use"
 import React from "react"
 
 export const dynamic = "force-static"
+
+/**
+ * A download with no cover art yet. Same poster shape as a real card, so a library with some
+ * metadata missing still reads as one grid rather than as cards with text tiles wedged between
+ * them. Draws its own badge (and synthetic outline), because a tile with no cover art is not a card.
+ */
+function NoCoverMangaTile(props: {
+    mediaId: number
+    title: string
+    provider: string | undefined
+    chapters: number
+    onHoverImage: (url: string | null) => void
+}) {
+    const { mediaId, title, provider, chapters, onHoverImage } = props
+    const { isSynthetic } = useMangaBadgeState(mediaId)
+
+    return (
+        <SeaLink
+            href={`/manga/entry?id=${mediaId}`}
+            className="block h-full group/dl-card"
+            onMouseEnter={() => onHoverImage(null)}
+            onMouseLeave={() => onHoverImage(null)}
+        >
+            <div
+                data-synthetic={isSynthetic || undefined}
+                title={isSynthetic ? "Synthetic — described locally rather than from AniList" : undefined}
+                className={cn(
+                    "relative aspect-[6/7] w-full overflow-hidden rounded-[--radius-md]",
+                    "bg-gray-900/70",
+                    "flex flex-col items-center justify-center gap-2",
+                    "transition group-hover/dl-card:bg-gray-900",
+                    isSynthetic
+                        ? SYNTHETIC_CARD_CLASS
+                        : "border border-gray-800 group-hover/dl-card:border-gray-600",
+                )}
+            >
+                {isSynthetic && <MangaSyntheticOutline />}
+                <LuBookMarked className={cn("text-4xl", isSynthetic ? "text-orange-400/40" : "text-gray-700")} />
+                <p className="px-3 text-center text-xs text-[--muted]">No cover art</p>
+
+                <div className="absolute inset-x-0 top-0 flex justify-between">
+                    <MangaBadge mediaId={mediaId} variant="overlay" className="!relative" />
+                    <p className="ml-auto font-semibold text-white bg-gray-950 bg-opacity-90 px-3 py-1 text-xs rounded-bl-lg">
+                        {formatNumber(chapters)} chapter{chapters === 1 ? "" : "s"}
+                    </p>
+                </div>
+            </div>
+
+            <div className="pt-2 space-y-0.5">
+                <p className="text-sm font-semibold text-white line-clamp-2">{title}</p>
+                {provider && <p className="text-xs text-[--muted]">Provider: {provider}</p>}
+            </div>
+        </SeaLink>
+    )
+}
 
 export default function Page() {
     const { data: mangaHomeItems } = useGetMangaHomeItems()
@@ -624,7 +680,7 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                                                             containerClassName="h-full"
                                                             overlay={
                                                                 <div className="absolute inset-x-0 top-0 flex justify-end pointer-events-none">
-                                                                    {/* Badge and synthetic tag come from the card itself. */}
+                                                                    {/* Badge and synthetic outline come from the card itself. */}
                                                                     <p className="ml-auto font-semibold text-white bg-gray-950 bg-opacity-90 px-3 py-1 text-xs rounded-bl-lg">{formatNumber(chapters)} chapter{chapters === 1 ? "" : "s"}</p>
                                                                 </div>
                                                             }
@@ -672,7 +728,7 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                                                     containerClassName="h-full"
                                                     overlay={
                                                         <div className="absolute inset-x-0 top-0 flex justify-end pointer-events-none">
-                                                            {/* The state badge and the synthetic tag are drawn by the card
+                                                            {/* The state badge and the synthetic outline are drawn by the card
                                                              itself now — see MangaBadge — so every screen marks a series
                                                              the same way. Only the chapter count is local to this shelf. */}
                                                             <p className="ml-auto font-semibold text-white bg-gray-950 bg-opacity-90 px-3 py-1 text-xs rounded-bl-lg">{formatNumber(chapters)} chapter{chapters === 1 ? "" : "s"}</p>
@@ -692,45 +748,13 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                                     // the entry page needs.
                                     const provider = Object.keys(dlItem.downloadData || {})[0]
                                     const placeholderTitle = displayTitle(dlItem.media?.title) || `Manga ID: ${dlItem.mediaId}`
-                                    return (
-                                        <SeaLink
-                                            key={`download-${dlItem.mediaId}-${provider}`}
-                                            href={`/manga/entry?id=${dlItem.mediaId}`}
-                                            className="block h-full group/dl-card"
-                                            onMouseEnter={() => onHoverImage(null)}
-                                            onMouseLeave={() => onHoverImage(null)}
-                                        >
-                                            {/* Same poster shape as a real card, so a library with
-                                             some metadata missing still reads as one grid rather
-                                             than as cards with text tiles wedged between them. */}
-                                            <div
-                                                className={cn(
-                                                    "relative aspect-[6/7] w-full overflow-hidden rounded-[--radius-md]",
-                                                    "border border-gray-800 bg-gray-900/70",
-                                                    "flex flex-col items-center justify-center gap-2",
-                                                    "transition group-hover/dl-card:border-gray-600 group-hover/dl-card:bg-gray-900",
-                                                )}
-                                            >
-                                                <LuBookMarked className="text-4xl text-gray-700" />
-                                                <p className="px-3 text-center text-xs text-[--muted]">No cover art</p>
-
-                                                <div className="absolute inset-x-0 top-0 flex justify-between">
-                                                    {/* Drawn here rather than by the card, because a
-                                                     tile with no cover art is not one. Same badge,
-                                                     same source. */}
-                                                    <MangaBadge mediaId={dlItem.mediaId} variant="overlay" className="!relative" />
-                                                    <p className="ml-auto font-semibold text-white bg-gray-950 bg-opacity-90 px-3 py-1 text-xs rounded-bl-lg">
-                                                        {formatNumber(chapters)} chapter{chapters === 1 ? "" : "s"}
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            <div className="pt-2 space-y-0.5">
-                                                <p className="text-sm font-semibold text-white line-clamp-2">{placeholderTitle}</p>
-                                                {provider && <p className="text-xs text-[--muted]">Provider: {provider}</p>}
-                                            </div>
-                                        </SeaLink>
-                                    )
+                                    return <NoCoverMangaTile key={`download-${dlItem.mediaId}-${provider}`}
+                                        mediaId={dlItem.mediaId}
+                                        title={placeholderTitle}
+                                        provider={provider}
+                                        chapters={chapters}
+                                        onHoverImage={onHoverImage}
+                                    />
                                 }}
                             />
                         )}

@@ -2537,3 +2537,62 @@ html[data-sea-dock] .sea-float-bottom-2.left-5 { left: 50% !important; transform
     transition: --sea-card-w-anime 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), --sea-card-w-manga 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .sea-card-preview .sea-card-anime > div, .sea-card-preview .sea-card-manga > div { will-change: width; }
+
+/* Synthetic series — described locally rather than from AniList — are marked by a warm outline
+   around the cover instead of a tag over it. Three layers: a soft orange halo outside the card
+   (the card's own box-shadow, which overflow:hidden does not clip), a 2px amber→orange gradient
+   ring drawn by a masked overlay, and a faint inner glow so the ring sits into the art rather than
+   on top of it. Hover brightens all three and lets the gradient drift. */
+.sea-synthetic-card {
+    box-shadow:
+        0 0 0 1px rgba(251, 146, 60, 0.18),
+        0 10px 28px -12px rgba(249, 115, 22, 0.55);
+    transition: box-shadow 0.3s ease;
+}
+.sea-synthetic-card:hover,
+a:focus-visible > .sea-synthetic-card {
+    box-shadow:
+        0 0 0 1px rgba(251, 146, 60, 0.35),
+        0 14px 36px -10px rgba(249, 115, 22, 0.8);
+}
+.sea-synthetic-outline {
+    position: absolute;
+    inset: 0;
+    z-index: 16;
+    border-radius: inherit;
+    pointer-events: none;
+    box-shadow: inset 0 0 22px -4px rgba(249, 115, 22, 0.45);
+    transition: box-shadow 0.3s ease;
+}
+.sea-synthetic-outline::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 2px;
+    background: linear-gradient(135deg, #fde68a 0%, #fbbf24 18%, #f97316 48%, #ea580c 72%, #fdba74 100%);
+    background-size: 220% 220%;
+    background-position: 0% 0%;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    opacity: 0.85;
+    transition: opacity 0.3s ease;
+}
+.sea-synthetic-card:hover .sea-synthetic-outline,
+a:focus-visible > .sea-synthetic-card .sea-synthetic-outline {
+    box-shadow: inset 0 0 28px -2px rgba(249, 115, 22, 0.6);
+}
+.sea-synthetic-card:hover .sea-synthetic-outline::before,
+a:focus-visible > .sea-synthetic-card .sea-synthetic-outline::before {
+    opacity: 1;
+    animation: sea-synthetic-drift 3.2s ease-in-out infinite alternate;
+}
+@keyframes sea-synthetic-drift {
+    from { background-position: 0% 0%; }
+    to { background-position: 100% 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .sea-synthetic-card:hover .sea-synthetic-outline::before { animation: none; }
+}
