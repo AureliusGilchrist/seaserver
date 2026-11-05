@@ -99,7 +99,7 @@ export function MediaMetaChips({ media, info, type, hideStatus, className }: {
     const totalMinutes = type === "anime" && episodes && duration ? episodes * duration : 0
 
     return (
-        <div className={cn("flex flex-wrap items-center justify-center gap-2 lg:justify-start", className)} data-media-meta-chips>
+        <div className={cn("flex flex-wrap items-center justify-center gap-x-5 gap-y-2 lg:justify-start", className)} data-media-meta-chips>
             {format && <Chip icon={type === "anime" ? <LuFilm /> : <LuBookOpen />}>{MEDIA_FORMAT_LABELS[format] ?? capitalize(format)}</Chip>}
             {st && !hideStatus && <Chip icon={<span className={cn("size-2 rounded-full", st.dot)} />}>{st.label}</Chip>}
             {!!length && (
@@ -157,12 +157,12 @@ function Stat({ icon, value, label, accent }: { icon: React.ReactNode, value: st
 function Chip({ icon, children, tone }: { icon?: React.ReactNode, children: React.ReactNode, tone?: "red" }) {
     return <span
         className={cn(
-            "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[13px] font-medium ring-1 backdrop-blur-md",
-            tone === "red" ? "bg-red-500/15 text-red-200 ring-red-400/25" : "bg-black/25 text-white/85 ring-white/10",
+            "inline-flex items-center gap-1.5 text-[13px] font-medium [text-shadow:_0_1px_10px_rgb(0_0_0_/_80%)]",
+            tone === "red" ? "rounded-full bg-red-500/15 px-2 py-0.5 text-red-200 ring-1 ring-red-400/25" : "text-white/80",
         )}
         data-media-meta-chip
     >
-        {icon && <span className="flex items-center text-white/55 [&>svg]:size-3.5">{icon}</span>}
+        {icon && <span className="flex items-center text-brand-200/70 [&>svg]:size-3.5">{icon}</span>}
         {children}
     </span>
 }

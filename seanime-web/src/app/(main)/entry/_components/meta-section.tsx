@@ -18,6 +18,7 @@ import {
     MediaPageHeaderActions,
     MediaPageHeaderDetailsContainer,
     MediaPageHeaderEntryDetails,
+    MediaPageHeaderReveal,
 } from "@/app/(main)/_features/media/_components/media-page-header-components"
 import { MediaSyncTrackButton } from "@/app/(main)/_features/media/_containers/media-sync-track-button"
 import { ToWatchButton } from "@/app/(main)/_features/media/_components/to-watch-button"
@@ -107,37 +108,39 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
                     listData={entry.listData}
                     media={entry.media}
                     type="anime"
-                    aside={<MediaHeroInsights info={info} meanScore={entry.media?.meanScore} hideScore={personal.hideAudienceScore} type="anime" />}
+                    aside={<MediaHeroInsights info={info} meanScore={entry.media?.meanScore} hideScore={personal.hideAudienceScore} type="anime" part="stats" />}
                 >
                     <div
                         data-anime-meta-section-details
-                        className={cn(
-                            "flex flex-col gap-3 items-center lg:items-start",
-                            "lg:max-w-[65vw]",
-                        )}
+                        className="flex flex-col items-center gap-4 lg:items-start"
                     >
 
-                        <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-start" data-anime-meta-section-stats>
+                        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 lg:justify-start" data-anime-meta-section-stats>
                             <MediaMetaChips media={entry.media as any} info={info} type="anime" hideStatus />
                             <AnimeDownloadingBadge mediaId={entry.mediaId} size="lg" />
                         </div>
 
-                        {!isCustomSource(entry.mediaId) ? (info?.studios?.edges?.length
-                            ? <MediaStudiosLine info={info} />
-                            : <AnimeEntryStudio studios={details?.studios} />) : (
-                            <Badge
-                                size="lg"
-                                intent="gray"
-                                className="rounded-full px-0 border-transparent bg-transparent transition-all hover:bg-transparent hover:text-white hover:-translate-y-0.5"
-                                data-anime-entry-studio-badge
-                            >
-                                {details?.studios?.nodes?.[0]?.name}
-                            </Badge>
-                        )}
+                        {/* Credits: who made it */}
+                        <div className="flex flex-col items-center gap-1 lg:items-start" data-anime-meta-section-credits>
+                            {!isCustomSource(entry.mediaId) ? (info?.studios?.edges?.length
+                                ? <MediaStudiosLine info={info} />
+                                : <AnimeEntryStudio studios={details?.studios} />) : (
+                                <Badge
+                                    size="lg"
+                                    intent="gray"
+                                    className="rounded-full px-0 border-transparent bg-transparent transition-all hover:bg-transparent hover:text-white hover:-translate-y-0.5"
+                                    data-anime-entry-studio-badge
+                                >
+                                    {details?.studios?.nodes?.[0]?.name}
+                                </Badge>
+                            )}
 
-                        <MediaCreatorsLine info={info} />
+                            <MediaCreatorsLine info={info} />
+                        </div>
 
                         <MediaEntryGenresList genres={details?.genres} />
+
+                        <MediaHeroInsights info={info} type="anime" part="extras" />
 
                     </div>
                 </MediaPageHeaderEntryDetails>
@@ -256,14 +259,17 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
 
                 </MediaPageHeaderActions>
 
-                <EntrySectionTabs entry={entry} />
-
-                <NextAiringEpisode media={entry.media} />
+                <MediaPageHeaderReveal
+                    className="flex flex-col items-center gap-3 sm:flex-row sm:flex-wrap sm:justify-center lg:justify-start"
+                    data-anime-meta-section-view-row
+                >
+                    <EntrySectionTabs entry={entry} />
+                    <NextAiringEpisode media={entry.media} />
+                </MediaPageHeaderReveal>
 
                 {entry.downloadInfo?.hasInaccurateSchedule && <p
                     className={cn(
-                        "text-[--muted] text-sm text-center mb-3",
-                        "text-left",
+                        "text-[--muted] text-sm text-center lg:text-left",
                     )}
                     data-anime-meta-section-inaccurate-schedule-message
                 >
@@ -275,8 +281,7 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
                 {(!entry.anidbId || entry.anidbId === 0) && !isCustomSource(entry.mediaId) && entry.media?.status !== "NOT_YET_RELEASED" && (
                     <p
                         className={cn(
-                            "text-center text-gray-200 opacity-50 text-sm flex gap-1 items-center",
-                            "text-left",
+                            "text-gray-200 opacity-50 text-sm flex gap-1.5 items-center justify-center lg:justify-start",
                         )}
                         data-anime-meta-section-no-metadata-message
                     >

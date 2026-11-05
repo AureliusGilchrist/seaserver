@@ -25,7 +25,7 @@ function OngoingMangaReleaseEstimate({ mediaId }: { mediaId: number }) {
     return (
         <section
             data-manga-release-estimate
-            className="mx-4 mt-4 flex flex-wrap items-center gap-4 rounded-2xl border border-brand-300/15 bg-gradient-to-r from-brand-500/[0.09] via-black/25 to-black/30 p-4 shadow-lg shadow-black/15 backdrop-blur-xl md:mx-8"
+            className="mt-4 flex flex-wrap items-center gap-4 rounded-2xl border border-brand-300/15 bg-gradient-to-r from-brand-500/[0.09] via-black/25 to-black/30 p-4 shadow-lg shadow-black/15 backdrop-blur-xl md:mx-8"
             aria-live="polite"
         >
             <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-brand-300/20 bg-brand-400/10 text-brand-200">

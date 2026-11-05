@@ -127,12 +127,12 @@ export function EpisodeSection({ entry, details, bottomSection, hideCarousel, ma
     const hasEpisodesToShow = !!entry.libraryData || (!!entry.listData && !entry._isNakamaEntry)
 
     if (!!media && !hasEpisodesToShow && !serverStatus?.isOffline) {
-        return <div className="space-y-10">
+        return <div className="space-y-8">
             {media?.status !== "NOT_YET_RELEASED"
-                ? <h4 className="text-yellow-50 flex items-center gap-2"><IoLibrarySharp /> {entry._isNakamaEntry
+                ? <h4 className="flex items-center gap-3 rounded-2xl bg-black/35 px-4 py-3 text-sm font-medium text-amber-50 ring-1 ring-amber-200/15 backdrop-blur-md w-fit"><IoLibrarySharp className="text-lg text-amber-200" /> {entry._isNakamaEntry
                     ? "Not in the Nakama's library"
                     : "Add this item to your library to interact with it"}</h4>
-                : <h5 className="text-yellow-50">Not yet released</h5>}
+                : <h5 className="w-fit rounded-full bg-amber-400/10 px-3 py-1 text-sm font-medium text-amber-100 ring-1 ring-amber-300/20">Not yet released</h5>}
             <div className="overflow-y-auto pt-4 lg:pt-0 space-y-10 overflow-x-hidden">
                 {!entry._isNakamaEntry && <UndownloadedEpisodeList
                     downloadInfo={entry.downloadInfo}
@@ -229,7 +229,7 @@ export function EpisodeSection({ entry, details, bottomSection, hideCarousel, ma
                     // transform-gpu promotes the blurred container to its own compositing layer.
                     // Without it, Chromium re-rasterizes the backdrop-filter region on every
                     // scroll frame and the blur visibly flickers as the page moves.
-                    className="space-y-10 rounded-xl p-4 bg-[--background]/50 backdrop-blur-md transform-gpu"
+                    className="space-y-10 rounded-3xl p-4 sm:p-6 bg-[--background]/55 ring-1 ring-white/[0.07] shadow-[0_24px_60px_-30px_rgb(0_0_0_/_0.9)] backdrop-blur-md transform-gpu"
                     data-episode-list-stack
                 >
                     <EpisodeListPaginatedGrid
@@ -264,7 +264,7 @@ export function EpisodeSection({ entry, details, bottomSection, hideCarousel, ma
                     />}
 
                     {specialEpisodes.length > 0 && <>
-                        <h2>Specials</h2>
+                        <h2 className="flex items-center gap-3 text-lg font-bold tracking-tight text-white/90 after:h-px after:flex-1 after:bg-white/[0.08]">Specials</h2>
                         <EpisodeListGrid data-episode-list-specials maxCol={maxCol}>
                             {specialEpisodes.map(episode => (
                                 <EpisodeItem
@@ -286,7 +286,7 @@ export function EpisodeSection({ entry, details, bottomSection, hideCarousel, ma
                     </>}
 
                     {ncEpisodes.length > 0 && <>
-                        <h2>Others</h2>
+                        <h2 className="flex items-center gap-3 text-lg font-bold tracking-tight text-white/90 after:h-px after:flex-1 after:bg-white/[0.08]">Others</h2>
                         <EpisodeListGrid data-episode-list-others maxCol={maxCol}>
                             {ncEpisodes.map(episode => (
                                 <EpisodeItem

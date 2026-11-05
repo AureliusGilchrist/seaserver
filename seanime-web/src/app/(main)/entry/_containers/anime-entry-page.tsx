@@ -22,12 +22,11 @@ import { TorrentStreamPage } from "@/app/(main)/entry/_containers/torrent-stream
 import { OnlinestreamPage } from "@/app/(main)/onlinestream/_containers/onlinestream-page"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { cn } from "@/components/ui/core/styling"
-import { StaticTabs } from "@/components/ui/tabs"
 import { displayTitle } from "@/lib/helpers/media"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import { atom, useAtomValue } from "jotai"
 import { useAtom, useSetAtom } from "jotai/react"
-import { AnimatePresence } from "motion/react"
+import { AnimatePresence, motion } from "motion/react"
 import { useRouter, useSearchParams } from "@/lib/navigation"
 import React from "react"
 import { FiGlobe } from "react-icons/fi"
@@ -376,33 +375,24 @@ export function AnimeEntryPage() {
                                 },
                             }}
                         >
-                            <div className="h-10" />
+                            <div className="h-4 lg:h-6" />
                             <EpisodeSection
                                 entry={animeEntry}
                                 details={animeDetails}
-                                bottomSection={<>
-                                    <PluginWebviewSlot slot="after-anime-entry-episode-list" />
-                                    <AnimeEntryDetailsTabs entry={animeEntry} details={animeDetails} />
-                                </>}
+                                bottomSection={<PluginWebviewSlot slot="after-anime-entry-episode-list" />}
                             />
                         </PageWrapper>}
 
                         {currentView === "torrentstream" &&
                             <TorrentStreamPage
                                 entry={animeEntry}
-                                bottomSection={<>
-                                    <PluginWebviewSlot slot="after-anime-entry-episode-list" />
-                                    <AnimeEntryDetailsTabs entry={animeEntry} details={animeDetails} />
-                                </>}
+                                bottomSection={<PluginWebviewSlot slot="after-anime-entry-episode-list" />}
                             />}
 
                         {currentView === "debridstream" &&
                             <DebridStreamPage
                                 entry={animeEntry}
-                                bottomSection={<>
-                                    <PluginWebviewSlot slot="after-anime-entry-episode-list" />
-                                    <AnimeEntryDetailsTabs entry={animeEntry} details={animeDetails} />
-                                </>}
+                                bottomSection={<PluginWebviewSlot slot="after-anime-entry-episode-list" />}
                             />}
 
                         {currentView === "onlinestream" && <PageWrapper
@@ -421,7 +411,7 @@ export function AnimeEntryPage() {
                                 },
                             }}
                         >
-                            <div className="h-10 lg:h-0" />
+                            <div className="h-4 lg:h-0" />
                             <div className="space-y-4" data-anime-entry-page-online-streaming-view-content>
                                 {/*<div*/}
                                 {/*    className="absolute right-0 top-[-0.5rem] lg:top-[-3rem]"*/}
@@ -435,12 +425,6 @@ export function AnimeEntryPage() {
                                     onBackToEpisodes={handleBackToEpisodes}
                                 />
                                 <PluginWebviewSlot slot="after-anime-entry-episode-list" />
-                                {/*<LegacyOnlinestreamPage*/}
-                                {/*    animeEntry={animeEntry}*/}
-                                {/*    animeEntryLoading={animeEntryLoading}*/}
-                                {/*    hideBackButton*/}
-                                {/*/>*/}
-                                <AnimeEntryDetailsTabs entry={animeEntry} details={animeDetails} />
                             </div>
                         </PageWrapper>}
 
@@ -460,15 +444,18 @@ export function AnimeEntryPage() {
                                 },
                             }}
                         >
-                            <div className="h-10 lg:h-0" />
+                            <div className="h-4 lg:h-0" />
                             <div className="space-y-4">
                                 <LocalPlayerPage entry={animeEntry} entryLoading={animeEntryLoading} />
                                 <PluginWebviewSlot slot="after-anime-entry-episode-list" />
-                                <AnimeEntryDetailsTabs entry={animeEntry} details={animeDetails} />
                             </div>
                         </PageWrapper>}
 
                     </AnimatePresence>
+
+                    {/* Overview, cast, related titles and discussion: the same under every view, so it
+                        stays mounted (and keeps its tab) while the view above switches. */}
+                    <AnimeEntryDetailsTabs entry={animeEntry} details={animeDetails} />
 
                     <PluginWebviewSlot slot="anime-screen-bottom" />
 
@@ -511,39 +498,59 @@ export function EntrySectionTabs(props: EntrySectionTabs) {
         !entry ||
         entry.media?.status === "NOT_YET_RELEASED") return null
 
+    const items = [
+        { name: "Details", iconType: IoLibraryOutline, isCurrent: isLibraryView, onClick: () => setView("library") },
+        ...(serverStatus?.torrentstreamSettings?.enabled ? [{
+            name: "Torrent streaming",
+            iconType: PiMonitorPlayDuotone,
+            isCurrent: isTorrentStreamingView,
+            onClick: () => setView("torrentstream"),
+        }] : []),
+        ...(serverStatus?.debridSettings?.enabled ? [{
+            name: "Debrid streaming",
+            iconType: HiOutlineServerStack,
+            isCurrent: isDebridStreamingView,
+            onClick: () => setView("debridstream"),
+        }] : []),
+        ...(serverStatus?.settings?.library?.enableOnlinestream ? [{
+            name: "Online Players",
+            iconType: FiGlobe,
+            isCurrent: isOnlineStreamingView,
+            onClick: () => setView("onlinestream"),
+        }] : []),
+        { name: "Local Player", iconType: LuMonitorPlay, isCurrent: isLocalPlayerView, onClick: () => setView("localplayer") },
+    ]
+
     return (
         <>
             <div
-                className="w-full max-w-fit rounded-2xl lg:rounded-full mx-auto lg:mx-0 overflow-hidden bg-black/25 p-1 ring-1 ring-white/10 backdrop-blur-md"
+                className="flex w-full max-w-full justify-center overflow-x-auto sm:w-auto lg:justify-start [scrollbar-width:none]"
                 data-anime-entry-page-tabs-container
             >
-                <StaticTabs
-                    className="lg:h-10 flex-wrap lg:flex-nowrap overflow-hidden justify-center lg:justify-start"
-                    triggerClass="px-4 py-1 text-[0.95rem] font-medium border border-transparent opacity-70 hover:opacity-100 transition-all duration-300 data-[current=true]:bg-white/10 data-[current=true]:border-white/15 data-[current=true]:opacity-100 rounded-full data-[current=false]:scale-95 lg:scale-100 "
-                    iconClass="size-5 hidden data-[current=true]:block"
-                    items={[
-                        { name: "Details", iconType: IoLibraryOutline, isCurrent: isLibraryView, onClick: () => setView("library") },
-                        ...(serverStatus?.torrentstreamSettings?.enabled ? [{
-                            name: "Torrent streaming",
-                            iconType: PiMonitorPlayDuotone,
-                            isCurrent: isTorrentStreamingView,
-                            onClick: () => setView("torrentstream"),
-                        }] : []),
-                        ...(serverStatus?.debridSettings?.enabled ? [{
-                            name: "Debrid streaming",
-                            iconType: HiOutlineServerStack,
-                            isCurrent: isDebridStreamingView,
-                            onClick: () => setView("debridstream"),
-                        }] : []),
-                        ...(serverStatus?.settings?.library?.enableOnlinestream ? [{
-                            name: "Online Players",
-                            iconType: FiGlobe,
-                            isCurrent: isOnlineStreamingView,
-                            onClick: () => setView("onlinestream"),
-                        }] : []),
-                        { name: "Local Player", iconType: LuMonitorPlay, isCurrent: isLocalPlayerView, onClick: () => setView("localplayer") },
-                    ]}
-                />
+                <div className="flex h-11 flex-none items-center gap-1 rounded-full bg-black/40 p-1 ring-1 ring-white/10 backdrop-blur-md" role="tablist">
+                    {items.map(item => (
+                        <button
+                            key={item.name}
+                            type="button"
+                            role="tab"
+                            aria-selected={item.isCurrent}
+                            data-current={item.isCurrent}
+                            onClick={item.onClick}
+                            className={cn(
+                                "relative flex h-9 flex-none items-center gap-2 rounded-full px-3.5 text-sm font-medium transition-colors duration-300 sm:px-4",
+                                item.isCurrent ? "text-white" : "text-white/55 hover:text-white",
+                            )}
+                        >
+                            {item.isCurrent && <motion.span
+                                layoutId="anime-entry-view-pill"
+                                className="absolute inset-0 rounded-full bg-white/[0.12] shadow-[inset_0_1px_0_rgb(255_255_255_/_0.08)] ring-1 ring-white/15"
+                                transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                            />}
+                            <item.iconType className={cn("relative size-[1.05rem] flex-none", item.isCurrent ? "text-brand-200" : "opacity-70")} />
+                            <span className="relative whitespace-nowrap">{item.name}</span>
+                        </button>
+                    ))}
+                </div>
             </div>
         </>
     )

@@ -22,13 +22,19 @@ export function NextAiringEpisode(props: { media: AL_BaseAnime }) {
         {!!props.media.nextAiringEpisode && (
             <div
                 className={cn(
-                    "flex gap-2 items-center justify-center text-lg",
+                    "flex h-11 items-center gap-2.5 rounded-full bg-black/40 pl-3.5 pr-4 text-sm ring-1 ring-white/10 backdrop-blur-md",
                     ts.mediaPageBannerInfoBoxSize === ThemeMediaPageInfoBoxSize.Fluid && "justify-start",
                 )}
+                data-anime-entry-next-airing-episode
             >
-                <span className="font-semibold">Episode {props.media.nextAiringEpisode?.episode}</span>
-                <span key={`${tick}-${distance}`} className="transition-opacity duration-300">{distance}</span>
-                <BiCalendarAlt className="text-lg text-[--muted]" />
+                <span className="relative flex size-2">
+                    <span className="absolute inline-flex size-full animate-ping rounded-full bg-sky-400 opacity-60" />
+                    <span className="relative inline-flex size-2 rounded-full bg-sky-400" />
+                </span>
+                <span className="font-semibold text-white">Episode {props.media.nextAiringEpisode?.episode}</span>
+                <span key={`${tick}-${distance}`} className="text-white/70 transition-opacity duration-300">{distance}</span>
+                <span className="h-3.5 w-px bg-white/15" />
+                <BiCalendarAlt className="text-base text-[--muted]" />
                 <span className="text-[--muted]">{day}</span>
             </div>
         )}

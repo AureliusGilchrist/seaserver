@@ -120,7 +120,7 @@ export default function Page() {
                 <PageWrapper
                     data-manga-entry-page-content
                     key="chapter-list"
-                    className="relative 2xl:order-first pb-10 pt-4 space-y-10"
+                    className="relative 2xl:order-first pb-10 pt-4 lg:pt-6"
                     {...{
                         initial: { opacity: 0, y: 15 },
                         animate: { opacity: 1, y: 0 },
@@ -134,7 +134,11 @@ export default function Page() {
                     }}
                 >
 
-                    <div data-manga-entry-page-chapters className="space-y-2">
+                    <div
+                        data-manga-entry-page-chapters
+                        // transform-gpu: its own layer, so the blurred panel does not flicker while scrolling.
+                        className="space-y-2 rounded-3xl bg-[--background]/55 p-4 shadow-[0_24px_60px_-30px_rgb(0_0_0_/_0.9)] ring-1 ring-white/[0.07] backdrop-blur-md transform-gpu sm:p-6"
+                    >
                         <ChapterList
                             entry={mangaEntry}
                             mediaId={mediaId}

@@ -179,7 +179,20 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
     )
 }
 
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// The hero's content, laid over the banner. Its layout:
+//
+//   ┌────────┐  EYEBROW · DATE · STATUS
+//   │ poster │  Title
+//   │        │  English title / romaji · native
+//   │        │  ┌ stat ribbon ───────────────────┐
+//   └────────┘  description
+//   ┌ my list ┐ facts · studios · genres · topics
+//   └─────────┘
+//
+// On phones the poster sits centred above the title and "my list" comes right under the title.
 
 type MediaPageHeaderDetailsContainerProps = {
     children?: React.ReactNode
@@ -208,36 +221,28 @@ export function MediaPageHeaderDetailsContainer(props: MediaPageHeaderDetailsCon
                 style={width >= 1024 ? { opacity: detailsOpacity, y: detailsY } : undefined}
             >
                 <motion.div
-                    initial={{ opacity: 0, y: 12 }}
+                    initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 0.5, ease: [0.2, 0.8, 0.2, 1] }}
+                    transition={{ duration: 0.6, ease: [0.2, 0.8, 0.2, 1] }}
                     className="relative z-[4]"
                     data-media-page-header-details-container
                 >
                     <div
                         data-media-page-header-details-inner-container
                         className={cn(
-                            "space-y-6 p-6 sm:p-8 relative",
-                            ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && "p-6 sm:py-4 sm:px-8",
+                            "relative px-4 pt-6 pb-4 sm:px-8 sm:pt-8 lg:pb-6",
+                            ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && "sm:pt-5",
                             ts.mediaPageBannerInfoBoxSize === ThemeMediaPageInfoBoxSize.Fluid
                                 ? "w-full"
                                 : "lg:max-w-[100%] 2xl:max-w-[96rem] 5xl:max-w-[112rem]",
                         )}
                     >
                         <motion.div
-                            {...{
-                                initial: { opacity: 0 },
-                                animate: { opacity: 1 },
-                                exit: { opacity: 0 },
-                                transition: {
-                                    type: "spring",
-                                    damping: 20,
-                                    stiffness: 100,
-                                    delay: 0.1,
-                                },
-                            }}
-                            className="space-y-5"
+                            initial="hidden"
+                            animate="shown"
+                            variants={{ hidden: {}, shown: { transition: { staggerChildren: 0.07, delayChildren: 0.08 } } }}
+                            className="space-y-6"
                             data-media-page-header-details-motion-container
                         >
 
@@ -252,13 +257,30 @@ export function MediaPageHeaderDetailsContainer(props: MediaPageHeaderDetailsCon
     )
 }
 
+/** Each block of the hero rises in on its turn (see the container's stagger). */
+const heroItem = {
+    hidden: { opacity: 0, y: 14 },
+    shown: { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.2, 0.8, 0.2, 1] } },
+} as const
+
+export function MediaPageHeaderReveal({ children, className, ...rest }: { children: React.ReactNode, className?: string } & React.HTMLAttributes<HTMLDivElement>) {
+    return <motion.div variants={heroItem} className={className} {...(rest as any)}>{children}</motion.div>
+}
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+const STATUS_TONE: Record<string, { dot: string, text: string }> = {
+    RELEASING: { dot: "bg-sky-400 shadow-[0_0_10px_2px_rgb(56_189_248_/_0.55)] animate-pulse", text: "text-sky-100" },
+    FINISHED: { dot: "bg-emerald-400", text: "text-emerald-100" },
+    NOT_YET_RELEASED: { dot: "bg-amber-400", text: "text-amber-100" },
+    CANCELLED: { dot: "bg-red-400", text: "text-red-100" },
+    HIATUS: { dot: "bg-orange-400", text: "text-orange-100" },
+}
 
 type MediaPageHeaderEntryDetailsProps = {
     children?: React.ReactNode
-    /** A third column beside the details on wide screens, and a row under them on narrower ones. */
+    /** The stat ribbon, right under the title. */
     aside?: React.ReactNode
     coverImage?: string
     color?: string
@@ -303,83 +325,106 @@ export function MediaPageHeaderEntryDetails(props: MediaPageHeaderEntryDetailsPr
     } = props
 
     const ts = useThemeSettings()
+    const { width } = useWindowSize()
     const { scrollY } = useScroll()
     const coverScale = useSpring(useTransform(scrollY, [0, 500], [1, 1.05]), SCROLL_SPRING)
+
+    const small = ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small
+    const fluid = ts.mediaPageBannerInfoBoxSize === ThemeMediaPageInfoBoxSize.Fluid
 
     const showEnglish = !!englishTitle && title?.toLowerCase() !== englishTitle?.toLowerCase()
     const showRomaji = !!romajiTitle && title?.toLowerCase() !== romajiTitle?.toLowerCase()
     const showNative = !!media?.title?.native && title !== media.title.native
 
+    // The list card is rendered once: under the poster on desktop, under the title on narrower screens.
+    const listUnderPoster = !!coverImage && width >= 1024
+    const statusTone = status ? STATUS_TONE[status] : undefined
+    const longTitle = (title?.length ?? 0) > 42
+
+    const listCard = <MediaPageHeaderListCard listData={listData} media={media} type={type} progressTotal={progressTotal} />
+
     return (
         <>
-            <div className="flex flex-col lg:flex-row lg:flex-wrap xl:flex-nowrap gap-6 lg:gap-x-10" data-media-page-header-entry-details>
+            <div
+                className={cn(
+                    "grid grid-cols-1 items-start gap-x-10 gap-y-6",
+                    !!coverImage && (
+                        small ? "lg:grid-cols-[13rem,minmax(0,1fr)]"
+                            : fluid ? "lg:grid-cols-[16rem,minmax(0,1fr)]"
+                                : "lg:grid-cols-[15rem,minmax(0,1fr)]"
+                    ),
+                )}
+                data-media-page-header-entry-details
+            >
 
-                {!!coverImage && <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, ease: [0.2, 0.8, 0.2, 1] }}
-                    data-media-page-header-entry-details-cover-image-container
-                    className={cn(
-                        // self-start: the row would otherwise stretch the cover to the height of the details beside it.
-                        "flex-none self-center lg:self-start aspect-[6/8] max-w-[150px] mx-auto lg:m-0 h-auto sm:max-w-[200px] lg:max-w-[230px] w-full relative rounded-[--radius-md] overflow-hidden bg-[--background] block",
-                        "shadow-[0_20px_50px_-12px_rgb(0_0_0_/_0.7)] ring-1 ring-white/10",
-                        ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && "max-w-[150px] lg:m-0 h-auto sm:max-w-[195px] lg:max-w-[210px] -top-1",
-                        ts.mediaPageBannerInfoBoxSize === ThemeMediaPageInfoBoxSize.Fluid && "lg:max-w-[270px]",
-                        (ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && ts.mediaPageBannerInfoBoxSize === ThemeMediaPageInfoBoxSize.Fluid) && "lg:max-w-[220px]",
-                    )}
-                >
-                    <motion.div className="w-full h-full" style={{ scale: coverScale }}>
-                        <MotionImage
-                            data-media-page-header-entry-details-cover-image
-                            src={getImageUrl(coverImage)}
-                            alt="cover image"
-                            fill
-                            priority
-                            placeholder={imageShimmer(700, 475)}
-                            className="object-cover object-center"
-                            initial={{ scale: 1.1, x: 0 }}
-                            animate={{ scale: 1, x: 0 }}
-                            transition={{ duration: 0.5, ease: "easeOut" }}
-                        />
+                {!!coverImage && <div className="flex min-w-0 flex-col items-center gap-3 lg:items-stretch" data-media-page-header-entry-details-poster>
+                    <motion.div
+                        variants={heroItem}
+                        data-media-page-header-entry-details-cover-image-container
+                        className={cn(
+                            "group/cover relative block aspect-[2/3] w-[9.5rem] flex-none overflow-hidden rounded-2xl bg-[--background] sm:w-[12rem] lg:w-full",
+                            "shadow-[0_34px_70px_-24px_rgb(0_0_0_/_0.9)] ring-1 ring-white/10",
+                        )}
+                    >
+                        <motion.div className="h-full w-full" style={{ scale: coverScale }}>
+                            <MotionImage
+                                data-media-page-header-entry-details-cover-image
+                                src={getImageUrl(coverImage)}
+                                alt="cover image"
+                                fill
+                                priority
+                                placeholder={imageShimmer(700, 475)}
+                                className="object-cover object-center"
+                                initial={{ scale: 1.1, x: 0 }}
+                                animate={{ scale: 1, x: 0 }}
+                                transition={{ duration: 0.7, ease: [0.2, 0.8, 0.2, 1] }}
+                            />
+                        </motion.div>
+                        {/* A soft light from above and a hairline inside the edge, so the poster reads as a printed card. */}
+                        <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-b from-white/[0.07] via-transparent to-black/25 ring-1 ring-inset ring-white/[0.08]" />
                     </motion.div>
-                </motion.div>}
+
+                    {listUnderPoster && <motion.div variants={heroItem} className="w-full">{listCard}</motion.div>}
+                </div>}
 
 
                 <div
                     data-media-page-header-entry-details-content
                     className={cn(
-                        "space-y-3 lg:space-y-4 min-w-0 flex-1 lg:basis-0",
-                        (ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small || ts.mediaPageBannerInfoBoxSize === ThemeMediaPageInfoBoxSize.Fluid) && "lg:space-y-3",
+                        "min-w-0 space-y-4 lg:space-y-5 lg:pt-1",
+                        // Leaves the right of the banner to the artwork.
+                        !fluid && "lg:max-w-[54rem] 2xl:max-w-[60rem]",
+                        (small || fluid) && "lg:space-y-4",
                     )}
                 >
-                    {/*DATE & STATUS — a quiet eyebrow above the title*/}
+                    {/*EYEBROW — when it started, and whether it still airs*/}
                     {(!!startDate?.year || !!status) && (
-                        <div
-                            className="flex gap-x-3 gap-y-1 items-center flex-wrap justify-center lg:justify-start text-xs font-semibold uppercase tracking-[0.14em] text-white/60"
+                        <motion.div
+                            variants={heroItem}
+                            className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/60 lg:justify-start"
                             data-media-page-header-entry-details-date-container
                         >
-                            {!!startDate?.year && <p className="flex gap-1.5 items-center">
-                                <BiCalendarAlt className="text-sm" /> {new Intl.DateTimeFormat("en-US", {
-                                year: "numeric",
-                                month: "short",
-                            }).format(new Date(startDate?.year || 0, startDate?.month ? startDate?.month - 1 : 0))}{!!season
-                                ? ` · ${capitalize(season)}`
-                                : ""}
+                            {!!startDate?.year && <p className="flex items-center gap-1.5">
+                                <BiCalendarAlt className="text-[13px] text-white/45" />
+                                {new Intl.DateTimeFormat("en-US", {
+                                    year: "numeric",
+                                    month: "short",
+                                }).format(new Date(startDate?.year || 0, startDate?.month ? startDate?.month - 1 : 0))}
+                                {!!season && <span className="text-white/35">· {capitalize(season)}</span>}
                             </p>}
 
-                            {!!startDate?.year && !!status && <span className="size-1 rounded-full bg-white/30" />}
-
-                            {!!status && <Badge
-                                size="sm"
-                                intent={status === "RELEASING" ? "primary" : "gray"}
-                                className="bg-transparent border-transparent dark:text-brand-200 px-0 rounded-none text-xs font-semibold uppercase tracking-[0.14em]"
-                                leftIcon={<RiSignalTowerFill />}
+                            {!!status && <span
+                                className={cn(
+                                    "inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-2.5 py-1 ring-1 ring-white/10 backdrop-blur-md",
+                                    statusTone?.text ?? "text-white/80",
+                                )}
                                 data-media-page-header-entry-details-date-badge
                             >
+                                <span className={cn("size-1.5 rounded-full", statusTone?.dot ?? "bg-white/50")} />
                                 {capitalize(status || "")?.replaceAll("_", " ")}
-                            </Badge>}
+                            </span>}
 
-                            {ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && !!description && <Popover
+                            {small && !!description && <Popover
                                 trigger={
                                     <IconButton
                                         intent="white-subtle"
@@ -392,80 +437,43 @@ export function MediaPageHeaderEntryDetails(props: MediaPageHeaderEntryDetailsPr
                             >
                                 <span className="transition-colors">{description?.replace(/(<([^>]+)>)/ig, "")}</span>
                             </Popover>}
-                        </div>
+                        </motion.div>
                     )}
 
-                    {/*TITLE*/}
-                    <div className="space-y-1.5" data-media-page-header-entry-details-title-container>
+                    {/*TITLE — a div main title and a p subtitle line, which the Alternative Titles plugin builds on*/}
+                    <motion.div variants={heroItem} className="space-y-2" data-media-page-header-entry-details-title-container>
                         <TextGenerateEffect
                             className={cn(
-                                "[text-shadow:_0_2px_18px_rgb(0_0_0_/_35%)] text-white line-clamp-2 pb-1 text-center lg:text-left text-pretty text-3xl lg:text-5xl font-bold tracking-tight xl:max-w-[50vw]",
-                                smallerTitle && "text-3xl lg:text-3xl",
+                                "text-balance text-center text-[2rem] font-extrabold leading-[1.04] tracking-[-0.025em] text-white line-clamp-3 sm:text-5xl lg:text-left",
+                                "[text-shadow:_0_2px_24px_rgb(0_0_0_/_45%)]",
+                                longTitle ? "lg:text-[2.9rem]" : "lg:text-[3.6rem]",
+                                (small || fluid) && !longTitle && "lg:text-[3.1rem]",
+                                smallerTitle && "text-2xl sm:text-3xl lg:text-[2.1rem]",
                             )}
                             words={title || ""}
                         />
                         {showEnglish &&
-                            <h4 className="text-white/85 text-lg font-medium line-clamp-1 text-center lg:text-left xl:max-w-[50vw]">{englishTitle}</h4>}
+                            <h4 className="line-clamp-1 text-center text-lg font-medium text-white/80 sm:text-xl lg:text-left">{englishTitle}</h4>}
                         {(showRomaji || showNative) && <p
-                            className="flex flex-wrap gap-x-2 justify-center lg:justify-start text-sm text-white/50 xl:max-w-[50vw]"
+                            className="flex flex-wrap justify-center gap-x-2 text-sm text-white/45 lg:justify-start"
                             data-media-page-header-entry-details-alt-titles
                         >
                             {showRomaji && <span className="line-clamp-1">{romajiTitle}</span>}
-                            {showRomaji && showNative && <span className="text-white/25">·</span>}
+                            {showRomaji && showNative && <span className="text-white/20">·</span>}
                             {showNative && <span className="line-clamp-1 tracking-wide" lang="ja">{media.title!.native}</span>}
                         </p>}
-                    </div>
+                    </motion.div>
 
-                    {/*LIST*/}
-                    <div
-                        className="flex justify-center lg:justify-start"
-                        data-media-page-header-entry-details-more-info
-                    >
-                        <div className="inline-flex flex-wrap gap-2 md:gap-4 items-center justify-center rounded-2xl bg-black/25 px-4 py-1.5 ring-1 ring-white/10 backdrop-blur-md">
-                            <MediaPageHeaderScoreAndProgress
-                                score={listData?.score}
-                                progress={listData?.progress}
-                                episodes={progressTotal}
-                            />
+                    {!listUnderPoster && <motion.div variants={heroItem} className="mx-auto w-full max-w-md lg:mx-0">{listCard}</motion.div>}
 
-                            <AnilistMediaEntryModal listData={listData} media={media} type={type} />
+                    {!!aside && <motion.div variants={heroItem} className="min-w-0" data-media-page-header-entry-details-aside>{aside}</motion.div>}
 
-                            {(listData?.status || listData?.repeat) &&
-                                <div
-                                    data-media-page-header-entry-details-status
-                                    className="text-base text-white md:text-md font-medium tracking-wide flex items-center"
-                                >{capitalize(listData?.status === "CURRENT"
-                                    ? type === "anime" ? "watching" : "reading"
-                                    : listData?.status)}
-                                    {listData?.repeat && <Tooltip
-                                        trigger={<Badge
-                                            size="md"
-                                            intent="gray"
-                                            className="ml-3"
-                                            data-media-page-header-entry-details-repeating-badge
-                                        >
-                                            {listData?.repeat}
+                    {!small && !!description &&
+                        <motion.div variants={heroItem}><MediaPageHeaderDescription description={description} /></motion.div>}
 
-                                        </Badge>}
-                                    >
-                                        {listData?.repeat} {type === "anime" ? "rewatch" : "reread"}{listData?.repeat > 1
-                                        ? type === "anime" ? "es" : "s"
-                                        : ""}
-                                    </Tooltip>}
-                                </div>}
-
-                            <AnilistSyncIndicator mediaId={media?.id} />
-                        </div>
-                    </div>
-
-                    {ts.mediaPageBannerSize !== ThemeMediaPageBannerSize.Small && !!description &&
-                        <MediaPageHeaderDescription description={description} />}
-
-                    {children}
+                    {!!children && <motion.div variants={heroItem}>{children}</motion.div>}
 
                 </div>
-
-                {!!aside && <div className="w-full min-w-0 xl:w-[23rem] xl:flex-none" data-media-page-header-entry-details-aside>{aside}</div>}
 
             </div>
         </>
@@ -474,8 +482,79 @@ export function MediaPageHeaderEntryDetails(props: MediaPageHeaderEntryDetailsPr
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/** Your own entry: progress against the total, your score, the list status, and the editor. */
+function MediaPageHeaderListCard({ listData, media, type, progressTotal }: {
+    listData?: Anime_EntryListData | Manga_EntryListData
+    media: AL_BaseAnime | AL_BaseManga
+    type: "anime" | "manga"
+    progressTotal?: number
+}) {
+    const progress = listData?.progress ?? 0
+    const share = progressTotal ? Math.min(1, progress / progressTotal) : 0
+    const statusLabel = listData?.status
+        ? capitalize(listData.status === "CURRENT" ? (type === "anime" ? "watching" : "reading") : listData.status)
+        : null
+
+    return (
+        <div
+            className="w-full rounded-2xl bg-black/45 p-3.5 text-left shadow-xl shadow-black/30 ring-1 ring-white/10 backdrop-blur-xl"
+            data-media-page-header-entry-details-more-info
+        >
+            <div className="flex items-center justify-between gap-2">
+                {(listData?.status || listData?.repeat)
+                    ? <div
+                        data-media-page-header-entry-details-status
+                        className="flex min-w-0 items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-200"
+                    >
+                        <span className="truncate">{statusLabel}</span>
+                        {!!listData?.repeat && <Tooltip
+                            trigger={<span
+                                className="inline-flex items-center rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] tracking-normal text-white/80 ring-1 ring-white/10"
+                                data-media-page-header-entry-details-repeating-badge
+                            >
+                                ×{listData?.repeat}
+                            </span>}
+                        >
+                            {listData?.repeat} {type === "anime" ? "rewatch" : "reread"}{listData?.repeat > 1
+                            ? type === "anime" ? "es" : "s"
+                            : ""}
+                        </Tooltip>}
+                    </div>
+                    : <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/40">
+                        {listData ? "On your list" : "Not on your list"}
+                    </span>}
+
+                <div className="flex flex-none items-center gap-1.5">
+                    <AnilistSyncIndicator mediaId={media?.id} />
+                    <AnilistMediaEntryModal listData={listData} media={media} type={type} />
+                </div>
+            </div>
+
+            <div className="mt-2 flex items-end justify-between gap-3">
+                <MediaPageHeaderScoreAndProgress
+                    score={listData?.score}
+                    progress={listData?.progress}
+                    episodes={progressTotal}
+                    unit={type === "anime" ? "ep" : "ch"}
+                />
+            </div>
+
+            <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-white/[0.08]" aria-hidden>
+                <motion.div
+                    className="h-full rounded-full bg-gradient-to-r from-brand-500 to-brand-300"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${share * 100}%` }}
+                    transition={{ duration: 0.9, delay: 0.3, ease: [0.2, 0.8, 0.2, 1] }}
+                />
+            </div>
+        </div>
+    )
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 /**
- * Secondary hero metadata (credits, rankings…) folded behind a toggle so the hero stays calm.
+ * Secondary hero metadata folded behind a toggle so the hero stays calm.
  * Nothing in it is dropped: it is one click away, and it opens with the same easing as "Read more".
  */
 export function MediaPageHeaderMoreDetails({ label = "More details", children, className }: {
@@ -511,28 +590,29 @@ export function MediaPageHeaderMoreDetails({ label = "More details", children, c
     )
 }
 
-/** The hero's action bar: quiet links on the left, a divider, then the actions. */
+/** The hero's action bar: the actions, then the quiet links (AniList, trailer, favourite) pushed to the far end. */
 export function MediaPageHeaderActions({ links, children, className, ...rest }: {
     links?: React.ReactNode
     children?: React.ReactNode
     className?: string
 } & React.HTMLAttributes<HTMLDivElement>) {
     return (
-        <div
+        <motion.div
+            variants={heroItem}
             className={cn(
-                "flex flex-row w-full gap-3 items-center justify-center lg:justify-start lg:max-w-[65vw] flex-wrap",
+                "flex w-full flex-row flex-wrap items-center justify-center gap-2.5 lg:justify-start",
                 className,
             )}
-            {...rest}
+            {...(rest as any)}
         >
+            {children}
             {!!links && <div
-                className="flex items-center gap-3 h-10 px-4 rounded-full bg-black/25 ring-1 ring-white/10 backdrop-blur-md"
+                className="flex h-10 items-center gap-3.5 rounded-full bg-black/40 px-4 ring-1 ring-white/10 backdrop-blur-md lg:ml-auto"
                 data-media-page-header-actions-links
             >
                 {links}
             </div>}
-            {children}
-        </div>
+        </motion.div>
     )
 }
 
@@ -540,36 +620,39 @@ export function MediaPageHeaderActions({ links, children, className, ...rest }: 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-export function MediaPageHeaderScoreAndProgress({ score, progress, episodes }: {
+export function MediaPageHeaderScoreAndProgress({ score, progress, episodes, unit }: {
     score: Nullish<number>,
     progress: Nullish<number>,
     episodes: Nullish<number>,
+    unit?: string,
 }) {
 
     return (
         <>
-            {!!score && <Badge
-                leftIcon={score >= 90 ? <BiSolidStar className="text-sm" /> : <BiStar className="text-sm" />}
-                size="xl"
-                intent="unstyled"
-                className={getScoreColor(score, "user")}
-                data-media-page-header-score-badge
-            >
-                {score / 10}
-            </Badge>}
-            <Badge
-                size="xl"
-                intent="basic"
-                className="!text-xl font-bold !text-white px-0 gap-0 rounded-none"
+            <span
+                className="flex items-baseline gap-1 font-bold tabular-nums text-white"
                 data-media-page-header-progress-badge
             >
-                <span data-media-page-header-progress-badge-progress>{`${progress ?? 0}`}</span><span
-                data-media-page-header-progress-total
+                <span data-media-page-header-progress-badge-progress className="text-[1.75rem] leading-none tracking-tight">{`${progress ?? 0}`}</span>
+                <span
+                    data-media-page-header-progress-total
+                    className={cn(
+                        "text-base leading-none",
+                        (!progress || progress !== episodes) ? "text-white/40" : "text-white/75",
+                    )}
+                >/{episodes || "–"}</span>
+                {!!unit && <span className="ml-0.5 text-xs font-medium leading-none text-white/35">{unit}</span>}
+            </span>
+            {!!score && <span
                 className={cn(
-                    (!progress || progress !== episodes) && "opacity-60",
+                    "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-sm font-bold tabular-nums text-white ring-1 ring-white/10",
+                    getScoreColor(score, "user"),
                 )}
-            >/{episodes || "-"}</span>
-            </Badge>
+                data-media-page-header-score-badge
+            >
+                {score >= 90 ? <BiSolidStar className="text-sm" /> : <BiStar className="text-sm" />}
+                {score / 10}
+            </span>}
         </>
     )
 
@@ -588,26 +671,26 @@ function MediaPageHeaderDescription({ description }: { description: string }) {
     return (
         <div
             data-media-page-header-details-description
-            className={cn(
-                "relative max-w-full rounded-2xl text-sm leading-relaxed text-white/90 [text-shadow:_0_1px_10px_rgb(0_0_0_/_85%)] transition-colors",
-                expanded && "bg-black/30 backdrop-blur-md ring-1 ring-white/10 p-4 -mx-1",
-            )}
+            className="relative mx-auto max-w-[46rem] text-[0.94rem] leading-7 text-white/80 [text-shadow:_0_1px_12px_rgb(0_0_0_/_90%)] lg:mx-0"
         >
             <motion.div
                 initial={false}
-                animate={{ height: expanded || !long ? "auto" : "4.1rem" }}
-                transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
-                className="overflow-hidden whitespace-pre-line text-center lg:text-left"
+                animate={{ height: expanded || !long ? "auto" : "5.25rem" }}
+                transition={{ duration: 0.45, ease: [0.2, 0.8, 0.2, 1] }}
+                className={cn(
+                    "overflow-hidden whitespace-pre-line text-center lg:text-left",
+                    long && !expanded && "[mask-image:linear-gradient(to_bottom,black_45%,transparent)]",
+                )}
             >
                 {text}
             </motion.div>
-            {long && !expanded && <div className="pointer-events-none absolute inset-x-0 bottom-6 h-8 bg-gradient-to-t from-[--background]/40 to-transparent" />}
             {long && <button
                 type="button"
                 onClick={() => setExpanded(e => !e)}
-                className="mx-auto mt-1 block text-xs font-semibold text-brand-200 hover:text-white lg:mx-0"
+                className="mx-auto mt-1.5 flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.14em] text-brand-200 transition-colors hover:text-white lg:mx-0"
             >
                 {expanded ? "Show less" : "Read more"}
+                <LuChevronDown className={cn("size-3.5 transition-transform duration-300", expanded && "rotate-180")} />
             </button>}
         </div>
     )

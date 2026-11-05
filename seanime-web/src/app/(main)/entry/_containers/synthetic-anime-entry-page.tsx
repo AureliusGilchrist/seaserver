@@ -70,28 +70,28 @@ export function SyntheticAnimeEntryPage({ syntheticAnime }: SyntheticAnimeEntryP
                             )}
                         >
                             {/* Synthetic Badge */}
-                            <Badge intent="warning" size="lg" className="gap-1.5">
+                            <Badge intent="warning" size="lg" className="gap-1.5 rounded-full bg-orange-500/15 text-orange-100 ring-1 ring-orange-300/30 border-transparent">
                                 <LuSparkles className="text-sm" />
                                 Synthetic Anime
                             </Badge>
 
                             {/* Type Badge */}
                             {syntheticAnime.type && (
-                                <Badge size="lg" intent="gray" className="rounded-full">
+                                <Badge size="lg" intent="gray" className="rounded-full border-transparent bg-white/[0.08] text-white/85 ring-1 ring-white/10 backdrop-blur-md">
                                     {syntheticAnime.type}
                                 </Badge>
                             )}
 
                             {/* Episodes */}
                             {syntheticAnime.episodes > 0 && (
-                                <Badge size="lg" intent="gray" className="rounded-full">
+                                <Badge size="lg" intent="gray" className="rounded-full border-transparent bg-white/[0.08] text-white/85 ring-1 ring-white/10 backdrop-blur-md">
                                     {syntheticAnime.episodes} episodes
                                 </Badge>
                             )}
 
                             {/* Season */}
                             {syntheticAnime.season && syntheticAnime.seasonYear && (
-                                <Badge size="lg" intent="gray" className="rounded-full">
+                                <Badge size="lg" intent="gray" className="rounded-full border-transparent bg-white/[0.08] text-white/85 ring-1 ring-white/10 backdrop-blur-md">
                                     {capitalize(syntheticAnime.season)} {syntheticAnime.seasonYear}
                                 </Badge>
                             )}
@@ -109,7 +109,7 @@ export function SyntheticAnimeEntryPage({ syntheticAnime }: SyntheticAnimeEntryP
 
                             {/* Studios */}
                             {studios.length > 0 && (
-                                <Badge size="lg" intent="gray" className="rounded-full">
+                                <Badge size="lg" intent="gray" className="rounded-full border-transparent bg-white/[0.08] text-white/85 ring-1 ring-white/10 backdrop-blur-md">
                                     {studios.slice(0, 2).map(s => capitalize(s)).join(", ")}
                                 </Badge>
                             )}
@@ -122,8 +122,10 @@ export function SyntheticAnimeEntryPage({ syntheticAnime }: SyntheticAnimeEntryP
                         className={cn(
                             "flex flex-row w-full gap-3 items-center justify-center lg:justify-start lg:max-w-[65vw]",
                             "flex-wrap",
+                            !(malUrl || anilistUrl || anidbUrl) && "hidden",
                         )}
                     >
+                        <div className="flex h-10 items-center gap-3.5 rounded-full bg-black/40 px-4 ring-1 ring-white/10 backdrop-blur-md">
                         {malUrl && (
                             <SeaLink href={malUrl} target="_blank">
                                 <IconButton size="sm" intent="gray-link" className="px-0" icon={<SiMyanimelist className="text-lg" />} />
@@ -139,6 +141,7 @@ export function SyntheticAnimeEntryPage({ syntheticAnime }: SyntheticAnimeEntryP
                                 <IconButton size="sm" intent="gray-link" className="px-0" icon={<LuExternalLink className="text-lg" />} />
                             </SeaLink>
                         )}
+                        </div>
                     </div>
 
                 </MediaPageHeaderDetailsContainer>
@@ -163,12 +166,12 @@ export function SyntheticAnimeEntryPage({ syntheticAnime }: SyntheticAnimeEntryP
                         },
                     }}
                 >
-                    <div className="h-10" />
+                    <div className="h-6" />
 
                     {/* Synonyms Section */}
                     {synonyms.length > 0 && (
-                        <div className="mb-8">
-                            <h3 className="text-lg font-semibold mb-3">Alternative Titles</h3>
+                        <div className="mb-6 rounded-3xl bg-gradient-to-b from-white/[0.06] to-black/30 p-5 ring-1 ring-white/[0.08] backdrop-blur-xl sm:p-6" data-synthetic-anime-alt-titles>
+                            <h3 className="mb-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">Alternative Titles</h3>
                             <div className="flex flex-wrap gap-2">
                                 {synonyms.slice(0, 10).map((syn, i) => (
                                     <Badge key={i} size="md" intent="gray" className="rounded-md">
@@ -186,8 +189,8 @@ export function SyntheticAnimeEntryPage({ syntheticAnime }: SyntheticAnimeEntryP
 
                     {/* Tags Section */}
                     {tags.length > 0 && (
-                        <div className="mb-8">
-                            <h3 className="text-lg font-semibold mb-3">Tags</h3>
+                        <div className="mb-6 rounded-3xl bg-gradient-to-b from-white/[0.06] to-black/30 p-5 ring-1 ring-white/[0.08] backdrop-blur-xl sm:p-6" data-synthetic-anime-tags>
+                            <h3 className="mb-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">Tags</h3>
                             <div className="flex flex-wrap gap-2">
                                 {tags.slice(0, 20).map((tag, i) => (
                                     <Badge key={i} size="sm" intent="gray" className="rounded-md">
@@ -204,7 +207,7 @@ export function SyntheticAnimeEntryPage({ syntheticAnime }: SyntheticAnimeEntryP
                     )}
 
                     {/* Info Notice */}
-                    <div className="mt-8 p-4 rounded-lg bg-[--subtle] border border-[--border]">
+                    <div className="mt-6 rounded-3xl bg-gradient-to-r from-orange-500/[0.12] via-black/30 to-black/30 p-5 ring-1 ring-orange-300/20 backdrop-blur-xl">
                         <div className="flex items-start gap-3">
                             <LuSparkles className="text-[--warning] text-xl mt-0.5" />
                             <div>

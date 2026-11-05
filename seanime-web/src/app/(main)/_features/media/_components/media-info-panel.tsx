@@ -62,19 +62,19 @@ export function MediaInfoPanel({ info, type, nativeTitle, className, children }:
     ].filter(Boolean) as string[]))
 
     return (
-        <section className={cn("grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr),minmax(17rem,21rem)]", className)} data-media-info-panel>
-            <div className="min-w-0 space-y-5">
+        <section className={cn("grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr),minmax(18rem,22rem)]", className)} data-media-info-panel>
+            <div className="min-w-0 space-y-6">
                 <ScoresCard info={info} type={type} />
                 <RankingsCard info={info} />
                 <TagsCard info={info} type={type} />
                 {children}
             </div>
 
-            <aside className="min-w-0 space-y-5 lg:sticky lg:top-16" data-media-info-rail>
+            <aside className="min-w-0 space-y-6 lg:sticky lg:top-20" data-media-info-rail>
                 <GlassCard title="Details" icon={<LuInfo />}>
                     <dl className="divide-y divide-white/[0.06]">
                         {facts.map(([k, v]) => (
-                            <div key={k} className="flex items-baseline justify-between gap-4 py-1.5 text-sm">
+                            <div key={k} className="flex items-baseline justify-between gap-4 py-2 text-sm">
                                 <dt className="shrink-0 text-[--muted]">{k}</dt>
                                 <dd className="min-w-0 break-words text-right font-medium text-white/90">{v}</dd>
                             </div>
@@ -108,9 +108,9 @@ export function GlassCard({ title, icon, className, children, aside }: {
     aside?: React.ReactNode
 }) {
     return (
-        <div className={cn("rounded-2xl border border-white/10 bg-black/25 p-4 shadow-xl shadow-black/20 backdrop-blur-md sm:p-5", className)} data-media-glass-card>
-            <div className="mb-3 flex items-center justify-between gap-2">
-                <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50 [&>svg]:size-3.5">
+        <div className={cn("rounded-3xl bg-gradient-to-b from-white/[0.06] to-black/30 p-4 shadow-[0_24px_50px_-28px_rgb(0_0_0_/_0.9)] ring-1 ring-white/[0.08] backdrop-blur-xl sm:p-6", className)} data-media-glass-card>
+            <div className="mb-4 flex items-center justify-between gap-2">
+                <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55 [&>svg]:size-3.5 [&>svg]:text-brand-200/80">
                     {icon}{title}
                 </p>
                 {aside}
@@ -285,7 +285,7 @@ export function MediaStaffSection({ info, className }: { info: MediaInfo | undef
                     <SeaLink
                         key={`${e.node!.id}-${i}`}
                         href={`/staff?id=${e.node!.id}`}
-                        className="group flex items-center gap-3 rounded-2xl bg-white/[0.04] p-2 ring-1 ring-white/[0.08] backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-white/[0.07] hover:ring-white/15"
+                        className="group flex items-center gap-3 rounded-2xl bg-gradient-to-b from-white/[0.06] to-black/20 p-2 ring-1 ring-white/[0.08] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:ring-brand-300/30"
                     >
                         <span className="relative size-14 shrink-0 overflow-hidden rounded-xl bg-white/[0.05]">
                             {e.node!.image?.medium && <img src={getImageUrl(e.node!.image.medium)} alt="" loading="lazy" className="size-full object-cover" />}

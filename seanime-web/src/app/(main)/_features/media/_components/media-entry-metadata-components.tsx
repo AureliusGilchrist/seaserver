@@ -35,12 +35,12 @@ export function MediaEntryGenresList(props: MediaEntryGenresListProps) {
     if (serverStatus?.isOffline) {
         return (
             <>
-                <div data-media-entry-genres-list-container className={cn("items-center flex flex-wrap gap-3", className)}>
+                <div data-media-entry-genres-list-container className={cn("items-center flex flex-wrap justify-center gap-1.5 lg:justify-start", className)}>
                     {genres?.map(genre => {
                         return <Badge
                             key={genre!}
                             className={cn(
-                                "opacity-75 hover:opacity-100 transition-all px-0 border-transparent bg-transparent hover:bg-transparent hover:text-white")}
+                                "h-7 rounded-full border-transparent bg-white/[0.08] px-3 text-[13px] font-medium text-white/85 ring-1 ring-white/10 backdrop-blur-md transition-all hover:-translate-y-px hover:bg-brand-500/25 hover:text-white hover:ring-brand-300/30")}
                             size="lg"
                             data-media-entry-genres-list-item
                         >
@@ -53,12 +53,12 @@ export function MediaEntryGenresList(props: MediaEntryGenresListProps) {
     } else {
         return (
             <>
-                <div data-media-entry-genres-list className={cn("items-center flex flex-wrap gap-3", className)}>
+                <div data-media-entry-genres-list className={cn("items-center flex flex-wrap justify-center gap-1.5 lg:justify-start", className)}>
                     {genres?.map(genre => {
                         return <SeaLink href={`/search?genre=${genre}&sorting=TRENDING_DESC${type === "manga" ? "&format=MANGA" : ""}`} key={genre!}>
                             <Badge
                                 className={cn(
-                                    "opacity-75 hover:opacity-100 transition-all px-0 border-transparent bg-transparent hover:bg-transparent hover:text-white")}
+                                    "h-7 rounded-full border-transparent bg-white/[0.08] px-3 text-[13px] font-medium text-white/85 ring-1 ring-white/10 backdrop-blur-md transition-all hover:-translate-y-px hover:bg-brand-500/25 hover:text-white hover:ring-brand-300/30")}
                                 size="lg"
                                 data-media-entry-genres-list-item
                             >
