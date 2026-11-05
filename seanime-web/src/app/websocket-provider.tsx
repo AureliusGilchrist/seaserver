@@ -5,6 +5,7 @@ import { websocketAtom, WebSocketContext } from "@/app/(main)/_atoms/websocket.a
 import { ElectronRestartServerPrompt } from "@/app/(main)/_electron/electron-restart-server-prompt"
 import { __openDrawersAtom } from "@/components/ui/drawer"
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
+import { cn } from "@/components/ui/core/styling"
 import { WSEvents } from "@/lib/server/ws-events"
 import { useQueryClient } from "@tanstack/react-query"
 import { useMainTab } from "@/hooks/use-main-tab"
@@ -102,15 +103,70 @@ export function WebsocketProvider({ children }: { children: React.ReactNode }) {
             {__isElectronDesktop__ && <ElectronRestartServerPrompt />}
             <WebSocketContext.Provider value={socket}>
                 <ServerDownModal />
-                {!isConnected && <div
-                    className="sea-float-bottom-2 fixed right-4 bottom-4 bg-gray-950 border text-sm py-2 px-4 font-semibold rounded-xl z-[100] flex gap-2 items-center opacity-70"
-                >
-                    <ImSpinner2 className="animate-spin text-base" />
-                    Connecting...
-                </div>}
+                <ConnectingChip />
                 {children}
             </WebSocketContext.Provider>
         </>
+    )
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Connection-status UI must never flash.
+//
+// A websocket drop is usually a blip: the first retry is immediate and the socket is back within a
+// fraction of a second. The overlay and the chip used to follow the socket exactly, so every blip was
+// a full-screen dark frame appearing and vanishing — and a connection that flaps does that over and
+// over. That is a flashing light, and for a viewer with photosensitive epilepsy it is a hazard, not a
+// cosmetic bug. So these follow a *steady* version of the connection state instead:
+//
+// - they appear only after the connection has been down without interruption for a while,
+// - once shown they stay until the connection has been back for a while, so they cannot toggle fast,
+// - they fade in and out slowly instead of switching on and off,
+// - and the popout player (a small window that is nothing but a video) never gets the full-screen
+//   overlay at all.
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/** Down this long without a break before the full-screen notice appears. */
+const OVERLAY_SHOW_AFTER_MS = 10_000
+/** Down this long before the small "Connecting..." chip appears. */
+const CHIP_SHOW_AFTER_MS = 4_000
+/** Back up this long before either goes away again. */
+const HIDE_AFTER_MS = 3_000
+
+const isPopoutPlayerWindow = typeof window !== "undefined" && window.location.pathname.startsWith("/popout-player")
+
+/**
+ * `raw`, but only after it has held for `showAfterMs` (turning on) or `hideAfterMs` (turning off).
+ * A change that reverts before its delay is up never shows at all.
+ */
+function useSteadyFlag(raw: boolean, showAfterMs: number, hideAfterMs: number) {
+    const [steady, setSteady] = React.useState(false)
+    React.useEffect(() => {
+        if (raw === steady) return
+        const timer = setTimeout(() => setSteady(raw), raw ? showAfterMs : hideAfterMs)
+        return () => clearTimeout(timer)
+    }, [raw, steady, showAfterMs, hideAfterMs])
+    return steady
+}
+
+/** Slow fade, and out of the way (and of the accessibility tree) when hidden. */
+const FADE_CLASS = "transition-[opacity,visibility] duration-1000 ease-in-out"
+
+function ConnectingChip() {
+    const isConnected = useAtomValue(websocketConnectedAtom)
+    const visible = useSteadyFlag(!isConnected, isPopoutPlayerWindow ? OVERLAY_SHOW_AFTER_MS : CHIP_SHOW_AFTER_MS, HIDE_AFTER_MS)
+    return (
+        <div
+            aria-hidden={!visible}
+            className={cn(
+                "sea-float-bottom-2 fixed right-4 bottom-4 bg-gray-950 border text-sm py-2 px-4 font-semibold rounded-xl z-[100] flex gap-2 items-center pointer-events-none",
+                FADE_CLASS,
+                visible ? "opacity-70 visible" : "opacity-0 invisible",
+            )}
+        >
+            <ImSpinner2 className="motion-safe:animate-spin text-base" />
+            Connecting...
+        </div>
     )
 }
 
@@ -124,6 +180,8 @@ function ServerDownModal() {
     const [reason, setReason] = useAtom(serverDownReasonAtom)
     const queryClient = useQueryClient()
     const wasDown = React.useRef(false)
+    // The last reason stays readable while the notice fades out.
+    const shownReason = React.useRef<string | null>(null)
 
     useWebsocketMessageListener<{ reason?: string }>({
         type: WSEvents.SERVER_GOING_DOWN,
@@ -142,15 +200,26 @@ function ServerDownModal() {
         }
     }, [isConnected])
 
-    const visible = !isConnected && (!!reason || errorCount >= 1)
-    if (!visible) return null
+    const visible = useSteadyFlag(!isConnected && (!!reason || errorCount >= 1), OVERLAY_SHOW_AFTER_MS, HIDE_AFTER_MS)
+    if (visible) shownReason.current = reason
+
+    // The popout is a video and nothing else; covering it would be worse than useless. Its small
+    // "Connecting..." chip says enough, and the main window still shows this notice.
+    if (isPopoutPlayerWindow) return null
 
     return (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 backdrop-blur-sm">
-            <div className="max-w-md mx-4 rounded-2xl border border-white/10 bg-gray-950/90 p-6 text-center space-y-3 shadow-2xl backdrop-blur-md">
-                <ImSpinner2 className="animate-spin text-2xl mx-auto" />
+        <div
+            aria-hidden={!visible}
+            className={cn(
+                "fixed inset-0 z-[10000] flex items-center justify-center bg-black/60",
+                FADE_CLASS,
+                visible ? "opacity-100 visible" : "opacity-0 invisible pointer-events-none",
+            )}
+        >
+            <div className="max-w-md mx-4 rounded-2xl border border-white/10 bg-gray-950/95 p-6 text-center space-y-3 shadow-2xl">
+                <ImSpinner2 className="motion-safe:animate-spin text-2xl mx-auto" />
                 <p className="text-lg font-semibold">
-                    Server is down due to {reason || "an unexpected problem"}, please wait or contact Aurelius.
+                    Server is down due to {shownReason.current || "an unexpected problem"}, please wait or contact Aurelius.
                 </p>
                 <p className="text-sm text-[--muted]">Attempting to reconnect every 5 seconds…</p>
             </div>
@@ -331,7 +400,8 @@ function WebsocketManagement() {
 
                         // If no pong received for 45 seconds (3 missed pings), consider connection dead
                         if (timeSinceLastPong > 45000) {
-                            logger("WebsocketProvider").error(`No pong response for ${Math.round(timeSinceLastPong / 1000)}s, reconnecting`)
+                            console.warn(`[WebsocketProvider] No pong response for ${Math.round(timeSinceLastPong / 1000)}s, reconnecting`
+                                + `${isPopoutPlayerWindow ? " [popout]" : ""}`)
                             reconnectSocket()
                             return
                         }
@@ -389,7 +459,10 @@ function WebsocketManagement() {
                     // Warn, not info: the desktop shell only forwards console warnings and
                     // errors to the app log, and a disconnect is exactly the kind of event
                     // that needs to be visible there when something goes wrong.
-                    logger("WebsocketProvider").warning(`WebSocket connection closed: ${event.code} ${event.reason}`)
+                    // console.warn directly: `logger` prints with console.log, which the desktop shell
+                    // does not forward, so drops never reached the log they were meant for.
+                    console.warn(`[WebsocketProvider] WebSocket connection closed: ${event.code} ${event.reason || "(no reason)"}`
+                        + `${isPopoutPlayerWindow ? " [popout]" : ""}`)
                     handleDisconnection()
                 })
 
