@@ -2,13 +2,13 @@ import { BACKEND_UPDATE_STATUS_KEY, serverErrorMessage, useCheckBackendUpdate, u
 import { ServerUpdateCard } from "@/app/(main)/settings/_containers/server-update-card"
 import { FrontendUpdateCard } from "@/app/(main)/settings/_containers/frontend-update-card"
 import { useQueryClient } from "@tanstack/react-query"
-import { LuChevronDown, LuScrollText } from "react-icons/lu"
+import { LuChevronDown, LuHammer, LuRefreshCw, LuScrollText, LuTerminal } from "react-icons/lu"
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
 import { WSEvents } from "@/lib/server/ws-events"
 import { SettingsCard } from "@/app/(main)/settings/_components/settings-card"
 import { Button } from "@/components/ui/button"
 import { websocketConnectedAtom } from "@/app/websocket-provider"
-import { useAtom, useAtomValue } from "jotai"
+import { atom, useAtom, useAtomValue } from "jotai"
 import { atomWithStorage } from "jotai/utils"
 import React from "react"
 import { toast } from "sonner"
@@ -18,6 +18,11 @@ type Target = "backend" | "frontend"
 const UPDATE_LOG_STORAGE_KEY = "sea-settings-update-log"
 export const MAX_LOG_LINES = 500
 export const updateSettingsLogAtom = atomWithStorage<string[]>(UPDATE_LOG_STORAGE_KEY, [], undefined, { getOnInit: true })
+
+// True while the "Dev update" (build the frontend from local files) is running, so the GitHub
+// card stays out of the way: both updaters share the same progress channel and the same
+// Electron-side busy lock.
+export const __devUpdateActiveAtom = atom(false)
 
 // Prefixes a log line with the time it was received; blank spacer lines are left alone.
 export function stamp(line: string) {
@@ -450,6 +455,20 @@ function LiveUpdates() {
         }
     }
 
+    // "Dev update": build the frontend from this machine's local source files instead of
+    // downloading a release from GitHub. The same build runs on the Denshi side (live-update);
+    // this only flags which updater owns the progress channel while it runs.
+    const [, setDevUpdateActive] = useAtom(__devUpdateActiveAtom)
+    async function runDevUpdate() {
+        setDevUpdateActive(true)
+        try {
+            await run("frontend")
+        }
+        finally {
+            setDevUpdateActive(false)
+        }
+    }
+
     const latest = readProgress(lines)
     const backendProgress = latest?.target === "backend"
         ? { percent: latest.percent, step: latest.step, failed: /fail(ed|ure)?|error/i.test(latest.step) }
@@ -474,6 +493,14 @@ function LiveUpdates() {
             )}
 
             <FrontendUpdateCard />
+
+            {liveUpdate && <DevUpdateCard
+                running={running === "frontend"}
+                checking={checking === "frontend"}
+                lines={lines}
+                onUpdate={runDevUpdate}
+                onCheck={() => check("frontend")}
+            />}
 
             {lines.length > 0 && (
                 <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02]">
@@ -508,5 +535,76 @@ function LiveUpdates() {
                 </div>
             )}
         </div>
+    )
+}
+
+function DevUpdateCard({ running, checking, lines, onUpdate, onCheck }: {
+    running: boolean
+    checking: boolean
+    lines: string[]
+    onUpdate: () => void
+    onCheck: () => void
+}) {
+    // Progress only shows while a dev update is actually running; the shared log also carries
+    // the GitHub updater's frontend lines, which would otherwise light this card up too.
+    const [devActive] = useAtom(__devUpdateActiveAtom)
+    const progress = devActive ? readProgress(lines) : null
+    const frontProgress = progress?.target === "frontend" ? progress : null
+    const failed = !!frontProgress && /fail(ed|ure)?|error/i.test(frontProgress.step)
+
+    return (
+        <section className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-br from-white/[0.05] via-black/25 to-black/40 p-5 shadow-xl shadow-black/20 backdrop-blur-md sm:p-6">
+            <div className="flex flex-wrap items-start gap-4">
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400/25 to-emerald-700/15 text-emerald-100 ring-1 ring-white/10">
+                    <LuTerminal className="size-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                    <h3 className="text-lg font-semibold">Dev update</h3>
+                    <p className="mt-0.5 text-sm text-[--muted]">
+                        Build the frontend on this machine from the local source files and swap it in live — no
+                        GitHub, no release download. Picks up your working tree exactly as it is, uncommitted
+                        changes included. The source repository is found once and remembered.
+                    </p>
+                </div>
+            </div>
+
+            {/* Progress */}
+            {devActive && frontProgress && (
+                <div className="relative mt-5 rounded-2xl bg-brand-500/[0.07] p-3.5 ring-1 ring-brand-400/20">
+                    <div className="mb-2 flex items-center justify-between gap-3 text-xs">
+                        <span className="truncate font-medium text-brand-100">{frontProgress.step || "Preparing the dev update…"}</span>
+                        <span className="font-mono text-sm font-semibold tabular-nums text-brand-100">{String(frontProgress.percent).padStart(2, "0")}%</span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                        <div
+                            className={`h-full rounded-full transition-[width] duration-1000 ${failed ? "bg-red-400" : frontProgress.percent === 100 ? "bg-green-400" : "bg-gradient-to-r from-brand-400 to-cyan-300"}`}
+                            style={{ width: `${Math.max(frontProgress.percent, 3)}%` }}
+                        />
+                    </div>
+                    <p className="mt-3 text-[11px] text-[--muted]">The app reloads by itself when the build is in place.</p>
+                </div>
+            )}
+
+            <div className="relative mt-5 flex flex-wrap gap-2">
+                <Button
+                    intent="primary"
+                    loading={running}
+                    disabled={checking || running}
+                    leftIcon={<LuHammer className="size-4" />}
+                    onClick={onUpdate}
+                >
+                    Build & install from local files
+                </Button>
+                <Button
+                    intent="gray-subtle"
+                    loading={checking}
+                    disabled={checking || running}
+                    leftIcon={<LuRefreshCw className="size-4" />}
+                    onClick={onCheck}
+                >
+                    Check local changes
+                </Button>
+            </div>
+        </section>
     )
 }

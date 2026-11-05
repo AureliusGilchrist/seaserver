@@ -2,11 +2,11 @@
 
 import { __frontendUpdate_revealAtom } from "@/app/(main)/_features/stale-frontend-banner"
 import { Fact, PILL, timeAgo, timeUntil, UpdateState } from "@/app/(main)/settings/_containers/server-update-card"
-import { MAX_LOG_LINES, readProgress, stamp, updateSettingsLogAtom } from "@/app/(main)/settings/_containers/update-settings"
+import { MAX_LOG_LINES, readProgress, stamp, updateSettingsLogAtom, __devUpdateActiveAtom } from "@/app/(main)/settings/_containers/update-settings"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { Switch } from "@/components/ui/switch"
-import { useAtom } from "jotai"
+import { useAtom, useAtomValue } from "jotai"
 import React from "react"
 import { BiLinkExternal } from "react-icons/bi"
 import { LuCheck, LuChevronDown, LuCircleAlert, LuCircleArrowUp, LuGitCommitHorizontal, LuLoaderCircle, LuMonitor, LuPackage, LuRefreshCw, LuX } from "react-icons/lu"
@@ -188,6 +188,11 @@ export function FrontendUpdateCard() {
     const [showAll, setShowAll] = React.useState(false)
     const [showFiles, setShowFiles] = React.useState(false)
     const [lines, setLines] = useAtom(updateSettingsLogAtom)
+    // A "Dev update" (build from local files) shares the progress channel: while one runs, its
+    // lines still land in the shared log, but they must not drive this card's update state.
+    const devUpdateActive = useAtomValue(__devUpdateActiveAtom)
+    const devUpdateActiveRef = React.useRef(devUpdateActive)
+    devUpdateActiveRef.current = devUpdateActive
 
     // Re-render every 30 s so "2 min ago" / "in 3 min" stay true.
     const [, tick] = React.useReducer((n: number) => n + 1, 0)
@@ -221,6 +226,7 @@ export function FrontendUpdateCard() {
             appendLines([stamp(p.line)])
             const progress = readProgress([p.line])
             if (!progress) return
+            if (devUpdateActiveRef.current) return
             const failure = progress.step.match(/^Failed(?:\s*-\s*(.*))?$/)
             if (failure) {
                 if (!updatingRef.current) return
@@ -543,7 +549,7 @@ export function FrontendUpdateCard() {
                 <Button
                     intent={canInstall ? "primary" : "gray-outline"}
                     loading={updating}
-                    disabled={checking || updating || !canInstall}
+                    disabled={checking || updating || devUpdateActive || !canInstall}
                     leftIcon={<LuCircleArrowUp className="size-4" />}
                     onClick={handleInstall}
                 >
