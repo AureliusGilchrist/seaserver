@@ -323,18 +323,23 @@ function PopoutPlaybackHandoff() {
     const encodedPath = searchParams.get("path")
     const handoffId = searchParams.get("handoff")
 
+    const clientId = useAtomValue(clientIdAtom)
+    const isConnected = useAtomValue(websocketConnectedAtom)
+    const nativePlayerState = useAtomValue(nativePlayer_stateAtom)
+    const handoffStartedRef = React.useRef(false)
+    React.useEffect(() => {
+        if (nativePlayerState.active) handoffStartedRef.current = true
+    }, [nativePlayerState.active])
     // Closed before the stream got going: the main window keeps playing. (Once the popout plays
     // the main window has already let go, and this message is ignored.)
     React.useEffect(() => {
         if (!handoffId) return
-        const onHide = () => announcePopoutHandoffFailed(handoffId)
+        const onHide = () => {
+            if (!handoffStartedRef.current) announcePopoutHandoffFailed(handoffId)
+        }
         window.addEventListener("pagehide", onHide)
         return () => window.removeEventListener("pagehide", onHide)
     }, [handoffId])
-
-    const clientId = useAtomValue(clientIdAtom)
-    const isConnected = useAtomValue(websocketConnectedAtom)
-    const nativePlayerState = useAtomValue(nativePlayer_stateAtom)
     const [handoffError, setHandoffError] = React.useState<string | null>(null)
     const { mutate: playLocalFile } = useDirectstreamPlayLocalFile()
 
@@ -384,7 +389,7 @@ function PopoutPlaybackHandoff() {
                     ? "Your session has ended. Sign in again in the main window, then pop the player out once more."
                     : "The server could not start this stream. Check that it is running, then try again from the main window."
                 log.error("Popout playback handoff failed", error)
-                if (handoffId) announcePopoutHandoffFailed(handoffId)
+                if (handoffId && !handoffStartedRef.current) announcePopoutHandoffFailed(handoffId)
                 setHandoffError(message)
             },
         })

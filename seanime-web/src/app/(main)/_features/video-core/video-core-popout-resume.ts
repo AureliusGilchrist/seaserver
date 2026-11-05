@@ -172,7 +172,7 @@ export function startPopoutHandoffGiver(opts: {
  * The window taking over: asks the giving window for its live position. Resolves with that, or
  * with the fallback when no answer comes in time (the giving window is gone or never listened).
  */
-export function requestPopoutHandoffPosition(id: string, fallback: { time: number, paused: boolean }, timeoutMs = 1500) {
+export function requestPopoutHandoffPosition(id: string, fallback: { time: number, paused: boolean }, timeoutMs = 4000) {
     return new Promise<{ time: number, paused: boolean, live: boolean }>(resolve => {
         const channel = openChannel()
         if (!channel) {

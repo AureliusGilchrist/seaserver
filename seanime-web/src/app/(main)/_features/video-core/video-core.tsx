@@ -2008,29 +2008,38 @@ export function VideoCore(props: VideoCoreProps) {
                 if (popoutResume.time > 0) restoreSeekTime(popoutResume.time, false, true)
                 else videoRef.current.pause()
                 void requestPopoutHandoffPosition(handoffId, popoutResume).then(position => {
-                    const v = videoRef.current
-                    if (!v || !v.isConnected) {
-                        announcePopoutHandoffFailed(handoffId)
-                        return
+                    const startTakeover = (attempt = 0) => {
+                        const v = videoRef.current
+                        if (!v || !v.isConnected) {
+                            // The media element can be briefly disconnected while it remounts.
+                            // Give it a moment before calling the handoff failed.
+                            if (attempt < 25) {
+                                window.setTimeout(() => startTakeover(attempt + 1), 100)
+                                return
+                            }
+                            announcePopoutHandoffFailed(handoffId)
+                            return
+                        }
+                        log.info("Popout handoff: taking over", position)
+                        if (position.paused) {
+                            if (position.time > 0) restoreSeekTime(position.time, false, true)
+                            announcePopoutHandoffStarted(handoffId)
+                            return
+                        }
+                        let announced = false
+                        const announce = () => {
+                            if (announced) return
+                            announced = true
+                            v.removeEventListener("playing", announce)
+                            announcePopoutHandoffStarted(handoffId)
+                        }
+                        v.addEventListener("playing", announce)
+                        // Never leave the other window playing on: it stops a few seconds in at most.
+                        window.setTimeout(announce, 5000)
+                        if (position.time > 0) restoreSeekTime(position.time, false, false)
+                        else v.play().catch(() => {})
                     }
-                    log.info("Popout handoff: taking over", position)
-                    if (position.paused) {
-                        if (position.time > 0) restoreSeekTime(position.time, false, true)
-                        announcePopoutHandoffStarted(handoffId)
-                        return
-                    }
-                    let announced = false
-                    const announce = () => {
-                        if (announced) return
-                        announced = true
-                        v.removeEventListener("playing", announce)
-                        announcePopoutHandoffStarted(handoffId)
-                    }
-                    v.addEventListener("playing", announce)
-                    // Never leave the other window playing on: it stops a few seconds in at most.
-                    window.setTimeout(announce, 5000)
-                    if (position.time > 0) restoreSeekTime(position.time, false, false)
-                    else v.play().catch(() => {})
+                    startTakeover()
                 })
             } else if (popoutResume) {
                 restoreSeekTime(popoutResume.time, false, popoutResume.paused)
