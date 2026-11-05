@@ -437,7 +437,10 @@ export function ChapterReaderSettings(props: ChapterReaderSettingsProps) {
                             value={pageFit}
                             onValueChange={(value) => setPageFit(value)}
                             className={cn(
-                                readingMode === MangaReadingMode.INFINITE_SCROLL && "opacity-50 pointer-events-none",
+                                // Infinite scroll sizes pages itself; the paged modes always fit the height
+                                (readingMode === MangaReadingMode.INFINITE_SCROLL
+                                    || readingMode === MangaReadingMode.PAGED
+                                    || readingMode === MangaReadingMode.DOUBLE_PAGE) && "opacity-50 pointer-events-none",
                             )}
                             // help={<>
                             //     <p>'Contain': Fit Height</p>

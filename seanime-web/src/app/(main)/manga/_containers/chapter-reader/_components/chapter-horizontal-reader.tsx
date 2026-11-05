@@ -9,14 +9,11 @@ import {
     __manga_isLastPageAtom,
     __manga_kbsPageLeft,
     __manga_kbsPageRight,
-    __manga_pageFitAtom,
     __manga_pageGapAtom,
     __manga_pageGapShadowAtom,
-    __manga_pageOverflowContainerWidthAtom,
     __manga_paginationMapAtom,
     __manga_readingDirectionAtom,
     __manga_readingModeAtom,
-    MangaPageFit,
     MangaReadingDirection,
     MangaReadingMode,
 } from "@/app/(main)/manga/_lib/manga-chapter-reader.atoms"
@@ -38,10 +35,11 @@ export function MangaHorizontalReader({ pageContainer }: MangaHorizontalReaderPr
     const readingMode = useAtomValue(__manga_readingModeAtom)
     const setIsLastPage = useSetAtom(__manga_isLastPageAtom)
     const readingDirection = useAtomValue(__manga_readingDirectionAtom)
-    const pageFit = useAtomValue(__manga_pageFitAtom)
+    // Paged modes always fit the page to the height left by the reader bar: no vertical scroll.
+    // The Page Fit setting is shared with the long-strip reader (whose desktop default overflows),
+    // so it is not read here.
     const pageGap = useAtomValue(__manga_pageGapAtom)
     const pageGapShadow = useAtomValue(__manga_pageGapShadowAtom)
-    const pageOverflowContainerWidth = useAtomValue(__manga_pageOverflowContainerWidthAtom)
 
     const [hiddenBar, setHideBar] = useAtom(__manga_hiddenBarAtom)
 
@@ -178,7 +176,7 @@ export function MangaHorizontalReader({ pageContainer }: MangaHorizontalReaderPr
     /** One page, laid out as part of [spread] (the page indexes displayed together with it). */
     const renderPage = (page: (typeof sortedPages)[number], index: number, spread: number[] | undefined, visible: boolean) => {
         const spreadTwo = readingMode === MangaReadingMode.DOUBLE_PAGE && spread?.length === 2
-        const spreadShadows = spreadTwo && pageGap && !(pageFit === MangaPageFit.COVER || pageFit === MangaPageFit.TRUE_SIZE) && pageGapShadow
+        const spreadShadows = spreadTwo && pageGap && pageGapShadow
         return (
             <ChapterPage
                 key={page.url}
@@ -199,57 +197,16 @@ export function MangaHorizontalReader({ pageContainer }: MangaHorizontalReaderPr
                     && "before:content-[''] before:absolute before:w-[3%] before:z-[5] before:h-full before:[background:_linear-gradient(-90deg,_rgba(17,_17,_17,_0)_0,_rgba(17,_17,_17,_.3)_100%)]",
                     (spreadShadows && readingMode === MangaReadingMode.DOUBLE_PAGE && spread?.[1] === index)
                     && "before:content-[''] before:absolute before:right-0 before:w-[3%] before:z-[5] before:h-full before:[background:_linear-gradient(90deg,_rgba(17,_17,_17,_0)_0,_rgba(17,_17,_17,_.3)_100%)]",
-                    // Page fit
-                    pageFit === MangaPageFit.LARGER && "h-full",
                 )}
                 imageClass={cn(
                     "focus-visible:outline-none",
-                    // No base height: every page-fit mode sizes its own height, and a base
-                    // h-full would override COVER/LARGER's h-auto (twMerge keeps the last
-                    // height class — the fit class), forcing w-full h-full with no
-                    // object-fit, i.e. object-fit: fill — visibly stretched pages.
                     "inset-0 object-center select-none z-[4] relative",
-
-                    //
-                    // Page fit
-                    //
-
-                    // Single page
-                    (readingMode === MangaReadingMode.PAGED
-                        && pageFit === MangaPageFit.CONTAIN) && "object-contain w-full h-full",
-                    (readingMode === MangaReadingMode.PAGED
-                        && pageFit === MangaPageFit.LARGER) && "h-auto object-cover mx-auto",
-                    (readingMode === MangaReadingMode.PAGED
-                        && pageFit === MangaPageFit.COVER) && "w-full h-auto",
-                    (readingMode === MangaReadingMode.PAGED
-                        && pageFit === MangaPageFit.TRUE_SIZE) && "object-none h-auto w-auto mx-auto",
-                    // Double page
-                    (readingMode === MangaReadingMode.DOUBLE_PAGE
-                        && pageFit === MangaPageFit.CONTAIN) && "object-contain w-full h-full",
-                    (readingMode === MangaReadingMode.DOUBLE_PAGE
-                        && pageFit === MangaPageFit.LARGER) && "w-[1400px] h-auto object-cover mx-auto",
-                    (readingMode === MangaReadingMode.DOUBLE_PAGE
-                        && pageFit === MangaPageFit.COVER) && "w-full h-auto",
-                    (readingMode === MangaReadingMode.DOUBLE_PAGE
-                        && pageFit === MangaPageFit.TRUE_SIZE) && cn(
-                        "object-none h-auto w-auto",
-                        (spreadTwo && spread?.[0] === index)
-                            ? "mr-auto" :
-                            (spreadTwo && spread?.[1] === index)
-                                ? "ml-auto" : "mx-auto",
-                    ),
-
-                    //
-                    // Double page - Page position
-                    //
-                    (spreadTwo && spread?.[0] === index)
-                    && "[object-position:0%_50%] before:content-['']",
-                    (spreadTwo && spread?.[1] === index)
-                    && "[object-position:100%_50%]",
+                    // Fit to height: the whole page inside the area left by the reader bar
+                    "object-contain w-full h-full",
+                    // Double page: the two halves meet at the spine
+                    (spreadTwo && spread?.[0] === index) && "[object-position:0%_50%]",
+                    (spreadTwo && spread?.[1] === index) && "[object-position:100%_50%]",
                 )}
-                imageWidth={pageFit === MangaPageFit.LARGER && readingMode === MangaReadingMode.PAGED
-                    ? pageOverflowContainerWidth + "%"
-                    : undefined}
             />
         )
     }
@@ -258,15 +215,9 @@ export function MangaHorizontalReader({ pageContainer }: MangaHorizontalReaderPr
         <div
             data-chapter-horizontal-reader-container
             className={cn(
-                "h-[calc(100dvh-3rem)] overflow-y-hidden overflow-x-hidden w-full px-4 select-none relative",
+                "h-[calc(100dvh-3rem)] overflow-hidden w-full px-4 select-none relative",
                 hiddenBar && "h-dvh max-h-full",
                 "focus-visible:outline-none",
-                pageFit === MangaPageFit.COVER && "overflow-y-auto",
-                pageFit === MangaPageFit.TRUE_SIZE && "overflow-y-auto",
-                pageFit === MangaPageFit.LARGER && "overflow-y-auto",
-
-                // Double page + PageFit = LARGER
-                pageFit === MangaPageFit.LARGER && readingMode === MangaReadingMode.DOUBLE_PAGE && "w-full px-40 mx-auto",
             )}
             ref={containerRef}
             tabIndex={-1}
