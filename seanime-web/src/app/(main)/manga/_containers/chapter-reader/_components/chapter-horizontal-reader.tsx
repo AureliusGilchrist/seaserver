@@ -1,5 +1,6 @@
 import { Manga_PageContainer } from "@/api/generated/types"
 import { ChapterPage } from "@/app/(main)/manga/_containers/chapter-reader/_components/chapter-page"
+import { usePageTurnTrack } from "@/app/(main)/manga/_containers/chapter-reader/_components/use-page-turn-track"
 import { useHandleChapterPageStatus, useHydrateMangaPaginationMap } from "@/app/(main)/manga/_lib/handle-chapter-reader"
 import {
     __manga_currentPageIndexAtom,
@@ -62,6 +63,10 @@ export function MangaHorizontalReader({ pageContainer }: MangaHorizontalReaderPr
 
     const { handlePageLoad } = useHandleChapterPageStatus(pageContainer)
 
+    // Phones get an animated page track: the neighbouring spreads sit beside the current one and
+    // page turns slide in the reading direction, following the finger during a swipe.
+    const animated = React.useMemo(() => isMobile(), [])
+
     /**
      * When the current map index changes, scroll to the top of the container
      */
@@ -91,6 +96,16 @@ export function MangaHorizontalReader({ pageContainer }: MangaHorizontalReaderPr
         })
     }, [paginationMap, readingDirection])
 
+    const pageTurn = usePageTurnTrack({
+        enabled: animated,
+        wrapperRef: pageWrapperRef,
+        currentMapIndex,
+        paginationMap,
+        resetKey: pageContainer,
+        rtl: readingDirection === MangaReadingDirection.RTL,
+        onSwipe: onPaginate,
+    })
+
     /**
      * Key bindings for page navigation
      */
@@ -117,6 +132,7 @@ export function MangaHorizontalReader({ pageContainer }: MangaHorizontalReaderPr
      */
     const onPageWrapperClick = React.useCallback((e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
         if (!pageWrapperRef.current) return
+        if (pageTurn.consumeClick()) return
 
         if ((e.target as HTMLElement).id === "retry-button") return
         if ((e.target as HTMLElement).id === "retry-icon") return
@@ -135,7 +151,7 @@ export function MangaHorizontalReader({ pageContainer }: MangaHorizontalReaderPr
                 setHideBar(prev => !prev)
             }
         }
-    }, [onPaginate, pageWrapperRef.current])
+    }, [onPaginate, pageWrapperRef.current, pageTurn.consumeClick])
 
     /**
      * Update the current page index when the current map index changes
@@ -153,8 +169,90 @@ export function MangaHorizontalReader({ pageContainer }: MangaHorizontalReaderPr
     const currentPages = React.useMemo(() => paginationMap[currentMapIndex], [currentMapIndex, paginationMap])
     // Two pages are currently displayed
     const twoPages = readingMode === MangaReadingMode.DOUBLE_PAGE && currentPages?.length === 2
-    // Show shadows
-    const showShadows = twoPages && pageGap && !(pageFit === MangaPageFit.COVER || pageFit === MangaPageFit.TRUE_SIZE) && pageGapShadow
+
+    // Pages in reading order
+    const sortedPages = React.useMemo(() => pageContainer?.pages?.toSorted((a, b) => a.index - b.index) ?? [], [pageContainer?.pages])
+    // Spreads in order (animated track)
+    const spreadIndexes = React.useMemo(() => Object.keys(paginationMap).map(Number).sort((a, b) => a - b), [paginationMap])
+
+    /** One page, laid out as part of [spread] (the page indexes displayed together with it). */
+    const renderPage = (page: (typeof sortedPages)[number], index: number, spread: number[] | undefined, visible: boolean) => {
+        const spreadTwo = readingMode === MangaReadingMode.DOUBLE_PAGE && spread?.length === 2
+        const spreadShadows = spreadTwo && pageGap && !(pageFit === MangaPageFit.COVER || pageFit === MangaPageFit.TRUE_SIZE) && pageGapShadow
+        return (
+            <ChapterPage
+                key={page.url}
+                page={page}
+                index={index}
+                readingMode={readingMode}
+                pageContainer={pageContainer}
+                onFinishedLoading={() => {
+                    handlePageLoad(index)
+                }}
+                containerClass={cn(
+                    "w-full h-[calc(100dvh-3rem)] scroll-div min-h-[200px] relative page",
+                    hiddenBar && "h-dvh max-h-full",
+                    "focus-visible:outline-none",
+                    !visible ? "hidden" : "displayed",
+                    // Double Page, gap
+                    (spreadShadows && readingMode === MangaReadingMode.DOUBLE_PAGE && spread?.[0] === index)
+                    && "before:content-[''] before:absolute before:w-[3%] before:z-[5] before:h-full before:[background:_linear-gradient(-90deg,_rgba(17,_17,_17,_0)_0,_rgba(17,_17,_17,_.3)_100%)]",
+                    (spreadShadows && readingMode === MangaReadingMode.DOUBLE_PAGE && spread?.[1] === index)
+                    && "before:content-[''] before:absolute before:right-0 before:w-[3%] before:z-[5] before:h-full before:[background:_linear-gradient(90deg,_rgba(17,_17,_17,_0)_0,_rgba(17,_17,_17,_.3)_100%)]",
+                    // Page fit
+                    pageFit === MangaPageFit.LARGER && "h-full",
+                )}
+                imageClass={cn(
+                    "focus-visible:outline-none",
+                    // No base height: every page-fit mode sizes its own height, and a base
+                    // h-full would override COVER/LARGER's h-auto (twMerge keeps the last
+                    // height class — the fit class), forcing w-full h-full with no
+                    // object-fit, i.e. object-fit: fill — visibly stretched pages.
+                    "inset-0 object-center select-none z-[4] relative",
+
+                    //
+                    // Page fit
+                    //
+
+                    // Single page
+                    (readingMode === MangaReadingMode.PAGED
+                        && pageFit === MangaPageFit.CONTAIN) && "object-contain w-full h-full",
+                    (readingMode === MangaReadingMode.PAGED
+                        && pageFit === MangaPageFit.LARGER) && "h-auto object-cover mx-auto",
+                    (readingMode === MangaReadingMode.PAGED
+                        && pageFit === MangaPageFit.COVER) && "w-full h-auto",
+                    (readingMode === MangaReadingMode.PAGED
+                        && pageFit === MangaPageFit.TRUE_SIZE) && "object-none h-auto w-auto mx-auto",
+                    // Double page
+                    (readingMode === MangaReadingMode.DOUBLE_PAGE
+                        && pageFit === MangaPageFit.CONTAIN) && "object-contain w-full h-full",
+                    (readingMode === MangaReadingMode.DOUBLE_PAGE
+                        && pageFit === MangaPageFit.LARGER) && "w-[1400px] h-auto object-cover mx-auto",
+                    (readingMode === MangaReadingMode.DOUBLE_PAGE
+                        && pageFit === MangaPageFit.COVER) && "w-full h-auto",
+                    (readingMode === MangaReadingMode.DOUBLE_PAGE
+                        && pageFit === MangaPageFit.TRUE_SIZE) && cn(
+                        "object-none h-auto w-auto",
+                        (spreadTwo && spread?.[0] === index)
+                            ? "mr-auto" :
+                            (spreadTwo && spread?.[1] === index)
+                                ? "ml-auto" : "mx-auto",
+                    ),
+
+                    //
+                    // Double page - Page position
+                    //
+                    (spreadTwo && spread?.[0] === index)
+                    && "[object-position:0%_50%] before:content-['']",
+                    (spreadTwo && spread?.[1] === index)
+                    && "[object-position:100%_50%]",
+                )}
+                imageWidth={pageFit === MangaPageFit.LARGER && readingMode === MangaReadingMode.PAGED
+                    ? pageOverflowContainerWidth + "%"
+                    : undefined}
+            />
+        )
+    }
 
     return (
         <div
@@ -181,86 +279,43 @@ export function MangaHorizontalReader({ pageContainer }: MangaHorizontalReaderPr
                 data-chapter-horizontal-reader-page-wrapper
                 className={cn(
                     "focus-visible:outline-none",
-                    twoPages && readingMode === MangaReadingMode.DOUBLE_PAGE && "flex transition-transform duration-300",
-                    twoPages && readingMode === MangaReadingMode.DOUBLE_PAGE && pageGap && "gap-2",
-                    twoPages && readingMode === MangaReadingMode.DOUBLE_PAGE && "flex-row-reverse",
+                    !animated && twoPages && readingMode === MangaReadingMode.DOUBLE_PAGE && "flex transition-transform duration-300",
+                    !animated && twoPages && readingMode === MangaReadingMode.DOUBLE_PAGE && pageGap && "gap-2",
+                    !animated && twoPages && readingMode === MangaReadingMode.DOUBLE_PAGE && "flex-row-reverse",
+                    animated && "relative",
                 )}
+                // Vertical panning and pinch stay with the browser; horizontal moves drive the track
+                style={animated ? { touchAction: "pan-y pinch-zoom" } : undefined}
                 ref={pageWrapperRef}
                 onClick={onPageWrapperClick}
+                {...pageTurn.handlers}
             >
-                {pageContainer?.pages?.toSorted((a, b) => a.index - b.index)?.map((page, index) => (
-                    <ChapterPage
-                        key={page.url}
-                        page={page}
-                        index={index}
-                        readingMode={readingMode}
-                        pageContainer={pageContainer}
-                        onFinishedLoading={() => {
-                            handlePageLoad(index)
-                        }}
-                        containerClass={cn(
-                            "w-full h-[calc(100dvh-3rem)] scroll-div min-h-[200px] relative page",
-                            hiddenBar && "h-dvh max-h-full",
-                            "focus-visible:outline-none",
-                            !currentPages?.includes(index) ? "hidden" : "displayed",
-                            // Double Page, gap
-                            (showShadows && readingMode === MangaReadingMode.DOUBLE_PAGE && currentPages?.[0] === index)
-                            && "before:content-[''] before:absolute before:w-[3%] before:z-[5] before:h-full before:[background:_linear-gradient(-90deg,_rgba(17,_17,_17,_0)_0,_rgba(17,_17,_17,_.3)_100%)]",
-                            (showShadows && readingMode === MangaReadingMode.DOUBLE_PAGE && currentPages?.[1] === index)
-                            && "before:content-[''] before:absolute before:right-0 before:w-[3%] before:z-[5] before:h-full before:[background:_linear-gradient(90deg,_rgba(17,_17,_17,_0)_0,_rgba(17,_17,_17,_.3)_100%)]",
-                            // Page fit
-                            pageFit === MangaPageFit.LARGER && "h-full",
-                        )}
-                        imageClass={cn(
-                            "focus-visible:outline-none",
-                            // No base height: every page-fit mode sizes its own height, and a base
-                            // h-full would override COVER/LARGER's h-auto (twMerge keeps the last
-                            // height class — the fit class), forcing w-full h-full with no
-                            // object-fit, i.e. object-fit: fill — visibly stretched pages.
-                            "inset-0 object-center select-none z-[4] relative",
-
-                            //
-                            // Page fit
-                            //
-
-                            // Single page
-                            (readingMode === MangaReadingMode.PAGED
-                                && pageFit === MangaPageFit.CONTAIN) && "object-contain w-full h-full",
-                            (readingMode === MangaReadingMode.PAGED
-                                && pageFit === MangaPageFit.LARGER) && "h-auto object-cover mx-auto",
-                            (readingMode === MangaReadingMode.PAGED
-                                && pageFit === MangaPageFit.COVER) && "w-full h-auto",
-                            (readingMode === MangaReadingMode.PAGED
-                                && pageFit === MangaPageFit.TRUE_SIZE) && "object-none h-auto w-auto mx-auto",
-                            // Double page
-                            (readingMode === MangaReadingMode.DOUBLE_PAGE
-                                && pageFit === MangaPageFit.CONTAIN) && "object-contain w-full h-full",
-                            (readingMode === MangaReadingMode.DOUBLE_PAGE
-                                && pageFit === MangaPageFit.LARGER) && "w-[1400px] h-auto object-cover mx-auto",
-                            (readingMode === MangaReadingMode.DOUBLE_PAGE
-                                && pageFit === MangaPageFit.COVER) && "w-full h-auto",
-                            (readingMode === MangaReadingMode.DOUBLE_PAGE
-                                && pageFit === MangaPageFit.TRUE_SIZE) && cn(
-                                "object-none h-auto w-auto",
-                                (twoPages && currentPages?.[0] === index)
-                                    ? "mr-auto" :
-                                    (twoPages && currentPages?.[1] === index)
-                                        ? "ml-auto" : "mx-auto",
-                            ),
-
-                            //
-                            // Double page - Page position
-                            //
-                            (twoPages && currentPages?.[0] === index)
-                            && "[object-position:0%_50%] before:content-['']",
-                            (twoPages && currentPages?.[1] === index)
-                            && "[object-position:100%_50%]",
-                        )}
-                        imageWidth={pageFit === MangaPageFit.LARGER && readingMode === MangaReadingMode.PAGED
-                            ? pageOverflowContainerWidth + "%"
-                            : undefined}
-                    />
-                ))}
+                {!animated && sortedPages.map((page, index) => renderPage(page, index, currentPages, !!currentPages?.includes(index)))}
+                {animated && spreadIndexes.map(mapIndex => {
+                    const spread = paginationMap[mapIndex]
+                    const offset = mapIndex - currentMapIndex
+                    const near = Math.abs(offset) <= 1
+                    const spreadTwo = readingMode === MangaReadingMode.DOUBLE_PAGE && spread?.length === 2
+                    return (
+                        <div
+                            key={mapIndex}
+                            data-chapter-horizontal-reader-spread={mapIndex}
+                            className={cn(
+                                "w-full",
+                                // Neighbours sit one screen to either side, off-screen until a turn pulls them in
+                                offset !== 0 && "absolute inset-x-0 top-0 pointer-events-none",
+                                spreadTwo && "flex flex-row-reverse",
+                                spreadTwo && pageGap && "gap-2",
+                                // Last, so it wins over "flex" in the class merge
+                                !near && "hidden",
+                            )}
+                            style={offset !== 0 && near ? { transform: pageTurn.slotTransform(offset) } : undefined}
+                            aria-hidden={offset !== 0}
+                        >
+                            {spread?.map(index => sortedPages[index] ? renderPage(sortedPages[index], index, spread, true) : null)}
+                        </div>
+                    )
+                })}
             </div>
 
         </div>
