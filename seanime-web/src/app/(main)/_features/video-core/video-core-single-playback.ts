@@ -104,15 +104,39 @@ export function startPopoutPlaybackBeacon(): () => void {
 
 let popoutPlayingUntil = 0
 let ignorePopoutUntil = 0
+// Whether the popout counts as playing right now, and who wants to know when that changes
+// (the main window's "Return pip" overlay renders off this).
+let popoutPlayingNow = false
+const popoutPlayingListeners = new Set<(playing: boolean) => void>()
 
 export function isPopoutPlaying() {
     return Date.now() < popoutPlayingUntil && Date.now() >= ignorePopoutUntil
+}
+
+/** Main window: subscribe to the popout's playing state. Returns an unsubscribe function. */
+export function onPopoutPlayingChange(listener: (playing: boolean) => void): () => void {
+    popoutPlayingListeners.add(listener)
+    listener(popoutPlayingNow)
+    return () => popoutPlayingListeners.delete(listener)
+}
+
+function setPopoutPlayingNow(playing: boolean) {
+    if (playing === popoutPlayingNow) return
+    popoutPlayingNow = playing
+    popoutPlayingListeners.forEach(l => {
+        try {
+            l(playing)
+        }
+        catch {
+        }
+    })
 }
 
 /** Main window: playback is coming back from the popout, so this window may play again. */
 export function releasePopoutPriority() {
     popoutPlayingUntil = 0
     ignorePopoutUntil = Date.now() + RETURN_GRACE_MS
+    setPopoutPlayingNow(false)
 }
 
 function pauseAll(except?: EventTarget | null) {
@@ -137,11 +161,20 @@ export function startMainWindowPlaybackGuard(onBlocked?: () => void): () => void
         if (msg.playing) {
             const wasPlaying = isPopoutPlaying()
             popoutPlayingUntil = Date.now() + STALE_MS
+            setPopoutPlayingNow(true)
             if (!wasPlaying) pauseAll()
         } else {
             popoutPlayingUntil = 0
+            setPopoutPlayingNow(false)
         }
     }
+
+    // A popout that went away without a final "not playing" (crashed, closed without "pagehide")
+    // stops counting as playing once its last report goes stale — the "Return pip" overlay has
+    // to come down with it, not hang over the window forever.
+    const staleTimer = window.setInterval(() => {
+        if (popoutPlayingNow && !isPopoutPlaying()) setPopoutPlayingNow(false)
+    }, HEARTBEAT_MS)
 
     const onPlay = (event: Event) => {
         if (!isPopoutPlaying()) return
@@ -163,6 +196,8 @@ export function startMainWindowPlaybackGuard(onBlocked?: () => void): () => void
     return () => {
         document.removeEventListener("play", onPlay, true)
         document.removeEventListener("playing", onPlay, true)
+        window.clearInterval(staleTimer)
+        setPopoutPlayingNow(false)
         channel.close()
     }
 }

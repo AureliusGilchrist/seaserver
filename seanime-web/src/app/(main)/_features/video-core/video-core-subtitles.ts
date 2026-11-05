@@ -20,6 +20,11 @@ const subtitleLog = logger("VIDEO CORE SUBTITLES")
 const NO_TRACK_NUMBER = -1
 const DEFAULT_FONT_NAME = "roboto medium"
 
+// How often the periodic renderer health check runs while a video is playing. The check itself
+// is one cheap round-trip to the render worker; a renderer that died mid-playback is back
+// within this window.
+const SUBTITLE_HEALTH_CHECK_INTERVAL_MS = 15_000
+
 // Font bytes fetched on the main thread so we can validate them before handing them to
 // libass. Feeding libass a failed response (the SPA fallback serves index.html with HTTP
 // 200 for dead URLs) poisons it with "Error opening memory font" entries and triggers a
@@ -242,6 +247,11 @@ export class VideoCoreSubtitleManager extends EventTarget {
     private libassLoadedMetadataListener: (() => void) | null = null
     private libassFullscreenListener: (() => void) | null = null
     private libassHealthListener: (() => void) | null = null
+    // Periodic health check: the play/seeked listener only fires on user actions, so a renderer
+    // that dies mid-playback (worker released, a bad canvas size thrown in the worker during a
+    // window resize — both seen in the popout window) used to take the subtitles down for the
+    // rest of the episode with nothing noticing.
+    private libassHealthTimer: ReturnType<typeof setInterval> | null = null
     private recoveringRenderer = false
     private settings: VideoCoreSettings
     private defaultSubtitleHeader = `[Script Info]
@@ -551,6 +561,16 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 this.videoElement.addEventListener("seeked", this.libassHealthListener)
                 document.addEventListener("visibilitychange", this.libassHealthListener)
 
+                // And the same check on a slow tick, so a renderer that dies while the video
+                // keeps playing (no pause, no seek to trip the listener) is caught within
+                // seconds and the subtitles come straight back.
+                if (!this.libassHealthTimer) {
+                    this.libassHealthTimer = setInterval(() => {
+                        if (this.videoElement.paused || document.visibilityState === "hidden") return
+                        void this._recoverRendererIfUnresponsive()
+                    }, SUBTITLE_HEALTH_CHECK_INTERVAL_MS)
+                }
+
                 // Load the fonts in the background instead of awaiting them here: a file can
                 // carry hundreds of font attachments, and awaiting every fetch inside
                 // _initOnce blocked all track selection on first use — the pick looked dead
@@ -664,6 +684,10 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     }
 
     private _removeHealthListeners() {
+        if (this.libassHealthTimer) {
+            clearInterval(this.libassHealthTimer)
+            this.libassHealthTimer = null
+        }
         if (!this.libassHealthListener) return
         this.videoElement.removeEventListener("play", this.libassHealthListener)
         this.videoElement.removeEventListener("seeked", this.libassHealthListener)
@@ -729,7 +753,26 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
 
     private async _recoverRendererIfUnresponsive() {
         const renderer = this.libassRenderer
-        if (!renderer || this.isDestroyed || this.recoveringRenderer) return
+        if (this.isDestroyed || this.recoveringRenderer) return
+        if (!renderer) {
+            // The renderer was lost earlier (a rebuild failed, the worker was released) and
+            // every later draw is skipped against a null renderer — without this, subtitles
+            // stay dead for the rest of the episode. Re-selecting the track re-runs init
+            // (building a fresh renderer) and re-populates every cached event from the map.
+            if (this.currentTrackNumber === NO_TRACK_NUMBER) return
+            this.recoveringRenderer = true
+            try {
+                subtitleLog.warning("Recovering a lost libass renderer by re-selecting the track")
+                await this.selectTrack(this.currentTrackNumber)
+            }
+            catch (e) {
+                subtitleLog.error("Failed to recover a lost libass renderer", e)
+            }
+            finally {
+                this.recoveringRenderer = false
+            }
+            return
+        }
         this.recoveringRenderer = true
 
         try {

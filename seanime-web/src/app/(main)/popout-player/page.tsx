@@ -20,6 +20,7 @@ import { NativePlayer } from "@/app/(main)/_features/native-player/native-player
 import { VideoCoreProvider } from "@/app/(main)/_features/video-core/video-core"
 import {
     announcePopoutHandoffFailed,
+    listenForPopoutReturnRequests,
     newPopoutHandoffId,
     requestPopoutReturn,
     setPendingPopoutResume,
@@ -250,6 +251,15 @@ function PopoutReturnButton() {
         })
     }
     const [returning, setReturning] = React.useState(false)
+
+    // The main window's "Return pip" box asks for the same return the button performs. The
+    // listener is registered once, so it goes through a ref to the latest returnToMain — a
+    // stale one would hand back time 0 from a video element that had not attached yet.
+    const returnToMainRef = React.useRef(returnToMain)
+    returnToMainRef.current = returnToMain
+    React.useEffect(() => {
+        return listenForPopoutReturnRequests(() => returnToMainRef.current())
+    }, [])
 
     // Same visibility rule as the player's other top controls: shown while paused, busy or
     // hovering the controls, and slid up and faded out otherwise.

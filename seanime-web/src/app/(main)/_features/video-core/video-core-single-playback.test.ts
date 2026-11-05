@@ -45,6 +45,37 @@ const mod = await import("./video-core-single-playback")
 const wait = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 describe("one player at a time, the popout wins", () => {
+    it("tells subscribers when the popout starts and stops playing", async () => {
+        const main = new FakeMedia()
+        elements = [main]
+        const seen: boolean[] = []
+        const stopListening = mod.onPopoutPlayingChange(playing => seen.push(playing))
+        // The current state is delivered on subscribe.
+        expect(seen).toEqual([false])
+
+        const stopGuard = mod.startMainWindowPlaybackGuard()
+        const popoutChannel = new BroadcastChannel("vc-single-playback")
+        popoutChannel.postMessage({ type: "popout-state", playing: true })
+        await wait(30)
+        expect(seen).toEqual([false, true])
+
+        // The popout stops: the overlay (and everything else listening) comes down.
+        popoutChannel.postMessage({ type: "popout-state", playing: false })
+        await wait(30)
+        expect(seen).toEqual([false, true, false])
+
+        // A popout that dies without a final report stops counting once its last one goes stale.
+        popoutChannel.postMessage({ type: "popout-state", playing: true })
+        await wait(30)
+        expect(seen[seen.length - 1]).toBe(true)
+        // STALE_MS (3.5s) plus the next tick of the staleness timer (1s).
+        await wait(4700)
+        expect(seen[seen.length - 1]).toBe(false)
+
+        stopListening()
+        popoutChannel.close()
+        stopGuard()
+    })
     it("pauses the main window when the popout plays, and blocks new playback there", async () => {
         const main = new FakeMedia()
         elements = [main]
@@ -95,4 +126,5 @@ describe("one player at a time, the popout wins", () => {
         popoutChannel.close()
         stopGuard()
     })
+
 })

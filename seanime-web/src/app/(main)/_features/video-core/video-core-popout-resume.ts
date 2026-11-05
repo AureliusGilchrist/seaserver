@@ -43,6 +43,7 @@ type HandoffMessage =
     | { type: "failed", id: string }
     | ({ type: "return-request", id: string } & PopoutReturnRequest)
     | { type: "return-ack", id: string }
+    | { type: "return-please", id: string }
 
 function openChannel(): BroadcastChannel | null {
     if (typeof window === "undefined" || typeof BroadcastChannel === "undefined") return null
@@ -235,6 +236,25 @@ export function requestPopoutReturn(id: string, request: PopoutReturnRequest, ti
         }
         channel.postMessage({ type: "return-request", id, ...request } satisfies HandoffMessage)
     })
+}
+
+/**
+ * Main window → popout: asks the popout to hand playback back and close (the "Return pip" box
+ * in the main window). The popout then runs its ordinary return flow: the live handoff starts
+ * the stream here, and the popout closes once this window is playing.
+ */
+export function askPopoutToReturn() {
+    post({ type: "return-please", id: "" } satisfies HandoffMessage)
+}
+
+/** Popout window: listen for the main window's "Return pip" request. Returns an unsubscribe function. */
+export function listenForPopoutReturnRequests(onRequest: () => void): () => void {
+    const channel = openChannel()
+    if (!channel) return () => {}
+    channel.onmessage = (event: MessageEvent<HandoffMessage>) => {
+        if (event.data?.type === "return-please") onRequest()
+    }
+    return () => channel.close()
 }
 
 // Paths handed back over the channel recently. The popout still calls the shell's return IPC at

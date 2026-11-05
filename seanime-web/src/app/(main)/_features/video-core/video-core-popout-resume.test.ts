@@ -111,6 +111,19 @@ describe("popout live handoff", () => {
         stop()
     })
 
+    it("return-please: the main window's ask reaches the popout's listener", async () => {
+        const asked = vi.fn()
+        const stop = mod.listenForPopoutReturnRequests(asked)
+        mod.askPopoutToReturn()
+        await wait(20)
+        expect(asked).toHaveBeenCalledTimes(1)
+        stop()
+        // After unsubscribing, nothing more arrives.
+        mod.askPopoutToReturn()
+        await wait(20)
+        expect(asked).toHaveBeenCalledTimes(1)
+    })
+
     it("pending resume carries the handoff id, even at time 0", () => {
         mod.setPendingPopoutResume(0, true, "x")
         expect(mod.hasPendingPopoutHandoff()).toBe(true)
