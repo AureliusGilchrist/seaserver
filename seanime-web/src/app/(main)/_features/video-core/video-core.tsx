@@ -2058,7 +2058,9 @@ export function VideoCore(props: VideoCoreProps) {
                 }
             }
 
-            if (state.playbackInfo.initialState) {
+            // Popout/PiP resume is the source of truth for this stream's position.
+            // Do not let episode/default initial state overwrite it after handoff.
+            if (state.playbackInfo.initialState && !popoutResume) {
                 log.info("Setting initial stream state", state.playbackInfo.initialState)
                 if (state.playbackInfo.initialState.currentTime) {
                     // action({ type: "seekTo", payload: { time: state.playbackInfo.initialState.currentTime } })
