@@ -8,7 +8,7 @@
 // else. The main window lets go of that rule only when it takes playback back from the popout
 // (the user asked for that, and the popout is closing).
 
-import { isPopoutHandoffGiving } from "./video-core-popout-resume"
+import { isPopoutHandoffGiving, setPopoutReturnTime } from "./video-core-popout-resume"
 
 const CHANNEL_NAME = "vc-single-playback"
 const HEARTBEAT_MS = 1000
@@ -21,7 +21,7 @@ const RETURN_GRACE_MS = 10_000
 type Message =
     | { type: "popout-state", playing: boolean }
     | { type: "popout-open", path?: string }
-    | { type: "popout-closed" }
+    | { type: "popout-closed", path?: string, time?: number }
     | { type: "query" }
 
 function openChannel(): BroadcastChannel | null {
@@ -116,7 +116,10 @@ export function startPopoutPlaybackBeacon(): () => void {
     const onHide = () => {
         last = false
         post({ type: "popout-state", playing: false })
-        post({ type: "popout-closed" })
+        // The pip's final position, whichever way it was closed: the main window plays on from it.
+        const video = document.querySelector("video")
+        const time = video && Number.isFinite(video.currentTime) && video.currentTime > 0 ? video.currentTime : undefined
+        post({ type: "popout-closed", path: popoutCurrentPath, time })
     }
     window.addEventListener("pagehide", onHide)
     announceOpen()
@@ -255,6 +258,10 @@ export function startMainWindowPlaybackGuard(onBlocked?: () => void): () => void
             popoutOpenUntil = 0
             setPopoutPresent(false)
             popoutPathNow = undefined
+            if (msg.time && msg.time > 0 && msg.path) {
+                console.warn("[POPOUT RETURN] pip closed at", msg.time, msg.path)
+                setPopoutReturnTime(msg.path, msg.time)
+            }
             return
         }
         if (msg?.type !== "popout-state") return
