@@ -8,6 +8,8 @@
 // else. The main window lets go of that rule only when it takes playback back from the popout
 // (the user asked for that, and the popout is closing).
 
+import { isPopoutHandoffGiving } from "./video-core-popout-resume"
+
 const CHANNEL_NAME = "vc-single-playback"
 const HEARTBEAT_MS = 1000
 // A popout that stopped reporting (crashed, closed without "pagehide") stops counting after this.
@@ -153,14 +155,16 @@ const popoutPathListeners = new Set<(path: string) => void>()
 /** Main window: subscribe to the popout changing episode. Returns an unsubscribe function. */
 export function onPopoutPathChange(listener: (path: string) => void): () => void {
     popoutPathListeners.add(listener)
-    if (popoutPathNow) listener(popoutPathNow)
     return () => popoutPathListeners.delete(listener)
 }
 
 function setPopoutPath(path: string | undefined) {
-    if (path === popoutPathNow) return
+    if (!path || path === popoutPathNow) return
+    const first = popoutPathNow === undefined
     popoutPathNow = path
-    if (!path) return
+    // The first path is the episode this pip opened on, which this window is already on (it is
+    // what was popped out). Only later changes are the pip moving to another episode.
+    if (first) return
     popoutPathListeners.forEach(l => {
         try {
             l(path)
@@ -275,7 +279,7 @@ export function startMainWindowPlaybackGuard(onBlocked?: () => void): () => void
     const onPlay = (event: Event) => {
         // Blocked while the popout plays, and while it is merely open: the main player follows
         // the popout's episode under the blur and must not start playing by itself.
-        const holding = isPopoutPlaying() || (popoutPresentNow && Date.now() >= ignorePopoutUntil)
+        const holding = !isPopoutHandoffGiving() && (isPopoutPlaying() || (popoutPresentNow && Date.now() >= ignorePopoutUntil))
         if (!holding) return
         const media = event.target
         if (!(media instanceof HTMLMediaElement)) return

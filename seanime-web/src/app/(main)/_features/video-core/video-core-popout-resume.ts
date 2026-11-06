@@ -70,6 +70,14 @@ export function newPopoutHandoffId() {
     return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 }
 
+// Handoffs this window is giving right now. While one runs, this window is still the one
+// playing, so nothing may hold or block it (the single-playback guard reads this).
+let givingCount = 0
+
+export function isPopoutHandoffGiving() {
+    return givingCount > 0
+}
+
 /**
  * The window giving playback up. Answers the taking-over window's "ready" with the live position
  * and calls onStarted once that window is playing (onFailed if it gave up). When nothing comes
@@ -126,9 +134,13 @@ export function startPopoutHandoffGiver(opts: {
     }
 
     let done = false
+    givingCount++
     const finish = () => {
         if (done) return
         done = true
+        // Lingers briefly: the play() that resumes this window after a failed handoff reports its
+        // events a moment later, and must still pass the single-playback guard.
+        window.setTimeout(() => { givingCount = Math.max(0, givingCount - 1) }, 1500)
         window.clearTimeout(timer)
         events.forEach(e => video?.removeEventListener(e, record))
         channel?.close()
@@ -150,9 +162,10 @@ export function startPopoutHandoffGiver(opts: {
                 finish()
                 opts.onStarted()
             } else if (msg.type === "failed") {
-                finish()
-                // The other window could not take over: playback carries on here.
+                // The other window could not take over: playback carries on here (resumed while
+                // this handoff still counts, so the single-playback guard lets it through).
                 resumeIfPaused()
+                finish()
                 opts.onFailed?.()
             }
         }
@@ -161,8 +174,8 @@ export function startPopoutHandoffGiver(opts: {
     // Cancelled before the other window took over: playback carries on here.
     return () => {
         if (done) return
-        finish()
         resumeIfPaused()
+        finish()
     }
 }
 

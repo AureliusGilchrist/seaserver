@@ -2007,9 +2007,15 @@ export function VideoCore(props: VideoCoreProps) {
                 const handoffId = popoutResume.handoffId
                 if (popoutResume.time > 0) restoreSeekTime(popoutResume.time, false, true)
                 else videoRef.current.pause()
-                void requestPopoutHandoffPosition(handoffId, popoutResume).then(position => {
+                void requestPopoutHandoffPosition(handoffId, popoutResume).then(async position => {
+                    // The stream can restart for a moment (the element is swapped): give the new
+                    // one a few seconds before calling the handoff failed.
+                    for (let i = 0; i < 30 && !(videoRef.current?.isConnected); i++) {
+                        await new Promise(r => setTimeout(r, 100))
+                    }
                     const v = videoRef.current
                     if (!v || !v.isConnected) {
+                        console.warn("[POPOUT HANDOFF] no video element to take over with; failing the handoff", handoffId)
                         announcePopoutHandoffFailed(handoffId)
                         return
                     }

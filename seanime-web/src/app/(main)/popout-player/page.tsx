@@ -327,7 +327,10 @@ function PopoutPlaybackHandoff() {
     // the main window has already let go, and this message is ignored.)
     React.useEffect(() => {
         if (!handoffId) return
-        const onHide = () => announcePopoutHandoffFailed(handoffId)
+        const onHide = () => {
+            console.warn("[POPOUT HANDOFF] popout page unloaded before the handoff finished", handoffId)
+            announcePopoutHandoffFailed(handoffId)
+        }
         window.addEventListener("pagehide", onHide)
         return () => window.removeEventListener("pagehide", onHide)
     }, [handoffId])
@@ -389,6 +392,7 @@ function PopoutPlaybackHandoff() {
                     ? "Your session has ended. Sign in again in the main window, then pop the player out once more."
                     : "The server could not start this stream. Check that it is running, then try again from the main window."
                 log.error("Popout playback handoff failed", error)
+                console.warn("[POPOUT HANDOFF] stream request failed", error?.response?.status, error?.message)
                 if (handoffId) announcePopoutHandoffFailed(handoffId)
                 setHandoffError(message)
             },

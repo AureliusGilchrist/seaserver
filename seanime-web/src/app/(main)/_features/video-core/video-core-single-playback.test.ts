@@ -125,7 +125,8 @@ describe("one player at a time, the popout wins", () => {
         await wait(30)
         popoutChannel.postMessage({ type: "popout-open", path: "/a/ep2.mkv" })
         await wait(30)
-        expect(seen).toEqual(["/a/ep1.mkv", "/a/ep2.mkv"])
+        // The episode the pip opened on is not a change; only the move to ep2 is.
+        expect(seen).toEqual(["/a/ep2.mkv"])
 
         popoutChannel.postMessage({ type: "popout-closed" })
         popoutChannel.close()
