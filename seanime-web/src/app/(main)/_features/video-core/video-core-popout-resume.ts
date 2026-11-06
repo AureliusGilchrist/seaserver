@@ -80,7 +80,7 @@ export function startPopoutHandoffGiver(opts: {
     id: string
     video: HTMLVideoElement | null
     onStarted: (info: { pausedForHandoff: boolean }) => void
-    onFailed?: () => void
+    onFailed?: (info: { pausedForHandoff: boolean }) => void
     /** pausedForHandoff: this window paused itself for the handoff, it was playing before. */
     onTimeout?: (info: { pausedForHandoff: boolean }) => void
     timeoutMs?: number
@@ -155,7 +155,7 @@ export function startPopoutHandoffGiver(opts: {
                 finish()
                 // The other window could not take over: playback carries on here.
                 resumeIfPaused()
-                opts.onFailed?.()
+                opts.onFailed?.({ pausedForHandoff })
             }
         }
     }

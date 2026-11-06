@@ -237,11 +237,11 @@ function PopoutReturnButton() {
             id: handoffId,
             video: videoElement,
             onStarted: info => returnNow(info),
-            onFailed: () => {
+            onFailed: info => {
                 setReturning(false)
-                returnNow()
+                returnNow(info)
             },
-            onTimeout: returnNow,
+            onTimeout: info => returnNow(info),
         })
         void requestPopoutReturn(handoffId, request).then(accepted => {
             if (accepted) return
@@ -397,7 +397,7 @@ function PopoutPlaybackHandoff() {
                     : "The server could not start this stream. Check that it is running, then try again from the main window."
                 log.error("Popout playback handoff failed", error)
                 // Guard against transient startup errors that recover on their own.
-                window.setTimeout(() => reportHandoffFailure(message), 1200)
+                window.setTimeout(() => reportHandoffFailure(message), 5000)
             },
         })
     }, [encodedPath, clientId, isConnected, playLocalFile, reportHandoffFailure])

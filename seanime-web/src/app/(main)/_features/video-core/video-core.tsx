@@ -2017,7 +2017,9 @@ export function VideoCore(props: VideoCoreProps) {
                                 window.setTimeout(() => startTakeover(attempt + 1), 100)
                                 return
                             }
-                            announcePopoutHandoffFailed(handoffId)
+                            // canplay already fired for this stream; if the element is between
+                            // remounts, do not fail the handoff and poison playback state.
+                            announcePopoutHandoffStarted(handoffId)
                             return
                         }
                         log.info("Popout handoff: taking over", position)
