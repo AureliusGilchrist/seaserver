@@ -1928,6 +1928,13 @@ export function VideoCore(props: VideoCoreProps) {
     }
 
     const handleError = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+        // A deliberately emptied element (stream terminated for a PiP/return handoff) fires an "Empty src"
+        // error; it is not a real playback failure.
+        const target = e.currentTarget
+        if (!target.getAttribute("src") && !target.currentSrc) {
+            log.info("Ignoring error from an emptied video element")
+            return
+        }
         log.error("Video error", e)
         const srcUrl = state.playbackInfo?.streamUrl ?? ""
         const looksLikeHls = /\.m3u8(\?|$)|\/hls\//i.test(srcUrl)

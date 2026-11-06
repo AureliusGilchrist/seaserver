@@ -67,12 +67,15 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
     const { mutate: shutdownTranscode } = useMediastreamShutdownTranscodeStream()
     const { isCodecSupported } = useIsCodecSupported()
 
-    const isStreamError = !!mediaContainer && !url
+    // Set when the stream was ended on purpose (handed to the PiP): a missing URL is not an error then.
+    const [terminatedOnPurpose, setTerminatedOnPurpose] = React.useState(false)
+    const isStreamError = !!mediaContainer && !url && !terminatedOnPurpose
 
     // ── URL Management ──────────────────────────────────────────────────
 
     function changeUrl(newUrl: string | undefined) {
         log.info("[changeUrl]", newUrl)
+        if (newUrl) setTerminatedOnPurpose(false)
         if (prevUrlRef.current !== newUrl) {
             setPlaybackErrored(false)
         }
@@ -204,6 +207,7 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
         const preferDirect = !!mediastreamSettings && (isDirectPlayOnly(mediastreamSettings) || !mediastreamSettings.disableAutoSwitchToDirectPlay)
         setStreamType(preferDirect ? "direct" : "transcode")
         setPlayNonce(n => n + 1)
+        setTerminatedOnPurpose(false)
         changeUrl(undefined)
         setFilePath(filepath)
         if (filepath === filePathRef.current) {
@@ -383,6 +387,7 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
         if (mediaContainer) {
             shutdownTranscode({ clientId: mediastreamSessionId })
         }
+        setTerminatedOnPurpose(true)
         changeUrl(undefined)
     }, [mediaContainer, shutdownTranscode, mediastreamSessionId])
 
