@@ -112,7 +112,7 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
                 >
                     <div
                         data-anime-meta-section-details
-                        className="flex flex-col items-center gap-4 lg:items-start"
+                        className="flex flex-col items-center gap-3 lg:items-start lg:gap-2"
                     >
 
                         <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 lg:justify-start" data-anime-meta-section-stats>

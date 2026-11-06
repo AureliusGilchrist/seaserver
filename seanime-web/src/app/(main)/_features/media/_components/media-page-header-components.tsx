@@ -85,7 +85,7 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
                 data-media-page-header-banner
                 className={cn(
                     "w-full scroll-locked-offset flex-none object-cover object-center z-[3] bg-[--background] h-[20rem]",
-                    ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small ? "lg:h-[28rem]" : "h-[20rem] lg:h-[34rem]",
+                    ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small ? "lg:h-[36rem]" : "h-[20rem] lg:h-[40rem]",
                     isFixedBanner ? "fixed top-0 will-change-[opacity]" : "absolute -top-[5rem]",
                     !ts.disableSidebarTransparency && TRANSPARENT_SIDEBAR_BANNER_IMG_STYLE,
                     shouldHideBanner && "bg-transparent",
@@ -242,7 +242,7 @@ export function MediaPageHeaderDetailsContainer(props: MediaPageHeaderDetailsCon
                             initial="hidden"
                             animate="shown"
                             variants={{ hidden: {}, shown: { transition: { staggerChildren: 0.07, delayChildren: 0.08 } } }}
-                            className="space-y-6"
+                            className="space-y-6 lg:space-y-3"
                             data-media-page-header-details-motion-container
                         >
 
@@ -391,10 +391,10 @@ export function MediaPageHeaderEntryDetails(props: MediaPageHeaderEntryDetailsPr
                 <div
                     data-media-page-header-entry-details-content
                     className={cn(
-                        "min-w-0 space-y-4 lg:space-y-5 lg:pt-1",
+                        "min-w-0 space-y-4 lg:space-y-2.5 lg:pt-0",
                         // Leaves the right of the banner to the artwork.
                         !fluid && "lg:max-w-[54rem] 2xl:max-w-[60rem]",
-                        (small || fluid) && "lg:space-y-4",
+                        (small || fluid) && "lg:space-y-2",
                     )}
                 >
                     {/*EYEBROW — when it started, and whether it still airs*/}
@@ -671,11 +671,11 @@ function MediaPageHeaderDescription({ description }: { description: string }) {
     return (
         <div
             data-media-page-header-details-description
-            className="relative mx-auto max-w-[46rem] text-[0.94rem] leading-7 text-white/80 [text-shadow:_0_1px_12px_rgb(0_0_0_/_90%)] lg:mx-0"
+            className="relative mx-auto max-w-[46rem] text-sm leading-6 text-white/80 [text-shadow:_0_1px_12px_rgb(0_0_0_/_90%)] lg:mx-0"
         >
             <motion.div
                 initial={false}
-                animate={{ height: expanded || !long ? "auto" : "5.25rem" }}
+                animate={{ height: expanded || !long ? "auto" : "3rem" }}
                 transition={{ duration: 0.45, ease: [0.2, 0.8, 0.2, 1] }}
                 className={cn(
                     "overflow-hidden whitespace-pre-line text-center lg:text-left",
