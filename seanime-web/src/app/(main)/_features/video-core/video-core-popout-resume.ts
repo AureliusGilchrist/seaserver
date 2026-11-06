@@ -79,7 +79,7 @@ export function newPopoutHandoffId() {
 export function startPopoutHandoffGiver(opts: {
     id: string
     video: HTMLVideoElement | null
-    onStarted: () => void
+    onStarted: (info: { pausedForHandoff: boolean }) => void
     onFailed?: () => void
     /** pausedForHandoff: this window paused itself for the handoff, it was playing before. */
     onTimeout?: (info: { pausedForHandoff: boolean }) => void
@@ -150,7 +150,7 @@ export function startPopoutHandoffGiver(opts: {
                 channel.postMessage({ type: "position", id, ...answerPosition() } satisfies HandoffMessage)
             } else if (msg.type === "started") {
                 finish()
-                opts.onStarted()
+                opts.onStarted({ pausedForHandoff })
             } else if (msg.type === "failed") {
                 finish()
                 // The other window could not take over: playback carries on here.

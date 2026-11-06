@@ -236,7 +236,7 @@ function PopoutReturnButton() {
         const cancel = startPopoutHandoffGiver({
             id: handoffId,
             video: videoElement,
-            onStarted: () => returnNow(),
+            onStarted: info => returnNow(info),
             onFailed: () => {
                 setReturning(false)
                 returnNow()
@@ -326,7 +326,15 @@ function PopoutPlaybackHandoff() {
     const clientId = useAtomValue(clientIdAtom)
     const isConnected = useAtomValue(websocketConnectedAtom)
     const nativePlayerState = useAtomValue(nativePlayer_stateAtom)
+    const [handoffError, setHandoffError] = React.useState<string | null>(null)
     const handoffStartedRef = React.useRef(false)
+    const handoffFailureReportedRef = React.useRef(false)
+    const reportHandoffFailure = React.useCallback((message: string) => {
+        if (handoffStartedRef.current || handoffFailureReportedRef.current) return
+        handoffFailureReportedRef.current = true
+        if (handoffId) announcePopoutHandoffFailed(handoffId)
+        setHandoffError(message)
+    }, [handoffId])
     React.useEffect(() => {
         if (nativePlayerState.active) handoffStartedRef.current = true
     }, [nativePlayerState.active])
@@ -335,12 +343,11 @@ function PopoutPlaybackHandoff() {
     React.useEffect(() => {
         if (!handoffId) return
         const onHide = () => {
-            if (!handoffStartedRef.current) announcePopoutHandoffFailed(handoffId)
+            reportHandoffFailure("The popout was closed before playback could start.")
         }
         window.addEventListener("pagehide", onHide)
         return () => window.removeEventListener("pagehide", onHide)
-    }, [handoffId])
-    const [handoffError, setHandoffError] = React.useState<string | null>(null)
+    }, [handoffId, reportHandoffFailure])
     const { mutate: playLocalFile } = useDirectstreamPlayLocalFile()
 
     React.useEffect(() => {
@@ -389,11 +396,11 @@ function PopoutPlaybackHandoff() {
                     ? "Your session has ended. Sign in again in the main window, then pop the player out once more."
                     : "The server could not start this stream. Check that it is running, then try again from the main window."
                 log.error("Popout playback handoff failed", error)
-                if (handoffId && !handoffStartedRef.current) announcePopoutHandoffFailed(handoffId)
-                setHandoffError(message)
+                // Guard against transient startup errors that recover on their own.
+                window.setTimeout(() => reportHandoffFailure(message), 1200)
             },
         })
-    }, [encodedPath, clientId, isConnected, playLocalFile])
+    }, [encodedPath, clientId, isConnected, playLocalFile, reportHandoffFailure])
 
     // Close the window once the handed-off stream is terminated (or fails to start)
     const wasActiveRef = React.useRef(false)
