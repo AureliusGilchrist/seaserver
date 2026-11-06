@@ -84,6 +84,13 @@ export function splitShowMore<T>(items: T[], initial: number): { shown: T[], hid
     return { shown: items.slice(0, n), hidden: items.slice(n) }
 }
 
+/** Available episodes through the finished episode, newest first. */
+export function episodesForReplay<T extends { progressNumber?: number }>(episodes: T[], lastEpisode: number): T[] {
+    return episodes
+        .filter(episode => episode.progressNumber != null && episode.progressNumber > 0 && episode.progressNumber <= lastEpisode)
+        .toSorted((a, b) => b.progressNumber! - a.progressNumber!)
+}
+
 /** A description cut to a couple of sentences for the "short" setting. */
 export function shortDescription(text: string | undefined, max = 180): string {
     if (!text) return ""

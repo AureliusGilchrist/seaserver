@@ -543,6 +543,7 @@ export function ClientSettings(props: ClientSettingsProps) {
                                                     <div className="grid gap-4 sm:grid-cols-2">
                                                         <NumberInput
                                                             label="Episodes shown before “Show more”"
+                                                            help="Also applies to the replay choices at the end of a series."
                                                             min={1}
                                                             max={12}
                                                             value={personal.stillWatchingRecapCount}

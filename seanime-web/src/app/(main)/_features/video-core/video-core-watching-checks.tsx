@@ -1,7 +1,10 @@
 import { Anime_Episode, Anime_EntryListData } from "@/api/generated/types"
+import { isInCheckWindow } from "@/app/(main)/_features/video-core/_lib/still-watching-timing"
 import { __anilist_userAnimeListDataAtom } from "@/app/(main)/_atoms/anilist.atoms"
+import { useNakamaWatchParty } from "@/app/(main)/_features/nakama/nakama-manager"
 import {
     finishEntry,
+    episodesForReplay,
     looksDozed,
     noteInput,
     pushHistory,
@@ -61,26 +64,9 @@ export const DEFAULT_CHECK_START_HOUR = 19
 export const DEFAULT_CHECK_END_HOUR = 10
 
 /**
- * The hours the check applies in, configurable in Personal settings: "from startHour to endHour" —
- * by default the night, from 7 pm to 10 am, which is when a session runs long enough for the
- * question to be worth asking and when an empty room is most likely. Midday viewing is short and
- * deliberate, so it is never interrupted.
- *
- * The window may span midnight: 19 → 10 is "past 7 pm or before 10 am", not a between-two check.
- * A window whose ends meet (startHour === endHour) is the whole day.
- */
-export function isInCheckWindow(hour: number, startHour: number, endHour: number): boolean {
-    const start = Math.min(23, Math.max(0, Math.round(startHour)))
-    const end = Math.min(23, Math.max(0, Math.round(endHour)))
-    if (start === end) return true
-    if (start < end) return hour >= start && hour < end
-    return hour >= start || hour < end
-}
-
-/**
  * Whether the check applies at this hour, honoring the chosen timing mode ("night" — the preset
  * evening-to-morning window, "always" — every hour, "custom" — the user's own window).
- * Midnight-crossing windows and equal ends mean the whole day, as in isInCheckWindow.
+ * Equal ends mean the whole day; a start later than the end wraps past midnight.
  */
 export function isStillWatchingActiveHour(
     hour: number,
@@ -104,6 +90,8 @@ export type VideoCoreSequelOption = {
 
 export type VideoCoreSequelPromptState = {
     mediaId: number
+    episodeNumber: number
+    episode: StillWatchingEpisodeSnapshot | null
     /** The series just finished. */
     title: string
     cover?: string
@@ -434,7 +422,8 @@ export function useVideoCoreWatchingChecks(
 
         setStillWatchingHold(false)
 
-        const hour = new Date().getHours()
+        const now = new Date()
+        const hour = now.getHours() + now.getMinutes() / 60
         // When to ask follows the profile's Personal settings (night by default, all day, or own hours).
         if (!isStillWatchingActiveHour(hour, stillWatchingConfig.timingMode ?? "night", stillWatchingConfig.startHour ?? DEFAULT_CHECK_START_HOUR, stillWatchingConfig.endHour ?? DEFAULT_CHECK_END_HOUR)) return false
 
@@ -462,6 +451,8 @@ export function useVideoCoreWatchingChecks(
             const media = state.playbackInfo?.media
             setSequelPrompt({
                 mediaId,
+                episodeNumber,
+                episode: snapshotEpisode(state.playbackInfo?.episode),
                 title: media?.title?.userPreferred ?? media?.title?.romaji ?? "This series",
                 cover: media?.coverImage?.large ?? media?.coverImage?.medium ?? undefined,
                 sequels,
@@ -542,10 +533,22 @@ export function VideoCoreSequelPrompt() {
     const [prompt, setPrompt] = useAtom(vc_sequelPrompt)
     const router = useRouter()
     const { setPlayNext } = usePlayNext()
+    const personal = usePersonalSettings()
+    const { playlistState, playSpecificEpisode } = useVideoCorePlaylist()
+    const { isPeer: isWatchPartyPeer } = useNakamaWatchParty()
+    const setSkipOpeningOnce = useSetAtom(vc_skipOpeningOnceAtom)
+    const [showAllEpisodes, setShowAllEpisodes] = React.useState(false)
     const { data: family } = useGetMediaFamily(prompt?.mediaId ?? null)
     const listData = useAtomValue(__anilist_userAnimeListDataAtom)
 
     const prequels = React.useMemo(() => prompt ? tracePrequels(family?.members, prompt.mediaId) : [], [family, prompt])
+    const replayEpisodes = React.useMemo(
+        () => prompt && playlistState?.animeEntry?.mediaId === prompt.mediaId
+            ? episodesForReplay(playlistState.episodes, prompt.episodeNumber)
+            : [],
+        [prompt, playlistState],
+    )
+    React.useEffect(() => setShowAllEpisodes(false), [prompt])
 
     if (!prompt) return null
 
@@ -559,6 +562,12 @@ export function VideoCoreSequelPrompt() {
     }
 
     const n = prompt.sequels.length
+    const { shown: shownEpisodes, hidden: hiddenEpisodes } = splitShowMore(replayEpisodes, personal.stillWatchingRecapCount)
+    const replay = (episode: Anime_Episode) => {
+        setPrompt(null)
+        if (personal.stillWatchingReplayFrom === "afterOpening") setSkipOpeningOnce(true)
+        playSpecificEpisode(episode)
+    }
 
     return (
         <div
@@ -671,6 +680,56 @@ export function VideoCoreSequelPrompt() {
                         })}
                     </div>
                 </div>
+
+                <section className="mt-6 border-t border-white/10 pt-5" data-vc-element="sequel-replay">
+                    <div className="flex items-start gap-2.5">
+                        <LuMoon className="mt-0.5 size-4 shrink-0 text-brand-200" />
+                        <div>
+                            <p className="text-sm font-semibold text-white">Did you drift off?</p>
+                            <p className="mt-1 text-xs leading-relaxed text-gray-400">
+                                Pick an episode to go back to where you left off.
+                            </p>
+                        </div>
+                    </div>
+                    {replayEpisodes.length > 0 ? (
+                        <div className="mt-3 space-y-2" data-vc-element="sequel-replay-episodes">
+                            {isWatchPartyPeer && <p className="text-xs text-white/50">Only the watch party host can choose an episode.</p>}
+                            {[...shownEpisodes, ...(showAllEpisodes ? hiddenEpisodes : [])].map(episode => {
+                                const snapshot = snapshotEpisode(episode)
+                                if (!snapshot) return null
+                                const canReplay = !isWatchPartyPeer && !!playlistState && (
+                                    playlistState.type === "localfile" || playlistState.type === "nakama"
+                                        ? !!episode.localFile?.path
+                                        : playlistState.type === "torrent" || playlistState.type === "debrid" || !!playlistState.onPlayEpisode
+                                )
+                                return <RecapCard
+                                    key={`${episode.aniDBEpisode}-${episode.progressNumber}`}
+                                    episode={snapshot}
+                                    label={canReplay ? "Replay" : "Replay unavailable"}
+                                    variant="watched"
+                                    descriptions={personal.stillWatchingRecapDescriptions}
+                                    onClick={canReplay ? () => replay(episode) : undefined}
+                                />
+                            })}
+                            {hiddenEpisodes.length > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAllEpisodes(value => !value)}
+                                    aria-expanded={showAllEpisodes}
+                                    className="mx-auto flex items-center gap-1.5 rounded-full bg-white/[0.05] px-4 py-1.5 text-xs font-medium text-white/75 ring-1 ring-white/10 hover:text-white"
+                                >
+                                    {showAllEpisodes ? "Show less" : `Show more (${hiddenEpisodes.length})`}
+                                    <LuChevronDown className={cn("size-3.5 transition-transform", showAllEpisodes && "rotate-180")} />
+                                </button>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="mt-3 space-y-2">
+                            {prompt.episode && <RecapCard episode={prompt.episode} label="Last episode" variant="watched" descriptions={personal.stillWatchingRecapDescriptions} />}
+                            <p className="text-xs text-white/50">Episode replay is unavailable for this playback.</p>
+                        </div>
+                    )}
+                </section>
 
                 <div className="mt-4 flex justify-end">
                     <Button size="sm" intent="gray-outline" onClick={() => setPrompt(null)}>

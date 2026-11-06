@@ -1,4 +1,5 @@
 import { cn } from "@/components/ui/core/styling"
+import { formatHour, normalizeHalfHour } from "@/app/(main)/_features/video-core/_lib/still-watching-timing"
 import React from "react"
 import { LuMoon, LuSun } from "react-icons/lu"
 
@@ -17,13 +18,6 @@ export type StillWatchingTimingMode = "night" | "always" | "custom"
 /** The preset night window: 7 pm to 10 am — long evening sessions, quiet mornings. */
 export const NIGHT_START_HOUR = 19
 export const NIGHT_END_HOUR = 10
-
-export function formatHour(hour: number): string {
-    const h = ((Math.round(hour) % 24) + 24) % 24
-    if (h === 0) return "12 am"
-    if (h === 12) return "noon"
-    return h < 12 ? `${h} am` : `${h - 12} pm`
-}
 
 type StillWatchingTimingProps = {
     mode: StillWatchingTimingMode
@@ -83,7 +77,7 @@ export function StillWatchingTiming(props: StillWatchingTimingProps) {
 
             <p className="text-xs text-[--muted]">
                 {mode === "custom"
-                    ? <span>The player asks between <strong className="text-[--foreground]">{formatHour(startHour)}</strong> and <strong className="text-[--foreground]">{formatHour(endHour)}</strong>{startHour !== endHour ? " (wraps past midnight)" : ""}.</span>
+                    ? <span>The player asks between <strong className="text-[--foreground]">{formatHour(startHour)}</strong> and <strong className="text-[--foreground]">{formatHour(endHour)}</strong>{startHour > endHour ? " (wraps past midnight)" : startHour === endHour ? " (all day)" : ""}.</span>
                     : selected.blurb}
             </p>
 
@@ -110,16 +104,21 @@ function TimingStrip({ mode, startHour, endHour, onStartHourChange, onEndHourCha
     onEndHourChange: (hour: number) => void
 }) {
     const trackRef = React.useRef<HTMLDivElement>(null)
-    const [nowHour, setNowHour] = React.useState(() => new Date().getHours())
+    const currentHour = () => {
+        const now = new Date()
+        return now.getHours() + now.getMinutes() / 60
+    }
+    const [nowHour, setNowHour] = React.useState(currentHour)
+    const [dragging, setDragging] = React.useState<"start" | "end" | null>(null)
 
     React.useEffect(() => {
-        const t = window.setInterval(() => setNowHour(new Date().getHours()), 60_000)
+        const t = window.setInterval(() => setNowHour(currentHour()), 60_000)
         return () => window.clearInterval(t)
     }, [])
 
     const interactive = mode === "custom"
-    const clampedStart = ((Math.round(startHour) % 24) + 24) % 24
-    const clampedEnd = ((Math.round(endHour) % 24) + 24) % 24
+    const clampedStart = normalizeHalfHour(startHour)
+    const clampedEnd = normalizeHalfHour(endHour)
 
     // A window whose ends meet is the whole day; the lit span then covers the strip.
     const wholeDay = clampedStart === clampedEnd
@@ -142,7 +141,7 @@ function TimingStrip({ mode, startHour, endHour, onStartHourChange, onEndHourCha
         if (!track) return 0
         const rect = track.getBoundingClientRect()
         const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
-        return Math.round(ratio * 24) % 24
+        return normalizeHalfHour(ratio * 24)
     }, [])
 
     const dragRef = React.useRef<"start" | "end" | null>(null)
@@ -151,10 +150,8 @@ function TimingStrip({ mode, startHour, endHour, onStartHourChange, onEndHourCha
         if (!interactive) return
         e.preventDefault()
         dragRef.current = which
+        setDragging(which)
         e.currentTarget.setPointerCapture(e.pointerId)
-        const hour = hourFromPointer(e.clientX)
-        if (which === "start") onStartHourChange(hour)
-        else onEndHourChange(hour)
     }
 
     const onPointerMove = (e: React.PointerEvent) => {
@@ -166,6 +163,20 @@ function TimingStrip({ mode, startHour, endHour, onStartHourChange, onEndHourCha
 
     const endPointerDrag = () => {
         dragRef.current = null
+        setDragging(null)
+    }
+
+    const onHandleKeyDown = (which: "start" | "end") => (e: React.KeyboardEvent) => {
+        let hour = which === "start" ? clampedStart : clampedEnd
+        if (e.key === "ArrowRight" || e.key === "ArrowUp") hour += 0.5
+        else if (e.key === "ArrowLeft" || e.key === "ArrowDown") hour -= 0.5
+        else if (e.key === "Home") hour = 0
+        else if (e.key === "End") hour = 23.5
+        else return
+        e.preventDefault()
+        e.stopPropagation()
+        if (which === "start") onStartHourChange(normalizeHalfHour(hour))
+        else onEndHourChange(normalizeHalfHour(hour))
     }
 
     return (
@@ -179,16 +190,18 @@ function TimingStrip({ mode, startHour, endHour, onStartHourChange, onEndHourCha
                 onPointerMove={onPointerMove}
                 onPointerUp={endPointerDrag}
                 onPointerCancel={endPointerDrag}
+                onLostPointerCapture={endPointerDrag}
             >
-                {/* Hour ticks: midnight slightly stronger, the rest faint. */}
-                {Array.from({ length: 24 }).map((_, hour) => (
+                {/* Hour ticks and shorter half-hour notches. */}
+                {Array.from({ length: 48 }).map((_, tick) => (
                     <div
-                        key={hour}
+                        key={tick}
                         className={cn(
-                            "absolute top-0 h-full w-px",
-                            hour % 6 === 0 ? "bg-[--border]" : "bg-[--border]/40",
+                            "pointer-events-none absolute z-[1] w-px",
+                            tick % 2 ? "bottom-0 h-2 bg-white/25" : "top-0 h-full",
+                            tick % 12 === 0 ? "bg-[--border]" : tick % 2 === 0 && "bg-[--border]/40",
                         )}
-                        style={{ left: `${(hour / 24) * 100}%` }}
+                        style={{ left: `${(tick / 48) * 100}%` }}
                     />
                 ))}
 
@@ -212,10 +225,10 @@ function TimingStrip({ mode, startHour, endHour, onStartHourChange, onEndHourCha
                 </div>
 
                 {/* Custom-mode handles. */}
-                {interactive && !wholeDay && (
+                {interactive && (
                     <>
-                        <Handle left={clampedStart} label={formatHour(clampedStart)} onPointerDown={onPointerDown("start")} />
-                        <Handle left={clampedEnd} label={formatHour(clampedEnd)} onPointerDown={onPointerDown("end")} />
+                        <Handle left={clampedStart} name="Start time" dragging={dragging === "start"} overlapping={wholeDay ? "start" : undefined} onPointerDown={onPointerDown("start")} onKeyDown={onHandleKeyDown("start")} />
+                        <Handle left={clampedEnd} name="End time" dragging={dragging === "end"} overlapping={wholeDay ? "end" : undefined} onPointerDown={onPointerDown("end")} onKeyDown={onHandleKeyDown("end")} />
                     </>
                 )}
             </div>
@@ -231,20 +244,32 @@ function TimingStrip({ mode, startHour, endHour, onStartHourChange, onEndHourCha
     )
 }
 
-function Handle({ left, label, onPointerDown }: { left: number, label: string, onPointerDown: (e: React.PointerEvent) => void }) {
+function Handle({ left, name, dragging, overlapping, onPointerDown, onKeyDown }: {
+    left: number
+    name: string
+    dragging: boolean
+    overlapping?: "start" | "end"
+    onPointerDown: (e: React.PointerEvent) => void
+    onKeyDown: (e: React.KeyboardEvent) => void
+}) {
     return (
         <div
             role="slider"
-            aria-label={label}
+            aria-label={name}
             aria-valuenow={left}
+            aria-valuetext={formatHour(left)}
             aria-valuemin={0}
-            aria-valuemax={23}
+            aria-valuemax={23.5}
             tabIndex={0}
             onPointerDown={onPointerDown}
-            className="absolute top-0 z-10 flex h-full cursor-ew-resize touch-none items-center"
-            style={{ left: `${(left / 24) * 100}%`, transform: "translateX(-50%)" }}
+            onKeyDown={onKeyDown}
+            className={cn("absolute top-0 z-10 flex h-full cursor-ew-resize touch-none items-center focus-visible:z-20 focus-visible:outline-none [&:focus-visible>div]:ring-2 [&:focus-visible>div]:ring-white", dragging && "z-20 transition-[left] duration-75 ease-out motion-reduce:transition-none")}
+            style={{ left: `clamp(8px, ${(left / 24) * 100}%, calc(100% - 8px))`, transform: `translate(-50%, ${overlapping === "start" ? "-8px" : overlapping === "end" ? "8px" : "0"})` }}
         >
-            <div className="size-4 rounded-full border-2 border-white bg-[--brand] shadow-lg shadow-black/40 transition-transform hover:scale-110" />
+            <div className={cn(
+                "size-4 rounded-full border-2 border-white bg-[--brand] shadow-lg shadow-black/40 transition-[transform,box-shadow] duration-150 ease-out motion-reduce:transition-none",
+                dragging ? "scale-125 shadow-[0_0_0_5px_rgba(255,255,255,0.15),0_4px_12px_rgba(0,0,0,0.5)]" : "hover:scale-110",
+            )} />
         </div>
     )
 }

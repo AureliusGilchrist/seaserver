@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
     DOZE_MIN_PLAYED_MS,
+    episodesForReplay,
     finishEntry,
     looksDozed,
     noteInput,
@@ -54,6 +55,15 @@ describe("still-watching history", () => {
     it("splits for Show more", () => {
         expect(splitShowMore([1, 2, 3, 4], 2)).toEqual({ shown: [1, 2], hidden: [3, 4] })
         expect(splitShowMore([1], 2)).toEqual({ shown: [1], hidden: [] })
+    })
+
+    it("lists available episodes through the finale, newest first, without changing the playlist", () => {
+        const episodes = [ep(2), ep(4), ep(1), ep(3), { episodeNumber: 5, progressNumber: undefined }]
+        const replay = episodesForReplay(episodes, 3)
+        expect(replay.map(e => e.progressNumber)).toEqual([3, 2, 1])
+        expect(splitShowMore(replay, 2).shown.map(e => e.progressNumber)).toEqual([3, 2])
+        expect(episodes.map(e => e.episodeNumber)).toEqual([2, 4, 1, 3, 5])
+        expect(episodesForReplay([], 3)).toEqual([])
     })
 
     it("shortens descriptions at a sentence when it can", () => {
