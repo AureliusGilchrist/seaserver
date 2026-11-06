@@ -95,6 +95,7 @@ contextBridge.exposeInMainWorld(
                 "show-setup",
                 "remote-ready",
                 "live-update:progress",
+                "dev-frontend:event",
                 "player:return-from-popout",
                 // Sent when the client is closed to the tray, which never unloads the page and so
                 // is the one "close" the launch id alone cannot catch.
@@ -174,6 +175,13 @@ contextBridge.exposeInMainWorld(
             checkGitHub: () => ipcRenderer.invoke("live-update:check-github"),
             updateGitHub: () => ipcRenderer.invoke("live-update:update-github"),
             getGitHubInfo: () => ipcRenderer.invoke("live-update:github-info"),
+        },
+
+        // Developer Frontend: local watch build served in place of the installed frontend
+        devFrontend: {
+            start: () => ipcRenderer.invoke("dev-frontend:start"),
+            stop: () => ipcRenderer.invoke("dev-frontend:stop"),
+            getStatus: () => ipcRenderer.invoke("dev-frontend:status"),
         },
 
         // Discord Rich Presence (used when server runs on a different machine

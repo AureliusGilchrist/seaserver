@@ -10,6 +10,7 @@ import("strip-ansi").then(module => {
 const log = require("electron-log/main")
 const { createLiveUpdater, getLiveWebDir, getLiveBinaryPath } = require("./live-update")
 const { createGitHubFrontendUpdater } = require("./github-frontend-update")
+const { createDevFrontend } = require("./dev-frontend")
 log.initialize()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -548,8 +549,11 @@ function setupAppProtocol() {
 
     const bundledWebPath = path.join(__dirname, "../web-denshi")
 
-    // A frontend built through "Update frontend" takes precedence over the bundled one
+    // A frontend built through "Update frontend" takes precedence over the bundled one; the
+    // Developer Frontend watcher output takes precedence over both while it runs.
     const getWebPath = () => {
+        const devWebPath = devFrontend.getActiveDir()
+        if (devWebPath) return devWebPath
         const liveWebPath = getLiveWebDir(app)
         return fs.existsSync(path.join(liveWebPath, "index.html")) ? liveWebPath : bundledWebPath
     }
@@ -1113,6 +1117,17 @@ const liveUpdater = createLiveUpdater({
     startServer: () => launchSeanimeServer(true),
     reloadWindows: reloadAppWindows,
     emitProgress: emitUpdateProgress,
+})
+
+const devFrontend = createDevFrontend({
+    log,
+    getWebRoot: () => liveUpdater.getWebRoot(),
+    reloadWindows: reloadAppWindows,
+    emit: (payload) => {
+        for (const win of BrowserWindow.getAllWindows()) {
+            if (!win.isDestroyed()) win.webContents.send("dev-frontend:event", payload)
+        }
+    },
 })
 
 const githubFrontendUpdater = createGitHubFrontendUpdater({
@@ -2023,6 +2038,9 @@ app.whenReady().then(async () => {
     ipcMain.handle("live-update:check-github", () => githubFrontendUpdater.check())
     ipcMain.handle("live-update:update-github", () => githubFrontendUpdater.update())
     ipcMain.handle("live-update:github-info", () => githubFrontendUpdater.getInfo())
+    ipcMain.handle("dev-frontend:start", () => devFrontend.start())
+    ipcMain.handle("dev-frontend:stop", () => devFrontend.stop())
+    ipcMain.handle("dev-frontend:status", () => devFrontend.getStatus())
 
     // Denshi settings IPC handlers
     ipcMain.handle("denshi:getSettings", () => {
@@ -2173,6 +2191,7 @@ app.whenReady().then(async () => {
     })
 
     app.on("before-quit", () => {
+        try { devFrontend.stop() } catch {}
         try {
             if (_discordRPC) {
                 _discordRPC.destroy()

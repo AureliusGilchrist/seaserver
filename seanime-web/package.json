@@ -1,6 +1,6 @@
 {
     "name": "seanime-web",
-    "version": "5.11.0-9",
+    "version": "5.11.0-10",
     "private": true,
     "type": "module",
     "scripts": {
@@ -16,6 +16,7 @@
         "build:rsdoctor": "RSDOCTOR=true rsbuild build",
         "build:desktop": "tsgo && env-cmd -f .env.desktop rsbuild build",
         "build:denshi": "tsgo && env-cmd -f .env.denshi rsbuild build",
+        "watch:denshi": "env-cmd -f .env.denshi rsbuild build --watch",
         "build:mobile": "tsgo && env-cmd -f .env.mobile rsbuild build",
         "build:development:desktop": "tsgo && env-cmd -f .env.development.desktop rsbuild build",
         "test": "node scripts/verify-episode-number.mjs && node scripts/check-number-input.mjs",

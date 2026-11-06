@@ -398,7 +398,7 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
         }
     }
 
-    return { updateBackend, updateFrontend, checkBackend, checkFrontend, getInfo }
+    return { updateBackend, updateFrontend, checkBackend, checkFrontend, getInfo, getWebRoot: requireWebRoot }
 }
 
 module.exports = { createLiveUpdater, getLiveWebDir, getLiveBinaryPath }

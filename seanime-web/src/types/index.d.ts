@@ -108,6 +108,11 @@ declare global {
                     marker?: { version: string; tag?: string; asset?: string; installedAt?: string } | null;
                 }>;
             };
+            devFrontend?: {
+                start: () => Promise<{ ok: boolean; error?: string; status?: DevFrontendStatus }>;
+                stop: () => Promise<{ ok: boolean; status?: DevFrontendStatus }>;
+                getStatus: () => Promise<DevFrontendStatus>;
+            };
             discord?: {
                 setActivity: (payload: any) => Promise<boolean>;
                 clearActivity: () => Promise<boolean>;
@@ -176,6 +181,16 @@ declare global {
         imageUrl?: string;
         duration?: number;
         serverPort?: number;
+    }
+
+    interface DevFrontendStatus {
+        state: "stopped" | "starting" | "building" | "ready" | "error";
+        running: boolean;
+        root: string | null;
+        lastError: string | null;
+        lastBuildAt: string | null;
+        builds: number;
+        tail: string[];
     }
 
     interface LiveUpdateFileChange {

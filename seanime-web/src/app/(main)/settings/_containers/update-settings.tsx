@@ -1,6 +1,7 @@
 import { BACKEND_UPDATE_STATUS_KEY, serverErrorMessage, useCheckBackendUpdate, useUpdateBackend } from "@/api/hooks/update-notice.hooks"
 import { ServerUpdateCard } from "@/app/(main)/settings/_containers/server-update-card"
 import { FrontendUpdateCard } from "@/app/(main)/settings/_containers/frontend-update-card"
+import { DeveloperFrontendCard } from "@/app/(main)/settings/_containers/developer-frontend-card"
 import { useQueryClient } from "@tanstack/react-query"
 import { LuChevronDown, LuScrollText } from "react-icons/lu"
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
@@ -474,6 +475,7 @@ function LiveUpdates() {
             )}
 
             <FrontendUpdateCard />
+            <DeveloperFrontendCard />
 
             {lines.length > 0 && (
                 <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02]">
