@@ -67,17 +67,12 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
     const { mutate: shutdownTranscode } = useMediastreamShutdownTranscodeStream()
     const { isCodecSupported } = useIsCodecSupported()
 
-    // Set when the stream was stopped on purpose (closed, or handed to the popout): a missing URL is
-    // then expected, not a "Playback error".
-    const [stoppedOnPurpose, setStoppedOnPurpose] = React.useState(false)
-    const isStreamError = !!mediaContainer && !url && !stoppedOnPurpose
+    const isStreamError = !!mediaContainer && !url
 
     // ── URL Management ──────────────────────────────────────────────────
 
     function changeUrl(newUrl: string | undefined) {
         log.info("[changeUrl]", newUrl)
-        log.warning(`[trace] changeUrl ${newUrl ? "set" : "clear"}`)
-        if (newUrl) setStoppedOnPurpose(false)
         if (prevUrlRef.current !== newUrl) {
             setPlaybackErrored(false)
         }
@@ -97,7 +92,6 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
     // Handle stream URL from media container
     React.useEffect(() => {
         log.info("Media container changed", mediaContainer)
-        log.warning(`[trace] container effect: streamUrl=${mediaContainer?.streamUrl ?? "none"} type=${mediaContainer?.streamType ?? "none"} settings=${!!mediastreamSettings} nonce=${playNonce}`)
 
         // Don't process until settings are loaded
         if (!mediastreamSettings || mediastreamSettingsLoading) return
@@ -175,14 +169,7 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
     useWebsocketMessageListener<string | null>({
         type: WSEvents.MEDIASTREAM_SHUTDOWN_STREAM,
         onMessage: msg => {
-            // Without a message this is only the broadcast acknowledgement of *some* client's
-            // shutdown (e.g. the popout stopping its stream on return). It must not clear the stream
-            // this window just started; a window that stops its own stream clears the URL itself.
-            if (!msg) {
-                log.info("Ignoring shutdown acknowledgement")
-                return
-            }
-            toast.error(msg)
+            if (msg) toast.error(msg)
             log.warning("Shutdown stream event received")
             changeUrl(undefined)
         },
@@ -217,7 +204,6 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
         const preferDirect = !!mediastreamSettings && (isDirectPlayOnly(mediastreamSettings) || !mediastreamSettings.disableAutoSwitchToDirectPlay)
         setStreamType(preferDirect ? "direct" : "transcode")
         setPlayNonce(n => n + 1)
-        setStoppedOnPurpose(false)
         changeUrl(undefined)
         setFilePath(filepath)
         if (filepath === filePathRef.current) {
@@ -232,7 +218,6 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
     React.useEffect(() => {
         if (!replayRequest || !mediastreamSettings || mediastreamSettingsLoading) return
         setReplayRequest(null)
-        log.warning(`[trace] replay request, known episode=${!episodes.length || episodes.some(ep => ep.localFile?.path === replayRequest.path)}`)
         if (episodes.length && !episodes.some(ep => ep.localFile?.path === replayRequest.path)) return
         log.info("Resuming playback returned from the popout", replayRequest.path)
         onPlayFile(replayRequest.path)
@@ -392,8 +377,6 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
 
     const handleTerminateStream = React.useCallback(() => {
         log.info("Terminating stream")
-        log.warning("[trace] terminating stream")
-        setStoppedOnPurpose(true)
         // Direct play too: the server keeps a session per client until told it's over, and a
         // forgotten one kept its subtitle extraction running and the transcoder from ever resetting.
         // (The endpoint is named for transcoding but ends any stream type's session.)

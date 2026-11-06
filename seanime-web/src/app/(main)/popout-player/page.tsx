@@ -237,11 +237,11 @@ function PopoutReturnButton() {
             id: handoffId,
             video: videoElement,
             onStarted: info => returnNow(info),
-            onFailed: info => {
+            onFailed: () => {
                 setReturning(false)
-                returnNow(info)
+                returnNow()
             },
-            onTimeout: info => returnNow(info),
+            onTimeout: returnNow,
         })
         void requestPopoutReturn(handoffId, request).then(accepted => {
             if (accepted) return
@@ -329,14 +329,25 @@ function PopoutPlaybackHandoff() {
     const [handoffError, setHandoffError] = React.useState<string | null>(null)
     const handoffStartedRef = React.useRef(false)
     const handoffFailureReportedRef = React.useRef(false)
+    const startupTimeoutRef = React.useRef<number | null>(null)
     const reportHandoffFailure = React.useCallback((message: string) => {
         if (handoffStartedRef.current || handoffFailureReportedRef.current) return
         handoffFailureReportedRef.current = true
+        if (startupTimeoutRef.current !== null) {
+            window.clearTimeout(startupTimeoutRef.current)
+            startupTimeoutRef.current = null
+        }
         if (handoffId) announcePopoutHandoffFailed(handoffId)
         setHandoffError(message)
     }, [handoffId])
     React.useEffect(() => {
-        if (nativePlayerState.active) handoffStartedRef.current = true
+        if (nativePlayerState.active) {
+            handoffStartedRef.current = true
+            if (startupTimeoutRef.current !== null) {
+                window.clearTimeout(startupTimeoutRef.current)
+                startupTimeoutRef.current = null
+            }
+        }
     }, [nativePlayerState.active])
     // Closed before the stream got going: the main window keeps playing. (Once the popout plays
     // the main window has already let go, and this message is ignored.)
@@ -397,9 +408,19 @@ function PopoutPlaybackHandoff() {
                     : "The server could not start this stream. Check that it is running, then try again from the main window."
                 log.error("Popout playback handoff failed", error)
                 // Guard against transient startup errors that recover on their own.
-                window.setTimeout(() => reportHandoffFailure(message), 5000)
+                window.setTimeout(() => reportHandoffFailure(message), 1200)
             },
         })
+        if (startupTimeoutRef.current !== null) window.clearTimeout(startupTimeoutRef.current)
+        startupTimeoutRef.current = window.setTimeout(() => {
+            reportHandoffFailure("The popout player could not start this stream in time.")
+        }, 15_000)
+        return () => {
+            if (startupTimeoutRef.current !== null) {
+                window.clearTimeout(startupTimeoutRef.current)
+                startupTimeoutRef.current = null
+            }
+        }
     }, [encodedPath, clientId, isConnected, playLocalFile, reportHandoffFailure])
 
     // Close the window once the handed-off stream is terminated (or fails to start)

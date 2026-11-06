@@ -1997,7 +1997,6 @@ export function VideoCore(props: VideoCoreProps) {
 
             // Restore the position handed back from the popout, or the previous position if available
             const popoutResume = takePendingPopoutResume()
-            log.warning(`[trace] canplay, popoutResume=${popoutResume ? `t=${popoutResume.time}` : "none"}`)
             // Opened from an episode card's hover preview: continue where the preview was.
             const previewResume = popoutResume ? null : takePendingPreviewResume(state.playbackInfo?.localFile?.path || undefined)
             // Clicked an episode card on the entry page: go fullscreen once this can play.
@@ -2018,9 +2017,7 @@ export function VideoCore(props: VideoCoreProps) {
                                 window.setTimeout(() => startTakeover(attempt + 1), 100)
                                 return
                             }
-                            // canplay already fired for this stream; if the element is between
-                            // remounts, do not fail the handoff and poison playback state.
-                            announcePopoutHandoffStarted(handoffId)
+                            announcePopoutHandoffFailed(handoffId)
                             return
                         }
                         log.info("Popout handoff: taking over", position)
@@ -2037,8 +2034,6 @@ export function VideoCore(props: VideoCoreProps) {
                             announcePopoutHandoffStarted(handoffId)
                         }
                         v.addEventListener("playing", announce)
-                        // Never leave the other window playing on: it stops a few seconds in at most.
-                        window.setTimeout(announce, 5000)
                         if (position.time > 0) restoreSeekTime(position.time, false, false)
                         else v.play().catch(() => {})
                     }

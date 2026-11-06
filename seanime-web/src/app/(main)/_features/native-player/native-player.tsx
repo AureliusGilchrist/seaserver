@@ -62,7 +62,6 @@ export function NativePlayer() {
     const resumeFromPopout = (payload: { path: string, time: number, paused: boolean, from?: string }, handoffId?: string) => {
         // The user asked for playback back here: the popout no longer has priority over it.
         releasePopoutPriority()
-        log.warning(`[trace] resumeFromPopout t=${payload.time} paused=${payload.paused} from=${payload.from ?? "none"} handoff=${handoffId ?? "none"}`)
         setPendingPopoutResume(payload.time, payload.paused, handoffId)
         if (payload.from) {
             log.info("Returning popout playback to the local player", payload.from)
