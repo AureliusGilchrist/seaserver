@@ -173,7 +173,14 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
     useWebsocketMessageListener<string | null>({
         type: WSEvents.MEDIASTREAM_SHUTDOWN_STREAM,
         onMessage: msg => {
-            if (msg) toast.error(msg)
+            // Without a message this is only the broadcast acknowledgement of *some* client's
+            // shutdown (e.g. the popout stopping its stream on return). It must not clear the stream
+            // this window just started; a window that stops its own stream clears the URL itself.
+            if (!msg) {
+                log.info("Ignoring shutdown acknowledgement")
+                return
+            }
+            toast.error(msg)
             log.warning("Shutdown stream event received")
             changeUrl(undefined)
         },
