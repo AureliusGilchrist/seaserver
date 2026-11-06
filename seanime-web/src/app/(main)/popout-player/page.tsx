@@ -385,6 +385,13 @@ function PopoutPlaybackHandoff() {
         log.info("Starting popout playback", filePath)
         playLocalFile({ path: filePath, clientId }, {
             onError: (error: any) => {
+                // The endpoint answers an empty 200 once the stream is started (its events arrive
+                // over the websocket), which the API client reports as "no response". That is a
+                // success here; treating it as a failure made the handoff roll back the main player.
+                if (error?.message === "No response from the server" && !error?.response) {
+                    log.info("Popout playback request returned an empty body; stream is starting")
+                    return
+                }
                 // Most likely causes: the profile session was rejected (401) or the server is
                 // unreachable. Say so instead of leaving the spinner up forever — this window
                 // has no other UI to explain itself with.
