@@ -1798,6 +1798,9 @@ export function VideoCore(props: VideoCoreProps) {
             const watchedThreshold = personal.episodeWatchedThreshold / 100
             if (w.maxPercent < watchedThreshold && percent >= watchedThreshold) {
                 markEpisodePlayed(info.media.id, episodeNumber)
+                toast.success(`Episode ${episodeNumber} marked as watched`, {
+                    description: `Reached your ${personal.episodeWatchedThreshold}% watched threshold.`,
+                })
                 onReachedProgressThreshold()
             }
             w.maxPercent = percent
