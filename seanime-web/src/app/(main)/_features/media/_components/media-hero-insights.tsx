@@ -107,9 +107,9 @@ export function MediaHeroInsights({ info, meanScore, hideScore, type, className,
                 </div>
             )}
 
-            {showExtras && !!streams.length && (
+            {showExtras && type !== "anime" && !!streams.length && (
                 <div className="flex flex-wrap items-center justify-center gap-1.5 lg:justify-start" data-media-hero-streams>
-                    <span className="mr-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/40"><LuPlay className="size-3" />{type === "anime" ? "Watch on" : "Read on"}</span>
+                    <span className="mr-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/40"><LuPlay className="size-3" />{"Read on"}</span>
                     {streams.map(l => (
                         <a
                             key={l.id}
