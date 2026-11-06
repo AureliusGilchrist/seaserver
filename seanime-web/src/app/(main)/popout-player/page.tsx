@@ -26,7 +26,7 @@ import {
     setPendingPopoutResume,
     startPopoutHandoffGiver,
 } from "@/app/(main)/_features/video-core/video-core-popout-resume"
-import { setPopoutHandingBack } from "@/app/(main)/_features/video-core/video-core-single-playback"
+import { setPopoutCurrentPath, setPopoutHandingBack } from "@/app/(main)/_features/video-core/video-core-single-playback"
 import { clientIdAtom, websocketConnectedAtom } from "@/app/websocket-provider"
 import { AppLayoutStack } from "@/components/ui/app-layout"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
@@ -335,6 +335,11 @@ function PopoutPlaybackHandoff() {
     const clientId = useAtomValue(clientIdAtom)
     const isConnected = useAtomValue(websocketConnectedAtom)
     const nativePlayerState = useAtomValue(nativePlayer_stateAtom)
+    // Tells the main window which episode this window is on, so its player follows along.
+    const currentPopoutPath = nativePlayerState.playbackInfo?.localFile?.path
+    React.useEffect(() => {
+        setPopoutCurrentPath(currentPopoutPath)
+    }, [currentPopoutPath])
     const [handoffError, setHandoffError] = React.useState<string | null>(null)
     const { mutate: playLocalFile } = useDirectstreamPlayLocalFile()
 

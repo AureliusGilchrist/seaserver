@@ -114,6 +114,25 @@ describe("one player at a time, the popout wins", () => {
         stopGuard()
     })
 
+    it("follows the popout's episode, without any position", async () => {
+        const seen: string[] = []
+        const stopGuard = mod.startMainWindowPlaybackGuard()
+        const stopListening = mod.onPopoutPathChange(path => seen.push(path))
+        const popoutChannel = new BroadcastChannel("vc-single-playback")
+
+        popoutChannel.postMessage({ type: "popout-open", path: "/a/ep1.mkv" })
+        popoutChannel.postMessage({ type: "popout-open", path: "/a/ep1.mkv" })
+        await wait(30)
+        popoutChannel.postMessage({ type: "popout-open", path: "/a/ep2.mkv" })
+        await wait(30)
+        expect(seen).toEqual(["/a/ep1.mkv", "/a/ep2.mkv"])
+
+        popoutChannel.postMessage({ type: "popout-closed" })
+        popoutChannel.close()
+        stopListening()
+        stopGuard()
+    })
+
     it("pauses the main window when the popout plays, and blocks new playback there", async () => {
         const main = new FakeMedia()
         elements = [main]

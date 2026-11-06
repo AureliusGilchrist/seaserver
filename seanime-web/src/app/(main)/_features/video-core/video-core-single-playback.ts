@@ -18,7 +18,7 @@ const RETURN_GRACE_MS = 10_000
 
 type Message =
     | { type: "popout-state", playing: boolean }
-    | { type: "popout-open" }
+    | { type: "popout-open", path?: string }
     | { type: "popout-closed" }
     | { type: "query" }
 
@@ -55,6 +55,19 @@ export function setPopoutHandingBack(value: boolean) {
     popoutHandingBack = value
 }
 
+// The file the popout is on, sent with its presence so the main window's player follows episode
+// changes (the position is not synced: the main window gets that only when playback returns).
+let popoutCurrentPath: string | undefined
+let announcePopoutPresence: (() => void) | null = null
+
+/** Popout window: the file now playing here; announced to the main window right away. */
+export function setPopoutCurrentPath(path: string | null | undefined) {
+    const next = path || undefined
+    if (next === popoutCurrentPath) return
+    popoutCurrentPath = next
+    announcePopoutPresence?.()
+}
+
 /** Popout window: report this window's playing state to the main window. Returns a stop function. */
 export function startPopoutPlaybackBeacon(): () => void {
     const channel = openChannel()
@@ -83,16 +96,18 @@ export function startPopoutPlaybackBeacon(): () => void {
         catch {
         }
     }
+    const announceOpen = () => post({ type: "popout-open", path: popoutCurrentPath })
+    announcePopoutPresence = announceOpen
     const events = ["play", "playing", "pause", "ended", "emptied"] as const
     events.forEach(e => document.addEventListener(e, onChange, true))
     channel.onmessage = (event: MessageEvent<Message>) => {
         if (event.data?.type === "query") {
             report(true)
-            post({ type: "popout-open" })
+            announceOpen()
         }
     }
     const heartbeat = window.setInterval(() => {
-        post({ type: "popout-open" })
+        announceOpen()
         if (playing()) report(true)
         else report()
     }, HEARTBEAT_MS)
@@ -102,10 +117,11 @@ export function startPopoutPlaybackBeacon(): () => void {
         post({ type: "popout-closed" })
     }
     window.addEventListener("pagehide", onHide)
-    post({ type: "popout-open" })
+    announceOpen()
     report(true)
 
     return () => {
+        if (announcePopoutPresence === announceOpen) announcePopoutPresence = null
         events.forEach(e => document.removeEventListener(e, onChange, true))
         window.clearInterval(heartbeat)
         window.removeEventListener("pagehide", onHide)
@@ -129,6 +145,30 @@ const popoutPlayingListeners = new Set<(playing: boolean) => void>()
 let popoutOpenUntil = 0
 let popoutPresentNow = false
 const popoutPresentListeners = new Set<(present: boolean) => void>()
+
+// The file the popout is on, as last reported; listeners hear about each change.
+let popoutPathNow: string | undefined
+const popoutPathListeners = new Set<(path: string) => void>()
+
+/** Main window: subscribe to the popout changing episode. Returns an unsubscribe function. */
+export function onPopoutPathChange(listener: (path: string) => void): () => void {
+    popoutPathListeners.add(listener)
+    if (popoutPathNow) listener(popoutPathNow)
+    return () => popoutPathListeners.delete(listener)
+}
+
+function setPopoutPath(path: string | undefined) {
+    if (path === popoutPathNow) return
+    popoutPathNow = path
+    if (!path) return
+    popoutPathListeners.forEach(l => {
+        try {
+            l(path)
+        }
+        catch {
+        }
+    })
+}
 
 export function isPopoutPlaying() {
     return Date.now() < popoutPlayingUntil && Date.now() >= ignorePopoutUntil
@@ -199,11 +239,13 @@ export function startMainWindowPlaybackGuard(onBlocked?: () => void): () => void
         if (msg?.type === "popout-open") {
             popoutOpenUntil = Date.now() + STALE_MS
             setPopoutPresent(true)
+            setPopoutPath(msg.path)
             return
         }
         if (msg?.type === "popout-closed") {
             popoutOpenUntil = 0
             setPopoutPresent(false)
+            popoutPathNow = undefined
             return
         }
         if (msg?.type !== "popout-state") return
@@ -224,11 +266,17 @@ export function startMainWindowPlaybackGuard(onBlocked?: () => void): () => void
     // overlay comes down with it instead of hanging over the player forever.
     const staleTimer = window.setInterval(() => {
         if (popoutPlayingNow && !isPopoutPlaying()) setPopoutPlayingNow(false)
-        if (popoutPresentNow && Date.now() >= popoutOpenUntil) setPopoutPresent(false)
+        if (popoutPresentNow && Date.now() >= popoutOpenUntil) {
+            setPopoutPresent(false)
+            popoutPathNow = undefined
+        }
     }, HEARTBEAT_MS)
 
     const onPlay = (event: Event) => {
-        if (!isPopoutPlaying()) return
+        // Blocked while the popout plays, and while it is merely open: the main player follows
+        // the popout's episode under the blur and must not start playing by itself.
+        const holding = isPopoutPlaying() || (popoutPresentNow && Date.now() >= ignorePopoutUntil)
+        if (!holding) return
         const media = event.target
         if (!(media instanceof HTMLMediaElement)) return
         media.pause()
@@ -250,6 +298,7 @@ export function startMainWindowPlaybackGuard(onBlocked?: () => void): () => void
         window.clearInterval(staleTimer)
         setPopoutPlayingNow(false)
         setPopoutPresent(false)
+        popoutPathNow = undefined
         channel.close()
     }
 }

@@ -6,7 +6,7 @@ import {
     setPendingPopoutResume,
     wasReturnedOverChannel,
 } from "@/app/(main)/_features/video-core/video-core-popout-resume"
-import { releasePopoutPriority } from "@/app/(main)/_features/video-core/video-core-single-playback"
+import { onPopoutPathChange, releasePopoutPriority } from "@/app/(main)/_features/video-core/video-core-single-playback"
 import { MKVParser_SubtitleEvent, NativePlayer_PlaybackInfo, NativePlayer_ServerEvent } from "@/api/generated/types"
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { vc_miniPlayer, vc_requestTranscodeForAudio, vc_videoElement, vc_directPlayAudioUrl, vc_directPlayAudioLoading } from "@/app/(main)/_features/video-core/video-core-atoms"
@@ -80,6 +80,8 @@ export function NativePlayer() {
     }
     const resumeFromPopoutRef = React.useRef(resumeFromPopout)
     resumeFromPopoutRef.current = resumeFromPopout
+    const setMediastreamFilePathRef = React.useRef(setMediastreamFilePath)
+    setMediastreamFilePathRef.current = setMediastreamFilePath
 
     React.useEffect(() => {
         if (typeof window === "undefined" || !window.electron?.on || !clientId) return
@@ -95,6 +97,10 @@ export function NativePlayer() {
             return true
         })
 
+        // The popout changed episode: this window's player moves to it too (selection only — the
+        // position stays, and is taken from the popout when playback returns).
+        const stopFollowing = onPopoutPathChange(path => setMediastreamFilePathRef.current(path))
+
         const off = window.electron.on("player:return-from-popout", (payload: { path: string, time: number, paused: boolean, from?: string }) => {
             if (!payload?.path) return
             // Already taken back over the channel: the shell's message only raised this window.
@@ -103,6 +109,7 @@ export function NativePlayer() {
         })
         return () => {
             stopListening()
+            stopFollowing()
             off?.()
         }
     }, [clientId])
