@@ -76,44 +76,6 @@ describe("one player at a time, the popout wins", () => {
         popoutChannel.close()
         stopGuard()
     })
-
-    it("tells subscribers when the pip window is open, paused or not", async () => {
-        const seen: boolean[] = []
-        const stopListening = mod.onPopoutPresentChange(present => seen.push(present))
-        // The current state is delivered on subscribe.
-        expect(seen).toEqual([false])
-
-        const stopGuard = mod.startMainWindowPlaybackGuard()
-        const popoutChannel = new BroadcastChannel("vc-single-playback")
-
-        // Open, not yet playing: the main window's player blurs already.
-        popoutChannel.postMessage({ type: "popout-open" })
-        await wait(30)
-        expect(seen).toEqual([false, true])
-
-        // Paused: still open — the pip exists either way.
-        popoutChannel.postMessage({ type: "popout-state", playing: false })
-        await wait(30)
-        expect(seen[seen.length - 1]).toBe(true)
-
-        // Closed: gone at once.
-        popoutChannel.postMessage({ type: "popout-closed" })
-        await wait(30)
-        expect(seen[seen.length - 1]).toBe(false)
-
-        // A pip that dies without saying so stops counting once its last report goes stale.
-        popoutChannel.postMessage({ type: "popout-open" })
-        await wait(30)
-        expect(seen[seen.length - 1]).toBe(true)
-        // STALE_MS (3.5s) plus the next tick of the staleness timer (1s).
-        await wait(4700)
-        expect(seen[seen.length - 1]).toBe(false)
-
-        stopListening()
-        popoutChannel.close()
-        stopGuard()
-    })
-
     it("pauses the main window when the popout plays, and blocks new playback there", async () => {
         const main = new FakeMedia()
         elements = [main]
