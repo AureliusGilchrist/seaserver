@@ -67,12 +67,16 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
     const { mutate: shutdownTranscode } = useMediastreamShutdownTranscodeStream()
     const { isCodecSupported } = useIsCodecSupported()
 
-    const isStreamError = !!mediaContainer && !url
+    // Set when the stream was stopped on purpose (closed, or handed to the popout): a missing URL is
+    // then expected, not a "Playback error".
+    const [stoppedOnPurpose, setStoppedOnPurpose] = React.useState(false)
+    const isStreamError = !!mediaContainer && !url && !stoppedOnPurpose
 
     // ── URL Management ──────────────────────────────────────────────────
 
     function changeUrl(newUrl: string | undefined) {
         log.info("[changeUrl]", newUrl)
+        if (newUrl) setStoppedOnPurpose(false)
         if (prevUrlRef.current !== newUrl) {
             setPlaybackErrored(false)
         }
@@ -204,6 +208,7 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
         const preferDirect = !!mediastreamSettings && (isDirectPlayOnly(mediastreamSettings) || !mediastreamSettings.disableAutoSwitchToDirectPlay)
         setStreamType(preferDirect ? "direct" : "transcode")
         setPlayNonce(n => n + 1)
+        setStoppedOnPurpose(false)
         changeUrl(undefined)
         setFilePath(filepath)
         if (filepath === filePathRef.current) {
@@ -377,6 +382,7 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
 
     const handleTerminateStream = React.useCallback(() => {
         log.info("Terminating stream")
+        setStoppedOnPurpose(true)
         // Direct play too: the server keeps a session per client until told it's over, and a
         // forgotten one kept its subtitle extraction running and the transcoder from ever resetting.
         // (The endpoint is named for transcoding but ends any stream type's session.)
