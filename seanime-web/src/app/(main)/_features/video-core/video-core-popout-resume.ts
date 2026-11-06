@@ -90,6 +90,8 @@ export function startPopoutHandoffGiver(opts: {
     onFailed?: () => void
     /** pausedForHandoff: this window paused itself for the handoff, it was playing before. */
     onTimeout?: (info: { pausedForHandoff: boolean }) => void
+    /** True while the taking-over window exists: a failure there then leaves this window paused. */
+    keepPausedOnFailure?: () => boolean
     timeoutMs?: number
 }): () => void {
     const { id, video } = opts
@@ -164,7 +166,7 @@ export function startPopoutHandoffGiver(opts: {
             } else if (msg.type === "failed") {
                 // The other window could not take over: playback carries on here (resumed while
                 // this handoff still counts, so the single-playback guard lets it through).
-                resumeIfPaused()
+                if (!opts.keepPausedOnFailure?.()) resumeIfPaused()
                 finish()
                 opts.onFailed?.()
             }
@@ -215,11 +217,16 @@ export function requestPopoutHandoffPosition(id: string, fallback: { time: numbe
 
 /** The window taking over is playing (or holding paused, as asked): the giving window can stop. */
 export function announcePopoutHandoffStarted(id: string) {
+    startedHandoffs.add(id)
     post({ type: "started", id })
 }
 
+const startedHandoffs = new Set<string>()
+
 /** The window taking over could not start: the giving window keeps playing. */
 export function announcePopoutHandoffFailed(id: string) {
+    // Closing the window after it took over is not a failed handoff.
+    if (startedHandoffs.has(id)) return
     post({ type: "failed", id })
 }
 

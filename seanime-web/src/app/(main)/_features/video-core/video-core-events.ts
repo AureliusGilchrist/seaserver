@@ -23,6 +23,7 @@ import { vc_autoNextAtom, VideoCore_VideoSubtitleTrack, VideoCoreLifecycleState 
 import { detectSubtitleType, isSubtitleFile } from "@/app/(main)/_features/video-core/video-core.utils"
 import { useWebsocketMessageListener, useWebsocketSender } from "@/app/(main)/_hooks/handle-websockets"
 import { clientIdAtom } from "@/app/websocket-provider"
+import { isPopoutPlayerWindow, isPopoutPresent } from "@/app/(main)/_features/video-core/video-core-single-playback"
 import { logger } from "@/lib/helpers/debug"
 import { WSEvents } from "@/lib/server/ws-events"
 import { useAtomValue, useSetAtom } from "jotai"
@@ -434,6 +435,9 @@ export function useVideoCoreSetupEvents(id: string,
         const player = videoElement
 
         const interval = setInterval(() => {
+            // While the pip is open it is the one that watches: this paused stream must not report
+            // its frozen position over the pip's (the server saves it as the resume point).
+            if (isPopoutPresent() && !isPopoutPlayerWindow()) return
             // log.trace("Sending video status")
             sendEvent<VideoCoreStatusEventPayload>("video-status", {
                 id: state.playbackInfo?.id || "",

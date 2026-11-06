@@ -117,6 +117,7 @@ import {
 } from "@/app/(main)/_features/video-core/video-core-popout-resume"
 import {
     isPopoutPlayerWindow,
+    isPopoutPresent,
     onPopoutPresentChange,
 } from "@/app/(main)/_features/video-core/video-core-single-playback"
 import { markEpisodePlayed } from "@/lib/progress-queue/progress-queue"
@@ -2169,15 +2170,17 @@ export function VideoCore(props: VideoCoreProps) {
                     // and stops only once the popout plays on from this exact moment.
                     const handoffId = newPopoutHandoffId()
                     const url = `${window.location.origin}/popout-player?path=${encoded}&launch=${encodeURIComponent(launchId)}${from}${at}&handoff=${handoffId}`
-                    const stop = () => onTerminateStreamRef.current()
+                    // The pip is the one that plays and keeps the time; this stream stays loaded,
+                    // paused on the frame the pip started from (it is only closed on return).
                     const cancelHandoff = startPopoutHandoffGiver({
                         id: handoffId,
                         video: v,
-                        onStarted: stop,
-                        // The popout could not start: playback simply stays here.
-                        onFailed: () => toast.error("The popout player could not start this stream"),
-                        // No word from the popout at all: hand off the old way.
-                        onTimeout: stop,
+                        keepPausedOnFailure: isPopoutPresent,
+                        onStarted: () => {},
+                        onFailed: () => {
+                            if (!isPopoutPresent()) toast.error("The popout player could not start this stream")
+                        },
+                        onTimeout: () => {},
                     })
 
                     window.electron!.window!.openPlayerPopout(url).catch((err: unknown) => {

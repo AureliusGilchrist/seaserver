@@ -174,6 +174,11 @@ function setPopoutPath(path: string | undefined) {
     })
 }
 
+/** Main window: whether the popout window exists right now (playing or paused). */
+export function isPopoutPresent() {
+    return popoutPresentNow
+}
+
 export function isPopoutPlaying() {
     return Date.now() < popoutPlayingUntil && Date.now() >= ignorePopoutUntil
 }
