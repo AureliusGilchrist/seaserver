@@ -1997,6 +1997,7 @@ export function VideoCore(props: VideoCoreProps) {
 
             // Restore the position handed back from the popout, or the previous position if available
             const popoutResume = takePendingPopoutResume()
+            log.warning(`[trace] canplay, popoutResume=${popoutResume ? `t=${popoutResume.time}` : "none"}`)
             // Opened from an episode card's hover preview: continue where the preview was.
             const previewResume = popoutResume ? null : takePendingPreviewResume(state.playbackInfo?.localFile?.path || undefined)
             // Clicked an episode card on the entry page: go fullscreen once this can play.

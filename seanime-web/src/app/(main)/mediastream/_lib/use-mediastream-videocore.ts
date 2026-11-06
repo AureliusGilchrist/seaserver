@@ -76,6 +76,7 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
 
     function changeUrl(newUrl: string | undefined) {
         log.info("[changeUrl]", newUrl)
+        log.warning(`[trace] changeUrl ${newUrl ? "set" : "clear"}`)
         if (newUrl) setStoppedOnPurpose(false)
         if (prevUrlRef.current !== newUrl) {
             setPlaybackErrored(false)
@@ -96,6 +97,7 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
     // Handle stream URL from media container
     React.useEffect(() => {
         log.info("Media container changed", mediaContainer)
+        log.warning(`[trace] container effect: streamUrl=${mediaContainer?.streamUrl ?? "none"} type=${mediaContainer?.streamType ?? "none"} settings=${!!mediastreamSettings} nonce=${playNonce}`)
 
         // Don't process until settings are loaded
         if (!mediastreamSettings || mediastreamSettingsLoading) return
@@ -230,6 +232,7 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
     React.useEffect(() => {
         if (!replayRequest || !mediastreamSettings || mediastreamSettingsLoading) return
         setReplayRequest(null)
+        log.warning(`[trace] replay request, known episode=${!episodes.length || episodes.some(ep => ep.localFile?.path === replayRequest.path)}`)
         if (episodes.length && !episodes.some(ep => ep.localFile?.path === replayRequest.path)) return
         log.info("Resuming playback returned from the popout", replayRequest.path)
         onPlayFile(replayRequest.path)
@@ -389,6 +392,7 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
 
     const handleTerminateStream = React.useCallback(() => {
         log.info("Terminating stream")
+        log.warning("[trace] terminating stream")
         setStoppedOnPurpose(true)
         // Direct play too: the server keeps a session per client until told it's over, and a
         // forgotten one kept its subtitle extraction running and the transcoder from ever resetting.
