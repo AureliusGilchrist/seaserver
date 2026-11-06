@@ -20,7 +20,7 @@ const RETURN_GRACE_MS = 10_000
 
 type Message =
     | { type: "popout-state", playing: boolean }
-    | { type: "popout-open", path?: string, time?: number }
+    | { type: "popout-open", path?: string }
     | { type: "popout-closed" }
     | { type: "query" }
 
@@ -98,11 +98,7 @@ export function startPopoutPlaybackBeacon(): () => void {
         catch {
         }
     }
-    const announceOpen = () => {
-        const video = document.querySelector("video")
-        const time = video && Number.isFinite(video.currentTime) && video.currentTime > 0 ? video.currentTime : undefined
-        post({ type: "popout-open", path: popoutCurrentPath, time })
-    }
+    const announceOpen = () => post({ type: "popout-open", path: popoutCurrentPath })
     announcePopoutPresence = announceOpen
     const events = ["play", "playing", "pause", "ended", "emptied"] as const
     events.forEach(e => document.addEventListener(e, onChange, true))
@@ -154,15 +150,6 @@ const popoutPresentListeners = new Set<(present: boolean) => void>()
 
 // The file the popout is on, as last reported; listeners hear about each change.
 let popoutPathNow: string | undefined
-
-// The pip's last reported position (heartbeat), a fallback for when its return message carries none.
-let lastPopoutTime: { path: string, time: number, at: number } | null = null
-
-/** Main window: the pip's last reported time for this file, if it reported one in the last minute. */
-export function getLastPopoutTime(path: string): number {
-    if (!lastPopoutTime || lastPopoutTime.path !== path || Date.now() - lastPopoutTime.at > 60_000) return 0
-    return lastPopoutTime.time
-}
 const popoutPathListeners = new Set<(path: string) => void>()
 
 /** Main window: subscribe to the popout changing episode. Returns an unsubscribe function. */
@@ -257,7 +244,6 @@ export function startMainWindowPlaybackGuard(onBlocked?: () => void): () => void
             popoutOpenUntil = Date.now() + STALE_MS
             setPopoutPresent(true)
             setPopoutPath(msg.path)
-            if (msg.path && typeof msg.time === "number" && msg.time > 0) lastPopoutTime = { path: msg.path, time: msg.time, at: Date.now() }
             return
         }
         if (msg?.type === "popout-closed") {
