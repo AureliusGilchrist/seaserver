@@ -24,6 +24,24 @@ export function hasPendingPopoutHandoff() {
     return !!pending?.handoffId && pending.expiresAt >= Date.now()
 }
 
+// The position the popout returned at, for the window taking playback back. Unlike the one-shot
+// pending resume above it is not consumed by the first canplay, so whatever the player did while
+// reloading cannot lose it: the player re-applies it until it has played from there.
+let returnTime: { path: string, time: number, expiresAt: number } | null = null
+
+export function setPopoutReturnTime(path: string, time: number) {
+    returnTime = time > 0 ? { path, time, expiresAt: Date.now() + 45_000 } : null
+}
+
+export function peekPopoutReturnTime(path: string | undefined | null): number {
+    if (!returnTime || !path || returnTime.path !== path || returnTime.expiresAt < Date.now()) return 0
+    return returnTime.time
+}
+
+export function clearPopoutReturnTime() {
+    returnTime = null
+}
+
 export function takePendingPopoutResume(): { time: number, paused: boolean, handoffId?: string } | null {
     const current = pending
     pending = null

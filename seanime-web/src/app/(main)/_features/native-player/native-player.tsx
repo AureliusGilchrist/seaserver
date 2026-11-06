@@ -4,6 +4,7 @@ import { useDirectstreamPlayLocalFile } from "@/api/hooks/directstream.hooks"
 import {
     listenForPopoutReturns,
     setPendingPopoutResume,
+    setPopoutReturnTime,
     wasReturnedOverChannel,
 } from "@/app/(main)/_features/video-core/video-core-popout-resume"
 import { onPopoutPathChange, releasePopoutPriority } from "@/app/(main)/_features/video-core/video-core-single-playback"
@@ -61,6 +62,8 @@ export function NativePlayer() {
     const resumeFromPopout = (payload: { path: string, time: number, paused: boolean, from?: string }, handoffId?: string) => {
         // The user asked for playback back here: the popout no longer has priority over it.
         releasePopoutPriority()
+        setPopoutReturnTime(payload.path, payload.time)
+        console.warn("[POPOUT RETURN] resuming at", payload.time, payload.path)
         setPendingPopoutResume(payload.time, payload.paused, handoffId)
         if (payload.from) {
             log.info("Returning popout playback to the local player", payload.from)

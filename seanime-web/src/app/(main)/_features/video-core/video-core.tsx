@@ -110,6 +110,9 @@ import {
     announcePopoutHandoffStarted,
     askPopoutToReturn,
     hasPendingPopoutHandoff,
+    clearPopoutReturnTime,
+    setPopoutReturnTime,
+    peekPopoutReturnTime,
     newPopoutHandoffId,
     requestPopoutHandoffPosition,
     startPopoutHandoffGiver,
@@ -1371,6 +1374,29 @@ export function VideoCore(props: VideoCoreProps) {
         }
     }, [state.playbackInfo?.id, waitForWatchHistory, shouldWaitForWatchHistory])
 
+    // The pip's time is authoritative when playback returns from it: whatever the player does
+    // while (re)loading the stream, it is brought to that position and held there until it is
+    // seen playing from it.
+    React.useEffect(() => {
+        if (!__isElectronDesktop__ || isPopoutPlayerWindow() || !state.playbackInfo) return
+        const timer = window.setInterval(() => {
+            const v = videoRef.current
+            const path = state.playbackInfo?.localFile?.path ?? mediastreamFilePath ?? null
+            const target = peekPopoutReturnTime(path)
+            if (!v || !target) return
+            if (isPopoutPresent() || v.readyState < 1 || v.seeking || !Number.isFinite(v.duration)) return
+            if (Math.abs(v.currentTime - target) > 2) {
+                log.info("Popout return: seeking to the pip's time", target)
+                v.currentTime = Math.min(target, v.duration)
+                onTargetCount = 0
+            } else if (++onTargetCount >= 2) {
+                clearPopoutReturnTime()
+            }
+        }, 300)
+        let onTargetCount = 0
+        return () => window.clearInterval(timer)
+    }, [state.playbackInfo?.id, mediastreamFilePath])
+
     // Override active player, won't apply to native-player
     React.useEffect(() => {
         if (state.playbackInfo?.id && activePlayer === props.id) {
@@ -2021,6 +2047,7 @@ export function VideoCore(props: VideoCoreProps) {
                         return
                     }
                     log.info("Popout handoff: taking over", position)
+                    if (position.time > 0) setPopoutReturnTime(state.playbackInfo?.localFile?.path ?? mediastreamFilePath ?? "", position.time)
                     if (position.paused) {
                         if (position.time > 0) restoreSeekTime(position.time, false, true)
                         announcePopoutHandoffStarted(handoffId)
