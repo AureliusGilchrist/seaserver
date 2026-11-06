@@ -16,6 +16,7 @@ const clientSettingsPrefKey = "sea-client-settings"
 // pointer replaces the server-wide value for decisions made on behalf of that profile.
 type ClientSettingsOverrides struct {
 	AutoUpdateProgress       *bool `json:"autoUpdateProgress,omitempty"`
+	EpisodeWatchedThreshold  *int  `json:"episodeWatchedThreshold,omitempty"`
 	EnableWatchContinuity    *bool `json:"enableWatchContinuity,omitempty"`
 	AutoPlayNextEpisode      *bool `json:"autoPlayNextEpisode,omitempty"`
 	StillWatchingChecks      *bool `json:"stillWatchingChecksEnabled,omitempty"`
@@ -110,4 +111,3 @@ func parseClientSettingsOverrides(raw string) *ClientSettingsOverrides {
 	}
 	return &o
 }
-

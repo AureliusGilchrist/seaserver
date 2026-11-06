@@ -91,9 +91,6 @@ func NewEchoApp(app *App, webFS *embed.FS) *echo.Echo {
 	// Serve user-downloaded theme backgrounds
 	e.Static("/theme-bg", filepath.Join(app.Config.Data.AppDataDir, "theme-backgrounds"))
 
-	// Serve downloaded theme music
-	e.Static("/theme-music", filepath.Join(app.Config.Data.AppDataDir, "theme-music"))
-
 	// Serve shared downloaded themes (profile-shared, not bundled)
 	sharedThemesDir := filepath.Join(app.Config.Data.AppDataDir, "themes")
 	app.Logger.Info().Msgf("app: Shared themes path: %s", sharedThemesDir)
@@ -140,7 +137,6 @@ func shouldSkipWebStatic(path string) bool {
 		"/manga-downloads",
 		"/offline-assets",
 		"/theme-bg",
-		"/theme-music",
 		"/shared-themes",
 		"/cursor-packs",
 		"/sound-packs",

@@ -840,7 +840,6 @@ export const whisperOfTheHeartTheme: AnimeThemeConfig = {
         "m_meta_diverse": "Seiji's Dream Anchor",
         "m_meta_dominator": "Bookworm Shizuku Writ",
     },
-    musicUrl: "",
     previewColors: {
         bg: "#060500",
         primary: "#c0820f",

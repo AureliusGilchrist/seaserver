@@ -838,7 +838,6 @@ export const wolfChildrenTheme: AnimeThemeConfig = {
         "m_meta_diverse": "Born Anchor Anchor",
         "m_meta_dominator": "Family Alerts Writ",
     },
-    musicUrl: "",
     previewColors: {
         bg: "#000400",
         primary: "#328e41",

@@ -840,7 +840,6 @@ export const windBreakerTheme: AnimeThemeConfig = {
         "m_meta_diverse": "Wind Breaker Anchor",
         "m_meta_dominator": "Dawn Training Writ",
     },
-    musicUrl: "",
     previewColors: {
         bg: "#060100",
         primary: "#d74800",

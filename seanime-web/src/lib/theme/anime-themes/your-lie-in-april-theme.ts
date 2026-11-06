@@ -840,7 +840,6 @@ export const yourLieInAprilTheme: AnimeThemeConfig = {
         "m_meta_diverse": "Naoshi Master Anchor",
         "m_meta_dominator": "Performer Resolve Writ",
     },
-    musicUrl: "",
     previewColors: {
         bg: "#040106",
         primary: "#c04b80",

@@ -5,19 +5,7 @@ import { buildSeaQuery } from "@/api/client/requests"
 import { resolveServerAsset } from "@/lib/server/assets"
 import { resolveLandingImage, useWallpaperOverride } from "@/lib/theme/landing-look"
 import React from "react"
-import { atom, useAtom, useAtomValue, useSetAtom } from "jotai"
-import { atomWithStorage } from "jotai/utils"
-import { useListThemeMusicMetadata } from "@/api/hooks/theme-music.hooks"
-import {
-    equippedThemeOstIdAtom,
-    themeOstCurrentTrackIndexAtom,
-    themeOstLoopModeAtom,
-    themeOstPlayingAtom,
-    themeOstPositionAtom,
-    themeOstSeekRequestAtom,
-    themeOstSkipDirectionAtom,
-    videoFadeActiveAtom,
-} from "@/lib/theme/anime-themes/theme-ost-atoms"
+import { atom, useAtomValue, useSetAtom } from "jotai"
 
 // Signals that a page wants to show wallpaper at near-full opacity (e.g. theme manager)
 export const wallpaperPreviewModeAtom = atom(false)
@@ -214,10 +202,6 @@ type AnimeThemeContextValue = {
     themeId: AnimeThemeId
     config: AnimeThemeConfig
     setThemeId: (id: AnimeThemeId) => void
-    musicEnabled: boolean
-    setMusicEnabled: (v: boolean) => void
-    musicVolume: number
-    setMusicVolume: (v: number) => void
     animatedIntensity: number
     setAnimatedIntensity: (v: number) => void
     particleSettings: ParticleSettings
@@ -297,7 +281,6 @@ function buildConfigFromMeta(meta: import("@/lib/theme/marketplace-theme-loader"
         fontHref: meta.fontHref,
         sidebarOverrides,
         achievementNames: meta.achievementNames ?? {},
-        musicUrl: `/theme-music/${meta.id}/opening.mp3`,
         // Without these a marketplace theme never had a wallpaper (on any platform).
         backgroundImageUrl: meta.backgroundImageUrl,
         mobileBackgroundImageUrl: meta.mobileBackgroundImageUrl,
@@ -418,31 +401,6 @@ export function AnimeThemeProvider({ children, ambient = true }: {
 
     const config: AnimeThemeConfig = ANIME_THEMES[themeId as AnimeThemeId] ?? marketplaceConfig ?? ANIME_THEMES["seanime"]
     const effectKey = (name: string) => effectStorageKey(name, profileKey, themeId)
-
-    // ── Music state ──
-    const [musicEnabled, setMusicEnabledRaw] = React.useState<boolean>(() => {
-        if (typeof window === "undefined") return false
-        try {
-            return seaStorage.getItem(`sea-anime-music-${profileKey}`) === "true"
-        } catch { return false }
-    })
-    const [musicVolume, setMusicVolumeRaw] = React.useState<number>(() => {
-        if (typeof window === "undefined") return 0.3
-        try {
-            const v = parseFloat(seaStorage.getItem(`sea-anime-vol-${profileKey}`) ?? "")
-            return isNaN(v) ? 0.3 : Math.max(0, Math.min(1, v))
-        } catch { return 0.3 }
-    })
-
-    const setMusicEnabled = React.useCallback((v: boolean) => {
-        setMusicEnabledRaw(v)
-        try { seaStorage.setItem(`sea-anime-music-${profileKey}`, String(v)) } catch { }
-    }, [profileKey])
-
-    const setMusicVolume = React.useCallback((v: number) => {
-        setMusicVolumeRaw(v)
-        try { seaStorage.setItem(`sea-anime-vol-${profileKey}`, String(v)) } catch { }
-    }, [profileKey])
 
     // ── Animated elements intensity ──
     const [animatedIntensity, setAnimatedIntensityRaw] = React.useState<number>(() => {
@@ -964,10 +922,6 @@ export function AnimeThemeProvider({ children, ambient = true }: {
         themeId,
         config,
         setThemeId,
-        musicEnabled,
-        setMusicEnabled,
-        musicVolume,
-        setMusicVolume,
         animatedIntensity,
         setAnimatedIntensity,
         particleSettings,
@@ -1015,7 +969,7 @@ export function AnimeThemeProvider({ children, ambient = true }: {
         setNoiseScale,
         hologramStrength,
         setHologramStrength,
-    }), [themeId, config, setThemeId, musicEnabled, setMusicEnabled, musicVolume, setMusicVolume, animatedIntensity, setAnimatedIntensity, particleSettings, setParticleTypeEnabled, setParticleTypeIntensity, backgroundDim, backgroundDimDefault, setBackgroundDim, resetBackgroundDim, backgroundBlur, setBackgroundBlur, backgroundExposure, setBackgroundExposure, backgroundSaturation, setBackgroundSaturation, backgroundContrast, setBackgroundContrast, activeBackgroundUrl, setActiveBackgroundUrl, brandColorOverride, setBrandColorOverride, vignetteStrength, setVignetteStrength, vignetteSize, setVignetteSize, glowStrength, setGlowStrength, glowSpeed, setGlowSpeed, glowScale, setGlowScale, customThemeData, setCustomThemeData, scanlinesStrength, setScanlinesStrength, scanlinesSize, setScanlinesSize, scanlinesSpeed, setScanlinesSpeed, noiseStrength, setNoiseStrength, noiseSpeed, setNoiseSpeed, noiseScale, setNoiseScale, hologramStrength, setHologramStrength])
+    }), [themeId, config, setThemeId, animatedIntensity, setAnimatedIntensity, particleSettings, setParticleTypeEnabled, setParticleTypeIntensity, backgroundDim, backgroundDimDefault, setBackgroundDim, resetBackgroundDim, backgroundBlur, setBackgroundBlur, backgroundExposure, setBackgroundExposure, backgroundSaturation, setBackgroundSaturation, backgroundContrast, setBackgroundContrast, activeBackgroundUrl, setActiveBackgroundUrl, brandColorOverride, setBrandColorOverride, vignetteStrength, setVignetteStrength, vignetteSize, setVignetteSize, glowStrength, setGlowStrength, glowSpeed, setGlowSpeed, glowScale, setGlowScale, customThemeData, setCustomThemeData, scanlinesStrength, setScanlinesStrength, scanlinesSize, setScanlinesSize, scanlinesSpeed, setScanlinesSpeed, noiseStrength, setNoiseStrength, noiseSpeed, setNoiseSpeed, noiseScale, setNoiseScale, hologramStrength, setHologramStrength])
 
     // Behind a fullscreen video the wallpaper and its animated overlays are never seen, but they
     // are still composited every frame (blend modes, filters, animated noise) and that load builds
@@ -1032,307 +986,12 @@ export function AnimeThemeProvider({ children, ambient = true }: {
     return (
         <AnimeThemeContext.Provider value={value}>
             {children}
-            {ambient && <AnimeThemeMusicPlayer />}
             {!hideBackdrop && !wallpaperOverride && config.id !== "seanime" && activeBackgroundUrl && <ThemeBackgroundImage url={activeBackgroundUrl} dim={backgroundDim} dimMode={__isMobileShell__ ? "darken" : "fade"} blur={backgroundBlur} exposure={backgroundExposure} saturation={backgroundSaturation} contrast={backgroundContrast} scanlinesStrength={scanlinesStrength} scanlinesSize={scanlinesSize} noiseStrength={noiseStrength} noiseSpeed={noiseSpeed} vignetteStrength={vignetteStrength} vignetteSize={vignetteSize} glowStrength={glowStrength} glowSpeed={glowSpeed} glowScale={glowScale} hologramStrength={hologramStrength} />}
             {!hideBackdrop && config.id !== "seanime" && <ThemeAnimatedOverlay themeId={themeId} intensity={animatedIntensity} particleSettings={particleSettings} particleColor={config.particleColor} />}
         </AnimeThemeContext.Provider>
     )
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Music Player
-// ─────────────────────────────────────────────────────────────────
-//
-// Playlist player with:
-//   • Crossfade between tracks (3s)
-//   • Fade-out while any <video> is playing, fade back in when it stops
-//   • Loop modes: off / one / all
-//   • Cross-theme "equip" support — equippedThemeOstIdAtom overrides the active theme
-//   • Backward-compatible: when no downloaded tracks exist but the legacy
-//     config.musicUrl ("opening.mp3") is present, the single file loops as before.
-
-const FADE_MS = 3000
-
-function useVideoFadeWatcher() {
-    const setVideoFade = useSetAtom(videoFadeActiveAtom)
-    React.useEffect(() => {
-        if (typeof document === "undefined") return
-        const playing = new Set<HTMLVideoElement>()
-        const isVideo = (t: EventTarget | null): t is HTMLVideoElement =>
-            !!t && (t as HTMLElement).tagName === "VIDEO"
-        const recompute = () => setVideoFade(playing.size > 0)
-        const onPlay = (e: Event) => { if (isVideo(e.target)) { playing.add(e.target); recompute() } }
-        const onStop = (e: Event) => { if (isVideo(e.target)) { playing.delete(e.target); recompute() } }
-        document.addEventListener("play", onPlay, true)
-        document.addEventListener("pause", onStop, true)
-        document.addEventListener("ended", onStop, true)
-        // On unmount, treat all as stopped (also catches DOM removal cases).
-        return () => {
-            document.removeEventListener("play", onPlay, true)
-            document.removeEventListener("pause", onStop, true)
-            document.removeEventListener("ended", onStop, true)
-            playing.clear()
-            setVideoFade(false)
-        }
-    }, [setVideoFade])
-}
-
-function AnimeThemeMusicPlayer() {
-    const { config, musicEnabled, musicVolume } = useAnimeTheme()
-    const equippedThemeId = useAtomValue(equippedThemeOstIdAtom)
-    const activeThemeId = (equippedThemeId && equippedThemeId.length > 0) ? equippedThemeId : config.id
-    const tracksQuery = useListThemeMusicMetadata(activeThemeId, activeThemeId !== "seanime")
-    const tracks = tracksQuery.data ?? []
-
-    const [playing, setPlaying] = useAtom(themeOstPlayingAtom)
-    const [trackIndex, setTrackIndex] = useAtom(themeOstCurrentTrackIndexAtom)
-    const loopMode = useAtomValue(themeOstLoopModeAtom)
-    const [skipDir, setSkipDir] = useAtom(themeOstSkipDirectionAtom)
-    const [seekReq, setSeekReq] = useAtom(themeOstSeekRequestAtom)
-    const videoFade = useAtomValue(videoFadeActiveAtom)
-    const setPosition = useSetAtom(themeOstPositionAtom)
-
-    useVideoFadeWatcher()
-
-    const audioARef = React.useRef<HTMLAudioElement | null>(null)
-    const audioBRef = React.useRef<HTMLAudioElement | null>(null)
-    const activeRef = React.useRef<"A" | "B">("A")
-    const fadingRef = React.useRef<boolean>(false)
-    const videoFadeAmountRef = React.useRef<number>(0) // 0 = full volume, 1 = silent
-    const lastTickRef = React.useRef<number>(0)
-
-    // Resolve current legacy single-file source (used when no playlist tracks).
-    const legacySrc = (tracks.length === 0 && config.musicUrl && config.id !== "seanime" && !equippedThemeId)
-        ? config.musicUrl
-        : null
-
-    // Clamp track index when playlist size shrinks.
-    React.useEffect(() => {
-        if (tracks.length === 0) {
-            if (trackIndex !== 0) setTrackIndex(0)
-            return
-        }
-        if (trackIndex >= tracks.length) setTrackIndex(0)
-    }, [tracks.length, trackIndex, setTrackIndex])
-
-    // Reset track index when the active theme changes.
-    const prevThemeRef = React.useRef(activeThemeId)
-    React.useEffect(() => {
-        if (prevThemeRef.current !== activeThemeId) {
-            prevThemeRef.current = activeThemeId
-            setTrackIndex(0)
-        }
-    }, [activeThemeId, setTrackIndex])
-
-    // Effective playback volume — combines user volume + video-fade dim.
-    const effectiveVolume = React.useCallback(() => {
-        return Math.max(0, Math.min(1, musicVolume)) * (1 - videoFadeAmountRef.current)
-    }, [musicVolume])
-
-    // Helper: get refs by side.
-    const refFor = React.useCallback((side: "A" | "B") => (side === "A" ? audioARef.current : audioBRef.current), [])
-
-    // ── Load active track when index/theme/source changes ──────────────
-    React.useEffect(() => {
-        const a = refFor(activeRef.current)
-        if (!a) return
-        if (legacySrc) {
-            const src = resolveServerAsset(legacySrc)
-            if (a.src !== absoluteUrl(src)) a.src = src
-            a.loop = true
-        } else if (tracks.length > 0) {
-            const url = resolveServerAsset(tracks[trackIndex]?.url)
-            if (url && a.src !== absoluteUrl(url)) {
-                a.src = url
-                a.currentTime = 0
-            }
-            a.loop = false
-        } else {
-            a.removeAttribute("src")
-            a.load?.()
-        }
-        a.volume = effectiveVolume()
-        // Inactive side should be silent and paused while not crossfading.
-        const inactive = refFor(activeRef.current === "A" ? "B" : "A")
-        if (inactive && !fadingRef.current) {
-            inactive.pause()
-            inactive.volume = 0
-        }
-    }, [tracks, trackIndex, legacySrc, refFor, effectiveVolume])
-
-    // ── Play/pause state ───────────────────────────────────────────────
-    React.useEffect(() => {
-        const a = refFor(activeRef.current)
-        if (!a) return
-        const shouldPlay = musicEnabled && playing && (!!legacySrc || tracks.length > 0)
-        if (shouldPlay) {
-            a.play().catch(() => { /* autoplay rejected — wait for user gesture */ })
-        } else {
-            a.pause()
-            const inactive = refFor(activeRef.current === "A" ? "B" : "A")
-            inactive?.pause()
-        }
-    }, [musicEnabled, playing, legacySrc, tracks.length, refFor])
-
-    // ── Skip handling ─────────────────────────────────────────────────
-    React.useEffect(() => {
-        if (!skipDir) return
-        if (tracks.length === 0) { setSkipDir(null); return }
-        const delta = skipDir === "next" ? 1 : -1
-        const nextIdx = ((trackIndex + delta) % tracks.length + tracks.length) % tracks.length
-        setTrackIndex(nextIdx)
-        setSkipDir(null)
-    }, [skipDir, tracks.length, trackIndex, setTrackIndex, setSkipDir])
-
-    // ── Seek handling ─────────────────────────────────────────────────
-    React.useEffect(() => {
-        if (seekReq == null) return
-        const a = refFor(activeRef.current)
-        if (a && isFinite(seekReq)) {
-            try { a.currentTime = Math.max(0, seekReq) } catch { /* ignore */ }
-        }
-        setSeekReq(null)
-    }, [seekReq, refFor, setSeekReq])
-
-    // ── Volume + video-fade ramp ──────────────────────────────────────
-    React.useEffect(() => {
-        let raf = 0
-        const tick = (t: number) => {
-            const dt = lastTickRef.current ? (t - lastTickRef.current) : 16
-            lastTickRef.current = t
-            const target = videoFade ? 1 : 0
-            const cur = videoFadeAmountRef.current
-            if (cur !== target) {
-                const step = (dt / FADE_MS)
-                videoFadeAmountRef.current = target > cur
-                    ? Math.min(target, cur + step)
-                    : Math.max(target, cur - step)
-                const a = refFor(activeRef.current)
-                if (a) a.volume = effectiveVolume()
-            }
-            // Only runs while a fade is in progress; an idle loop here costs a callback every frame
-            // for the whole session.
-            if (videoFadeAmountRef.current !== target) raf = requestAnimationFrame(tick)
-            else lastTickRef.current = 0
-        }
-        raf = requestAnimationFrame(tick)
-        return () => { cancelAnimationFrame(raf); lastTickRef.current = 0 }
-    }, [videoFade, refFor, effectiveVolume])
-
-    // Apply volume when musicVolume changes directly.
-    React.useEffect(() => {
-        const a = refFor(activeRef.current)
-        if (a) a.volume = effectiveVolume()
-    }, [musicVolume, refFor, effectiveVolume])
-
-    // ── On-ended: handle loop modes (no crossfade case) ───────────────
-    const handleEnded = React.useCallback((side: "A" | "B") => {
-        // Only handle if this is the active element and we are not already crossfading.
-        if (side !== activeRef.current) return
-        if (legacySrc) return // loops natively
-        if (tracks.length === 0) return
-        if (loopMode === "one") {
-            const a = refFor(activeRef.current)
-            if (a) { a.currentTime = 0; a.play().catch(() => { }) }
-            return
-        }
-        if (loopMode === "off" && trackIndex >= tracks.length - 1) {
-            setPlaying(false)
-            return
-        }
-        const nextIdx = (trackIndex + 1) % tracks.length
-        setTrackIndex(nextIdx)
-    }, [legacySrc, tracks.length, loopMode, trackIndex, refFor, setTrackIndex, setPlaying])
-
-    // ── Crossfade engine: when active track is ≤ FADE_MS from end, start fading into next. ──
-    const handleTimeUpdate = React.useCallback((side: "A" | "B") => {
-        if (side !== activeRef.current) return
-        const a = refFor(activeRef.current)
-        if (!a) return
-        const cur = a.currentTime || 0
-        const dur = a.duration || 0
-        setPosition({ current: cur, duration: isFinite(dur) ? dur : 0 })
-
-        if (legacySrc) return
-        if (tracks.length < 2) return
-        if (loopMode === "one") return
-        if (fadingRef.current) return
-        if (!isFinite(dur) || dur <= 0) return
-        const remaining = dur - cur
-        if (remaining > FADE_MS / 1000) return
-
-        // Determine the next track index.
-        const nextIdx = (trackIndex + 1) % tracks.length
-        // Loop "off": at the very last track, don't crossfade — let onEnded stop us.
-        if (loopMode === "off" && trackIndex >= tracks.length - 1) return
-
-        // Begin crossfade.
-        const nextSide: "A" | "B" = activeRef.current === "A" ? "B" : "A"
-        const nextEl = refFor(nextSide)
-        if (!nextEl) return
-        const nextUrl = tracks[nextIdx]?.url
-        if (!nextUrl) return
-        nextEl.src = resolveServerAsset(nextUrl)
-        nextEl.currentTime = 0
-        nextEl.volume = 0
-        nextEl.loop = false
-        nextEl.play().catch(() => { /* user gesture may be needed */ })
-
-        fadingRef.current = true
-        const start = performance.now()
-        const startCurVol = a.volume
-        const target = effectiveVolume()
-        const stepFn = (t: number) => {
-            const k = Math.min(1, (t - start) / FADE_MS)
-            const aEl = refFor(activeRef.current)
-            const nEl = refFor(nextSide)
-            if (aEl) aEl.volume = startCurVol * (1 - k)
-            if (nEl) nEl.volume = target * k
-            if (k < 1) {
-                requestAnimationFrame(stepFn)
-            } else {
-                if (aEl) { aEl.pause(); aEl.volume = 0 }
-                activeRef.current = nextSide
-                fadingRef.current = false
-                setTrackIndex(nextIdx)
-            }
-        }
-        requestAnimationFrame(stepFn)
-    }, [legacySrc, tracks, trackIndex, loopMode, refFor, setPosition, setTrackIndex, effectiveVolume])
-
-    if (!legacySrc && tracks.length === 0) {
-        // Nothing to play — render hidden audios for future state but no source.
-        return null
-    }
-
-    return (
-        <>
-            <audio
-                ref={audioARef}
-                preload="auto"
-                onEnded={() => handleEnded("A")}
-                onTimeUpdate={() => handleTimeUpdate("A")}
-                style={{ display: "none" }}
-            />
-            <audio
-                ref={audioBRef}
-                preload="auto"
-                onEnded={() => handleEnded("B")}
-                onTimeUpdate={() => handleTimeUpdate("B")}
-                style={{ display: "none" }}
-            />
-        </>
-    )
-}
-
-// absoluteUrl resolves a possibly-relative audio URL the same way the
-// browser would when setting `audio.src`, so we can compare cleanly.
-function absoluteUrl(u: string): string {
-    if (typeof window === "undefined") return u
-    try { return new URL(u, window.location.href).toString() } catch { return u }
-}
-
-// ─────────────────────────────────────────────────────────────────
 // Theme Background Image
 // ─────────────────────────────────────────────────────────────────
 

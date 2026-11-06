@@ -63,7 +63,6 @@ import { TopIndefiniteLoader } from "../top-indefinite-loader"
 import { NewEpisodeNotifier } from "../new-episode-notifier"
 import { NewMangaChapterNotifier } from "@/app/(main)/_features/new-manga-chapter-notifier"
 import { GlobalRewardShopButton } from "../navigation/global-reward-shop-button"
-import { GlobalOstSearchButton } from "../navigation/global-ost-search-button"
 import { RewardParticlesLayer } from "@/lib/rewards/reward-particles"
 import { WorkspaceBar, WORKSPACE_BAR_HEIGHT } from "../navigation/workspace-bar"
 import { useGetProfiles } from "@/api/hooks/profiles.hooks"
@@ -139,7 +138,6 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
             <LibraryExplorerDrawer />
             <PluginWebviewSlot slot="fixed" />
             <GlobalRewardShopButton />
-            <GlobalOstSearchButton />
             <WorkspaceBar />
 
             <AppSidebarProvider>

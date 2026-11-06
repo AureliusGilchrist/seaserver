@@ -90,7 +90,7 @@
           "goType": "[]__STRUCT__",
           "inlineStructType": "[]struct{\nSlot int `json:\"slot\"`\nAchievementKey string `json:\"achievementKey\"`\nAchievementTier int `json:\"achievementTier\"`}",
           "usedStructType": "",
-          "typescriptType": "Array\u003c{ slot: number; achievementKey: string; achievementTier: number; }\u003e",
+          "typescriptType": "Array<{ slot: number; achievementKey: string; achievementTier: number; }>",
           "required": true,
           "descriptions": []
         }
@@ -127,7 +127,7 @@
       "bodyFields": [],
       "returns": "[]models.AchievementShowcase",
       "returnGoType": "models.AchievementShowcase",
-      "returnTypescriptType": "Array\u003cModels_AchievementShowcase\u003e"
+      "returnTypescriptType": "Array<Models_AchievementShowcase>"
     }
   },
   {
@@ -189,7 +189,7 @@
       "bodyFields": [],
       "returns": "[]achievement.UnlockPayload",
       "returnGoType": "achievement.UnlockPayload",
-      "returnTypescriptType": "Array\u003cAchievement_UnlockPayload\u003e"
+      "returnTypescriptType": "Array<Achievement_UnlockPayload>"
     }
   },
   {
@@ -291,7 +291,7 @@
       "bodyFields": [],
       "returns": "map[string]interface{}",
       "returnGoType": "interface{}",
-      "returnTypescriptType": "Record\u003cstring, interface{}\u003e"
+      "returnTypescriptType": "Record<string, interface{}>"
     }
   },
   {
@@ -381,7 +381,7 @@
       "bodyFields": [],
       "returns": "[]*models.ActivityEvent",
       "returnGoType": "models.ActivityEvent",
-      "returnTypescriptType": "Array\u003cModels_ActivityEvent\u003e"
+      "returnTypescriptType": "Array<Models_ActivityEvent>"
     }
   },
   {
@@ -454,7 +454,7 @@
       "bodyFields": [],
       "returns": "[]models.AdminAnnouncement",
       "returnGoType": "models.AdminAnnouncement",
-      "returnTypescriptType": "Array\u003cModels_AdminAnnouncement\u003e"
+      "returnTypescriptType": "Array<Models_AdminAnnouncement>"
     }
   },
   {
@@ -535,7 +535,7 @@
       "bodyFields": [],
       "returns": "[]models.AdminAnnouncement",
       "returnGoType": "models.AdminAnnouncement",
-      "returnTypescriptType": "Array\u003cModels_AdminAnnouncement\u003e"
+      "returnTypescriptType": "Array<Models_AdminAnnouncement>"
     }
   },
   {
@@ -815,7 +815,7 @@
       "bodyFields": [],
       "returns": "[]core.QueuedListEdit",
       "returnGoType": "core.QueuedListEdit",
-      "returnTypescriptType": "Array\u003cINTERNAL_QueuedListEdit\u003e"
+      "returnTypescriptType": "Array<INTERNAL_QueuedListEdit>"
     }
   },
   {
@@ -1078,7 +1078,7 @@
           "jsonName": "sort",
           "goType": "[]anilist.MediaSort",
           "usedStructType": "anilist.MediaSort",
-          "typescriptType": "Array\u003cAL_MediaSort\u003e",
+          "typescriptType": "Array<AL_MediaSort>",
           "required": false,
           "descriptions": []
         },
@@ -1087,7 +1087,7 @@
           "jsonName": "status",
           "goType": "[]anilist.MediaStatus",
           "usedStructType": "anilist.MediaStatus",
-          "typescriptType": "Array\u003cAL_MediaStatus\u003e",
+          "typescriptType": "Array<AL_MediaStatus>",
           "required": false,
           "descriptions": []
         },
@@ -1096,7 +1096,7 @@
           "jsonName": "genres",
           "goType": "[]string",
           "usedStructType": "",
-          "typescriptType": "Array\u003cstring\u003e",
+          "typescriptType": "Array<string>",
           "required": false,
           "descriptions": []
         },
@@ -1244,7 +1244,7 @@
           "jsonName": "sort",
           "goType": "[]anilist.AiringSort",
           "usedStructType": "anilist.AiringSort",
-          "typescriptType": "Array\u003cAL_AiringSort\u003e",
+          "typescriptType": "Array<AL_AiringSort>",
           "required": false,
           "descriptions": []
         }
@@ -1281,7 +1281,7 @@
       "bodyFields": [],
       "returns": "[]anilist.BaseAnime",
       "returnGoType": "anilist.BaseAnime",
-      "returnTypescriptType": "Array\u003cAL_BaseAnime\u003e"
+      "returnTypescriptType": "Array<AL_BaseAnime>"
     }
   },
   {
@@ -1683,7 +1683,7 @@
       "bodyFields": [],
       "returns": "[]anime.ScheduleItem",
       "returnGoType": "anime.ScheduleItem",
-      "returnTypescriptType": "Array\u003cAnime_ScheduleItem\u003e"
+      "returnTypescriptType": "Array<Anime_ScheduleItem>"
     }
   },
   {
@@ -1718,7 +1718,7 @@
           "jsonName": "mediaIds",
           "goType": "[]int",
           "usedStructType": "",
-          "typescriptType": "Array\u003cnumber\u003e",
+          "typescriptType": "Array<number>",
           "required": true,
           "descriptions": []
         }
@@ -1832,7 +1832,7 @@
           "jsonName": "paths",
           "goType": "[]string",
           "usedStructType": "",
-          "typescriptType": "Array\u003cstring\u003e",
+          "typescriptType": "Array<string>",
           "required": true,
           "descriptions": []
         },
@@ -1960,7 +1960,7 @@
       ],
       "returns": "[]anime.LocalFile",
       "returnGoType": "anime.LocalFile",
-      "returnTypescriptType": "Array\u003cAnime_LocalFile\u003e"
+      "returnTypescriptType": "Array<Anime_LocalFile>"
     }
   },
   {
@@ -2044,7 +2044,7 @@
       ],
       "returns": "[]anilist.BaseAnime",
       "returnGoType": "anilist.BaseAnime",
-      "returnTypescriptType": "Array\u003cAL_BaseAnime\u003e"
+      "returnTypescriptType": "Array<AL_BaseAnime>"
     }
   },
   {
@@ -2081,7 +2081,7 @@
           "jsonName": "paths",
           "goType": "[]string",
           "usedStructType": "",
-          "typescriptType": "Array\u003cstring\u003e",
+          "typescriptType": "Array<string>",
           "required": true,
           "descriptions": []
         },
@@ -2115,7 +2115,7 @@
       ],
       "returns": "[]anime.LocalFile",
       "returnGoType": "anime.LocalFile",
-      "returnTypescriptType": "Array\u003cAnime_LocalFile\u003e"
+      "returnTypescriptType": "Array<Anime_LocalFile>"
     }
   },
   {
@@ -2566,7 +2566,7 @@
       "bodyFields": [],
       "returns": "[]int",
       "returnGoType": "int",
-      "returnTypescriptType": "Array\u003cnumber\u003e"
+      "returnTypescriptType": "Array<number>"
     }
   },
   {
@@ -2639,7 +2639,7 @@
           "jsonName": "mediaIds",
           "goType": "[]int",
           "usedStructType": "",
-          "typescriptType": "Array\u003cnumber\u003e",
+          "typescriptType": "Array<number>",
           "required": true,
           "descriptions": []
         }
@@ -2901,14 +2901,14 @@
           "jsonName": "ruleIds",
           "goType": "[]uint",
           "usedStructType": "",
-          "typescriptType": "Array\u003cnumber\u003e",
+          "typescriptType": "Array<number>",
           "required": true,
           "descriptions": []
         }
       ],
       "returns": "[]autodownloader.SimulationResult",
       "returnGoType": "autodownloader.SimulationResult",
-      "returnTypescriptType": "Array\u003cAutoDownloader_SimulationResult\u003e"
+      "returnTypescriptType": "Array<AutoDownloader_SimulationResult>"
     }
   },
   {
@@ -2991,7 +2991,7 @@
       "bodyFields": [],
       "returns": "[]anime.AutoDownloaderRule",
       "returnGoType": "anime.AutoDownloaderRule",
-      "returnTypescriptType": "Array\u003cAnime_AutoDownloaderRule\u003e"
+      "returnTypescriptType": "Array<Anime_AutoDownloaderRule>"
     }
   },
   {
@@ -3021,7 +3021,7 @@
       "bodyFields": [],
       "returns": "[]anime.AutoDownloaderRule",
       "returnGoType": "anime.AutoDownloaderRule",
-      "returnTypescriptType": "Array\u003cAnime_AutoDownloaderRule\u003e"
+      "returnTypescriptType": "Array<Anime_AutoDownloaderRule>"
     }
   },
   {
@@ -3175,7 +3175,7 @@
       "bodyFields": [],
       "returns": "[]anime.AutoDownloaderProfile",
       "returnGoType": "anime.AutoDownloaderProfile",
-      "returnTypescriptType": "Array\u003cAnime_AutoDownloaderProfile\u003e"
+      "returnTypescriptType": "Array<Anime_AutoDownloaderProfile>"
     }
   },
   {
@@ -3341,7 +3341,7 @@
       "bodyFields": [],
       "returns": "[]models.AutoDownloaderItem",
       "returnGoType": "models.AutoDownloaderItem",
-      "returnTypescriptType": "Array\u003cModels_AutoDownloaderItem\u003e"
+      "returnTypescriptType": "Array<Models_AutoDownloaderItem>"
     }
   },
   {
@@ -3483,7 +3483,7 @@
           "jsonName": "mediaIds",
           "goType": "[]int",
           "usedStructType": "",
-          "typescriptType": "Array\u003cnumber\u003e",
+          "typescriptType": "Array<number>",
           "required": true,
           "descriptions": []
         }
@@ -3523,7 +3523,7 @@
           "jsonName": "removed",
           "goType": "[]int",
           "usedStructType": "",
-          "typescriptType": "Array\u003cnumber\u003e",
+          "typescriptType": "Array<number>",
           "required": true,
           "descriptions": []
         },
@@ -3532,7 +3532,7 @@
           "jsonName": "autoMatchOff",
           "goType": "[]int",
           "usedStructType": "",
-          "typescriptType": "Array\u003cnumber\u003e",
+          "typescriptType": "Array<number>",
           "required": true,
           "descriptions": []
         }
@@ -3754,7 +3754,7 @@
       "HandleGetClientPrefs",
       "",
       "\t@summary returns all client preferences stored for the current profile.",
-      "\t@desc Returns a map of key -\u003e JSON-encoded value strings. The value strings are opaque to the server.",
+      "\t@desc Returns a map of key -> JSON-encoded value strings. The value strings are opaque to the server.",
       "\t@desc Pass scope=global to read preferences shared across profiles.",
       "\t@desc Used by the web client to hydrate UI state (UI customizer, easter eggs, theme settings, etc.) on bootstrap.",
       "\t@route /api/v1/client-prefs [GET]",
@@ -3766,7 +3766,7 @@
     "api": {
       "summary": "returns all client preferences stored for the current profile.",
       "descriptions": [
-        "Returns a map of key -\u003e JSON-encoded value strings. The value strings are opaque to the server.",
+        "Returns a map of key -> JSON-encoded value strings. The value strings are opaque to the server.",
         "Pass scope=global to read preferences shared across profiles.",
         "Used by the web client to hydrate UI state (UI customizer, easter eggs, theme settings, etc.) on bootstrap."
       ],
@@ -3778,7 +3778,7 @@
       "bodyFields": [],
       "returns": "map[string]string",
       "returnGoType": "string",
-      "returnTypescriptType": "Record\u003cstring, string\u003e"
+      "returnTypescriptType": "Record<string, string>"
     }
   },
   {
@@ -4126,7 +4126,7 @@
       "bodyFields": [],
       "returns": "[]*ActivityFeedEntry",
       "returnGoType": "ActivityFeedEntry",
-      "returnTypescriptType": "Array\u003cActivityFeedEntry\u003e"
+      "returnTypescriptType": "Array<ActivityFeedEntry>"
     }
   },
   {
@@ -4274,7 +4274,7 @@
     "name": "parseCursorFilename",
     "trimmedName": "parseCursorFilename",
     "comments": [
-      "parseCursorFilename parses `\u003cprefix\u003e[__states][__h\u003cx\u003ex\u003cy\u003e].\u003cext\u003e` for a tab.",
+      "parseCursorFilename parses `<prefix>[__states][__h<x>x<y>].<ext>` for a tab.",
       ""
     ],
     "filepath": "internal/handlers/cursor_library.go",
@@ -4527,7 +4527,7 @@
           "jsonName": "torrents",
           "goType": "[]hibiketorrent.AnimeTorrent",
           "usedStructType": "hibiketorrent.AnimeTorrent",
-          "typescriptType": "Array\u003cHibikeTorrent_AnimeTorrent\u003e",
+          "typescriptType": "Array<HibikeTorrent_AnimeTorrent>",
           "required": true,
           "descriptions": []
         },
@@ -4711,7 +4711,7 @@
       "bodyFields": [],
       "returns": "[]debrid.TorrentItem",
       "returnGoType": "debrid.TorrentItem",
-      "returnTypescriptType": "Array\u003cDebrid_TorrentItem\u003e"
+      "returnTypescriptType": "Array<Debrid_TorrentItem>"
     }
   },
   {
@@ -4806,7 +4806,7 @@
       ],
       "returns": "[]debrid_client.FilePreview",
       "returnGoType": "debrid_client.FilePreview",
-      "returnTypescriptType": "Array\u003cDebridClient_FilePreview\u003e"
+      "returnTypescriptType": "Array<DebridClient_FilePreview>"
     }
   },
   {
@@ -5139,7 +5139,7 @@
           "jsonName": "headers",
           "goType": "map[string]string",
           "usedStructType": "",
-          "typescriptType": "Record\u003cstring, string\u003e",
+          "typescriptType": "Record<string, string>",
           "required": true,
           "descriptions": [
             "Headers are the request headers the extension supplied for the video source",
@@ -5787,7 +5787,7 @@
       "bodyFields": [],
       "returns": "[]handlers.ApiDocsGroup",
       "returnGoType": "handlers.ApiDocsGroup",
-      "returnTypescriptType": "Array\u003cApiDocsGroup\u003e"
+      "returnTypescriptType": "Array<ApiDocsGroup>"
     }
   },
   {
@@ -5817,7 +5817,7 @@
           "jsonName": "download_urls",
           "goType": "[]string",
           "usedStructType": "",
-          "typescriptType": "Array\u003cstring\u003e",
+          "typescriptType": "Array<string>",
           "required": true,
           "descriptions": []
         },
@@ -6075,7 +6075,7 @@
       "bodyFields": [],
       "returns": "[]string",
       "returnGoType": "string",
-      "returnTypescriptType": "Array\u003cstring\u003e"
+      "returnTypescriptType": "Array<string>"
     }
   },
   {
@@ -6431,7 +6431,7 @@
       "bodyFields": [],
       "returns": "[]*enqueuefuture.Item",
       "returnGoType": "enqueuefuture.Item",
-      "returnTypescriptType": "Array\u003cEnqueueFuture_Item\u003e"
+      "returnTypescriptType": "Array<EnqueueFuture_Item>"
     }
   },
   {
@@ -6869,7 +6869,7 @@
       "bodyFields": [],
       "returns": "[]*enqueuefuture.DroppedItem",
       "returnGoType": "enqueuefuture.DroppedItem",
-      "returnTypescriptType": "Array\u003cEnqueueFuture_DroppedItem\u003e"
+      "returnTypescriptType": "Array<EnqueueFuture_DroppedItem>"
     }
   },
   {
@@ -7016,14 +7016,14 @@
           "jsonName": "mediaIds",
           "goType": "[]int",
           "usedStructType": "",
-          "typescriptType": "Array\u003cnumber\u003e",
+          "typescriptType": "Array<number>",
           "required": true,
           "descriptions": []
         }
       ],
       "returns": "[]enqueuefuture.AutoPick",
       "returnGoType": "enqueuefuture.AutoPick",
-      "returnTypescriptType": "Array\u003cEnqueueFuture_AutoPick\u003e"
+      "returnTypescriptType": "Array<EnqueueFuture_AutoPick>"
     }
   },
   {
@@ -7053,7 +7053,7 @@
       "bodyFields": [],
       "returns": "[]int",
       "returnGoType": "int",
-      "returnTypescriptType": "Array\u003cnumber\u003e"
+      "returnTypescriptType": "Array<number>"
     }
   },
   {
@@ -7123,7 +7123,7 @@
       "bodyFields": [],
       "returns": "[]int",
       "returnGoType": "int",
-      "returnTypescriptType": "Array\u003cnumber\u003e"
+      "returnTypescriptType": "Array<number>"
     }
   },
   {
@@ -7193,7 +7193,7 @@
       "bodyFields": [],
       "returns": "[]int",
       "returnGoType": "int",
-      "returnTypescriptType": "Array\u003cnumber\u003e"
+      "returnTypescriptType": "Array<number>"
     }
   },
   {
@@ -7567,7 +7567,7 @@
       "bodyFields": [],
       "returns": "[]extension.Extension",
       "returnGoType": "extension.Extension",
-      "returnTypescriptType": "Array\u003cExtension_Extension\u003e"
+      "returnTypescriptType": "Array<Extension_Extension>"
     }
   },
   {
@@ -7621,7 +7621,7 @@
       "bodyFields": [],
       "returns": "[]extension.Extension",
       "returnGoType": "extension.Extension",
-      "returnTypescriptType": "Array\u003cExtension_Extension\u003e"
+      "returnTypescriptType": "Array<Extension_Extension>"
     }
   },
   {
@@ -7685,7 +7685,7 @@
       "bodyFields": [],
       "returns": "[]extension_repo.UpdateData",
       "returnGoType": "extension_repo.UpdateData",
-      "returnTypescriptType": "Array\u003cExtensionRepo_UpdateData\u003e"
+      "returnTypescriptType": "Array<ExtensionRepo_UpdateData>"
     }
   },
   {
@@ -7712,7 +7712,7 @@
       "bodyFields": [],
       "returns": "[]extension_repo.MangaProviderExtensionItem",
       "returnGoType": "extension_repo.MangaProviderExtensionItem",
-      "returnTypescriptType": "Array\u003cExtensionRepo_MangaProviderExtensionItem\u003e"
+      "returnTypescriptType": "Array<ExtensionRepo_MangaProviderExtensionItem>"
     }
   },
   {
@@ -7739,7 +7739,7 @@
       "bodyFields": [],
       "returns": "[]extension_repo.OnlinestreamProviderExtensionItem",
       "returnGoType": "extension_repo.OnlinestreamProviderExtensionItem",
-      "returnTypescriptType": "Array\u003cExtensionRepo_OnlinestreamProviderExtensionItem\u003e"
+      "returnTypescriptType": "Array<ExtensionRepo_OnlinestreamProviderExtensionItem>"
     }
   },
   {
@@ -7766,7 +7766,7 @@
       "bodyFields": [],
       "returns": "[]extension_repo.AnimeTorrentProviderExtensionItem",
       "returnGoType": "extension_repo.AnimeTorrentProviderExtensionItem",
-      "returnTypescriptType": "Array\u003cExtensionRepo_AnimeTorrentProviderExtensionItem\u003e"
+      "returnTypescriptType": "Array<ExtensionRepo_AnimeTorrentProviderExtensionItem>"
     }
   },
   {
@@ -7793,7 +7793,7 @@
       "bodyFields": [],
       "returns": "[]extension_repo.CustomSourceExtensionItem",
       "returnGoType": "extension_repo.CustomSourceExtensionItem",
-      "returnTypescriptType": "Array\u003cExtensionRepo_CustomSourceExtensionItem\u003e"
+      "returnTypescriptType": "Array<ExtensionRepo_CustomSourceExtensionItem>"
     }
   },
   {
@@ -7850,7 +7850,7 @@
           "jsonName": "pinnedTrayPluginIds",
           "goType": "[]string",
           "usedStructType": "",
-          "typescriptType": "Array\u003cstring\u003e",
+          "typescriptType": "Array<string>",
           "required": true,
           "descriptions": []
         }
@@ -8018,7 +8018,7 @@
           "jsonName": "values",
           "goType": "map[string]string",
           "usedStructType": "",
-          "typescriptType": "Record\u003cstring, string\u003e",
+          "typescriptType": "Record<string, string>",
           "required": true,
           "descriptions": []
         }
@@ -8052,7 +8052,7 @@
       "bodyFields": [],
       "returns": "[]extension.Extension",
       "returnGoType": "extension.Extension",
-      "returnTypescriptType": "Array\u003cExtension_Extension\u003e"
+      "returnTypescriptType": "Array<Extension_Extension>"
     }
   },
   {
@@ -8628,7 +8628,7 @@
           "jsonName": "mediaIds",
           "goType": "[]int",
           "usedStructType": "",
-          "typescriptType": "Array\u003cnumber\u003e",
+          "typescriptType": "Array<number>",
           "required": true,
           "descriptions": []
         }
@@ -8736,7 +8736,7 @@
       "bodyFields": [],
       "returns": "map[string]interface{}",
       "returnGoType": "interface{}",
-      "returnTypescriptType": "Record\u003cstring, interface{}\u003e"
+      "returnTypescriptType": "Record<string, interface{}>"
     }
   },
   {
@@ -8812,7 +8812,7 @@
       ],
       "returns": "map[string]interface{}",
       "returnGoType": "interface{}",
-      "returnTypescriptType": "Record\u003cstring, interface{}\u003e"
+      "returnTypescriptType": "Record<string, interface{}>"
     }
   },
   {
@@ -8933,7 +8933,7 @@
       "bodyFields": [],
       "returns": "map[string]interface{}",
       "returnGoType": "interface{}",
-      "returnTypescriptType": "Record\u003cstring, interface{}\u003e"
+      "returnTypescriptType": "Record<string, interface{}>"
     }
   },
   {
@@ -9124,7 +9124,7 @@
       "bodyFields": [],
       "returns": "[]anilist.MissedSequel",
       "returnGoType": "anilist.MissedSequel",
-      "returnTypescriptType": "Array\u003cAL_MissedSequel\u003e"
+      "returnTypescriptType": "Array<AL_MissedSequel>"
     }
   },
   {
@@ -9191,7 +9191,7 @@
       "bodyFields": [],
       "returns": "[]local.TrackedMediaItem",
       "returnGoType": "local.TrackedMediaItem",
-      "returnTypescriptType": "Array\u003cLocal_TrackedMediaItem\u003e"
+      "returnTypescriptType": "Array<Local_TrackedMediaItem>"
     }
   },
   {
@@ -9222,7 +9222,7 @@
           "goType": "[]__STRUCT__",
           "inlineStructType": "[]struct{\nMediaId int `json:\"mediaId\"`\nType string `json:\"type\"`}",
           "usedStructType": "",
-          "typescriptType": "Array\u003c{ mediaId: number; type: string; }\u003e",
+          "typescriptType": "Array<{ mediaId: number; type: string; }>",
           "required": true,
           "descriptions": []
         }
@@ -9562,7 +9562,7 @@
       "bodyFields": [],
       "returns": "[]anime.LocalFile",
       "returnGoType": "anime.LocalFile",
-      "returnTypescriptType": "Array\u003cAnime_LocalFile\u003e"
+      "returnTypescriptType": "Array<Anime_LocalFile>"
     }
   },
   {
@@ -9645,7 +9645,7 @@
       ],
       "returns": "[]anime.LocalFile",
       "returnGoType": "anime.LocalFile",
-      "returnTypescriptType": "Array\u003cAnime_LocalFile\u003e"
+      "returnTypescriptType": "Array<Anime_LocalFile>"
     }
   },
   {
@@ -9723,7 +9723,7 @@
       ],
       "returns": "[]anime.LocalFile",
       "returnGoType": "anime.LocalFile",
-      "returnTypescriptType": "Array\u003cAnime_LocalFile\u003e"
+      "returnTypescriptType": "Array<Anime_LocalFile>"
     }
   },
   {
@@ -9756,7 +9756,7 @@
           "jsonName": "files",
           "goType": "[]library_explorer.SuperUpdateFileOptions",
           "usedStructType": "library_explorer.SuperUpdateFileOptions",
-          "typescriptType": "Array\u003cLibraryExplorer_SuperUpdateFileOptions\u003e",
+          "typescriptType": "Array<LibraryExplorer_SuperUpdateFileOptions>",
           "required": true,
           "descriptions": []
         }
@@ -9796,7 +9796,7 @@
           "jsonName": "paths",
           "goType": "[]string",
           "usedStructType": "",
-          "typescriptType": "Array\u003cstring\u003e",
+          "typescriptType": "Array<string>",
           "required": true,
           "descriptions": []
         },
@@ -9856,7 +9856,7 @@
           "jsonName": "paths",
           "goType": "[]string",
           "usedStructType": "",
-          "typescriptType": "Array\u003cstring\u003e",
+          "typescriptType": "Array<string>",
           "required": true,
           "descriptions": []
         }
@@ -10289,7 +10289,7 @@
       "bodyFields": [],
       "returns": "map[int][]manga.MangaLatestChapterNumberItem",
       "returnGoType": "manga.MangaLatestChapterNumberItem",
-      "returnTypescriptType": "Record\u003cnumber, Array\u003cManga_MangaLatestChapterNumberItem\u003e\u003e"
+      "returnTypescriptType": "Record<number, Array<Manga_MangaLatestChapterNumberItem>>"
     }
   },
   {
@@ -10319,7 +10319,7 @@
           "jsonName": "selectedProviderMap",
           "goType": "map[int]string",
           "usedStructType": "",
-          "typescriptType": "Record\u003cnumber, string\u003e",
+          "typescriptType": "Record<number, string>",
           "required": true,
           "descriptions": []
         }
@@ -10356,7 +10356,7 @@
           "jsonName": "selectedProviderMap",
           "goType": "map[int]string",
           "usedStructType": "",
-          "typescriptType": "Record\u003cnumber, string\u003e",
+          "typescriptType": "Record<number, string>",
           "required": true,
           "descriptions": []
         }
@@ -10568,7 +10568,7 @@
       "bodyFields": [],
       "returns": "[]manga.ChapterContainer",
       "returnGoType": "manga.ChapterContainer",
-      "returnTypescriptType": "Array\u003cManga_ChapterContainer\u003e"
+      "returnTypescriptType": "Array<Manga_ChapterContainer>"
     }
   },
   {
@@ -10628,7 +10628,7 @@
           "jsonName": "sort",
           "goType": "[]anilist.MediaSort",
           "usedStructType": "anilist.MediaSort",
-          "typescriptType": "Array\u003cAL_MediaSort\u003e",
+          "typescriptType": "Array<AL_MediaSort>",
           "required": false,
           "descriptions": []
         },
@@ -10637,7 +10637,7 @@
           "jsonName": "status",
           "goType": "[]anilist.MediaStatus",
           "usedStructType": "anilist.MediaStatus",
-          "typescriptType": "Array\u003cAL_MediaStatus\u003e",
+          "typescriptType": "Array<AL_MediaStatus>",
           "required": false,
           "descriptions": []
         },
@@ -10646,7 +10646,7 @@
           "jsonName": "genres",
           "goType": "[]string",
           "usedStructType": "",
-          "typescriptType": "Array\u003cstring\u003e",
+          "typescriptType": "Array<string>",
           "required": false,
           "descriptions": []
         },
@@ -10869,7 +10869,7 @@
       ],
       "returns": "[]hibikemanga.SearchResult",
       "returnGoType": "hibikemanga.SearchResult",
-      "returnTypescriptType": "Array\u003cHibikeManga_SearchResult\u003e"
+      "returnTypescriptType": "Array<HibikeManga_SearchResult>"
     }
   },
   {
@@ -11080,7 +11080,7 @@
       ],
       "returns": "[]*models.SyntheticManga",
       "returnGoType": "models.SyntheticManga",
-      "returnTypescriptType": "Array\u003cModels_SyntheticManga\u003e"
+      "returnTypescriptType": "Array<Models_SyntheticManga>"
     }
   },
   {
@@ -11110,7 +11110,7 @@
       "bodyFields": [],
       "returns": "[]MangaReadingHistoryItem",
       "returnGoType": "MangaReadingHistoryItem",
-      "returnTypescriptType": "Array\u003cMangaReadingHistoryItem\u003e"
+      "returnTypescriptType": "Array<MangaReadingHistoryItem>"
     }
   },
   {
@@ -11140,7 +11140,7 @@
       "bodyFields": [],
       "returns": "[]*models.SyntheticManga",
       "returnGoType": "models.SyntheticManga",
-      "returnTypescriptType": "Array\u003cModels_SyntheticManga\u003e"
+      "returnTypescriptType": "Array<Models_SyntheticManga>"
     }
   },
   {
@@ -11170,7 +11170,7 @@
       "bodyFields": [],
       "returns": "[]*anilist.BaseManga",
       "returnGoType": "anilist.BaseManga",
-      "returnTypescriptType": "Array\u003cAL_BaseManga\u003e"
+      "returnTypescriptType": "Array<AL_BaseManga>"
     }
   },
   {
@@ -11200,7 +11200,7 @@
       "bodyFields": [],
       "returns": "[]*anilist.BaseManga",
       "returnGoType": "anilist.BaseManga",
-      "returnTypescriptType": "Array\u003cAL_BaseManga\u003e"
+      "returnTypescriptType": "Array<AL_BaseManga>"
     }
   },
   {
@@ -11230,7 +11230,7 @@
       "bodyFields": [],
       "returns": "[]*anilist.BaseManga",
       "returnGoType": "anilist.BaseManga",
-      "returnTypescriptType": "Array\u003cAL_BaseManga\u003e"
+      "returnTypescriptType": "Array<AL_BaseManga>"
     }
   },
   {
@@ -11344,7 +11344,7 @@
       "bodyFields": [],
       "returns": "[]*anilist.BaseManga",
       "returnGoType": "anilist.BaseManga",
-      "returnTypescriptType": "Array\u003cAL_BaseManga\u003e"
+      "returnTypescriptType": "Array<AL_BaseManga>"
     }
   },
   {
@@ -11503,7 +11503,7 @@
           "jsonName": "chapterIds",
           "goType": "[]string",
           "usedStructType": "",
-          "typescriptType": "Array\u003cstring\u003e",
+          "typescriptType": "Array<string>",
           "required": true,
           "descriptions": []
         },
@@ -11615,7 +11615,7 @@
       "bodyFields": [],
       "returns": "[]models.ChapterDownloadQueueItem",
       "returnGoType": "models.ChapterDownloadQueueItem",
-      "returnTypescriptType": "Array\u003cModels_ChapterDownloadQueueItem\u003e"
+      "returnTypescriptType": "Array<Models_ChapterDownloadQueueItem>"
     }
   },
   {
@@ -11784,7 +11784,7 @@
           "jsonName": "downloadIds",
           "goType": "[]chapter_downloader.DownloadID",
           "usedStructType": "chapter_downloader.DownloadID",
-          "typescriptType": "Array\u003cChapterDownloader_DownloadID\u003e",
+          "typescriptType": "Array<ChapterDownloader_DownloadID>",
           "required": true,
           "descriptions": []
         }
@@ -11823,7 +11823,7 @@
       "bodyFields": [],
       "returns": "[]manga.DownloadListItem",
       "returnGoType": "manga.DownloadListItem",
-      "returnTypescriptType": "Array\u003cManga_DownloadListItem\u003e"
+      "returnTypescriptType": "Array<Manga_DownloadListItem>"
     }
   },
   {
@@ -11897,7 +11897,7 @@
       "bodyFields": [],
       "returns": "[]int",
       "returnGoType": "int",
-      "returnTypescriptType": "Array\u003cnumber\u003e"
+      "returnTypescriptType": "Array<number>"
     }
   },
   {
@@ -11970,7 +11970,7 @@
           "jsonName": "mediaIds",
           "goType": "[]int",
           "usedStructType": "",
-          "typescriptType": "Array\u003cnumber\u003e",
+          "typescriptType": "Array<number>",
           "required": true,
           "descriptions": []
         }
@@ -12109,7 +12109,7 @@
       ],
       "returns": "[]manga.MangaScanCandidate",
       "returnGoType": "manga.MangaScanCandidate",
-      "returnTypescriptType": "Array\u003cManga_MangaScanCandidate\u003e"
+      "returnTypescriptType": "Array<Manga_MangaScanCandidate>"
     }
   },
   {
@@ -12148,7 +12148,7 @@
           "jsonName": "decisions",
           "goType": "[]manga.MangaScanReviewDecision",
           "usedStructType": "manga.MangaScanReviewDecision",
-          "typescriptType": "Array\u003cManga_MangaScanReviewDecision\u003e",
+          "typescriptType": "Array<Manga_MangaScanReviewDecision>",
           "required": true,
           "descriptions": []
         }
@@ -14092,7 +14092,7 @@
       ],
       "returns": "[]hibikeonlinestream.SearchResult",
       "returnGoType": "hibikeonlinestream.SearchResult",
-      "returnTypescriptType": "Array\u003cHibikeOnlinestream_SearchResult\u003e"
+      "returnTypescriptType": "Array<HibikeOnlinestream_SearchResult>"
     }
   },
   {
@@ -14594,7 +14594,7 @@
       "bodyFields": [],
       "returns": "map[string]interface{}",
       "returnGoType": "interface{}",
-      "returnTypescriptType": "Record\u003cstring, interface{}\u003e"
+      "returnTypescriptType": "Record<string, interface{}>"
     }
   },
   {
@@ -15275,7 +15275,7 @@
           "jsonName": "episodes",
           "goType": "[]anime.PlaylistEpisode",
           "usedStructType": "anime.PlaylistEpisode",
-          "typescriptType": "Array\u003cAnime_PlaylistEpisode\u003e",
+          "typescriptType": "Array<Anime_PlaylistEpisode>",
           "required": true,
           "descriptions": []
         }
@@ -15309,7 +15309,7 @@
       "bodyFields": [],
       "returns": "[]anime.Playlist",
       "returnGoType": "anime.Playlist",
-      "returnTypescriptType": "Array\u003cAnime_Playlist\u003e"
+      "returnTypescriptType": "Array<Anime_Playlist>"
     }
   },
   {
@@ -15374,7 +15374,7 @@
           "jsonName": "episodes",
           "goType": "[]anime.PlaylistEpisode",
           "usedStructType": "anime.PlaylistEpisode",
-          "typescriptType": "Array\u003cAnime_PlaylistEpisode\u003e",
+          "typescriptType": "Array<Anime_PlaylistEpisode>",
           "required": true,
           "descriptions": []
         }
@@ -15470,7 +15470,7 @@
       "bodyFields": [],
       "returns": "[]anime.PlaylistEpisode",
       "returnGoType": "anime.PlaylistEpisode",
-      "returnTypescriptType": "Array\u003cAnime_PlaylistEpisode\u003e"
+      "returnTypescriptType": "Array<Anime_PlaylistEpisode>"
     }
   },
   {
@@ -15627,7 +15627,7 @@
       "bodyFields": [],
       "returns": "[]*core.ProfileSummary",
       "returnGoType": "core.ProfileSummary",
-      "returnTypescriptType": "Array\u003cINTERNAL_ProfileSummary\u003e"
+      "returnTypescriptType": "Array<INTERNAL_ProfileSummary>"
     }
   },
   {
@@ -15709,7 +15709,7 @@
       ],
       "returns": "map[string]interface{}",
       "returnGoType": "interface{}",
-      "returnTypescriptType": "Record\u003cstring, interface{}\u003e"
+      "returnTypescriptType": "Record<string, interface{}>"
     }
   },
   {
@@ -15746,7 +15746,7 @@
       ],
       "returns": "map[string]interface{}",
       "returnGoType": "interface{}",
-      "returnTypescriptType": "Record\u003cstring, interface{}\u003e"
+      "returnTypescriptType": "Record<string, interface{}>"
     }
   },
   {
@@ -16008,7 +16008,7 @@
       "bodyFields": [],
       "returns": "[]string",
       "returnGoType": "string",
-      "returnTypescriptType": "Array\u003cstring\u003e"
+      "returnTypescriptType": "Array<string>"
     }
   },
   {
@@ -16038,7 +16038,7 @@
           "jsonName": "paths",
           "goType": "[]string",
           "usedStructType": "",
-          "typescriptType": "Array\u003cstring\u003e",
+          "typescriptType": "Array<string>",
           "required": true,
           "descriptions": []
         }
@@ -16957,7 +16957,7 @@
       "bodyFields": [],
       "returns": "[]achievement.ExpBarProgressionEntry",
       "returnGoType": "achievement.ExpBarProgressionEntry",
-      "returnTypescriptType": "Array\u003cAchievement_ExpBarProgressionEntry\u003e"
+      "returnTypescriptType": "Array<Achievement_ExpBarProgressionEntry>"
     }
   },
   {
@@ -17302,7 +17302,7 @@
       "bodyFields": [],
       "returns": "[]handlers.TimelineReplyItem",
       "returnGoType": "handlers.TimelineReplyItem",
-      "returnTypescriptType": "Array\u003cTimelineReplyItem\u003e"
+      "returnTypescriptType": "Array<TimelineReplyItem>"
     }
   },
   {
@@ -17624,7 +17624,7 @@
       "bodyFields": [],
       "returns": "[]toWatchEntry",
       "returnGoType": "toWatchEntry",
-      "returnTypescriptType": "Array\u003ctoWatchEntry\u003e"
+      "returnTypescriptType": "Array<toWatchEntry>"
     }
   },
   {
@@ -17656,7 +17656,7 @@
       "bodyFields": [],
       "returns": "[]toWatchEntry",
       "returnGoType": "toWatchEntry",
-      "returnTypescriptType": "Array\u003ctoWatchEntry\u003e"
+      "returnTypescriptType": "Array<toWatchEntry>"
     }
   },
   {
@@ -17837,7 +17837,7 @@
           "jsonName": "genres",
           "goType": "[]string",
           "usedStructType": "",
-          "typescriptType": "Array\u003cstring\u003e",
+          "typescriptType": "Array<string>",
           "required": true,
           "descriptions": []
         },
@@ -17853,7 +17853,7 @@
       ],
       "returns": "[]toWatchEntry",
       "returnGoType": "toWatchEntry",
-      "returnTypescriptType": "Array\u003ctoWatchEntry\u003e"
+      "returnTypescriptType": "Array<toWatchEntry>"
     }
   },
   {
@@ -17908,7 +17908,7 @@
       ],
       "returns": "[]toWatchEntry",
       "returnGoType": "toWatchEntry",
-      "returnTypescriptType": "Array\u003ctoWatchEntry\u003e"
+      "returnTypescriptType": "Array<toWatchEntry>"
     }
   },
   {
@@ -17943,7 +17943,7 @@
           "jsonName": "animeIds",
           "goType": "[]int",
           "usedStructType": "",
-          "typescriptType": "Array\u003cnumber\u003e",
+          "typescriptType": "Array<number>",
           "required": true,
           "descriptions": []
         },
@@ -17953,14 +17953,14 @@
           "goType": "[]__STRUCT__",
           "inlineStructType": "[]struct{\nMediaID int `json:\"mediaId\"`\nMediaType string `json:\"mediaType\"`}",
           "usedStructType": "",
-          "typescriptType": "Array\u003c{ mediaId: number; mediaType: string; }\u003e",
+          "typescriptType": "Array<{ mediaId: number; mediaType: string; }>",
           "required": true,
           "descriptions": []
         }
       ],
       "returns": "[]toWatchEntry",
       "returnGoType": "toWatchEntry",
-      "returnTypescriptType": "Array\u003ctoWatchEntry\u003e"
+      "returnTypescriptType": "Array<toWatchEntry>"
     }
   },
   {
@@ -17987,7 +17987,7 @@
       "bodyFields": [],
       "returns": "[]toWatchEntry",
       "returnGoType": "toWatchEntry",
-      "returnTypescriptType": "Array\u003ctoWatchEntry\u003e"
+      "returnTypescriptType": "Array<toWatchEntry>"
     }
   },
   {
@@ -18172,7 +18172,7 @@
       "bodyFields": [],
       "returns": "[]*handlers.ProfilesTimelineResponse",
       "returnGoType": "handlers.ProfilesTimelineResponse",
-      "returnTypescriptType": "Array\u003cProfilesTimelineResponse\u003e"
+      "returnTypescriptType": "Array<ProfilesTimelineResponse>"
     }
   },
   {
@@ -18596,7 +18596,7 @@
           "jsonName": "clickLogs",
           "goType": "[]report.ClickLog",
           "usedStructType": "report.ClickLog",
-          "typescriptType": "Array\u003cReport_ClickLog\u003e",
+          "typescriptType": "Array<Report_ClickLog>",
           "required": true,
           "descriptions": []
         },
@@ -18605,7 +18605,7 @@
           "jsonName": "networkLogs",
           "goType": "[]report.NetworkLog",
           "usedStructType": "report.NetworkLog",
-          "typescriptType": "Array\u003cReport_NetworkLog\u003e",
+          "typescriptType": "Array<Report_NetworkLog>",
           "required": true,
           "descriptions": []
         },
@@ -18614,7 +18614,7 @@
           "jsonName": "reactQueryLogs",
           "goType": "[]report.ReactQueryLog",
           "usedStructType": "report.ReactQueryLog",
-          "typescriptType": "Array\u003cReport_ReactQueryLog\u003e",
+          "typescriptType": "Array<Report_ReactQueryLog>",
           "required": true,
           "descriptions": []
         },
@@ -18623,7 +18623,7 @@
           "jsonName": "consoleLogs",
           "goType": "[]report.ConsoleLog",
           "usedStructType": "report.ConsoleLog",
-          "typescriptType": "Array\u003cReport_ConsoleLog\u003e",
+          "typescriptType": "Array<Report_ConsoleLog>",
           "required": true,
           "descriptions": []
         },
@@ -18729,7 +18729,7 @@
           "jsonName": "mediaIds",
           "goType": "[]int",
           "usedStructType": "",
-          "typescriptType": "Array\u003cnumber\u003e",
+          "typescriptType": "Array<number>",
           "required": true,
           "descriptions": []
         }
@@ -18767,7 +18767,7 @@
       "HandleGetNewsFeed",
       "",
       "\t@summary returns merged, sorted items from the configured RSS feeds.",
-      "\t@desc Fetches each feed configured in Settings -\u003e App (defaults to anime/manga news feeds),",
+      "\t@desc Fetches each feed configured in Settings -> App (defaults to anime/manga news feeds),",
       "\t@desc merges the items newest-first and caches the result for 15 minutes.",
       "\t@route /api/v1/news [GET]",
       "\t@returns news.Response",
@@ -18778,7 +18778,7 @@
     "api": {
       "summary": "returns merged, sorted items from the configured RSS feeds.",
       "descriptions": [
-        "Fetches each feed configured in Settings -\u003e App (defaults to anime/manga news feeds),",
+        "Fetches each feed configured in Settings -> App (defaults to anime/manga news feeds),",
         "merges the items newest-first and caches the result for 15 minutes."
       ],
       "endpoint": "/api/v1/news",
@@ -18849,7 +18849,7 @@
       ],
       "returns": "[]anime.LocalFile",
       "returnGoType": "anime.LocalFile",
-      "returnTypescriptType": "Array\u003cAnime_LocalFile\u003e"
+      "returnTypescriptType": "Array<Anime_LocalFile>"
     }
   },
   {
@@ -18876,7 +18876,7 @@
       "bodyFields": [],
       "returns": "[]summary.ScanSummaryItem",
       "returnGoType": "summary.ScanSummaryItem",
-      "returnTypescriptType": "Array\u003cSummary_ScanSummaryItem\u003e"
+      "returnTypescriptType": "Array<Summary_ScanSummaryItem>"
     }
   },
   {
@@ -19075,7 +19075,7 @@
       "bodyFields": [],
       "returns": "map[int]interface{}",
       "returnGoType": "interface{}",
-      "returnTypescriptType": "Record\u003cnumber, interface{}\u003e"
+      "returnTypescriptType": "Record<number, interface{}>"
     }
   },
   {
@@ -19102,7 +19102,7 @@
       "bodyFields": [],
       "returns": "map[int]interface{}",
       "returnGoType": "interface{}",
-      "returnTypescriptType": "Record\u003cnumber, interface{}\u003e"
+      "returnTypescriptType": "Record<number, interface{}>"
     }
   },
   {
@@ -19129,7 +19129,7 @@
       "bodyFields": [],
       "returns": "map[int]*gojuuon.SortEntry",
       "returnGoType": "gojuuon.SortEntry",
-      "returnTypescriptType": "Record\u003cnumber, SortEntry\u003e"
+      "returnTypescriptType": "Record<number, SortEntry>"
     }
   },
   {
@@ -19156,7 +19156,7 @@
       "bodyFields": [],
       "returns": "map[int]*gojuuon.SortEntry",
       "returnGoType": "gojuuon.SortEntry",
-      "returnTypescriptType": "Record\u003cnumber, SortEntry\u003e"
+      "returnTypescriptType": "Record<number, SortEntry>"
     }
   },
   {
@@ -19728,7 +19728,7 @@
       "bodyFields": [],
       "returns": "[]string",
       "returnGoType": "string",
-      "returnTypescriptType": "Array\u003cstring\u003e"
+      "returnTypescriptType": "Array<string>"
     }
   },
   {
@@ -19761,7 +19761,7 @@
           "jsonName": "filenames",
           "goType": "[]string",
           "usedStructType": "",
-          "typescriptType": "Array\u003cstring\u003e",
+          "typescriptType": "Array<string>",
           "required": true,
           "descriptions": []
         }
@@ -19838,7 +19838,7 @@
       ],
       "returns": "[]updater.Announcement",
       "returnGoType": "updater.Announcement",
-      "returnTypescriptType": "Array\u003cUpdater_Announcement\u003e"
+      "returnTypescriptType": "Array<Updater_Announcement>"
     }
   },
   {
@@ -20019,7 +20019,7 @@
       "bodyFields": [],
       "returns": "[]models.HomeItem",
       "returnGoType": "models.HomeItem",
-      "returnTypescriptType": "Array\u003cModels_HomeItem\u003e"
+      "returnTypescriptType": "Array<Models_HomeItem>"
     }
   },
   {
@@ -20049,7 +20049,7 @@
           "jsonName": "items",
           "goType": "[]models.HomeItem",
           "usedStructType": "models.HomeItem",
-          "typescriptType": "Array\u003cModels_HomeItem\u003e",
+          "typescriptType": "Array<Models_HomeItem>",
           "required": true,
           "descriptions": []
         }
@@ -20083,7 +20083,7 @@
       "bodyFields": [],
       "returns": "[]models.HomeItem",
       "returnGoType": "models.HomeItem",
-      "returnTypescriptType": "Array\u003cModels_HomeItem\u003e"
+      "returnTypescriptType": "Array<Models_HomeItem>"
     }
   },
   {
@@ -20113,7 +20113,7 @@
           "jsonName": "items",
           "goType": "[]models.HomeItem",
           "usedStructType": "models.HomeItem",
-          "typescriptType": "Array\u003cModels_HomeItem\u003e",
+          "typescriptType": "Array<Models_HomeItem>",
           "required": true,
           "descriptions": []
         }
@@ -20280,7 +20280,7 @@
       ],
       "returns": "[]*models.SyntheticAnime",
       "returnGoType": "models.SyntheticAnime",
-      "returnTypescriptType": "Array\u003cModels_SyntheticAnime\u003e"
+      "returnTypescriptType": "Array<Models_SyntheticAnime>"
     }
   },
   {
@@ -20357,7 +20357,7 @@
     "trimmedName": "convertFolderNameToTitle",
     "comments": [
       "convertFolderNameToTitle converts kebab-case folder names to title case",
-      "E.g., \"attack-on-titan\" -\u003e \"Attack on Titan\"",
+      "E.g., \"attack-on-titan\" -> \"Attack on Titan\"",
       ""
     ],
     "filepath": "internal/handlers/theme-images.go",
@@ -20507,30 +20507,6 @@
     "trimmedName": "DeleteThemeBackground",
     "comments": [
       "HandleDeleteThemeBackground removes a downloaded wallpaper from datadir/theme-backgrounds/.",
-      ""
-    ],
-    "filepath": "internal/handlers/theme_backgrounds.go",
-    "filename": "theme_backgrounds.go",
-    "api": {
-      "summary": "",
-      "descriptions": [],
-      "endpoint": "",
-      "methods": null,
-      "params": [],
-      "bodyFields": [],
-      "returns": "bool",
-      "returnGoType": "bool",
-      "returnTypescriptType": "boolean"
-    }
-  },
-  {
-    "name": "HandleListThemeMusicTracks",
-    "trimmedName": "ListThemeMusicTracks",
-    "comments": [
-      "HandleListThemeMusicTracks returns a list of audio tracks from appdata/theme-music/{themeId}/.",
-      "The files are served at /theme-music/{themeId}/{filename} via the static file server.",
-      "The scan is recursive — files in sub-folders (e.g. \"Disc 1/01 - Tank.mp3\") are included",
-      "with a forward-slash relative path so the URL/static serve continue to work.",
       ""
     ],
     "filepath": "internal/handlers/theme_backgrounds.go",
@@ -20884,373 +20860,6 @@
       "returns": "bool",
       "returnGoType": "bool",
       "returnTypescriptType": "boolean"
-    }
-  },
-  {
-    "name": "walkThemeAudioFiles",
-    "trimmedName": "walkThemeAudioFiles",
-    "comments": [
-      "walkThemeAudioFiles recursively scans dir and returns every audio file found.",
-      "Symlinks are not followed. Errors at individual entries are ignored.",
-      ""
-    ],
-    "filepath": "internal/handlers/theme_music.go",
-    "filename": "theme_music.go",
-    "api": {
-      "summary": "",
-      "descriptions": [],
-      "endpoint": "",
-      "methods": null,
-      "params": [],
-      "bodyFields": [],
-      "returns": "bool",
-      "returnGoType": "bool",
-      "returnTypescriptType": "boolean"
-    }
-  },
-  {
-    "name": "removeThemeAudioFiles",
-    "trimmedName": "removeThemeAudioFiles",
-    "comments": [
-      "removeThemeAudioFiles deletes every audio file under dir (recursively).",
-      "Non-audio files (e.g. .nfo, .jpg) are left alone — defence in depth.",
-      ""
-    ],
-    "filepath": "internal/handlers/theme_music.go",
-    "filename": "theme_music.go",
-    "api": {
-      "summary": "",
-      "descriptions": [],
-      "endpoint": "",
-      "methods": null,
-      "params": [],
-      "bodyFields": [],
-      "returns": "bool",
-      "returnGoType": "bool",
-      "returnTypescriptType": "boolean"
-    }
-  },
-  {
-    "name": "buildThemeAudioURL",
-    "trimmedName": "buildThemeAudioURL",
-    "comments": [
-      "buildThemeAudioURL constructs the URL the static file server uses for a track,",
-      "escaping every path segment individually so spaces/specials in filenames work.",
-      ""
-    ],
-    "filepath": "internal/handlers/theme_music.go",
-    "filename": "theme_music.go",
-    "api": {
-      "summary": "",
-      "descriptions": [],
-      "endpoint": "",
-      "methods": null,
-      "params": [],
-      "bodyFields": [],
-      "returns": "bool",
-      "returnGoType": "bool",
-      "returnTypescriptType": "boolean"
-    }
-  },
-  {
-    "name": "sanitizeThemeID",
-    "trimmedName": "sanitizeThemeID",
-    "comments": [
-      "sanitizeThemeID ensures a theme id is safe to use as a folder name segment.",
-      ""
-    ],
-    "filepath": "internal/handlers/theme_music.go",
-    "filename": "theme_music.go",
-    "api": {
-      "summary": "",
-      "descriptions": [],
-      "endpoint": "",
-      "methods": null,
-      "params": [],
-      "bodyFields": [],
-      "returns": "bool",
-      "returnGoType": "bool",
-      "returnTypescriptType": "boolean"
-    }
-  },
-  {
-    "name": "themeMusicDir",
-    "trimmedName": "themeMusicDir",
-    "comments": [
-      "themeMusicDir returns and ensures the destination directory for a theme.",
-      ""
-    ],
-    "filepath": "internal/handlers/theme_music.go",
-    "filename": "theme_music.go",
-    "api": {
-      "summary": "",
-      "descriptions": [],
-      "endpoint": "",
-      "methods": null,
-      "params": [],
-      "bodyFields": [],
-      "returns": "bool",
-      "returnGoType": "bool",
-      "returnTypescriptType": "boolean"
-    }
-  },
-  {
-    "name": "HandleSearchThemeMusic",
-    "trimmedName": "SearchThemeMusic",
-    "comments": [
-      "HandleSearchThemeMusic",
-      "",
-      "\t@summary searches torrents for music/OST releases for a theme.",
-      "\t@desc Performs a simple torrent search across all enabled providers using the supplied query.",
-      "\t@desc Returns the underlying torrent.SearchData unchanged so the client can present rich info.",
-      "\t@route /api/v1/theme-music/search [POST]",
-      "\t@returns torrent.SearchData",
-      ""
-    ],
-    "filepath": "internal/handlers/theme_music.go",
-    "filename": "theme_music.go",
-    "api": {
-      "summary": "searches torrents for music/OST releases for a theme.",
-      "descriptions": [
-        "Performs a simple torrent search across all enabled providers using the supplied query.",
-        "Returns the underlying torrent.SearchData unchanged so the client can present rich info."
-      ],
-      "endpoint": "/api/v1/theme-music/search",
-      "methods": [
-        "POST"
-      ],
-      "params": [],
-      "bodyFields": [
-        {
-          "name": "ThemeID",
-          "jsonName": "themeId",
-          "goType": "string",
-          "usedStructType": "",
-          "typescriptType": "string",
-          "required": true,
-          "descriptions": []
-        },
-        {
-          "name": "Query",
-          "jsonName": "query",
-          "goType": "string",
-          "usedStructType": "",
-          "typescriptType": "string",
-          "required": true,
-          "descriptions": []
-        },
-        {
-          "name": "Queries",
-          "jsonName": "queries",
-          "goType": "[]string",
-          "usedStructType": "",
-          "typescriptType": "Array\u003cstring\u003e",
-          "required": false,
-          "descriptions": []
-        },
-        {
-          "name": "Provider",
-          "jsonName": "provider",
-          "goType": "string",
-          "usedStructType": "",
-          "typescriptType": "string",
-          "required": false,
-          "descriptions": []
-        }
-      ],
-      "returns": "torrent.SearchData",
-      "returnGoType": "torrent.SearchData",
-      "returnTypescriptType": "Torrent_SearchData"
-    }
-  },
-  {
-    "name": "HandleDownloadThemeMusic",
-    "trimmedName": "DownloadThemeMusic",
-    "comments": [
-      "HandleDownloadThemeMusic",
-      "",
-      "\t@summary adds a magnet to the configured torrent client with the theme-music folder as destination.",
-      "\t@desc If replaceExisting is true, all current files in the theme's music folder are deleted first.",
-      "\t@route /api/v1/theme-music/download [POST]",
-      "\t@returns bool",
-      ""
-    ],
-    "filepath": "internal/handlers/theme_music.go",
-    "filename": "theme_music.go",
-    "api": {
-      "summary": "adds a magnet to the configured torrent client with the theme-music folder as destination.",
-      "descriptions": [
-        "If replaceExisting is true, all current files in the theme's music folder are deleted first."
-      ],
-      "endpoint": "/api/v1/theme-music/download",
-      "methods": [
-        "POST"
-      ],
-      "params": [],
-      "bodyFields": [
-        {
-          "name": "ThemeID",
-          "jsonName": "themeId",
-          "goType": "string",
-          "usedStructType": "",
-          "typescriptType": "string",
-          "required": true,
-          "descriptions": []
-        },
-        {
-          "name": "MagnetUrl",
-          "jsonName": "magnetUrl",
-          "goType": "string",
-          "usedStructType": "",
-          "typescriptType": "string",
-          "required": true,
-          "descriptions": []
-        },
-        {
-          "name": "Provider",
-          "jsonName": "provider",
-          "goType": "string",
-          "usedStructType": "",
-          "typescriptType": "string",
-          "required": true,
-          "descriptions": []
-        },
-        {
-          "name": "Torrent",
-          "jsonName": "torrent",
-          "goType": "hibiketorrent.AnimeTorrent",
-          "usedStructType": "hibiketorrent.AnimeTorrent",
-          "typescriptType": "HibikeTorrent_AnimeTorrent",
-          "required": false,
-          "descriptions": []
-        },
-        {
-          "name": "ReplaceExisting",
-          "jsonName": "replaceExisting",
-          "goType": "bool",
-          "usedStructType": "",
-          "typescriptType": "boolean",
-          "required": true,
-          "descriptions": []
-        }
-      ],
-      "returns": "bool",
-      "returnGoType": "bool",
-      "returnTypescriptType": "boolean"
-    }
-  },
-  {
-    "name": "HandleDeleteThemeMusic",
-    "trimmedName": "DeleteThemeMusic",
-    "comments": [
-      "HandleDeleteThemeMusic",
-      "",
-      "\t@summary deletes all downloaded audio files for a theme.",
-      "\t@route /api/v1/theme-music/{themeId} [DELETE]",
-      "\t@returns bool",
-      ""
-    ],
-    "filepath": "internal/handlers/theme_music.go",
-    "filename": "theme_music.go",
-    "api": {
-      "summary": "deletes all downloaded audio files for a theme.",
-      "descriptions": [],
-      "endpoint": "/api/v1/theme-music/{themeId}",
-      "methods": [
-        "DELETE"
-      ],
-      "params": [],
-      "bodyFields": [],
-      "returns": "bool",
-      "returnGoType": "bool",
-      "returnTypescriptType": "boolean"
-    }
-  },
-  {
-    "name": "HandleDeleteThemeMusicTrack",
-    "trimmedName": "DeleteThemeMusicTrack",
-    "comments": [
-      "HandleDeleteThemeMusicTrack",
-      "",
-      "\t@summary deletes a single audio file for a theme.",
-      "\t@route /api/v1/theme-music/{themeId}/{filename} [DELETE]",
-      "\t@returns bool",
-      ""
-    ],
-    "filepath": "internal/handlers/theme_music.go",
-    "filename": "theme_music.go",
-    "api": {
-      "summary": "deletes a single audio file for a theme.",
-      "descriptions": [],
-      "endpoint": "/api/v1/theme-music/{themeId}/{filename}",
-      "methods": [
-        "DELETE"
-      ],
-      "params": [],
-      "bodyFields": [],
-      "returns": "bool",
-      "returnGoType": "bool",
-      "returnTypescriptType": "boolean"
-    }
-  },
-  {
-    "name": "HandleListThemeMusicMetadata",
-    "trimmedName": "ListThemeMusicMetadata",
-    "comments": [
-      "HandleListThemeMusicMetadata",
-      "",
-      "\t@summary returns the audio files for a theme, enriched with ID3/Vorbis metadata when available.",
-      "\t@desc This is a richer alternative to HandleListThemeMusicTracks — it reads tags from each file.",
-      "\t@route /api/v1/theme-music/metadata [GET]",
-      "\t@returns []handlers.themeMusicMetadataTrack",
-      ""
-    ],
-    "filepath": "internal/handlers/theme_music.go",
-    "filename": "theme_music.go",
-    "api": {
-      "summary": "returns the audio files for a theme, enriched with ID3/Vorbis metadata when available.",
-      "descriptions": [
-        "This is a richer alternative to HandleListThemeMusicTracks — it reads tags from each file."
-      ],
-      "endpoint": "/api/v1/theme-music/metadata",
-      "methods": [
-        "GET"
-      ],
-      "params": [],
-      "bodyFields": [],
-      "returns": "[]handlers.themeMusicMetadataTrack",
-      "returnGoType": "handlers.themeMusicMetadataTrack",
-      "returnTypescriptType": "Array\u003cthemeMusicMetadataTrack\u003e"
-    }
-  },
-  {
-    "name": "HandleListAllThemeMusic",
-    "trimmedName": "ListAllThemeMusic",
-    "comments": [
-      "HandleListAllThemeMusic",
-      "",
-      "\t@summary returns every theme that has at least one audio file, with track counts.",
-      "\t@desc Used by the cross-theme OST browser in the mini-player.",
-      "\t@route /api/v1/theme-music/all [GET]",
-      "\t@returns []handlers.themeMusicSummary",
-      ""
-    ],
-    "filepath": "internal/handlers/theme_music.go",
-    "filename": "theme_music.go",
-    "api": {
-      "summary": "returns every theme that has at least one audio file, with track counts.",
-      "descriptions": [
-        "Used by the cross-theme OST browser in the mini-player."
-      ],
-      "endpoint": "/api/v1/theme-music/all",
-      "methods": [
-        "GET"
-      ],
-      "params": [],
-      "bodyFields": [],
-      "returns": "[]handlers.themeMusicSummary",
-      "returnGoType": "handlers.themeMusicSummary",
-      "returnTypescriptType": "Array\u003cthemeMusicSummary\u003e"
     }
   },
   {
@@ -21691,7 +21300,7 @@
       "bodyFields": [],
       "returns": "[]torrent_client.Torrent",
       "returnGoType": "torrent_client.Torrent",
-      "returnTypescriptType": "Array\u003cTorrentClient_Torrent\u003e"
+      "returnTypescriptType": "Array<TorrentClient_Torrent>"
     }
   },
   {
@@ -21731,7 +21340,7 @@
       ],
       "returns": "[]torrent_client.TorrentFile",
       "returnGoType": "torrent_client.TorrentFile",
-      "returnTypescriptType": "Array\u003cTorrentClient_TorrentFile\u003e"
+      "returnTypescriptType": "Array<TorrentClient_TorrentFile>"
     }
   },
   {
@@ -21937,7 +21546,7 @@
       "bodyFields": [],
       "returns": "[]int",
       "returnGoType": "int",
-      "returnTypescriptType": "Array\u003cnumber\u003e"
+      "returnTypescriptType": "Array<number>"
     }
   },
   {
@@ -22081,7 +21690,7 @@
           "jsonName": "mediaIds",
           "goType": "[]int",
           "usedStructType": "",
-          "typescriptType": "Array\u003cnumber\u003e",
+          "typescriptType": "Array<number>",
           "required": true,
           "descriptions": []
         }
@@ -22243,7 +21852,7 @@
       ],
       "returns": "[]string",
       "returnGoType": "string",
-      "returnTypescriptType": "Array\u003cstring\u003e"
+      "returnTypescriptType": "Array<string>"
     }
   },
   {
@@ -22278,7 +21887,7 @@
           "jsonName": "torrents",
           "goType": "[]hibiketorrent.AnimeTorrent",
           "usedStructType": "hibiketorrent.AnimeTorrent",
-          "typescriptType": "Array\u003cHibikeTorrent_AnimeTorrent\u003e",
+          "typescriptType": "Array<HibikeTorrent_AnimeTorrent>",
           "required": true,
           "descriptions": []
         },
@@ -22297,7 +21906,7 @@
           "goType": "__STRUCT__",
           "inlineStructType": "struct{\nEnabled bool `json:\"enabled\"`\nMissingEpisodeNumbers []int `json:\"missingEpisodeNumbers\"`}",
           "usedStructType": "",
-          "typescriptType": "{ enabled: boolean; missingEpisodeNumbers: Array\u003cnumber\u003e; }",
+          "typescriptType": "{ enabled: boolean; missingEpisodeNumbers: Array<number>; }",
           "required": true,
           "descriptions": []
         },
@@ -22307,7 +21916,7 @@
           "goType": "__STRUCT__",
           "inlineStructType": "struct{\nEnabled bool `json:\"enabled\"`\nIndices []int `json:\"indices\"`}",
           "usedStructType": "",
-          "typescriptType": "{ enabled: boolean; indices: Array\u003cnumber\u003e; }",
+          "typescriptType": "{ enabled: boolean; indices: Array<number>; }",
           "required": false,
           "descriptions": []
         },
@@ -22340,7 +21949,7 @@
           "jsonName": "autoMatchByTorrent",
           "goType": "map[string]bool",
           "usedStructType": "",
-          "typescriptType": "Record\u003cstring, boolean\u003e",
+          "typescriptType": "Record<string, boolean>",
           "required": false,
           "descriptions": [
             "AutoMatchByTorrent overrides AutoMatch for individual torrents, keyed by the torrent's",
@@ -22509,7 +22118,7 @@
           "jsonName": "torrents",
           "goType": "[]torrent.TorrentContentsRequestItem",
           "usedStructType": "torrent.TorrentContentsRequestItem",
-          "typescriptType": "Array\u003cTorrent_TorrentContentsRequestItem\u003e",
+          "typescriptType": "Array<Torrent_TorrentContentsRequestItem>",
           "required": true,
           "descriptions": []
         },
@@ -22525,7 +22134,7 @@
       ],
       "returns": "map[string]handlers.TorrentContents",
       "returnGoType": "handlers.TorrentContents",
-      "returnTypescriptType": "Record\u003cstring, TorrentContents\u003e"
+      "returnTypescriptType": "Record<string, TorrentContents>"
     }
   },
   {
@@ -22904,7 +22513,7 @@
       ],
       "returns": "[]torrentstream.FilePreview",
       "returnGoType": "torrentstream.FilePreview",
-      "returnTypescriptType": "Array\u003cTorrentstream_FilePreview\u003e"
+      "returnTypescriptType": "Array<Torrentstream_FilePreview>"
     }
   },
   {
@@ -23181,7 +22790,7 @@
       "bodyFields": [],
       "returns": "map[string]models.TrackPreference",
       "returnGoType": "models.TrackPreference",
-      "returnTypescriptType": "Record\u003cstring, Models_TrackPreference\u003e"
+      "returnTypescriptType": "Record<string, Models_TrackPreference>"
     }
   },
   {
@@ -23401,7 +23010,7 @@
     "trimmedName": "searchJapaneseTrailer",
     "comments": [
       "searchJapaneseTrailer looks for the show's original Japanese trailer (PV) on YouTube: by its",
-      "native title first (\"\u003ctitle\u003e PV\", \"\u003ctitle\u003e 予告\"), then its romaji title.",
+      "native title first (\"<title> PV\", \"<title> 予告\"), then its romaji title.",
       ""
     ],
     "filepath": "internal/handlers/trailer_lookup.go",
@@ -23467,7 +23076,7 @@
       "bodyFields": [],
       "returns": "[]*unmatched.UnmatchedTorrent",
       "returnGoType": "unmatched.UnmatchedTorrent",
-      "returnTypescriptType": "Array\u003cUnmatchedTorrent\u003e"
+      "returnTypescriptType": "Array<UnmatchedTorrent>"
     }
   },
   {
@@ -23959,7 +23568,7 @@
       "bodyFields": [],
       "returns": "[]*unmatched.MatchHistoryEntry",
       "returnGoType": "unmatched.MatchHistoryEntry",
-      "returnTypescriptType": "Array\u003cMatchHistoryEntry\u003e"
+      "returnTypescriptType": "Array<MatchHistoryEntry>"
     }
   },
   {

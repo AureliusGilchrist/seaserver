@@ -374,7 +374,7 @@ export function ClientSettings(props: ClientSettingsProps) {
                                 value={personal.autoUpdateProgress}
                                 onValueChange={v => handleSet("autoUpdateProgress", v)}
                                 label="Update progress automatically"
-                                help="Marks an episode watched on your list once you've seen most of it."
+                                help="Automatically updates your list when an episode reaches your watched threshold."
                                 moreHelp="Applies to the in-app players and integrated external players."
                             />
                         </SettingRow>
@@ -406,6 +406,22 @@ export function ClientSettings(props: ClientSettingsProps) {
                             />
                         </SettingRow>}
                     </div>
+                    <SettingRow settingKey="episodeWatchedThreshold">
+                        <div className="flex flex-wrap items-center justify-between gap-4">
+                            <div>
+                                <p className="font-medium">Count an episode as watched after</p>
+                                <p className="mt-0.5 text-sm text-[--muted]">
+                                    Applies when you reach this point in an episode, including when automatic list updates are off.
+                                </p>
+                            </div>
+                            <ChoiceRow
+                                label="Watched at"
+                                value={String(personal.episodeWatchedThreshold)}
+                                options={[70, 75, 80, 85, 90, 95].map(v => [String(v), `${v}%`])}
+                                onChange={v => handleSet("episodeWatchedThreshold", Number(v) as NonNullable<ClientSettings["episodeWatchedThreshold"]>)}
+                            />
+                        </div>
+                    </SettingRow>
                     <SettingRow settingKey={["audioPreference", "dubSubtitles"]}>
                         <div className="flex flex-wrap items-start justify-between gap-4">
                             <div className="max-w-md">

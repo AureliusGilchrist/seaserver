@@ -829,7 +829,6 @@ export const vinlandSagaTheme: AnimeThemeConfig = {
         "m_meta_diverse": "Diverse Norse Portfolio",
         "m_meta_dominator": "Meta Dominator Norse Reader",
     },
-    musicUrl: "",
     previewColors: {
         bg: "#060810",
         primary: "#3a6ea5",

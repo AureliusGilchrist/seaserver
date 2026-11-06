@@ -838,7 +838,6 @@ export const yowamushiPedalTheme: AnimeThemeConfig = {
         "m_meta_diverse": "Onoda Anchor",
         "m_meta_dominator": "Marathon Writ",
     },
-    musicUrl: "",
     previewColors: {
         bg: "#000208",
         primary: "#165ad0",

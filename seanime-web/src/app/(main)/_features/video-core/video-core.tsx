@@ -207,8 +207,6 @@ function exitVideoCoreFullscreen(fullscreenManager: VideoCoreFullscreenManager |
 export const VIDEOCORE_DEBUG_ELEMENTS = false
 
 const DELAY_BEFORE_NOT_BUSY = 1_000 //ms
-// Share of an episode that, once played, counts it as watched when the player moves on early.
-const EPISODE_PLAYED_FRACTION = 0.6
 
 export function startVideoCoreMiniPlayerTransition(update: () => void) {
     if (typeof document === "undefined" || typeof window === "undefined") {
@@ -921,7 +919,7 @@ export function VideoCore(props: VideoCoreProps) {
     useVideoCoreBindings(videoElement, state.playbackInfo)
     useVideoCorePlaylistSetup(state, onPlayEpisode)
 
-    // Client-side AniList progress at 80% (reliable REST path) for both online + local players
+    // Client-side watched tracking and AniList progress for both online + local players.
     const { onReachedThreshold: onReachedProgressThreshold } = useVideoCoreAutoProgress(state)
 
     // The sequel offer and the every-N-episodes check (Personal settings). Both are raised from
@@ -1775,7 +1773,6 @@ export function VideoCore(props: VideoCoreProps) {
         if (episodeWatchRef.current) episodeWatchRef.current.completed = true
         onCompleted?.()
         dispatchVideoCompletedEvent()
-        onReachedProgressThreshold()
         onEpisodeEnded()
     }
 
@@ -1798,29 +1795,28 @@ export function VideoCore(props: VideoCoreProps) {
             episodeWatchRef.current = w
         }
         if (percent > w.maxPercent) {
-            if (w.maxPercent < EPISODE_PLAYED_FRACTION && percent >= EPISODE_PLAYED_FRACTION) {
-                // Most of it was seen: the episode counts as watched for the progress check, even
-                // if its own update is never sent.
+            const watchedThreshold = personal.episodeWatchedThreshold / 100
+            if (w.maxPercent < watchedThreshold && percent >= watchedThreshold) {
                 markEpisodePlayed(info.media.id, episodeNumber)
+                onReachedProgressThreshold()
             }
             w.maxPercent = percent
         }
     }
 
-    // Moving on to the next episode before the 85% mark (the ending skipped, "next episode", a
-    // file whose reported duration runs past its real end) used to leave the episode uncounted, and
-    // the next one then asked to "skip ahead" two episodes. Counted here when most of it was seen.
+    // Moving on to the next episode before the watched threshold still counts the previous episode
+    // if playback had crossed that threshold.
     React.useEffect(() => {
         const prev = episodeWatchRef.current
         const info = state.playbackInfo
         if (!prev || !info || prev.playbackId === info.id) return
         episodeWatchRef.current = null
-        if (prev.completed || prev.maxPercent < EPISODE_PLAYED_FRACTION) return
+        if (prev.completed || prev.maxPercent < personal.episodeWatchedThreshold / 100) return
         if (info.media?.id !== prev.media?.id) return
         if ((info.episode?.progressNumber ?? 0) !== prev.episodeNumber + 1) return
         log.info("Counting the previous episode as watched", prev.episodeNumber)
         onReachedProgressThreshold({ media: prev.media, episodeNumber: prev.episodeNumber })
-    }, [state.playbackInfo?.id])
+    }, [state.playbackInfo?.id, personal.episodeWatchedThreshold])
 
     const { playEpisode, isGlobalPlaylistActive } = useVideoCorePlaylist()
 
@@ -1836,9 +1832,10 @@ export function VideoCore(props: VideoCoreProps) {
         subtitleManager?.pgsRenderer?.stop()
         onEnded?.()
         onVideoEnded()
-        // Played to the end without timeupdate ever crossing 85% (the reported duration was
-        // longer than the stream): it is still a watched episode.
-        if (!videoCompletedRef.current) completeEpisode()
+        trackEpisodeWatch(1)
+        if (!videoCompletedRef.current) {
+            completeEpisode()
+        }
         if (autoNext && !isWatchPartyParticipant) {
             if (props.id === "native-player" && isGlobalPlaylistActive) {
                 log.info("Skipping frontend auto next for native global playlist")

@@ -838,7 +838,6 @@ export const worldGodOnlyKnowsTheme: AnimeThemeConfig = {
         "m_meta_diverse": "World Real Anchor",
         "m_meta_dominator": "Galge Archive Writ",
     },
-    musicUrl: "",
     previewColors: {
         bg: "#030008",
         primary: "#6930e1",

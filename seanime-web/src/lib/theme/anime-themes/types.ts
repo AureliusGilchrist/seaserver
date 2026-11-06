@@ -473,8 +473,6 @@ export type AnimeThemeConfig = {
     sidebarOverrides: Record<string, SidebarItemOverride>
     /** Achievement key → themed display name */
     achievementNames: Record<string, string>
-    /** URL to hosted or local background music (CC-licensed or user-supplied) */
-    musicUrl: string
     /** Preview color for theme selector card */
     previewColors: {
         primary: string

@@ -403,7 +403,6 @@ const FEATURE_EGGS: EasterEggDefinition[] = [
     { id: "feature-manga-reader",     name: "Manga Reader Mode", description: "Opened the manga reader.",          xp: 25, trigger: "feature", hint: "Open the manga reader.", icon: "📖" },
     { id: "feature-nakama-chat",      name: "Social Butterfly",  description: "Used Nakama chat.",                 xp: 40, trigger: "feature", hint: "Chat in a watch party.", icon: "💬" },
     { id: "feature-auto-update",      name: "Up to Date",        description: "Updated the app.",                  xp: 30, trigger: "feature", hint: "Update to a new version.", icon: "🔄" },
-    { id: "feature-theme-music",      name: "Atmosphere",        description: "Enabled theme music.",              xp: 25, trigger: "feature", hint: "Enable music in an anime theme.", icon: "🎵" },
     { id: "feature-particle-fx",      name: "Eye Candy",         description: "Enabled particle effects.",         xp: 25, trigger: "feature", hint: "Enable particle effects in a theme.", icon: "✨" },
     { id: "feature-shortcuts",        name: "Power User",        description: "Used a keyboard shortcut.",         xp: 20, trigger: "feature", hint: "Use a keyboard shortcut.", icon: "⌨️" },
     { id: "feature-seacommand",       name: "Commander",         description: "Opened the Sea Command palette.",   xp: 25, trigger: "feature", hint: "Open Sea Command.", icon: "🎯" },

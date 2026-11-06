@@ -840,7 +840,6 @@ export const zatchBellTheme: AnimeThemeConfig = {
         "m_meta_diverse": "Hidden Spell Anchor",
         "m_meta_dominator": "King's Trophies Writ",
     },
-    musicUrl: "",
     previewColors: {
         bg: "#060500",
         primary: "#d49200",

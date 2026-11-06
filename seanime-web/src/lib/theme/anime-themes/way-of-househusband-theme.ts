@@ -838,7 +838,6 @@ export const wayOfHousehusbandTheme: AnimeThemeConfig = {
         "m_meta_diverse": "Immortal Dragon Anchor",
         "m_meta_dominator": "Unfinished Chores Writ",
     },
-    musicUrl: "",
     previewColors: {
         bg: "#050505",
         primary: "#646464",

@@ -842,7 +842,6 @@ export const yourNameTheme: AnimeThemeConfig = {
         "m_meta_diverse": "Diverse Portfolio",
         "m_meta_dominator": "Meta Dominator",
     },
-    musicUrl: "",
     previewColors: {
         bg:        "#00050f",
         primary:   "#1e5fd2",

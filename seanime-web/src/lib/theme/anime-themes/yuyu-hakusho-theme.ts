@@ -855,7 +855,6 @@ export const yuyuHakushoTheme: AnimeThemeConfig = {
         "m_meta_diverse": "Diverse Spirit Reading Portfolio",
         "m_meta_dominator": "Meta Spirit Reading Dominator",
     },
-    musicUrl: "",
     previewColors: {
         bg: "#040807",
         primary: "#00aa44",

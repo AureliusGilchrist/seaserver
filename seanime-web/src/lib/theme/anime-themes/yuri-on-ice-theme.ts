@@ -838,7 +838,6 @@ export const yuriOnIceTheme: AnimeThemeConfig = {
         "m_meta_diverse": "Grand Prix Anchor Anchor",
         "m_meta_dominator": "Unscored Skaters Writ Writ",
     },
-    musicUrl: "",
     previewColors: {
         bg: "#000410",
         primary: "#1676b9",

@@ -838,7 +838,6 @@ export const welcomeToNhkTheme: AnimeThemeConfig = {
         "m_meta_diverse": "Tatsuhiro Satou Anchor",
         "m_meta_dominator": "Marathon Writ",
     },
-    musicUrl: "",
     previewColors: {
         bg: "#010400",
         primary: "#348737",

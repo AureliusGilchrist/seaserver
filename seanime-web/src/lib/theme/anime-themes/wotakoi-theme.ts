@@ -840,7 +840,6 @@ export const wotakoiTheme: AnimeThemeConfig = {
         "m_meta_diverse": "Narumi Momose Anchor",
         "m_meta_dominator": "Otaku Collection Writ",
     },
-    musicUrl: "",
     previewColors: {
         bg: "#030405",
         primary: "#6982aa",

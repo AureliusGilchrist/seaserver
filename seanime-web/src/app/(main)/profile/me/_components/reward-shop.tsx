@@ -20,7 +20,6 @@ import {
     LuLock,
     LuMoon,
     LuMousePointer2,
-    LuMusic,
     LuPalette,
     LuPanelLeft,
     LuPanelTop,
@@ -41,7 +40,6 @@ import {
 } from "@/lib/ui-customize/ui-customize-definitions"
 import { useUICustomize } from "@/lib/ui-customize/ui-customize-provider"
 import { useAnimeTheme } from "@/lib/theme/anime-themes/anime-theme-provider"
-import { ThemeOstMiniPlayer } from "@/lib/theme/anime-themes/theme-ost-mini-player"
 import { LevelRingAvatar } from "@/app/(main)/_features/level-ring-avatar"
 import { PageTransitionControls } from "@/components/shared/page-transition-controls"
 import { useSound, EXTENDED_SOUND_NAMES, EXTENDED_SOUND_LABELS } from "@/lib/sounds/sound-provider"
@@ -1023,7 +1021,7 @@ function UIEnhancementsSection() {
 
 type SectionId =
     | "titles" | "themes" | "xpbars" | "namecolors" | "borders" | "backgrounds" | "profilestyle"
-    | "enhancements" | "particles" | "cursors" | "sounds" | "ost"
+    | "enhancements" | "particles" | "cursors" | "sounds"
 
 type SectionDef = {
     id: SectionId
@@ -1046,7 +1044,6 @@ const SECTIONS: SectionDef[] = [
     { id: "particles", group: "interface", label: "Particles", icon: LuSparkles, description: "Ambient particles drifting over the app.", render: () => <ParticlesTab /> },
     { id: "cursors", group: "interface", label: "Cursors", icon: LuMousePointer2, description: "Your mouse pointer.", render: () => <CursorTab /> },
     { id: "sounds", group: "interface", label: "Sounds", icon: LuVolume2, description: "Interface sounds, and which events play them.", render: () => <SoundPackTab /> },
-    { id: "ost", group: "interface", label: "Theme OST", icon: LuMusic, description: "Music from your theme.", render: () => <ThemeOstMiniPlayer /> },
 ]
 
 const GROUPS: { id: SectionDef["group"], label: string, note?: string }[] = [

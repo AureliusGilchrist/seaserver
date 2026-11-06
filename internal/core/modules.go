@@ -1019,14 +1019,15 @@ func (a *App) InitOrRefreshModules() {
 
 		// Set media player repository
 		a.MediaPlayerRepository = mediaplayer.NewRepository(&mediaplayer.NewRepositoryOptions{
-			Logger:            a.Logger,
-			Default:           settings.MediaPlayer.Default,
-			VLC:               a.MediaPlayer.VLC,
-			MpcHc:             a.MediaPlayer.MpcHc,
-			Mpv:               a.MediaPlayer.Mpv, // Socket
-			Iina:              a.MediaPlayer.Iina,
-			WSEventManager:    a.WSEventManager,
-			ContinuityManager: a.ContinuityManager,
+			Logger:                  a.Logger,
+			Default:                 settings.MediaPlayer.Default,
+			VLC:                     a.MediaPlayer.VLC,
+			MpcHc:                   a.MediaPlayer.MpcHc,
+			Mpv:                     a.MediaPlayer.Mpv, // Socket
+			Iina:                    a.MediaPlayer.Iina,
+			WSEventManager:          a.WSEventManager,
+			ContinuityManager:       a.ContinuityManager,
+			CompletionThresholdFunc: a.PlaybackManager.EpisodeWatchedThreshold,
 		})
 
 		a.PlaybackManager.SetMediaPlayerRepository(a.MediaPlayerRepository)

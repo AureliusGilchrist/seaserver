@@ -20,6 +20,14 @@ export const CLIENT_SETTINGS_KEY = "sea-client-settings"
 export const clientSettingsSchema = z.object({
     // Playback & progress
     autoUpdateProgress: z.boolean().optional(),
+    episodeWatchedThreshold: z.union([
+        z.literal(70),
+        z.literal(75),
+        z.literal(80),
+        z.literal(85),
+        z.literal(90),
+        z.literal(95),
+    ]).optional(),
     enableWatchContinuity: z.boolean().optional(),
     autoPlayNextEpisode: z.boolean().optional(),
     /** Desktop client: leaving the page while the local player is playing pops it out where it was. */

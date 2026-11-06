@@ -32,34 +32,36 @@ const (
 type (
 	// Repository provides a common interface to interact with media players
 	Repository struct {
-		Logger                *zerolog.Logger
-		Default               string
-		VLC                   *vlc2.VLC
-		MpcHc                 *mpchc2.MpcHc
-		Mpv                   *mpv.Mpv
-		Iina                  *iina.Iina
-		wsEventManager        events.WSEventManagerInterface
-		continuityManager     *continuity.Manager
-		playerInUse           string
-		completionThreshold   float64
-		mu                    sync.RWMutex
-		isRunning             bool
-		trackingType          string // "file" or "stream" - tracks which type of tracking is active
-		currentPlaybackStatus *PlaybackStatus
-		subscribers           *result.Map[string, *RepositorySubscriber]
-		cancel                context.CancelFunc
-		exitedCh              chan struct{} // Closed when the media player exits
+		Logger                  *zerolog.Logger
+		Default                 string
+		VLC                     *vlc2.VLC
+		MpcHc                   *mpchc2.MpcHc
+		Mpv                     *mpv.Mpv
+		Iina                    *iina.Iina
+		wsEventManager          events.WSEventManagerInterface
+		continuityManager       *continuity.Manager
+		playerInUse             string
+		completionThreshold     float64
+		mu                      sync.RWMutex
+		isRunning               bool
+		trackingType            string // "file" or "stream" - tracks which type of tracking is active
+		currentPlaybackStatus   *PlaybackStatus
+		subscribers             *result.Map[string, *RepositorySubscriber]
+		cancel                  context.CancelFunc
+		exitedCh                chan struct{} // Closed when the media player exits
+		completionThresholdFunc func() float64
 	}
 
 	NewRepositoryOptions struct {
-		Logger            *zerolog.Logger
-		Default           string
-		VLC               *vlc2.VLC
-		MpcHc             *mpchc2.MpcHc
-		Mpv               *mpv.Mpv
-		Iina              *iina.Iina
-		WSEventManager    events.WSEventManagerInterface
-		ContinuityManager *continuity.Manager
+		Logger                  *zerolog.Logger
+		Default                 string
+		VLC                     *vlc2.VLC
+		MpcHc                   *mpchc2.MpcHc
+		Mpv                     *mpv.Mpv
+		Iina                    *iina.Iina
+		WSEventManager          events.WSEventManagerInterface
+		ContinuityManager       *continuity.Manager
+		CompletionThresholdFunc func() float64
 	}
 
 	// RepositorySubscriber provides a single event channel for all media player events
@@ -142,21 +144,30 @@ func (e StreamingTrackingStoppedEvent) Type() string { return "streaming_trackin
 func (e StreamingPlaybackStatusEvent) Type() string  { return "streaming_playback_status" }
 
 func NewRepository(opts *NewRepositoryOptions) *Repository {
-
 	return &Repository{
-		Logger:                opts.Logger,
-		Default:               opts.Default,
-		VLC:                   opts.VLC,
-		MpcHc:                 opts.MpcHc,
-		Mpv:                   opts.Mpv,
-		Iina:                  opts.Iina,
-		wsEventManager:        opts.WSEventManager,
-		continuityManager:     opts.ContinuityManager,
-		completionThreshold:   0.75,
-		subscribers:           result.NewMap[string, *RepositorySubscriber](),
-		currentPlaybackStatus: &PlaybackStatus{},
-		exitedCh:              make(chan struct{}),
+		Logger:                  opts.Logger,
+		Default:                 opts.Default,
+		VLC:                     opts.VLC,
+		MpcHc:                   opts.MpcHc,
+		Mpv:                     opts.Mpv,
+		Iina:                    opts.Iina,
+		wsEventManager:          opts.WSEventManager,
+		continuityManager:       opts.ContinuityManager,
+		completionThreshold:     0.75,
+		completionThresholdFunc: opts.CompletionThresholdFunc,
+		subscribers:             result.NewMap[string, *RepositorySubscriber](),
+		currentPlaybackStatus:   &PlaybackStatus{},
+		exitedCh:                make(chan struct{}),
 	}
+}
+
+func (m *Repository) getCompletionThreshold() float64 {
+	if m.completionThresholdFunc != nil {
+		if threshold := m.completionThresholdFunc(); threshold > 0 && threshold <= 1 {
+			return threshold
+		}
+	}
+	return m.completionThreshold
 }
 
 func (m *Repository) Subscribe(id string) *RepositorySubscriber {
@@ -587,6 +598,7 @@ func (m *Repository) StartTrackingTorrentStream() {
 	gotFirstStatus := false
 
 	m.mu.Unlock()
+	completionThreshold := m.getCompletionThreshold()
 
 	go func(trackingCtx context.Context) {
 		defer func() {
@@ -680,7 +692,7 @@ func (m *Repository) StartTrackingTorrentStream() {
 				}
 
 				// Stream completed \/
-				if m.currentPlaybackStatus.CompletionPercentage > m.completionThreshold && !completed {
+				if m.currentPlaybackStatus.CompletionPercentage >= completionThreshold && !completed {
 					m.Logger.Debug().Msg("media player: Video completed")
 					m.streamingVideoCompleted(m.currentPlaybackStatus)
 					completed = true
@@ -739,6 +751,7 @@ func (m *Repository) StartTracking() {
 	gotFirstStatus := false
 
 	m.mu.Unlock()
+	completionThreshold := m.getCompletionThreshold()
 
 	go func(trackingCtx context.Context) {
 		defer func() {
@@ -824,7 +837,7 @@ func (m *Repository) StartTracking() {
 				}
 
 				// Video completed \/
-				if m.currentPlaybackStatus.CompletionPercentage > m.completionThreshold && !completed {
+				if m.currentPlaybackStatus.CompletionPercentage >= completionThreshold && !completed {
 					m.Logger.Debug().Msg("media player: Video completed")
 					m.Logger.Debug().Interface("currentPlaybackStatus", m.currentPlaybackStatus).Msg("media player: Playback status")
 					m.videoCompleted(m.currentPlaybackStatus)

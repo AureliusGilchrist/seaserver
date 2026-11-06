@@ -2,7 +2,7 @@ import { getServerBaseUrl } from "@/api/client/server-url"
 import { __isMobileShell__ } from "@/types/constants"
 
 /**
- * Server-relative theme/wallpaper/music paths ("/themes/…", "/theme-bg/…", "/theme-music/…",
+ * Server-relative theme/wallpaper paths ("/themes/…", "/theme-bg/…",
  * "/api/…") made absolute for the Android client.
  *
  * The Android app serves its pages from http://localhost, so a relative path resolves to the app
@@ -14,7 +14,7 @@ export function resolveServerAsset(url: string): string
 export function resolveServerAsset(url: string | null | undefined): string | null | undefined
 export function resolveServerAsset(url: string | null | undefined): string | null | undefined {
     if (!url || !__isMobileShell__) return url
-    if (/^\/(themes|theme-bg|theme-music|shared-themes|cursor-packs|sound-packs|cursor-library|marketplace[a-z-]*|api|assets)\//.test(url)) {
+    if (/^\/(themes|theme-bg|shared-themes|cursor-packs|sound-packs|cursor-library|marketplace[a-z-]*|api|assets)\//.test(url)) {
         return `${getServerBaseUrl()}${url}`
     }
     return url

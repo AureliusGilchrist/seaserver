@@ -838,7 +838,6 @@ export const yuruCampTheme: AnimeThemeConfig = {
         "m_meta_diverse": "Spots Anchor",
         "m_meta_dominator": "Nadeshiko Writ",
     },
-    musicUrl: "",
     previewColors: {
         bg: "#070200",
         primary: "#d2620a",

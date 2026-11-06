@@ -45,12 +45,11 @@ var uncompressiblePrefixes = []string{
 	"/api/v1/nakama/host/torrentstream/stream",
 	"/api/v1/nakama/host/anime/library/stream",
 	// Static files, served by their own middleware in core/echo.go: artwork, downloaded manga
-	// pages, theme backgrounds and music. Images and audio, all of them already compressed.
+	// pages, and theme backgrounds. Images and pages, all of them already compressed.
 	"/assets",
 	"/offline-assets",
 	"/manga-downloads",
 	"/theme-bg",
-	"/theme-music",
 	"/shared-themes",
 	"/cursor-packs",
 }
@@ -321,15 +320,6 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.POST("/theme-backgrounds/download", h.HandleDownloadThemeBackground)
 	v1.DELETE("/theme-backgrounds/:filename", h.HandleDeleteThemeBackground)
 	v1.GET("/theme-backgrounds/wallhaven/search", h.HandleSearchWallhaven)
-
-	// Theme music (downloaded OST tracks per theme — used by the in-app theme music player)
-	v1.GET("/theme-music/tracks", h.HandleListThemeMusicTracks)
-	v1.GET("/theme-music/metadata", h.HandleListThemeMusicMetadata)
-	v1.GET("/theme-music/all", h.HandleListAllThemeMusic)
-	v1.POST("/theme-music/search", h.HandleSearchThemeMusic)
-	v1.POST("/theme-music/download", h.HandleDownloadThemeMusic)
-	v1.DELETE("/theme-music/:themeId", h.HandleDeleteThemeMusic)
-	v1.DELETE("/theme-music/:themeId/file/*", h.HandleDeleteThemeMusicTrack)
 
 	// Shared themes (downloaded from marketplace, visible to all profiles)
 	v1.GET("/shared-themes", h.HandleListSharedThemes)

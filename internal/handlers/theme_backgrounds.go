@@ -178,41 +178,6 @@ func (h *Handler) HandleDeleteThemeBackground(c echo.Context) error {
 	return h.RespondWithData(c, true)
 }
 
-// HandleListThemeMusicTracks returns a list of audio tracks from appdata/theme-music/{themeId}/.
-// The files are served at /theme-music/{themeId}/{filename} via the static file server.
-// The scan is recursive — files in sub-folders (e.g. "Disc 1/01 - Tank.mp3") are included
-// with a forward-slash relative path so the URL/static serve continue to work.
-func (h *Handler) HandleListThemeMusicTracks(c echo.Context) error {
-	themeID := c.QueryParam("themeId")
-	if themeID == "" || strings.ContainsAny(themeID, "/\\..") {
-		return h.RespondWithError(c, fmt.Errorf("invalid themeId"))
-	}
-
-	dir := filepath.Join(h.App.Config.Data.AppDataDir, "theme-music", themeID)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return h.RespondWithError(c, err)
-	}
-
-	type Track struct {
-		Filename string `json:"filename"`
-		URL      string `json:"url"`
-		Name     string `json:"name"` // human-readable: filename without extension
-	}
-
-	files := walkThemeAudioFiles(dir)
-	tracks := make([]Track, 0, len(files))
-	for _, fi := range files {
-		base := filepath.Base(fi.RelPath)
-		tracks = append(tracks, Track{
-			Filename: fi.RelPath,
-			URL:      buildThemeAudioURL(themeID, fi.RelPath),
-			Name:     strings.TrimSuffix(base, filepath.Ext(base)),
-		})
-	}
-
-	return h.RespondWithData(c, tracks)
-}
-
 // HandleListSharedThemes returns all downloaded themes from datadir/themes/.
 // These themes are shared across all profiles.
 func (h *Handler) HandleListSharedThemes(c echo.Context) error {

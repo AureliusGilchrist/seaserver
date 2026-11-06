@@ -791,7 +791,6 @@ export const seanimeTheme: AnimeThemeConfig = {
         "m_meta_diverse": "Diverse Reading Achiever",
         "m_meta_dominator": "Reading Achievement Dominator",
     },
-    musicUrl: "",
     previewColors: {
         bg: "#070707",
         primary: "#6152df",

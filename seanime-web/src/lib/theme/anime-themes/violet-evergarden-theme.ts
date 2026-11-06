@@ -842,7 +842,6 @@ export const violetEvergardenTheme: AnimeThemeConfig = {
         "m_meta_diverse":             "Diverse Story Portfolio",
         "m_meta_dominator":           "Meta Story Dominator",
     },
-    musicUrl: "",
     previewColors: {
         bg:        "#000510",
         primary:   "#286ecd",

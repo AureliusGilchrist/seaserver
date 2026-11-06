@@ -76,8 +76,6 @@ export default function ThemeManagerPage() {
     const [marketplaceSearchQuery, setMarketplaceSearchQuery] = React.useState("")
     const [themeManagerScrollParent, setThemeManagerScrollParent] = React.useState<HTMLDivElement | null>(null)
 
-    // Note: OST search is now in the bottom-left sidebar (GlobalOstSearchButton).
-
     // Load shared themes on mount
     React.useEffect(() => {
         fetchSharedThemesList().then(res => setSharedThemes(Array.isArray(res) ? res : []))
@@ -202,10 +200,6 @@ export default function ThemeManagerPage() {
     const {
         themeId,
         setThemeId,
-        musicEnabled,
-        setMusicEnabled,
-        musicVolume,
-        setMusicVolume,
         config,
         animatedIntensity,
         setAnimatedIntensity,
@@ -970,70 +964,6 @@ export default function ThemeManagerPage() {
                     </div>
                 )}
             </div>
-
-            {/* Music & Event Controls */}
-            {config.id !== "seanime" && (
-                <div className="rounded-2xl border border-[--border] bg-[--paper] p-6 space-y-6">
-                    <h2
-                        className="text-xl font-semibold"
-                        style={{ fontFamily: config.fontFamily }}
-                    >
-                        Music
-                    </h2>
-
-                    {/* Music toggle */}
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => setMusicEnabled(!musicEnabled)}
-                            className={cn(
-                                "relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none",
-                                musicEnabled ? "bg-[--color-brand-500]" : "bg-[--color-gray-700]",
-                            )}
-                            role="switch"
-                            aria-checked={musicEnabled}
-                        >
-                            <span
-                                className={cn(
-                                    "inline-block size-4 rounded-full bg-white shadow-sm transition-transform duration-200",
-                                    musicEnabled ? "translate-x-6" : "translate-x-1",
-                                )}
-                            />
-                        </button>
-                        <span className="text-sm text-[--foreground]">
-                            Background music
-                            <span className="ml-2 text-[--muted] text-xs">
-                                (drop your .mp3 file at{" "}
-                                <code className="bg-[--paper] px-1 rounded text-[--color-brand-400]">{config.musicUrl}</code>
-                                )
-                            </span>
-                        </span>
-                    </div>
-
-                    {/* Volume slider */}
-                    {musicEnabled && (
-                        <div className="flex items-center gap-4">
-                            <span className="text-sm text-[--muted] w-16">Volume</span>
-                            <input
-                                type="range"
-                                min={0}
-                                max={1}
-                                step={0.01}
-                                value={musicVolume}
-                                onChange={e => setMusicVolume(Number(e.target.value))}
-                                className="w-48 accent-[--color-brand-500]"
-                            />
-                            <span className="text-sm text-[--muted]">{Math.round(musicVolume * 100)}%</span>
-                        </div>
-                    )}
-
-                    {/* Audio slot info */}
-                    <div className="rounded-xl bg-[--background] border border-[--border] p-4 text-xs text-[--muted] space-y-1">
-                        <div className="font-semibold text-[--foreground] mb-2">Audio file slots</div>
-                        <div>Opening music: <code className="text-[--color-brand-400]">{config.musicUrl.replace("/public", "seanime-web/public")}</code></div>
-                        <div className="pt-1 text-white/40">Drop your own files at those paths — they will be played automatically.</div>
-                    </div>
-                </div>
-            )}
 
             {config.id !== "seanime" && (
                 <div className="rounded-2xl border border-[--border] overflow-hidden">

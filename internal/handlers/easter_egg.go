@@ -420,7 +420,6 @@ var validEasterEggs = map[string]int{
 	"feature-manga-reader":     25,
 	"feature-nakama-chat":      40,
 	"feature-auto-update":      30,
-	"feature-theme-music":      25,
 	"feature-particle-fx":      25,
 	"feature-shortcuts":        20,
 	"feature-seacommand":       25,

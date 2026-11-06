@@ -91,7 +91,8 @@
         --glass-bg: rgba(255, 255, 255, 0.08);
         --glass-border: rgba(255, 255, 255, 0.16);
         --glass-highlight: rgba(255, 255, 255, 0.2);
-        --glass-shadow: 0 25px 85px rgba(0, 0, 0, 0.42);
+        --glass-shadow: 0 16px 42px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.22);
+        --glass-surface-shadow: 0 12px 28px rgba(0, 0, 0, 0.32), 0 3px 8px rgba(0, 0, 0, 0.18);
 
         --halo-1: radial-gradient(60% 60% at 20% 18%, rgb(var(--color-brand-400) / 0.24), transparent 60%);
         --halo-2: radial-gradient(55% 55% at 80% 12%, rgba(255, 94, 94, 0.12), transparent 60%);
@@ -127,11 +128,11 @@
         --muted: theme('colors.gray.500');
         --muted-highlight: theme('colors.gray.700');
 
-        --paper: rgba(12, 16, 24, 0.88);
+        --paper: rgba(12, 16, 24, 0.62);
         --subtle: rgba(255, 255, 255, 0.06);
         --subtle-highlight: rgba(255, 255, 255, 0.1);
 
-        --media-card-popup-background: rgba(12, 16, 24, 0.9);
+        --media-card-popup-background: rgba(12, 16, 24, 0.68);
         --hover-from-background-color: rgba(255, 255, 255, 0.04);
 
         /*--media-accent-color: theme('colors.brand.400');*/
@@ -174,8 +175,8 @@
         --muted: rgba(255, 255, 255, 0.6);
         --muted-highlight: rgba(255, 255, 255, 0.8);
 
-        --paper: rgba(14, 18, 26, 0.88);
-        --paper-highlighter: rgba(18, 22, 32, 0.92);
+        --paper: rgba(14, 18, 26, 0.62);
+        --paper-highlighter: rgba(18, 22, 32, 0.72);
         --subtle: rgba(255, 255, 255, 0.08);
         --subtle-highlight: rgba(255, 255, 255, 0.12);
 
@@ -362,25 +363,26 @@ h6 {
 }
 
 .frosted-surface {
-    background: linear-gradient(160deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03));
-    backdrop-filter: blur(28px) saturate(150%);
-    -webkit-backdrop-filter: blur(28px) saturate(150%);
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.06));
+    backdrop-filter: blur(16px) saturate(150%);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 14px;
+    box-shadow: var(--glass-surface-shadow);
 }
 
 /* Keep card layering consistent; preserve explicit per-component blur utilities. */
 html .UI-Card__root {
     position: relative;
     z-index: 1;
+    box-shadow: var(--sea-card-shadow, var(--glass-surface-shadow));
 }
 
 html .UI-Card__root:not([class*="backdrop-blur"]) {
-    background: var(--sea-card-bg, rgba(0, 0, 0, 0.25));
-    border-color: var(--sea-card-border, rgba(255, 255, 255, 0.1));
-    box-shadow: var(--sea-card-shadow, none);
-    backdrop-filter: blur(var(--sea-card-blur, 12px)) saturate(160%);
-    -webkit-backdrop-filter: blur(var(--sea-card-blur, 12px)) saturate(160%);
+    background: var(--sea-card-bg, rgba(12, 16, 24, 0.58));
+    border-color: var(--sea-card-border, rgba(255, 255, 255, 0.14));
+    backdrop-filter: blur(var(--sea-card-blur, 16px)) saturate(160%);
+    -webkit-backdrop-filter: blur(var(--sea-card-blur, 16px)) saturate(160%);
 }
 
 /* JASSUB inserts this wrapper as a sibling right after <video>, inside video-core's flex
@@ -2310,6 +2312,7 @@ html[data-sea-sidebar]:not([data-sea-sidebar="sidebar-default"]) .UI-AppSidebar_
 }
 html[data-sea-sidebar]:is([data-sea-sidebar="sidebar-glass"], [data-sea-sidebar="sidebar-transparent"]) .UI-AppSidebar__sidebar {
     background: rgb(from var(--background) r g b / var(--sea-sidebar-opacity, 0.6)) !important;
+    box-shadow: var(--sea-sidebar-shadow, var(--glass-surface-shadow)), var(--sea-sidebar-glow, 0 0 0 transparent);
 }
 
 /* ── Typography ──────────────────────────────────────────────────────────── */
@@ -2339,7 +2342,11 @@ html[data-sea-accent="accent-outline"] .UI-Button__root[class*="bg-brand"] {
 html[data-sea-accent="accent-pulse"] .UI-Button__root[class*="bg-brand"] { animation: sea-accent-pulse 2.2s ease-in-out infinite; }
 
 /* ── Top Bar ─────────────────────────────────────────────────────────────── */
-html[data-sea-navbar="navbar-glass"] [data-top-navbar] { background: rgb(from var(--background) r g b / 0.55) !important; backdrop-filter: blur(14px); }
+html[data-sea-navbar="navbar-glass"] [data-top-navbar] {
+    background: rgb(from var(--background) r g b / 0.55) !important;
+    backdrop-filter: blur(14px);
+    box-shadow: var(--glass-surface-shadow);
+}
 html[data-sea-navbar="navbar-solid"] [data-top-navbar] { background: var(--background) !important; }
 html[data-sea-navbar="navbar-minimal"] [data-top-navbar] { background: transparent !important; box-shadow: none !important; border: none !important; backdrop-filter: none !important; }
 html[data-sea-navbar="navbar-pill"] [data-top-navbar] {
@@ -2385,7 +2392,11 @@ html[data-sea-slider="slider-glow"] [data-vc-element="time-range-chapter"] {
 html[data-sea-slider="slider-flat"] [data-vc-element="time-range-chapter"] { border-radius: 0 !important; }
 
 /* ── Notifications (sonner) ──────────────────────────────────────────────── */
-html[data-sea-toast="toast-glass"] [data-sonner-toast] { background: rgb(from var(--background) r g b / 0.6) !important; backdrop-filter: blur(14px); }
+html[data-sea-toast="toast-glass"] [data-sonner-toast] {
+    background: rgb(from var(--background) r g b / 0.6) !important;
+    backdrop-filter: blur(14px);
+    box-shadow: var(--glass-surface-shadow);
+}
 html[data-sea-toast="toast-accent"] [data-sonner-toast] { border-left: 4px solid rgb(var(--color-brand-500)) !important; }
 html[data-sea-toast="toast-pill"] [data-sonner-toast] { border-radius: 9999px !important; padding-inline: 1.25rem !important; }
 html[data-sea-toast="toast-minimal"] [data-sonner-toast] { border: none !important; box-shadow: none !important; padding-block: 0.6rem !important; }

@@ -838,7 +838,6 @@ export const weatheringWithYouTheme: AnimeThemeConfig = {
         "m_meta_diverse": "Drop Anchor Anchor",
         "m_meta_dominator": "Sky Archive Writ",
     },
-    musicUrl: "",
     previewColors: {
         bg: "#000209",
         primary: "#1c6cd7",

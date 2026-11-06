@@ -3906,59 +3906,6 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/theme",
         },
     },
-    THEME_MUSIC: {
-        /**
-         *  @description
-         *  Route searches torrents for music/OST releases for a theme.
-         *  Performs a simple torrent search across all enabled providers using the supplied query.
-         *  Returns the underlying torrent.SearchData unchanged so the client can present rich info.
-         */
-        SearchThemeMusic: {
-            key: "THEME-MUSIC-search-theme-music",
-            methods: ["POST"],
-            endpoint: "/api/v1/theme-music/search",
-        },
-        /**
-         *  @description
-         *  Route adds a magnet to the configured torrent client with the theme-music folder as destination.
-         *  If replaceExisting is true, all current files in the theme's music folder are deleted first.
-         */
-        DownloadThemeMusic: {
-            key: "THEME-MUSIC-download-theme-music",
-            methods: ["POST"],
-            endpoint: "/api/v1/theme-music/download",
-        },
-        DeleteThemeMusic: {
-            key: "THEME-MUSIC-delete-theme-music",
-            methods: ["DELETE"],
-            endpoint: "/api/v1/theme-music/{themeId}",
-        },
-        DeleteThemeMusicTrack: {
-            key: "THEME-MUSIC-delete-theme-music-track",
-            methods: ["DELETE"],
-            endpoint: "/api/v1/theme-music/{themeId}/{filename}",
-        },
-        /**
-         *  @description
-         *  Route returns the audio files for a theme, enriched with ID3/Vorbis metadata when available.
-         *  This is a richer alternative to HandleListThemeMusicTracks — it reads tags from each file.
-         */
-        ListThemeMusicMetadata: {
-            key: "THEME-MUSIC-list-theme-music-metadata",
-            methods: ["GET"],
-            endpoint: "/api/v1/theme-music/metadata",
-        },
-        /**
-         *  @description
-         *  Route returns every theme that has at least one audio file, with track counts.
-         *  Used by the cross-theme OST browser in the mini-player.
-         */
-        ListAllThemeMusic: {
-            key: "THEME-MUSIC-list-all-theme-music",
-            methods: ["GET"],
-            endpoint: "/api/v1/theme-music/all",
-        },
-    },
     TIMELINE: {
         /**
          *  @description

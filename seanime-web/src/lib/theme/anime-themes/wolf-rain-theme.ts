@@ -840,7 +840,6 @@ export const wolfRainTheme: AnimeThemeConfig = {
         "m_meta_diverse": "Wolf's Rain Anchor",
         "m_meta_dominator": "Paradise Found Writ",
     },
-    musicUrl: "",
     previewColors: {
         bg: "#020204",
         primary: "#485aa5",

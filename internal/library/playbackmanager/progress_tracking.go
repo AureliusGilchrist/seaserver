@@ -9,11 +9,11 @@ import (
 	"seanime/internal/api/aniskip"
 	"seanime/internal/api/filler"
 	"seanime/internal/continuity"
+	"seanime/internal/database/models"
 	discordrpc_presence "seanime/internal/discordrpc/presence"
 	"seanime/internal/events"
 	"seanime/internal/library/anime"
 	"seanime/internal/mediaplayers/mediaplayer"
-	"seanime/internal/database/models"
 	"seanime/internal/platforms/shared_platform"
 	"seanime/internal/util"
 	"strconv"
@@ -64,6 +64,30 @@ func (pm *PlaybackManager) mpvAutoSkipSettings() (skipOP bool, skipED bool, skip
 		}
 	}
 	return
+}
+
+// EpisodeWatchedThreshold returns the watched threshold for the active profile, defaulting to 80%.
+func (pm *PlaybackManager) EpisodeWatchedThreshold() float64 {
+	const defaultThreshold = 0.8
+
+	pm.activeProfileIDMu.RLock()
+	profileID := pm.activeProfileID
+	pm.activeProfileIDMu.RUnlock()
+	if profileID == 0 || pm.getClientSettingsOverridesFunc == nil {
+		return defaultThreshold
+	}
+
+	overrides := pm.getClientSettingsOverridesFunc(profileID)
+	if overrides == nil || overrides.EpisodeWatchedThreshold == nil {
+		return defaultThreshold
+	}
+
+	switch *overrides.EpisodeWatchedThreshold {
+	case 70, 75, 80, 85, 90, 95:
+		return float64(*overrides.EpisodeWatchedThreshold) / 100
+	default:
+		return defaultThreshold
+	}
 }
 
 // discordSettingsForCurrentProfile merges the server-wide Discord settings with the Personal

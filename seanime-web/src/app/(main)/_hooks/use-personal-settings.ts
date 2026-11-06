@@ -6,6 +6,7 @@ export type StillWatchingTimingMode = "night" | "always" | "custom"
 
 export type PersonalSettings = {
     autoUpdateProgress: boolean
+    episodeWatchedThreshold: NonNullable<ClientSettings["episodeWatchedThreshold"]>
     enableWatchContinuity: boolean
     autoPlayNextEpisode: boolean
     /** Desktop client: leaving the page while the local player is playing pops it out where it was. */
@@ -114,6 +115,7 @@ export function usePersonalSettings(): PersonalSettings {
 
     return React.useMemo<PersonalSettings>(() => ({
         autoUpdateProgress: clientSettings.autoUpdateProgress ?? serverStatus?.settings?.library?.autoUpdateProgress ?? false,
+        episodeWatchedThreshold: clientSettings.episodeWatchedThreshold ?? 80,
         enableWatchContinuity: clientSettings.enableWatchContinuity ?? serverStatus?.settings?.library?.enableWatchContinuity ?? false,
         autoPlayNextEpisode: clientSettings.autoPlayNextEpisode ?? serverStatus?.settings?.library?.autoPlayNextEpisode ?? false,
         autoPopoutOnLeave: clientSettings.autoPopoutOnLeave ?? true,
