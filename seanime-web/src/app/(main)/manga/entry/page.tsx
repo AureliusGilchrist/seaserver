@@ -1,5 +1,5 @@
 "use client"
-import { isStillOnPath } from "@/lib/navigation"
+import { useIsStillOnPath } from "@/lib/navigation"
 import { useGetMangaEntry, useGetMangaEntryDetails } from "@/api/hooks/manga.hooks"
 import { MediaEntryPageLoadingDisplay } from "@/app/(main)/_features/media/_components/media-entry-page-loading-display"
 import { PluginWebviewSlot } from "@/app/(main)/_features/plugin/webview/plugin-webviews"
@@ -20,6 +20,7 @@ export const dynamic = "force-static"
 
 export default function Page() {
     const router = useRouter()
+    const isStillOnPath = useIsStillOnPath()
     const searchParams = useSearchParams()
     const mediaId = searchParams.get("id")
     const readProvider = searchParams.get("readProvider")

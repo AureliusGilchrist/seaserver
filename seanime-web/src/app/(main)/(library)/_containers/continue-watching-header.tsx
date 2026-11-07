@@ -7,6 +7,7 @@ import { usePlayNext } from "@/app/(main)/_atoms/playback.atoms"
 import { EpisodeCard } from "@/app/(main)/_features/anime/_components/episode-card"
 import { TRANSPARENT_SIDEBAR_BANNER_IMG_STYLE } from "@/app/(main)/_features/custom-ui/styles"
 import { MediaEntryAudienceScore } from "@/app/(main)/_features/media/_components/media-entry-metadata-components"
+import { HomeBannerMetadata, homeBannerTextBackdrop } from "@/app/(main)/_features/media/_components/home-banner-metadata"
 import { useMediaPreviewModal } from "@/app/(main)/_features/media/_containers/media-preview-modal"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { imageShimmer } from "@/components/shared/image-helpers"
@@ -25,7 +26,6 @@ import { useAtom, useSetAtom } from "jotai/react"
 import { AnimatePresence, motion } from "motion/react"
 import { useRouter } from "@/lib/navigation"
 import React, { useEffect, useState } from "react"
-import { RiSignalTowerLine } from "react-icons/ri"
 import { useWindowScroll } from "react-use"
 
 export const __continueWatching_hoveringHeaderAtom = atom(false)
@@ -129,7 +129,7 @@ function MediaMetadata({ episode, episodes, onHoverChange }: MediaMetadataProps)
     return (
         <div
             className={cn(
-                "absolute left-2 w-fit h-[20rem] bg-gradient-to-t z-[3] hidden lg:block",
+                "absolute left-2 w-[calc(100%-25rem)] xl:w-[calc(100%-31rem)] 2xl:w-[calc(100%-37rem)] h-[20rem] bg-gradient-to-t z-[3] hidden lg:block",
                 "top-[5rem]",
                 ts.hideTopNavbar && "top-[4rem]",
                 // ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && "top-[4rem]",
@@ -141,7 +141,7 @@ function MediaMetadata({ episode, episodes, onHoverChange }: MediaMetadataProps)
             data-media-mal-id={anime.idMal}
         >
             <motion.div
-                className="flex items-center relative gap-6 p-6 pr-3 w-fit overflow-hidden"
+                className="flex items-start relative gap-6 p-6 pr-3 w-full"
                 onMouseEnter={() => onHoverChange(true)}
                 onMouseLeave={() => onHoverChange(false)}
                 {...{
@@ -183,38 +183,33 @@ function MediaMetadata({ episode, episodes, onHoverChange }: MediaMetadataProps)
                 </motion.div>
 
                 <motion.div
-                    className="flex-auto space-y-2 z-[1]"
+                    className={cn("min-w-0 flex-auto space-y-2 z-[1]", homeBannerTextBackdrop)}
                     initial={{ opacity: 0, x: 10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.5, delay: 0.6 }}
                 >
                     <SeaLink href={`/entry?id=${anime.id}`}>
                         <TextGenerateEffect
-                            className="[text-shadow:_0_1px_10px_rgb(0_0_0_/_20%)] text-white leading-8 line-clamp-2 pb-1 max-w-md text-pretty text-3xl overflow-ellipsis"
+                            className="[text-shadow:_0_2px_12px_rgb(0_0_0_/_90%)] text-white leading-8 line-clamp-2 pb-1 text-pretty text-3xl overflow-ellipsis"
                             words={anime.title?.romaji || anime.title?.english || anime.title?.userPreferred || ""}
                         />
                     </SeaLink>
 
-                    <div className="flex flex-wrap gap-2">
-                        {anime.genres?.slice(0, 3).map((genre) => (
-                            <div key={genre} className="text-sm font-semibold px-1 text-gray-300">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        {anime.genres?.slice(0, 5).map((genre) => (
+                            <div key={genre} className="text-sm font-semibold px-1 text-gray-300 [text-shadow:_0_1px_8px_rgb(0_0_0_/_90%)]">
                                 {genre}
                             </div>
                         ))}
-                    </div>
-
-                    <div className="flex items-center max-w-lg gap-4">
                         {anime.meanScore && (
                             <div className="rounded-full w-fit inline-block">
                                 <MediaEntryAudienceScore meanScore={anime.meanScore} />
                             </div>
                         )}
+                    </div>
 
-                        {anime.nextAiringEpisode?.airingAt && (
-                            <p className="text-base text-brand-200 inline-flex items-center gap-1.5">
-                                <RiSignalTowerLine /> Releasing now
-                            </p>
-                        )}
+                    <div className="max-h-[5rem] overflow-y-auto [scrollbar-width:thin]" role="region" aria-label="Anime metadata" tabIndex={0}>
+                        <HomeBannerMetadata media={anime} type="anime" />
                     </div>
 
                     <motion.div
@@ -223,7 +218,7 @@ function MediaMetadata({ episode, episodes, onHoverChange }: MediaMetadataProps)
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.5, delay: 0.7 }}
                     >
-                        <ScrollArea className="max-w-lg leading-3 h-[77px] mb-4 p-0 text-sm">
+                        <ScrollArea className="max-w-3xl leading-5 h-[112px] mb-3 p-0 text-sm text-gray-300 [text-shadow:_0_1px_8px_rgb(0_0_0_/_90%)]" aria-label="Anime description" tabIndex={0}>
                             {anime.description?.replace(/(<([^>]+)>)/ig, "")}
                         </ScrollArea>
 
@@ -355,11 +350,11 @@ function BannerImage({ episode, isTransitioning, shouldBlurBanner }: BannerImage
         <motion.div
             data-continue-watching-header-banner-image
             className={cn(
-                "lg:h-[35rem] w-full flex-none object-cover object-center top-0 bg-[--background]",
+                "lg:h-[40rem] w-full flex-none object-cover object-center top-0 bg-[--background]",
                 heroFade.containerClass,
                 !ts.disableSidebarTransparency && TRANSPARENT_SIDEBAR_BANNER_IMG_STYLE,
                 __isDesktop__ && "top-[-2rem]",
-                ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && "lg:h-[30rem]",
+                ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && "lg:h-[37rem]",
             )}
             style={heroFade.containerStyle}
         >
@@ -456,10 +451,10 @@ export function ContinueWatchingHeader({ episodes, className }: ContinueWatching
     return (
         <motion.div
             className={cn(
-                "__header lg:h-[28rem] max-w-full overflow-hidden",
-                ts.hideTopNavbar && "lg:h-[32rem]",
-                ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && "lg:h-[26rem]",
-                (ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && ts.hideTopNavbar) && "lg:h-[28rem]",
+                "__header lg:h-[34rem] max-w-full overflow-hidden",
+                ts.hideTopNavbar && "lg:h-[36rem]",
+                ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && "lg:h-[32rem]",
+                (ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && ts.hideTopNavbar) && "lg:h-[34rem]",
                 className,
             )}
             {...{

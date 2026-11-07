@@ -1,5 +1,6 @@
-import { useNavigate, useLocation } from "@tanstack/react-router"
-import { useMemo } from "react"
+import { useNavigate, useLocation, useRouter as useTanStackRouter } from "@tanstack/react-router"
+import { useCallback, useMemo } from "react"
+import { isCurrentRoute } from "./route-guard"
 
 function parseHref(href: string) {
     const [pathname, searchString] = href.split("?")
@@ -77,16 +78,10 @@ export function useSearchParams() {
 }
 
 /**
- * Whether the browser is still on `path` right now.
- *
- * Routes are lazy, so a page stays mounted for a moment after you navigate away, and during that
- * moment useSearchParams() already reads the *next* location. A page that sends you home when its
- * `?id=` is missing must check this at the moment it redirects, or it hijacks the link you just
- * clicked (that's how sidebar clicks used to land on the landing page). The URL changes as soon as
- * a navigation starts, so this is also right inside timers.
+ * The router's in-memory history updates before the browser URL is flushed. Check it at the
+ * moment an automatic redirect runs, including inside delayed callbacks.
  */
-export function isStillOnPath(path: string): boolean {
-    if (typeof window === "undefined") return true
-    const current = window.location.pathname.replace(/\/+$/, "") || "/"
-    return current === path
+export function useIsStillOnPath() {
+    const router = useTanStackRouter()
+    return useCallback((path: string, id?: string) => isCurrentRoute(router.history.location, path, id), [router])
 }

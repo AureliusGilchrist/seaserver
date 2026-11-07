@@ -1,4 +1,4 @@
-import { isStillOnPath } from "@/lib/navigation"
+import { useIsStillOnPath } from "@/lib/navigation"
 import { Anime_Entry } from "@/api/generated/types"
 import { useGetAnilistAnimeDetails } from "@/api/hooks/anilist.hooks"
 import { useGetAnimeEntry, useResetAnimeEntryMetadata } from "@/api/hooks/anime_entries.hooks"
@@ -79,6 +79,7 @@ export function AnimeEntryPage() {
 
     const serverStatus = useServerStatus()
     const router = useRouter()
+    const isStillOnPath = useIsStillOnPath()
     const searchParams = useSearchParams()
     const mediaId = searchParams.get("id")
     const tab = searchParams.get("tab")
@@ -236,7 +237,7 @@ export function AnimeEntryPage() {
             // Query completed with no data and no error — wait before redirecting in case
             // a background refetch is about to fill in the entry.
             settledTimer.current = setTimeout(() => {
-                if (!animeEntry && isStillOnPath("/entry")) router.push("/")
+                if (!animeEntry && isStillOnPath("/entry", mediaId)) router.push("/")
             }, 2500)
         } else {
             if (settledTimer.current) {

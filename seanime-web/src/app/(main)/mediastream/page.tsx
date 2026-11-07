@@ -1,5 +1,5 @@
 "use client"
-import { isStillOnPath } from "@/lib/navigation"
+import { useIsStillOnPath } from "@/lib/navigation"
 import { useGetAnimeEntry } from "@/api/hooks/anime_entries.hooks"
 import { EpisodeGridItem } from "@/app/(main)/_features/anime/_components/episode-grid-item"
 import { MediaEntryPageSmallBanner } from "@/app/(main)/_features/media/_components/media-entry-page-small-banner"
@@ -21,6 +21,7 @@ import { SeaMediaPlayerProvider } from "../_features/sea-media-player/sea-media-
 export default function Page() {
     const serverStatus = useServerStatus()
     const router = useRouter()
+    const isStillOnPath = useIsStillOnPath()
 
     React.useEffect(() => {
         document.body.setAttribute("data-player-page", "true")
