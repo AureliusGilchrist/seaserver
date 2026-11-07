@@ -260,9 +260,12 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
     const [isHoveringCard, setIsHoveringCard] = useState(false)
     const [shouldRenderPopup, setShouldRenderPopup] = useState(false)
 
+    // A show with no trailer does nothing on hover: no popup, no background swap.
+    const hoverDisabled = type === "anime" && !(media as AL_BaseAnime | undefined)?.trailer?.id
+
     // Handle delayed unmount for exit animation
     React.useEffect(() => {
-        if (isHoveringCard) {
+        if (isHoveringCard && !hoverDisabled) {
             setShouldRenderPopup(true)
             return
         } else {
@@ -272,7 +275,7 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
             }, 35) // Match animation duration
             return () => clearTimeout(timer)
         }
-    }, [isHoveringCard])
+    }, [isHoveringCard, hoverDisabled])
 
     const handlePreviewClick = React.useCallback(() => {
         setPreviewModalMediaId(mediaId, type)
@@ -297,7 +300,7 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
             data-list-data={stringifiedListData}
             onMouseEnter={() => {
                 setIsHoveringCard(true)
-                onHoverImage?.(media.bannerImage || media.coverImage?.extraLarge || null)
+                if (!hoverDisabled) onHoverImage?.(media.bannerImage || media.coverImage?.extraLarge || null)
             }}
             onMouseLeave={() => {
                 setIsHoveringCard(false)
