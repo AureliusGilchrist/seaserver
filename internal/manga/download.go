@@ -174,6 +174,12 @@ type (
 		mediaMapHydrateMu sync.Mutex
 		mediaMapReady     bool
 
+		sizeMu        sync.Mutex
+		sizeScanning  bool
+		sizeCheckedAt time.Time
+		sizeBytes     uint64
+		sizeErr       error
+
 		chapterDownloadedCh chan chapter_downloader.DownloadID
 		isOfflineRef        *util.Ref[bool]
 		anilistClientRef    *util.Ref[anilist.AnilistClient]
@@ -522,6 +528,27 @@ func (d *Downloader) GetMediaMap() map[int]ProviderDownloadMap {
 func (d *Downloader) CountDownloadedChapters() int {
 	d.ensureMediaMapHydrated()
 	return countMapChapters(d.mediaMapSnapshot())
+}
+
+// DownloadDirectorySize scans at most once per five minutes, without blocking requests.
+func (d *Downloader) DownloadDirectorySize() (size uint64, ready bool, err error) {
+	d.sizeMu.Lock()
+	defer d.sizeMu.Unlock()
+	if !d.sizeScanning && (d.sizeCheckedAt.IsZero() || time.Since(d.sizeCheckedAt) >= 5*time.Minute) {
+		d.sizeScanning = true
+		go func() {
+			bytes, scanErr := util.DirSize(d.downloadDir)
+			d.sizeMu.Lock()
+			defer d.sizeMu.Unlock()
+			d.sizeBytes, d.sizeErr = bytes, scanErr
+			d.sizeCheckedAt = time.Now()
+			d.sizeScanning = false
+		}()
+	}
+	if d.sizeScanning {
+		return 0, false, nil
+	}
+	return d.sizeBytes, true, d.sizeErr
 }
 
 func countMapChapters(media MediaMap) int {

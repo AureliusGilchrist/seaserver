@@ -725,6 +725,40 @@ func (h *Handler) HandleGetMissingEpisodes(c echo.Context) error {
 	return h.RespondWithData(c, event.MissingEpisodes)
 }
 
+// HandleGetProfileMissingEpisodes calculates missing episodes from the signed-in profile's list.
+func (h *Handler) HandleGetProfileMissingEpisodes(c echo.Context) error {
+	profileID := h.GetProfileID(c)
+	if profileID <= 0 || h.App.AnilistClientManager == nil {
+		return h.RespondWithError(c, errors.New("a profile with an AniList account is required"))
+	}
+	collection, err := h.App.AnilistClientManager.GetAnimeCollection(profileID)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	lfs, _, err := db_bridge.GetLocalFiles(h.App.Database)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	silenced, err := h.App.Database.GetSilencedMediaEntryIds()
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	missing := anime.NewMissingEpisodes(&anime.NewMissingEpisodesOptions{
+		AnimeCollection:     collection,
+		LocalFiles:          lfs,
+		SilencedMediaIds:    silenced,
+		MetadataProviderRef: h.App.MetadataProviderRef,
+	})
+	if missing == nil {
+		return h.RespondWithError(c, errors.New("could not calculate missing episodes"))
+	}
+	event := &anime.MissingEpisodesEvent{MissingEpisodes: missing}
+	if err := hook.GlobalHookManager.OnMissingEpisodes().Trigger(event); err != nil {
+		return h.RespondWithError(c, err)
+	}
+	return h.RespondWithData(c, event.MissingEpisodes)
+}
+
 //----------------------------------------------------------------------------------------------------------------------
 
 // HandleGetAnimeEntrySilenceStatus

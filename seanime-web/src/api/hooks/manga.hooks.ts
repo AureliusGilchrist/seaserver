@@ -68,12 +68,12 @@ export function useGetAnilistMangaCollection() {
 }
 
 
-export function useGetRawAnilistMangaCollection() {
+export function useGetRawAnilistMangaCollection(enabled = true, profileId?: number) {
     return useServerQuery<AL_MangaCollection, GetAnilistMangaCollection_Variables>({
         endpoint: API_ENDPOINTS.MANGA.GetRawAnilistMangaCollection.endpoint,
         method: API_ENDPOINTS.MANGA.GetRawAnilistMangaCollection.methods[0],
-        queryKey: [API_ENDPOINTS.MANGA.GetRawAnilistMangaCollection.key],
-        enabled: true,
+        queryKey: profileId ? [API_ENDPOINTS.MANGA.GetRawAnilistMangaCollection.key, profileId] : [API_ENDPOINTS.MANGA.GetRawAnilistMangaCollection.key],
+        enabled,
     })
 }
 
@@ -398,4 +398,3 @@ export function useGetUpcomingMangaChapters() {
         queryKey: ["manga-upcoming-chapters"],
     })
 }
-

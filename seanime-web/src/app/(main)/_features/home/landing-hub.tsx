@@ -6,7 +6,7 @@ import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-l
 import { ThemeLibraryScreenBannerType, useThemeSettings } from "@/lib/theme/hooks"
 import { resolveLandingImage, useLandingLook } from "@/lib/theme/landing-look"
 import { useHandleLibraryCollection } from "@/app/(main)/(library)/_lib/handle-library-collection"
-import { useLandingWidgets, type LandingWidgetId } from "@/app/(main)/_features/home/landing-widgets"
+import { LANDING_QUICK_LINKS, useLandingWidgets, type LandingWidgetId } from "@/app/(main)/_features/home/landing-widgets"
 import {
     LandingAchievementsWidget,
     LandingAiringTodayWidget,
@@ -26,6 +26,7 @@ import { LandingContinueBanner } from "@/app/(main)/_features/home/landing-conti
 import { __landingSettingsModalOpen, LandingSettingsModal } from "@/app/(main)/_features/home/landing-settings-modal"
 import { MangaUpcomingChapters } from "@/app/(main)/manga/_containers/manga-upcoming-chapters"
 import { PageWrapper } from "@/components/shared/page-wrapper"
+import { SeaLink } from "@/components/shared/sea-link"
 import { CommunityHomeSection } from "@/app/(main)/_features/community/community-home-section"
 import { FiSearch } from "react-icons/fi"
 import { LuSettings2 } from "react-icons/lu"
@@ -85,7 +86,7 @@ export function LandingHub() {
     // Continue reading always follows continue watching, wherever that one was moved to.
     const sections = React.useMemo(
         () => ordered
-            .filter(w => !statIds.includes(w.id) && w.id !== "quick-links" && w.id !== "continue-reading")
+            .filter(w => !statIds.includes(w.id) && w.id !== "quick-links" && w.id !== "library-insights" && w.id !== "continue-reading")
             .flatMap(w => w.id === "continue-watching" && readingEnabled
                 ? [w, { id: "continue-reading" as const, enabled: true }]
                 : [w]),
@@ -134,7 +135,16 @@ export function LandingHub() {
                             </button>
                         </div>
                     </div>
+                    <nav aria-label="Quick links" className="relative mt-5 flex flex-wrap gap-2">
+                        {LANDING_QUICK_LINKS.filter(link => ["anime", "manga", "discover", "schedule", "lists"].includes(link.id)).map(link => (
+                            <SeaLink key={link.id} href={link.href} className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white/85 transition-colors hover:border-[--brand]/70 hover:bg-white/15">
+                                {link.name}
+                            </SeaLink>
+                        ))}
+                    </nav>
                 </section>
+
+                {ordered.some(w => w.id === "library-insights") && <LandingLibraryInsightsWidget />}
 
                 {/* Whatever was being watched */}
                 {firstWidgetId === "continue-watching" && (

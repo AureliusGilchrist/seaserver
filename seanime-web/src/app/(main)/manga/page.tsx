@@ -1,4 +1,6 @@
 "use client"
+
+import { MangaHomeInsights } from "@/app/(main)/_features/home/medium-home-insights"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
 import { Manga_CollectionEntry, Manga_CollectionList } from "@/api/generated/types"
 import { MediaCardLazyGrid } from "@/app/(main)/_features/media/_components/media-card-grid"
@@ -432,6 +434,7 @@ export default function Page() {
                             },
                         }}
                     >
+                        <div className="px-3 pb-6 md:px-5"><MangaHomeInsights /></div>
                         <HomeSections
                             items={homeItems.filter(n => n.type !== "manga-discover-header" && n.type !== "manga-continue-reading-header")}
                             renderItem={item => (

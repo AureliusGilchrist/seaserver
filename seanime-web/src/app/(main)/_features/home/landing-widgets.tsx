@@ -86,7 +86,7 @@ export const LANDING_WIDGET_META: Record<LandingWidgetId, { name: string, descri
     "continue-watching": { name: "Continue watching", description: "Whatever was being watched, first." },
     "continue-reading": { name: "Continue reading", description: "The manga you were reading, first." },
     "quick-links": { name: "App folders", description: "Your app destinations, organized into folders." },
-    "library-insights": { name: "Library analytics", description: "Detailed counts and progress across your library." },
+    "library-insights": { name: "Library analytics", description: "Counts and progress below the welcome; toggle it on or off." },
     "anime-stats": { name: "Anime stats", description: "What your anime library holds, counted." },
     "manga-stats": { name: "Manga stats", description: "What your manga library holds, counted." },
     "upcoming-manga": { name: "Upcoming manga", description: "The next likely chapter from manga you are reading." },

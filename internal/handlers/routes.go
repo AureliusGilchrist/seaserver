@@ -579,6 +579,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Library.GET("/scan-summaries", h.HandleGetScanSummaries)
 
 	v1Library.GET("/missing-episodes", h.HandleGetMissingEpisodes)
+	v1Library.GET("/missing-episodes/profile", h.HandleGetProfileMissingEpisodes, h.RequireProfileSession)
 
 	v1Library.GET("/anime-entry/:id", h.HandleGetAnimeEntry, h.RequireProfileSession)
 	v1Library.POST("/anime-entry/suggestions", h.HandleFetchAnimeEntrySuggestions)
@@ -983,6 +984,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 
 	v1.GET("/profile/comments", h.HandleGetProfileComments)
 	v1.GET("/home/counts", h.HandleGetHomeCounts)
+	v1.GET("/home/manga-size", h.HandleGetMangaDownloadSize)
 	v1.POST("/anilist/list-entry/rewatch", h.HandleSetAnilistRewatches)
 
 	//

@@ -104,6 +104,15 @@ export function useGetMissingEpisodes(enabled?: boolean) {
     })
 }
 
+export function useGetProfileMissingEpisodes(profileId?: number, enabled = true) {
+    return useServerQuery<Anime_MissingEpisodes>({
+        endpoint: "/api/v1/library/missing-episodes/profile",
+        method: "GET",
+        queryKey: [API_ENDPOINTS.ANIME_ENTRIES.GetMissingEpisodes.key, "profile", profileId],
+        enabled: !!profileId && enabled,
+    })
+}
+
 export function useGetAnimeEntrySilenceStatus(id: Nullish<string | number>) {
     const { data, ...rest } = useServerQuery({
         endpoint: API_ENDPOINTS.ANIME_ENTRIES.GetAnimeEntrySilenceStatus.endpoint.replace("{id}", String(id)),

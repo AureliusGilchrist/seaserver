@@ -4,6 +4,7 @@ import { build } from "esbuild"
 import { createBrowserHistory } from "@tanstack/react-router"
 import React from "react"
 import { renderToStaticMarkup } from "react-dom/server"
+import { readFile } from "node:fs/promises"
 
 async function load(path) {
     const result = await build({ entryPoints: [path], bundle: true, format: "cjs", platform: "node", packages: "external", write: false })
@@ -90,4 +91,35 @@ for (const id of ["anime", "manga"]) {
     assert.match(sections, new RegExp(`<section[^>]*data-home-section="${id}"[^>]*backdrop-blur-md`))
 }
 assert.doesNotMatch(sections, /<section[^>]*data-home-section="title"[^>]*backdrop-blur-md/)
+const { countLists } = await load("src/app/(main)/_features/home/list-insights.ts")
+assert.equal(countLists(undefined), null)
+assert.deepEqual(countLists({ MediaListCollection: {} }), { onLists: 0, planning: 0, current: 0, completed: 0, progress: 0 })
+assert.deepEqual(countLists({ MediaListCollection: { lists: [
+    { entries: [{ media: { id: 1 }, progress: 3 }] },
+    { status: "CURRENT", entries: [{ media: { id: 1 }, progress: 3 }] },
+    { status: "REPEATING", entries: [{ media: { id: 2 }, progress: 4 }] },
+    { status: "COMPLETED", entries: [{ media: { id: 3 }, progress: 12 }] },
+    { status: "PLANNING", entries: [{ media: { id: 4 }, progress: 5 }] },
+] } }), { onLists: 3, planning: 1, current: 2, completed: 1, progress: 19 })
+const landing = await readFile("src/app/(main)/_features/home/landing-hub.tsx", "utf8")
+assert.ok(landing.indexOf("<LandingLibraryInsightsWidget />") > landing.indexOf("data-landing-hero"))
+assert.ok(landing.indexOf("<LandingLibraryInsightsWidget />") < landing.indexOf("{/* Whatever was being watched */}"))
+assert.match(landing, /w\.id !== "library-insights"/)
+for (const link of ["anime", "manga", "discover", "schedule", "lists"]) assert.ok(landing.includes(`"${link}"`))
+const insights = await readFile("src/app/(main)/_features/home/landing-widget-views.tsx", "utf8")
+assert.match(insights, /useGetRawAnimeCollection\(!!profile\?\.id && profile\.anilistAuthenticated, profile\?\.id\)/)
+assert.match(insights, /useGetRawAnilistMangaCollection\(!!profile\?\.id && profile\.anilistAuthenticated, profile\?\.id\)/)
+const mediumInsights = await readFile("src/app/(main)/_features/home/medium-home-insights.tsx", "utf8")
+for (const label of ["Titles in library", "Watching", "Completed", "Episodes watched", "Local anime files", "Library size", "Missing episodes", "Titles in collection", "Reading", "Chapters read", "Downloaded chapters", "Download size"]) {
+    assert.ok(mediumInsights.includes(`label: "${label}"`), label)
+}
+assert.match(mediumInsights, /useGetProfileMissingEpisodes/)
+assert.doesNotMatch(mediumInsights, /useGetMissingEpisodes\(|useMissingEpisodeCount\(/)
+const animeHome = await readFile("src/app/(main)/(library)/_home/home-screen.tsx", "utf8")
+assert.equal((animeHome.match(/<AnimeHomeInsights \/>/g) ?? []).length, 2)
+assert.ok(animeHome.indexOf("<AnimeHomeInsights />", animeHome.indexOf("data-home-screen className")) > animeHome.indexOf("<LibraryHeader"))
+const mangaHome = await readFile("src/app/(main)/manga/page.tsx", "utf8")
+assert.ok(mangaHome.indexOf("<MangaHomeInsights />") < mangaHome.indexOf("<HomeSections"))
+const community = await readFile("src/app/(main)/_features/community/community-home-section.tsx", "utf8")
+assert.doesNotMatch(community, /backdrop-blur-2xl/)
 console.log("home banners and pending navigation: all checks pass")

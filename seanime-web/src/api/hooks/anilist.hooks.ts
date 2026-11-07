@@ -36,12 +36,12 @@ export function useGetAnimeCollection() {
     })
 }
 
-export function useGetRawAnimeCollection() {
+export function useGetRawAnimeCollection(enabled = true, profileId?: number) {
     return useServerQuery<AL_AnimeCollection>({
         endpoint: API_ENDPOINTS.ANILIST.GetRawAnimeCollection.endpoint,
         method: API_ENDPOINTS.ANILIST.GetRawAnimeCollection.methods[0],
-        queryKey: [API_ENDPOINTS.ANILIST.GetRawAnimeCollection.key],
-        enabled: true,
+        queryKey: profileId ? [API_ENDPOINTS.ANILIST.GetRawAnimeCollection.key, profileId] : [API_ENDPOINTS.ANILIST.GetRawAnimeCollection.key],
+        enabled,
     })
 }
 

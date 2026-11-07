@@ -1,5 +1,6 @@
 import { cachedImageUrl } from "@/lib/server/assets"
 import { HomeSections } from "@/app/(main)/_features/home/home-sections"
+import { AnimeHomeInsights } from "@/app/(main)/_features/home/medium-home-insights"
 import { HomeStatsStrip } from "@/app/(main)/_features/home/home-stats-strip"
 import { LuEye, LuFiles, LuFilm, LuHardDrive, LuLibrary, LuSparkles, LuStar, LuTriangleAlert, LuTv } from "react-icons/lu"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
@@ -208,6 +209,8 @@ export function HomeScreen() {
                     )}
                 />
 
+                <PageWrapper className="px-3 py-4 md:px-5"><AnimeHomeInsights /></PageWrapper>
+
                 <div className="text-center space-y-6 py-10">
                     <h2>Your home screen is empty</h2>
 
@@ -403,6 +406,7 @@ export function HomeScreen() {
                     <LibraryHeader list={continueWatchingList} />
                 </div>}
 
+            <PageWrapper className="px-3 py-4 md:px-5"><AnimeHomeInsights /></PageWrapper>
 
             {!isLoading && <AnimatePresence mode="wait">
                 {view === "base" && <PageWrapper
