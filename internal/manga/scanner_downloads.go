@@ -274,5 +274,10 @@ func (d *Downloader) linkSyntheticFromScan(
 		Float64("confidence", best.Confidence).
 		Msg("manga-scan: Matched a downloaded local series to AniList")
 
+	// It is the AniList entry from now on: re-file its downloads and records under that ID.
+	if d.repository != nil {
+		d.repository.UnsynthesizeManga(entry.mediaID, best.MediaID)
+	}
+
 	return true
 }

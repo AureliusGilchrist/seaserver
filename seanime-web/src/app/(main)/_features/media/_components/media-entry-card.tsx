@@ -33,10 +33,9 @@ import { MediaEntryProgressBadge } from "@/app/(main)/_features/media/_component
 import { MediaEntryScoreBadge } from "@/app/(main)/_features/media/_components/media-entry-score-badge"
 import { AnilistMediaEntryModal } from "@/app/(main)/_features/media/_containers/anilist-media-entry-modal"
 import { useMediaPreviewModal } from "@/app/(main)/_features/media/_containers/media-preview-modal"
-import { usePlaylistEditorManager } from "@/app/(main)/_features/playlists/lib/playlist-editor-manager"
 import { useAnilistUserAnimeListData } from "@/app/(main)/_hooks/anilist-collection-loader"
 import { useMissingEpisodes } from "@/app/(main)/_hooks/missing-episodes-loader"
-import { useHasTorrentOrDebridInclusion, useServerStatus } from "@/app/(main)/_hooks/use-server-status"
+import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { MangaEntryCardUnreadBadge } from "@/app/(main)/manga/_containers/manga-entry-card-unread-badge"
 import { SeaLink } from "@/components/shared/sea-link"
@@ -48,7 +47,7 @@ import { useSetAtom } from "jotai/react"
 import capitalize from "lodash/capitalize"
 import { usePathname, useRouter } from "@/lib/navigation"
 import React, { useState } from "react"
-import { BiAddToQueue, BiPlay } from "react-icons/bi"
+import { BiPlay } from "react-icons/bi"
 import { IoLibrarySharp } from "react-icons/io5"
 import { LuDownload, LuEye, LuFolderTree, LuListPlus } from "react-icons/lu"
 import { RiCalendarLine } from "react-icons/ri"
@@ -124,7 +123,6 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
     const router = useRouter()
     const serverStatus = useServerStatus()
     const personal = usePersonalSettings()
-    const { hasStreamingEnabled } = useHasTorrentOrDebridInclusion()
     const missingEpisodes = useMissingEpisodes()
     const { isDownloading } = useDownloadingAnime()
     const { isFavorite } = useAnimeFavorites()
@@ -137,8 +135,6 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
     const [listData, setListData] = useState<Anime_EntryListData | undefined>(_listData)
     const [libraryData, setLibraryData] = useState<Anime_EntryLibraryData | undefined>(_libraryData)
     const setActionPopupHover = useSetAtom(__mediaEntryCard_hoveredPopupId)
-
-    const { selectMediaAndOpenEditor } = usePlaylistEditorManager()
 
     const [__atomicLibraryCollection, getAtomicLibraryEntry] = useAtom(getAtomicLibraryEntryAtom)
 
@@ -282,10 +278,6 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
         setPreviewModalMediaId(mediaId, type)
     }, [mediaId, type, setPreviewModalMediaId])
 
-    const handleAddToPlaylistClick = React.useCallback(() => {
-        selectMediaAndOpenEditor(mediaId)
-    }, [mediaId, selectMediaAndOpenEditor])
-
     const handleOpenInExplorerClick = React.useCallback(() => {
         if (libraryData?.sharedPath) {
             openDirInLibraryExplorer(libraryData.sharedPath)
@@ -324,11 +316,6 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
                         onClick={handlePreviewClick}
                     >
                         <LuEye /> Preview
-                    </ContextMenuItem>}
-                    {(libraryData || nakamaLibraryData || (listData && hasStreamingEnabled)) && <ContextMenuItem
-                        onClick={handleAddToPlaylistClick}
-                    >
-                        <BiAddToQueue /> Add to Playlist
                     </ContextMenuItem>}
                     {(!!libraryData) && <ContextMenuItem
                         onClick={handleOpenInExplorerClick}

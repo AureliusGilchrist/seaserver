@@ -9,9 +9,7 @@ import { __unknownMedia_drawerIsOpen } from "@/app/(main)/(library)/_containers/
 import { __unmatchedFileManagerIsOpen } from "@/app/(main)/(library)/_containers/unmatched-file-manager"
 import { __home_currentView } from "@/app/(main)/(library)/_home/home-screen"
 import { HomeSettingsButton } from "@/app/(main)/(library)/_home/home-settings-button"
-import { libraryExplorer_drawerOpenAtom } from "@/app/(main)/_features/library-explorer/library-explorer.atoms"
 import { useNakamaStatus } from "@/app/(main)/_features/nakama/nakama-manager"
-import { usePlaylistEditorManager } from "@/app/(main)/_features/playlists/lib/playlist-editor-manager"
 import { useSeaCommand } from "@/app/(main)/_features/sea-command/sea-command.tsx"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { SeaLink } from "@/components/shared/sea-link"
@@ -28,7 +26,7 @@ import { HiExclamation } from "react-icons/hi"
 import { IoHome, IoLibraryOutline, IoLibrarySharp } from "react-icons/io5"
 import { LuSearch } from "react-icons/lu"
 import { LuArrowLeftRight, LuFolderSearch, LuFolderSync, LuFolderTree } from "react-icons/lu"
-import { MdOutlineConnectWithoutContact, MdOutlineVideoLibrary } from "react-icons/md"
+import { MdOutlineConnectWithoutContact } from "react-icons/md"
 import { TbFileSad, TbReportSearch } from "react-icons/tb"
 import { PluginAnimeLibraryDropdownItems } from "../../_features/plugin/actions/plugin-actions"
 
@@ -69,8 +67,6 @@ export function HomeToolbar(props: HomeToolbarProps) {
     const setIgnoredFileManagerOpen = useSetAtom(__ignoredFileManagerIsOpen)
     const setUnknownMediaManagerOpen = useSetAtom(__unknownMedia_drawerIsOpen)
     const setUnmatchedFileManagerOpen = useSetAtom(__unmatchedFileManagerIsOpen)
-    const setLibraryExplorerDrawerOpen = useSetAtom(libraryExplorer_drawerOpenAtom)
-    const { setModalOpen } = usePlaylistEditorManager()
 
     const { data: allExtensions, isLoading: isExtensionsLoading } = useGetAllExtensions(false)
 
@@ -125,27 +121,6 @@ export function HomeToolbar(props: HomeToolbarProps) {
                             {homeView === "base" ? "Local Anime Library" : "Home"}
                         </Tooltip>}
 
-                        {(!isStreamingOnly && !isNakamaLibrary && hasLibraryPath) && <Tooltip
-                            trigger={<IconButton
-                                data-home-toolbar-switch-view-button
-                                intent={"white-subtle"}
-                                icon={<LuFolderTree className="text-2xl" />}
-                                onClick={() => {
-                                    setLibraryExplorerDrawerOpen(true)
-                                }}
-                            />}
-                        >
-                            Library Explorer
-                        </Tooltip>}
-
-                        <Tooltip
-                            trigger={<IconButton
-                                data-home-toolbar-playlists-button
-                                intent={"white-subtle"}
-                                icon={<MdOutlineVideoLibrary className="text-2xl" />}
-                                onClick={() => setModalOpen(true)}
-                            />}
-                        >Playlists</Tooltip>
                     </>
                 )}
                 {/*Shows up even when there's no local entries*/}
@@ -219,18 +194,6 @@ export function HomeToolbar(props: HomeToolbarProps) {
                             icon={<BiDotsVerticalRounded />} intent="gray-basic"
                         />}
                     >
-
-                        {/*<DropdownMenuItem*/}
-                        {/*    data-home-toolbar-open-library-explorer-button*/}
-                        {/*    disabled={!hasLibraryPath}*/}
-                        {/*    className={cn("cursor-pointer", { "!text-[--muted]": !hasLibraryPath })}*/}
-                        {/*    onClick={() => {*/}
-                        {/*        setLibraryExplorerDrawerOpen(true)*/}
-                        {/*    }}*/}
-                        {/*>*/}
-                        {/*    <LuFolderTree />*/}
-                        {/*    <span>Library explorer</span>*/}
-                        {/*</DropdownMenuItem>*/}
 
                         <DropdownMenuItem
                             data-home-toolbar-search-library

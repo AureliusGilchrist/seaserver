@@ -63,8 +63,10 @@ export function StillWatchingTiming(props: StillWatchingTimingProps) {
                             }}
                             className={cn(
                                 "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-all duration-150",
+                                // White on the theme's brand colour went blank when the brand is
+                                // light, so the chosen chip is a fixed light pill with dark text.
                                 active
-                                    ? "bg-[--brand] text-white shadow-md shadow-[--brand]/30"
+                                    ? "bg-white text-gray-950 shadow-md shadow-black/30"
                                     : "text-[--muted] hover:bg-[--subtle] hover:text-[--foreground]",
                             )}
                         >
@@ -192,28 +194,29 @@ function TimingStrip({ mode, startHour, endHour, onStartHourChange, onEndHourCha
                 onPointerCancel={endPointerDrag}
                 onLostPointerCapture={endPointerDrag}
             >
-                {/* Hour ticks and shorter half-hour notches. */}
-                {Array.from({ length: 48 }).map((_, tick) => (
-                    <div
-                        key={tick}
-                        className={cn(
-                            "pointer-events-none absolute z-[1] w-px",
-                            tick % 2 ? "bottom-0 h-2 bg-white/25" : "top-0 h-full",
-                            tick % 12 === 0 ? "bg-[--border]" : tick % 2 === 0 && "bg-[--border]/40",
-                        )}
-                        style={{ left: `${(tick / 48) * 100}%` }}
-                    />
-                ))}
-
-                {/* The lit window(s). */}
+                {/* The lit window(s), under the notches so the notches read across them. Palette
+                    shades rather than the --brand variable: an opacity on the variable came out
+                    fully transparent, which left the chosen hours undrawn. */}
                 {spans.map((span, i) => (
                     <div
                         key={i}
-                        className="absolute top-0 h-full bg-gradient-to-b from-[--brand]/40 to-[--brand]/25 border-x border-[--brand]/50"
+                        className="absolute top-0 h-full border-x border-brand-300/70 bg-gradient-to-b from-brand-400/45 to-brand-500/25"
                         style={{ left: `${span.left}%`, width: `${span.width}%` }}
-                    >
-                        <div className="absolute inset-0 bg-[--brand]/10" />
-                    </div>
+                    />
+                ))}
+
+                {/* Hour ticks, half-hour notches, and the four quarter-day lines strongest. */}
+                {Array.from({ length: 48 }).map((_, tick) => (
+                    tick === 0 ? null : <div
+                        key={tick}
+                        className={cn(
+                            "pointer-events-none absolute z-[1] w-px",
+                            tick % 12 === 0 ? "top-0 h-full bg-white/45"
+                                : tick % 2 === 0 ? "bottom-0 h-1/2 bg-white/35"
+                                    : "bottom-0 h-1/4 bg-white/25",
+                        )}
+                        style={{ left: `${(tick / 48) * 100}%` }}
+                    />
                 ))}
 
                 {/* Current hour marker. */}
@@ -233,15 +236,36 @@ function TimingStrip({ mode, startHour, endHour, onStartHourChange, onEndHourCha
                 )}
             </div>
 
-            <div className="mt-1 flex w-full justify-between text-[10px] font-medium uppercase tracking-wider text-[--muted]">
-                <span>Midnight</span>
-                <span>6 am</span>
-                <span>Noon</span>
-                <span>6 pm</span>
-                <span>Midnight</span>
+            {/* A time under every hour notch, in a dim grey so it reads as a scale rather than as
+                content; midnight, 6, noon and 6 sit a little brighter. Every third hour only on
+                narrow screens, where 25 labels would run together. */}
+            <div className="relative mt-1.5 h-5 w-full font-semibold tabular-nums" aria-hidden>
+                {Array.from({ length: 25 }).map((_, hour) => {
+                    const major = hour % 6 === 0
+                    return (
+                        <span
+                            key={hour}
+                            className={cn(
+                                "absolute top-0 whitespace-nowrap",
+                                hour === 0 ? "translate-x-0" : hour === 24 ? "-translate-x-full" : "-translate-x-1/2",
+                                major ? "text-[13px] text-white/85" : "pt-px text-[11px] text-white/60",
+                                hour % 3 !== 0 && "hidden lg:block",
+                            )}
+                            style={{ left: `${(hour / 24) * 100}%` }}
+                        >
+                            {hourLabel(hour)}
+                        </span>
+                    )
+                })}
             </div>
         </div>
     )
+}
+
+/** Labels for the scale: "12 am", "3 am" … "12 pm" … "9 pm", "12 am". */
+function hourLabel(hour: number) {
+    const h = hour % 12 === 0 ? 12 : hour % 12
+    return `${h} ${hour % 24 < 12 ? "am" : "pm"}`
 }
 
 function Handle({ left, name, dragging, overlapping, onPointerDown, onKeyDown }: {

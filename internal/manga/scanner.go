@@ -406,7 +406,14 @@ func applyScanMatch(database *db.Database, folderName string, candidate MangaSca
 	// A folder that has found its series is no longer a series of its own. Without this the
 	// synthetic entry written by an earlier failed scan survives the match and the manga goes on
 	// being listed as synthetic beside the real one it has just been matched to.
+	//
+	// Its records move to the AniList ID first, and the link is kept, so what was read or favourited
+	// as the local series is not orphaned. Profile databases are reached by the startup pass, which
+	// converts every kept link (see unsynthesize.go).
 	if synthetic, found := database.GetSyntheticMangaByProviderID("local", folderName); found && synthetic != nil {
+		if mediaID > 0 && database.SaveMangaIDMapping(synthetic.SyntheticID, mediaID, folderName) == nil {
+			_, _ = database.MoveMangaMediaID(synthetic.SyntheticID, mediaID)
+		}
 		_ = database.DeleteSyntheticManga(synthetic.SyntheticID)
 	}
 }

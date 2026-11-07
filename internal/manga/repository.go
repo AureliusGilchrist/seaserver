@@ -54,6 +54,10 @@ type (
 		// Which download folders hold which manga, so opening a chapter reads one series'
 		// registry instead of every registry in the download folder. See series_dir_index.go.
 		seriesDirIndex seriesDirIndex
+
+		// Reaches every profile's database, for re-filing a matched local series. See unsynthesize.go.
+		profileDatabases func() []*db.Database
+		unsynthesizeMu   sync.Mutex
 	}
 
 	NewRepositoryOptions struct {

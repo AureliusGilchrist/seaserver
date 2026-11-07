@@ -184,7 +184,9 @@ function MediaMetadata({ manga, onHoverChange }: MediaMetadataProps) {
                 </motion.div>
 
                 <motion.div
-                    className={cn("min-w-0 flex-auto space-y-2 z-[1]", homeBannerTextBackdrop)}
+                    // As wide as its widest line and no wider, so the dark glow behind the text stops where
+                    // the text does instead of shading the whole banner.
+                    className={cn("min-w-0 w-fit max-w-[52rem] flex-initial space-y-2 z-[1]", homeBannerTextBackdrop)}
                     initial={{ opacity: 0, x: 10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.5, delay: 0.6 }}

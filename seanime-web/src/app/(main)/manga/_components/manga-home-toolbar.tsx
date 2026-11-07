@@ -2,7 +2,6 @@
 import { useOpenInExplorer } from "@/api/hooks/explorer.hooks"
 import { __manga_home_settingsModalOpen } from "@/app/(main)/manga/_components/manga-home-settings"
 import { libraryExplorer_drawerOpenAtom } from "@/app/(main)/_features/library-explorer/library-explorer.atoms"
-import { usePlaylistEditorManager } from "@/app/(main)/_features/playlists/lib/playlist-editor-manager"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { SeaLink } from "@/components/shared/sea-link"
 import { Button, IconButton } from "@/components/ui/button"
@@ -12,7 +11,6 @@ import { Tooltip } from "@/components/ui/tooltip"
 import { useSetAtom } from "jotai/react"
 import { BiDotsVerticalRounded, BiFolder } from "react-icons/bi"
 import { LuArrowLeftRight, LuFolderTree, LuSettings2 } from "react-icons/lu"
-import { MdOutlineVideoLibrary } from "react-icons/md"
 
 export type MangaHomeToolbarProps = {
     hasManga: boolean
@@ -28,7 +26,6 @@ export function MangaHomeToolbar(props: MangaHomeToolbarProps) {
     const serverStatus = useServerStatus()
 
     const setLibraryExplorerDrawerOpen = useSetAtom(libraryExplorer_drawerOpenAtom)
-    const { setModalOpen } = usePlaylistEditorManager()
     const setHomeSettingsModalOpen = useSetAtom(__manga_home_settingsModalOpen)
 
     const { mutate: openInExplorer } = useOpenInExplorer()
@@ -55,15 +52,6 @@ export function MangaHomeToolbar(props: MangaHomeToolbarProps) {
                         >
                             Library Explorer
                         </Tooltip>}
-
-                        <Tooltip
-                            trigger={<IconButton
-                                data-manga-home-toolbar-playlists-button
-                                intent={"white-subtle"}
-                                icon={<MdOutlineVideoLibrary className="text-2xl" />}
-                                onClick={() => setModalOpen(true)}
-                            />}
-                        >Playlists</Tooltip>
                     </>
                 )}
 

@@ -416,6 +416,30 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 		ExtensionBankRef: extensionBankRef,
 	})
 
+	// Matched local series are re-filed under their AniList IDs in every profile's database too.
+	mangaRepository.SetProfileDatabases(func() []*db.Database {
+		if profileManager == nil || !profileManager.HasProfiles() {
+			return nil
+		}
+		profiles, err := profileManager.GetAllProfiles()
+		if err != nil {
+			return nil
+		}
+		dbs := make([]*db.Database, 0, len(profiles))
+		for _, profile := range profiles {
+			if profileDB, err := profileDBManager.GetDatabase(profile.ID); err == nil && profileDB != nil {
+				dbs = append(dbs, profileDB)
+			}
+		}
+		return dbs
+	})
+	// Convert anything matched before conversion existed, or while the server was off. Quick when
+	// there is nothing left to convert.
+	go func() {
+		defer func() { _ = recover() }()
+		mangaRepository.UnsynthesizeMatchedManga()
+	}()
+
 	// Initialize Anilist platform
 	anilistPlatform := anilist_platform.NewAnilistPlatform(anilistCWRef, extensionBankRef, logger, database)
 

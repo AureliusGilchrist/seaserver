@@ -9,8 +9,6 @@ import { LibraryWatcher } from "@/app/(main)/_features/library-watcher/library-w
 import { MediaPreviewModal } from "@/app/(main)/_features/media/_containers/media-preview-modal"
 import { MainSidebar } from "@/app/(main)/_features/navigation/main-sidebar"
 import { MobileTabBar } from "@/app/(main)/_features/navigation/mobile-tab-bar"
-import { GlobalPlaylistManager } from "@/app/(main)/_features/playlists/_containers/global-playlist-manager"
-import { PlaylistListModal } from "@/app/(main)/_features/playlists/playlist-list-modal"
 import { PluginManager } from "@/app/(main)/_features/plugin/plugin-manager"
 import { PluginWebviewSlot } from "@/app/(main)/_features/plugin/webview/plugin-webviews"
 import { ManualProgressTracking } from "@/app/(main)/_features/progress-tracking/manual-progress-tracking"
@@ -109,8 +107,6 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
             <MangaHydrationProgressBar />
             <LibraryWatcher />
             <ScannerModal />
-            <PlaylistListModal />
-            <GlobalPlaylistManager />
             <ChapterDownloadsDrawer />
             <TorrentStreamOverlay />
             <DebridStreamOverlay />

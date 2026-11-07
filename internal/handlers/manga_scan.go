@@ -289,9 +289,13 @@ func (h *Handler) HandleMangaScanManualLink(c echo.Context) error {
 
 	db := h.App.MangaRepository.GetDatabase()
 
-	// Check if a synthetic entry exists for this folder and remove it
+	// A synthetic entry for this folder becomes the AniList entry: the link is recorded and kept,
+	// its records in every profile move across, and the synthetic record goes.
 	existing, found := db.GetSyntheticMangaByProviderID("local", b.FolderName)
 	if found && existing != nil {
+		if err := db.SaveMangaIDMapping(existing.SyntheticID, b.MediaID, b.FolderName); err == nil {
+			h.App.MangaRepository.UnsynthesizeManga(existing.SyntheticID, b.MediaID)
+		}
 		_ = db.DeleteSyntheticManga(existing.SyntheticID)
 	}
 

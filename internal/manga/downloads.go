@@ -611,28 +611,25 @@ func (r *Repository) getDownloadedMangaPageContainerLegacy(
 	possibleMediaDirs []string,
 ) (*PageContainer, error) {
 	var mediaDirPath string
-	var chapterFiles []os.DirEntry
-	var err error
 	var mediaDir string
+	checked := 0
 
-	// Try each possible directory
-	for _, dir := range possibleMediaDirs {
-		mediaDirPath = filepath.Join(r.downloadDir, dir)
-		chapterFiles, err = os.ReadDir(mediaDirPath)
-		if err == nil {
-			mediaDir = dir
-			break
-		}
-	}
-
-	if err != nil {
-		return nil, ErrChapterNotDownloaded
-	}
-
+	// Every candidate folder, not just the first readable one: a series can sit in more than one
+	// (an old-format folder beside a new one), and stopping at the first meant a chapter in the
+	// second never opened.
 	chapterDir := ""
 	found := false
-	for _, file := range chapterFiles {
-		if file.IsDir() {
+	for _, dir := range possibleMediaDirs {
+		dirPath := filepath.Join(r.downloadDir, dir)
+		files, readErr := os.ReadDir(dirPath)
+		if readErr != nil {
+			continue
+		}
+		checked += len(files)
+		for _, file := range files {
+			if !file.IsDir() {
+				continue
+			}
 			downloadId, ok := chapter_downloader.ParseChapterDirName(file.Name())
 			if !ok {
 				continue
@@ -641,17 +638,23 @@ func (r *Repository) getDownloadedMangaPageContainerLegacy(
 			// When provider is local-manga, accept chapters from any provider
 			providerMatches := downloadId.Provider == provider || provider == manga_providers.LocalProvider
 
+			// Either ID: a matched local series' chapter folders are renamed to the AniList ID
+			// when it is unsynthesised (see unsynthesize.go), while older ones keep the synthetic.
 			if providerMatches &&
-				downloadId.MediaId == originalMediaId &&
+				(downloadId.MediaId == originalMediaId || downloadId.MediaId == mediaId) &&
 				downloadId.ChapterId == chapterId {
 				found = true
 				chapterDir = file.Name()
+				mediaDir, mediaDirPath = dir, dirPath
 				r.logger.Debug().
 					Str("chapterDir", chapterDir).
 					Str("downloadProvider", downloadId.Provider).
 					Msg("manga: Found matching chapter directory (legacy)")
 				break
 			}
+		}
+		if found {
+			break
 		}
 	}
 
@@ -660,7 +663,7 @@ func (r *Repository) getDownloadedMangaPageContainerLegacy(
 			Str("provider", provider).
 			Int("originalMediaId", originalMediaId).
 			Str("chapterId", chapterId).
-			Int("filesChecked", len(chapterFiles)).
+			Int("filesChecked", checked).
 			Msg("manga: Chapter not found in any directory")
 		return nil, ErrChapterNotDownloaded
 	}

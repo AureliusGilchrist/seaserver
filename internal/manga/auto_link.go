@@ -93,6 +93,11 @@ func (d *Downloader) AutoLinkSyntheticManga(ctx context.Context, syntheticID int
 		Float64("confidence", confidence).
 		Msg("manga: Linked a local series to AniList automatically")
 
+	// It is the AniList entry from now on: re-file its downloads and records under that ID.
+	if d.repository != nil {
+		d.repository.UnsynthesizeManga(syntheticID, best.ID)
+	}
+
 	return best.ID
 }
 

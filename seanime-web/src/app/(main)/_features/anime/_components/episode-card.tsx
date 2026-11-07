@@ -6,7 +6,6 @@ import { SeaContextMenu } from "@/app/(main)/_features/context-menu/sea-context-
 import { EpisodeItemBottomGradient } from "@/app/(main)/_features/custom-ui/item-bottom-gradients"
 import { AnimeDownloadingBadge } from "@/app/(main)/_features/media/_components/anime-downloading-badge"
 import { useMediaPreviewModal } from "@/app/(main)/_features/media/_containers/media-preview-modal"
-import { usePlaylistEditorManager } from "@/app/(main)/_features/playlists/lib/playlist-editor-manager"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { imageShimmer } from "@/components/shared/image-helpers"
 import { SeaImage } from "@/components/shared/sea-image"
@@ -18,7 +17,6 @@ import { getImageUrl } from "@/lib/server/assets"
 import { getSpoilerFreeAnimeImage, useEpisodeSpoilerState } from "@/lib/theme/anime-spoilers"
 import { useThemeSettings } from "@/lib/theme/theme-hooks"
 import React from "react"
-import { BiAddToQueue } from "react-icons/bi"
 import { FaCirclePlay } from "react-icons/fa6"
 import { LuDock, LuEye } from "react-icons/lu"
 import { PluginEpisodeCardContextMenuItems } from "../../plugin/actions/plugin-actions"
@@ -126,7 +124,6 @@ export function EpisodeCard(props: EpisodeCardProps) {
     const serverStatus = useServerStatus()
     const ts = useThemeSettings()
     const { setPreviewModalMediaId } = useMediaPreviewModal()
-    const { selectEpisodeToAddAndOpenEditor } = usePlaylistEditorManager()
 
     const showAnimeInfo = ts.showEpisodeCardAnimeInfo && !!anime && allowAnimeInfo
     const showTotalEpisodes = React.useMemo(() => !!progressTotal && progressTotal > 1, [progressTotal])
@@ -208,13 +205,6 @@ export function EpisodeCard(props: EpisodeCardProps) {
                             <LuDock /> Open page
                         </ContextMenuItem>
                     </>}
-                    {(props.episode && anime?.id && props.episode?.aniDBEpisode) && <ContextMenuItem
-                        onClick={() => {
-                            selectEpisodeToAddAndOpenEditor(anime.id!, props.episode?.aniDBEpisode!)
-                        }}
-                    >
-                        <BiAddToQueue /> Add to Playlist
-                    </ContextMenuItem>}
 
                     {additionalContextMenuItems}
 

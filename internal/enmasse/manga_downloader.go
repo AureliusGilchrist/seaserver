@@ -1079,7 +1079,10 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 		// If a synthetic entry already exists for this provider ID, map it to the AniList ID so UI hides the synthetic
 		if database := d.mangaRepository.GetDatabase(); database != nil {
 			if synthetic, found := database.GetSyntheticMangaByProviderID(DefaultMangaProvider, mangaId); found && synthetic != nil {
-				_ = database.SaveMangaIDMapping(synthetic.SyntheticID, mediaId, mangaId)
+				if err := database.SaveMangaIDMapping(synthetic.SyntheticID, mediaId, mangaId); err == nil {
+					// And re-file what was downloaded under the synthetic ID, so it is one series.
+					d.mangaRepository.UnsynthesizeManga(synthetic.SyntheticID, mediaId)
+				}
 			}
 		}
 
