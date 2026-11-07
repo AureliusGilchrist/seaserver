@@ -61,7 +61,12 @@ import {
 import { VideoCoreDrawer } from "@/app/(main)/_features/video-core/video-core-drawer"
 import { useVideoCoreSetupEvents } from "@/app/(main)/_features/video-core/video-core-events"
 import { vc_fullscreenManager, VideoCoreFullscreenManager } from "@/app/(main)/_features/video-core/video-core-fullscreen"
-import { useVideoCoreAutoProgress, VideoCoreProgressPrompt } from "@/app/(main)/_features/video-core/video-core-auto-progress"
+import {
+    useVideoCoreAutoProgress,
+    vc_episodeFinishedNotice,
+    VideoCoreEpisodeFinishedPopup,
+    VideoCoreProgressPrompt,
+} from "@/app/(main)/_features/video-core/video-core-auto-progress"
 import { useVideoCoreWatchingChecks, VideoCoreSequelPrompt, VideoCoreStillWatchingPrompt } from "@/app/(main)/_features/video-core/video-core-watching-checks"
 import {
     useVideoCoreHls,
@@ -486,6 +491,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                         <VideoCoreOverlayDisplay />
 
                         <VideoCoreProgressPrompt />
+                        <VideoCoreEpisodeFinishedPopup />
                         <WatchStatusPrompt mediaId={state.playbackInfo?.media?.id} className="absolute right-4 top-16 z-[60]" />
                         <VideoCoreSequelPrompt />
                         <VideoCoreStillWatchingPrompt onContinue={onContinueAfterStillWatching} onLeave={onTerminateStream} />
@@ -921,6 +927,7 @@ export function VideoCore(props: VideoCoreProps) {
 
     // Client-side watched tracking and AniList progress for both online + local players.
     const { onReachedThreshold: onReachedProgressThreshold } = useVideoCoreAutoProgress(state)
+    const setEpisodeFinishedNotice = useSetAtom(vc_episodeFinishedNotice)
 
     // The sequel offer and the every-N-episodes check (Personal settings). Both are raised from
     // the same place the episode's end is noticed; the check withholds auto-next at the episode
@@ -1798,8 +1805,14 @@ export function VideoCore(props: VideoCoreProps) {
             const watchedThreshold = personal.episodeWatchedThreshold / 100
             if (w.maxPercent < watchedThreshold && percent >= watchedThreshold) {
                 markEpisodePlayed(info.media.id, episodeNumber)
-                toast.success(`Episode ${episodeNumber} marked as watched`, {
-                    description: `Reached your ${personal.episodeWatchedThreshold}% watched threshold.`,
+                // Shown in the player, not as a toast. Set before the AniList update starts, which
+                // fills in the pop-up's AniList line.
+                setEpisodeFinishedNotice({
+                    key: Date.now(),
+                    mediaId: info.media.id,
+                    episodeNumber,
+                    threshold: personal.episodeWatchedThreshold,
+                    anilist: "none",
                 })
                 onReachedProgressThreshold()
             }

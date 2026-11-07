@@ -5,6 +5,8 @@ import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { Button } from "@/components/ui/button"
 import { bridgePlayedProgress, getEffectiveProgress, markEpisodePlayed, markPromptDismissed, wasPromptDismissed } from "@/lib/progress-queue/progress-queue"
 import { atom, useAtomValue, useSetAtom } from "jotai"
+import { AnimatePresence, motion } from "motion/react"
+import { LuCheck, LuLoader, LuX } from "react-icons/lu"
 import { useAtom } from "jotai/react"
 import React from "react"
 
@@ -37,6 +39,26 @@ export type VideoCoreProgressPromptState = {
 // Module-level (a single in-app player is active at a time).
 export const vc_progressPrompt = atom<VideoCoreProgressPromptState | null>(null)
 
+/** The "episode finished" pop-up shown in the player when the watched threshold is reached. */
+export type VideoCoreEpisodeFinishedNotice = {
+    /** Changes on every new notice, so the pop-up restarts its timer. */
+    key: number
+    mediaId: number
+    episodeNumber: number
+    threshold: number
+    /** What happened on AniList: nothing to do, being sent, sent, or failed. */
+    anilist: "none" | "pending" | "done" | "failed"
+}
+
+export const vc_episodeFinishedNotice = atom<VideoCoreEpisodeFinishedNotice | null>(null)
+
+/** Updates the AniList line of the current notice, if it is still about that episode. */
+const vc_setEpisodeFinishedAnilist = atom(null, (get, set, payload: { mediaId: number, episodeNumber: number, anilist: VideoCoreEpisodeFinishedNotice["anilist"] }) => {
+    const notice = get(vc_episodeFinishedNotice)
+    if (!notice || notice.mediaId !== payload.mediaId || notice.episodeNumber !== payload.episodeNumber) return
+    set(vc_episodeFinishedNotice, { ...notice, anilist: payload.anilist })
+})
+
 export function useVideoCoreAutoProgress(state: VideoCoreLifecycleState) {
     const personal = usePersonalSettings()
     const autoUpdate = personal.autoUpdateProgress
@@ -46,7 +68,9 @@ export function useVideoCoreAutoProgress(state: VideoCoreLifecycleState) {
 
     const { data: entry } = useGetAnimeEntry(mediaId)
     const setPrompt = useSetAtom(vc_progressPrompt)
-    const { mutate: updateProgress } = useUpdateAnimeEntryProgress(mediaId, episodeNumber, true)
+    const setNoticeAnilist = useSetAtom(vc_setEpisodeFinishedAnilist)
+    // No toast: the result shows on the player's "episode finished" pop-up.
+    const { mutate: updateProgress } = useUpdateAnimeEntryProgress(mediaId, episodeNumber, false)
     const { mutate: recordWatched } = useRecordEpisodeWatched()
 
     // Ensure we only act once per (media, episode) playback.
@@ -58,14 +82,14 @@ export function useVideoCoreAutoProgress(state: VideoCoreLifecycleState) {
     }, [mediaId, episodeNumber])
 
     // Keep the latest render values so the stable callback never reads stale data.
-    const latestRef = React.useRef({ entry, autoUpdate, state, mediaId, episodeNumber, updateProgress, recordWatched })
-    latestRef.current = { entry, autoUpdate, state, mediaId, episodeNumber, updateProgress, recordWatched }
+    const latestRef = React.useRef({ entry, autoUpdate, state, mediaId, episodeNumber, updateProgress, recordWatched, setNoticeAnilist })
+    latestRef.current = { entry, autoUpdate, state, mediaId, episodeNumber, updateProgress, recordWatched, setNoticeAnilist }
 
     // `target` counts an episode other than the one now loaded: the previous episode, when the
     // player moved on to the next one before the threshold (ending skipped, "next episode").
     const onReachedThreshold = React.useCallback((target?: { media: NonNullable<VideoCoreLifecycleState["playbackInfo"]>["media"], episodeNumber: number }) => {
         const latest = latestRef.current
-        const { entry, autoUpdate, updateProgress, recordWatched } = latest
+        const { entry, autoUpdate, updateProgress, recordWatched, setNoticeAnilist } = latest
         const media = target ? target.media : latest.state.playbackInfo?.media
         const mediaId = target ? target.media?.id : latest.mediaId
         const episodeNumber = target ? target.episodeNumber : latest.episodeNumber
@@ -114,7 +138,11 @@ export function useVideoCoreAutoProgress(state: VideoCoreLifecycleState) {
         const isNormalNext = episodeNumber === currentProgress + 1
 
         if (isNormalNext && autoUpdate) {
-            updateProgress({ episodeNumber, mediaId, totalEpisodes, malId })
+            setNoticeAnilist({ mediaId, episodeNumber, anilist: "pending" })
+            updateProgress({ episodeNumber, mediaId, totalEpisodes, malId }, {
+                onSuccess: () => setNoticeAnilist({ mediaId, episodeNumber, anilist: "done" }),
+                onError: () => setNoticeAnilist({ mediaId, episodeNumber, anilist: "failed" }),
+            })
             return
         }
 
@@ -214,6 +242,92 @@ export function VideoCoreProgressPrompt() {
                     </Button>
                 </div>
             </div>
+        </div>
+    )
+}
+
+const EPISODE_FINISHED_NOTICE_MS = 6000
+
+/**
+ * Pop-up inside the player when the episode reaches the watched threshold (replaces the toast).
+ * It never pauses or blocks playback: it slides in at the top, shows whether AniList was
+ * updated, and leaves on its own. Hovering keeps it open; the × closes it.
+ */
+export function VideoCoreEpisodeFinishedPopup() {
+    const [notice, setNotice] = useAtom(vc_episodeFinishedNotice)
+    const [hovered, setHovered] = React.useState(false)
+
+    // Closing the player drops it, so it doesn't come back the next time a video opens.
+    React.useEffect(() => () => setNotice(null), [])
+
+    // Starts again for each new notice, and once more when the AniList result comes in so it can be read.
+    React.useEffect(() => {
+        if (!notice || hovered || notice.anilist === "pending") return
+        const id = window.setTimeout(() => setNotice(null), EPISODE_FINISHED_NOTICE_MS)
+        return () => window.clearTimeout(id)
+    }, [notice?.key, notice?.anilist, hovered])
+
+    return (
+        // Positioned by this wrapper: motion owns the pop-up's own transform.
+        <div className="pointer-events-none absolute left-1/2 top-16 z-[56] w-[min(22rem,calc(100%-2rem))] -translate-x-1/2">
+        <AnimatePresence>
+            {notice && (
+                <motion.div
+                    key={notice.key}
+                    data-vc-element="episode-finished-popup"
+                    role="status"
+                    aria-live="polite"
+                    initial={{ opacity: 0, y: -16, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                    transition={{ type: "spring", stiffness: 420, damping: 32 }}
+                    className="pointer-events-auto cursor-auto"
+                    onClick={e => e.stopPropagation()}
+                    onPointerMove={e => e.stopPropagation()}
+                    onMouseEnter={() => setHovered(true)}
+                    onMouseLeave={() => setHovered(false)}
+                >
+                    <div className="relative overflow-hidden rounded-xl border border-white/10 bg-gray-950/80 shadow-2xl backdrop-blur-md">
+                        <div className="flex items-center gap-3 p-3.5 pr-10">
+                            <motion.div
+                                initial={{ scale: 0.4, rotate: -30 }}
+                                animate={{ scale: 1, rotate: 0 }}
+                                transition={{ type: "spring", stiffness: 500, damping: 18, delay: 0.08 }}
+                                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/40"
+                            >
+                                <LuCheck className="size-5" strokeWidth={3} />
+                            </motion.div>
+                            <div className="min-w-0">
+                                <p className="text-sm font-semibold text-white">Episode {notice.episodeNumber} watched</p>
+                                <p className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-300">
+                                    {notice.anilist === "pending" && <><LuLoader className="size-3 animate-spin" /> Updating AniList…</>}
+                                    {notice.anilist === "done" && <span className="text-emerald-300">AniList updated to episode {notice.episodeNumber}</span>}
+                                    {notice.anilist === "failed" && <span className="text-orange-300">Couldn't update AniList</span>}
+                                    {notice.anilist === "none" && <>Reached your {notice.threshold}% watched mark</>}
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            aria-label="Close"
+                            className="absolute right-2 top-2 rounded-md p-1 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
+                            onClick={() => setNotice(null)}
+                        >
+                            <LuX className="size-4" />
+                        </button>
+                        {notice.anilist !== "pending" && (
+                            <motion.div
+                                key={`${notice.key}-${notice.anilist}`}
+                                className="absolute bottom-0 left-0 h-0.5 bg-emerald-400/70"
+                                initial={{ width: "100%" }}
+                                animate={{ width: hovered ? "100%" : "0%" }}
+                                transition={{ duration: hovered ? 0.2 : EPISODE_FINISHED_NOTICE_MS / 1000, ease: "linear" }}
+                            />
+                        )}
+                    </div>
+                </motion.div>
+            )}
+        </AnimatePresence>
         </div>
     )
 }
