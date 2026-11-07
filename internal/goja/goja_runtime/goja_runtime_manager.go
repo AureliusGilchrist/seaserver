@@ -20,7 +20,16 @@ type Manager struct {
 }
 
 type Pool struct {
-	sp         sync.Pool
+	// idle holds runtimes ready for use, and created counts every runtime this pool has built, up
+	// to maxRuntimes. It used to be a sync.Pool, which empties itself on every garbage collection:
+	// each dropped runtime left its fetch and ChromeDP goroutines running, holding the whole
+	// runtime in memory, and the next call built a fresh one — hundreds of leaked runtimes an hour.
+	// Runtimes here are never dropped; past the cap, a caller waits for one to be put back.
+	idle        chan *goja.Runtime
+	createMu    sync.Mutex
+	created     int32
+	maxRuntimes int32
+
 	factory    func() *goja.Runtime
 	logger     *zerolog.Logger
 	size       int32
@@ -73,21 +82,16 @@ func (m *Manager) DeletePluginPool(extID string) {
 		m.logger.Debug().Msgf("plugin: Interrupting all runtimes in pool for extension %s", extID)
 
 		interruptedCount := 0
+	drain:
 		for {
-			// Get a runtime without using a context to avoid blocking
-			runtimeV := pool.sp.Get()
-			if runtimeV == nil {
-				break // No more runtimes in the pool or error occurred
+			// Take idle runtimes without blocking.
+			select {
+			case runtime := <-pool.idle:
+				runtime.ClearInterrupt()
+				interruptedCount++
+			default:
+				break drain
 			}
-
-			runtime, ok := runtimeV.(*goja.Runtime)
-			if !ok {
-				break
-			}
-
-			// Interrupt the runtime
-			runtime.ClearInterrupt()
-			interruptedCount++
 		}
 
 		m.logger.Debug().Msgf("plugin: Interrupted %d runtimes in pool for extension %s", interruptedCount, extID)
@@ -167,27 +171,24 @@ func (m *Manager) PrintBasePoolMetrics() {
 
 // newPool creates a new Pool using sync.Pool, pre-warming it with size items.
 func newPool(size int32, initFn func() *goja.Runtime, logger *zerolog.Logger) *Pool {
-	p := &Pool{
-		factory: initFn,
-		logger:  logger,
-		size:    size,
+	maxRuntimes := size * 2
+	if maxRuntimes < 8 {
+		maxRuntimes = 8
 	}
-
-	// p.sp.New = func() interface{} {
-	// 	runtime := initFn()
-	// 	p.metrics.created.Add(1)
-	// 	return runtime
-	// }
-
-	p.sp.New = func() any {
-		return nil
+	p := &Pool{
+		factory:     initFn,
+		logger:      logger,
+		size:        size,
+		maxRuntimes: maxRuntimes,
+		idle:        make(chan *goja.Runtime, maxRuntimes),
 	}
 
 	// Pre-warm the pool
 	logger.Trace().Int32("size", size).Msg("goja runtime: Pre-warming pool")
 	for i := int32(0); i < size; i++ {
 		r := initFn()
-		p.sp.Put(r)
+		p.created++
+		p.idle <- r
 		p.metrics.prewarmed.Add(1)
 	}
 
@@ -196,21 +197,35 @@ func newPool(size int32, initFn func() *goja.Runtime, logger *zerolog.Logger) *P
 
 // Get retrieves a runtime from the pool or creates a new one. It respects the context for cancellation.
 func (p *Pool) Get(ctx context.Context) (*goja.Runtime, error) {
-	v := p.sp.Get()
-	if v == nil {
-		// If sync.Pool.New returned nil or context canceled, try factory manually.
-		select {
-		case <-ctx.Done():
-			p.metrics.timeouts.Add(1)
-			return nil, ctx.Err()
-		default:
-		}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	// An idle runtime first.
+	select {
+	case r := <-p.idle:
+		p.metrics.reused.Add(1)
+		return r, nil
+	default:
+	}
+	// None idle: build one if the pool is under its cap.
+	p.createMu.Lock()
+	if p.created < p.maxRuntimes {
+		p.created++
+		p.createMu.Unlock()
 		runtime := p.factory()
 		p.metrics.created.Add(1)
 		return runtime, nil
 	}
-	p.metrics.reused.Add(1)
-	return v.(*goja.Runtime), nil
+	p.createMu.Unlock()
+	// At the cap: wait for one to come back.
+	select {
+	case r := <-p.idle:
+		p.metrics.reused.Add(1)
+		return r, nil
+	case <-ctx.Done():
+		p.metrics.timeouts.Add(1)
+		return nil, ctx.Err()
+	}
 }
 
 // Put returns a runtime to the pool after clearing its interrupt.
@@ -219,7 +234,11 @@ func (p *Pool) Put(runtime *goja.Runtime) {
 		return
 	}
 	runtime.ClearInterrupt()
-	p.sp.Put(runtime)
+	select {
+	case p.idle <- runtime:
+	default:
+		// Cannot happen while created <= cap(idle); kept so a stray Put never blocks.
+	}
 }
 
 // Stats returns pool metrics as a map.

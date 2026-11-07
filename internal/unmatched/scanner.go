@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -30,8 +31,15 @@ type Scanner struct {
 	logger     *zerolog.Logger
 	repository *Repository
 
-	mu                sync.Mutex
-	isRunning         bool
+	mu        sync.Mutex
+	isRunning bool
+
+	// One scan at a time. The ticker, the folder watcher and TriggerScan each used to start a
+	// fresh scan in its own goroutine whether or not one was already walking the folder; on a slow
+	// disk a walk outlasts the interval, and hundreds of them piled up on the same directories.
+	// scanning marks a scan in progress; rescan asks for exactly one more after it.
+	scanning          atomic.Bool
+	rescan            atomic.Bool
 	cancelFunc        context.CancelFunc
 	completedTorrents []string
 	scanInterval      time.Duration
@@ -514,9 +522,28 @@ func (s *Scanner) run(ctx context.Context) {
 	}
 }
 
-// scanForCompletedDownloads scans the Unmatched folder for torrents
-// that have finished downloading (no .!qB temp files)
+// scanForCompletedDownloads scans the Unmatched folder for torrents that have finished
+// downloading (no .!qB temp files). Single-flight: a call made while a scan is running asks for
+// one follow-up scan instead of starting another alongside it.
 func (s *Scanner) scanForCompletedDownloads() {
+	if !s.scanning.CompareAndSwap(false, true) {
+		s.rescan.Store(true)
+		return
+	}
+	for {
+		s.rescan.Store(false)
+		s.scanOnce()
+		if !s.rescan.Load() {
+			s.scanning.Store(false)
+			// A request may have arrived between the check and the release; take it if so.
+			if !s.rescan.Load() || !s.scanning.CompareAndSwap(false, true) {
+				return
+			}
+		}
+	}
+}
+
+func (s *Scanner) scanOnce() {
 	if _, err := os.Stat(UnmatchedBasePath); os.IsNotExist(err) {
 		return
 	}

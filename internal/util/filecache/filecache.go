@@ -53,6 +53,10 @@ type CacheStore struct {
 	loadErr error
 	// stopOnce makes flushAndStop safe to call more than once (Close, then Remove).
 	stopOnce sync.Once
+
+	// lastUsed is when the store was last handed out (unix nanoseconds), guarded by the Cacher's
+	// lock. Idle stores are flushed and dropped; see evictIdleStores.
+	lastUsed int64
 }
 
 // Bucket represents a cache bucket with a name and TTL.
@@ -86,12 +90,48 @@ type Cacher struct {
 	dir    string
 	stores map[string]*CacheStore
 	mu     sync.Mutex
+
+	janitorOnce sync.Once
+}
+
+// storeIdleTTL is how long a bucket's store may go unused before it is flushed and dropped from
+// memory. Every store holds its whole bucket decoded in memory and a flusher goroutine, and buckets
+// are per manga, so a large library opened over a day used to leave thousands of them resident —
+// gigabytes of cache and thousands of goroutines for series nobody had looked at in hours. A dropped
+// bucket is read back from its file the next time it is used.
+const storeIdleTTL = 10 * time.Minute
+
+// evictIdleStores runs for the life of the cacher, dropping stores idle longer than storeIdleTTL.
+func (c *Cacher) evictIdleStores() {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for range ticker.C {
+		cutoff := time.Now().Add(-storeIdleTTL).UnixNano()
+		var idle []*CacheStore
+		c.mu.Lock()
+		for name, store := range c.stores {
+			if store.lastUsed != 0 && store.lastUsed < cutoff {
+				select {
+				case <-store.loading:
+				default:
+					continue // still loading; not idle in any useful sense
+				}
+				idle = append(idle, store)
+				delete(c.stores, name)
+			}
+		}
+		c.mu.Unlock()
+		// Outside the lock: the final flush can take a moment for a large bucket.
+		for _, store := range idle {
+			_ = store.flushAndStop()
+		}
+	}
 }
 
 type cacheItem struct {
 	Value      interface{} `json:"value"`
-	Expiration *time.Time `json:"expiration,omitempty"`
-	UpdatedAt  *time.Time `json:"updated_at,omitempty"`
+	Expiration *time.Time  `json:"expiration,omitempty"`
+	UpdatedAt  *time.Time  `json:"updated_at,omitempty"`
 }
 
 // NewCacher creates a new instance of Cacher.
@@ -150,6 +190,8 @@ func (c *Cacher) Clear() error {
 // own mutex (in the creator), and every other caller waits on the store's loading gate before
 // touching its data, so no one sees a half-loaded bucket.
 func (c *Cacher) getStore(name string) (*CacheStore, error) {
+	c.janitorOnce.Do(func() { go c.evictIdleStores() })
+
 	c.mu.Lock()
 	store, ok := c.stores[name]
 	created := false
@@ -165,6 +207,7 @@ func (c *Cacher) getStore(name string) (*CacheStore, error) {
 		c.stores[name] = store
 		created = true
 	}
+	store.lastUsed = time.Now().UnixNano()
 	c.mu.Unlock()
 
 	if created {

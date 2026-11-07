@@ -10,6 +10,7 @@ import (
 	"seanime/internal/goja/goja_runtime"
 	"seanime/internal/plugin"
 	gojautil "seanime/internal/util/goja"
+	"sync"
 	"time"
 
 	"github.com/dop251/goja"
@@ -72,6 +73,11 @@ func initializeProviderBase(
 	}
 
 	var pool *goja_runtime.Pool
+	// Cleanups for the runtimes built while the pool is still being created (its pre-warm runs
+	// inside GetOrCreatePrivatePool, before `pool` is set). They used to be dropped, so those
+	// runtimes' fetch goroutines outlived an unloaded extension.
+	var pendingCleanups []func()
+	var pendingMu sync.Mutex
 
 	initFn := func() *goja.Runtime {
 		vm := goja.New()
@@ -81,18 +87,29 @@ func initializeProviderBase(
 		ShareBindsWithCleanup(vm, logger, ext, wsEventManager, pool)
 		// Bind fetch and register cleanup to prevent goroutine leaks
 		fetch := goja_bindings.BindFetch(vm)
+		pendingMu.Lock()
 		if pool != nil {
 			pool.AddCleanup(fetch.Close)
+		} else {
+			pendingCleanups = append(pendingCleanups, fetch.Close)
 		}
+		pendingMu.Unlock()
 		gojautil.BindMutable(vm)
 		BindUserConfig(vm, ext, logger)
 		return vm
 	}
 
-	pool, err = runtimeManager.GetOrCreatePrivatePool(ext.ID, initFn)
+	created, err := runtimeManager.GetOrCreatePrivatePool(ext.ID, initFn)
 	if err != nil {
 		return nil, err
 	}
+	pendingMu.Lock()
+	pool = created
+	for _, fn := range pendingCleanups {
+		pool.AddCleanup(fn)
+	}
+	pendingCleanups = nil
+	pendingMu.Unlock()
 
 	providerBase.pool = pool
 
