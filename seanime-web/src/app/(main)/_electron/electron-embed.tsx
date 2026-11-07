@@ -1,5 +1,11 @@
 import { __isElectronDesktop__ } from "@/types/constants"
-import { TRAILER_FADE_MS, youtubeControlScript } from "@/app/(main)/_electron/youtube-control"
+import {
+    TRAILER_FADE_MS,
+    youtubeControlScript,
+    type YoutubePlaybackState,
+    youtubeWatchResultScript,
+    youtubeWatchScript,
+} from "@/app/(main)/_electron/youtube-control"
 import React from "react"
 
 export function useElectronYoutubeEmbed() {
@@ -21,7 +27,7 @@ export function useElectronYoutubeEmbed() {
     }
 }
 
-export function ElectronYoutubeEmbed({ trailerId, isCompact, isBanner, sound, volume = 50, captions, ...props }: {
+export function ElectronYoutubeEmbed({ trailerId, isCompact, isBanner, sound, volume = 50, captions, onPlaybackState, ...props }: {
     isCompact?: boolean,
     isBanner?: boolean,
     trailerId: string | null | undefined
@@ -32,6 +38,8 @@ export function ElectronYoutubeEmbed({ trailerId, isCompact, isBanner, sound, vo
     volume?: number
     /** Caption language to turn on (e.g. "en"), when the video has it. */
     captions?: string
+    /** Told once whether the video really plays, or shows YouTube's "Video unavailable" page. */
+    onPlaybackState?: (state: YoutubePlaybackState) => void
 } & React.HTMLAttributes<HTMLWebViewElement>) {
     const { electronEmbedAddress } = useElectronYoutubeEmbed()
 
@@ -102,6 +110,39 @@ export function ElectronYoutubeEmbed({ trailerId, isCompact, isBanner, sound, vo
             webview.removeEventListener("did-finish-load", onLoad)
         }
     }, [electronEmbedAddress, trailerId, sound, volume, captions])
+
+    // Whether the video really plays (see watchYoutubeFrame), asked of the player inside the trailer page.
+    const onPlaybackStateRef = React.useRef(onPlaybackState)
+    onPlaybackStateRef.current = onPlaybackState
+    React.useEffect(() => {
+        const webview = webviewRef.current as any
+        if (!webview || !onPlaybackState) return
+        let timer: ReturnType<typeof setInterval> | null = null
+        let finished = false
+        const startedAt = Date.now()
+        const run = (script: string) => Promise.resolve(webview.executeJavaScript?.(script)).catch(() => undefined)
+        const onLoad = () => {
+            if (timer) clearInterval(timer)
+            let installed = false
+            timer = setInterval(async () => {
+                if (finished) return
+                if (!installed) installed = (await run(youtubeWatchScript(10000))) === true
+                const state = installed ? await run(youtubeWatchResultScript) : ""
+                // A page the watcher never gets into plays as before rather than hiding a working trailer.
+                const result = state === "playing" || state === "unavailable" ? state : (Date.now() - startedAt > 8000 ? "playing" : null)
+                if (!result) return
+                finished = true
+                if (timer) clearInterval(timer)
+                onPlaybackStateRef.current?.(result)
+            }, 300)
+        }
+        webview.addEventListener("did-finish-load", onLoad)
+        return () => {
+            finished = true
+            if (timer) clearInterval(timer)
+            webview.removeEventListener("did-finish-load", onLoad)
+        }
+    }, [electronEmbedAddress, trailerId, !!onPlaybackState])
 
     if (!electronEmbedAddress) return null
 

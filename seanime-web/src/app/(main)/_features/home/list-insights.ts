@@ -167,7 +167,7 @@ export function describeLists(collection: DescribableCollection | undefined, med
         const total = media.episodes ?? media.chapters
         if (active && total && total > progress) {
             remaining += total - progress
-            closest.push({ id: media.id, title: titleOf(media), image: media.coverImage?.large || media.coverImage?.medium, progress, total })
+            closest.push({ id: media.id, title: titleOf(media), image: (media.coverImage as { extraLarge?: string } | undefined)?.extraLarge || media.coverImage?.large || media.coverImage?.medium, progress, total })
         }
 
         if (media.meanScore) {
@@ -175,7 +175,7 @@ export function describeLists(collection: DescribableCollection | undefined, med
             meanCount++
         }
         if (entry.score && entry.score > 0) {
-            scored.push({ id: media.id, title: titleOf(media), image: media.coverImage?.large || media.coverImage?.medium, score: entry.score })
+            scored.push({ id: media.id, title: titleOf(media), image: (media.coverImage as { extraLarge?: string } | undefined)?.extraLarge || media.coverImage?.large || media.coverImage?.medium, score: entry.score })
         }
 
         for (const genre of media.genres ?? []) bump(genres, genre)

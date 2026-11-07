@@ -6,7 +6,7 @@ import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { clearActivePreview, registerActivePreview } from "@/app/(main)/_features/anime/_lib/preview-handoff"
 import { useServerHMACAuth } from "@/app/(main)/_hooks/use-server-status"
 import { ElectronYoutubeEmbed } from "@/app/(main)/_electron/electron-embed"
-import { controlYoutubeFrame, TRAILER_FADE_MS } from "@/app/(main)/_electron/youtube-control"
+import { controlYoutubeFrame, TRAILER_FADE_MS, type YoutubePlaybackState, watchYoutubeFrame } from "@/app/(main)/_electron/youtube-control"
 import { cn } from "@/components/ui/core/styling"
 import { releaseVideoElement } from "@/lib/helpers/release-video-element"
 import { __isElectronDesktop__ } from "@/types/constants"
@@ -153,11 +153,22 @@ function TrailerPreview({ trailerId: originalTrailerId, mediaId, hovered, onPlay
         onPlayingChange?.(visible)
     }, [visible])
 
+    const watchStopRef = React.useRef<(() => void) | null>(null)
+    React.useEffect(() => {
+        if (active) return
+        watchStopRef.current?.()
+        watchStopRef.current = null
+    }, [active])
+    React.useEffect(() => () => watchStopRef.current?.(), [])
+
     // Wait for the dub lookup rather than starting the original and switching mid-play.
     if (!enabled || !active || (lookingUp && !lookup)) return null
 
-    const onLoaded = () => {
-        setTimeout(() => setVisible(true), __isElectronDesktop__ ? 1500 : 1000)
+    // Shown only once YouTube says the video is playing: a removed, private or embed-blocked
+    // trailer loads YouTube's "Video unavailable" page instead, which must never show in the card.
+    const onPlaybackState = (state: YoutubePlaybackState) => {
+        if (state === "playing") setVisible(true)
+        else onFailed()
     }
     const onFailed = () => {
         unpreviewable.add(trailerId)
@@ -174,7 +185,7 @@ function TrailerPreview({ trailerId: originalTrailerId, mediaId, hovered, onPlay
                         sound={sound}
                         volume={personal.episodePreviewVolume}
                         captions={captions}
-                        onLoad={onLoaded}
+                        onPlaybackState={onPlaybackState}
                         onError={onFailed}
                     />
                     : <iframe
@@ -185,7 +196,8 @@ function TrailerPreview({ trailerId: originalTrailerId, mediaId, hovered, onPlay
                         onLoad={e => {
                             // Starts muted (autoplay), then the sound fades in once it plays.
                             controlYoutubeFrame(e.currentTarget, { sound, volume: personal.episodePreviewVolume, fadeMs: TRAILER_FADE_MS })
-                            onLoaded()
+                            watchStopRef.current?.()
+                            watchStopRef.current = watchYoutubeFrame(e.currentTarget, onPlaybackState)
                         }}
                         onError={onFailed}
                     />}

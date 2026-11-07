@@ -21,6 +21,7 @@ import { atom, useAtom } from "jotai/index"
 import capitalize from "lodash/capitalize"
 import startCase from "lodash/startCase"
 import React, { memo } from "react"
+import { watchYoutubeFrame } from "@/app/(main)/_electron/youtube-control"
 import { BiCalendarAlt } from "react-icons/bi"
 import { IoLibrarySharp } from "react-icons/io5"
 import { RiSignalTowerLine } from "react-icons/ri"
@@ -631,7 +632,8 @@ export const MediaEntryCardHoverPopupBanner = memo(({
                     isCompact
                     trailerId={`${trailerId}`}
                     captions={trailerCaptions}
-                    onLoad={() => setTimeout(() => setTrailerLoaded(true), 1500)}
+                    // Only a video that really plays shows (not YouTube's "Video unavailable" page).
+                    onPlaybackState={s => s === "playing" ? setTrailerLoaded(true) : setTrailerEnabled(false)}
                     onError={() => setTrailerEnabled(false)}
                 />}
                 {!__isElectronDesktop__ && <iframe
@@ -645,7 +647,10 @@ export const MediaEntryCardHoverPopupBanner = memo(({
                     // loop
                     allow="autoplay"
                     // muted
-                    onLoad={() => setTimeout(() => setTrailerLoaded(true), 1000)}
+                    onLoad={e => {
+                        // Only a video that really plays shows (not YouTube's "Video unavailable" page).
+                        watchYoutubeFrame(e.currentTarget, s => s === "playing" ? setTrailerLoaded(true) : setTrailerEnabled(false))
+                    }}
                     onError={() => setTrailerEnabled(false)}
                 />}
             </div>}

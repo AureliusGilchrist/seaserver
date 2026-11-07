@@ -32,6 +32,7 @@ import { useAtom, useSetAtom } from "jotai/react"
 import { AnimatePresence, motion } from "motion/react"
 import { usePathname } from "@/lib/navigation"
 import React from "react"
+import { watchYoutubeFrame } from "@/app/(main)/_electron/youtube-control"
 import { RiSignalTowerLine } from "react-icons/ri"
 
 // Atoms for state management
@@ -182,7 +183,8 @@ function BannerImage({ media, isTransitioning, shouldBlurBanner, showTrailer, tr
                     >
                         <ElectronYoutubeEmbed
                             trailerId={trailerId} isBanner
-                            onLoad={onTrailerLoad}
+                            // Only a video that really plays shows (not YouTube's "Video unavailable" page).
+                            onPlaybackState={s => s === "playing" ? onTrailerLoad() : onTrailerError()}
                             onError={onTrailerError}
                         />
                     </motion.div>}
@@ -194,7 +196,10 @@ function BannerImage({ media, isTransitioning, shouldBlurBanner, showTrailer, tr
                         initial={{ opacity: 0 }}
                         animate={{ opacity: trailerLoaded ? 1 : 0 }}
                         transition={{ duration: 0.5 }}
-                        onLoad={onTrailerLoad}
+                        onLoad={(e: React.SyntheticEvent<HTMLIFrameElement>) => {
+                            // Only a video that really plays shows (not YouTube's "Video unavailable" page).
+                            watchYoutubeFrame(e.currentTarget, s => s === "playing" ? onTrailerLoad() : onTrailerError())
+                        }}
                         onError={onTrailerError}
                     />}
                 </div>
