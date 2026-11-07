@@ -1,7 +1,10 @@
 package chapter_downloader
 
 import (
+	"container/list"
+	stdjson "encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -16,19 +19,19 @@ import (
 // SeriesRegistry is stored at the series level (e.g., "$Manga/Death Note/registry.json")
 // It contains metadata for all downloaded chapters in the series.
 type SeriesRegistry struct {
-	MediaId  int                        `json:"mediaId"`
-	Provider string                     `json:"provider"`
-	Chapters map[string]*ChapterEntry   `json:"chapters"` // Key is the folder name (chapter title)
+	MediaId  int                      `json:"mediaId"`
+	Provider string                   `json:"provider"`
+	Chapters map[string]*ChapterEntry `json:"chapters"` // Key is the folder name (chapter title)
 }
 
 // ChapterEntry contains metadata for a single downloaded chapter
 type ChapterEntry struct {
-	ChapterId     string              `json:"chapterId"`
-	ChapterNumber string              `json:"chapterNumber"`
-	ChapterTitle  string              `json:"chapterTitle"`  // Original chapter title from provider
-	Provider      string              `json:"provider"`
-	FolderName    string              `json:"folderName"`    // Sanitized folder name on disk
-	Pages         map[int]PageInfo    `json:"pages"`         // Page index -> PageInfo
+	ChapterId     string           `json:"chapterId"`
+	ChapterNumber string           `json:"chapterNumber"`
+	ChapterTitle  string           `json:"chapterTitle"` // Original chapter title from provider
+	Provider      string           `json:"provider"`
+	FolderName    string           `json:"folderName"` // Sanitized folder name on disk
+	Pages         map[int]PageInfo `json:"pages"`      // Page index -> PageInfo
 }
 
 // SanitizeFolderName sanitizes a chapter title for use as a folder name
@@ -37,7 +40,7 @@ func SanitizeFolderName(title string) string {
 	if title == "" {
 		return ""
 	}
-	
+
 	// Replace invalid filesystem characters
 	invalidChars := map[string]string{
 		"/":  "-",
@@ -50,32 +53,32 @@ func SanitizeFolderName(title string) string {
 		">":  "",
 		"|":  "-",
 	}
-	
+
 	result := title
 	for char, replacement := range invalidChars {
 		result = strings.ReplaceAll(result, char, replacement)
 	}
-	
+
 	// Remove leading/trailing spaces and dots (Windows restriction)
 	result = strings.TrimSpace(result)
 	result = strings.TrimRight(result, ".")
-	
+
 	// Collapse multiple spaces/dashes into single ones
 	spaceRegex := regexp.MustCompile(`\s+`)
 	result = spaceRegex.ReplaceAllString(result, " ")
 	dashRegex := regexp.MustCompile(`-+`)
 	result = dashRegex.ReplaceAllString(result, "-")
-	
+
 	// Limit length to avoid filesystem issues (leave room for path)
 	if len(result) > 200 {
 		result = result[:200]
 	}
-	
+
 	// If the result is empty after sanitization, return a fallback
 	if result == "" {
 		return "Chapter"
 	}
-	
+
 	return result
 }
 
@@ -83,7 +86,7 @@ func SanitizeFolderName(title string) string {
 // If the sanitized title already exists, it appends a suffix
 func (sr *SeriesRegistry) GenerateUniqueFolderName(chapterTitle string, chapterNumber string) string {
 	baseName := SanitizeFolderName(chapterTitle)
-	
+
 	// If no title provided, use chapter number as base
 	if baseName == "" || baseName == "Chapter" {
 		if chapterNumber != "" {
@@ -92,17 +95,17 @@ func (sr *SeriesRegistry) GenerateUniqueFolderName(chapterTitle string, chapterN
 			baseName = "Chapter"
 		}
 	}
-	
+
 	// Check if this folder name already exists
 	if sr.Chapters == nil {
 		return baseName
 	}
-	
+
 	// If the name doesn't exist, use it
 	if _, exists := sr.Chapters[baseName]; !exists {
 		return baseName
 	}
-	
+
 	// Otherwise, append a suffix to make it unique
 	for i := 2; i < 1000; i++ {
 		candidate := fmt.Sprintf("%s (%d)", baseName, i)
@@ -110,7 +113,7 @@ func (sr *SeriesRegistry) GenerateUniqueFolderName(chapterTitle string, chapterN
 			return candidate
 		}
 	}
-	
+
 	// Fallback (should never happen)
 	return fmt.Sprintf("%s_%s", baseName, chapterNumber)
 }
@@ -118,7 +121,7 @@ func (sr *SeriesRegistry) GenerateUniqueFolderName(chapterTitle string, chapterN
 // LoadSeriesRegistry loads a series registry from the given series directory
 func LoadSeriesRegistry(seriesDir string, logger *zerolog.Logger) (*SeriesRegistry, error) {
 	registryPath := filepath.Join(seriesDir, "registry.json")
-	
+
 	data, err := os.ReadFile(registryPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -129,7 +132,7 @@ func LoadSeriesRegistry(seriesDir string, logger *zerolog.Logger) (*SeriesRegist
 		}
 		return nil, fmt.Errorf("failed to read series registry: %w", err)
 	}
-	
+
 	var registry SeriesRegistry
 	if err := json.Unmarshal(data, &registry); err != nil {
 		if logger != nil {
@@ -139,70 +142,163 @@ func LoadSeriesRegistry(seriesDir string, logger *zerolog.Logger) (*SeriesRegist
 			Chapters: make(map[string]*ChapterEntry),
 		}, nil
 	}
-	
+
 	if registry.Chapters == nil {
 		registry.Chapters = make(map[string]*ChapterEntry)
 	}
-	
+
 	return &registry, nil
 }
 
-type cachedSeriesRegistry struct {
-	modTime  int64
-	size     int64
-	registry *SeriesRegistry
+// SeriesRegistrySummary omits page metadata, which library-wide scans do not need.
+type SeriesRegistrySummary struct {
+	MediaId  int                             `json:"mediaId"`
+	Provider string                          `json:"provider"`
+	Chapters map[string]*ChapterEntrySummary `json:"chapters"`
 }
 
-// seriesRegistryReadCache holds parsed registries keyed by series directory. An entry is reused
-// only while the registry file's modification time and size are unchanged, so a stat replaces
-// reading and parsing the JSON on every library scan.
-var seriesRegistryReadCache sync.Map // map[string]cachedSeriesRegistry
+type ChapterEntrySummary struct {
+	ChapterId     string `json:"chapterId"`
+	ChapterNumber string `json:"chapterNumber"`
+	ChapterTitle  string `json:"chapterTitle"`
+	Provider      string `json:"provider"`
+}
 
-// LoadSeriesRegistryReadOnly is LoadSeriesRegistry for scans that only read: the chapter list
-// and download maps walk every series folder on each request, and re-parsing every registry.json
-// each time is what made them slow on large libraries.
-//
-// The returned registry is shared between callers and must not be modified or saved.
-func LoadSeriesRegistryReadOnly(seriesDir string, logger *zerolog.Logger) (*SeriesRegistry, error) {
+type cachedSeriesRegistry struct {
+	dir      string
+	modTime  int64
+	size     int64
+	cost     int64
+	registry *SeriesRegistrySummary
+}
+
+const seriesRegistryCacheLimit = 128 << 20
+
+var seriesRegistryReadCache = struct {
+	sync.Mutex
+	entries map[string]*list.Element
+	order   list.List
+	cost    int64
+}{entries: make(map[string]*list.Element)}
+
+func removeCachedSeriesRegistry(dir string) {
+	if elem, ok := seriesRegistryReadCache.entries[dir]; ok {
+		seriesRegistryReadCache.cost -= elem.Value.(*cachedSeriesRegistry).cost
+		seriesRegistryReadCache.order.Remove(elem)
+		delete(seriesRegistryReadCache.entries, dir)
+	}
+}
+
+func invalidateSeriesRegistryCache(dir string) {
+	seriesRegistryReadCache.Lock()
+	defer seriesRegistryReadCache.Unlock()
+	removeCachedSeriesRegistry(dir)
+}
+
+func cacheSeriesRegistry(entry *cachedSeriesRegistry) {
+	removeCachedSeriesRegistry(entry.dir)
+	if entry.cost > seriesRegistryCacheLimit {
+		return
+	}
+	for seriesRegistryReadCache.cost+entry.cost > seriesRegistryCacheLimit {
+		oldest := seriesRegistryReadCache.order.Back().Value.(*cachedSeriesRegistry)
+		removeCachedSeriesRegistry(oldest.dir)
+	}
+	seriesRegistryReadCache.entries[entry.dir] = seriesRegistryReadCache.order.PushFront(entry)
+	seriesRegistryReadCache.cost += entry.cost
+}
+
+// LoadSeriesRegistrySummary returns shared, read-only chapter metadata for library scans.
+// Full registries are loaded separately when page information is needed.
+func LoadSeriesRegistrySummary(seriesDir string, logger *zerolog.Logger) (*SeriesRegistrySummary, error) {
 	registryPath := filepath.Join(seriesDir, "registry.json")
+
+	// Serialize cache misses as simultaneous library scans would otherwise decode the same large
+	// registries in parallel and temporarily multiply memory consumption.
+	seriesRegistryReadCache.Lock()
+	defer seriesRegistryReadCache.Unlock()
+
 	info, err := os.Stat(registryPath)
 	if err != nil {
-		seriesRegistryReadCache.Delete(seriesDir)
-		return LoadSeriesRegistry(seriesDir, logger)
+		removeCachedSeriesRegistry(seriesDir)
+		if os.IsNotExist(err) {
+			return &SeriesRegistrySummary{Chapters: make(map[string]*ChapterEntrySummary)}, nil
+		}
+		return nil, fmt.Errorf("failed to stat series registry: %w", err)
 	}
-	if cached, ok := seriesRegistryReadCache.Load(seriesDir); ok {
-		entry := cached.(cachedSeriesRegistry)
+	if elem, ok := seriesRegistryReadCache.entries[seriesDir]; ok {
+		entry := elem.Value.(*cachedSeriesRegistry)
 		if entry.modTime == info.ModTime().UnixNano() && entry.size == info.Size() {
+			seriesRegistryReadCache.order.MoveToFront(elem)
 			return entry.registry, nil
 		}
+		removeCachedSeriesRegistry(seriesDir)
 	}
-	registry, err := LoadSeriesRegistry(seriesDir, logger)
+	file, err := os.Open(registryPath)
 	if err != nil {
-		return nil, err
+		if os.IsNotExist(err) {
+			return &SeriesRegistrySummary{Chapters: make(map[string]*ChapterEntrySummary)}, nil
+		}
+		return nil, fmt.Errorf("failed to read series registry: %w", err)
 	}
-	seriesRegistryReadCache.Store(seriesDir, cachedSeriesRegistry{
+	defer file.Close()
+
+	var registry SeriesRegistrySummary
+	decoder := stdjson.NewDecoder(file)
+	err = decoder.Decode(&registry)
+	if err == nil {
+		var extra stdjson.RawMessage
+		if nextErr := decoder.Decode(&extra); nextErr != io.EOF {
+			if nextErr == nil {
+				err = fmt.Errorf("unexpected trailing JSON value")
+			} else {
+				err = nextErr
+			}
+		}
+	}
+	if err != nil {
+		if logger != nil {
+			logger.Warn().Err(err).Str("path", registryPath).Msg("series registry: Failed to parse registry, creating new one")
+		}
+		return &SeriesRegistrySummary{Chapters: make(map[string]*ChapterEntrySummary)}, nil
+	}
+	if registry.Chapters == nil {
+		registry.Chapters = make(map[string]*ChapterEntrySummary)
+	}
+
+	cost := int64(256 + len(seriesDir) + len(registry.Provider))
+	for key, chapter := range registry.Chapters {
+		cost += int64(256 + len(key))
+		if chapter != nil {
+			cost += int64(len(chapter.ChapterId) + len(chapter.ChapterNumber) + len(chapter.ChapterTitle) + len(chapter.Provider))
+		}
+	}
+	entry := &cachedSeriesRegistry{
+		dir:      seriesDir,
 		modTime:  info.ModTime().UnixNano(),
 		size:     info.Size(),
-		registry: registry,
-	})
-	return registry, nil
+		cost:     cost,
+		registry: &registry,
+	}
+	cacheSeriesRegistry(entry)
+	return &registry, nil
 }
 
 // Save saves the series registry to the given series directory
 func (sr *SeriesRegistry) Save(seriesDir string) error {
 	// Coarse file timestamps could let a same-size rewrite look unchanged to the read cache.
-	defer seriesRegistryReadCache.Delete(seriesDir)
+	defer invalidateSeriesRegistryCache(seriesDir)
 	registryPath := filepath.Join(seriesDir, "registry.json")
-	
+
 	data, err := json.MarshalIndent(sr, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal series registry: %w", err)
 	}
-	
+
 	if err := util.WriteFileCrashSafe(registryPath, data, 0644); err != nil {
 		return fmt.Errorf("failed to write series registry: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -242,9 +338,9 @@ func (sr *SeriesRegistry) RemoveChapter(folderName string) {
 
 // SeriesRegistryManager manages series registries with thread-safe access
 type SeriesRegistryManager struct {
-	mu          sync.RWMutex
-	registries  map[string]*SeriesRegistry // Key is series directory path
-	logger      *zerolog.Logger
+	mu         sync.RWMutex
+	registries map[string]*SeriesRegistry // Key is series directory path
+	logger     *zerolog.Logger
 }
 
 // NewSeriesRegistryManager creates a new registry manager
@@ -263,21 +359,21 @@ func (m *SeriesRegistryManager) GetRegistry(seriesDir string) (*SeriesRegistry, 
 		return reg, nil
 	}
 	m.mu.RUnlock()
-	
+
 	// Load the registry
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	// Double-check after acquiring write lock
 	if reg, exists := m.registries[seriesDir]; exists {
 		return reg, nil
 	}
-	
+
 	reg, err := LoadSeriesRegistry(seriesDir, m.logger)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	m.registries[seriesDir] = reg
 	return reg, nil
 }
@@ -286,11 +382,11 @@ func (m *SeriesRegistryManager) GetRegistry(seriesDir string) (*SeriesRegistry, 
 func (m *SeriesRegistryManager) SaveRegistry(seriesDir string, registry *SeriesRegistry) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	if err := registry.Save(seriesDir); err != nil {
 		return err
 	}
-	
+
 	m.registries[seriesDir] = registry
 	return nil
 }

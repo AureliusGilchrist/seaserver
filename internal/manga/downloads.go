@@ -18,6 +18,42 @@ import (
 	"github.com/goccy/go-json"
 )
 
+func (r *Repository) downloadedRegistryContainer(seriesDir string, registry *chapter_downloader.SeriesRegistrySummary) *ChapterContainer {
+	if registry.MediaId == 0 || len(registry.Chapters) == 0 {
+		return nil
+	}
+	chapters := make([]*hibikemanga.ChapterDetails, 0, len(registry.Chapters))
+	for _, entry := range registry.Chapters {
+		chapters = append(chapters, &hibikemanga.ChapterDetails{
+			Provider: entry.Provider,
+			ID:       entry.ChapterId,
+			Title:    entry.ChapterTitle,
+			Chapter:  manga_providers.GetNormalizedChapter(entry.ChapterNumber),
+			Index:    0,
+		})
+	}
+	slices.SortFunc(chapters, func(a, b *hibikemanga.ChapterDetails) int {
+		chA, _ := strconv.ParseFloat(a.Chapter, 64)
+		chB, _ := strconv.ParseFloat(b.Chapter, 64)
+		return int(chA - chB)
+	})
+	for i, chapter := range chapters {
+		chapter.Index = uint(i)
+	}
+	mediaId := registry.MediaId
+	if mediaId < 0 && r.db != nil {
+		if anilistID, found := r.db.GetMangaIDMapping(mediaId); found {
+			mediaId = anilistID
+			r.logger.Debug().
+				Int("syntheticID", registry.MediaId).
+				Int("anilistID", anilistID).
+				Str("seriesDir", seriesDir).
+				Msg("manga: Updated registry container to use mapped AniList ID")
+		}
+	}
+	return &ChapterContainer{MediaId: mediaId, Provider: registry.Provider, Chapters: chapters}
+}
+
 // GetDownloadedMangaChapterContainers retrieves downloaded chapter containers for a specific manga ID.
 // It filters the complete set of downloaded chapters to return only those matching the provided manga ID.
 func (r *Repository) GetDownloadedMangaChapterContainers(mId int, mangaCollection *anilist.MangaCollection) (ret []*ChapterContainer, err error) {
@@ -113,9 +149,6 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 		return nil, err
 	}
 
-	// Track series registries we've processed
-	processedRegistries := make(map[string]*chapter_downloader.SeriesRegistry)
-
 	// Also track old-format chapter directories for legacy support
 	chapterDirs := make([]string, 0)
 
@@ -127,9 +160,11 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 		mediaDirPath := filepath.Join(r.downloadDir, mediaDir.Name())
 
 		// Check for series-level registry.json (new format)
-		seriesRegistry, err := chapter_downloader.LoadSeriesRegistryReadOnly(mediaDirPath, r.logger)
+		seriesRegistry, err := chapter_downloader.LoadSeriesRegistrySummary(mediaDirPath, r.logger)
 		if err == nil && len(seriesRegistry.Chapters) > 0 {
-			processedRegistries[mediaDirPath] = seriesRegistry
+			if container := r.downloadedRegistryContainer(mediaDirPath, seriesRegistry); container != nil {
+				ret = append(ret, container)
+			}
 			continue
 		}
 
@@ -159,59 +194,6 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 		downloadID, ok := chapter_downloader.ParseChapterDirName(dir)
 		if ok {
 			chapterDirsByMediaID[downloadID.MediaId] = append(chapterDirsByMediaID[downloadID.MediaId], downloadID)
-		}
-	}
-
-	// Process new-format series registries
-	for seriesDir, seriesRegistry := range processedRegistries {
-		if seriesRegistry.MediaId == 0 {
-			continue
-		}
-
-		chapters := make([]*hibikemanga.ChapterDetails, 0, len(seriesRegistry.Chapters))
-		for _, entry := range seriesRegistry.Chapters {
-			chapterNum := manga_providers.GetNormalizedChapter(entry.ChapterNumber)
-			chapters = append(chapters, &hibikemanga.ChapterDetails{
-				Provider: entry.Provider,
-				ID:       entry.ChapterId,
-				Title:    entry.ChapterTitle,
-				Chapter:  chapterNum,
-				Index:    0,
-			})
-		}
-
-		if len(chapters) > 0 {
-			// Sort by chapter number
-			slices.SortFunc(chapters, func(a, b *hibikemanga.ChapterDetails) int {
-				chA, _ := strconv.ParseFloat(a.Chapter, 64)
-				chB, _ := strconv.ParseFloat(b.Chapter, 64)
-				return int(chA - chB)
-			})
-
-			// Set indexes
-			for i, chapter := range chapters {
-				chapter.Index = uint(i)
-			}
-
-			mediaId := seriesRegistry.MediaId
-
-			// Check if this synthetic ID is mapped to an AniList ID
-			if mediaId < 0 && r.db != nil {
-				if anilistID, found := r.db.GetMangaIDMapping(mediaId); found {
-					mediaId = anilistID
-					r.logger.Debug().
-						Int("syntheticID", seriesRegistry.MediaId).
-						Int("anilistID", anilistID).
-						Str("seriesDir", seriesDir).
-						Msg("manga: Updated registry container to use mapped AniList ID")
-				}
-			}
-
-			ret = append(ret, &ChapterContainer{
-				MediaId:  mediaId,
-				Provider: seriesRegistry.Provider,
-				Chapters: chapters,
-			})
 		}
 	}
 
@@ -541,7 +523,7 @@ func (r *Repository) getDownloadedMangaPageContainer(
 		mediaDirPath := filepath.Join(r.downloadDir, dir)
 
 		// Try to load series registry (read only: nothing here changes it)
-		seriesRegistry, err := chapter_downloader.LoadSeriesRegistryReadOnly(mediaDirPath, r.logger)
+		seriesRegistry, err := chapter_downloader.LoadSeriesRegistry(mediaDirPath, r.logger)
 		if err != nil || len(seriesRegistry.Chapters) == 0 {
 			continue
 		}

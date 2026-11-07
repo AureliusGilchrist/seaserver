@@ -79,7 +79,7 @@ func (r *Repository) buildSeriesDirIndex() map[int][]string {
 		dirPath := filepath.Join(r.downloadDir, entry.Name())
 
 		// New format: one registry for the series.
-		if registry, err := chapter_downloader.LoadSeriesRegistryReadOnly(dirPath, r.logger); err == nil && len(registry.Chapters) > 0 {
+		if registry, err := chapter_downloader.LoadSeriesRegistrySummary(dirPath, r.logger); err == nil && len(registry.Chapters) > 0 {
 			if registry.MediaId != 0 {
 				ret[registry.MediaId] = append(ret[registry.MediaId], entry.Name())
 			}

@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## v6.1.0-18
+
+- Manga: Reduce memory use when scanning large downloaded libraries by caching chapter summaries instead of full page registries.
+
 ## v3.5.2
 
 - ⚡️ Built-in Player: Improved performance
@@ -1605,4 +1609,3 @@ This release introduced a major bug, skip to v1.1.2+
 ## 0.1.0
 
 - 🎉 Alpha release
-
