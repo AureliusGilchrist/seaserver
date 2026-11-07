@@ -24,6 +24,7 @@ export function HomeSections({ items, renderItem }: {
     const [activeId, setActiveId] = React.useState<string | null>(null)
     // An item can decide to render nothing, which only the DOM knows: nothing to show in the jump bar.
     const [emptyIds, setEmptyIds] = React.useState<string[]>([])
+    const sectionIds = JSON.stringify(items.map(item => item.id))
 
     React.useEffect(() => {
         const root = rootRef.current
@@ -37,7 +38,8 @@ export function HomeSections({ items, renderItem }: {
             setEmptyIds(prev => prev.join() === empty.join() ? prev : empty)
         }
         measure()
-        const mutations = new MutationObserver(() => {
+        const mutations = new MutationObserver(records => {
+            if (!records.some(record => record.target instanceof HTMLElement && record.target.hasAttribute("data-home-section-body"))) return
             if (timer) clearTimeout(timer)
             timer = setTimeout(measure, 250)
         })
@@ -55,7 +57,7 @@ export function HomeSections({ items, renderItem }: {
             mutations.disconnect()
             visible.disconnect()
         }
-    }, [items])
+    }, [sectionIds])
 
     const nav = items.filter(item => !UNFRAMED_ITEMS.has(item.type) && !emptyIds.includes(item.id))
 
@@ -124,6 +126,14 @@ function readTab(key: string) {
     catch {
         return null
     }
+}
+
+export function useVisitedHomeLists(activeList: string | undefined) {
+    const [visited, setVisited] = React.useState<Set<string>>(() => new Set())
+    React.useEffect(() => {
+        if (activeList) setVisited(previous => previous.has(activeList) ? previous : new Set([...previous, activeList]))
+    }, [activeList])
+    return visited
 }
 
 /** Which of a library's lists is showing, remembered per library. Falls back to the first one. */

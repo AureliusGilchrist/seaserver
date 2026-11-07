@@ -2,6 +2,9 @@ package handlers
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"seanime/internal/api/anilist"
@@ -106,6 +109,9 @@ func (h *Handler) HandleGetLibraryCollection(c echo.Context) error {
 	if animeCollection == nil {
 		h.App.Logger.Warn().Uint("profileID", profileID).
 			Msg("library collection: no anime collection available, returning empty library")
+		if c.Request().Method == "GET" && c.QueryParam("compact") == "true" {
+			return h.respondCompactLibraryCollection(c, &anime.LibraryCollection{})
+		}
 		return h.RespondWithData(c, &anime.LibraryCollection{})
 	}
 
@@ -314,7 +320,28 @@ func (h *Handler) HandleGetLibraryCollection(c echo.Context) error {
 		libraryCollection.Stats.TotalSize = util.LibrarySize(h.App.TotalLibrarySize)
 	}
 
+	if c.Request().Method == "GET" && c.QueryParam("compact") == "true" {
+		return h.respondCompactLibraryCollection(c, libraryCollection)
+	}
 	return h.RespondWithData(c, libraryCollection)
+}
+
+func (h *Handler) respondCompactLibraryCollection(c echo.Context, collection *anime.LibraryCollection) error {
+	body, err := json.Marshal(collection)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	sum := sha256.Sum256(body)
+	fingerprint := hex.EncodeToString(sum[:])
+	response := struct {
+		Fingerprint string          `json:"fingerprint"`
+		Unchanged   bool            `json:"unchanged"`
+		Collection  json.RawMessage `json:"collection,omitempty"`
+	}{Fingerprint: fingerprint, Unchanged: c.QueryParam("known") == fingerprint}
+	if !response.Unchanged {
+		response.Collection = body
+	}
+	return h.RespondWithData(c, response)
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------

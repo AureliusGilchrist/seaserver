@@ -1,4 +1,4 @@
-import { HomeListTabs, useHomeListTab } from "@/app/(main)/_features/home/home-sections"
+import { HomeListTabs, useHomeListTab, useVisitedHomeLists } from "@/app/(main)/_features/home/home-sections"
 import { LibrarySortMenu, useLibrarySort } from "@/app/(main)/_features/sorting/library-sort-menu"
 import { MANGA_LIBRARY_SORT_FIELDS, sortMissingLast } from "@/lib/helpers/filtering"
 import { AL_MediaListStatus, Manga_Collection, Manga_CollectionList } from "@/api/generated/types"
@@ -149,6 +149,7 @@ export function CollectionLists({ collectionList, genres, storedProviders, showS
         return list.type && showStatuses.includes(list.type)
     }) ?? []
     const [activeList, setActiveList] = useHomeListTab("manga", lists.map(list => list.type!))
+    const visitedLists = useVisitedHomeLists(activeList)
 
     return (
         <PageWrapper
@@ -176,7 +177,7 @@ export function CollectionLists({ collectionList, genres, storedProviders, showS
                 trailing={<MangaLibrarySortMenu />}
             />
 
-            {lists.map(collection => (
+            {lists.filter(collection => collection.type === "CURRENT" || collection.type === activeList || (collection.type && visitedLists.has(collection.type))).map(collection => (
                 // Kept mounted when hidden: the reading list feeds the header and the command palette.
                 <div key={collection.type} hidden={collection.type !== activeList} className="space-y-4">
                     <CollectionListItem

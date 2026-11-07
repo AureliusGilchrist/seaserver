@@ -121,7 +121,7 @@ export function useGetMangaHydrationStatus() {
         endpoint: "/api/v1/manga/hydrate-all/status",
         method: "GET",
         queryKey: ["MANGA-hydrate-all-status"],
-        refetchInterval: query => query.state.data?.isRunning ? 1200 : 5000,
+        refetchInterval: query => query.state.data?.isRunning ? 1200 : 30_000,
         enabled: true,
         muteError: true,
     })

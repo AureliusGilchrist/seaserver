@@ -142,11 +142,15 @@ export default function Page() {
     const { favorites } = useMangaFavorites()
 
     const favoritesMedia = React.useMemo(() => {
-        if (!favorites?.length) return [] as any[]
-        const entries = mangaCollection?.lists?.flatMap(l => l.entries).filter(Boolean) || []
+        if (!favorites?.length) return []
+        const entries = mangaCollection?.lists?.flatMap(l => l.entries ?? []) ?? []
+        const mediaById = new Map<number, NonNullable<Manga_CollectionEntry["media"]>>()
+        for (const entry of entries) {
+            if (entry.media && !mediaById.has(Number(entry.media.id))) mediaById.set(Number(entry.media.id), entry.media)
+        }
         return favorites
-            .map(id => entries.find(e => Number((e as any)?.media?.id) === Number(id))?.media)
-            .filter(Boolean)
+            .map(id => mediaById.get(Number(id)))
+            .filter(media => media !== undefined)
     }, [favorites, mangaCollection])
 
     const ts = useThemeSettings()
@@ -194,11 +198,9 @@ export default function Page() {
         // like a different list: new array identity, new object identities, every memo below
         // invalidated and every card unmounted and remounted. That is the library reshuffling itself
         // every few seconds.
-        const byTitle = [...filtered].sort((a, b) => {
-            const titleA = displayTitle(a.media?.title) || `Unknown ${a.mediaId}`
-            const titleB = displayTitle(b.media?.title) || `Unknown ${b.mediaId}`
-            return titleA.localeCompare(titleB, undefined, { numeric: true, sensitivity: "base" })
-        })
+        const titles = new Map(filtered.map(item => [item, displayTitle(item.media?.title) || `Unknown ${item.mediaId}`]))
+        const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" })
+        const byTitle = [...filtered].sort((a, b) => collator.compare(titles.get(a)!, titles.get(b)!))
         // Every other order starts from title order, so ties read alphabetically.
         const sorting = localMangaSort.sorting
         switch (sorting) {
@@ -207,9 +209,11 @@ export default function Page() {
             case "TITLE_DESC":
                 return byTitle.reverse()
             case "DOWNLOADED_CHAPTERS":
-            case "DOWNLOADED_CHAPTERS_DESC":
-                return sortMissingLast(byTitle, n => Object.values(n.downloadData ?? {}).flatMap(c => c).length,
+            case "DOWNLOADED_CHAPTERS_DESC": {
+                const counts = new Map(byTitle.map(item => [item, Object.values(item.downloadData ?? {}).reduce((sum, chapters) => sum + chapters.length, 0)]))
+                return sortMissingLast(byTitle, n => counts.get(n),
                     sorting === "DOWNLOADED_CHAPTERS_DESC")
+            }
             case "SCORE":
             case "SCORE_DESC":
                 return sortMissingLast(byTitle, n => n.listData?.score || undefined, sorting === "SCORE_DESC")

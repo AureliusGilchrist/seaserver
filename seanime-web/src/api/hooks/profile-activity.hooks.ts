@@ -14,7 +14,9 @@ export function useGetProfilesActivity(enabled: boolean = true) {
         method: API_ENDPOINTS.PROFILE_ACTIVITY.GetProfilesActivity.methods[0],
         queryKey: [API_ENDPOINTS.PROFILE_ACTIVITY.GetProfilesActivity.key],
         enabled,
-        refetchInterval: 15000,
+        refetchInterval: query => query.state.data?.items?.some(item => item.kind === "watching" || item.kind === "reading") ? 15_000 : 60_000,
+        staleTime: 15_000,
+        refetchOnWindowFocus: true,
     })
 }
 

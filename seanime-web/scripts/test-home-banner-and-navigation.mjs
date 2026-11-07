@@ -93,6 +93,18 @@ for (const id of ["anime", "manga"]) {
 assert.doesNotMatch(sections, /<section[^>]*data-home-section="title"[^>]*backdrop-blur-md/)
 const { countLists } = await load("src/app/(main)/_features/home/list-insights.ts")
 assert.equal(countLists(undefined), null)
+const stableCollection = { MediaListCollection: { lists: [{ status: "CURRENT", entries: [{ media: { id: 8 }, progress: 5 }] }] } }
+assert.strictEqual(countLists(stableCollection), countLists(stableCollection))
+assert.notStrictEqual(countLists(stableCollection), countLists({ ...stableCollection }))
+const { resolveLibraryResponse } = await load("src/api/hooks/library-collection-compact.ts")
+const fullLibrary = { lists: [] }
+const initialLibrary = resolveLibraryResponse({ fingerprint: "one", unchanged: false, collection: fullLibrary }, null, "profile-1")
+assert.strictEqual(initialLibrary.collection, fullLibrary)
+assert.strictEqual(resolveLibraryResponse({ fingerprint: "one", unchanged: true }, initialLibrary.snapshot, "profile-1").collection, fullLibrary)
+assert.throws(() => resolveLibraryResponse({ fingerprint: "one", unchanged: true }, initialLibrary.snapshot, "profile-2"))
+assert.throws(() => resolveLibraryResponse({ fingerprint: "other", unchanged: true }, initialLibrary.snapshot, "profile-1"))
+assert.throws(() => resolveLibraryResponse({ fingerprint: "one", unchanged: false }, null, "profile-1"))
+assert.deepEqual(resolveLibraryResponse(fullLibrary, null, "profile-1"), { collection: fullLibrary, snapshot: null })
 assert.deepEqual(countLists({ MediaListCollection: {} }), { onLists: 0, planning: 0, current: 0, completed: 0, progress: 0 })
 assert.deepEqual(countLists({ MediaListCollection: { lists: [
     { entries: [{ media: { id: 1 }, progress: 3 }] },

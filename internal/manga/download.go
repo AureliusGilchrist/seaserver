@@ -173,6 +173,7 @@ type (
 		mediaMapMu        sync.RWMutex
 		mediaMapHydrateMu sync.Mutex
 		mediaMapReady     bool
+		mediaChapterCount int
 
 		sizeMu        sync.Mutex
 		sizeScanning  bool
@@ -527,7 +528,9 @@ func (d *Downloader) GetMediaMap() map[int]ProviderDownloadMap {
 // CountDownloadedChapters returns how many chapters are on disk, across every series and provider.
 func (d *Downloader) CountDownloadedChapters() int {
 	d.ensureMediaMapHydrated()
-	return countMapChapters(d.mediaMapSnapshot())
+	d.mediaMapMu.RLock()
+	defer d.mediaMapMu.RUnlock()
+	return d.mediaChapterCount
 }
 
 // DownloadDirectorySize scans at most once per five minutes, without blocking requests.
@@ -1212,6 +1215,7 @@ func (d *Downloader) refreshMediaMapLocked() {
 
 	d.mediaMapMu.Lock()
 	d.mediaMap = &ret
+	d.mediaChapterCount = countMapChapters(ret)
 	d.mediaMapReady = true
 	d.mediaMapMu.Unlock()
 

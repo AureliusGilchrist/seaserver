@@ -16,7 +16,7 @@ import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websocke
 import { useMissingEpisodeCount } from "@/app/(main)/_hooks/missing-episodes-loader"
 import { useCurrentUser, useServerStatus, useSetServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { useGetAchievementSummary } from "@/api/hooks/achievement.hooks"
-import { useGetLevel, useGetMyProfile } from "@/api/hooks/community.hooks"
+import { useGetLevel } from "@/api/hooks/community.hooks"
 import { isEnqueueFuturePending, useGetEnqueueFutureQueue } from "@/api/hooks/enqueue_future.hooks"
 import { useGetUnmatchedTorrents } from "@/api/hooks/unmatched.hooks"
 import { NotificationCreatedEvent, useGetUnreadNotificationCount, useNotificationWSListener } from "@/api/hooks/notifications.hooks"
@@ -160,13 +160,6 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
     // One profile link: your profile is the same page everyone sees at /profile/user?id=<id>
     const myProfileId = serverStatus?.currentProfile?.id
     const myProfileHref = myProfileId ? `/profile/user?id=${myProfileId}` : "/profile/me"
-    // Warm the profile chunk and data so opening it doesn't wait on either
-    useGetMyProfile()
-    React.useEffect(() => {
-        const t = window.setTimeout(() => { void import("@/app/(main)/profile/user/page") }, 1500)
-        return () => window.clearTimeout(t)
-    }, [])
-
     // Which library the shared slot is naming: the flip-item at the top of the Watch group is the
     // manga door when manga is on and you are in it, and the anime door the rest of the time.
     const isOnManga = !!serverStatus?.settings?.library?.enableManga && pathname.startsWith("/manga")
