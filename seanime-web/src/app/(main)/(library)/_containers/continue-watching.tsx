@@ -24,10 +24,11 @@ import { useRouter } from "@/lib/navigation"
 import React from "react"
 import { LuCheck, LuPlay } from "react-icons/lu"
 import { seaCommand_compareMediaTitles } from "../../_features/sea-command/utils"
+import { AnimeContinueMeta } from "@/app/(main)/_features/home/continue-metadata"
 
 export const __libraryHeaderEpisodeAtom = atom<Anime_Episode | null>(null)
 
-export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle, showWhenEmpty, onHoverImage }: {
+export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle, showWhenEmpty, onHoverImage, withMetadata }: {
     episodes: Anime_Episode[],
     isLoading: boolean
     linkTemplate?: string
@@ -35,6 +36,8 @@ export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle,
     onHoverImage?: (imageUrl: string | null) => void
     /** Keep the section (with a short note) when there is nothing in progress, e.g. on the landing page. */
     showWhenEmpty?: boolean
+    /** A plain-spoken line of where you are in the show, and its details-page chips, under each card. */
+    withMetadata?: boolean
 }) {
 
     const router = useRouter()
@@ -193,6 +196,12 @@ export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle,
                                         badge={episode.baseAnime?.status === "RELEASING" ? <OngoingEpisodeBadge /> : episode.baseAnime?.status === "FINISHED" ? <FinishedEpisodeBadge /> : undefined}
                                     />
                                 </div>
+                                {withMetadata && <AnimeContinueMeta
+                                    anime={episode.baseAnime}
+                                    episodeNumber={episode.episodeNumber}
+                                    progressNumber={episode.progressNumber}
+                                    watchHistory={watchHistory}
+                                />}
                             </div>
                         </CarouselItem>
                     ))}

@@ -101,10 +101,33 @@ assert.deepEqual(countLists({ MediaListCollection: { lists: [
     { status: "COMPLETED", entries: [{ media: { id: 3 }, progress: 12 }] },
     { status: "PLANNING", entries: [{ media: { id: 4 }, progress: 5 }, { media: { id: 4 }, progress: 5 }] },
 ] } }), { onLists: 4, planning: 1, current: 2, completed: 1, progress: 24 })
+const { describeLists, formatWatchMinutes } = await load("src/app/(main)/_features/home/list-insights.ts")
+assert.equal(describeLists(undefined, "anime"), null)
+const described = describeLists({ MediaListCollection: { lists: [
+    { status: "COMPLETED", entries: [{ media: { id: 1, format: "TV", status: "FINISHED", genres: ["Action", "Drama"], tags: [{ name: "Gore", rank: 80 }], countryOfOrigin: "JP", meanScore: 80, seasonYear: 2014, episodes: 12, duration: 24 }, progress: 12, repeat: 1, score: 9, completedAt: { year: 2026 } }] },
+    { status: "CURRENT", entries: [{ media: { id: 2, format: "MOVIE", status: "RELEASING", genres: ["Action"], tags: [{ name: "Gore", rank: 40 }], countryOfOrigin: "KR", meanScore: 70, seasonYear: 2021, episodes: 24, duration: 30, nextAiringEpisode: { airingAt: 2_000_000_000, episode: 5 } }, progress: 4 }] },
+    { status: "PLANNING", entries: [{ media: { id: 3, genres: ["Romance"], nextAiringEpisode: { airingAt: 1_900_000_000, episode: 1 } } }] },
+] } }, "anime", new Date("2026-06-01T00:00:00Z"))
+assert.equal(described.started, 2)
+assert.equal(described.minutesWatched, 12 * 24 + 12 * 24 + 4 * 30)
+assert.equal(described.remaining, 20)
+assert.equal(described.repeats, 1)
+assert.equal(described.completedThisYear, 1)
+assert.equal(described.communityMean, 75)
+assert.deepEqual(described.genres, [{ key: "Action", count: 2 }, { key: "Drama", count: 1 }])
+assert.deepEqual(described.tags, [{ key: "Gore", count: 1 }])
+assert.deepEqual(described.decades, [{ key: "2010s", count: 1 }, { key: "2020s", count: 1 }])
+assert.equal(described.nextAiring.id, 3)
+assert.equal(described.topRated[0].id, 1)
+assert.equal(formatWatchMinutes(1500), "1d 1h")
 const landing = await readFile("src/app/(main)/_features/home/landing-hub.tsx", "utf8")
 assert.ok(landing.indexOf("<LandingLibraryInsightsWidget />") > landing.indexOf("data-landing-hero"))
 assert.ok(landing.indexOf("<LandingLibraryInsightsWidget />") < landing.indexOf("{/* Whatever was being watched */}"))
-assert.match(landing, /w\.id !== "library-insights"/)
+let previousMarker = -1
+for (const marker of ["<LandingLibraryInsightsWidget />", "{/* Whatever was being watched */}", "<LandingContinueReadingWidget", "<LandingCollectionProfileWidget />", "<LandingGlance", "<LandingQuickLinksWidget />", "<LandingNewsWidget />", "<CommunityHomeSection />"]) {
+    assert.ok(landing.indexOf(marker) > previousMarker, marker)
+    previousMarker = landing.indexOf(marker)
+}
 for (const link of ["anime", "manga", "discover", "schedule", "lists"]) assert.ok(landing.includes(`"${link}"`))
 const insights = await readFile("src/app/(main)/_features/home/landing-widget-views.tsx", "utf8")
 assert.match(insights, /useGetRawAnimeCollection\(!!profile\?\.id, profile\?\.id\)/)

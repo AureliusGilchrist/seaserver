@@ -43,6 +43,7 @@ export type LandingWidgetId =
     | "continue-reading"
     | "quick-links"
     | "library-insights"
+    | "collection-profile"
     | "anime-stats"
     | "manga-stats"
     | "upcoming-manga"
@@ -62,21 +63,22 @@ export type LandingWidgetConfig = {
 
 /** The default page: what was there before it became configurable, and nothing else. */
 export const DEFAULT_LANDING_WIDGETS: LandingWidgetConfig[] = [
-    { id: "continue-watching", enabled: true },
-    { id: "quick-links", enabled: true },
     { id: "library-insights", enabled: true },
-    { id: "airing-today", enabled: true },
+    { id: "continue-watching", enabled: true },
+    { id: "continue-reading", enabled: false },
+    { id: "collection-profile", enabled: true },
     { id: "anime-stats", enabled: true },
     { id: "manga-stats", enabled: true },
-    { id: "upcoming-manga", enabled: true },
+    { id: "airing-today", enabled: true },
     { id: "schedule", enabled: true },
-    { id: "updates", enabled: true },
     { id: "to-watch", enabled: true },
     { id: "unmatched", enabled: true },
     { id: "torrents", enabled: false },
-    { id: "news-feed", enabled: true },
     { id: "achievements", enabled: false },
-    { id: "continue-reading", enabled: false },
+    { id: "upcoming-manga", enabled: true },
+    { id: "updates", enabled: true },
+    { id: "quick-links", enabled: true },
+    { id: "news-feed", enabled: true },
 ]
 
 /** Widgets the landing page always shows: they can be moved, not hidden. */
@@ -87,6 +89,7 @@ export const LANDING_WIDGET_META: Record<LandingWidgetId, { name: string, descri
     "continue-reading": { name: "Continue reading", description: "The manga you were reading, first." },
     "quick-links": { name: "App folders", description: "Your app destinations, organized into folders." },
     "library-insights": { name: "Library analytics", description: "Counts and progress below the welcome; toggle it on or off." },
+    "collection-profile": { name: "Collection profile", description: "Genres, themes, formats, eras and watch time across your lists." },
     "anime-stats": { name: "Anime stats", description: "What your anime library holds, counted." },
     "manga-stats": { name: "Manga stats", description: "What your manga library holds, counted." },
     "upcoming-manga": { name: "Upcoming manga", description: "The next likely chapter from manga you are reading." },

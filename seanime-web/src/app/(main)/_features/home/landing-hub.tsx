@@ -6,22 +6,16 @@ import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-l
 import { ThemeLibraryScreenBannerType, useThemeSettings } from "@/lib/theme/hooks"
 import { resolveLandingImage, useLandingLook } from "@/lib/theme/landing-look"
 import { useHandleLibraryCollection } from "@/app/(main)/(library)/_lib/handle-library-collection"
-import { LANDING_QUICK_LINKS, useLandingWidgets, type LandingWidgetId } from "@/app/(main)/_features/home/landing-widgets"
+import { LANDING_QUICK_LINKS, useLandingWidgets } from "@/app/(main)/_features/home/landing-widgets"
 import {
-    LandingAchievementsWidget,
-    LandingAiringTodayWidget,
-    LandingAnimeStatsWidget,
     LandingContinueReadingWidget,
     LandingLibraryInsightsWidget,
-    LandingMangaStatsWidget,
     LandingNewsWidget,
     LandingQuickLinksWidget,
-    LandingScheduleWidget,
-    LandingToWatchWidget,
-    LandingTorrentsWidget,
-    LandingUnmatchedWidget,
     LandingUpdatesWidget,
 } from "@/app/(main)/_features/home/landing-widget-views"
+import { GLANCE_WIDGET_IDS, LandingGlance } from "@/app/(main)/_features/home/landing-glance"
+import { LandingCollectionProfileWidget } from "@/app/(main)/_features/home/collection-profile-widget"
 import { LandingContinueBanner } from "@/app/(main)/_features/home/landing-continue-banner"
 import { __landingSettingsModalOpen, LandingSettingsModal } from "@/app/(main)/_features/home/landing-settings-modal"
 import { MangaUpcomingChapters } from "@/app/(main)/manga/_containers/manga-upcoming-chapters"
@@ -71,26 +65,13 @@ export function LandingHub() {
         }
     }, [])
 
-    // Whatever was being watched reads full width when it is the first thing on — the one thing a
-    // landing page can know that a menu cannot. Inside the person's order otherwise.
-    const ordered = React.useMemo(() => widgets.filter(w => w.enabled), [widgets])
-    const firstWidgetId = ordered[0]?.id
-    const quickLinksWidget = ordered.find(w => w.id === "quick-links")
-
-    // The stat doors: compact number cards. Navigation folders and content sections use full width.
-    const statIds: LandingWidgetId[] = [
-        "anime-stats", "manga-stats", "schedule", "airing-today", "to-watch", "unmatched", "torrents", "achievements",
-    ]
-    const stats = React.useMemo(() => ordered.filter(w => statIds.includes(w.id)), [ordered])
-    const readingEnabled = ordered.some(w => w.id === "continue-reading")
-    // Continue reading always follows continue watching, wherever that one was moved to.
-    const sections = React.useMemo(
-        () => ordered
-            .filter(w => !statIds.includes(w.id) && w.id !== "quick-links" && w.id !== "library-insights" && w.id !== "continue-reading")
-            .flatMap(w => w.id === "continue-watching" && readingEnabled
-                ? [w, { id: "continue-reading" as const, enabled: true }]
-                : [w]),
-        [ordered, readingEnabled],
+    // The page reads top to bottom in a fixed order: your numbers, what you were in the middle of,
+    // what your lists are made of, everything else at a glance, then the folders and the news.
+    // Settings decide what is shown, and the order of the cards inside "at a glance".
+    const enabled = React.useMemo(() => new Set(widgets.filter(w => w.enabled).map(w => w.id)), [widgets])
+    const glanceIds = React.useMemo(
+        () => widgets.filter(w => w.enabled && GLANCE_WIDGET_IDS.includes(w.id)).map(w => w.id),
+        [widgets],
     )
 
     return (
@@ -144,50 +125,38 @@ export function LandingHub() {
                     </nav>
                 </section>
 
-                {ordered.some(w => w.id === "library-insights") && <LandingLibraryInsightsWidget />}
+                {enabled.has("library-insights") && <LandingLibraryInsightsWidget />}
 
                 {/* Whatever was being watched */}
-                {firstWidgetId === "continue-watching" && (
-                    <div className="relative z-[1] rounded-3xl border border-white/10 bg-black/20 p-4 shadow-xl shadow-black/20 backdrop-blur-md sm:p-5">
-                        <ContinueWatching
-                            episodes={continueWatchingList}
-                            isLoading={isLibraryLoading}
-                            showWhenEmpty
-                            onHoverImage={setHoverImage}
-                        />
-                    </div>
-                )}
-                {firstWidgetId === "continue-watching" && readingEnabled && <LandingWidget id="continue-reading" onHoverImage={setHoverImage} />}
-
-                {quickLinksWidget && (
-                    <div className="relative z-[1]">
-                        <LandingWidget id={quickLinksWidget.id} />
+                <div className="relative z-[1] rounded-3xl border border-white/10 bg-black/20 p-4 shadow-xl shadow-black/20 backdrop-blur-md sm:p-5">
+                    <ContinueWatching
+                        episodes={continueWatchingList}
+                        isLoading={isLibraryLoading}
+                        showWhenEmpty
+                        withMetadata
+                        onHoverImage={setHoverImage}
+                    />
+                </div>
+                {enabled.has("continue-reading") && (
+                    <div className="relative z-[1] rounded-3xl border border-white/10 bg-black/20 p-4 shadow-xl shadow-black/20 backdrop-blur-md empty:hidden sm:p-5">
+                        <LandingContinueReadingWidget onHoverImage={setHoverImage} />
                     </div>
                 )}
 
-                {/* The doors and their numbers */}
-                {!!stats.length && (
-                    <div
-                        className="relative z-[1] grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 sm:gap-4"
-                        data-landing-stats-strip
-                    >
-                        {stats.map(widget => (
-                            <LandingWidget key={widget.id} id={widget.id} />
-                        ))}
+                {enabled.has("collection-profile") && <div className="relative z-[1]"><LandingCollectionProfileWidget /></div>}
+
+                {/* Everything else, at a glance */}
+                <LandingGlance ids={glanceIds} />
+                {enabled.has("upcoming-manga") && (
+                    <div className="relative z-[1] rounded-3xl border border-white/10 bg-black/20 shadow-xl shadow-black/20 backdrop-blur-md empty:hidden">
+                        <MangaUpcomingChapters onHoverImage={setHoverImage} />
                     </div>
                 )}
+                {enabled.has("updates") && <LandingUpdatesWidget />}
 
-                {/* Sections, full width */}
-                {sections.filter(w => firstWidgetId !== "continue-watching" || (w.id !== "continue-watching" && w.id !== "continue-reading")).map(widget => (
-                    <div key={widget.id} className="relative z-[1]">
-                        <LandingWidget
-                            id={widget.id}
-                            continueWatchingList={continueWatchingList}
-                            isLibraryLoading={isLibraryLoading}
-                            onHoverImage={setHoverImage}
-                        />
-                    </div>
-                ))}
+                {enabled.has("quick-links") && <div className="relative z-[1]"><LandingQuickLinksWidget /></div>}
+
+                {enabled.has("news-feed") && <LandingNewsWidget />}
 
                 {/* Community */}
                 <CommunityHomeSection />
@@ -204,54 +173,4 @@ function greeting() {
     if (h < 12) return "Good morning"
     if (h < 18) return "Good afternoon"
     return "Good evening"
-}
-
-function LandingWidget({ id, continueWatchingList = [], isLibraryLoading = false, onHoverImage }: {
-    id: LandingWidgetId
-    continueWatchingList?: ReturnType<typeof useHandleLibraryCollection>["continueWatchingList"]
-    isLibraryLoading?: boolean
-    onHoverImage?: (imageUrl: string | null) => void
-}) {
-    switch (id) {
-        case "quick-links":
-            return <LandingQuickLinksWidget />
-        case "library-insights":
-            return <LandingLibraryInsightsWidget />
-        case "anime-stats":
-            return <LandingAnimeStatsWidget />
-        case "manga-stats":
-            return <LandingMangaStatsWidget />
-        case "upcoming-manga":
-            return <MangaUpcomingChapters />
-        case "schedule":
-            return <LandingScheduleWidget />
-        case "airing-today":
-            return <LandingAiringTodayWidget />
-        case "continue-watching":
-            return (
-                <div className="relative z-[1] rounded-3xl border border-white/10 bg-black/20 p-4 shadow-xl shadow-black/20 backdrop-blur-md sm:p-5">
-                    <ContinueWatching episodes={continueWatchingList} isLoading={isLibraryLoading} withTitle showWhenEmpty onHoverImage={onHoverImage} />
-                </div>
-            )
-        case "continue-reading":
-            return (
-                <div className="relative z-[1] rounded-3xl border border-white/10 bg-black/20 p-4 shadow-xl shadow-black/20 backdrop-blur-md empty:hidden sm:p-5">
-                    <LandingContinueReadingWidget onHoverImage={onHoverImage} />
-                </div>
-            )
-        case "to-watch":
-            return <LandingToWatchWidget />
-        case "unmatched":
-            return <LandingUnmatchedWidget />
-        case "torrents":
-            return <LandingTorrentsWidget />
-        case "achievements":
-            return <LandingAchievementsWidget />
-        case "updates":
-            return <LandingUpdatesWidget />
-        case "news-feed":
-            return <LandingNewsWidget />
-        default:
-            return null
-    }
 }

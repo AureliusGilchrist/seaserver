@@ -192,57 +192,12 @@ export function useLandingMangaStats() {
     return { stats, isLoading, isError }
 }
 
-export function LandingAnimeStatsWidget() {
-    const { stats, isLoading, isError } = useLandingAnimeStats()
-    const { data: counts } = useGetHomeCounts()
-
-    return (
-        <StatsDoor
-            // No AniList linked (or it failed): dashes, never someone else's numbers.
-            title={!isLoading && (isError || !stats) ? "Anime · unavailable" : "Anime"}
-            icon={<LuMonitorPlay className="w-5 h-5" />}
-            stats={[
-                { label: "on your lists", value: stats?.onLists ?? null },
-                { label: "watching / rewatching", value: stats?.current ?? null },
-                { label: "completed", value: stats?.completed ?? null },
-                { label: "episodes watched", value: stats?.progress ?? null },
-                { label: "planning", value: stats?.planning ?? null },
-                // Every episode on disk, whoever downloaded it: the server's library is shared.
-                { label: "server anime files", value: counts?.animeFiles ?? null },
-            ]}
-            href="/anime"
-        />
-    )
-}
-
-export function LandingMangaStatsWidget() {
-    const { stats, isLoading, isError } = useLandingMangaStats()
-    const { data: counts } = useGetHomeCounts()
-
-    return (
-        <StatsDoor
-            title={!isLoading && (isError || !stats) ? "Manga · unavailable" : "Manga"}
-            icon={<BiBook className="w-5 h-5" />}
-            stats={[
-                { label: "on your lists", value: stats?.onLists ?? null },
-                { label: "reading / rereading", value: stats?.current ?? null },
-                { label: "completed", value: stats?.completed ?? null },
-                { label: "chapters read", value: stats?.progress ?? null },
-                { label: "planning", value: stats?.planning ?? null },
-                // Every chapter on disk, whoever downloaded it: the server's manga library is shared.
-                { label: "server chapters downloaded", value: counts?.mangaAvailable ? counts.mangaChapters : null },
-            ]}
-            href="/manga"
-        />
-    )
-}
-
 /**
  * The airing queries start from the top of the hour, so the same request is sent all hour: it is
  * answered from the saved cache at once rather than asking AniList for a new window on every open.
  * What has already aired is then dropped here, so the figures are still right to the minute.
  */
-function useAiringWindow(end: "day" | "week") {
+export function useAiringWindow(end: "day" | "week") {
     const start = Math.floor(Date.now() / 3_600_000) * 3600
     const dayEnd = new Date()
     dayEnd.setHours(24, 0, 0, 0)
@@ -261,128 +216,9 @@ function useAiringWindow(end: "day" | "week") {
     return { schedules, total, isLoading: isLoading && !data }
 }
 
-function formatTimeUntil(seconds: number) {
+export function formatTimeUntil(seconds: number) {
     if (seconds < 3600) return `${Math.max(1, Math.ceil(seconds / 60))}m`
     return `${Math.ceil(seconds / 3600)}h`
-}
-
-export function LandingScheduleWidget() {
-    const missingEpisodes = useMissingEpisodeCount()
-    const { total, isLoading } = useAiringWindow("week")
-
-    return (
-        <StatsDoor
-            title="Schedule"
-            icon={<LuCalendar className="w-5 h-5" />}
-            stats={[
-                { label: "missing episodes", value: missingEpisodes },
-                { label: "airing this week", value: isLoading ? null : total },
-            ]}
-            href="/schedule"
-        />
-    )
-}
-
-export function LandingAiringTodayWidget() {
-    const { schedules, total, isLoading } = useAiringWindow("day")
-    const next = [...schedules].sort((a, b) => a.airingAt - b.airingAt)[0]
-
-    return (
-        <StatsDoor
-            title="Airing today"
-            icon={<LuCalendar className="w-5 h-5" />}
-            stats={[
-                { label: "left today", value: isLoading ? null : total },
-                {
-                    label: "next release",
-                    value: isLoading ? null : next ? formatTimeUntil(next.airingAt - Math.floor(Date.now() / 1000)) : "none",
-                },
-            ]}
-            href="/schedule"
-        />
-    )
-}
-
-export function LandingToWatchWidget() {
-    const { data: toWatch, isLoading } = useGetToWatch()
-    const animeCount = toWatch?.filter(entry => (entry.mediaType ?? "ANIME") === "ANIME").length ?? 0
-    const mangaCount = toWatch?.filter(entry => entry.mediaType === "MANGA").length ?? 0
-
-    return (
-        <StatsDoor
-            title="Todo List"
-            icon={<LuListVideo className="w-5 h-5" />}
-            stats={[
-                { label: "total queued", value: isLoading ? null : toWatch?.length ?? 0 },
-                { label: "anime", value: isLoading ? null : animeCount },
-                { label: "manga", value: isLoading ? null : mangaCount },
-            ]}
-            href="/to-watch"
-        />
-    )
-}
-
-export function LandingUnmatchedWidget() {
-    const { data: unmatched } = useGetUnmatchedTorrents({ staleTime: 60_000 })
-
-    return (
-        <StatsDoor
-            title="Unmatched"
-            icon={<LuFolderSearch className="w-5 h-5" />}
-            stats={[
-                { label: "waiting", value: unmatched?.length ?? null },
-            ]}
-            href="/unmatched"
-        />
-    )
-}
-
-export function LandingTorrentsWidget() {
-    const { data: queue } = useGetTorrentAddQueue()
-    const { data: torrents } = useServerQuery<TorrentClient_Torrent[]>({
-        endpoint: API_ENDPOINTS.TORRENT_CLIENT.GetActiveTorrentList.endpoint,
-        method: API_ENDPOINTS.TORRENT_CLIENT.GetActiveTorrentList.methods[0],
-        queryKey: ["LANDING-torrent-list"],
-        refetchInterval: 15_000,
-        staleTime: 0,
-        // The client being off is the widget's business to show, not a toast on the landing page.
-        muteError: true,
-    })
-    const count = (status: string) => torrents ? torrents.filter(t => t?.status === status).length : null
-
-    return (
-        <StatsDoor
-            title="Torrent list"
-            icon={<LuWand className="w-5 h-5" />}
-            stats={[
-                { label: "downloading", value: count("downloading") },
-                { label: "seeding", value: count("seeding") },
-                { label: "paused", value: count("paused") },
-                { label: "waiting to add", value: queue?.waiting ?? null },
-            ]}
-            href="/torrent-list"
-        />
-    )
-}
-
-export function LandingAchievementsWidget() {
-    const { data: achievements, isLoading } = useGetAchievementSummary()
-    const completion = achievements?.totalCount
-        ? `${Math.round((achievements.unlockedCount / achievements.totalCount) * 100)}%`
-        : "—"
-
-    return (
-        <StatsDoor
-            title="Achievements"
-            icon={<GiTrophyCup className="w-5 h-5" />}
-            stats={[
-                { label: "unlocked", value: isLoading ? null : achievements?.unlockedCount ?? 0 },
-                { label: "available", value: isLoading ? null : achievements?.totalCount ?? 0 },
-                { label: "completion", value: isLoading ? null : completion },
-            ]}
-            href="/achievements"
-        />
-    )
 }
 
 export function LandingLibraryInsightsWidget() {
@@ -441,60 +277,7 @@ export function LandingContinueReadingWidget({ onHoverImage }: {
     if (isLoading) {
         return <div className="px-4 py-6 text-sm text-[--muted]">Loading your reading list…</div>
     }
-    return <MangaContinueReading list={entries} withTitle onHoverImage={onHoverImage} />
-}
-
-/**
- * One cell of the landing strip.
- *
- * A door drawn as a card, the way the quick links below the strip are drawn: the app's card
- * material behind it, so the numbers stay readable over the wallpaper — the strip sits directly on
- * the background, and a figure with no material under it fought the artwork for legibility. An
- * icon, a name, the figure it carries, and room between them so a card is read at a glance.
- */
-function StatsDoor({ title, icon, stats, href }: {
-    title: string
-    icon: React.ReactNode
-    stats: { label: string, value: number | string | null }[]
-    href: string
-}) {
-    return (
-        <SeaLink href={href} className="group/door block h-full">
-            <div
-                className={cn(
-                    "group relative z-[1] w-full h-full text-left rounded-2xl border border-white/10 bg-black/25 backdrop-blur-md shadow-lg shadow-black/20 p-4 lg:p-5 overflow-hidden",
-                    "transition-all duration-300 hover:-translate-y-1 hover:border-[--brand]/70 hover:bg-black/60 hover:shadow-xl hover:shadow-[--brand]/20",
-                )}
-            >
-                <div className="pointer-events-none absolute -right-8 -top-8 size-28 rounded-full bg-[--brand]/20 blur-2xl opacity-60 group-hover:opacity-100 transition-opacity" />
-                <div className="relative flex items-center justify-between gap-2.5">
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center size-10 rounded-xl bg-gradient-to-br from-brand-400/40 to-brand-600/30 text-white ring-1 ring-white/10">
-                            {icon}
-                        </div>
-                        <p className="font-semibold text-white">{title}</p>
-                    </div>
-                    <LuArrowRight className="w-4 h-4 text-white/40 -translate-x-1 opacity-0 group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-[--brand] transition-all" />
-                </div>
-                {!!stats.length && (
-                    <div className="relative mt-4 grid grid-cols-2 gap-x-3 gap-y-3">
-                        {stats.map(stat => (
-                            <div key={stat.label} className="min-w-0 leading-none">
-                                <p className="text-2xl font-extrabold text-white tabular-nums lg:text-3xl">
-                                    {stat.value === null
-                                        ? "—"
-                                        : typeof stat.value === "number"
-                                            ? formatNumber(stat.value)
-                                            : stat.value}
-                                </p>
-                                <p className="mt-1.5 truncate text-[10px] uppercase tracking-wider text-white/75">{stat.label}</p>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-        </SeaLink>
-    )
+    return <MangaContinueReading list={entries} withTitle withMetadata onHoverImage={onHoverImage} />
 }
 
 /**

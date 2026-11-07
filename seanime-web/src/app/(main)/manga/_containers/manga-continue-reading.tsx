@@ -15,11 +15,14 @@ import React from "react"
 import { LuBookMarked } from "react-icons/lu"
 import { MangaContinueReadingEntry } from "@/app/(main)/manga/_lib/use-manga-continue-reading"
 import { useMangaVolumeCover } from "@/app/(main)/manga/_lib/use-manga-volume-cover"
+import { MangaContinueMeta } from "@/app/(main)/_features/home/continue-metadata"
 
 interface MangaContinueReadingProps {
     list: MangaContinueReadingEntry[]
     onHoverImage?: (image: string | null) => void
     withTitle?: boolean
+    /** A plain-spoken line of where you are in the series, and its details-page chips, under each card. */
+    withMetadata?: boolean
 }
 
 /**
@@ -31,7 +34,7 @@ interface MangaContinueReadingProps {
  * data — the series, the chapter you are on, and the date you read it. An entry the endpoint could
  * not enrich takes a placeholder tile, which is a way in rather than a dead space.
  */
-export function MangaContinueReading({ list, onHoverImage, withTitle }: MangaContinueReadingProps) {
+export function MangaContinueReading({ list, onHoverImage, withTitle, withMetadata }: MangaContinueReadingProps) {
     const ts = useThemeSettings()
 
     // Get current profile
@@ -153,6 +156,12 @@ export function MangaContinueReading({ list, onHoverImage, withTitle }: MangaCon
                                     onMouseLeave={() => onHoverImage?.(null)}
                                 >
                                     <MediaEntryCardWrapper item={item} />
+                                    {withMetadata && <MangaContinueMeta
+                                        manga={item.media}
+                                        chapterNumber={item.chapterNumber}
+                                        chaptersTotal={item.chaptersTotal}
+                                        lastReadAt={item.lastReadAt}
+                                    />}
                                 </div>
                             </CarouselItem>
                         )
