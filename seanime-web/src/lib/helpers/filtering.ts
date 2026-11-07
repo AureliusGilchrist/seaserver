@@ -215,6 +215,7 @@ export function anilistListSortFields(type: CollectionType): LibrarySortField[] 
     return [
         SORT_FIELD_RELEASE_DATE,
         SORT_FIELD_TITLE,
+        SORT_FIELD_GOJUUON,
         SORT_FIELD_SCORE,
         SORT_FIELD_AVERAGE_SCORE,
         SORT_FIELD_PROGRESS,
@@ -382,6 +383,20 @@ export function sortByGojuuon<T extends { media?: { id?: number; title?: any } }
 }
 
 
+/**
+ * Gojuuon order for any list, given how to read each item's title — for lists whose items are not
+ * shaped like library entries (missed sequels, downloads). Same key as sortByGojuuon.
+ */
+export function sortByGojuuonTitle<T>(arr: T[], title: (n: T) => string | null | undefined, desc = false): T[] {
+    const keyed = arr.map(n => {
+        const t = title(n) || ""
+        return { n, t, key: gojuuonSortKey(t) }
+    })
+    keyed.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : a.t.localeCompare(b.t, "ja")))
+    const out = keyed.map(k => k.n)
+    return desc ? out.reverse() : out
+}
+
 export function filterEntriesByTitle<T extends { media?: AL_BaseAnime | AL_BaseManga }[] | null | undefined>(arr: T, input: string): T {
     // @ts-expect-error
     if (!arr) return []
@@ -447,6 +462,12 @@ export function filterListEntries<T extends AL_MangaCollection_MediaListCollecti
 
     // Release date, average score, episode count, airing status
     arr = (sortByMediaField(arr, getParamValue(params.sorting), n => n.media) as typeof arr | undefined) ?? arr
+
+    // Gojuuon, from the titles alone: list entries have no server map, and need none.
+    if (getParamValue(params.sorting) === "GOJUUON")
+        arr = sortByGojuuon(arr as any[], null) as typeof arr
+    if (getParamValue(params.sorting) === "GOJUUON_DESC")
+        arr = (sortByGojuuon(arr as any[], null) as typeof arr).reverse()
 
     // Sort by score
     if (getParamValue(params.sorting) === "SCORE")

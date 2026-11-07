@@ -47,7 +47,9 @@ import {
     SORT_FIELD_AVERAGE_SCORE,
     SORT_FIELD_RELEASE_DATE,
     SORT_FIELD_SCORE,
+    SORT_FIELD_GOJUUON,
     SORT_FIELD_TITLE,
+    sortByGojuuonTitle,
     sortByMediaField,
     sortMissingLast,
 } from "@/lib/helpers/filtering"
@@ -55,6 +57,7 @@ import {
 /** The downloads grid: what is on disk, ordered by title until the viewer picks otherwise. */
 const LOCAL_MANGA_LIBRARY_SORT_FIELDS: LibrarySortField[] = [
     SORT_FIELD_TITLE,
+    SORT_FIELD_GOJUUON,
     SORT_FIELD_RELEASE_DATE,
     { label: "Downloaded chapters", asc: "DOWNLOADED_CHAPTERS", desc: "DOWNLOADED_CHAPTERS_DESC", ascLabel: "Fewest first", descLabel: "Most first", defaultDesc: true },
     SORT_FIELD_SCORE,
@@ -206,6 +209,9 @@ export default function Page() {
                 return byTitle
             case "TITLE_DESC":
                 return byTitle.reverse()
+            case "GOJUUON":
+            case "GOJUUON_DESC":
+                return sortByGojuuonTitle(byTitle, n => displayTitle(n.media?.title) || n.media?.title?.romaji, sorting === "GOJUUON_DESC")
             case "DOWNLOADED_CHAPTERS":
             case "DOWNLOADED_CHAPTERS_DESC":
                 return sortMissingLast(byTitle, n => Object.values(n.downloadData ?? {}).flatMap(c => c).length,

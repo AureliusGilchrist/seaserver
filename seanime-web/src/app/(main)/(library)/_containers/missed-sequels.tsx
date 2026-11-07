@@ -13,7 +13,9 @@ import {
     SORT_FIELD_AIRING_STATUS,
     SORT_FIELD_AVERAGE_SCORE,
     SORT_FIELD_RELEASE_DATE,
+    SORT_FIELD_GOJUUON,
     SORT_FIELD_TITLE,
+    sortByGojuuonTitle,
     sortByMediaField,
 } from "@/lib/helpers/filtering"
 import { displayTitle } from "@/lib/helpers/media"
@@ -30,6 +32,7 @@ const PREQUEL_TITLE_FIELD: LibrarySortField = {
 export const MISSED_SEQUELS_SORT_FIELDS: LibrarySortField[] = [
     SORT_FIELD_RELEASE_DATE,
     SORT_FIELD_TITLE,
+    SORT_FIELD_GOJUUON,
     PREQUEL_TITLE_FIELD,
     SORT_FIELD_AVERAGE_SCORE,
     SORT_FIELD_AIRING_STATUS,
@@ -57,6 +60,9 @@ function sortMissedSequels(items: AL_MissedSequel[], sorting: string): AL_Missed
             return byTitle(n => displayTitle(n.media?.title))
         case "PREQUEL_TITLE_DESC":
             return byTitle(n => displayTitle(n.media?.title)).reverse()
+        case "GOJUUON":
+        case "GOJUUON_DESC":
+            return sortByGojuuonTitle(items, n => displayTitle(n.sequel?.title) || n.sequel?.title?.romaji, sorting === "GOJUUON_DESC")
     }
     // Title order first, so ties in the media sorts read alphabetically.
     const base = byTitle(n => displayTitle(n.sequel?.title))
