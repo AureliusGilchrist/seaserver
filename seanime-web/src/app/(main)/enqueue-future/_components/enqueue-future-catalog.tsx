@@ -2,7 +2,6 @@ import { EnqueueFuture_Status } from "@/api/generated/types"
 import { useStartEnqueueFutureCatalog, useStopEnqueueFutureCatalog } from "@/api/hooks/enqueue_future.hooks"
 import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { Button } from "@/components/ui/button"
-import { ProgressBar } from "@/components/ui/progress-bar"
 import React from "react"
 import { LuGlobe } from "react-icons/lu"
 
@@ -62,10 +61,17 @@ export function EnqueueFutureCatalog({ status }: { status: EnqueueFuture_Status 
     const waitState = catalogWaitState(status, retryAt - now)
 
     return (
-        <div className="rounded-[--radius-md] border bg-gray-950 p-4 space-y-3" data-enqueue-future-catalog>
+        <div className="space-y-3 rounded-3xl border border-white/[0.08] bg-gradient-to-br from-violet-500/[0.07] via-black/25 to-black/35 p-4 backdrop-blur-md sm:p-5" data-enqueue-future-catalog>
             <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="space-y-0.5 min-w-0">
-                    <p className="font-semibold flex items-center gap-2"><LuGlobe className="flex-none" /> All of AniList</p>
+                <div className="flex min-w-0 items-start gap-3">
+                <span className="flex size-10 flex-none items-center justify-center rounded-2xl bg-violet-400/15 text-violet-200 ring-1 ring-white/10">
+                    <LuGlobe className="size-5" />
+                </span>
+                <div className="min-w-0 space-y-0.5">
+                    <p className="flex items-center gap-2 font-semibold text-white">
+                        All of AniList
+                        {catalog?.active && !catalog.done && <span className="size-2 rounded-full bg-violet-400 animate-pulse" />}
+                    </p>
                     <p className="text-sm text-[--muted]">
                         {!catalog && "Queue every anime on AniList, not just what your walks reach."}
                         {catalog && (catalog.done
@@ -77,14 +83,19 @@ export function EnqueueFutureCatalog({ status }: { status: EnqueueFuture_Status 
                     {waitState && <p className="text-sm text-[--muted]" data-enqueue-future-catalog-wait>{waitState}</p>}
                     {catalog?.lastError && <p className="text-sm text-[--orange] break-words" data-enqueue-future-catalog-error>{catalog.lastError}</p>}
                 </div>
+                </div>
                 {catalog?.active
-                    ? <Button intent="alert-subtle" size="sm" onClick={() => stop()} loading={isStopping}>Stop</Button>
-                    : <Button intent="gray-outline" size="sm" onClick={() => catalog ? start() : confirm.open()} loading={isStarting}>
+                    ? <Button intent="alert-subtle" size="sm" rounded onClick={() => stop()} loading={isStopping}>Stop</Button>
+                    : <Button intent="gray-outline" size="sm" rounded onClick={() => catalog ? start() : confirm.open()} loading={isStarting}>
                         {catalog?.done ? "Scan again" : catalog ? "Continue" : "Queue everything"}
                     </Button>}
             </div>
 
-            {catalog?.active && !catalog.done && <ProgressBar value={percent} size="sm" />}
+            {catalog?.active && !catalog.done && (
+                <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.07]" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
+                    <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-violet-300 transition-[width] duration-500" style={{ width: `${percent}%` }} />
+                </div>
+            )}
 
             <ConfirmationDialog {...confirm} />
         </div>

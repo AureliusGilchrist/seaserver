@@ -218,21 +218,22 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
                             <div
                                 key={pick.mediaId}
                                 className={cn(
-                                    "flex items-start gap-3 rounded-[--radius-md] border bg-gray-950 px-3 py-2",
-                                    !!pick.flag && "border-orange-500/50",
+                                    "flex items-start gap-3 rounded-2xl bg-white/[0.03] px-3 py-2.5 ring-1 ring-white/[0.07] transition-colors hover:bg-white/[0.05]",
+                                    !!pick.flag && "bg-orange-500/[0.05] ring-orange-400/40",
                                 )}
                                 data-enqueue-future-auto-torrent-row
                             >
                                 <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-medium break-words">{pick.torrent!.name}</p>
                                     <p className="text-xs text-[--muted] break-words">
-                                        Looking for: <span className="text-gray-300">{pick.title}</span>
+                                        Looking for: <span className="font-semibold text-white">{pick.title}</span>
                                         {pick.searchedFor ? ` — ${pick.searchedFor}` : ""}
                                     </p>
-                                    <p className="text-xs text-[--muted]">
-                                        {pick.files} file{pick.files === 1 ? "" : "s"} · {pick.torrent!.seeders} seeders
-                                        {pick.torrent!.formattedSize ? ` · ${pick.torrent!.formattedSize}` : ""}
-                                        {pick.dualAudio && <span className="ml-2 text-[--brand] font-semibold">Dual Audio</span>}
+                                    <p className="mt-0.5 text-sm text-white/80 break-words">{pick.torrent!.name}</p>
+                                    <p className="mt-1.5 flex flex-wrap items-center gap-1 text-[11px] text-white/70">
+                                        <span className="rounded-full bg-white/[0.06] px-2 py-0.5 ring-1 ring-white/10">{pick.files} file{pick.files === 1 ? "" : "s"}</span>
+                                        <span className="rounded-full bg-emerald-400/10 px-2 py-0.5 text-emerald-200 ring-1 ring-emerald-300/20">{pick.torrent!.seeders} seeders</span>
+                                        {pick.torrent!.formattedSize && <span className="rounded-full bg-white/[0.06] px-2 py-0.5 ring-1 ring-white/10">{pick.torrent!.formattedSize}</span>}
+                                        {pick.dualAudio && <span className="rounded-full bg-brand-500/15 px-2 py-0.5 font-semibold text-brand-100 ring-1 ring-brand-400/30">Dual Audio</span>}
                                     </p>
                                     {!!pick.flag && (
                                         <p className="mt-1 flex items-start gap-1.5 text-xs text-orange-300" data-enqueue-future-auto-torrent-flag>
@@ -273,7 +274,7 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
                             </summary>
                             <div className="space-y-1 pt-1">
                                 {withoutTorrent.map(pick => (
-                                    <div key={pick.mediaId} className="px-3 py-1.5 text-xs text-[--muted] rounded-[--radius-md] border border-dashed">
+                                    <div key={pick.mediaId} className="rounded-xl border border-dashed border-white/15 px-3 py-1.5 text-xs text-[--muted]">
                                         <span className="text-gray-300">{pick.title || `#${pick.mediaId}`}</span>
                                         {" — "}{pick.reason || "No pick"}
                                     </div>
@@ -284,7 +285,7 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
                 </div>
             )}
 
-            <div className="space-y-2 border-t pt-3">
+            <div className="space-y-2 rounded-2xl bg-black/25 p-3 ring-1 ring-white/[0.06]">
                 <div className="flex flex-wrap items-center gap-2 text-sm text-[--muted]">
                     <span>Match automatically when finished:</span>
                     <span className="text-[--foreground]">
@@ -359,7 +360,7 @@ function AutoTorrentAddProgress({ status }: { status: EnqueueFuture_AutoTorrentA
     const busy = status.pending > 0 || !!status.current
     if (!busy && !status.added && !status.failed && !status.skipped && !status.settled) return null
     return (
-        <div className="rounded-[--radius-md] border bg-gray-950 px-3 py-2 text-left text-xs text-[--muted] space-y-0.5" data-enqueue-future-auto-torrent-progress>
+        <div className="space-y-0.5 rounded-2xl bg-sky-400/[0.06] px-3 py-2 text-left text-xs text-[--muted] ring-1 ring-sky-300/15" data-enqueue-future-auto-torrent-progress>
             <p>
                 {busy
                     ? <><span className="text-[--foreground] font-semibold">{status.pending + (status.current ? 1 : 0)}</span> still being added in the background, one every 10s</>

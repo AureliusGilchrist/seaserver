@@ -36,7 +36,7 @@ import { useAtomValue, useSetAtom } from "jotai/react"
 import React from "react"
 import { TextInput } from "@/components/ui/text-input"
 import { useDebounce } from "@/hooks/use-debounce"
-import { LuArrowDownUp, LuEye, LuEyeOff, LuGitBranch, LuLayers, LuList, LuRotateCcw, LuSearch, LuWandSparkles } from "react-icons/lu"
+import { LuArrowDownUp, LuCircleCheck, LuDownload, LuEye, LuEyeOff, LuGitBranch, LuHourglass, LuLayers, LuList, LuRotateCcw, LuSearch, LuSparkles, LuWandSparkles } from "react-icons/lu"
 import { toast } from "sonner"
 
 /**
@@ -264,6 +264,24 @@ export function EnqueueFuturePage() {
     }, [items, resortSignal, hideSettled, queueView])
     const orderedItems = React.useMemo(() => families.flat(), [families])
 
+    // The figures the header shows: what is waiting on you, what is ready this second, what is
+    // still being prepared, and what you have already dealt with. Counted over everything loaded,
+    // whatever the view or the "hide done" toggle shows.
+    const counts = React.useMemo(() => {
+        let ready = 0, preparing = 0, settled = 0, open = 0
+        for (const item of items) {
+            if (!isActionable(item)) {
+                settled++
+                continue
+            }
+            open++
+            if (isReady(item)) ready++
+            else if (item.status === ENQUEUE_FUTURE_STATUS.PREPARING || item.status === ENQUEUE_FUTURE_STATUS.PENDING) preparing++
+        }
+        return { ready, preparing, settled, open }
+    }, [items])
+    const unloadedWaiting = hasMoreWaiting ? Math.max(0, waitingTotal - waitingItems.length) : 0
+
     const [activeMediaId, setActiveMediaId] = React.useState<number | undefined>(undefined)
 
     // Resolved during render, not in an effect.
@@ -410,7 +428,11 @@ export function EnqueueFuturePage() {
 
     if (isLoading) {
         return <PageWrapper className="p-4 sm:p-8 space-y-4">
-            <LoadingSpinner />
+            <div className="h-44 animate-pulse rounded-3xl bg-white/[0.04] ring-1 ring-white/[0.06]" />
+            <div className="grid gap-4 lg:grid-cols-[clamp(300px,24vw,480px)_minmax(0,1fr)]">
+                <div className="h-[60vh] animate-pulse rounded-3xl bg-white/[0.03] ring-1 ring-white/[0.05]" />
+                <div className="h-[60vh] animate-pulse rounded-3xl bg-white/[0.03] ring-1 ring-white/[0.05]" />
+            </div>
         </PageWrapper>
     }
 
@@ -420,17 +442,24 @@ export function EnqueueFuturePage() {
             {/* No scrim of its own: the wallpaper dims only by its setting, on every page. */}
             <div className="relative z-[1] space-y-4">
 
-            <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                    <div
-                        className="hidden sm:flex h-10 w-10 rounded-[--radius-md] border bg-gray-950 items-center justify-center flex-none"
+            {/* The page header: what this is, what the queue holds, and the queue-wide actions. */}
+            <section
+                className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-br from-white/[0.06] via-black/25 to-black/40 p-5 shadow-2xl shadow-black/25 backdrop-blur-md sm:p-6"
+                data-enqueue-future-hero
+            >
+                <div className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full bg-[--brand]/15 blur-3xl" />
+                <div className="relative flex flex-wrap items-start justify-between gap-4">
+                <div className="flex min-w-0 items-center gap-4">
+                    <span
+                        className="hidden size-12 flex-none items-center justify-center rounded-2xl bg-gradient-to-br from-brand-400/35 to-brand-700/20 text-brand-100 ring-1 ring-white/10 sm:flex"
                         aria-hidden
                     >
-                        <LuLayers className="text-xl text-[--brand]" />
-                    </div>
-                    <div>
-                        <h3>Enqueue Future</h3>
-                        <p className="text-sm text-[--muted]">
+                        <LuLayers className="size-6" />
+                    </span>
+                    <div className="min-w-0">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[--brand]">Download queue</p>
+                        <h3 className="mt-0.5 text-2xl font-bold tracking-tight text-white sm:text-3xl">Enqueue Future</h3>
+                        <p className="mt-1 max-w-xl text-sm text-[--muted]">
                             Anime queued up from recommendations, prepared and ready to download one after another.
                         </p>
                     </div>
@@ -443,8 +472,9 @@ export function EnqueueFuturePage() {
                         only rendered with a queue on display could never reach them. Nothing here
                         removes an entry: hidden rows come back to ready and reappear. */}
                     <Button
-                        intent="primary-subtle"
+                        intent="primary"
                         size="sm"
+                        rounded
                         leftIcon={<LuWandSparkles />}
                         onClick={() => setAutoTorrentOpen(true)}
                         disabled={!autoTorrentCandidates.length && !autoTorrent?.active && !autoTorrentAdding}
@@ -456,6 +486,7 @@ export function EnqueueFuturePage() {
                     <Button
                         intent="gray-outline"
                         size="sm"
+                        rounded
                         leftIcon={<LuRotateCcw />}
                         onClick={() => purgeDownloaded()}
                         loading={isPurging}
@@ -467,8 +498,9 @@ export function EnqueueFuturePage() {
                         <>
                             {staleCount > 0 && (
                                 <Button
-                                    intent="gray-outline"
+                                    intent="warning-subtle"
                                     size="sm"
+                                    rounded
                                     leftIcon={<LuRotateCcw />}
                                     onClick={clearStaleAll}
                                     loading={isClearingStale}
@@ -480,6 +512,7 @@ export function EnqueueFuturePage() {
                             <Button
                                 intent="alert-subtle"
                                 size="sm"
+                                rounded
                                 onClick={() => clearQueue()}
                                 loading={isClearing}
                                 data-enqueue-future-clear-button
@@ -489,7 +522,28 @@ export function EnqueueFuturePage() {
                         </>
                     )}
                 </div>
-            </div>
+                </div>
+
+                <div className="relative mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4" data-enqueue-future-stats>
+                    <HeroStat icon={<LuLayers />} label="Still to decide" value={counts.open + unloadedWaiting} tone="text-white" />
+                    <HeroStat icon={<LuSparkles />} label="Ready now" value={counts.ready} tone="text-emerald-200" />
+                    <HeroStat icon={<LuHourglass />} label="Being prepared" value={counts.preparing + unloadedWaiting} tone="text-sky-200" />
+                    <HeroStat
+                        icon={<LuCircleCheck />}
+                        label="Dealt with"
+                        value={counts.settled}
+                        tone="text-brand-200"
+                        sub={staleCount ? `${staleCount} stale badge${staleCount === 1 ? "" : "s"}` : undefined}
+                    />
+                </div>
+                {counts.open + counts.settled > 0 && (
+                    <div className="relative mt-3 flex h-1.5 overflow-hidden rounded-full bg-white/[0.06]" aria-hidden>
+                        <span className="h-full bg-brand-400" style={{ width: `${(counts.settled / (counts.open + counts.settled)) * 100}%` }} />
+                        <span className="h-full bg-emerald-400/80" style={{ width: `${(counts.ready / (counts.open + counts.settled)) * 100}%` }} />
+                        <span className="h-full bg-sky-400/50" style={{ width: `${(counts.preparing / (counts.open + counts.settled)) * 100}%` }} />
+                    </div>
+                )}
+            </section>
 
             <EnqueueFutureAutoTorrent
                 open={isAutoTorrentOpen}
@@ -504,12 +558,12 @@ export function EnqueueFuturePage() {
             <EnqueueFutureDropped isRunning={!!status?.running} />
 
             {!orderedItems.length && !activeItem && !debouncedSearch ? (
-                <div className="text-center py-16 space-y-3 border rounded-[--radius-md] bg-gray-950" data-enqueue-future-empty>
+                <div className="space-y-3 rounded-3xl border border-dashed border-white/15 bg-black/20 py-16 text-center backdrop-blur-md" data-enqueue-future-empty>
                     <div
-                        className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border bg-gray-900"
+                        className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-400/25 to-brand-700/10 ring-1 ring-white/10"
                         aria-hidden
                     >
-                        <LuLayers className="text-2xl text-[--muted]" />
+                        <LuLayers className="text-2xl text-brand-200" />
                     </div>
                     <p className="text-lg font-semibold">Nothing queued</p>
                     <p className="text-sm text-[--muted] max-w-md mx-auto">
@@ -532,13 +586,22 @@ export function EnqueueFuturePage() {
                     "xl:grid-cols-[clamp(320px,24vw,520px)_minmax(0,1fr)]",
                 )}>
 
-                    <div className="space-y-2 min-w-0">
-                        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
-                            <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">
+                    <div className="min-w-0 space-y-2.5 rounded-3xl border border-white/[0.08] bg-black/25 p-3 backdrop-blur-md">
+                        <div className="flex items-baseline justify-between gap-2 px-1">
+                            <p className="text-sm font-semibold text-white">
                                 Queue
+                                <span className="ml-2 text-xs font-normal tabular-nums text-[--muted]">
+                                    {orderedItems.length.toLocaleString()}{hasMoreWaiting ? "+" : ""}
+                                </span>
                             </p>
+                            <span className="truncate text-[11px] text-[--muted]">
+                                {queueView ? "In the order it will be worked" : "By franchise · most seeded first"}
+                            </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1.5">
                             <Button
                                 size="xs"
+                                rounded
                                 intent={hideSettled ? "primary-subtle" : "gray-subtle"}
                                 leftIcon={hideSettled ? <LuEye /> : <LuEyeOff />}
                                 onClick={() => setHideSettled(v => !v)}
@@ -551,6 +614,7 @@ export function EnqueueFuturePage() {
                             </Button>
                             <Button
                                 size="xs"
+                                rounded
                                 intent={queueView ? "primary-subtle" : "gray-subtle"}
                                 leftIcon={queueView ? <LuGitBranch /> : <LuList />}
                                 onClick={() => setQueueView(v => !v)}
@@ -560,6 +624,7 @@ export function EnqueueFuturePage() {
                             </Button>
                             <Button
                                 size="xs"
+                                rounded
                                 intent="gray-subtle"
                                 leftIcon={<LuGitBranch />}
                                 loading={isRewalking}
@@ -581,6 +646,7 @@ export function EnqueueFuturePage() {
                             </Button>
                             <Button
                                 size="xs"
+                                rounded
                                 intent="gray-subtle"
                                 leftIcon={<LuArrowDownUp />}
                                 onClick={() => {
@@ -676,7 +742,7 @@ function ActiveItemBody({
 
     if (item.status === ENQUEUE_FUTURE_STATUS.PREPARING) {
         return (
-            <div className="text-center py-16 space-y-2 border rounded-[--radius-md] bg-gray-950">
+            <div className="space-y-3 rounded-3xl border border-white/[0.08] bg-black/25 py-16 text-center backdrop-blur-md">
                 <LoadingSpinner />
                 <p className="text-sm text-[--muted]">Still being prepared — it'll open as soon as it's ready.</p>
             </div>
@@ -684,16 +750,16 @@ function ActiveItemBody({
     }
 
     if (isLoading) {
-        return <div className="py-16"><LoadingSpinner /></div>
+        return <div className="rounded-3xl border border-white/[0.08] bg-black/25 py-16 backdrop-blur-md"><LoadingSpinner /></div>
     }
 
     const entry = detail?.snapshot?.entry ?? liveEntry
     if (!entry) {
         if (needsLiveEntry && isLoadingLiveEntry) {
-            return <div className="py-16"><LoadingSpinner /></div>
+            return <div className="rounded-3xl border border-white/[0.08] bg-black/25 py-16 backdrop-blur-md"><LoadingSpinner /></div>
         }
         return (
-            <div className="text-center py-16 space-y-2 border rounded-[--radius-md] bg-gray-950">
+            <div className="space-y-2 rounded-3xl border border-dashed border-white/15 bg-black/20 px-6 py-16 text-center backdrop-blur-md">
                 <p className="text-sm text-[--muted]">
                     {item.lastError || "This one has no prepared data and its page could not be fetched. Open its page to download it by hand."}
                 </p>
@@ -725,7 +791,10 @@ function ActiveItemBody({
                 that provides one. Rendered bare here it would be small text straight over the theme
                 wallpaper, which is fixed behind the whole app, so it gets the same solid panel every
                 other block on this screen has. */}
-            <div className="rounded-[--radius-md] border bg-gray-950 p-4">
+            <div className="rounded-3xl border border-white/[0.08] bg-black/30 p-4 shadow-xl shadow-black/20 backdrop-blur-md sm:p-5" data-enqueue-future-search-panel>
+                <p className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-white/45">
+                    <LuDownload className="size-3.5" />Releases
+                </p>
                 {/* Keyed by anime so stepping to the next one gets a fresh search rather than the
                     previous one's state carried across — the search UI holds its own filters and
                     query internally. */}
@@ -749,5 +818,15 @@ function ActiveItemBody({
                 onAdded={onDownloadStarted}
             />
         </>
+    )
+}
+
+function HeroStat({ icon, label, value, tone, sub }: { icon: React.ReactNode, label: string, value: number, tone: string, sub?: string }) {
+    return (
+        <div className="min-w-0 rounded-2xl bg-black/25 p-3 ring-1 ring-white/[0.07]">
+            <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-white/50 [&>svg]:size-3.5">{icon}{label}</p>
+            <p className={cn("mt-1 text-2xl font-extrabold tabular-nums", tone)}>{value.toLocaleString()}</p>
+            {sub && <p className="truncate text-[11px] text-amber-200/80">{sub}</p>}
+        </div>
     )
 }

@@ -29,11 +29,12 @@ export function EnqueueFutureDropped({ isRunning }: { isRunning: boolean }) {
     if (!dropped?.length) return null
 
     return (
-        <details className="group/dropped rounded-[--radius-md] border bg-gray-950 p-4" data-enqueue-future-dropped>
-            <summary className="cursor-pointer select-none list-none flex items-center gap-2 [&::-webkit-details-marker]:hidden">
-                <LuChevronDown className="transition-transform group-open/dropped:rotate-180 flex-none text-[--muted]" />
-                <span className="font-semibold">Nothing downloadable</span>
-                <span className="text-sm text-[--muted]">{dropped.length}</span>
+        <details className="group/dropped rounded-3xl border border-white/[0.08] bg-black/25 p-4 backdrop-blur-md sm:p-5" data-enqueue-future-dropped>
+            <summary className="flex cursor-pointer select-none list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
+                <LuChevronDown className="flex-none text-[--muted] transition-transform group-open/dropped:rotate-180" />
+                <span className="font-semibold text-white">Nothing downloadable</span>
+                <span className="rounded-full bg-white/[0.07] px-2 py-0.5 text-xs font-semibold tabular-nums text-white/70 ring-1 ring-white/10">{dropped.length}</span>
+                <span className="ml-auto hidden text-xs text-[--muted] sm:inline">Put any of them back with one press</span>
             </summary>
 
             <div className="pt-3 space-y-2">
@@ -73,8 +74,8 @@ function DroppedRow({ item }: { item: EnqueueFuture_DroppedItem }) {
     const { mutate: forget, isPending: isForgetting } = useDeleteEnqueueFutureDropped(item.mediaId)
 
     return (
-        <li className="flex items-center gap-3 rounded-[--radius] border border-gray-800/80 bg-gray-950/40 px-2.5 py-1.5">
-            {item.coverImage && <img src={cachedImageUrl(item.coverImage)} alt="" className="w-7 h-10 object-cover rounded-sm flex-none" />}
+        <li className="flex items-center gap-3 rounded-xl bg-white/[0.03] px-2.5 py-1.5 ring-1 ring-white/[0.06] transition-colors hover:bg-white/[0.06]">
+            {item.coverImage && <img src={cachedImageUrl(item.coverImage)} alt="" className="h-11 w-8 flex-none rounded-md object-cover ring-1 ring-white/10" />}
             <div className="min-w-0 flex-1">
                 <SeaLink href={`/entry?id=${item.mediaId}`} className="block text-sm truncate hover:underline">
                     {item.title || `#${item.mediaId}`}

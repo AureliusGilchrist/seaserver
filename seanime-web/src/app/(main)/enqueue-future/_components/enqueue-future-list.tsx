@@ -367,7 +367,7 @@ export function EnqueueFutureList({ families, activeMediaId, onSelect, flat, mor
         // pane scrolls, and it scrolls inside itself instead of pushing the page taller.
         <div
             ref={scrollRef}
-            className="rounded-[--radius-md] border bg-gray-950 overflow-y-auto overscroll-contain lg:sticky lg:top-4 max-h-[calc(100vh-9rem)]"
+            className="space-y-1.5 overflow-y-auto overscroll-contain rounded-2xl lg:sticky lg:top-4 max-h-[calc(100vh-9rem)] pr-0.5 [scrollbar-width:thin]"
             data-enqueue-future-list
         >
             {shown.map(family => (
@@ -392,7 +392,7 @@ export function EnqueueFutureList({ families, activeMediaId, onSelect, flat, mor
             {/* Crossing this asks for the next chunk. Sized generously by rootMargin above, so the
                 next rows exist before they are scrolled to rather than after. */}
             {hasMore && (
-                <div ref={sentinelRef} className="px-3 py-4 text-center text-xs text-[--muted]">
+                <div ref={sentinelRef} className="rounded-xl border border-dashed border-white/10 px-3 py-4 text-center text-xs text-[--muted]">
                     {shown.length < families.length
                         ? <>{families.length - shown.length} more franchise{families.length - shown.length === 1 ? "" : "s"}…</>
                         : <>{moreWaiting.toLocaleString()} more waiting…</>}
@@ -433,12 +433,12 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
     return (
         <div
             className={cn(
-                "border-b last:border-b-0",
+                "overflow-hidden rounded-xl bg-white/[0.025] ring-1 ring-white/[0.06] transition-colors",
                 // Off-screen bundles skip layout and paint entirely, so a list scrolled thousands of
                 // rows deep costs about what the rows on screen cost.
                 "[content-visibility:auto]",
-                isGroup && "bg-gray-900/40",
-                isGroup && containsActive && "bg-gray-900/70",
+                isGroup && "bg-white/[0.04]",
+                containsActive && "ring-[--brand]/40",
             )}
             // "auto" keeps the real height once a bundle has been drawn; the figure is only the
             // guess for one that has not, so the scrollbar does not jump as they come into view.
@@ -446,8 +446,8 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
             data-enqueue-future-family={isGroup ? "group" : "single"}
         >
             {isGroup && (
-                <div className="flex items-center gap-1.5 px-2 pt-2 pb-1 text-xs uppercase tracking-wide text-[--muted]">
-                    <LuLink2 className="flex-none" />
+                <div className="flex items-center gap-1.5 border-b border-white/[0.05] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white/45">
+                    <LuLink2 className="flex-none text-brand-300" />
                     <span className="truncate">
                         {family.length} related — sequels &amp; side stories
                     </span>
@@ -455,7 +455,7 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
                         further down the page, which only reads as sensible once you can see that it
                         is the franchise being counted and not the season. */}
                     {seeders > 0 && (
-                        <span className="flex-none ml-auto flex items-center gap-1 normal-case tracking-normal">
+                        <span className="ml-auto flex flex-none items-center gap-1 rounded-full bg-white/[0.06] px-1.5 py-0.5 normal-case tracking-normal text-white/70">
                             <LuUsers className="flex-none" />
                             {formatSeeders(seeders)}
                         </span>
@@ -463,7 +463,7 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
                 </div>
             )}
 
-            <div className={cn(isGroup && "pl-2 border-l-2 border-[--brand] ml-2 mb-1")}>
+            <div className={cn(isGroup && "ml-2.5 my-1 border-l-2 border-[--brand]/60 pl-1")}>
                 {family.map((item) => (
                     <QueueRow
                         key={item.mediaId}
@@ -543,11 +543,11 @@ const QueueRow = React.memo(function QueueRow({ item, isActive, isGroup, depth, 
                         // same depth, which still says "deep into it".
                         style={isGroup ? { paddingLeft: `${14 + Math.min(depth, 6) * 14}px` } : undefined}
                         className={cn(
-                            "group/enqueue-future-row w-full flex items-center gap-3 p-2 text-left transition",
+                            "group/enqueue-future-row relative flex w-full items-center gap-3 rounded-lg p-2 text-left transition",
                             settled
                                 ? "opacity-40 cursor-default"
-                                : "cursor-pointer hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[--brand]",
-                            isActive && !settled && "bg-gray-800",
+                                : "cursor-pointer hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[--brand]",
+                            isActive && !settled && "bg-gradient-to-r from-brand-500/20 to-transparent ring-1 ring-[--brand]/40",
                         )}
                         data-enqueue-future-list-item
                         data-enqueue-future-list-item-settled={settled || undefined}
@@ -559,17 +559,17 @@ const QueueRow = React.memo(function QueueRow({ item, isActive, isGroup, depth, 
                                     alt=""
                                     loading="lazy"
                                     decoding="async"
-                                    className="h-12 w-9 rounded-[--radius] object-cover block"
+                                    className="block h-12 w-9 rounded-md object-cover ring-1 ring-white/10"
                                 />
-                                : <div className="h-12 w-9 rounded-[--radius] bg-gray-800" />}
+                                : <div className="h-12 w-9 rounded-md bg-white/[0.06] ring-1 ring-white/10" />}
                             <RowStateMark item={item} />
                         </span>
 
                         <span className="flex-1 min-w-0">
-                            <span className={cn("block truncate text-sm", isActive && "font-semibold")}>
+                            <span className={cn("block truncate text-sm text-white/90", isActive && "font-semibold text-white")}>
                                 {item.title || `#${item.mediaId}`}
                             </span>
-                            <span className="block text-xs text-[--muted]">
+                            <span className="block truncate text-[11px] text-[--muted]">
                                 {settled
                                     ? <RowStateLabel item={item} />
                                     : <ItemStatusLabel item={item} />}

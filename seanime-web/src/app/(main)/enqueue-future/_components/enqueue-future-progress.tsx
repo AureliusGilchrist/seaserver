@@ -8,7 +8,6 @@ import {
 } from "@/api/hooks/enqueue_future.hooks"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
-import { ProgressBar } from "@/components/ui/progress-bar"
 import React from "react"
 import { LuChevronDown, LuCircleStop, LuPlay, LuTimer, LuX } from "react-icons/lu"
 
@@ -127,10 +126,13 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
     if (!status?.running && status?.lastError && !status?.resumable) {
         return (
             <div
-                className="rounded-[--radius-md] border border-[--orange] bg-[--orange]/5 p-4"
+                className="rounded-3xl border border-orange-400/30 bg-gradient-to-br from-orange-500/10 to-black/30 p-4 backdrop-blur-md sm:p-5"
                 data-enqueue-future-progress
             >
-                <p className="font-semibold">Stopped{status.rootTitle ? ` — ${status.rootTitle}` : ""}</p>
+                <p className="flex items-center gap-2 font-semibold text-orange-100">
+                    <span className="size-2 rounded-full bg-orange-400" />
+                    Stopped{status.rootTitle ? ` — ${status.rootTitle}` : ""}
+                </p>
                 <p className="text-sm text-[--muted]">{status.lastError}</p>
             </div>
         )
@@ -143,8 +145,11 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
             // The server keeps this across a restart, so it reads the same whenever you come back.
             if (!status?.rootMediaId) return null
             return (
-                <div className="rounded-[--radius-md] border bg-gray-950 p-4 space-y-0.5" data-enqueue-future-progress>
-                    <p className="font-semibold">Finished{status.rootTitle ? ` — ${status.rootTitle}` : ""}</p>
+                <div className="space-y-0.5 rounded-3xl border border-emerald-400/20 bg-gradient-to-br from-emerald-500/[0.08] to-black/30 p-4 backdrop-blur-md sm:p-5" data-enqueue-future-progress>
+                    <p className="flex items-center gap-2 font-semibold text-emerald-100">
+                        <span className="size-2 rounded-full bg-emerald-400" />
+                        Finished{status.rootTitle ? ` — ${status.rootTitle}` : ""}
+                    </p>
                     <p className="text-sm text-[--muted]">
                         {status.prepared} of {status.discovered} ready
                         {status.families ? ` · ${status.families} series` : ""}
@@ -156,9 +161,12 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
             )
         }
         return (
-            <div className="rounded-[--radius-md] border p-4 flex items-center justify-between gap-4" data-enqueue-future-progress>
+            <div className="flex items-center justify-between gap-4 rounded-3xl border border-amber-300/20 bg-gradient-to-br from-amber-400/[0.07] to-black/30 p-4 backdrop-blur-md sm:p-5" data-enqueue-future-progress>
                 <div className="space-y-0.5">
-                    <p className="font-semibold">Paused{status.rootTitle ? ` — ${status.rootTitle}` : ""}</p>
+                    <p className="flex items-center gap-2 font-semibold text-amber-100">
+                        <span className="size-2 rounded-full bg-amber-400" />
+                        Paused{status.rootTitle ? ` — ${status.rootTitle}` : ""}
+                    </p>
                     <p className="text-sm text-[--muted]">
                         {status.prepared} of {status.discovered} were ready when it stopped. It'll carry on from there.
                     </p>
@@ -166,6 +174,7 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
                 <Button
                     intent="white"
                     size="sm"
+                    rounded
                     leftIcon={<LuPlay />}
                     onClick={() => resume()}
                     loading={isResuming}
@@ -186,14 +195,17 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
     return (
         <div
             className={cn(
-                "rounded-[--radius-md] border p-4 space-y-3",
-                status.rateLimited ? "border-[--orange] bg-[--orange]/5" : "bg-gray-950",
+                "relative space-y-3 overflow-hidden rounded-3xl border p-4 backdrop-blur-md sm:p-5",
+                status.rateLimited
+                    ? "border-orange-400/30 bg-gradient-to-br from-orange-500/10 to-black/30"
+                    : "border-sky-400/20 bg-gradient-to-br from-sky-500/[0.08] via-black/25 to-black/35",
             )}
             data-enqueue-future-progress
         >
             <div className="flex items-center justify-between gap-4">
-                <div className="space-y-0.5">
-                    <p className="font-semibold">
+                <div className="min-w-0 space-y-0.5">
+                    <p className="flex items-center gap-2 font-semibold text-white">
+                        <span className={cn("size-2 flex-none rounded-full animate-pulse", status.rateLimited ? "bg-orange-400" : "bg-sky-400")} />
                         {status.rateLimited
                             ? "Waiting out a rate limit"
                             : `Preparing${status.rootTitle ? ` from ${status.rootTitle}` : ""}`}
@@ -221,18 +233,27 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
                     </p>
                 </div>
 
-                <Button
-                    intent="alert-subtle"
-                    size="sm"
-                    leftIcon={<LuCircleStop />}
-                    onClick={() => stop()}
-                    loading={isStopping}
-                >
-                    Stop
-                </Button>
+                <div className="flex flex-none items-center gap-3">
+                    <span className="hidden text-2xl font-extrabold tabular-nums text-white sm:block">{percent}%</span>
+                    <Button
+                        intent="alert-subtle"
+                        size="sm"
+                        rounded
+                        leftIcon={<LuCircleStop />}
+                        onClick={() => stop()}
+                        loading={isStopping}
+                    >
+                        Stop
+                    </Button>
+                </div>
             </div>
 
-            <ProgressBar value={percent} size="sm" />
+            <div className="h-2 overflow-hidden rounded-full bg-white/[0.07]" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
+                <div
+                    className={cn("h-full rounded-full transition-[width] duration-500", status.rateLimited ? "bg-orange-400/70" : "bg-gradient-to-r from-sky-500 to-brand-300")}
+                    style={{ width: `${percent}%` }}
+                />
+            </div>
 
             {/* What is queued behind this run, in the order it will be walked.
               *
@@ -263,7 +284,7 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
                         {status.pendingRootList.slice(0, visibleRoots).map((root, i) => (
                             <li
                                 key={root.mediaId}
-                                className="group/root flex items-center gap-2 rounded-[--radius] border border-gray-800/80 bg-gray-950/40 px-2.5 py-1.5"
+                                className="group/root flex items-center gap-2 rounded-xl bg-black/25 px-2.5 py-1.5 ring-1 ring-white/[0.06]"
                             >
                                 <span className="text-[10px] font-semibold text-[--muted] w-5 flex-none tabular-nums">
                                     {i + 1}.
