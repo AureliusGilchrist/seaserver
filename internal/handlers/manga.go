@@ -1041,6 +1041,30 @@ func (h *Handler) HandleGetMangaReadingHistory(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
+	mediaByID := make(map[int]*anilist.BaseManga)
+	if collection, collectionErr := h.mangaCollectionForProfile(c); collectionErr == nil {
+		mediaByID = mangaMediaByID(collection)
+	} else {
+		h.App.Logger.Warn().Err(collectionErr).Msg("manga reading history: failed to load profile collection for media details")
+	}
+
+	needsPlanningCollection := false
+	for _, entry := range history {
+		if !entry.IsSynthetic && mediaByID[entry.MediaID] == nil {
+			needsPlanningCollection = true
+			break
+		}
+	}
+	if needsPlanningCollection {
+		if collection, collectionErr := h.getPlanningSlutMangaCollectionCached(c.Request().Context(), false); collectionErr == nil {
+			for mediaID, media := range mangaMediaByID(collection) {
+				if mediaByID[mediaID] == nil {
+					mediaByID[mediaID] = media
+				}
+			}
+		}
+	}
+
 	// Enrich with media details
 	var enrichedHistory []MangaReadingHistoryItem
 	for _, entry := range history {
@@ -1072,28 +1096,27 @@ func (h *Handler) HandleGetMangaReadingHistory(c echo.Context) error {
 				}
 			}
 		} else {
-			// Get AniList manga from collection
-			mangaCollection, err := h.App.GetMangaCollection(false)
-			if err == nil && mangaCollection != nil && mangaCollection.MediaListCollection != nil {
-				// Find manga in collection
-				for _, list := range mangaCollection.MediaListCollection.Lists {
-					for _, entry := range list.Entries {
-						if entry.Media != nil && entry.Media.ID == item.MediaID {
-							item.Media = entry.Media
-							break
-						}
-					}
-					if item.Media != nil {
-						break
-					}
-				}
-			}
+			item.Media = mediaByID[item.MediaID]
 		}
 
 		enrichedHistory = append(enrichedHistory, item)
 	}
 
 	return h.RespondWithData(c, enrichedHistory)
+}
+
+func mangaMediaByID(collections ...*anilist.MangaCollection) map[int]*anilist.BaseManga {
+	mediaByID := make(map[int]*anilist.BaseManga)
+	for _, collection := range collections {
+		for _, list := range collection.GetMediaListCollection().GetLists() {
+			for _, entry := range list.GetEntries() {
+				if media := entry.GetMedia(); media != nil && mediaByID[media.ID] == nil {
+					mediaByID[media.ID] = media
+				}
+			}
+		}
+	}
+	return mediaByID
 }
 
 // HandleGetRecentlyReadSyntheticManga
