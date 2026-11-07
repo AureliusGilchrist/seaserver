@@ -10,7 +10,7 @@ import { useGetUnmatchedTorrents } from "@/api/hooks/unmatched.hooks"
 import { useGetAchievementSummary } from "@/api/hooks/achievement.hooks"
 import { useAnilistListRecentAiringAnime, useGetRawAnimeCollection } from "@/api/hooks/anilist.hooks"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
-import { countLists } from "@/app/(main)/_features/home/list-insights"
+import { countLists, describeLists, formatWatchMinutes } from "@/app/(main)/_features/home/list-insights"
 import { useGetTorrentAddQueue } from "@/api/hooks/torrent_client.hooks"
 import { useMissingEpisodeCount } from "@/app/(main)/_hooks/missing-episodes-loader"
 import { useGetRawAnilistMangaCollection } from "@/api/hooks/manga.hooks"
@@ -182,14 +182,16 @@ export function useLandingAnimeStats() {
     const profile = useServerStatus()?.currentProfile
     const { data, isLoading, isError } = useGetRawAnimeCollection(!!profile?.id, profile?.id)
     const stats = React.useMemo(() => profile?.id ? countLists(data) : null, [data, profile?.id])
-    return { stats, isLoading, isError }
+    const description = React.useMemo(() => profile?.id ? describeLists(data, "anime") : null, [data, profile?.id])
+    return { stats, description, isLoading, isError }
 }
 
 export function useLandingMangaStats() {
     const profile = useServerStatus()?.currentProfile
     const { data, isLoading, isError } = useGetRawAnilistMangaCollection(!!profile?.id, profile?.id)
     const stats = React.useMemo(() => profile?.id ? countLists(data) : null, [data, profile?.id])
-    return { stats, isLoading, isError }
+    const description = React.useMemo(() => profile?.id ? describeLists(data, "manga") : null, [data, profile?.id])
+    return { stats, description, isLoading, isError }
 }
 
 /**
@@ -221,21 +223,71 @@ export function formatTimeUntil(seconds: number) {
     return `${Math.ceil(seconds / 3600)}h`
 }
 
+/**
+ * The six numbers that matter most, each with one small picture of itself and one plain line —
+ * how the list splits, how far along the progress is, how much of it is on disk — and three chips
+ * up top for the taste behind it. Everything comes from lists already loaded for the page.
+ */
 export function LandingLibraryInsightsWidget() {
-    const { stats: anime, isLoading: animeLoading } = useLandingAnimeStats()
-    const { stats: manga, isLoading: mangaLoading } = useLandingMangaStats()
+    const { stats: anime, description: animeD, isLoading: animeLoading } = useLandingAnimeStats()
+    const { stats: manga, description: mangaD, isLoading: mangaLoading } = useLandingMangaStats()
     const { data: counts } = useGetHomeCounts()
-    const { data: todo, isLoading: todoLoading, isError: todoError } = useGetToWatch()
+    const { data: todo, isError: todoError } = useGetToWatch()
     const totalEntries = anime && manga ? anime.onLists + manga.onLists : null
+    const downloaded = counts?.mangaAvailable ? counts.mangaChapters : null
+    const todoAnime = todo?.filter(entry => (entry.mediaType ?? "ANIME") === "ANIME").length ?? 0
+    const todoManga = todo?.filter(entry => entry.mediaType === "MANGA").length ?? 0
 
-    const metrics: { label: string, value: number | null, detail: string }[] = [
-        { label: "Anime", value: anime?.onLists ?? null, detail: anime ? `${anime.current} watching or rewatching` : "Personal AniList unavailable" },
-        { label: "Manga", value: manga?.onLists ?? null, detail: manga ? `${manga.current} reading or rereading` : "Personal AniList unavailable" },
-        { label: "Episodes watched", value: anime?.progress ?? null, detail: "Progress recorded in AniList" },
-        { label: "Chapters read", value: manga?.progress ?? null, detail: "Progress recorded in AniList" },
-        { label: "Downloaded chapters", value: counts?.mangaAvailable ? counts.mangaChapters : null, detail: "On the server" },
-        { label: "Todo items", value: todo?.length ?? null, detail: todoError ? "Could not load Todo List" : "Anime and manga planned" },
+    const listSplit = (s: typeof anime, d: typeof animeD): InsightBar | undefined => s ? [
+        { value: s.current, color: "bg-sky-400", label: "In progress" },
+        { value: s.completed, color: "bg-emerald-400", label: "Completed" },
+        { value: d?.paused ?? 0, color: "bg-amber-400", label: "Paused" },
+        { value: d?.dropped ?? 0, color: "bg-rose-400", label: "Dropped" },
+        { value: s.planning, color: "bg-violet-400", label: "Planning" },
+    ] : undefined
+    const finished = (s: typeof anime) => s && s.onLists - s.planning > 0 ? Math.round((s.completed / (s.onLists - s.planning)) * 100) : null
+    const watchedLine = (verb: string, s: typeof anime) => {
+        const pct = finished(s)
+        return s ? `${formatNumber(s.current)} ${verb}${pct !== null ? ` · ${pct}% finished` : ""}` : "Personal AniList unavailable"
+    }
+
+    const metrics: { label: string, value: number | null, detail: string, bar?: InsightBar }[] = [
+        { label: "Anime", value: anime?.onLists ?? null, bar: listSplit(anime, animeD), detail: watchedLine("watching", anime) },
+        { label: "Manga", value: manga?.onLists ?? null, bar: listSplit(manga, mangaD), detail: watchedLine("reading", manga) },
+        {
+            label: "Episodes watched",
+            value: anime?.progress ?? null,
+            bar: anime && animeD ? [{ value: anime.progress, color: "bg-brand-400", label: "Watched" }, { value: animeD.remaining, color: "bg-white/20", label: "To go" }] : undefined,
+            detail: animeD?.minutesWatched ? `About ${formatWatchMinutes(animeD.minutesWatched)} of watching` : "Progress recorded in AniList",
+        },
+        {
+            label: "Chapters read",
+            value: manga?.progress ?? null,
+            bar: manga && mangaD ? [{ value: manga.progress, color: "bg-brand-400", label: "Read" }, { value: mangaD.remaining, color: "bg-white/20", label: "To go" }] : undefined,
+            detail: mangaD?.remaining ? `${formatNumber(mangaD.remaining)} to go on what you read` : "Progress recorded in AniList",
+        },
+        {
+            label: "Downloaded chapters",
+            value: downloaded,
+            bar: downloaded !== null && manga?.progress
+                ? [{ value: Math.min(downloaded, manga.progress), color: "bg-sky-400", label: "On disk" }, { value: Math.max(0, manga.progress - downloaded), color: "bg-white/20", label: "Read, not on disk" }]
+                : undefined,
+            detail: downloaded !== null && manga?.progress ? `${Math.round((downloaded / manga.progress) * 100)}% of what you have read` : "On the server",
+        },
+        {
+            label: "Todo items",
+            value: todo?.length ?? null,
+            bar: todo?.length ? [{ value: todoAnime, color: "bg-sky-400", label: "Anime" }, { value: todoManga, color: "bg-fuchsia-400", label: "Manga" }] : undefined,
+            detail: todoError ? "Could not load Todo List" : todo ? `${formatNumber(todoAnime)} anime · ${formatNumber(todoManga)} manga` : "Anime and manga planned",
+        },
     ]
+
+    const thisYear = (animeD?.completedThisYear ?? 0) + (mangaD?.completedThisYear ?? 0)
+    const chips = [
+        animeD?.genres[0] ? `Mostly ${animeD.genres[0].key}` : null,
+        animeD?.communityMean ? `★ ${(animeD.communityMean / 10).toFixed(1)} anime average` : null,
+        animeD || mangaD ? `${formatNumber(thisYear)} finished in ${new Date().getFullYear()}` : null,
+    ].filter((chip): chip is string => !!chip)
 
     return (
         <section
@@ -251,9 +303,13 @@ export function LandingLibraryInsightsWidget() {
                         {animeLoading || mangaLoading ? "Updating your collection…" : totalEntries === null ? "Your personal AniList totals are unavailable." : `${formatNumber(totalEntries)} titles on your lists, including planning.`}
                     </p>
                 </div>
-                <div className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-xs font-semibold text-white/70">
-                    {todoLoading ? "Loading queue…" : todo ? `${formatNumber(todo.length)} in your Todo List` : "Todo List unavailable"}
-                </div>
+                {!!chips.length && (
+                    <div className="flex flex-wrap gap-1.5">
+                        {chips.map(chip => (
+                            <span key={chip} className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-xs font-semibold text-white/75">{chip}</span>
+                        ))}
+                    </div>
+                )}
             </header>
             <div className="relative mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
                 {metrics.map(metric => (
@@ -262,11 +318,26 @@ export function LandingLibraryInsightsWidget() {
                             {metric.value === null ? "—" : formatNumber(metric.value)}
                         </p>
                         <p className="mt-1 truncate text-[10px] font-bold uppercase tracking-wider text-white/75">{metric.label}</p>
-                        <p className="mt-1 line-clamp-1 text-[11px] text-white/45">{metric.detail}</p>
+                        <InsightMiniBar segments={metric.bar} />
+                        <p className="mt-1.5 line-clamp-1 text-[11px] text-white/45">{metric.detail}</p>
                     </div>
                 ))}
             </div>
         </section>
+    )
+}
+
+type InsightBar = { value: number, color: string, label: string }[]
+
+/** A thin split bar; the empty track keeps every tile the same height when there is nothing to split. */
+function InsightMiniBar({ segments }: { segments?: InsightBar }) {
+    const total = segments?.reduce((n, s) => n + s.value, 0) ?? 0
+    return (
+        <div className="mt-2.5 flex h-1.5 gap-px overflow-hidden rounded-full bg-white/[0.06]">
+            {!!total && segments!.filter(s => s.value > 0).map(s => (
+                <span key={s.label} className={cn("h-full", s.color)} style={{ width: `${(s.value / total) * 100}%` }} title={`${s.label}: ${formatNumber(s.value)}`} />
+            ))}
+        </div>
     )
 }
 
