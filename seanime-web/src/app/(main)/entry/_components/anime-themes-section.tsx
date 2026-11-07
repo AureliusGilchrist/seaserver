@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCount } from "@/lib/helpers/number"
 import { useGetAnimeThemes, AnimeTheme } from "@/api/hooks/anime_themes.hooks"
 import { getServerBaseUrl } from "@/api/client/server-url"
 import React, { useState, useRef } from "react"
@@ -25,7 +26,7 @@ export function AnimeThemesSection({ malId }: Props) {
                 className="flex items-center gap-2 text-lg font-semibold hover:text-white transition text-[--muted]"
             >
                 <LuMusic className="text-xl" />
-                <span>Themes ({data.themes.length})</span>
+                <span>Themes ({formatCount(data.themes.length)})</span>
                 {expanded ? <LuChevronUp /> : <LuChevronDown />}
             </button>
 

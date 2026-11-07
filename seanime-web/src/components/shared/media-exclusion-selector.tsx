@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCount } from "@/lib/helpers/number"
 import { Anime_LibraryCollectionEntry } from "@/api/generated/types"
 import { animeLibraryCollectionAtom } from "@/app/(main)/_atoms/anime-library-collection.atoms"
 import { imageShimmer } from "@/components/shared/image-helpers"
@@ -173,7 +174,7 @@ export const MediaExclusionSelector = React.forwardRef<HTMLDivElement, MediaExcl
                         <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
                                 <span className="text-sm font-medium">
-                                    {selectedIds.length} anime excluded from sharing
+                                    {formatCount(selectedIds.length)} anime excluded from sharing
                                 </span>
                                 {selectedIds.length > 0 && (
                                     <span className="text-xs text-[--muted]">(will not be visible to other clients)</span>
@@ -261,7 +262,7 @@ export const MediaExclusionSelector = React.forwardRef<HTMLDivElement, MediaExcl
                                     </Button>
                                     <div className="flex-1" />
                                     <span className="text-sm text-[--muted]">
-                                        {selectedIds.length} selected (will not be shared)
+                                        {formatCount(selectedIds.length)} selected (will not be shared)
                                     </span>
                                 </div>
 
@@ -319,7 +320,7 @@ export const MediaExclusionSelector = React.forwardRef<HTMLDivElement, MediaExcl
                                         intent="primary"
                                         onClick={() => setModalOpen(false)}
                                     >
-                                        Done ({selectedIds.length} selected)
+                                        Done ({formatCount(selectedIds.length)} selected)
                                     </Button>
                                 </div>
                             </div>

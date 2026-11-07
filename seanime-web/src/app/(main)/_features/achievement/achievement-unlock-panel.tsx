@@ -6,7 +6,7 @@ import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websocke
 import { cn } from "@/components/ui/core/styling"
 import { useAnimeThemeOrNull } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { WSEvents } from "@/lib/server/ws-events"
-import { formatNumber } from "@/lib/helpers/number"
+import { formatNumber, formatCount } from "@/lib/helpers/number"
 import { useQueryClient } from "@tanstack/react-query"
 import React from "react"
 import { LuTrophy, LuFlag, LuCrown } from "react-icons/lu"
@@ -87,7 +87,7 @@ function accentClasses(accent: UnlockAccent) {
 }
 
 function eyebrowLabel(items: UnlockItem[]) {
-    if (items.length > 1) return `${items.length} Unlocked`
+    if (items.length > 1) return `${formatCount(items.length)} Unlocked`
     const item = items[0]
     if (item.accent === "first") return "First to Achieve!"
     if (item.kind === "milestone") return "Milestone Reached"

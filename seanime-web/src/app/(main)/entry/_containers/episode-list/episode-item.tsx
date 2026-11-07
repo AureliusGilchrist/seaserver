@@ -1,3 +1,4 @@
+import { formatCount } from "@/lib/helpers/number"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { AL_BaseAnime, Anime_Episode, Anime_LocalFileType } from "@/api/generated/types"
@@ -325,7 +326,7 @@ export function EpisodeItemInfoModalButton({ episode }: { episode: Anime_Episode
                     <span className="opacity-75">Aired:</span> {episode.episodeMetadata?.airDate || "Unknown"}
                 </p>
                 <p>
-                    <span className="opacity-75">Duration:</span> {episode.episodeMetadata?.length ? `${episode.episodeMetadata.length} minutes` : "N/A"}
+                    <span className="opacity-75">Duration:</span> {episode.episodeMetadata?.length ? `${formatCount(episode.episodeMetadata.length)} minutes` : "N/A"}
                 </p>
                 {!!episode.episodeMetadata?.isFiller && <p className="text-orange-300/80">Filler episode</p>}
             </div>

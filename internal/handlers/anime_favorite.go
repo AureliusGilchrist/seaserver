@@ -81,3 +81,27 @@ func (h *Handler) HandleBulkAddAnimeFavorites(c echo.Context) error {
 	}
 	return h.RespondWithData(c, true)
 }
+
+// HandleReorderFavorites
+//
+//	@summary store the order of one kind of favourite.
+//	@desc The first ID becomes the profile's number one. Type is anime, manga, character, staff or studio.
+//	@returns bool
+//	@route /api/v1/favorites/reorder [POST]
+func (h *Handler) HandleReorderFavorites(c echo.Context) error {
+	type body struct {
+		Type string `json:"type"`
+		IDs  []int  `json:"ids"`
+	}
+	var b body
+	if err := c.Bind(&b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+	if len(b.IDs) > 5000 {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "too many favourites in one reorder"))
+	}
+	if err := h.GetProfileDatabase(c).ReorderFavorites(b.Type, b.IDs); err != nil {
+		return h.RespondWithError(c, err)
+	}
+	return h.RespondWithData(c, true)
+}

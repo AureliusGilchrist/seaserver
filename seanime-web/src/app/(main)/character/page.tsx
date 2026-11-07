@@ -11,7 +11,7 @@ import { cn } from "@/components/ui/core/styling"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip } from "@/components/ui/tooltip"
 import { AnilistMarkdown, extractAnilistFacts, Spoiler } from "@/lib/helpers/anilist-markdown"
-import { formatNumber } from "@/lib/helpers/number"
+import { formatNumber, formatCount } from "@/lib/helpers/number"
 import { usePathname, useRouter, useSearchParams } from "@/lib/navigation"
 import React, { useMemo } from "react"
 import { AiFillHeart, AiOutlineHeart } from "react-icons/ai"
@@ -336,7 +336,7 @@ export default function Page() {
                                 <div className="-mx-1 flex max-w-full gap-1 overflow-x-auto px-1 [scrollbar-width:none]">
                                     {voiceActorsByLanguage.map(g => (
                                         <PillButton key={g.language} active={g.language === activeLanguage} onClick={() => setVaLanguage(g.language)}>
-                                            {g.language} <span className="opacity-60">{g.entries.length}</span>
+                                            {g.language} <span className="opacity-60">{formatCount(g.entries.length)}</span>
                                         </PillButton>
                                     ))}
                                 </div>
@@ -384,12 +384,12 @@ export default function Page() {
                             <div className="flex items-center gap-1 rounded-xl bg-white/[0.03] p-1 ring-1 ring-white/[0.07] self-start">
                                 {animeAppearances.length > 0 && (
                                     <TabButton active={tab === "anime"} onClick={() => { setTab("anime"); setRoleFilter("ALL") }}>
-                                        <LuTv className="size-4" /> Anime <span className="opacity-60">{animeAppearances.length}</span>
+                                        <LuTv className="size-4" /> Anime <span className="opacity-60">{formatCount(animeAppearances.length)}</span>
                                     </TabButton>
                                 )}
                                 {mangaAppearances.length > 0 && (
                                     <TabButton active={tab === "manga"} onClick={() => { setTab("manga"); setRoleFilter("ALL") }}>
-                                        <LuBookOpen className="size-4" /> Manga <span className="opacity-60">{mangaAppearances.length}</span>
+                                        <LuBookOpen className="size-4" /> Manga <span className="opacity-60">{formatCount(mangaAppearances.length)}</span>
                                     </TabButton>
                                 )}
                             </div>

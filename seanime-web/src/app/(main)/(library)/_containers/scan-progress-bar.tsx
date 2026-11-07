@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/loading-spinner"
 import { ProgressBar } from "@/components/ui/progress-bar"
-import { formatNumber } from "@/lib/helpers/number"
+import { formatNumber, formatCount } from "@/lib/helpers/number"
 import { WSEvents } from "@/lib/server/ws-events"
 import { useAtom } from "jotai/react"
 import React, { useState } from "react"
@@ -129,7 +129,7 @@ export function MangaHydrationProgressBar() {
                                     <ProgressBar size="sm" value={hydrationStatus.progress} />
                                     <div className="text-xs text-[--muted] space-y-1">
                                         <p>{formatNumber(hydrationStatus.processed)}/{formatNumber(hydrationStatus.total)} processed ({formatNumber(Math.round(hydrationStatus.progress))}%)</p>
-                                        <p>Hydrated: {hydrationStatus.aniListHydrated + hydrationStatus.syntheticHydrated} | Skipped: {hydrationStatus.skipped} | Failed: {hydrationStatus.failed}</p>
+                                        <p>Hydrated: {hydrationStatus.aniListHydrated + hydrationStatus.syntheticHydrated} | Skipped: {formatCount(hydrationStatus.skipped)} | Failed: {formatCount(hydrationStatus.failed)}</p>
                                     </div>
                                 </>
                             ) : (
@@ -139,7 +139,7 @@ export function MangaHydrationProgressBar() {
                                     <div className="text-xs text-[--muted] space-y-1">
                                         <p>{formatNumber(hydrationStatus.processed)}/{formatNumber(hydrationStatus.total)} processed ({formatNumber(Math.round(hydrationStatus.progress))}%)</p>
                                         <p>AniList hydrated: {hydrationStatus.aniListHydrated} | Synthetic hydrated: {hydrationStatus.syntheticHydrated}</p>
-                                        <p>Skipped: {hydrationStatus.skipped} | Failed: {hydrationStatus.failed}</p>
+                                        <p>Skipped: {formatCount(hydrationStatus.skipped)} | Failed: {formatCount(hydrationStatus.failed)}</p>
                                         {!!hydrationStatus.wasCancelled && <p>Status: cancelled</p>}
                                     </div>
 

@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCount } from "@/lib/helpers/number"
 import { MediaFamilyMember, useGetMediaFamily } from "@/api/hooks/anilist.hooks"
 import { MediaSectionHeading } from "@/app/(main)/_features/media/_components/media-section-heading"
 import {
@@ -171,8 +172,8 @@ function FranchiseCard({ member: m, current }: { member: MediaFamilyMember, curr
     const year = m.seasonYear || m.startDate?.year
     const when = m.season && m.seasonYear ? `${capitalize(m.season)} ${m.seasonYear}` : year ? String(year) : "TBA"
     const count = m.type === "MANGA"
-        ? (m.chapters ? `${m.chapters} ch` : null)
-        : (m.episodes ? `${m.episodes} ep` : null)
+        ? (m.chapters ? `${formatCount(m.chapters)} ch` : null)
+        : (m.episodes ? `${formatCount(m.episodes)} ep` : null)
 
     const body = (
         <div className={cn("group relative flex flex-col gap-2", current && "pointer-events-none")}>

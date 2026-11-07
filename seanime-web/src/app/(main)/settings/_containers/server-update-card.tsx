@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCount } from "@/lib/helpers/number"
 import { BACKEND_UPDATE_STATUS_KEY, BackendUpdateStatus, useBackendUpdateStatus } from "@/api/hooks/update-notice.hooks"
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
 import { Button } from "@/components/ui/button"
@@ -175,7 +176,7 @@ export function ServerUpdateCard({ remote, running, checking, progress, errorTex
                             {status.commitsBehind} new commit{status.commitsBehind === 1 ? "" : "s"}
                             {files.length > 0 && (
                                 <span className="ml-2 font-normal text-[--muted]">
-                                    {files.length} file{files.length === 1 ? "" : "s"} · <span className="text-emerald-400">+{ins}</span> <span className="text-red-400">−{del}</span>
+                                    {formatCount(files.length)} file{files.length === 1 ? "" : "s"} · <span className="text-emerald-400">+{ins}</span> <span className="text-red-400">−{del}</span>
                                 </span>
                             )}
                         </p>

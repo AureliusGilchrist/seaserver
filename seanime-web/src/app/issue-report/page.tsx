@@ -1,4 +1,4 @@
-import { formatNumber } from "@/lib/helpers/number"
+import { formatNumber, formatCount } from "@/lib/helpers/number"
 import { Report_ClickLog, Report_ConsoleLog, Report_IssueReport, Report_NetworkLog } from "@/api/generated/types"
 
 import { useDecompressIssueReport } from "@/api/hooks/report.hooks"
@@ -823,7 +823,7 @@ function OverviewPanel({ report, stats, events }: { report: ExtendedReport; stat
             {report.unlockedLocalFiles && report.unlockedLocalFiles.length > 0 && (
                 <div className="space-y-2">
                     <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
-                        Unlocked local files ({report.unlockedLocalFiles.length})
+                        Unlocked local files ({formatCount(report.unlockedLocalFiles.length)})
                     </h3>
                     <div className="bg-gray-900 border border-[--border] rounded-lg max-h-[30vh] overflow-auto">
                         {report.unlockedLocalFiles.map((f, i) => (
@@ -960,7 +960,7 @@ function TimelinePanel({ events, searchQuery, setSearchQuery, includeServerLogs,
             <div className="flex-1 min-w-0 bg-gray-950">
                 <div className="p-2 border-b border-[--border] flex items-center justify-between">
                     <span className="text-sm text-gray-400 font-medium">Events</span>
-                    <span className="text-xs text-gray-500">{filtered.length} filtered events</span>
+                    <span className="text-xs text-gray-500">{formatCount(filtered.length)} filtered events</span>
                 </div>
                 <Virtuoso
                     style={{ height: "calc(100% - 40px)" }}
@@ -1133,7 +1133,7 @@ function NetworkPanel({ logs, searchQuery, setSearchQuery }: {
                             statusFilter === "all" ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300 hover:bg-gray-800",
                         )}
                     >
-                        All ({logs.length})
+                        All ({formatCount(logs.length)})
                     </button>
                     <button
                         onClick={() => setStatusFilter("errors")}
@@ -1145,7 +1145,7 @@ function NetworkPanel({ logs, searchQuery, setSearchQuery }: {
                         Errors ({errorCount})
                     </button>
                 </div>
-                <span className="text-sm text-gray-500 self-center flex-none">{filtered.length} requests</span>
+                <span className="text-sm text-gray-500 self-center flex-none">{formatCount(filtered.length)} requests</span>
             </div>
 
             <Virtuoso
@@ -1346,7 +1346,7 @@ function ClicksPanel({ logs, searchQuery, setSearchQuery }: {
                     className="max-w-md"
                     fieldClass="w-fit"
                 />
-                <span className="text-sm text-gray-500">{filtered.length} clicks</span>
+                <span className="text-sm text-gray-500">{formatCount(filtered.length)} clicks</span>
             </div>
             <Virtuoso
                 style={{ height: "calc(100vh - 200px)" }}
@@ -1400,7 +1400,7 @@ function ServerLogsPanel({ serverLogs, searchQuery, setSearchQuery }: {
                     className="max-w-md"
                     fieldClass="w-fit"
                 />
-                <span className="text-sm text-gray-500">{filtered.length} lines</span>
+                <span className="text-sm text-gray-500">{formatCount(filtered.length)} lines</span>
             </div>
             <Virtuoso
                 style={{ height: "calc(100vh - 200px)" }}
@@ -1441,7 +1441,7 @@ function ScreenshotsPanel({ screenshots }: { screenshots: Screenshot[] }) {
     return (
         <div className="p-4 space-y-4">
             <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
-                Screenshots ({screenshots.length})
+                Screenshots ({formatCount(screenshots.length)})
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {screenshots.map((ss, i) => (
@@ -1650,7 +1650,7 @@ function ReplayPanel({ rrwebEvents, unifiedEvents, includeServerLogs, setInclude
         <div className="h-[calc(100vh-120px)] overflow-hidden flex flex-col">
             <div className="px-4 py-2 flex items-center gap-3 border-b border-[--border] bg-gray-950 flex-none">
                 <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Session Replay</h3>
-                <span className="text-xs text-gray-500">{rrwebEvents.length} DOM events</span>
+                <span className="text-xs text-gray-500">{formatCount(rrwebEvents.length)} DOM events</span>
                 <div className="ml-auto">
                     <Checkbox
                         label="Include server logs"
@@ -1677,7 +1677,7 @@ function ReplayPanel({ rrwebEvents, unifiedEvents, includeServerLogs, setInclude
                     <div className="h-full bg-gray-950 flex flex-col flex-none">
                         <div className="p-2 border-b border-[--border] bg-gray-900/50 space-y-2">
                             <div className="flex items-center justify-between">
-                                <p className="text-xs text-center font-medium text-gray-400">Timeline ({visibleEvents.length})</p>
+                                <p className="text-xs text-center font-medium text-gray-400">Timeline ({formatCount(visibleEvents.length)})</p>
                             </div>
                             <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar mask-fade-right">
                                 {FILTER_OPTIONS.map(({ key, label }) => (
@@ -1789,7 +1789,7 @@ function WebSocketPanel({ logs, searchQuery, setSearchQuery }: {
                         </button>
                     ))}
                 </div>
-                <span className="text-sm text-gray-500 self-center flex-none">{filtered.length} events</span>
+                <span className="text-sm text-gray-500 self-center flex-none">{formatCount(filtered.length)} events</span>
             </div>
 
             <Virtuoso
@@ -1841,7 +1841,7 @@ function ScanLogsPanel({ scanLogs }: { scanLogs: string[] }) {
     return (
         <div className="p-4 space-y-3">
             <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
-                Scan Logs ({scanLogs.length})
+                Scan Logs ({formatCount(scanLogs.length)})
             </h3>
             <p>
                 First = earliest

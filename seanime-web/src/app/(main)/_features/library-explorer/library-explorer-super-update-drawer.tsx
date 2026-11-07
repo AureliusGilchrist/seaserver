@@ -1,3 +1,4 @@
+import { formatCount } from "@/lib/helpers/number"
 import { useSuperUpdateLocalFiles } from "@/api/generated/library_explorer.hooks"
 import { Anime_LocalFileMetadata, Anime_LocalFileType, LibraryExplorer_FileTreeNodeJSON } from "@/api/generated/types"
 import { formatErrorForToast } from "@/lib/helpers/error-details"
@@ -595,7 +596,7 @@ export function LibraryExplorerSuperUpdateDrawer(props: LibraryExplorerSuperUpda
 
         if (validChanges.length < changedItems.length) {
             const skipped = changedItems.length - validChanges.length
-            toast.warning(`Applying ${validChanges.length} changes, skipping ${skipped} invalid changes`)
+            toast.warning(`Applying ${formatCount(validChanges.length)} changes, skipping ${skipped} invalid changes`)
         }
 
         console.log("filesToUpdate", filesToUpdate)
@@ -821,10 +822,10 @@ export function LibraryExplorerSuperUpdateDrawer(props: LibraryExplorerSuperUpda
                         <div className="mb-4 flex justify-between items-center">
                             <div className="flex gap-6">
                                 <span className="text-sm text-gray-300">
-                                    Original ({selectedFileNodes.length})
+                                    Original ({formatCount(selectedFileNodes.length)})
                                 </span>
                                 <span className="text-sm text-gray-300">
-                                    Renamed ({changedItems.length})
+                                    Renamed ({formatCount(changedItems.length)})
                                 </span>
                             </div>
                             <Button
@@ -836,7 +837,7 @@ export function LibraryExplorerSuperUpdateDrawer(props: LibraryExplorerSuperUpda
                                 intent="white"
                                 size="sm"
                             >
-                                Apply ({changedItems.length})
+                                Apply ({formatCount(changedItems.length)})
                             </Button>
                         </div>
 

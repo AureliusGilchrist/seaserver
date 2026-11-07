@@ -1,4 +1,5 @@
 "use client"
+import { formatCount } from "@/lib/helpers/number"
 import { Anime_LibraryCollectionList, Anime_LocalFile, Anime_UnknownGroup, Anime_UnmatchedGroup } from "@/api/generated/types"
 import { useOpenInExplorer } from "@/api/hooks/explorer.hooks"
 import { useGetAllExtensions } from "@/api/hooks/extensions.hooks"
@@ -153,7 +154,7 @@ export function HomeToolbar(props: HomeToolbarProps) {
                     leftIcon={<LuFolderTree />}
                     onClick={() => setUnmatchedFileManagerOpen(true)}
                 >
-                    Resolve unmatched ({unmatchedGroups.length})
+                    Resolve unmatched ({formatCount(unmatchedGroups.length)})
                 </Button>}
                 {(!isNakamaLibrary && unknownGroups.length > 0) && <Button
                     data-home-toolbar-unknown-button
@@ -162,7 +163,7 @@ export function HomeToolbar(props: HomeToolbarProps) {
                     className="animate-bounce"
                     onClick={() => setUnknownMediaManagerOpen(true)}
                 >
-                    Resolve hidden media ({unknownGroups.length})
+                    Resolve hidden media ({formatCount(unknownGroups.length)})
                 </Button>}
 
                 {/* The other library, one press away. Reads as its own door — the swap arrows say

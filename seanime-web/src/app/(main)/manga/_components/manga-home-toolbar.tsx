@@ -1,7 +1,6 @@
 "use client"
 import { useOpenInExplorer } from "@/api/hooks/explorer.hooks"
 import { __manga_home_settingsModalOpen } from "@/app/(main)/manga/_components/manga-home-settings"
-import { libraryExplorer_drawerOpenAtom } from "@/app/(main)/_features/library-explorer/library-explorer.atoms"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { SeaLink } from "@/components/shared/sea-link"
 import { Button, IconButton } from "@/components/ui/button"
@@ -25,7 +24,6 @@ export function MangaHomeToolbar(props: MangaHomeToolbarProps) {
 
     const serverStatus = useServerStatus()
 
-    const setLibraryExplorerDrawerOpen = useSetAtom(libraryExplorer_drawerOpenAtom)
     const setHomeSettingsModalOpen = useSetAtom(__manga_home_settingsModalOpen)
 
     const { mutate: openInExplorer } = useOpenInExplorer()
@@ -37,23 +35,6 @@ export function MangaHomeToolbar(props: MangaHomeToolbarProps) {
             <div className={cn("flex flex-wrap w-full justify-end gap-1 p-4 relative z-[120]", className)} data-manga-home-toolbar-container>
                 <div className="flex flex-1 pointer-events-none" data-manga-home-toolbar-spacer></div>
                 <div className="flex flex-wrap items-center justify-end gap-1 rounded-full bg-black/25 p-1 ring-1 ring-white/10 backdrop-blur-md empty:hidden" data-home-toolbar-actions>
-
-                {hasManga && (
-                    <>
-                        {hasMangaDownloadPath && <Tooltip
-                            trigger={<IconButton
-                                data-manga-home-toolbar-library-explorer-button
-                                intent={"white-subtle"}
-                                icon={<LuFolderTree className="text-2xl" />}
-                                onClick={() => {
-                                    setLibraryExplorerDrawerOpen(true)
-                                }}
-                            />}
-                        >
-                            Library Explorer
-                        </Tooltip>}
-                    </>
-                )}
 
                 {/* The other library, one press away — the same door the anime page's toolbar
                     carries back here, so the two read as a pair. */}

@@ -1,3 +1,4 @@
+import { formatCount } from "@/lib/helpers/number"
 import { attachHiddenAudioSync } from "@/app/(main)/_features/video-core/hidden-audio-sync"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { useDirectstreamPlayLocalFile } from "@/api/hooks/directstream.hooks"
@@ -188,7 +189,7 @@ export function NativePlayer() {
     // content-keyed event cache.
     React.useEffect(() => {
         if (!subtitleManager || !allSubtitleEventsRef.current.length) return
-        log.info(`Replaying ${allSubtitleEventsRef.current.length} subtitle events into new subtitle manager`)
+        log.info(`Replaying ${formatCount(allSubtitleEventsRef.current.length)} subtitle events into new subtitle manager`)
         subtitleManager.onSubtitleEvents(allSubtitleEventsRef.current)?.then()
     }, [subtitleManager])
 

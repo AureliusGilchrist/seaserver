@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCount } from "@/lib/helpers/number"
 import { UnmatchedTorrent, useDeleteUnmatchedTorrent } from "@/api/hooks/unmatched.hooks"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/components/ui/core/styling"
@@ -95,7 +96,7 @@ export function UnmatchedTorrentCard({ torrent, onSelect, matchQueued }: Unmatch
                         <div className="flex flex-wrap gap-2">
                             <Badge intent="gray" size="sm">
                                 <BiFile className="mr-1" />
-                                {torrent.fileCount} files
+                                {formatCount(torrent.fileCount)} files
                             </Badge>
                             <Badge intent="gray" size="sm">
                                 <LuHardDrive className="mr-1" />
@@ -132,7 +133,7 @@ export function UnmatchedTorrentCard({ torrent, onSelect, matchQueued }: Unmatch
                         )}
                         {!!torrent.pendingConflict && (
                             <p className="text-xs text-[--muted] mt-2">
-                                {torrent.pendingConflict.files.length} of {torrent.pendingConflict.totalPlanned} episode
+                                {formatCount(torrent.pendingConflict.files.length)} of {torrent.pendingConflict.totalPlanned} episode
                                 {torrent.pendingConflict.totalPlanned === 1 ? "" : "s"} are already in the library.
                                 Match this download to choose which copy to keep.
                             </p>

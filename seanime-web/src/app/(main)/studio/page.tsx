@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCount } from "@/lib/helpers/number"
 import { StudioPerson, StudioProfile, StudioWork, useGetStudioProfile } from "@/api/hooks/anilist.hooks"
 import { useGetStudioFavorites, useToggleStudioFavorite } from "@/api/hooks/favorites.hooks"
 import { serverErrorMessage } from "@/api/hooks/update-notice.hooks"
@@ -162,7 +163,7 @@ function StudioHero({ studio, isFav, onFav, favPending }: {
                     {[
                         st.firstYear ? (st.lastYear && st.lastYear !== st.firstYear ? `Active ${st.firstYear}–${st.lastYear}` : `Since ${st.firstYear}`) : null,
                         `${st.mainCount} title${st.mainCount === 1 ? "" : "s"} as main studio`,
-                        studio.directors.length ? `${studio.directors.length} director${studio.directors.length === 1 ? "" : "s"}` : null,
+                        studio.directors.length ? `${formatCount(studio.directors.length)} director${studio.directors.length === 1 ? "" : "s"}` : null,
                         st.airing ? `${st.airing} airing now` : null,
                     ].filter(Boolean).join(" · ")}
                 </p>
@@ -292,7 +293,7 @@ function Directors({ directors, byId }: { directors: StudioPerson[], byId: Map<n
                                     {p.native && <span className="block truncate text-xs text-white/40">{p.native}</span>}
                                     <span className="mt-1 inline-flex items-center gap-1.5">
                                         <span className="rounded-full bg-brand-500/15 px-2 py-0.5 text-[11px] font-medium text-brand-100 ring-1 ring-brand-400/20">{p.role.trim()}</span>
-                                        <span className="text-[11px] text-white/50">{works.length} title{works.length === 1 ? "" : "s"}</span>
+                                        <span className="text-[11px] text-white/50">{formatCount(works.length)} title{works.length === 1 ? "" : "s"}</span>
                                     </span>
                                 </span>
                             </div>
@@ -335,7 +336,7 @@ function AtAGlance({ studio }: { studio: StudioProfile }) {
                                     className={cn("w-full rounded-t-md transition-colors", y.count ? "bg-gradient-to-t from-brand-500/60 to-brand-300 group-hover:to-white" : "bg-white/[0.04]")}
                                     style={{ height: `${y.count ? Math.max(6, (y.count / maxYear) * 100) : 3}%` }}
                                 />
-                            </div>}>{y.key}: {y.count} title{y.count === 1 ? "" : "s"}</Tooltip>
+                            </div>}>{y.key}: {formatCount(y.count)} title{y.count === 1 ? "" : "s"}</Tooltip>
                         ))}
                     </div>
                     <div className="mt-2 flex justify-between text-[11px] tabular-nums text-white/40">
@@ -349,7 +350,7 @@ function AtAGlance({ studio }: { studio: StudioProfile }) {
                     <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
                         {st.genres.map(g => (
                             <SeaLink key={g.key} href={`/search?genre=${encodeURIComponent(g.key)}&sorting=TRENDING_DESC`} className="group block">
-                                <div className="flex justify-between text-xs"><span className="text-white/80 group-hover:text-white">{g.key}</span><span className="tabular-nums text-white/40">{g.count}</span></div>
+                                <div className="flex justify-between text-xs"><span className="text-white/80 group-hover:text-white">{g.key}</span><span className="tabular-nums text-white/40">{formatCount(g.count)}</span></div>
                                 <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
                                     <div className="h-full rounded-full bg-gradient-to-r from-brand-400/80 to-cyan-300/80" style={{ width: `${(g.count / maxGenre) * 100}%` }} />
                                 </div>
@@ -366,7 +367,7 @@ function AtAGlance({ studio }: { studio: StudioProfile }) {
                         {st.formats.map((f, i) => (
                             <div key={f.key} className="flex items-center justify-between text-sm">
                                 <span className="flex items-center gap-2 text-white/80"><span className={cn("size-2.5 rounded-full", formatColors[i % formatColors.length])} />{MEDIA_FORMAT_LABELS[f.key] ?? capitalize(f.key)}</span>
-                                <span className="tabular-nums text-white/50">{f.count}</span>
+                                <span className="tabular-nums text-white/50">{formatCount(f.count)}</span>
                             </div>
                         ))}
                     </div>
@@ -425,7 +426,7 @@ function Filmography({ studio }: { studio: StudioProfile }) {
                 title="Filmography"
                 count={filtered.length}
                 aside={studio.totalWorks > studio.works.length
-                    ? <span className="text-xs text-[--muted]">Showing the latest {studio.works.length} of {studio.totalWorks}</span>
+                    ? <span className="text-xs text-[--muted]">Showing the latest {formatCount(studio.works.length)} of {studio.totalWorks}</span>
                     : null}
             />
 
@@ -472,7 +473,7 @@ function Filmography({ studio }: { studio: StudioProfile }) {
                         {g.year && <div className="flex items-center gap-3">
                             <span className="text-2xl font-black tabular-nums text-white/90">{g.year}</span>
                             <span className="h-px flex-1 bg-gradient-to-r from-white/15 to-transparent" />
-                            <span className="text-xs text-white/40">{g.works.length}</span>
+                            <span className="text-xs text-white/40">{formatCount(g.works.length)}</span>
                         </div>}
                         <div className="sea-card-grid sea-card-anime">
                             {g.works.map(w => <WorkCard key={w.id} work={w} byDirector={studio.directors} />)}
@@ -520,7 +521,7 @@ function WorkCard({ work: w, byDirector }: { work: StudioWork, byDirector: Studi
 
 function workMeta(w: StudioWork) {
     const when = w.season && w.seasonYear ? `${capitalize(w.season)} ${w.seasonYear}` : (w.startDate?.year ?? w.seasonYear ?? "TBA")
-    const len = w.episodes ? `${w.episodes} ep` : null
+    const len = w.episodes ? `${formatCount(w.episodes)} ep` : null
     const pop = w.popularity ? `${compact(w.popularity)} members` : null
     return [when, len, pop].filter(Boolean).join(" · ")
 }

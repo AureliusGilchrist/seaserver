@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCount } from "@/lib/helpers/number"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { AnilistQueuedListEdit, useGetAnilistEditQueue } from "@/api/hooks/anilist.hooks"
 import { anilistSaveStateAtom } from "@/app/(main)/_atoms/anilist-sync.atoms"
@@ -76,7 +77,7 @@ export function AnilistEditQueueChip({ className }: { className?: string }) {
     return <Tooltip
         trigger={<span>
             <Pill className={className} tone="amber" icon={<LuCloudUpload className="size-3.5 animate-pulse" />}>
-                {queue.length} {queue.length === 1 ? "change" : "changes"} waiting to sync
+                {formatCount(queue.length)} {queue.length === 1 ? "change" : "changes"} waiting to sync
             </Pill>
         </span>}
     >

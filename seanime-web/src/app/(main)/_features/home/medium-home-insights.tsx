@@ -8,7 +8,7 @@ import { useLandingAnimeStats, useLandingMangaStats } from "@/app/(main)/_featur
 import type { ListDescription } from "@/app/(main)/_features/home/list-insights"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { SeaLink } from "@/components/shared/sea-link"
-import { formatNumber } from "@/lib/helpers/number"
+import { formatNumber, formatCount } from "@/lib/helpers/number"
 import { getImageUrl } from "@/lib/server/assets"
 import React from "react"
 import { LuDownload, LuFlag, LuPlay } from "react-icons/lu"
@@ -92,7 +92,7 @@ function Insights({ medium, metrics, stats, d, afterWelcome, children }: {
                                         <div className="min-w-0 flex-1">
                                             <p className="truncate text-sm font-semibold text-white group-hover:text-brand-100">{item.title}</p>
                                             <p className="mt-0.5 text-[11px] text-white/50">
-                                                {item.total - item.progress} {lower === "anime" ? "episode" : "chapter"}{item.total - item.progress === 1 ? "" : "s"} left · {item.progress}/{item.total}
+                                                {item.total - item.progress} {lower === "anime" ? "episode" : "chapter"}{item.total - item.progress === 1 ? "" : "s"} left · {item.progress}/{formatCount(item.total)}
                                             </p>
                                             <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/10">
                                                 <div className="h-full rounded-full bg-gradient-to-r from-brand-500 to-brand-300" style={{ width: `${(item.progress / item.total) * 100}%` }} />

@@ -1,4 +1,5 @@
 "use client"
+import { formatCount } from "@/lib/helpers/number"
 import React from "react"
 import { ANIME_THEMES } from "@/lib/theme/anime-themes"
 import type { AnimeThemeId } from "@/lib/theme/anime-themes"
@@ -284,12 +285,12 @@ function ThemeWallpaperRow({
                     </div>
                     <div className="ml-auto flex items-center gap-3">
                         {wallpapers.length > 0 && (
-                            <span className="text-xs text-[--muted]">{downloadedCount}/{wallpapers.length} downloaded</span>
+                            <span className="text-xs text-[--muted]">{downloadedCount}/{formatCount(wallpapers.length)} downloaded</span>
                         )}
                         {batchProgress ? (
                             <div className="flex items-center gap-2 text-xs text-[--muted]">
                                 <div className="w-3 h-3 border-2 border-[--muted] border-t-[--color-brand-400] rounded-full animate-spin" />
-                                {batchProgress.done}/{batchProgress.total}
+                                {batchProgress.done}/{formatCount(batchProgress.total)}
                             </div>
                         ) : wallpapers.length > 0 && downloadedCount < wallpapers.length ? (
                             <button
@@ -374,7 +375,7 @@ function ThemeWallpaperRow({
                     </div>
                 )}
                 {open && wallpapers.length > 0 && (
-                    <span className="text-xs text-[--muted] ml-auto">{downloadedCount}/{wallpapers.length} downloaded</span>
+                    <span className="text-xs text-[--muted] ml-auto">{downloadedCount}/{formatCount(wallpapers.length)} downloaded</span>
                 )}
             </button>
 
@@ -408,7 +409,7 @@ function ThemeWallpaperRow({
                                 {batchProgress ? (
                                     <div className="flex items-center gap-2 text-xs text-[--muted]">
                                         <div className="w-3 h-3 border-2 border-[--muted] border-t-[--color-brand-400] rounded-full animate-spin" />
-                                        Downloading {batchProgress.done}/{batchProgress.total}…
+                                        Downloading {batchProgress.done}/{formatCount(batchProgress.total)}…
                                     </div>
                                 ) : (
                                     <button onClick={handleBatchDownload} disabled={downloadedCount === wallpapers.length}
@@ -418,7 +419,7 @@ function ThemeWallpaperRow({
                                         {downloadedCount === wallpapers.length ? "All downloaded" : `Download all ${wallpapers.length - downloadedCount} remaining`}
                                     </button>
                                 )}
-                                <span className="text-[10px] text-[--muted]">{wallpapers.length} wallpapers · Wallhaven</span>
+                                <span className="text-[10px] text-[--muted]">{formatCount(wallpapers.length)} wallpapers · Wallhaven</span>
                             </div>
                         </>
                     )}

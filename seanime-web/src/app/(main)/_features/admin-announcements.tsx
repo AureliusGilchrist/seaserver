@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCount } from "@/lib/helpers/number"
 import {
     AdminAnnouncement,
     useCreateAdminAnnouncement,
@@ -237,7 +238,7 @@ export function AdminAnnouncementsPage() {
                         <label className="block min-w-0 space-y-2">
                             <div className="flex items-center justify-between gap-3">
                                 <span className="text-sm font-semibold text-white/85">Message</span>
-                                <span className="text-xs tabular-nums text-[--muted]">{message.length} / {MAX_MESSAGE_LENGTH}</span>
+                                <span className="text-xs tabular-nums text-[--muted]">{formatCount(message.length)} / {MAX_MESSAGE_LENGTH}</span>
                             </div>
                             <textarea
                                 value={message}
@@ -353,7 +354,7 @@ export function AdminAnnouncementsPage() {
                                 <h2 className="mt-1 text-lg font-bold text-white">Announcements</h2>
                             </div>
                             <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-semibold tabular-nums text-white/65">
-                                {sortedAnnouncements.length}
+                                {formatCount(sortedAnnouncements.length)}
                             </span>
                         </div>
                         {isLoadingAnnouncements ? (

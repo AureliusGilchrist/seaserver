@@ -4,6 +4,7 @@ import (
 	"container/list"
 	stdjson "encoding/json"
 	"fmt"
+	"golang.org/x/sync/singleflight"
 	"io"
 	"os"
 	"path/filepath"
@@ -210,30 +211,77 @@ func cacheSeriesRegistry(entry *cachedSeriesRegistry) {
 
 // LoadSeriesRegistrySummary returns shared, read-only chapter metadata for library scans.
 // Full registries are loaded separately when page information is needed.
+//
+// The cache lock covers only the cache itself. It used to be held across the stat and the decode
+// too, which put every registry read in the server behind one lock: a library of thousands of
+// series meant thousands of reads in single file per scan, and with the chapter list, the downloads
+// list and the background jobs all scanning at once, every one of them waited for all the others —
+// long enough for the chapter list to time out. Decodes of the same file are still combined, so
+// simultaneous scans do not decode one large registry several times over.
 func LoadSeriesRegistrySummary(seriesDir string, logger *zerolog.Logger) (*SeriesRegistrySummary, error) {
 	registryPath := filepath.Join(seriesDir, "registry.json")
 
-	// Serialize cache misses as simultaneous library scans would otherwise decode the same large
-	// registries in parallel and temporarily multiply memory consumption.
-	seriesRegistryReadCache.Lock()
-	defer seriesRegistryReadCache.Unlock()
-
 	info, err := os.Stat(registryPath)
 	if err != nil {
-		removeCachedSeriesRegistry(seriesDir)
+		invalidateSeriesRegistryCache(seriesDir)
 		if os.IsNotExist(err) {
 			return &SeriesRegistrySummary{Chapters: make(map[string]*ChapterEntrySummary)}, nil
 		}
 		return nil, fmt.Errorf("failed to stat series registry: %w", err)
 	}
-	if elem, ok := seriesRegistryReadCache.entries[seriesDir]; ok {
-		entry := elem.Value.(*cachedSeriesRegistry)
-		if entry.modTime == info.ModTime().UnixNano() && entry.size == info.Size() {
-			seriesRegistryReadCache.order.MoveToFront(elem)
-			return entry.registry, nil
-		}
-		removeCachedSeriesRegistry(seriesDir)
+	modTime, size := info.ModTime().UnixNano(), info.Size()
+
+	if cached := cachedSeriesRegistrySummary(seriesDir, modTime, size); cached != nil {
+		return cached, nil
 	}
+
+	key := fmt.Sprintf("%s|%d|%d", seriesDir, modTime, size)
+	v, err, _ := seriesRegistryDecodes.Do(key, func() (interface{}, error) {
+		if cached := cachedSeriesRegistrySummary(seriesDir, modTime, size); cached != nil {
+			return cached, nil
+		}
+		registry, err := decodeSeriesRegistrySummary(registryPath, logger)
+		if err != nil {
+			return nil, err
+		}
+		cost := int64(256 + len(seriesDir) + len(registry.Provider))
+		for key, chapter := range registry.Chapters {
+			cost += int64(256 + len(key))
+			if chapter != nil {
+				cost += int64(len(chapter.ChapterId) + len(chapter.ChapterNumber) + len(chapter.ChapterTitle) + len(chapter.Provider))
+			}
+		}
+		seriesRegistryReadCache.Lock()
+		cacheSeriesRegistry(&cachedSeriesRegistry{dir: seriesDir, modTime: modTime, size: size, cost: cost, registry: registry})
+		seriesRegistryReadCache.Unlock()
+		return registry, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return v.(*SeriesRegistrySummary), nil
+}
+
+var seriesRegistryDecodes singleflight.Group
+
+// cachedSeriesRegistrySummary returns the cached summary when the file is unchanged.
+func cachedSeriesRegistrySummary(seriesDir string, modTime, size int64) *SeriesRegistrySummary {
+	seriesRegistryReadCache.Lock()
+	defer seriesRegistryReadCache.Unlock()
+	elem, ok := seriesRegistryReadCache.entries[seriesDir]
+	if !ok {
+		return nil
+	}
+	entry := elem.Value.(*cachedSeriesRegistry)
+	if entry.modTime != modTime || entry.size != size {
+		removeCachedSeriesRegistry(seriesDir)
+		return nil
+	}
+	seriesRegistryReadCache.order.MoveToFront(elem)
+	return entry.registry
+}
+
+func decodeSeriesRegistrySummary(registryPath string, logger *zerolog.Logger) (*SeriesRegistrySummary, error) {
 	file, err := os.Open(registryPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -265,22 +313,6 @@ func LoadSeriesRegistrySummary(seriesDir string, logger *zerolog.Logger) (*Serie
 	if registry.Chapters == nil {
 		registry.Chapters = make(map[string]*ChapterEntrySummary)
 	}
-
-	cost := int64(256 + len(seriesDir) + len(registry.Provider))
-	for key, chapter := range registry.Chapters {
-		cost += int64(256 + len(key))
-		if chapter != nil {
-			cost += int64(len(chapter.ChapterId) + len(chapter.ChapterNumber) + len(chapter.ChapterTitle) + len(chapter.Provider))
-		}
-	}
-	entry := &cachedSeriesRegistry{
-		dir:      seriesDir,
-		modTime:  info.ModTime().UnixNano(),
-		size:     info.Size(),
-		cost:     cost,
-		registry: &registry,
-	}
-	cacheSeriesRegistry(entry)
 	return &registry, nil
 }
 

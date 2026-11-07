@@ -1,4 +1,5 @@
 "use client"
+import { formatCount } from "@/lib/helpers/number"
 import React from "react"
 import { useGetComments, useCreateComment, useVoteComment, useEditComment, useDeleteComment } from "@/api/hooks/comments.hooks"
 import { CommentResponse } from "@/api/generated/types"
@@ -35,7 +36,7 @@ export function CommentSection({ mediaId, mediaType }: CommentSectionProps) {
                     <div>
                         <h3 className="text-lg font-semibold leading-tight text-white">Comments</h3>
                         <p className="text-xs text-[--muted]">
-                            {data?.totalCount ? `${data.totalCount} comment${data.totalCount === 1 ? "" : "s"}` : "Start the conversation"}
+                            {data?.totalCount ? `${formatCount(data.totalCount)} comment${data.totalCount === 1 ? "" : "s"}` : "Start the conversation"}
                         </p>
                     </div>
                 </div>

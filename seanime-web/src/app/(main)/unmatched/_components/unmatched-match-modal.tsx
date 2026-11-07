@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import { formatNumber } from "@/lib/helpers/number"
+import { formatNumber, formatCount } from "@/lib/helpers/number"
 
 import {
     UnmatchedTorrent,
@@ -1247,7 +1247,7 @@ function MatchPlanConfirmation({
                         <MetaChip>{formatNumber(count)} file{count === 1 ? "" : "s"}</MetaChip>
                         {count > 0 && <MetaChip>{isMovie ? "Movie naming" : `Ep ${plan.entries[0].episode}–${plan.lastEpisode}`}</MetaChip>}
                         <MetaChip className={warnings.length ? "bg-amber-400/10 text-amber-200 ring-amber-300/25" : "bg-emerald-400/10 text-emerald-200 ring-emerald-300/25"}>
-                            {warnings.length ? `${warnings.length} thing${warnings.length === 1 ? "" : "s"} to check` : "Looks good"}
+                            {warnings.length ? `${formatCount(warnings.length)} thing${warnings.length === 1 ? "" : "s"} to check` : "Looks good"}
                         </MetaChip>
                     </div>
                 </div>

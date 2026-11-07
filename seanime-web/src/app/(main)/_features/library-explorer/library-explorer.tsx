@@ -1,4 +1,4 @@
-import { formatNumber } from "@/lib/helpers/number"
+import { formatNumber, formatCount } from "@/lib/helpers/number"
 import { useGetLibraryExplorerFileTree, useRefreshLibraryExplorerFileTree } from "@/api/generated/library_explorer.hooks"
 import { AL_BaseAnime, Anime_LocalFile, Anime_LocalFileType, LibraryExplorer_FileTreeNodeJSON } from "@/api/generated/types"
 import { useOpenInExplorer } from "@/api/hooks/explorer.hooks"
@@ -468,7 +468,7 @@ export function LibraryExplorer() {
                                     <Alert
                                         intent="warning"
                                         className="text-sm py-1 px-3 cursor-pointer"
-                                        description={`${unmatchedFiles.length} unmatched file${unmatchedFiles.length != 1 ? "s" : ""}`}
+                                        description={`${formatCount(unmatchedFiles.length)} unmatched file${unmatchedFiles.length != 1 ? "s" : ""}`}
                                         onClick={() => {
                                             setSelectedFilter("UNMATCHED")
                                         }}
@@ -478,7 +478,7 @@ export function LibraryExplorer() {
                                     <Alert
                                         intent="warning"
                                         className="text-sm py-1 px-3 cursor-pointer"
-                                        description={`${unknownMediaFiles.length} file${unknownMediaFiles.length != 1 ? "s" : ""} with hidden media`}
+                                        description={`${formatCount(unknownMediaFiles.length)} file${unknownMediaFiles.length != 1 ? "s" : ""} with hidden media`}
                                         onClick={() => {
                                             setSelectedFilter("UNKNOWN_MEDIA")
                                         }}
@@ -698,7 +698,7 @@ export function LibraryExplorerBulkActions(props: LibraryExplorerBulkActionsProp
                         intent={shouldShowUnmatchFiles ? "warning-link" : "success-link"}
                         onClick={handleMatchOrUnmatch}
                     >
-                        {shouldShowUnmatchFiles ? "Unmatch" : "Match"} {selectedPathFileNodes.length} file{selectedPathFileNodes.length != 1
+                        {shouldShowUnmatchFiles ? "Unmatch" : "Match"} {formatCount(selectedPathFileNodes.length)} file{selectedPathFileNodes.length != 1
                         ? "s"
                         : ""}
                     </Button>
@@ -708,7 +708,7 @@ export function LibraryExplorerBulkActions(props: LibraryExplorerBulkActionsProp
                         intent={"gray-link"}
                         onClick={handleToggleIgnore}
                     >
-                        {shouldShowIgnoreFiles ? "Ignore" : "Un-ignore"} {selectedPathFileNodes.length} file{selectedPathFileNodes.length != 1
+                        {shouldShowIgnoreFiles ? "Ignore" : "Un-ignore"} {formatCount(selectedPathFileNodes.length)} file{selectedPathFileNodes.length != 1
                         ? "s"
                         : ""}
                     </Button>}
@@ -718,7 +718,7 @@ export function LibraryExplorerBulkActions(props: LibraryExplorerBulkActionsProp
                         intent="alert-subtle"
                         onClick={() => setDeleteModalOpen(true)}
                     >
-                        Delete {selectedPathFileNodes.length} file{selectedPathFileNodes.length != 1 ? "s" : ""}
+                        Delete {formatCount(selectedPathFileNodes.length)} file{selectedPathFileNodes.length != 1 ? "s" : ""}
                     </Button>
                 </>
             )}
@@ -1147,7 +1147,7 @@ const VirtualizedTreeNode = memo(({
                                 </div>}
                             {isDirectory && !media && !!node.mediaIds?.length && node.mediaIds?.length > 1 &&
                                 <div className="h-6 px-2 flex-none rounded-[--radius-md] flex items-center justify-center bg-gray-800 ml-2 text-white text-xs font-semibold">
-                                    {node.mediaIds?.length}
+                                    {formatCount(node.mediaIds?.length)}
                                 </div>}
 
                             <span

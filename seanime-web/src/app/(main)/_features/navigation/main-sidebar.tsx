@@ -1,4 +1,5 @@
 "use client"
+import { formatCount } from "@/lib/helpers/number"
 import { useSetOfflineMode } from "@/api/hooks/local.hooks"
 import { useConnectivity } from "@/lib/server/connectivity"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
@@ -696,7 +697,7 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
                             {nakamaStatus?.isHost && !!nakamaStatus?.connectedPeers?.length && <Badge
                                 className="absolute right-0 top-0" size="sm"
                                 intent="info"
-                            >{nakamaStatus?.connectedPeers?.length}</Badge>}
+                            >{formatCount(nakamaStatus?.connectedPeers?.length)}</Badge>}
 
                             {nakamaStatus?.isConnectedToHost && <div
                                 className="absolute right-2 top-2 animate-pulse size-2 bg-green-500 rounded-full"
@@ -716,7 +717,7 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
                         addon: !!watchPartySession?.participants?.length && <Badge
                             className="absolute right-0 top-0" size="sm"
                             intent="info"
-                        >{watchPartySession?.participants?.length}</Badge>,
+                        >{formatCount(watchPartySession?.participants?.length)}</Badge>,
                     },
                     {
                         id: "theme-manager",

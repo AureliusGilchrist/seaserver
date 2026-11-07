@@ -15,7 +15,7 @@ import { Select } from "@/components/ui/select"
 import { TextInput } from "@/components/ui/text-input"
 import { useDebounce } from "@/hooks/use-debounce"
 import { formatDateAndTimeShort } from "@/lib/server/utils"
-import { formatNumber } from "@/lib/helpers/number"
+import { formatNumber, formatCount } from "@/lib/helpers/number"
 import React from "react"
 import { AiFillWarning } from "react-icons/ai"
 import { BiCheckCircle, BiInfoCircle, BiXCircle } from "react-icons/bi"
@@ -162,18 +162,18 @@ function AdminPage() {
                                 <div className="space-y-4 rounded-[--radius] ">
                                     <div>
                                         <p className="text-[--muted]">
-                                            Deus Ex Aeternae successfully scanned {selectedSummary.groups?.length} media
+                                            Deus Ex Aeternae successfully scanned {formatCount(selectedSummary.groups?.length)} media
                                             {debouncedSearchQuery.trim() && (
-                                                <span className="ml-2 text-sm">({filteredGroups.length} matching)</span>
+                                                <span className="ml-2 text-sm">({formatCount(filteredGroups.length)} matching)</span>
                                             )}
                                         </p>
                                         {!!selectedSummary?.unmatchedFiles?.length && (
                                             <p className="text-orange-300">
-                                                {selectedSummary?.unmatchedFiles?.length} file{selectedSummary?.unmatchedFiles?.length > 1
+                                                {formatCount(selectedSummary?.unmatchedFiles?.length)} file{selectedSummary?.unmatchedFiles?.length > 1
                                                 ? "s were "
                                                 : " was "}not matched
                                                 {debouncedSearchQuery.trim() && (
-                                                    <span className="ml-2 text-sm">({filteredUnmatchedFiles.length} matching)</span>
+                                                    <span className="ml-2 text-sm">({formatCount(filteredUnmatchedFiles.length)} matching)</span>
                                                 )}
                                             </p>
                                         )}

@@ -1,4 +1,5 @@
 "use client"
+import { formatCount } from "@/lib/helpers/number"
 import { Torrentstream_TorrentStatus } from "@/api/generated/types"
 import { useTorrentstreamStopStream } from "@/api/hooks/torrentstream.hooks"
 import { nativePlayer_stateAtom } from "@/app/(main)/_features/native-player/native-player.atoms"
@@ -123,7 +124,7 @@ export function TorrentStreamOverlay({ isNativePlayerComponent, show }: {
                         >
 
                             <div className="space-x-1"><BiGroup className="inline-block text-lg" />
-                                <span>{status.seeders}</span>
+                                <span>{formatCount(status.seeders)}</span>
                             </div>
 
                             <div className="space-x-1">
@@ -192,7 +193,7 @@ export function TorrentStreamOverlay({ isNativePlayerComponent, show }: {
                                 2)}%</span>
 
                             <div className="space-x-1"><BiGroup className="inline-block text-lg" />
-                                <span>{status.seeders}</span>
+                                <span>{formatCount(status.seeders)}</span>
                             </div>
 
                             <div className="space-x-1">

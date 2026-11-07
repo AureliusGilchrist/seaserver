@@ -58,26 +58,25 @@ func (r *Repository) downloadedRegistryContainer(seriesDir string, registry *cha
 // It filters the complete set of downloaded chapters to return only those matching the provided manga ID.
 func (r *Repository) GetDownloadedMangaChapterContainers(mId int, mangaCollection *anilist.MangaCollection) (ret []*ChapterContainer, err error) {
 
-	containers, err := r.GetDownloadedChapterContainers(mangaCollection)
-	if err != nil {
-		return nil, err
-	}
-
 	// Check if this AniList ID is mapped from a synthetic ID
 	// If so, we need to look for containers with the synthetic ID
 	searchIds := []int{mId}
 	if mId > 0 && r.db != nil {
 		if syntheticID, found := r.db.GetReverseMangaIDMapping(mId); found {
 			searchIds = append(searchIds, syntheticID)
-			r.logger.Debug().
-				Int("anilistID", mId).
-				Int("syntheticID", syntheticID).
-				Msg("manga: Using synthetic ID for downloaded chapter lookup via reverse mapping")
-		} else {
-			r.logger.Debug().
-				Int("anilistID", mId).
-				Msg("manga: No reverse mapping found for this AniList ID")
 		}
+	}
+
+	// Only this manga's folders, from the index, and only this manga in the local-source pass.
+	// This used to build every downloaded series' containers — thousands of registries and a cache
+	// read per collection entry — and then keep the one asked for, on every chapter list opened.
+	only := make(map[int]bool, len(searchIds))
+	for _, id := range searchIds {
+		only[id] = true
+	}
+	containers, err := r.collectDownloadedChapterContainers(r.seriesDirsForMedia(searchIds...), mangaCollection, only)
+	if err != nil {
+		return nil, err
 	}
 
 	r.logger.Debug().
@@ -148,16 +147,25 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 		r.logger.Error().Err(err).Msg("manga: Failed to read download directory")
 		return nil, err
 	}
+	names := make([]string, 0, len(mediaDirs))
+	for _, mediaDir := range mediaDirs {
+		if mediaDir.IsDir() {
+			names = append(names, mediaDir.Name())
+		}
+	}
+	return r.collectDownloadedChapterContainers(names, mangaCollection, nil)
+}
+
+// collectDownloadedChapterContainers builds the downloaded chapter containers held in the given
+// series folders. With `only`, the local-source pass is limited to those media IDs.
+func (r *Repository) collectDownloadedChapterContainers(dirNames []string, mangaCollection *anilist.MangaCollection, only map[int]bool) (ret []*ChapterContainer, err error) {
+	ret = make([]*ChapterContainer, 0)
 
 	// Also track old-format chapter directories for legacy support
 	chapterDirs := make([]string, 0)
 
-	for _, mediaDir := range mediaDirs {
-		if !mediaDir.IsDir() {
-			continue
-		}
-
-		mediaDirPath := filepath.Join(r.downloadDir, mediaDir.Name())
+	for _, dirName := range dirNames {
+		mediaDirPath := filepath.Join(r.downloadDir, dirName)
 
 		// Check for series-level registry.json (new format)
 		seriesRegistry, err := chapter_downloader.LoadSeriesRegistrySummary(mediaDirPath, r.logger)
@@ -171,7 +179,7 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 		// Fallback: check for old-format chapter directories
 		chapterFiles, err := os.ReadDir(mediaDirPath)
 		if err != nil {
-			r.logger.Error().Err(err).Str("mediaDir", mediaDir.Name()).Msg("manga: Failed to read media directory")
+			r.logger.Error().Err(err).Str("mediaDir", dirName).Msg("manga: Failed to read media directory")
 			continue
 		}
 
@@ -330,12 +338,21 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 					media := entry.GetMedia()
 					mediaId := media.GetID()
 
+					// Filtered to one manga: skip the others before any database lookup. `only`
+					// holds the AniList ID itself, so nothing that belongs is skipped here.
+					if only != nil && !only[mediaId] {
+						continue
+					}
+
 					// Check if this is a mapped AniList ID
 					originalMediaId := mediaId
 					if mediaId > 0 && r.db != nil {
 						if synId, found := r.db.GetReverseMangaIDMapping(mediaId); found {
 							originalMediaId = synId
 						}
+					}
+					if only != nil && !only[mediaId] && !only[originalMediaId] {
+						continue
 					}
 
 					// Get the full chapter container from cache to extract chapter titles

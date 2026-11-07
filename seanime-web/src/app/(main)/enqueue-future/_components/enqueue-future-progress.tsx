@@ -1,3 +1,4 @@
+import { formatCount } from "@/lib/helpers/number"
 import { EnqueueFuture_Status } from "@/api/generated/types"
 import {
     useClearEnqueueFuturePendingRoots,
@@ -151,10 +152,10 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
                         Finished{status.rootTitle ? ` — ${status.rootTitle}` : ""}
                     </p>
                     <p className="text-sm text-[--muted]">
-                        {status.prepared} of {status.discovered} ready
+                        {formatCount(status.prepared)} of {formatCount(status.discovered)} ready
                         {status.families ? ` · ${status.families} series` : ""}
-                        {status.skipped ? ` · ${status.skipped} skipped` : ""}
-                        {status.failed ? ` · ${status.failed} failed` : ""}
+                        {status.skipped ? ` · ${formatCount(status.skipped)} skipped` : ""}
+                        {status.failed ? ` · ${formatCount(status.failed)} failed` : ""}
                         {status.finishedAt ? ` · ${new Date(status.finishedAt).toLocaleString()}` : ""}
                     </p>
                 </div>
@@ -168,7 +169,7 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
                         Paused{status.rootTitle ? ` — ${status.rootTitle}` : ""}
                     </p>
                     <p className="text-sm text-[--muted]">
-                        {status.prepared} of {status.discovered} were ready when it stopped. It'll carry on from there.
+                        {formatCount(status.prepared)} of {formatCount(status.discovered)} were ready when it stopped. It'll carry on from there.
                     </p>
                 </div>
                 <Button
@@ -219,12 +220,12 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
                             </span>
                         ) : (
                             <>
-                                {status.prepared} of {status.discovered} ready
+                                {formatCount(status.prepared)} of {formatCount(status.discovered)} ready
                                 {eta ? <> · {eta}</> : ""}
                                 {status.families ? ` · ${status.families} series` : ""}
                                 {status.currentTitle ? ` · ${status.currentTitle}` : ""}
-                                {status.skipped ? ` · ${status.skipped} skipped` : ""}
-                                {status.failed ? ` · ${status.failed} failed` : ""}
+                                {status.skipped ? ` · ${formatCount(status.skipped)} skipped` : ""}
+                                {status.failed ? ` · ${formatCount(status.failed)} failed` : ""}
                                 {/* Queued behind this one. Without it the screen looks idle while
                                     several anime sit waiting on a list nobody can see. */}
                                 {status.pendingRoots ? ` · ${status.pendingRoots} waiting after this` : ""}
@@ -264,7 +265,7 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
                 <div className="space-y-1 pt-1" data-enqueue-future-pending-roots>
                     <div className="flex items-center justify-between gap-2">
                         <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">
-                            Waiting to be walked ({status.pendingRootList.length}/{MAX_PENDING_ROOTS})
+                            Waiting to be walked ({formatCount(status.pendingRootList.length)}/{MAX_PENDING_ROOTS})
                         </p>
                         {/* Empties this list and only this list. The re-walk backlog underneath it
                             has its own button, and the walk in progress is not interrupted by

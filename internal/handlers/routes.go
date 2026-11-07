@@ -534,6 +534,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Anilist.POST("/cache-layer/status", h.HandleToggleAnilistCacheLayerStatus, h.RequireProfileAdmin)
 
 	// Character Favorites (per-profile)
+	v1.POST("/favorites/reorder", h.HandleReorderFavorites)
 	v1.GET("/character/favorites", h.HandleGetCharacterFavorites)
 	v1.POST("/character/favorites/toggle", h.HandleToggleCharacterFavorite)
 

@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCount } from "@/lib/helpers/number"
 import { LandingLookSettings, MobileWallpaperSettings } from "@/app/(main)/_features/home/landing-look-settings"
 import { ALWAYS_SHOWN_LANDING_WIDGETS, LANDING_QUICK_LINKS, LANDING_WIDGET_META, useLandingFolders, useLandingWidgets, type LandingWidgetId } from "@/app/(main)/_features/home/landing-widgets"
 import { Button } from "@/components/ui/button"
@@ -82,7 +83,7 @@ export function LandingSettingsModal({ open, onOpenChange }: { open: boolean, on
                     ))}
                 </div>
 
-                <p className="text-xs text-[--muted]">{enabledCount} of {widgets.length} shown</p>
+                <p className="text-xs text-[--muted]">{enabledCount} of {formatCount(widgets.length)} shown</p>
 
                 <section className="space-y-3 border-t border-white/10 pt-4">
                     <div className="flex flex-wrap items-end justify-between gap-3">

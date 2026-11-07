@@ -1,3 +1,4 @@
+import { formatCount } from "@/lib/helpers/number"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { EnqueueFuture_AutoTorrentAddStatus, EnqueueFuture_AutoTorrentView, EnqueueFuture_Item } from "@/api/generated/types"
 import {
@@ -100,7 +101,7 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
                 <AutoTorrentAddProgress status={view.adds} />
                 {candidates.length ? (
                     <>
-                        <p className="text-sm text-[--muted]">{candidates.length} anime in the queue to work through.</p>
+                        <p className="text-sm text-[--muted]">{formatCount(candidates.length)} anime in the queue to work through.</p>
                         <Button intent="white" loading={isStarting} onClick={startSession}>Start auto torrent</Button>
                     </>
                 ) : (
@@ -116,7 +117,7 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
             <div className="py-10 text-center space-y-3" data-enqueue-future-auto-torrent-done>
                 <AutoTorrentAddProgress status={view.adds} />
                 <p className="text-lg font-semibold">All done</p>
-                <p className="text-sm text-[--muted]">All {view.total} anime in this run have been reviewed.</p>
+                <p className="text-sm text-[--muted]">All {formatCount(view.total)} anime in this run have been reviewed.</p>
                 <div className="flex justify-center gap-2">
                     <Button intent="gray-outline" onClick={onExit}>Back to Enqueue Future</Button>
                     <Button intent="white" loading={isEnding} onClick={() => end()}>Close this run</Button>
@@ -149,7 +150,7 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
                 void queryClient.invalidateQueries({ queryKey: DOWNLOADING_MEDIA_QUERY_KEY })
                 void queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureQueue.key] })
                 if (toDownload.length) {
-                    toast.success(`${toDownload.length} torrent${toDownload.length === 1 ? "" : "s"} queued — added in the background`)
+                    toast.success(`${formatCount(toDownload.length)} torrent${toDownload.length === 1 ? "" : "s"} queued — added in the background`)
                 }
             },
         })
@@ -169,8 +170,8 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
                 </span>
                 {!view.picking && !!picks.length && (
                     <span>
-                        <span className="text-[--foreground] font-semibold">{toDownload.length}</span> to download
-                        {withoutTorrent.length ? ` · ${withoutTorrent.length} with no pick` : ""}
+                        <span className="text-[--foreground] font-semibold">{formatCount(toDownload.length)}</span> to download
+                        {withoutTorrent.length ? ` · ${formatCount(withoutTorrent.length)} with no pick` : ""}
                         {toDownload.some(p => !!p.flag) && (
                             <span className="text-orange-300">{` · ${toDownload.filter(p => !!p.flag).length} flagged`}</span>
                         )}
@@ -270,7 +271,7 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
                     {!!withoutTorrent.length && (
                         <details className="pt-2">
                             <summary className="cursor-pointer text-xs text-[--muted] select-none">
-                                {withoutTorrent.length} with no pick — left alone in the queue
+                                {formatCount(withoutTorrent.length)} with no pick — left alone in the queue
                             </summary>
                             <div className="space-y-1 pt-1">
                                 {withoutTorrent.map(pick => (
@@ -289,7 +290,7 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
                 <div className="flex flex-wrap items-center gap-2 text-sm text-[--muted]">
                     <span>Match automatically when finished:</span>
                     <span className="text-[--foreground]">
-                        {toDownload.filter(p => isAutoMatch(p.mediaId)).length} of {toDownload.length}
+                        {toDownload.filter(p => isAutoMatch(p.mediaId)).length} of {formatCount(toDownload.length)}
                     </span>
                     <Button
                         size="xs"
@@ -365,12 +366,12 @@ function AutoTorrentAddProgress({ status }: { status: EnqueueFuture_AutoTorrentA
                 {busy
                     ? <><span className="text-[--foreground] font-semibold">{status.pending + (status.current ? 1 : 0)}</span> still being added in the background, one every 10s</>
                     : "Background adds finished"}
-                {` · ${status.added} added`}
-                {status.skipped ? ` · ${status.skipped} already in the client` : ""}
+                {` · ${formatCount(status.added)} added`}
+                {status.skipped ? ` · ${formatCount(status.skipped)} already in the client` : ""}
                 {status.settled ? ` · ${status.settled} dropped, already dealt with` : ""}
-                {status.failed ? ` · ${status.failed} failed` : ""}
+                {status.failed ? ` · ${formatCount(status.failed)} failed` : ""}
             </p>
-            {!!status.waiting && <p className="text-orange-300">{status.waiting}</p>}
+            {!!status.waiting && <p className="text-orange-300">{formatCount(status.waiting)}</p>}
             {!!status.failed && !!status.lastError && (
                 <p className="text-red-300">
                     Last error{status.lastErrorAt ? ` (${new Date(status.lastErrorAt).toLocaleString()})` : ""}: {status.lastError}

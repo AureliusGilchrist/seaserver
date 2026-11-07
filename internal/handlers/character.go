@@ -127,7 +127,7 @@ type cachedCharacter struct {
 	data *CharacterDetailsResponse
 }
 
-var characterDetailsMap = result.NewMap[int, cachedCharacter]()
+var characterDetailsMap = result.NewBoundedCache[int, cachedCharacter](300)
 
 // anilistDataQuery runs a raw AniList query with the request's context and the account token, and
 // decodes `data` into out.
@@ -269,7 +269,7 @@ type cachedMediaCharacters struct {
 	data *MediaCharactersResponse
 }
 
-var mediaCharactersMap = result.NewMap[string, cachedMediaCharacters]()
+var mediaCharactersMap = result.NewBoundedCache[string, cachedMediaCharacters](300) // bounded: full cast lists add up
 
 // HandleGetAnilistMediaCharacters
 //

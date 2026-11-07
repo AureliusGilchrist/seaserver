@@ -1,4 +1,5 @@
 "use client"
+import { formatCount } from "@/lib/helpers/number"
 import React from "react"
 import { useAnimeTheme } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { useUICustomize } from "@/lib/ui-customize/ui-customize-provider"
@@ -257,7 +258,7 @@ export function PresetsPanel() {
             {presets.length > 0 && (
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-lg font-semibold">My Presets <span className="text-[--muted] text-sm font-normal">({presets.length})</span></h2>
+                        <h2 className="text-lg font-semibold">My Presets <span className="text-[--muted] text-sm font-normal">({formatCount(presets.length)})</span></h2>
                         <button
                             onClick={handleExportAll}
                             className="flex items-center gap-1.5 text-xs text-[--muted] hover:text-[--foreground] px-3 py-1.5 rounded-lg bg-[--paper] border border-[--border] transition-colors"

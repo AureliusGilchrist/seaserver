@@ -1,3 +1,4 @@
+import { formatCount } from "@/lib/helpers/number"
 import { cachedImageUrl } from "@/lib/server/assets"
 import { EnqueueFuture_Item } from "@/api/generated/types"
 import { ENQUEUE_FUTURE_STATUS } from "@/api/hooks/enqueue_future.hooks"
@@ -449,7 +450,7 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
                 <div className="flex items-center gap-1.5 border-b border-white/[0.05] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white/45">
                     <LuLink2 className="flex-none text-brand-300" />
                     <span className="truncate">
-                        {family.length} related — sequels &amp; side stories
+                        {formatCount(family.length)} related — sequels &amp; side stories
                     </span>
                     {/* The number the group is ranked on. A bundle sits above one of its own members
                         further down the page, which only reads as sensible once you can see that it

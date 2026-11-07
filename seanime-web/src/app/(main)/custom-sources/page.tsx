@@ -1,4 +1,5 @@
 "use client"
+import { formatCount } from "@/lib/helpers/number"
 import { useCustomSourceListAnime, useCustomSourceListManga } from "@/api/hooks/custom_source.hooks"
 import { useListCustomSourceExtensions } from "@/api/hooks/extensions.hooks"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
@@ -304,7 +305,7 @@ function CustomSourceResults({
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h4 className="text-lg font-medium">
-                    {media.length} result{media.length === 1 ? "" : "s"}
+                    {formatCount(media.length)} result{media.length === 1 ? "" : "s"}
                 </h4>
                 <div className="flex items-center gap-4">
                     <Select

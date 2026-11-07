@@ -343,7 +343,10 @@ export function useGetAnilistStaffDetails(id: number) {
         endpoint: API_ENDPOINTS.ANILIST.GetAnilistStaffDetails.endpoint.replace("{id}", String(id)),
         method: API_ENDPOINTS.ANILIST.GetAnilistStaffDetails.methods[0],
         queryKey: [API_ENDPOINTS.ANILIST.GetAnilistStaffDetails.key, String(id)],
-        enabled: true,
+        // Not for ID 0 (no ID in the URL yet), and a transient AniList failure is retried before
+        // the page gives up on the person.
+        enabled: id > 0,
+        retry: 2,
         staleTime: 30 * 60 * 1000,
         gcTime: 60 * 60 * 1000,
     })

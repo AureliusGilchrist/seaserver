@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCount } from "@/lib/helpers/number"
 import { useGetMangaCollection, useGetMangaLatestChapterNumbersMap, useCheckMangaChapterUpdates } from "@/api/hooks/manga.hooks"
 import { useListMangaProviderExtensions } from "@/api/hooks/extensions.hooks"
 import { useDownloadMangaChapters } from "@/api/hooks/manga_download.hooks"
@@ -238,7 +239,7 @@ export function NewMangaChapterNotifier() {
                     </span>
                     <div className="min-w-0 flex-1">
                         <h2 className="truncate text-sm font-bold text-white">New chapters from your reading list</h2>
-                        <p className="text-xs text-white/55">{state.pending.length} series have a newer chapter available</p>
+                        <p className="text-xs text-white/55">{formatCount(state.pending.length)} series have a newer chapter available</p>
                     </div>
                     <Button
                         type="button"

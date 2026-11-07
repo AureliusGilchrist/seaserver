@@ -1,3 +1,4 @@
+import { formatCount } from "@/lib/helpers/number"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { Models_HomeItem } from "@/api/generated/types"
 import { useSaveDebridSettings } from "@/api/hooks/debrid.hooks"
@@ -677,7 +678,7 @@ function OptionField({ option, value, onChange }: OptionFieldProps) {
                     </div>
                     {/*{selectedValues.length > 0 && (*/}
                     {/*    <div className="text-xs text-gray-400">*/}
-                    {/*        {selectedValues.length} selected: {selectedValues.slice(0, 3).join(", ")}*/}
+                    {/*        {formatCount(selectedValues.length)} selected: {selectedValues.slice(0, 3).join(", ")}*/}
                     {/*        {selectedValues.length > 3 && ` +${selectedValues.length - 3} more`}*/}
                     {/*    </div>*/}
                     {/*)}*/}

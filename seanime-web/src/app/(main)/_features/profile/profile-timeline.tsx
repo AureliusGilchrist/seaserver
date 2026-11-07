@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCount } from "@/lib/helpers/number"
 import {
     TimelineAchievement,
     TimelineFeedItem,
@@ -254,7 +255,7 @@ export function TimelineComposer({ wallProfileId, placeholder, author }: {
                             <span className="hidden text-xs text-[--muted] sm:inline">**bold**, _italic_, ~!spoiler!~, links and images · Ctrl+Enter</span>
                         </div>
                         <div className="flex items-center gap-3">
-                            <span className={cn("text-xs tabular-nums", content.length > 3800 ? "text-amber-300" : "text-[--muted]")}>{content.length}/4000</span>
+                            <span className={cn("text-xs tabular-nums", content.length > 3800 ? "text-amber-300" : "text-[--muted]")}>{formatCount(content.length)}/4000</span>
                             <Button
                                 size="sm"
                                 intent="primary"
@@ -490,7 +491,7 @@ function AchievementCardBody({ item }: { item: TimelineFeedItem }) {
             <Avatar p={item.author} />
             <div className="min-w-0 flex-1 space-y-2">
                 <CardHeader item={item}>
-                    <span className="text-[--muted]">unlocked {many ? <b className="text-white">{list.length} achievements</b> : "an achievement"}</span>
+                    <span className="text-[--muted]">unlocked {many ? <b className="text-white">{formatCount(list.length)} achievements</b> : "an achievement"}</span>
                 </CardHeader>
                 {!many ? (
                     <div className="flex items-center gap-3 rounded-xl bg-black/20 p-2.5 ring-1 ring-white/[0.06]">
@@ -563,7 +564,7 @@ function NewsCardBody({ item }: { item: TimelineFeedItem }) {
                     {!lead && (
                         <div className="mb-2 flex items-center gap-2 text-sm">
                             <span className="flex size-7 items-center justify-center rounded-lg bg-sky-500/15 text-sky-300"><LuNewspaper className="size-4" /></span>
-                            <span className="font-semibold">{digest.length} {digest.length === 1 ? "headline" : "headlines"}</span>
+                            <span className="font-semibold">{formatCount(digest.length)} {digest.length === 1 ? "headline" : "headlines"}</span>
                             <span className="ml-auto text-xs text-[--muted]">{timeAgo(item.createdAt)}</span>
                         </div>
                     )}

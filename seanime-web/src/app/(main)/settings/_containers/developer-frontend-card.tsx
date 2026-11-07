@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCount } from "@/lib/helpers/number"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import React from "react"
@@ -158,7 +159,7 @@ export function DeveloperFrontendCard() {
             {running && status && (
                 <p className="relative mt-3 text-xs text-[--muted]">
                     {status.builds > 0
-                        ? `${status.builds} build(s) applied${status.lastBuildAt ? `, last at ${new Date(status.lastBuildAt).toLocaleTimeString()}` : ""}.`
+                        ? `${formatCount(status.builds)} build(s) applied${status.lastBuildAt ? `, last at ${new Date(status.lastBuildAt).toLocaleTimeString()}` : ""}.`
                         : "Waiting for the first build; the installed frontend stays active until it finishes."}
                 </p>
             )}
@@ -180,7 +181,7 @@ export function DeveloperFrontendCard() {
                         </span>
                         <LuTerminal className="ml-1 size-3.5 text-white/40" />
                         <span className="text-[11px] font-semibold text-white/55">Build output</span>
-                        <span className="text-[11px] tabular-nums text-white/30">{status.tail.length} lines</span>
+                        <span className="text-[11px] tabular-nums text-white/30">{formatCount(status.tail.length)} lines</span>
                         <button
                             type="button"
                             onClick={() => navigator.clipboard.writeText(status.tail.join("\n")).then(

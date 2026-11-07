@@ -1,3 +1,4 @@
+import { formatCount } from "@/lib/helpers/number"
 import { EnqueueFuture_Status } from "@/api/generated/types"
 import { useStartEnqueueFutureCatalog, useStopEnqueueFutureCatalog } from "@/api/hooks/enqueue_future.hooks"
 import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
@@ -75,10 +76,10 @@ export function EnqueueFutureCatalog({ status }: { status: EnqueueFuture_Status 
                     <p className="text-sm text-[--muted]">
                         {!catalog && "Queue every anime on AniList, not just what your walks reach."}
                         {catalog && (catalog.done
-                            ? `Scan finished · ${catalog.queued} queued`
-                            : `${catalog.active ? "Scanning" : "Stopped"} · ${percent}% · ${catalog.queued} queued`)}
-                        {catalog && catalog.prepared > 0 ? ` · ${catalog.prepared} prepared` : ""}
-                        {catalog && catalog.waiting > 0 ? ` · ${catalog.waiting} waiting to be prepared` : ""}
+                            ? `Scan finished · ${formatCount(catalog.queued)} queued`
+                            : `${catalog.active ? "Scanning" : "Stopped"} · ${percent}% · ${formatCount(catalog.queued)} queued`)}
+                        {catalog && catalog.prepared > 0 ? ` · ${formatCount(catalog.prepared)} prepared` : ""}
+                        {catalog && catalog.waiting > 0 ? ` · ${formatCount(catalog.waiting)} waiting to be prepared` : ""}
                     </p>
                     {waitState && <p className="text-sm text-[--muted]" data-enqueue-future-catalog-wait>{waitState}</p>}
                     {catalog?.lastError && <p className="text-sm text-[--orange] break-words" data-enqueue-future-catalog-error>{catalog.lastError}</p>}

@@ -1,3 +1,4 @@
+import { formatCount } from "@/lib/helpers/number"
 import { useAnilistListRecentAiringAnime } from "@/api/hooks/anilist.hooks"
 import { SeaContextMenu } from "@/app/(main)/_features/context-menu/sea-context-menu"
 import { useMediaPreviewModal } from "@/app/(main)/_features/media/_containers/media-preview-modal"
@@ -181,7 +182,7 @@ export function DiscoverAiringSchedule() {
                                     <div className="flex shrink-0 items-center gap-2">
                                         {day.isToday && <span className="rounded-full border border-brand-300/20 bg-brand-400/10 px-2.5 py-1 text-[11px] font-semibold text-brand-100">Today</span>}
                                         <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-white/65">
-                                            {day.events.length} {day.events.length === 1 ? "episode" : "episodes"}
+                                            {formatCount(day.events.length)} {day.events.length === 1 ? "episode" : "episodes"}
                                         </span>
                                     </div>
                                 </header>

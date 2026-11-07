@@ -1,3 +1,4 @@
+import { formatCount } from "@/lib/helpers/number"
 import { Anime_AutoDownloaderRule } from "@/api/generated/types"
 import {
     useDeleteAutoDownloaderRule,
@@ -126,7 +127,7 @@ export function AutoDownloaderPage() {
                         Queue
                         {!!items?.length && (
                             <Badge className="ml-2 font-bold" intent="alert" size="sm">
-                                {items.length}
+                                {formatCount(items.length)}
                             </Badge>
                         )}
                     </TabsTrigger>

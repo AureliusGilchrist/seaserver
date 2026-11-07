@@ -1,3 +1,4 @@
+import { formatCount } from "@/lib/helpers/number"
 import { BACKEND_UPDATE_STATUS_KEY, serverErrorMessage, useCheckBackendUpdate, useUpdateBackend } from "@/api/hooks/update-notice.hooks"
 import { ServerUpdateCard } from "@/app/(main)/settings/_containers/server-update-card"
 import { FrontendUpdateCard } from "@/app/(main)/settings/_containers/frontend-update-card"
@@ -350,7 +351,7 @@ function LiveUpdates() {
             appendLines([
                 "",
                 stamp(`${label}: ${summary}`),
-                ...(files.length ? [stamp(`${files.length} file${files.length === 1 ? "" : "s"} (+${ins} -${del}):`), ...files.map(f => `    ${f.path}  +${f.insertions} -${f.deletions}`)] : []),
+                ...(files.length ? [stamp(`${formatCount(files.length)} file${files.length === 1 ? "" : "s"} (+${ins} -${del}):`), ...files.map(f => `    ${f.path}  +${f.insertions} -${f.deletions}`)] : []),
             ])
         }
         catch (e: any) {
@@ -386,7 +387,7 @@ function LiveUpdates() {
                 const files = res?.files ?? []
                 const fileLines = files.length
                     ? [
-                        stamp(`${files.length} file${files.length === 1 ? "" : "s"} changing (+${files.reduce((n, f) => n + f.insertions, 0)} -${files.reduce(
+                        stamp(`${formatCount(files.length)} file${files.length === 1 ? "" : "s"} changing (+${files.reduce((n, f) => n + f.insertions, 0)} -${files.reduce(
                             (n, f) => n + f.deletions, 0)}):`),
                         ...files.map(f => `    ${f.path}  +${f.insertions} -${f.deletions}`),
                     ]

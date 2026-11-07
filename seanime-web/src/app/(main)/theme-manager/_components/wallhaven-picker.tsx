@@ -1,4 +1,5 @@
 "use client"
+import { formatCount } from "@/lib/helpers/number"
 import React from "react"
 import { useAnimeTheme } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { WALLHAVEN_CURATED_QUERY } from "@/lib/theme/anime-themes/wallhaven-curated"
@@ -186,7 +187,7 @@ export function WallhavenPickerModal({ open, onClose }: Props) {
                             {tab}
                             {tab === "saved" && savedFiles.length > 0 && (
                                 <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-white/10">
-                                    {savedFiles.length}
+                                    {formatCount(savedFiles.length)}
                                 </span>
                             )}
                         </button>

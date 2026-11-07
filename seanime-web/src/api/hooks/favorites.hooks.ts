@@ -106,3 +106,37 @@ export function useToggleStudioFavorite() {
         },
     })
 }
+
+export type FavoriteKind = "anime" | "manga" | "character" | "staff" | "studio"
+
+const FAVORITE_QUERY_KEYS: Record<FavoriteKind, string> = {
+    anime: API_ENDPOINTS.ANIME_FAVORITE.GetAnimeFavorites.key,
+    manga: API_ENDPOINTS.MANGA_FAVORITE.GetMangaFavorites.key,
+    character: API_ENDPOINTS.ENTITY_FAVORITE.GetCharacterFavorites.key,
+    staff: API_ENDPOINTS.ENTITY_FAVORITE.GetStaffFavorites.key,
+    studio: API_ENDPOINTS.ENTITY_FAVORITE.GetStudioFavorites.key,
+}
+
+/**
+ * Saves the order of one kind of favourite (the first ID is number one). The list on screen takes
+ * the new order at once; the server is told in the background, and the list is re-read if it says no.
+ */
+export function useReorderFavorites(kind: FavoriteKind) {
+    const qc = useQueryClient()
+    const queryKey = [FAVORITE_QUERY_KEYS[kind]]
+    const mutation = useServerMutation<boolean, { type: FavoriteKind, ids: number[] }>({
+        endpoint: "/api/v1/favorites/reorder",
+        method: "POST",
+        mutationKey: ["FAVORITES-reorder", kind],
+        onError: async () => {
+            await qc.invalidateQueries({ queryKey })
+        },
+    })
+    return {
+        reorder: (ids: number[]) => {
+            qc.setQueryData<number[]>(queryKey, ids)
+            mutation.mutate({ type: kind, ids })
+        },
+        isPending: mutation.isPending,
+    }
+}

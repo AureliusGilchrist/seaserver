@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCount } from "@/lib/helpers/number"
 import {
     useGetUnmatchedSweepStatus,
     useGetUnmatchedTorrents,
@@ -308,7 +309,7 @@ export function UnmatchedTorrentsPage() {
 
                     {sweep!.errors?.length > 0 && (
                         <details className="text-xs text-amber-200/90">
-                            <summary className="cursor-pointer">{sweep!.errors.length} couldn't be matched</summary>
+                            <summary className="cursor-pointer">{formatCount(sweep!.errors.length)} couldn't be matched</summary>
                             <ul className="mt-2 space-y-1">
                                 {sweep!.errors.map((e, i) => <li key={i} className="break-all">{e}</li>)}
                             </ul>
@@ -328,7 +329,7 @@ export function UnmatchedTorrentsPage() {
                         <LuFolderSearch className="text-base" />
                         Downloads
                         {hasTorrents && (
-                            <span className="ml-1 text-xs text-[--muted] tabular-nums">{torrentsList.length}</span>
+                            <span className="ml-1 text-xs text-[--muted] tabular-nums">{formatCount(torrentsList.length)}</span>
                         )}
                     </TabsTrigger>
                     <TabsTrigger value="queue">
@@ -336,7 +337,7 @@ export function UnmatchedTorrentsPage() {
                         To Match
                         {queueItems.length > 0 && (
                             <Badge className="ml-1 font-bold" intent="alert" size="sm">
-                                {queueItems.length}
+                                {formatCount(queueItems.length)}
                             </Badge>
                         )}
                     </TabsTrigger>
@@ -736,7 +737,7 @@ function QueueItemRow({
                         </Badge>
                     )}
                     <span className="text-xs text-[--muted]">
-                        {item.fileCount} file{item.fileCount === 1 ? "" : "s"}
+                        {formatCount(item.fileCount)} file{item.fileCount === 1 ? "" : "s"}
                     </span>
                     <span className="text-xs text-[--muted]">·</span>
                     <span className="text-xs text-[--muted]">queued {formatQueuedAt(item.createdAt)}</span>
@@ -755,7 +756,7 @@ function QueueItemRow({
                 {needsDecision && (
                     <p className="text-xs text-amber-200/90 mt-2">
                         {item.errorMessage || (item.conflict
-                            ? `${item.conflict.files.length} of ${item.conflict.totalPlanned} episode${item.conflict.totalPlanned === 1 ? "" : "s"} are already in the library.`
+                            ? `${formatCount(item.conflict.files.length)} of ${item.conflict.totalPlanned} episode${item.conflict.totalPlanned === 1 ? "" : "s"} are already in the library.`
                             : item.countMismatch
                                 ? `This download has ${item.countMismatch.found} episode${item.countMismatch.found === 1 ? "" : "s"} but ${item.countMismatch.expected} were expected.`
                                 : "")}

@@ -1,3 +1,4 @@
+import { formatCount } from "@/lib/helpers/number"
 import { Anime_Episode, Anime_EntryListData } from "@/api/generated/types"
 import { isInCheckWindow } from "@/app/(main)/_features/video-core/_lib/still-watching-timing"
 import { __anilist_userAnimeListDataAtom } from "@/app/(main)/_atoms/anilist.atoms"
@@ -493,7 +494,7 @@ function tracePrequels(members: MediaFamilyMember[] | undefined, mediaId: number
 
 function sequelMeta(option: VideoCoreSequelOption) {
     const format = option.format ? (option.format === "TV" ? "TV" : option.format.replace(/_/g, " ").toLowerCase().replace(/^\w/, c => c.toUpperCase())) : null
-    const episodes = option.format !== "MOVIE" && option.episodes ? `${option.episodes} ep${option.episodes === 1 ? "" : "s"}` : null
+    const episodes = option.format !== "MOVIE" && option.episodes ? `${formatCount(option.episodes)} ep${option.episodes === 1 ? "" : "s"}` : null
     return [format, option.year, episodes].filter(Boolean).join(" · ")
 }
 
@@ -874,7 +875,7 @@ export function VideoCoreStillWatchingPrompt({ onContinue, onLeave }: { onContin
                         <LuMoon className="size-3.5" />
                         Looks like you may have dozed off during {dozed.length === 1
                         ? `episode ${dozed[0].episode.progressNumber ?? dozed[0].episode.episodeNumber}`
-                        : `${dozed.length} episodes`}.
+                        : `${formatCount(dozed.length)} episodes`}.
                     </p>
                 )}
 

@@ -8,7 +8,7 @@ import (
 // GetStudioFavoriteIDs returns all favorite studio IDs.
 func (db *Database) GetStudioFavoriteIDs() ([]int, error) {
 	var favs []models.StudioFavorite
-	if err := db.gormdb.Order("added_at desc").Find(&favs).Error; err != nil {
+	if err := db.gormdb.Order(favoriteOrder).Find(&favs).Error; err != nil {
 		return nil, err
 	}
 	ids := make([]int, len(favs))

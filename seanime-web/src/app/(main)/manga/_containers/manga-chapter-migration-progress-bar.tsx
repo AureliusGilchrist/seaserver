@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCount } from "@/lib/helpers/number"
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import { WSEvents } from "@/lib/server/ws-events"
@@ -36,7 +37,7 @@ export function MangaChapterMigrationProgressBar() {
             <ProgressBar size="xs" value={Math.max(0, Math.min(100, state.percentage || 0))} />
             <div className="px-3 py-1 text-[10px] text-gray-300 border-b border-gray-800 bg-gray-950/95" data-manga-migration-progress-text>
                 {state.status === "completed"
-                    ? `Manga chapter migration complete (${state.migrated} renamed${state.failed > 0 ? `, ${state.failed} failed` : ""})`
+                    ? `Manga chapter migration complete (${state.migrated} renamed${state.failed > 0 ? `, ${formatCount(state.failed)} failed` : ""})`
                     : state.status === "error"
                         ? "Manga chapter migration failed"
                         : `Migrating chapter folders ${state.currentSeries}/${state.totalSeries} (${state.percentage}%)`}

@@ -1217,6 +1217,8 @@ type MangaFavorite struct {
 	BaseModel
 	MediaID int       `gorm:"column:media_id;uniqueIndex" json:"mediaId"`
 	AddedAt time.Time `gorm:"column:added_at" json:"addedAt"`
+	// Rank is the place the user put it in (1 = first); 0 until they reorder.
+	Rank int `gorm:"column:sort_rank;default:0" json:"rank"`
 }
 
 // AnimeFavorite stores a favorited anime per profile (stored in per-profile DB).
@@ -1224,6 +1226,7 @@ type AnimeFavorite struct {
 	BaseModel
 	MediaID int       `gorm:"column:media_id;uniqueIndex" json:"mediaId"`
 	AddedAt time.Time `gorm:"column:added_at" json:"addedAt"`
+	Rank    int       `gorm:"column:sort_rank;default:0" json:"rank"`
 }
 
 // CharacterFavorite stores a favorited character per profile (stored in per-profile DB).
@@ -1231,6 +1234,7 @@ type CharacterFavorite struct {
 	BaseModel
 	CharacterID int       `gorm:"column:character_id;uniqueIndex" json:"characterId"`
 	AddedAt     time.Time `gorm:"column:added_at" json:"addedAt"`
+	Rank        int       `gorm:"column:sort_rank;default:0" json:"rank"`
 }
 
 // StaffFavorite stores a favorited staff member per profile (stored in per-profile DB).
@@ -1238,6 +1242,7 @@ type StaffFavorite struct {
 	BaseModel
 	StaffID int       `gorm:"column:staff_id;uniqueIndex" json:"staffId"`
 	AddedAt time.Time `gorm:"column:added_at" json:"addedAt"`
+	Rank    int       `gorm:"column:sort_rank;default:0" json:"rank"`
 }
 
 // StudioFavorite stores a favorited studio per profile (stored in per-profile DB).
@@ -1245,6 +1250,7 @@ type StudioFavorite struct {
 	BaseModel
 	StudioID int       `gorm:"column:studio_id;uniqueIndex" json:"studioId"`
 	AddedAt  time.Time `gorm:"column:added_at" json:"addedAt"`
+	Rank     int       `gorm:"column:sort_rank;default:0" json:"rank"`
 }
 
 // Notification stores a notification per profile (stored in per-profile DB).

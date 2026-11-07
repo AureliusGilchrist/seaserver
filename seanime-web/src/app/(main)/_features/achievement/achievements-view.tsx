@@ -9,7 +9,7 @@ import {
 } from "@/api/generated/types"
 import { AchievementShowcase } from "@/app/(main)/_features/achievement/achievement-showcase"
 import { cn } from "@/components/ui/core/styling"
-import { formatNumber } from "@/lib/helpers/number"
+import { formatNumber, formatCount } from "@/lib/helpers/number"
 import { useAnimeTheme } from "@/lib/theme/anime-themes/anime-theme-provider"
 import React from "react"
 import { LuCheck, LuClock, LuCrown, LuFlame, LuLock, LuRotateCcw, LuSearch, LuSparkles, LuTrophy, LuX } from "react-icons/lu"
@@ -573,7 +573,7 @@ export function AchievementsView({ data, variant = "page", own = false, ownerNam
                                         </div>
                                         {n && (
                                             <div className="hidden w-40 shrink-0 sm:block">
-                                                <div className="mb-1 text-right text-[11px] tabular-nums text-[--muted]">{n.unlocked} / {n.total}</div>
+                                                <div className="mb-1 text-right text-[11px] tabular-nums text-[--muted]">{n.unlocked} / {formatCount(n.total)}</div>
                                                 <div className="h-1 overflow-hidden rounded-full bg-white/[0.07]">
                                                     <div className="h-full rounded-full bg-gradient-to-r from-amber-300 to-amber-500" style={{ width: `${(n.unlocked / n.total) * 100}%` }} />
                                                 </div>

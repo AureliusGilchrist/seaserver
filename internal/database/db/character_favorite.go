@@ -8,7 +8,7 @@ import (
 // GetCharacterFavoriteIDs returns all favorite character IDs.
 func (db *Database) GetCharacterFavoriteIDs() ([]int, error) {
 	var favs []models.CharacterFavorite
-	if err := db.gormdb.Order("added_at desc").Find(&favs).Error; err != nil {
+	if err := db.gormdb.Order(favoriteOrder).Find(&favs).Error; err != nil {
 		return nil, err
 	}
 	ids := make([]int, len(favs))

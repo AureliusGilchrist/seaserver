@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCount } from "@/lib/helpers/number"
 import { __frontendUpdate_revealAtom } from "@/app/(main)/_features/stale-frontend-banner"
 import { Fact, PILL, timeAgo, timeUntil, UpdateState } from "@/app/(main)/settings/_containers/server-update-card"
 import { MAX_LOG_LINES, readProgress, stamp, updateSettingsLogAtom } from "@/app/(main)/settings/_containers/update-settings"
@@ -471,11 +472,11 @@ export function FrontendUpdateCard() {
                 <div className="relative mt-5 space-y-3">
                     <p className="text-sm font-semibold">
                         {changes
-                            ? `${changes.total} new commit${changes.total === 1 ? "" : "s"}`
-                            : `${pending.length} newer release${pending.length === 1 ? "" : "s"}`}
+                            ? `${formatCount(changes.total)} new commit${changes.total === 1 ? "" : "s"}`
+                            : `${formatCount(pending.length)} newer release${pending.length === 1 ? "" : "s"}`}
                         {files.length > 0 && (
                             <span className="ml-2 font-normal text-[--muted]">
-                                {files.length} file{files.length === 1 ? "" : "s"} · <span className="text-emerald-400">+{ins}</span> <span className="text-red-400">−{del}</span>
+                                {formatCount(files.length)} file{files.length === 1 ? "" : "s"} · <span className="text-emerald-400">+{ins}</span> <span className="text-red-400">−{del}</span>
                             </span>
                         )}
                     </p>

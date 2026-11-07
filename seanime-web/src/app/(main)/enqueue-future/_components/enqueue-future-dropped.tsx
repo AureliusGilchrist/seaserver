@@ -1,3 +1,4 @@
+import { formatCount } from "@/lib/helpers/number"
 import { cachedImageUrl } from "@/lib/server/assets"
 import { EnqueueFuture_DroppedItem } from "@/api/generated/types"
 import {
@@ -33,7 +34,7 @@ export function EnqueueFutureDropped({ isRunning }: { isRunning: boolean }) {
             <summary className="flex cursor-pointer select-none list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
                 <LuChevronDown className="flex-none text-[--muted] transition-transform group-open/dropped:rotate-180" />
                 <span className="font-semibold text-white">Nothing downloadable</span>
-                <span className="rounded-full bg-white/[0.07] px-2 py-0.5 text-xs font-semibold tabular-nums text-white/70 ring-1 ring-white/10">{dropped.length}</span>
+                <span className="rounded-full bg-white/[0.07] px-2 py-0.5 text-xs font-semibold tabular-nums text-white/70 ring-1 ring-white/10">{formatCount(dropped.length)}</span>
                 <span className="ml-auto hidden text-xs text-[--muted] sm:inline">Put any of them back with one press</span>
             </summary>
 

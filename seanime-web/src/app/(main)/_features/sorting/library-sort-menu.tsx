@@ -23,6 +23,8 @@ export type LibrarySortView =
     | "anilist-lists-anime"
     | "anilist-lists-manga"
 
+const CATEGORY_VIEWS = new Set<LibrarySortView>(["anime-library", "manga-library", "anilist-lists-anime", "anilist-lists-manga"])
+
 /**
  * The sort a view should use: the one picked in its menu, else `fallback` (usually the theme's default
  * sorting setting, so nothing changes for anyone until they pick an order themselves).
@@ -30,6 +32,9 @@ export type LibrarySortView =
 export function useLibrarySort(view: LibrarySortView, fallback: string) {
     const [orders, setOrders] = useAtom(librarySortOrdersAtom)
     const stored = orders?.[view]
+    // The category lists (Watching, Completed, Planning…) open newest release first until an order
+    // is picked; once one is, it is remembered for that view and used from then on.
+    if (CATEGORY_VIEWS.has(view)) fallback = "RELEASE_DATE_DESC"
     const setSorting = React.useCallback((value: string) => {
         setOrders(prev => ({ ...(prev ?? {}), [view]: value }))
     }, [setOrders, view])

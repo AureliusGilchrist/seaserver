@@ -1,4 +1,4 @@
-import { formatNumber } from "@/lib/helpers/number"
+import { formatNumber, formatCount } from "@/lib/helpers/number"
 import { EnqueueFuture_Item, EnqueueFuture_Snapshot } from "@/api/generated/types"
 import { __torrentSearch_selectedTorrentsAtom } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-container"
 import { Button } from "@/components/ui/button"
@@ -144,7 +144,7 @@ function SelectedTorrents({ torrents }: { torrents: { name: string, link: string
         <div className="space-y-1 rounded-2xl bg-emerald-400/[0.06] p-2.5 ring-1 ring-emerald-300/15" data-enqueue-future-selected-torrents>
             <p className="flex items-center gap-1.5 text-sm font-semibold text-emerald-100">
                 <LuCircleCheck className="text-[--green]" />
-                Downloading {torrents.length === 1 ? "this release" : `these ${torrents.length} releases`}
+                Downloading {torrents.length === 1 ? "this release" : `these ${formatCount(torrents.length)} releases`}
             </p>
             {torrents.map(torrent => (
                 <p

@@ -1,3 +1,4 @@
+import { formatCount } from "@/lib/helpers/number"
 import { AL_BaseManga, Manga_PageContainer } from "@/api/generated/types"
 import { ___manga_scrollSignalAtom } from "@/app/(main)/manga/_containers/chapter-reader/_components/chapter-vertical-reader"
 import {
@@ -266,7 +267,7 @@ export function MangaReaderBar(props: MangaReaderBarProps) {
                                 {!!(currentPageIndex + 1) && (
                                     <p className="">
                                         {currentPageIndex + 1}{secondPageText}
-                                        <span className="text-[--muted]"> / {pageContainer?.pages?.length}</span>
+                                        <span className="text-[--muted]"> / {formatCount(pageContainer?.pages?.length)}</span>
                                     </p>
                                 )}
                             </Badge>

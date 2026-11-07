@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCount } from "@/lib/helpers/number"
 import { CountMismatch } from "@/api/hooks/unmatched.hooks"
 import { Alert } from "@/components/ui/alert/alert"
 import { Button } from "@/components/ui/button"
@@ -92,7 +93,7 @@ export function UnmatchedCountMismatchModal({
 
                 <div>
                     <p className="text-sm text-[--muted] mb-2">
-                        {planned.length} file{planned.length === 1 ? "" : "s"} would be filed into{" "}
+                        {formatCount(planned.length)} file{planned.length === 1 ? "" : "s"} would be filed into{" "}
                         <span className="text-[--foreground]">{mismatch.destination}</span> like this:
                     </p>
 

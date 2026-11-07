@@ -1,3 +1,4 @@
+import { formatCount } from "@/lib/helpers/number"
 import { WatchParty_Participant, WatchParty_Session } from "@/api/generated/types"
 import {
     useWatchPartyCreate,
@@ -173,7 +174,7 @@ function WatchPartyModal() {
                                     </span>
                                     : <span>The source isn't playing anything yet.</span>}
                             </p>
-                            <Badge intent="info">{participants.length}</Badge>
+                            <Badge intent="info">{formatCount(participants.length)}</Badge>
                         </div>
 
                         <div className="flex flex-col gap-1 rounded-md border border-[--border] p-2">

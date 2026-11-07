@@ -7,7 +7,7 @@ import { MEDIA_COUNTRY, MEDIA_FORMAT_LABELS } from "@/app/(main)/_features/media
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { SeaLink } from "@/components/shared/sea-link"
 import { cn } from "@/components/ui/core/styling"
-import { formatNumber } from "@/lib/helpers/number"
+import { formatNumber, formatCount } from "@/lib/helpers/number"
 import { getImageUrl } from "@/lib/server/assets"
 import React from "react"
 import {
@@ -146,7 +146,7 @@ export function ProfileBody({ d, medium }: { d: ListDescription, medium: Medium 
                                         <span className="block h-full rounded-full bg-gradient-to-r from-brand-500/70 to-brand-300" style={{ width: `${(g.count / maxGenre) * 100}%` }} />
                                     </span>
                                     <span className="w-16 text-right text-xs tabular-nums text-white/50">
-                                        {g.count} · {Math.round((g.count / d.started) * 100)}%
+                                        {formatCount(g.count)} · {Math.round((g.count / d.started) * 100)}%
                                     </span>
                                 </SeaLink>
                             </li>
@@ -179,8 +179,8 @@ export function ProfileBody({ d, medium }: { d: ListDescription, medium: Medium 
                 <Panel title="Eras">
                     <div className="flex h-24 items-end gap-1.5">
                         {d.decades.map(x => (
-                            <div key={x.key} className="flex min-w-0 flex-1 flex-col items-center gap-1" title={`${x.count} from the ${x.key}`}>
-                                <span className="text-[10px] tabular-nums text-white/45">{x.count}</span>
+                            <div key={x.key} className="flex min-w-0 flex-1 flex-col items-center gap-1" title={`${formatCount(x.count)} from the ${x.key}`}>
+                                <span className="text-[10px] tabular-nums text-white/45">{formatCount(x.count)}</span>
                                 <div className="w-full rounded-t-md bg-gradient-to-t from-brand-600/50 to-brand-300/90" style={{ height: `${Math.max(6, (x.count / maxDecade) * 56)}px` }} />
                                 <span className="truncate text-[10px] text-white/60">{x.key.replace(/^(19|20)/, "'")}</span>
                             </div>
@@ -196,7 +196,7 @@ export function ProfileBody({ d, medium }: { d: ListDescription, medium: Medium 
                     </span>
                     {d.tags.map(t => (
                         <span key={t.key} className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-white/75 ring-1 ring-white/10">
-                            {t.key}<span className="tabular-nums text-white/35">{t.count}</span>
+                            {t.key}<span className="tabular-nums text-white/35">{formatCount(t.count)}</span>
                         </span>
                     ))}
                 </div>
@@ -257,7 +257,7 @@ function Distribution({ items, total, label, color }: {
                     <span key={item.key} className="flex items-center gap-1.5 text-xs text-white/70">
                         <span className={cn("size-2 rounded-full", color(item.key, i))} />
                         {label(item.key)}
-                        <span className="tabular-nums text-white/40">{item.count}</span>
+                        <span className="tabular-nums text-white/40">{formatCount(item.count)}</span>
                     </span>
                 ))}
             </div>

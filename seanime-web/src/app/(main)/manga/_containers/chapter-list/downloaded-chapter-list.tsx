@@ -1,3 +1,4 @@
+import { formatCount } from "@/lib/helpers/number"
 // /* -------------------------------------------------------------------------------------------------
 //  * Download List
 //  * -----------------------------------------------------------------------------------------------*/
@@ -207,7 +208,7 @@ export function DownloadedChapterList(props: DownloadedChapterListProps) {
                         className=""
                         loading={isDeletingChapter}
                     >
-                        Delete selected chapters ({selectedChapters?.length})
+                        Delete selected chapters ({formatCount(selectedChapters?.length)})
                     </Button>
                 </div>}
 

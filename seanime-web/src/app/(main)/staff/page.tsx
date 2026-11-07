@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCount } from "@/lib/helpers/number"
 import { cachedImageUrl } from "@/lib/server/assets"
 import { AL_StaffDetails_Staff, AL_StaffDetails_Staff_StaffMedia_Edges_Node } from "@/api/generated/types"
 import { StaffCareer, StaffCharacter, useGetAnilistStaffDetails, useGetStaffCareer } from "@/api/hooks/anilist.hooks"
@@ -159,7 +160,7 @@ function careerFacts(career: StaffCareer | undefined) {
 export default function Page() {
     const searchParams = useSearchParams()
     const id = Number(searchParams.get("id")) || 0
-    const { data, isLoading } = useGetAnilistStaffDetails(id)
+    const { data, isLoading, isError, refetch, isFetching } = useGetAnilistStaffDetails(id)
 
     if (isLoading) {
         return <PageWrapper className="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-8 text-[--muted]">
@@ -168,7 +169,25 @@ export default function Page() {
         </PageWrapper>
     }
     if (!data?.Staff) {
-        return <PageWrapper className="flex min-h-[60vh] items-center justify-center p-8 text-[--muted]">Staff not found</PageWrapper>
+        // A failed request is not a missing person: say which it was, and offer to try again.
+        return <PageWrapper className="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-8 text-center text-[--muted]">
+            <p className="text-base font-semibold text-white">{isError ? "Couldn't load this person" : "Staff not found"}</p>
+            <p className="max-w-sm text-sm">
+                {isError
+                    ? "AniList didn't answer in time, or is limiting requests right now. It usually works a moment later."
+                    : "AniList has no staff entry with this ID."}
+            </p>
+            {isError && (
+                <button
+                    type="button"
+                    onClick={() => refetch()}
+                    disabled={isFetching}
+                    className="rounded-full bg-white px-4 py-1.5 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-60"
+                >
+                    {isFetching ? "Trying again…" : "Try again"}
+                </button>
+            )}
+        </PageWrapper>
     }
     return <StaffView staff={data.Staff} />
 }
@@ -301,8 +320,8 @@ function StaffHero({ staff, stats, bio, isFav, favPending, onFav }: {
                         <p className="text-sm text-white/80 [text-shadow:_0_1px_8px_rgb(0_0_0_/_85%)] sm:text-base">
                             {[
                                 stats.first ? (stats.last !== stats.first ? `Credited ${stats.first}–${stats.last}` : `Credited ${stats.first}`) : null,
-                                `${stats.works.length} title${stats.works.length === 1 ? "" : "s"}`,
-                                stats.roles.length ? `${stats.roles.length} role${stats.roles.length === 1 ? "" : "s"}` : null,
+                                `${formatCount(stats.works.length)} title${stats.works.length === 1 ? "" : "s"}`,
+                                stats.roles.length ? `${formatCount(stats.roles.length)} role${stats.roles.length === 1 ? "" : "s"}` : null,
                             ].filter(Boolean).join(" · ")}
                         </p>
 
@@ -456,7 +475,7 @@ function VoiceRoles({ roles }: { roles: VoiceRole[] }) {
                                 <span className="min-w-0">
                                     <span className="block truncate text-sm font-semibold text-white group-hover:text-brand-100">{character.name?.full}</span>
                                     {!!role && <span className="mt-1 inline-block rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] font-medium text-white/65 ring-1 ring-white/10">{capitalize(role)}</span>}
-                                    {works.length > 1 && <span className="ml-1.5 text-[11px] text-white/45">{works.length} titles</span>}
+                                    {works.length > 1 && <span className="ml-1.5 text-[11px] text-white/45">{formatCount(works.length)} titles</span>}
                                 </span>
                             </SeaLink>
                             {!!media && <SeaLink href={`/entry?id=${media.id}`} className="group flex min-w-0 max-w-[45%] items-center justify-end gap-3 p-2 text-right">
@@ -549,7 +568,7 @@ function Filmography({ works, anime, manga, note }: { works: Work[], anime: numb
                         {group.year && <div className="flex items-center gap-3">
                             <span className="text-2xl font-black tabular-nums text-white/90">{group.year}</span>
                             <span className="h-px flex-1 bg-gradient-to-r from-white/15 to-transparent" />
-                            <span className="text-xs text-white/40">{group.works.length}</span>
+                            <span className="text-xs text-white/40">{formatCount(group.works.length)}</span>
                         </div>}
                         <div className="sea-card-grid">
                             {group.works.map(({ media, roles, voices }) => (

@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCount } from "@/lib/helpers/number"
 import { flexRender } from "@tanstack/react-table"
 import { cva } from "class-variance-authority"
 import * as React from "react"
@@ -250,7 +251,7 @@ export function DataGrid<T extends Record<string, any>>(props: DataGridProps<T>)
                                     >
                                         <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
                                     </svg>
-                                    <span>{translations["filters"][lng]} ({unselectedFilterableColumns.length})</span>
+                                    <span>{translations["filters"][lng]} ({formatCount(unselectedFilterableColumns.length)})</span>
                                 </button>
                             }
                         >

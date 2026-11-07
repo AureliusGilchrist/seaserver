@@ -52,7 +52,7 @@ type AnimeThemesResponse struct {
 	Themes []*AnimeTheme `json:"themes"`
 }
 
-var animeThemesCache = result.NewMap[int, *AnimeThemesResponse]()
+var animeThemesCache = result.NewBoundedCache[int, *AnimeThemesResponse](500) // bounded: one entry per show ever opened otherwise
 
 // HandleGetAnimeThemes
 //

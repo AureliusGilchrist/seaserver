@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCount } from "@/lib/helpers/number"
 import {
     DiagnosticsStagingDir,
     DiagnosticsTorrent,
@@ -122,7 +123,7 @@ function findProblems(d: UnmatchedDiagnostics): { title: string, description: st
     const outside = d.torrents.filter(t => !t.insideUnmatched && t.savePath)
     if (outside.length > 0) {
         problems.push({
-            title: `${outside.length} torrent${outside.length === 1 ? " is" : "s are"} being saved outside the Unmatched folder`,
+            title: `${formatCount(outside.length)} torrent${outside.length === 1 ? " is" : "s are"} being saved outside the Unmatched folder`,
             description: `The client is writing to ${outside[0].savePath}, which isn't under ${d.unmatchedBasePath}. The server never sees those files, so they can't appear here or be matched. This is what a path that means something different inside a container — or a client on another machine — looks like.`,
         })
     }
@@ -130,7 +131,7 @@ function findProblems(d: UnmatchedDiagnostics): { title: string, description: st
     const noSidecar = d.torrents.filter(t => t.insideUnmatched && !t.sidecarFound)
     if (noSidecar.length > 0) {
         problems.push({
-            title: `${noSidecar.length} download${noSidecar.length === 1 ? " has" : "s have"} no anime attached`,
+            title: `${formatCount(noSidecar.length)} download${noSidecar.length === 1 ? " has" : "s have"} no anime attached`,
             description: "The file recording which anime the download is for is missing, so it can't be auto-matched and the Downloading badge won't show. It'll still appear here for matching by hand.",
         })
     }
@@ -138,7 +139,7 @@ function findProblems(d: UnmatchedDiagnostics): { title: string, description: st
     const unlisted = d.stagingDirs.filter(s => !s.listed && s.videoCount === 0 && s.fileCount > 0)
     if (unlisted.length > 0) {
         problems.push({
-            title: `${unlisted.length} folder${unlisted.length === 1 ? " holds" : "s hold"} files but no video`,
+            title: `${formatCount(unlisted.length)} folder${unlisted.length === 1 ? " holds" : "s hold"} files but no video`,
             description: "Folders with no video file are hidden from the list. This is normal for a download that hasn't written any video data yet.",
         })
     }
@@ -173,7 +174,7 @@ function StagingRow({ dir }: { dir: DiagnosticsStagingDir }) {
         <div className="px-3 py-2 text-xs space-y-1">
             <div className="flex items-center gap-2">
                 <span className="flex-1 min-w-0 truncate text-gray-200" title={dir.name}>{dir.name}</span>
-                <span className="flex-shrink-0 text-[--muted]">{dir.videoCount} video / {dir.fileCount} files</span>
+                <span className="flex-shrink-0 text-[--muted]">{dir.videoCount} video / {formatCount(dir.fileCount)} files</span>
             </div>
             <div className="flex items-center gap-1.5 flex-wrap">
                 <Chip tone={dir.listed ? "ok" : "warn"}>{dir.listed ? "shown in the list" : "not shown in the list"}</Chip>

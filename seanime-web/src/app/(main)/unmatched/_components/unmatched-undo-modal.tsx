@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCount } from "@/lib/helpers/number"
 import {
     MatchHistoryEntry,
     MatchHistoryFile,
@@ -211,7 +212,7 @@ function MatchHistoryCard({
                         </div>
                         <p className="text-xs text-[--muted] truncate" title={entry.torrentName}>{entry.torrentName}</p>
                         <p className="text-xs text-[--muted]">
-                            {entry.files.length} file{entry.files.length === 1 ? "" : "s"} · matched {formatDistanceToNowSafe(entry.matchedAt)}
+                            {formatCount(entry.files.length)} file{entry.files.length === 1 ? "" : "s"} · matched {formatDistanceToNowSafe(entry.matchedAt)}
                         </p>
                     </div>
 
@@ -247,7 +248,7 @@ function MatchHistoryCard({
 
                 {isReverted && entry.revert && (
                     <p className="text-xs text-[--muted]">
-                        {entry.revert.restored.length} file{entry.revert.restored.length === 1 ? "" : "s"} moved back
+                        {formatCount(entry.revert.restored.length)} file{entry.revert.restored.length === 1 ? "" : "s"} moved back
                         {(entry.revert.missing?.length ?? 0) > 0 && `, ${entry.revert.missing!.length} were no longer there`}
                         {(entry.revert.failed?.length ?? 0) > 0 && `, ${entry.revert.failed!.length} couldn't be restored`}
                         {entry.revert.destinationRemoved && ", and the emptied folder was removed"}.
@@ -348,10 +349,10 @@ function RevertConfirmation({
 
     const warnings: string[] = []
     if (missing.length > 0) {
-        warnings.push(`${missing.length} file${missing.length === 1 ? " is" : "s are"} no longer where the match left ${missing.length === 1 ? "it" : "them"} — renamed, moved or deleted since. ${missing.length === 1 ? "It stays" : "They stay"} as ${missing.length === 1 ? "it is" : "they are"}.`)
+        warnings.push(`${formatCount(missing.length)} file${missing.length === 1 ? " is" : "s are"} no longer where the match left ${missing.length === 1 ? "it" : "them"} — renamed, moved or deleted since. ${missing.length === 1 ? "It stays" : "They stay"} as ${missing.length === 1 ? "it is" : "they are"}.`)
     }
     if (blocked.length > 0) {
-        warnings.push(`${blocked.length} file${blocked.length === 1 ? "" : "s"} can't go back: something is already sitting at the original path. Nothing is overwritten, so ${blocked.length === 1 ? "that file stays" : "those files stay"} in your library.`)
+        warnings.push(`${formatCount(blocked.length)} file${blocked.length === 1 ? "" : "s"} can't go back: something is already sitting at the original path. Nothing is overwritten, so ${blocked.length === 1 ? "that file stays" : "those files stay"} in your library.`)
     }
     if ((entry.deletedFiles?.length ?? 0) > 0) {
         warnings.push(`${entry.deletedFiles!.length} creditless/bonus file${entry.deletedFiles!.length === 1 ? " was" : "s were"} deleted when this match ran. Undoing can't bring ${entry.deletedFiles!.length === 1 ? "it" : "them"} back.`)
@@ -360,7 +361,7 @@ function RevertConfirmation({
     return (
         <div className="space-y-4 py-2">
             <p className="text-sm">
-                <span className="font-semibold">{ready.length}</span> file{ready.length === 1 ? "" : "s"} will be{" "}
+                <span className="font-semibold">{formatCount(ready.length)}</span> file{ready.length === 1 ? "" : "s"} will be{" "}
                 <span className="font-semibold">moved back</span> out of{" "}
                 <span className="font-semibold text-brand-200">{entry.animeTitle}</span> in your library and into the
                 Unmatched folder, renamed to the filename{ready.length === 1 ? "" : "s"} the torrent shipped with.
@@ -370,7 +371,7 @@ function RevertConfirmation({
                 <div className="border rounded-md overflow-hidden">
                     <div className="px-3 py-2 border-b bg-gray-950/40 flex items-center justify-between gap-2">
                         <p className="text-xs font-semibold uppercase tracking-wider text-[--muted]">Now → restored to</p>
-                        <p className="text-xs text-[--muted]">{ready.length} file{ready.length === 1 ? "" : "s"}</p>
+                        <p className="text-xs text-[--muted]">{formatCount(ready.length)} file{ready.length === 1 ? "" : "s"}</p>
                     </div>
                     <div className="max-h-[220px] overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
                         <div className="divide-y divide-gray-800/60">
@@ -431,7 +432,7 @@ function RevertConfirmation({
                     loading={isReverting}
                     leftIcon={<BiUndo />}
                 >
-                    Yes, move {ready.length} file{ready.length === 1 ? "" : "s"} back
+                    Yes, move {formatCount(ready.length)} file{ready.length === 1 ? "" : "s"} back
                 </Button>
             </div>
         </div>

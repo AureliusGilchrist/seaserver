@@ -1,3 +1,4 @@
+import { formatCount } from "@/lib/helpers/number"
 import { Anime_Entry, HibikeTorrent_AnimeTorrent } from "@/api/generated/types"
 import { useTorrentClientDownload, useTorrentClientGetFiles } from "@/api/hooks/torrent_client.hooks"
 import { useLibraryPathSelection } from "@/app/(main)/_hooks/use-library-path-selection"
@@ -241,7 +242,7 @@ export function TorrentDownloadFileSelection({ entry }: { entry: Anime_Entry }) 
                             </ScrollArea>
 
                             <div className="text-sm text-[--muted] mb-2">
-                                {selectedFileIndices.length} of {filePreviews.length} files selected
+                                {formatCount(selectedFileIndices.length)} of {formatCount(filePreviews.length)} files selected
                             </div>
 
                             <Button

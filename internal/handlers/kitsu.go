@@ -44,8 +44,8 @@ type KitsuAnimeInfo struct {
 	Serialization  string            `json:"serialization"`
 }
 
-var kitsuAnimeCache = result.NewMap[int, *KitsuAnimeInfo]()
-var kitsuMangaCache = result.NewMap[int, *KitsuAnimeInfo]()
+var kitsuAnimeCache = result.NewBoundedCache[int, *KitsuAnimeInfo](1000)
+var kitsuMangaCache = result.NewBoundedCache[int, *KitsuAnimeInfo](1000)
 
 // HandleGetKitsuAnimeInfo
 //

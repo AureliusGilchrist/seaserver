@@ -20,7 +20,7 @@ import { LANDING_QUICK_LINKS, useLandingFolders } from "@/app/(main)/_features/h
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { SeaLink } from "@/components/shared/sea-link"
 import { cn } from "@/components/ui/core/styling"
-import { formatNumber } from "@/lib/helpers/number"
+import { formatNumber, formatCount } from "@/lib/helpers/number"
 import React from "react"
 import {
     LuArrowRight, LuCalendar, LuChevronLeft, LuCompass, LuDownload,
@@ -115,7 +115,7 @@ export function LandingQuickLinksWidget({ visibleLinks }: { visibleLinks?: strin
                         </div>
                         <div className="min-w-0">
                             <h3 className="truncate text-lg font-semibold">{selectedFolder.name}</h3>
-                            <p className="text-xs text-[--muted]">{selectedFolder.links.length} destinations</p>
+                            <p className="text-xs text-[--muted]">{formatCount(selectedFolder.links.length)} destinations</p>
                         </div>
                     </div>
                     {selectedFolder.links.length ? (
@@ -143,7 +143,7 @@ export function LandingQuickLinksWidget({ visibleLinks }: { visibleLinks?: strin
                             </span>
                             <span className="relative min-w-0 flex-1">
                                 <span className="block truncate font-semibold text-white">{folder.name}</span>
-                                <span className="mt-1 block text-xs text-white/65">{folder.links.length} destinations</span>
+                                <span className="mt-1 block text-xs text-white/65">{formatCount(folder.links.length)} destinations</span>
                             </span>
                             <LuArrowRight className="relative size-4 shrink-0 text-white/40 transition group-hover:translate-x-1 group-hover:text-[--brand]" />
                         </button>

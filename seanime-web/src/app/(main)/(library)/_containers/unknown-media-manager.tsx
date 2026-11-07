@@ -1,3 +1,4 @@
+import { formatCount } from "@/lib/helpers/number"
 import { Anime_UnknownGroup } from "@/api/generated/types"
 import { useAddUnknownMedia } from "@/api/hooks/anime_collection.hooks"
 import { useAnimeEntryBulkAction } from "@/api/hooks/anime_entries.hooks"
@@ -89,7 +90,7 @@ export function UnknownMediaManager(props: UnknownMediaManagerProps) {
             <AppLayoutStack className="mt-4">
 
                 <p className="">
-                    Deus Ex Aeternae matched {unknownGroups.length} group{unknownGroups.length === 1 ? "" : "s"} to {unknownGroups.length === 1 ? "a " : ""}series
+                    Deus Ex Aeternae matched {formatCount(unknownGroups.length)} group{unknownGroups.length === 1 ? "" : "s"} to {unknownGroups.length === 1 ? "a " : ""}series
                     that {unknownGroups.length === 1
                     ? "is"
                     : "are"} absent from your

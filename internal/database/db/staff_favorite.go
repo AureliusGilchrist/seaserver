@@ -8,7 +8,7 @@ import (
 // GetStaffFavoriteIDs returns all favorite staff IDs.
 func (db *Database) GetStaffFavoriteIDs() ([]int, error) {
 	var favs []models.StaffFavorite
-	if err := db.gormdb.Order("added_at desc").Find(&favs).Error; err != nil {
+	if err := db.gormdb.Order(favoriteOrder).Find(&favs).Error; err != nil {
 		return nil, err
 	}
 	ids := make([]int, len(favs))

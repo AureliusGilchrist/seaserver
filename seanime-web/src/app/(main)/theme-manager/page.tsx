@@ -1,4 +1,5 @@
 "use client"
+import { formatCount } from "@/lib/helpers/number"
 import { MobileWallpaperSettings } from "@/app/(main)/_features/home/landing-look-settings"
 import { resolveServerAsset } from "@/lib/server/assets"
 import React from "react"
@@ -703,7 +704,7 @@ export default function ThemeManagerPage() {
                         <h2 className="text-xl font-semibold">Theme Marketplace</h2>
                     </div>
                     <div className="text-sm text-[--muted]">
-                        {sharedThemes.length} installed · {availableMarketplaceThemeCount} available
+                        {formatCount(sharedThemes.length)} installed · {availableMarketplaceThemeCount} available
                     </div>
                 </div>
 
@@ -851,7 +852,7 @@ export default function ThemeManagerPage() {
                             <LuStore className="w-5 h-5" />
                             <span className="text-xs font-medium">Browse more</span>
                             {marketplaceThemes.length > 0 && (
-                                <span className="text-[10px] text-[--muted]">{marketplaceThemes.length} available</span>
+                                <span className="text-[10px] text-[--muted]">{formatCount(marketplaceThemes.length)} available</span>
                             )}
                         </button>
 
@@ -974,7 +975,7 @@ export default function ThemeManagerPage() {
                             {batchProgress ? (
                                 <span className="text-xs text-[--muted] flex items-center gap-1.5">
                                     <div className="w-2.5 h-2.5 border-2 border-[--muted] border-t-[--color-brand-400] rounded-full animate-spin" />
-                                    {batchProgress.done}/{batchProgress.total}
+                                    {batchProgress.done}/{formatCount(batchProgress.total)}
                                 </span>
                             ) : suggestions.length > 0 ? (
                                 <button
@@ -983,7 +984,7 @@ export default function ThemeManagerPage() {
                                     className="text-xs text-[--color-brand-400] hover:text-[--color-brand-300] transition-colors"
                                 >
                                     <LuDownload className="w-3 h-3 inline mr-1" />
-                                    Download top {suggestions.length}
+                                    Download top {formatCount(suggestions.length)}
                                 </button>
                             ) : null}
                         </div>
@@ -1452,7 +1453,7 @@ function WallpaperShopTab({
                     <div>
                         <h2 className="text-base font-semibold">Your Downloads</h2>
                         <p className="text-xs text-[--muted] mt-0.5">
-                            {themedDownloadedBgs.length} wallpaper{themedDownloadedBgs.length !== 1 ? "s" : ""} for {theme?.displayName ?? "this theme"}
+                            {formatCount(themedDownloadedBgs.length)} wallpaper{themedDownloadedBgs.length !== 1 ? "s" : ""} for {theme?.displayName ?? "this theme"}
                         </p>
                     </div>
                     <button
@@ -1651,7 +1652,7 @@ function CurrentThemeWallpaperRow({
                             </div>
                         ))}
                     </div>
-                    <p className="text-[10px] text-[--muted]">{wallpapers.length} curated wallpapers from Wallhaven</p>
+                    <p className="text-[10px] text-[--muted]">{formatCount(wallpapers.length)} curated wallpapers from Wallhaven</p>
                 </>
             )}
         </div>

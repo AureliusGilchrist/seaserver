@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCount } from "@/lib/helpers/number"
 import { ProfileStyleTab } from "./profile-style-tab"
 import { fetchSharedThemesList, type SharedThemeInfo } from "@/lib/theme/marketplace-theme-loader"
 import type { AnimeThemeId } from "@/lib/theme/anime-themes/types"
@@ -255,7 +256,7 @@ function TitlesTab({ currentLevel }: { currentLevel: number }) {
     const unlocked = titles.filter(r => r.requiredLevel <= currentLevel).length
     // Rank titles stay hidden until earned; general titles are all shown.
     const displayTitles = themeSpecificTitles ? titles.filter(r => r.requiredLevel <= currentLevel) : titles
-    useShopStat(`${unlocked} of ${titles.length} unlocked`)
+    useShopStat(`${unlocked} of ${formatCount(titles.length)} unlocked`)
 
     return (
         <div className="space-y-4">
@@ -294,7 +295,7 @@ function NameColorsTab({ currentLevel }: { currentLevel: number }) {
     } = useRewards()
     const allRewards = [...NAME_COLOR_REWARDS, ...EGG_NAME_COLOR_REWARDS]
     const unlocked = allRewards.filter(r => !lockFor(r, currentLevel, isEggUnlocked)).length
-    useShopStat(`${unlocked} of ${allRewards.length} unlocked`)
+    useShopStat(`${unlocked} of ${formatCount(allRewards.length)} unlocked`)
 
     const hasGradient = Boolean(activeNameColor?.gradientCss)
     const sampleGradient = activeNameColor?.gradientCss ?? "linear-gradient(90deg,#f43f5e,#f97316,#facc15,#4ade80,#60a5fa,#a78bfa)"
@@ -384,7 +385,7 @@ function BordersTab({ currentLevel }: { currentLevel: number }) {
     const { activeBorder, setActiveBorder, isEggUnlocked } = useRewards()
     const allRewards = [...BORDER_REWARDS, ...EGG_BORDER_REWARDS]
     const unlocked = allRewards.filter(r => !lockFor(r, currentLevel, isEggUnlocked)).length
-    useShopStat(`${unlocked} of ${allRewards.length} unlocked`)
+    useShopStat(`${unlocked} of ${formatCount(allRewards.length)} unlocked`)
 
     return (
         <div className={grid.compact}>
@@ -412,7 +413,7 @@ function BordersTab({ currentLevel }: { currentLevel: number }) {
 function BackgroundsTab({ currentLevel }: { currentLevel: number }) {
     const { activeBackground, setActiveBackground } = useRewards()
     const unlocked = BACKGROUND_REWARDS.filter(r => r.requiredLevel <= currentLevel).length
-    useShopStat(`${unlocked} of ${BACKGROUND_REWARDS.length} unlocked`)
+    useShopStat(`${unlocked} of ${formatCount(BACKGROUND_REWARDS.length)} unlocked`)
 
     return (
         <div className={grid.medium}>
@@ -500,7 +501,7 @@ function XPBarSkinCard({ reward, currentLevel }: { reward: XPBarSkinReward; curr
 function XPBarsTab({ currentLevel }: { currentLevel: number }) {
     const [category, setCategory] = React.useState<XPBarCategory>("colors")
     const unlocked = XP_BAR_SKIN_REWARDS.filter(r => r.requiredLevel <= currentLevel).length
-    useShopStat(`${unlocked} of ${XP_BAR_SKIN_REWARDS.length} unlocked`)
+    useShopStat(`${unlocked} of ${formatCount(XP_BAR_SKIN_REWARDS.length)} unlocked`)
     const visible = XP_BAR_SKIN_REWARDS.filter(r => r.category === category)
 
     return (
@@ -562,7 +563,7 @@ function ThemesTab() {
         }))
         return [...bundled, ...downloaded]
     }, [shared])
-    useShopStat(loading ? "Loading downloaded themes…" : `${themes.length} themes`)
+    useShopStat(loading ? "Loading downloaded themes…" : `${formatCount(themes.length)} themes`)
 
     const equip = (id: string) => {
         setThemeId(id as AnimeThemeId)
@@ -609,7 +610,7 @@ function ThemesTab() {
 function ParticlesTab() {
     const { activeParticleSets, toggleParticleSet, isParticleSetActive, isEggUnlocked } = useRewards()
     const allParticles = [...PARTICLE_SET_REWARDS.filter(r => r.id !== "particles-none"), ...EGG_PARTICLE_REWARDS]
-    useShopStat(`${activeParticleSets.length} of 3 active`)
+    useShopStat(`${formatCount(activeParticleSets.length)} of 3 active`)
 
     return (
         <div className="space-y-4">
@@ -669,7 +670,7 @@ const CURSOR_COLLECTIONS: { id: string, label: string, min: number, max: number 
 function CursorTab() {
     const { activeCursorId, setActiveCursorId } = useCursor()
     const [collection, setCollection] = React.useState("basic")
-    useShopStat(`${ALL_CURSOR_DEFINITIONS.length} cursors`)
+    useShopStat(`${formatCount(ALL_CURSOR_DEFINITIONS.length)} cursors`)
 
     const range = CURSOR_COLLECTIONS.find(c => c.id === collection) ?? CURSOR_COLLECTIONS[0]
     const visible = ALL_CURSOR_DEFINITIONS.filter(c => c.requiredLevel >= range.min && c.requiredLevel <= range.max)
@@ -713,7 +714,7 @@ function SoundPackTab() {
         activeSoundPackId, setActiveSoundPackId, soundVolume, setSoundVolume, soundPacks, playSound,
         mutedSoundEvents, setSoundEventMuted,
     } = useSound()
-    useShopStat(`${soundPacks.length} sound packs`)
+    useShopStat(`${formatCount(soundPacks.length)} sound packs`)
 
     return (
         <div className="space-y-6">
@@ -1001,7 +1002,7 @@ function UIPresetsGrid({ category }: { category: typeof UI_CUSTOMIZE_CATEGORIES[
 function UIEnhancementsSection() {
     const [activeInner, setActiveInner] = React.useState<string>("animations")
     const activeCategory = UI_CUSTOMIZE_CATEGORIES.find(c => c.id === activeInner) ?? UI_CUSTOMIZE_CATEGORIES[0]
-    useShopStat(`${UI_CUSTOMIZE_CATEGORIES.length} categories`)
+    useShopStat(`${formatCount(UI_CUSTOMIZE_CATEGORIES.length)} categories`)
 
     return (
         <div className="space-y-4">

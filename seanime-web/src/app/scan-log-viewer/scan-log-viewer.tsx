@@ -1,4 +1,4 @@
-import { formatNumber } from "@/lib/helpers/number"
+import { formatNumber, formatCount } from "@/lib/helpers/number"
 "use client"
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
@@ -137,7 +137,7 @@ function Line({ line, index, onFileSelect }: LineProps) {
                                                 )}
                                             >
                                                 {data.filename ? data.filename :
-                                                    data.fileRatings ? `${data.fileRatings.length} ratings for ${data.mediaId}` :
+                                                    data.fileRatings ? `${formatCount(data.fileRatings.length)} ratings for ${data.mediaId}` :
                                                         data.message}
                                             </p>
                                         </div>
@@ -182,8 +182,8 @@ function Line({ line, index, onFileSelect }: LineProps) {
                                                 )}
                                             >
                                                 {data.filename ? data.filename :
-                                                    data.fileRatings ? `${data.fileRatings.length} ratings for ${data.mediaId}` :
-                                                        data.branches ? `${data.branches.length} branches fetched for ${data.mediaId}` :
+                                                    data.fileRatings ? `${formatCount(data.fileRatings.length)} ratings for ${data.mediaId}` :
+                                                        data.branches ? `${formatCount(data.branches.length)} branches fetched for ${data.mediaId}` :
                                                             data.message}
                                             </p>
 

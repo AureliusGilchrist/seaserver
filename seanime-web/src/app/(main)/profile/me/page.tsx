@@ -27,6 +27,7 @@ import {
     useToggleCharacterFavorite,
     useToggleStaffFavorite,
     useToggleStudioFavorite,
+    useReorderFavorites,
 } from "@/api/hooks/favorites.hooks"
 import { useGetProfileStats } from "@/api/hooks/profile-stats.hooks"
 import {
@@ -71,6 +72,7 @@ import {
     LuTrophy, LuStar, LuPencil, LuCheck, LuX, LuFlame,
     LuCalendar, LuBookOpen, LuTv, LuClock, LuActivity, LuListVideo,
     LuGlobe, LuHourglass, LuZap, LuDownload, LuHeart,
+    LuArrowLeftRight, LuChevronLeft, LuChevronRight, LuCrown,
 } from "react-icons/lu"
 
 const formatName: Record<string, string> = {
@@ -927,24 +929,188 @@ function FavoriteSection({ label, ids, type }: { label: string; ids: number[]; t
         )
     }
 
+    return <RankedFavoriteSection label={label} ids={ids} type={type} icon={icon} accent={accent} />
+}
+
+/**
+ * A favourites section in the order the user put it in, numbered first to last. Arrange mode lets
+ * two cards swap places (pick one, then the other) or step one place at a time.
+ */
+function RankedFavoriteSection({ label, ids, type, icon, accent }: {
+    label: string
+    ids: number[]
+    type: FavoriteType
+    icon: React.ReactNode
+    accent: string
+}) {
+    const { reorder, isPending } = useReorderFavorites(type)
+    const [arranging, setArranging] = React.useState(false)
+    const [picked, setPicked] = React.useState<number | null>(null)
+
+    const swap = (a: number, b: number) => {
+        if (a === b || a < 0 || b < 0 || a >= ids.length || b >= ids.length) return
+        const next = [...ids]
+        ;[next[a], next[b]] = [next[b], next[a]]
+        reorder(next)
+    }
+    const pick = (index: number) => {
+        if (picked === null) {
+            setPicked(index)
+            return
+        }
+        swap(picked, index)
+        setPicked(null)
+    }
+
     return (
-        <section className="space-y-4">
-            <div className="flex items-center gap-3 border-b border-white/10 pb-3">
+        <section className="space-y-4" data-favorite-section={type}>
+            <div className="flex flex-wrap items-center gap-3 border-b border-white/10 pb-3">
                 <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl border", accent)}>{icon}</div>
                 <div className="min-w-0">
                     <h3 className="text-lg font-bold tracking-tight text-white">{label}</h3>
-                    <p className="text-xs text-[--muted]">{formatNumber(ids.length)} saved</p>
+                    <p className="text-xs text-[--muted]">
+                        {arranging
+                            ? picked === null ? "Pick a favourite, then the one to swap it with" : `Swapping #${formatNumber(picked + 1)} — pick where it goes`
+                            : `${formatNumber(ids.length)} saved, ranked first to last`}
+                    </p>
                 </div>
                 <span className="ml-auto rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold tabular-nums text-white/65">
                     {formatNumber(ids.length)}
                 </span>
+                {ids.length > 1 && (
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setArranging(v => !v)
+                            setPicked(null)
+                        }}
+                        className={cn(
+                            "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ring-1 transition",
+                            arranging ? "bg-white text-black ring-white" : "text-white/75 ring-white/15 hover:bg-white/10 hover:text-white",
+                        )}
+                        data-favorite-arrange-button
+                    >
+                        <LuArrowLeftRight className="size-3.5" />
+                        {arranging ? (isPending ? "Saving…" : "Done") : "Arrange"}
+                    </button>
+                )}
             </div>
             <div className="grid grid-cols-2 gap-3 min-[480px]:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-                {ids.map((id) => (
-                    <FavoriteCard key={id} id={id} type={type} />
+                {ids.map((id, index) => (
+                    <RankedFavorite
+                        key={id}
+                        rank={index + 1}
+                        arranging={arranging}
+                        picked={picked === index}
+                        isFirst={index === 0}
+                        isLast={index === ids.length - 1}
+                        onPick={() => pick(index)}
+                        onEarlier={() => swap(index, index - 1)}
+                        onLater={() => swap(index, index + 1)}
+                    >
+                        <FavoriteCard id={id} type={type} />
+                    </RankedFavorite>
                 ))}
             </div>
         </section>
+    )
+}
+
+const PODIUM: Record<number, { badge: string, ring: string, glow: string, label: string }> = {
+    1: {
+        badge: "bg-gradient-to-br from-amber-200 via-yellow-400 to-amber-600 text-amber-950 shadow-amber-500/50 ring-amber-100/80",
+        ring: "ring-2 ring-amber-300/70",
+        glow: "bg-amber-400/25",
+        label: "First",
+    },
+    2: {
+        badge: "bg-gradient-to-br from-white via-slate-200 to-slate-400 text-slate-900 shadow-slate-300/40 ring-white/80",
+        ring: "ring-2 ring-slate-200/60",
+        glow: "bg-slate-200/15",
+        label: "Second",
+    },
+    3: {
+        badge: "bg-gradient-to-br from-orange-200 via-orange-400 to-amber-800 text-orange-950 shadow-orange-500/40 ring-orange-100/70",
+        ring: "ring-2 ring-orange-300/60",
+        glow: "bg-orange-400/20",
+        label: "Third",
+    },
+}
+
+function RankedFavorite({ rank, arranging, picked, isFirst, isLast, onPick, onEarlier, onLater, children }: {
+    rank: number
+    arranging: boolean
+    picked: boolean
+    isFirst: boolean
+    isLast: boolean
+    onPick: () => void
+    onEarlier: () => void
+    onLater: () => void
+    children: React.ReactNode
+}) {
+    const podium = PODIUM[rank]
+    return (
+        <div
+            className={cn(
+                "relative rounded-2xl transition-transform duration-200",
+                podium && podium.ring,
+                picked && "scale-[0.97] ring-2 ring-white",
+                arranging && !picked && "hover:scale-[0.99]",
+            )}
+            data-favorite-rank={rank}
+        >
+            {podium && <div className={cn("pointer-events-none absolute -inset-1 -z-10 rounded-3xl blur-xl", podium.glow)} aria-hidden />}
+            {children}
+
+            {/* The number, on the artwork. The podium three get a medallion; the rest a quiet pill. */}
+            {podium ? (
+                <div className="pointer-events-none absolute -left-2 -top-2 z-[2] flex flex-col items-center" aria-label={`${podium.label} favourite`}>
+                    {rank === 1 && <LuCrown className="-mb-1 size-5 text-amber-300 drop-shadow-[0_2px_6px_rgba(251,191,36,0.7)]" />}
+                    <span className={cn("flex size-10 items-center justify-center rounded-full text-lg font-black tabular-nums shadow-lg ring-2", podium.badge)}>
+                        {rank}
+                    </span>
+                </div>
+            ) : (
+                <span className="pointer-events-none absolute right-2 top-2 z-[2] rounded-full border border-white/15 bg-black/70 px-2 py-0.5 text-xs font-bold tabular-nums text-white/85 backdrop-blur-md">
+                    #{formatNumber(rank)}
+                </span>
+            )}
+
+            {arranging && (
+                <>
+                    {/* Covers the card so a tap picks it instead of opening its page. */}
+                    <button
+                        type="button"
+                        onClick={onPick}
+                        aria-label={picked ? `Cancel moving number ${rank}` : `Pick number ${rank} to swap`}
+                        className={cn(
+                            "absolute inset-0 z-[3] rounded-2xl transition-colors",
+                            picked ? "bg-white/15" : "bg-black/10 hover:bg-white/10",
+                        )}
+                    />
+                    <div className="absolute inset-x-2 bottom-2 z-[4] flex justify-between">
+                        <button
+                            type="button"
+                            disabled={isFirst}
+                            onClick={onEarlier}
+                            aria-label={`Move number ${rank} up one place`}
+                            className="flex size-8 items-center justify-center rounded-full bg-black/75 text-white ring-1 ring-white/20 backdrop-blur-md transition hover:bg-white hover:text-black disabled:opacity-30"
+                        >
+                            <LuChevronLeft className="size-4" />
+                        </button>
+                        <button
+                            type="button"
+                            disabled={isLast}
+                            onClick={onLater}
+                            aria-label={`Move number ${rank} down one place`}
+                            className="flex size-8 items-center justify-center rounded-full bg-black/75 text-white ring-1 ring-white/20 backdrop-blur-md transition hover:bg-white hover:text-black disabled:opacity-30"
+                        >
+                            <LuChevronRight className="size-4" />
+                        </button>
+                    </div>
+                </>
+            )}
+        </div>
     )
 }
 

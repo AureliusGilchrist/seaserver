@@ -578,8 +578,12 @@ func (h *Handler) HandleGetAnilistAnimeDetails(c echo.Context) error {
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
 
-var studioDetailsMap = result.NewMap[int, *anilist.StudioDetails]()
-var staffDetailsMap = result.NewMap[int, *anilist.StaffDetails]()
+// Bounded, and expiring: these used to keep every studio and staff page ever opened for the life
+// of the server, each one a full credits list.
+var studioDetailsMap = result.NewBoundedCache[int, *anilist.StudioDetails](200)
+var staffDetailsMap = result.NewBoundedCache[int, *anilist.StaffDetails](200)
+
+
 
 // HandleGetAnilistStudioDetails
 //
@@ -605,7 +609,7 @@ func (h *Handler) HandleGetAnilistStudioDetails(c echo.Context) error {
 
 	go func() {
 		if details != nil {
-			studioDetailsMap.Set(mId, details)
+			studioDetailsMap.SetT(mId, details, detailsCacheTTL)
 		}
 	}()
 
@@ -638,7 +642,7 @@ func (h *Handler) HandleGetAnilistStaffDetails(c echo.Context) error {
 
 	go func() {
 		if details != nil {
-			staffDetailsMap.Set(mId, details)
+			staffDetailsMap.SetT(mId, details, detailsCacheTTL)
 		}
 	}()
 

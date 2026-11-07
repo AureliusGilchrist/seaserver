@@ -18,7 +18,7 @@ import { useMissingEpisodeCount } from "@/app/(main)/_hooks/missing-episodes-loa
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { SeaLink } from "@/components/shared/sea-link"
 import { cn } from "@/components/ui/core/styling"
-import { formatNumber } from "@/lib/helpers/number"
+import { formatNumber, formatCount } from "@/lib/helpers/number"
 import { getImageUrl } from "@/lib/server/assets"
 import React from "react"
 import { BiBook } from "react-icons/bi"
@@ -350,7 +350,7 @@ function TorrentsCard() {
     const up = (torrents ?? []).reduce((n, t) => n + (t.upSpeedBytes ?? 0), 0)
     const active = (torrents ?? []).filter(t => t.status === "downloading").sort((a, b) => b.progress - a.progress).slice(0, 2)
     return (
-        <CardShell title="Torrents" icon={<LuWand />} href="/torrent-list" aside={queue?.waiting ? `${queue.waiting} waiting to add` : null}>
+        <CardShell title="Torrents" icon={<LuWand />} href="/torrent-list" aside={queue?.waiting ? `${formatCount(queue.waiting)} waiting to add` : null}>
             {!torrents
                 ? <Empty>Torrent client not reachable.</Empty>
                 : <>

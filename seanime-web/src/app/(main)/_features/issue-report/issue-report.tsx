@@ -1,3 +1,4 @@
+import { formatCount } from "@/lib/helpers/number"
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { Report_ClickLog, Report_ConsoleLog, Report_NetworkLog, Report_ReactQueryLog } from "@/api/generated/types"
 import { useSaveIssueReport } from "@/api/hooks/report.hooks"
@@ -721,7 +722,7 @@ export function IssueReport() {
                             <div className="ml-auto flex items-center gap-2">
                                 <span className="text-xs text-gray-500 tabular-nums">{eventCount} events</span>
                                 {screenshots.length > 0 && (
-                                    <span className="text-xs text-gray-500">{screenshots.length} imgs</span>
+                                    <span className="text-xs text-gray-500">{formatCount(screenshots.length)} imgs</span>
                                 )}
                             </div>
                         </div>

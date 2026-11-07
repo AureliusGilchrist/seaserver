@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCount } from "@/lib/helpers/number"
 import type { AL_BaseAnime, AL_BaseManga, Continuity_WatchHistory } from "@/api/generated/types"
 import { MEDIA_FORMAT_LABELS } from "@/app/(main)/_features/media/_components/media-meta-chips"
 import { cn } from "@/components/ui/core/styling"
@@ -98,7 +99,7 @@ export function MangaContinueMeta({ manga, chapterNumber, chaptersTotal, lastRea
     const notes: { icon: React.ReactNode, text: string }[] = []
     const lastOpened = lastReadAt ? timeAgo(lastReadAt) : null
     if (lastOpened) notes.push({ icon: <LuHistory />, text: `Last opened ${lastOpened}` })
-    if (manga.volumes) notes.push({ icon: <LuClock />, text: `${manga.volumes} volumes in print` })
+    if (manga.volumes) notes.push({ icon: <LuClock />, text: `${formatCount(manga.volumes)} volumes in print` })
 
     const year = manga.startDate?.year
     const origin = MANGA_ORIGIN[manga.countryOfOrigin ?? ""]

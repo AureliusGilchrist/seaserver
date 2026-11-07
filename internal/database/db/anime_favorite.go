@@ -8,7 +8,7 @@ import (
 // GetAnimeFavoriteIDs returns all favorite anime media IDs.
 func (db *Database) GetAnimeFavoriteIDs() ([]int, error) {
 	var favs []models.AnimeFavorite
-	if err := db.gormdb.Order("added_at desc").Find(&favs).Error; err != nil {
+	if err := db.gormdb.Order(favoriteOrder).Find(&favs).Error; err != nil {
 		return nil, err
 	}
 	ids := make([]int, len(favs))

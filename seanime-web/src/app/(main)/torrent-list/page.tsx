@@ -1,4 +1,5 @@
 "use client"
+import { formatCount } from "@/lib/helpers/number"
 import { useRequireAdmin } from "@/app/(main)/_hooks/use-require-admin"
 import { TorrentClientAction_Variables } from "@/api/generated/endpoint.types"
 import { useGetActiveTorrentList, useGetTorrentAddQueue, useTorrentClientAction } from "@/api/hooks/torrent_client.hooks"
@@ -88,7 +89,7 @@ function OfflineAddQueuePanel() {
         <div className="flex items-center gap-3 flex-wrap rounded-2xl border border-white/[0.08] bg-gradient-to-br from-white/[0.05] via-black/25 to-black/40 px-4 py-3 mb-4 backdrop-blur-md">
             <LoadingSpinner className="h-4 w-4 flex-shrink-0 text-brand-300" />
             <p className="text-sm">
-                <span className="font-medium text-gray-200">{queue.waiting}</span> torrent{queue.waiting === 1 ? "" : "s"} waiting for the client
+                <span className="font-medium text-gray-200">{formatCount(queue.waiting)}</span> torrent{queue.waiting === 1 ? "" : "s"} waiting for the client
                 {queue.adding > 0 && <> · <span className="text-brand-300">importing {queue.adding} now</span></>}
             </p>
             {!!queue.oldest && (

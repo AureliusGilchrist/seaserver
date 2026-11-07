@@ -1,4 +1,4 @@
-import { formatNumber } from "@/lib/helpers/number"
+import { formatNumber, formatCount } from "@/lib/helpers/number"
 "use client"
 
 import {
@@ -118,7 +118,7 @@ export default function Page() {
                     <div className="rounded-lg border bg-gray-900 p-4 space-y-2">
                         <div className="flex justify-between text-sm">
                             <span className="text-[--muted]">Scanning: {progress.folderName}</span>
-                            <span className="font-medium">{progress.current} / {progress.total}</span>
+                            <span className="font-medium">{progress.current} / {formatCount(progress.total)}</span>
                         </div>
                         <div className="w-full bg-gray-800 rounded-full h-2">
                             <div
@@ -374,7 +374,7 @@ function ReviewRow({ folder, chosenMediaId, onChoose, isPending, onAccept, onDis
                     <p className="text-sm text-[--muted] truncate">
                         → {chosen?.title ?? folder.matchedTitle}
                         {!!chosen?.format && <span className="opacity-70"> · {chosen.format}</span>}
-                        {!!chosen?.chapters && <span className="opacity-70"> · {chosen.chapters} ch</span>}
+                        {!!chosen?.chapters && <span className="opacity-70"> · {formatCount(chosen.chapters)} ch</span>}
                     </p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
@@ -398,7 +398,7 @@ function ReviewRow({ folder, chosenMediaId, onChoose, isPending, onAccept, onDis
                         className="text-xs text-[--muted] hover:text-white transition-colors"
                         onClick={() => setShowOthers(v => !v)}
                     >
-                        {showOthers ? "Hide" : `Not right? ${others.length} other ${others.length === 1 ? "match" : "matches"}`}
+                        {showOthers ? "Hide" : `Not right? ${formatCount(others.length)} other ${others.length === 1 ? "match" : "matches"}`}
                     </button>
 
                     {showOthers && (
@@ -550,7 +550,7 @@ function AniListSearchModal({ isOpen, onClose, folderName, onLinked }: AniListSe
                                     <p className="font-medium truncate text-sm">{candidate.title}</p>
                                     <p className="text-xs text-[--muted]">
                                         {candidate.format} · {candidate.status}
-                                        {candidate.chapters ? ` · ${candidate.chapters} ch` : ""}
+                                        {candidate.chapters ? ` · ${formatCount(candidate.chapters)} ch` : ""}
                                     </p>
                                 </div>
                                 <Badge intent={(candidate.confidence ?? 0) >= 0.85 ? "success" : "gray"} size="sm">

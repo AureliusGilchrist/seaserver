@@ -1,3 +1,4 @@
+import { formatCount } from "@/lib/helpers/number"
 import { HibikeManga_ChapterDetails } from "@/api/generated/types"
 import { Button } from "@/components/ui/button"
 import React from "react"
@@ -32,7 +33,7 @@ export function ChapterListBulkActions(props: ChapterListBulkActionsProps) {
                 className="animate-pulse"
                 data-download-selected-chapters-button
             >
-                Download selected chapters ({rowSelectedChapters?.length})
+                Download selected chapters ({formatCount(rowSelectedChapters?.length)})
             </Button>
         </>
     )

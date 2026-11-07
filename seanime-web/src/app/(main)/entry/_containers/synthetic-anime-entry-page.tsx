@@ -1,4 +1,5 @@
 "use client"
+import { formatCount } from "@/lib/helpers/number"
 import { SyntheticAnime, getSyntheticAnimeSynonyms, getSyntheticAnimeTags, getSyntheticAnimeStudios } from "@/api/hooks/synthetic-anime.hooks"
 import { MediaPageHeader, MediaPageHeaderDetailsContainer, MediaPageHeaderEntryDetails } from "@/app/(main)/_features/media/_components/media-page-header-components"
 import { PageWrapper } from "@/components/shared/page-wrapper"
@@ -85,7 +86,7 @@ export function SyntheticAnimeEntryPage({ syntheticAnime }: SyntheticAnimeEntryP
                             {/* Episodes */}
                             {syntheticAnime.episodes > 0 && (
                                 <Badge size="lg" intent="gray" className="rounded-full border-transparent bg-white/[0.08] text-white/85 ring-1 ring-white/10 backdrop-blur-md">
-                                    {syntheticAnime.episodes} episodes
+                                    {formatCount(syntheticAnime.episodes)} episodes
                                 </Badge>
                             )}
 

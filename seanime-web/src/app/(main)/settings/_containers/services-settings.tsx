@@ -1,3 +1,4 @@
+import { formatCount } from "@/lib/helpers/number"
 import {
     useCancelMangaHydration,
     useHydrateAllManga,
@@ -230,8 +231,8 @@ export function ServicesSettings() {
                         </div>
                         <ProgressBar size="sm" value={animeHydrationStatus.progress} />
                         <div className="text-xs text-[--muted] space-y-1">
-                            <p>{animeHydrationStatus.processed}/{animeHydrationStatus.total} processed ({Math.round(animeHydrationStatus.progress)}%)</p>
-                            <p>Hydrated: {animeHydrationStatus.hydrated} | Skipped: {animeHydrationStatus.skipped} | Failed: {animeHydrationStatus.failed}</p>
+                            <p>{animeHydrationStatus.processed}/{formatCount(animeHydrationStatus.total)} processed ({Math.round(animeHydrationStatus.progress)}%)</p>
+                            <p>Hydrated: {animeHydrationStatus.hydrated} | Skipped: {formatCount(animeHydrationStatus.skipped)} | Failed: {formatCount(animeHydrationStatus.failed)}</p>
                             {!!animeHydrationStatus.wasCancelled && <p className="text-yellow-400">Status: cancelled</p>}
                             {!animeHydrationStatus.isRunning && !animeHydrationStatus.wasCancelled && animeHydrationStatus.processed > 0 && (
                                 <p className="text-green-400">Status: completed</p>
@@ -261,9 +262,9 @@ export function ServicesSettings() {
                         </div>
                         <ProgressBar size="sm" value={hydrationStatus.progress} />
                         <div className="text-xs text-[--muted] space-y-1">
-                            <p>{hydrationStatus.processed}/{hydrationStatus.total} processed ({Math.round(hydrationStatus.progress)}%)</p>
+                            <p>{hydrationStatus.processed}/{formatCount(hydrationStatus.total)} processed ({Math.round(hydrationStatus.progress)}%)</p>
                             <p>AniList hydrated: {hydrationStatus.aniListHydrated} | Synthetic hydrated: {hydrationStatus.syntheticHydrated}</p>
-                            <p>Skipped: {hydrationStatus.skipped} | Failed: {hydrationStatus.failed}</p>
+                            <p>Skipped: {formatCount(hydrationStatus.skipped)} | Failed: {formatCount(hydrationStatus.failed)}</p>
                             {!!hydrationStatus.wasCancelled && <p className="text-yellow-400">Status: cancelled</p>}
                             {!hydrationStatus.isRunning && !hydrationStatus.wasCancelled && hydrationStatus.processed > 0 && (
                                 <p className="text-green-400">Status: completed</p>

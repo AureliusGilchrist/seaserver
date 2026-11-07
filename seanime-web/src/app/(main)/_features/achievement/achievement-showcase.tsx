@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCount } from "@/lib/helpers/number"
 import { useGetAchievements, useGetAchievementShowcase, useSetAchievementShowcase } from "@/api/hooks/achievement.hooks"
 import { Achievement_Definition } from "@/api/generated/types"
 import { Button } from "@/components/ui/button"
@@ -174,7 +175,7 @@ export function AchievementShowcase() {
                     <input
                         value={pickerQuery}
                         onChange={e => setPickerQuery(e.target.value)}
-                        placeholder={`Search ${unlockedChoices.length} unlocked achievements…`}
+                        placeholder={`Search ${formatCount(unlockedChoices.length)} unlocked achievements…`}
                         className="h-9 w-full rounded-xl border border-white/[0.08] bg-black/30 px-3 text-sm outline-none placeholder:text-[--muted] focus:border-brand-400/50"
                     />
                     <div className="grid max-h-[60vh] grid-cols-1 gap-2 overflow-y-auto p-0.5 sm:grid-cols-2">
