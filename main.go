@@ -4,9 +4,12 @@ import (
 	"embed"
 	"fmt"
 	"os"
+	"runtime/debug"
 	"seanime/internal/constants"
 	"seanime/internal/server"
 )
+
+const backendMemoryLimit = 50 << 30
 
 //go:embed all:web
 var WebFS embed.FS
@@ -22,6 +25,8 @@ var embeddedLogo []byte
 var versionsManifest []byte
 
 func main() {
+	debug.SetMemoryLimit(backendMemoryLimit)
+
 	if err := constants.SetVersionsFromJSON(versionsManifest); err != nil {
 		// Non-fatal: fall back to the defaults baked into the constants package.
 		fmt.Fprintf(os.Stderr, "warning: failed to load versions.json manifest: %v\n", err)
