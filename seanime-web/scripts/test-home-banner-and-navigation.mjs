@@ -77,4 +77,17 @@ const manga = render({ id: 2, format: "MANGA", chapters: 30, volumes: 3 }, "mang
 })
 for (const value of ["Manga", "30 ch", "3 vol", "Example Creator"]) assert.ok(manga.includes(value), value)
 assert.ok(!render({ id: 3 }, "manga").includes("members"))
+const { HomeSections } = await load("src/app/(main)/_features/home/home-sections.tsx")
+const sections = renderToStaticMarkup(React.createElement(HomeSections, {
+    items: [
+        { id: "anime", type: "anime-continue-watching" },
+        { id: "manga", type: "manga-continue-reading" },
+        { id: "title", type: "centered-title" },
+    ],
+    renderItem: () => React.createElement("span", null, "content"),
+}))
+for (const id of ["anime", "manga"]) {
+    assert.match(sections, new RegExp(`<section[^>]*data-home-section="${id}"[^>]*backdrop-blur-md`))
+}
+assert.doesNotMatch(sections, /<section[^>]*data-home-section="title"[^>]*backdrop-blur-md/)
 console.log("home banners and pending navigation: all checks pass")

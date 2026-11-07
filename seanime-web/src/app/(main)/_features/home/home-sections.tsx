@@ -106,8 +106,7 @@ export function HomeSections({ items, renderItem }: {
                         transition={{ duration: 0.5, ease: [0.2, 0.8, 0.2, 1] }}
                         className={cn(
                             "scroll-mt-16 [&:not(:has(>[data-home-section-body]>*))]:hidden",
-                            // Solid rather than blurred: a shelf can be a whole screen tall, and blurring that scrolls badly.
-                            framed && "rounded-3xl border border-white/[0.08] bg-black/40 p-2 shadow-xl shadow-black/20 md:p-3",
+                            framed && "rounded-3xl border border-white/[0.08] bg-black/40 p-2 shadow-xl shadow-black/20 backdrop-blur-md md:p-3",
                         )}
                     >
                         <div data-home-section-body={item.id}>{renderItem(item)}</div>
