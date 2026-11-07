@@ -1130,7 +1130,7 @@ func (d *Downloader) refreshMediaMapLocked() {
 		mediaDirPath := filepath.Join(d.downloadDir, mediaDir.Name())
 
 		// Try new format: series-level registry.json
-		seriesRegistry, err := chapter_downloader.LoadSeriesRegistry(mediaDirPath, d.logger)
+		seriesRegistry, err := chapter_downloader.LoadSeriesRegistryReadOnly(mediaDirPath, d.logger)
 		if err == nil && len(seriesRegistry.Chapters) > 0 && seriesRegistry.MediaId != 0 {
 			mu.Lock()
 			if _, ok := ret[seriesRegistry.MediaId]; !ok {

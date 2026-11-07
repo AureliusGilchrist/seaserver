@@ -147,8 +147,51 @@ func LoadSeriesRegistry(seriesDir string, logger *zerolog.Logger) (*SeriesRegist
 	return &registry, nil
 }
 
+type cachedSeriesRegistry struct {
+	modTime  int64
+	size     int64
+	registry *SeriesRegistry
+}
+
+// seriesRegistryReadCache holds parsed registries keyed by series directory. An entry is reused
+// only while the registry file's modification time and size are unchanged, so a stat replaces
+// reading and parsing the JSON on every library scan.
+var seriesRegistryReadCache sync.Map // map[string]cachedSeriesRegistry
+
+// LoadSeriesRegistryReadOnly is LoadSeriesRegistry for scans that only read: the chapter list
+// and download maps walk every series folder on each request, and re-parsing every registry.json
+// each time is what made them slow on large libraries.
+//
+// The returned registry is shared between callers and must not be modified or saved.
+func LoadSeriesRegistryReadOnly(seriesDir string, logger *zerolog.Logger) (*SeriesRegistry, error) {
+	registryPath := filepath.Join(seriesDir, "registry.json")
+	info, err := os.Stat(registryPath)
+	if err != nil {
+		seriesRegistryReadCache.Delete(seriesDir)
+		return LoadSeriesRegistry(seriesDir, logger)
+	}
+	if cached, ok := seriesRegistryReadCache.Load(seriesDir); ok {
+		entry := cached.(cachedSeriesRegistry)
+		if entry.modTime == info.ModTime().UnixNano() && entry.size == info.Size() {
+			return entry.registry, nil
+		}
+	}
+	registry, err := LoadSeriesRegistry(seriesDir, logger)
+	if err != nil {
+		return nil, err
+	}
+	seriesRegistryReadCache.Store(seriesDir, cachedSeriesRegistry{
+		modTime:  info.ModTime().UnixNano(),
+		size:     info.Size(),
+		registry: registry,
+	})
+	return registry, nil
+}
+
 // Save saves the series registry to the given series directory
 func (sr *SeriesRegistry) Save(seriesDir string) error {
+	// Coarse file timestamps could let a same-size rewrite look unchanged to the read cache.
+	defer seriesRegistryReadCache.Delete(seriesDir)
 	registryPath := filepath.Join(seriesDir, "registry.json")
 	
 	data, err := json.MarshalIndent(sr, "", "  ")

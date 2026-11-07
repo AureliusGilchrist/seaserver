@@ -1,6 +1,7 @@
 "use client"
 import { useIsStillOnPath } from "@/lib/navigation"
-import { useGetMangaEntry, useGetMangaEntryDetails } from "@/api/hooks/manga.hooks"
+import { useGetMangaEntry, useGetMangaEntryChapters, useGetMangaEntryDetails } from "@/api/hooks/manga.hooks"
+import { __manga_entryProviderAtom } from "@/app/(main)/manga/_lib/handle-manga-selected-provider"
 import { MediaEntryPageLoadingDisplay } from "@/app/(main)/_features/media/_components/media-entry-page-loading-display"
 import { PluginWebviewSlot } from "@/app/(main)/_features/plugin/webview/plugin-webviews"
 import { MangaEntryDetailsTabs } from "@/app/(main)/manga/_components/manga-entry-details-tabs"
@@ -13,7 +14,7 @@ import { PageWrapper } from "@/components/shared/page-wrapper"
 import { Button } from "@/components/ui/button"
 import { displayTitle } from "@/lib/helpers/media"
 import { useRouter, useSearchParams } from "@/lib/navigation"
-import { useSetAtom } from "jotai/react"
+import { useAtomValue, useSetAtom } from "jotai/react"
 import React from "react"
 
 export const dynamic = "force-static"
@@ -39,6 +40,15 @@ export default function Page() {
         isError: mangaDetailsError,
         refetch: refetchMangaDetails,
     } = useGetMangaEntryDetails(mediaId)
+
+    // Start the chapter list now, alongside the entry, rather than after it: the list asks the
+    // source and is usually the slowest thing on the page. Same query the chapter list reads, so
+    // it simply finds the answer there (or the request already under way).
+    const storedProviders = useAtomValue(__manga_entryProviderAtom)
+    useGetMangaEntryChapters({
+        mediaId: Number(mediaId),
+        provider: mediaId ? storedProviders[mediaId] : undefined,
+    })
 
     /**
      * Fetch manga download data
@@ -123,15 +133,11 @@ export default function Page() {
                     key="chapter-list"
                     className="relative 2xl:order-first pb-10 pt-4 lg:pt-6"
                     {...{
-                        initial: { opacity: 0, y: 15 },
+                        // Quick and without a wait: the chapters were held back half a second.
+                        initial: { opacity: 0, y: 8 },
                         animate: { opacity: 1, y: 0 },
-                        exit: { opacity: 0, y: 15 },
-                        transition: {
-                            type: "spring",
-                            damping: 10,
-                            stiffness: 80,
-                            delay: 0.5,
-                        },
+                        exit: { opacity: 0, y: 8 },
+                        transition: { duration: 0.2, ease: "easeOut" },
                     }}
                 >
 

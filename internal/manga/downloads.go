@@ -127,7 +127,7 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 		mediaDirPath := filepath.Join(r.downloadDir, mediaDir.Name())
 
 		// Check for series-level registry.json (new format)
-		seriesRegistry, err := chapter_downloader.LoadSeriesRegistry(mediaDirPath, r.logger)
+		seriesRegistry, err := chapter_downloader.LoadSeriesRegistryReadOnly(mediaDirPath, r.logger)
 		if err == nil && len(seriesRegistry.Chapters) > 0 {
 			processedRegistries[mediaDirPath] = seriesRegistry
 			continue
