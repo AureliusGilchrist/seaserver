@@ -105,7 +105,10 @@ func (h *Handler) HandleGetRawAnimeCollection(c echo.Context) error {
 	bypassCache := c.Request().Method == "POST"
 
 	// The signed-in profile's own collection, not the app-level one (see the manga equivalent).
-	if profileID := h.GetProfileID(c); profileID > 0 && h.App.AnilistClientManager != nil {
+	if profileID := h.GetProfileID(c); profileID > 0 {
+		if h.App.AnilistClientManager == nil {
+			return h.RespondWithError(c, errors.New("profile AniList client is unavailable"))
+		}
 		if bypassCache {
 			h.App.AnilistClientManager.InvalidateAnimeCollection(profileID)
 		}

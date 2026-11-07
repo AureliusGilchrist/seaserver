@@ -111,21 +111,24 @@ assert.deepEqual(countLists({ MediaListCollection: { lists: [
     { status: "CURRENT", entries: [{ media: { id: 1 }, progress: 3 }] },
     { status: "REPEATING", entries: [{ media: { id: 2 }, progress: 4 }] },
     { status: "COMPLETED", entries: [{ media: { id: 3 }, progress: 12 }] },
-    { status: "PLANNING", entries: [{ media: { id: 4 }, progress: 5 }] },
-] } }), { onLists: 3, planning: 1, current: 2, completed: 1, progress: 19 })
+    { status: "PLANNING", entries: [{ media: { id: 4 }, progress: 5 }, { media: { id: 4 }, progress: 5 }] },
+] } }), { onLists: 4, planning: 1, current: 2, completed: 1, progress: 24 })
 const landing = await readFile("src/app/(main)/_features/home/landing-hub.tsx", "utf8")
 assert.ok(landing.indexOf("<LandingLibraryInsightsWidget />") > landing.indexOf("data-landing-hero"))
 assert.ok(landing.indexOf("<LandingLibraryInsightsWidget />") < landing.indexOf("{/* Whatever was being watched */}"))
 assert.match(landing, /w\.id !== "library-insights"/)
 for (const link of ["anime", "manga", "discover", "schedule", "lists"]) assert.ok(landing.includes(`"${link}"`))
 const insights = await readFile("src/app/(main)/_features/home/landing-widget-views.tsx", "utf8")
-assert.match(insights, /useGetRawAnimeCollection\(!!profile\?\.id && profile\.anilistAuthenticated, profile\?\.id\)/)
-assert.match(insights, /useGetRawAnilistMangaCollection\(!!profile\?\.id && profile\.anilistAuthenticated, profile\?\.id\)/)
+assert.match(insights, /useGetRawAnimeCollection\(!!profile\?\.id, profile\?\.id\)/)
+assert.match(insights, /useGetRawAnilistMangaCollection\(!!profile\?\.id, profile\?\.id\)/)
+assert.doesNotMatch(insights, /not counting planning/)
 const mediumInsights = await readFile("src/app/(main)/_features/home/medium-home-insights.tsx", "utf8")
 for (const label of ["Titles in library", "Watching", "Completed", "Episodes watched", "Local anime files", "Library size", "Missing episodes", "Titles in collection", "Reading", "Chapters read", "Downloaded chapters", "Download size"]) {
     assert.ok(mediumInsights.includes(`label: "${label}"`), label)
 }
 assert.match(mediumInsights, /useGetProfileMissingEpisodes/)
+assert.doesNotMatch(mediumInsights, /anilistAuthenticated|excluding planning/)
+assert.equal((mediumInsights.match(/label: "Planning"/g) ?? []).length, 2)
 assert.doesNotMatch(mediumInsights, /useGetMissingEpisodes\(|useMissingEpisodeCount\(/)
 const animeHome = await readFile("src/app/(main)/(library)/_home/home-screen.tsx", "utf8")
 assert.equal((animeHome.match(/<AnimeHomeInsights \/>/g) ?? []).length, 2)

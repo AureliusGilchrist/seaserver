@@ -180,15 +180,15 @@ function QuickLinkCard({ link }: { link: typeof LANDING_QUICK_LINKS[number] }) {
  */
 export function useLandingAnimeStats() {
     const profile = useServerStatus()?.currentProfile
-    const { data, isLoading, isError } = useGetRawAnimeCollection(!!profile?.id && profile.anilistAuthenticated, profile?.id)
-    const stats = React.useMemo(() => profile?.id && profile.anilistAuthenticated ? countLists(data) : null, [data, profile?.id, profile?.anilistAuthenticated])
+    const { data, isLoading, isError } = useGetRawAnimeCollection(!!profile?.id, profile?.id)
+    const stats = React.useMemo(() => profile?.id ? countLists(data) : null, [data, profile?.id])
     return { stats, isLoading, isError }
 }
 
 export function useLandingMangaStats() {
     const profile = useServerStatus()?.currentProfile
-    const { data, isLoading, isError } = useGetRawAnilistMangaCollection(!!profile?.id && profile.anilistAuthenticated, profile?.id)
-    const stats = React.useMemo(() => profile?.id && profile.anilistAuthenticated ? countLists(data) : null, [data, profile?.id, profile?.anilistAuthenticated])
+    const { data, isLoading, isError } = useGetRawAnilistMangaCollection(!!profile?.id, profile?.id)
+    const stats = React.useMemo(() => profile?.id ? countLists(data) : null, [data, profile?.id])
     return { stats, isLoading, isError }
 }
 
@@ -199,7 +199,7 @@ export function LandingAnimeStatsWidget() {
     return (
         <StatsDoor
             // No AniList linked (or it failed): dashes, never someone else's numbers.
-            title={!isLoading && (isError || !stats) ? "Anime · link AniList" : "Anime"}
+            title={!isLoading && (isError || !stats) ? "Anime · unavailable" : "Anime"}
             icon={<LuMonitorPlay className="w-5 h-5" />}
             stats={[
                 { label: "on your lists", value: stats?.onLists ?? null },
@@ -221,7 +221,7 @@ export function LandingMangaStatsWidget() {
 
     return (
         <StatsDoor
-            title={!isLoading && (isError || !stats) ? "Manga · link AniList" : "Manga"}
+            title={!isLoading && (isError || !stats) ? "Manga · unavailable" : "Manga"}
             icon={<BiBook className="w-5 h-5" />}
             stats={[
                 { label: "on your lists", value: stats?.onLists ?? null },
@@ -412,7 +412,7 @@ export function LandingLibraryInsightsWidget() {
                     <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[--brand]">Your numbers</p>
                     <h2 className="mt-1 text-2xl font-bold tracking-tight text-white">Library insights</h2>
                     <p className="mt-1 text-sm text-white/60">
-                        {animeLoading || mangaLoading ? "Updating your collection…" : totalEntries === null ? "Connect your profile's AniList account to see your personal totals." : `${formatNumber(totalEntries)} titles on your lists, not counting planning.`}
+                        {animeLoading || mangaLoading ? "Updating your collection…" : totalEntries === null ? "Your personal AniList totals are unavailable." : `${formatNumber(totalEntries)} titles on your lists, including planning.`}
                     </p>
                 </div>
                 <div className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-xs font-semibold text-white/70">

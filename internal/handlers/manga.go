@@ -151,7 +151,10 @@ func (h *Handler) HandleGetRawAnilistMangaCollection(c echo.Context) error {
 
 	// The signed-in profile's own collection. This used to return the app-level one (the server
 	// owner's account) to every profile, so My List showed someone else's manga.
-	if profileID := h.GetProfileID(c); profileID > 0 && h.App.AnilistClientManager != nil {
+	if profileID := h.GetProfileID(c); profileID > 0 {
+		if h.App.AnilistClientManager == nil {
+			return h.RespondWithError(c, errors.New("profile AniList client is unavailable"))
+		}
 		if bypassCache {
 			h.App.AnilistClientManager.InvalidateMangaCollection(profileID)
 		}

@@ -28,14 +28,14 @@ export function countLists(collection: ListCollection | undefined) {
     }
     let onLists = 0, planning = 0, current = 0, completed = 0, progress = 0
     for (const entry of entries.values()) {
+        onLists++
+        progress += entry.progress
         if (entry.status === "PLANNING") {
             planning++
             continue
         }
-        onLists++
         if (entry.status === "CURRENT" || entry.status === "REPEATING") current++
         if (entry.status === "COMPLETED") completed++
-        progress += entry.progress
     }
     const summary = { onLists, planning, current, completed, progress }
     summaries.set(collection, summary)

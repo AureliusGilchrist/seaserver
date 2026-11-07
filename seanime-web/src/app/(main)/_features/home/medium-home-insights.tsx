@@ -23,7 +23,7 @@ function Insights({ medium, metrics }: { medium: "Anime" | "Manga", metrics: Met
                 <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[--brand]">Your numbers</p>
                 <h2 className="mt-1 text-2xl font-bold tracking-tight text-white">{medium} library insights</h2>
                 <p className="mt-1 text-sm text-white/60">Personal AniList progress alongside server-wide storage.</p>
-                <div className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7">
+                <div className={`mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4 ${medium === "Anime" ? "2xl:grid-cols-8" : "2xl:grid-cols-7"}`}>
                     {metrics.map(metric => (
                         <div key={metric.label} className="min-w-0 rounded-2xl border border-white/[0.08] bg-black/25 p-3.5 shadow-lg shadow-black/10 backdrop-blur-md">
                             <p className="break-words text-2xl font-extrabold tabular-nums text-white">{metric.value === null ? "—" : typeof metric.value === "number" ? metric.value.toLocaleString() : metric.value}</p>
@@ -41,28 +41,31 @@ export function AnimeHomeInsights() {
     const profile = useServerStatus()?.currentProfile
     const { stats, isLoading, isError } = useLandingAnimeStats()
     const { data: counts, isError: countsError } = useGetHomeCounts()
-    const missing = useGetProfileMissingEpisodes(profile?.id, !!profile?.anilistAuthenticated)
-    const personalDetail = isLoading ? "Loading personal AniList..." : isError ? "Could not load personal AniList" : stats ? "Your AniList" : "Connect your profile's AniList"
+    const missing = useGetProfileMissingEpisodes(profile?.id)
+    const personalDetail = !profile?.id ? "Sign in to a profile" : isLoading ? "Loading personal AniList..." : isError ? "Could not load profile's AniList" : stats ? "Your AniList" : "Personal AniList unavailable"
     const diskDetail = countsError ? "Could not load server totals" : counts ? "Server-wide" : "Loading server totals..."
     return <Insights medium="Anime" metrics={[
-        { label: "Titles in library", value: stats?.onLists ?? null, detail: `${personalDetail} · excluding planning` },
+        { label: "Titles in library", value: stats?.onLists ?? null, detail: `${personalDetail} · including planning` },
         { label: "Watching", value: stats?.current ?? null, detail: stats ? "Includes rewatching" : personalDetail },
+        { label: "Planning", value: stats?.planning ?? null, detail: personalDetail },
         { label: "Completed", value: stats?.completed ?? null, detail: personalDetail },
         { label: "Episodes watched", value: stats?.progress ?? null, detail: personalDetail },
         { label: "Local anime files", value: counts?.animeFiles ?? null, detail: diskDetail },
         { label: "Library size", value: counts?.animeSize || null, detail: counts?.animeSize ? "Server library folders at startup" : "Server library size unavailable" },
-        { label: "Missing episodes", value: missing.data ? (missing.data.episodes?.length ?? 0) : null, detail: missing.isError ? "Could not load missing episodes" : !profile?.anilistAuthenticated ? "Connect your profile's AniList" : missing.data ? "Local shows on your list · excludes silenced" : "Loading..." },
+        { label: "Missing episodes", value: missing.data ? (missing.data.episodes?.length ?? 0) : null, detail: !profile?.id ? "Sign in to a profile" : missing.isError ? "Could not load missing episodes" : missing.data ? "Local shows on your list · excludes silenced" : "Loading..." },
     ]} />
 }
 
 export function MangaHomeInsights() {
+    const profile = useServerStatus()?.currentProfile
     const { stats, isLoading, isError } = useLandingMangaStats()
     const { data: counts, isError: countsError } = useGetHomeCounts()
     const size = useGetMangaDownloadSize()
-    const personalDetail = isLoading ? "Loading personal AniList..." : isError ? "Could not load personal AniList" : stats ? "Your AniList" : "Connect your profile's AniList"
+    const personalDetail = !profile?.id ? "Sign in to a profile" : isLoading ? "Loading personal AniList..." : isError ? "Could not load profile's AniList" : stats ? "Your AniList" : "Personal AniList unavailable"
     return <Insights medium="Manga" metrics={[
-        { label: "Titles in collection", value: stats?.onLists ?? null, detail: `${personalDetail} · excluding planning` },
+        { label: "Titles in collection", value: stats?.onLists ?? null, detail: `${personalDetail} · including planning` },
         { label: "Reading", value: stats?.current ?? null, detail: stats ? "Includes rereading" : personalDetail },
+        { label: "Planning", value: stats?.planning ?? null, detail: personalDetail },
         { label: "Completed", value: stats?.completed ?? null, detail: personalDetail },
         { label: "Chapters read", value: stats?.progress ?? null, detail: personalDetail },
         { label: "Downloaded chapters", value: counts?.mangaAvailable ? counts.mangaChapters : null, detail: countsError ? "Could not load server totals" : counts?.mangaAvailable ? "Server-wide" : counts ? "Downloader unavailable" : "Loading server totals..." },
