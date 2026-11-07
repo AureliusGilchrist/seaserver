@@ -33,9 +33,12 @@ import {
     LuVolume2,
     LuWand,
     LuZap,
+    LuFastForward,
+    LuOrbit,
 } from "react-icons/lu"
 import {
     UI_CUSTOMIZE_CATEGORIES,
+    speedPresetRate,
     type UICustomizeCategoryId,
     type UIPreset,
 } from "@/lib/ui-customize/ui-customize-definitions"
@@ -887,6 +890,33 @@ function TransitionPreviewSwatch({ preset }: { preset: UIPreset }) {
     )
 }
 
+// Plays a striped bar (Progress Bar Speed) or a bouncing dot (Animation Speed) at the preset's
+// rate. Marked data-sea-speed-preview so the global speed setting leaves it at its own pace.
+function SpeedPreviewSwatch({ preset, kind }: { preset: UIPreset, kind: "bar" | "motion" }) {
+    const rate = speedPresetRate(preset.id)
+    const id = React.useId().replace(/:/g, "")
+    const base = kind === "bar" ? 1 : 1.6
+    const dur = rate > 0 ? `${(base / rate).toFixed(3)}s` : `${base}s`
+    const state = rate > 0 ? "running" : "paused"
+    return (
+        <div data-sea-speed-preview className="relative h-8 w-full overflow-hidden rounded-lg border border-white/10 bg-[#111827]">
+            <style>{`
+                @keyframes sea-sp-stripes-${id}{from{background-position:0 0}to{background-position:32px 0}}
+                @keyframes sea-sp-dot-${id}{0%,100%{left:8%}50%{left:calc(92% - 12px)}}
+                .sea-sp-${id}{animation:${kind === "bar" ? `sea-sp-stripes-${id} ${dur} linear` : `sea-sp-dot-${id} ${dur} ease-in-out`} infinite;animation-play-state:${state}}
+            `}</style>
+            {kind === "bar"
+                ? <div className="absolute inset-x-2 top-1/2 h-2.5 -translate-y-1/2 overflow-hidden rounded-full bg-white/10">
+                    <div
+                        className={`sea-sp-${id} h-full w-3/4 rounded-full`}
+                        style={{ backgroundImage: "repeating-linear-gradient(45deg, rgb(var(--color-brand-500)) 0 8px, rgb(var(--color-brand-300)) 8px 16px)", backgroundSize: "32px 32px" }}
+                    />
+                </div>
+                : <div className={`sea-sp-${id} absolute top-1/2 size-3 -translate-y-1/2 rounded-full bg-gradient-to-br from-brand-300 to-brand-600 shadow-[0_0_10px_rgb(var(--color-brand-400)/0.8)]`} />}
+        </div>
+    )
+}
+
 // ─── Visual Effects preview swatch ───────────────────────────────────────────
 
 function EffectsPreviewSwatch({ preset }: { preset: UIPreset }) {
@@ -961,6 +991,8 @@ const UI_TAB_ICONS: Record<string, React.ReactNode> = {
     selection: <LuHighlighter className="size-3" />,
     badge: <LuTag className="size-3" />,
     idle: <LuMoon className="size-3" />,
+    barSpeed: <LuFastForward className="size-3" />,
+    motionSpeed: <LuOrbit className="size-3" />,
 }
 
 function UIPresetsGrid({ category }: { category: typeof UI_CUSTOMIZE_CATEGORIES[number] }) {
@@ -973,6 +1005,8 @@ function UIPresetsGrid({ category }: { category: typeof UI_CUSTOMIZE_CATEGORIES[
             case "hover": return <HoverPreviewSwatch preset={preset} />
             case "transitions": return <TransitionPreviewSwatch preset={preset} />
             case "effects": return <EffectsPreviewSwatch preset={preset} />
+            case "barSpeed": return <SpeedPreviewSwatch preset={preset} kind="bar" />
+            case "motionSpeed": return <SpeedPreviewSwatch preset={preset} kind="motion" />
             default: return <UIPreviewSwatch previewCss={preset.previewCss} />
         }
     }

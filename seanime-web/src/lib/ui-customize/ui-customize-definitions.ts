@@ -250,6 +250,40 @@ export const SLIDER_PRESETS: UIPreset[] = [
     { id: "slider-flat",      name: "Flat",          description: "Square-cornered, minimal bars.",           icon: "▭", cssVars: {}, previewCss: "background:linear-gradient(90deg,#e5e7eb 60%,#374151 60%);border-radius:0" },
 ]
 
+// ─── 14b. Animation speeds ────────────────────────────────────────────────────
+// Rates, not durations: 2 plays twice as fast, 0 holds still. Progress bars and everything else
+// that moves on its own (spinners, pulses, shimmers, glows, decorations) are set separately;
+// transition speed is the Transition Speed tab (ANIMATION_PRESETS). The provider applies them to running animations.
+
+const speedPreset = (prefix: string, cssVar: string, rate: number, name: string, description: string, icon: string): UIPreset => ({
+    id: `${prefix}-${String(rate).replace(".", "_")}`,
+    name,
+    description,
+    icon,
+    cssVars: { [cssVar]: String(rate) },
+})
+
+const speedSet = (prefix: string, cssVar: string, what: string): UIPreset[] => [
+    speedPreset(prefix, cssVar, 0, "Still", `${what} hold still.`, "⏸️"),
+    speedPreset(prefix, cssVar, 0.25, "Very slow", `${what} at a quarter speed.`, "🐌"),
+    speedPreset(prefix, cssVar, 0.5, "Slow", `${what} at half speed.`, "🐢"),
+    speedPreset(prefix, cssVar, 0.75, "Relaxed", `${what} a little slower.`, "🍃"),
+    speedPreset(prefix, cssVar, 1, "Normal", `${what} at their usual speed.`, "▶️"),
+    speedPreset(prefix, cssVar, 1.5, "Quick", `${what} one and a half times as fast.`, "🏃"),
+    speedPreset(prefix, cssVar, 2, "Fast", `${what} twice as fast.`, "⚡"),
+    speedPreset(prefix, cssVar, 3, "Hyper", `${what} three times as fast.`, "🚀"),
+]
+
+export const BAR_SPEED_PRESETS: UIPreset[] = speedSet("barspeed", "--sea-bar-rate", "Progress bars move")
+export const MOTION_SPEED_PRESETS: UIPreset[] = speedSet("motionspeed", "--sea-motion-rate", "Animations play")
+
+/** The playback rate a speed preset stands for (1 when unknown). */
+export function speedPresetRate(id: string | undefined): number {
+    const preset = [...BAR_SPEED_PRESETS, ...MOTION_SPEED_PRESETS].find(p => p.id === id)
+    const rate = Number(preset?.cssVars ? Object.values(preset.cssVars)[0] : 1)
+    return Number.isFinite(rate) ? rate : 1
+}
+
 // ─── 15. Toasts ──────────────────────────────────────────────────────────────
 
 export const TOAST_PRESETS: UIPreset[] = [
@@ -298,7 +332,7 @@ export const IDLE_PRESETS: UIPreset[] = [
 // ─── All categories ───────────────────────────────────────────────────────────
 
 export const UI_CUSTOMIZE_CATEGORIES = [
-    { id: "animations",  label: "Animations",      icon: "✨", presets: ANIMATION_PRESETS      },
+    { id: "animations",  label: "Transition Speed", icon: "✨", presets: ANIMATION_PRESETS      },
     { id: "cards",       label: "Card Style",       icon: "🃏", presets: CARD_STYLE_PRESETS     },
     { id: "radius",      label: "Border Radius",    icon: "⬜", presets: RADIUS_PRESETS         },
     { id: "hover",       label: "Hover Effects",    icon: "👆", presets: HOVER_EFFECT_PRESETS   },
@@ -312,6 +346,8 @@ export const UI_CUSTOMIZE_CATEGORIES = [
     { id: "accent",      label: "Accent Effects",   icon: "🎨", presets: ACCENT_PRESETS        },
     { id: "navbar",      label: "Top Bar",          icon: "▭",  presets: NAVBAR_PRESETS        },
     { id: "slider",      label: "Progress Bars",    icon: "▬",  presets: SLIDER_PRESETS        },
+    { id: "barSpeed",    label: "Progress Bar Speed", icon: "⏩", presets: BAR_SPEED_PRESETS   },
+    { id: "motionSpeed", label: "Animation Speed",  icon: "🌀", presets: MOTION_SPEED_PRESETS  },
     { id: "toast",       label: "Notifications",    icon: "🔔", presets: TOAST_PRESETS         },
     { id: "selection",   label: "Selection & Focus", icon: "🖍️", presets: SELECTION_PRESETS    },
     { id: "badge",       label: "Badges",           icon: "🏷️", presets: BADGE_PRESETS         },
@@ -355,6 +391,8 @@ export interface UICustomizeState {
     accent:      string
     navbar:      string
     slider:      string
+    barSpeed:    string
+    motionSpeed: string
     toast:       string
     selection:   string
     badge:       string
@@ -384,6 +422,8 @@ export const UI_CUSTOMIZE_DEFAULTS: UICustomizeState = {
     accent:      "accent-none",
     navbar:      "navbar-default",
     slider:      "slider-default",
+    barSpeed:    "barspeed-1",
+    motionSpeed: "motionspeed-1",
     toast:       "toast-default",
     selection:   "select-default",
     badge:       "badge-default",

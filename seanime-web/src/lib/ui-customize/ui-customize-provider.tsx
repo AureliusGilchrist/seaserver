@@ -9,10 +9,12 @@ import {
     MOUSE_TRAIL_PRESETS,
     UI_CUSTOMIZE_CATEGORIES,
     UI_CUSTOMIZE_DEFAULTS,
+    speedPresetRate,
     type UICustomizeState,
     type UICustomizeCategoryId,
 } from "./ui-customize-definitions"
 import { applyRootCssVars } from "@/lib/helpers/css"
+import { useAnimationSpeeds } from "./animation-speed"
 import { SEA_PREF_REMOTE_CHANGE_EVENT, seaStorage } from "@/lib/sea-storage/sea-storage"
 
 interface UICustomizeContextValue {
@@ -115,6 +117,7 @@ export function UICustomizeProvider({ children, mouseTrail = true }: {
     }, [state])
 
     useIdleDim(state.idle)
+    useAnimationSpeeds(speedPresetRate(state.barSpeed), speedPresetRate(state.motionSpeed))
 
     const setPreset = React.useCallback((category: UICustomizeCategoryId, presetId: string) => {
         setState(prev => {

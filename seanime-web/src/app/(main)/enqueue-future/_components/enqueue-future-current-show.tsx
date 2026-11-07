@@ -49,16 +49,17 @@ export function EnqueueFutureCurrentShow({ item, snapshot, onEditSearch }: {
             className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-black/40 shadow-xl shadow-black/20"
             data-enqueue-future-current-show
         >
-            {/* The show's own art, blurred, behind the card: the clearest possible answer to
-                "which anime is this" without reading anything. */}
+            {/* The show's own art, sharp, behind the card: the clearest possible answer to
+                "which anime is this" without reading anything. The gradient below fades it out
+                behind the text. */}
             {backdrop && (
                 <div
-                    className="pointer-events-none absolute inset-0 scale-110 bg-cover bg-center opacity-30 blur-2xl"
+                    className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-60"
                     style={{ backgroundImage: `url(${backdrop})` }}
                     aria-hidden
                 />
             )}
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-black/30" aria-hidden />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-black/10" aria-hidden />
             {/* The queue list marks its highlighted rows with a brand edge; the card that states what
                 those rows are about carries the same one. */}
             <div className="absolute inset-y-0 left-0 w-1 bg-[--brand]" />
