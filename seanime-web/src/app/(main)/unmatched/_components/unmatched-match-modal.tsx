@@ -1,5 +1,6 @@
-﻿import { formatNumber } from "@/lib/helpers/number"
-"use client"
+﻿"use client"
+
+import { formatNumber } from "@/lib/helpers/number"
 
 import {
     UnmatchedTorrent,
@@ -13,9 +14,7 @@ import { useAnilistListAnime, useGetAnilistAnimeDetails } from "@/api/hooks/anil
 import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
 import { useGetLocalFiles } from "@/api/hooks/localfiles.hooks"
 import { AL_BaseAnime, AL_AnimeDetailsById_Media } from "@/api/generated/types"
-import { AppLayoutStack } from "@/components/ui/app-layout"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/components/ui/core/styling"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Modal } from "@/components/ui/modal"
@@ -29,7 +28,7 @@ import { useAtom } from "jotai/react"
 import { atomWithStorage } from "jotai/utils"
 import { toast } from "sonner"
 import { BiCheck, BiFolder, BiFile, BiSearch, BiFolderOpen, BiSolidStar } from "react-icons/bi"
-import { LuChevronDown, LuChevronRight } from "react-icons/lu"
+import { LuChevronDown, LuChevronLeft, LuChevronRight } from "react-icons/lu"
 import { SeaImage as Image } from "@/components/shared/sea-image"
 import capitalize from "lodash/capitalize"
 
@@ -706,6 +705,11 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
 
     const isLoadingAnimeInfo = isLoadingStoredAnime && storedAnimeId && !selectedAnime
 
+    const videoCount = (torrentContents?.files ?? []).filter(f => f.isVideo).length
+    const otherCount = (torrentContents?.files?.length ?? 0) - videoCount
+    const totalBytes = (torrentContents?.files ?? []).reduce((n, f) => n + (f.size || 0), 0) || torrent.size || 0
+    const stepIndex = confirmPlan ? 2 : step === "select-files" ? 0 : 1
+
     return (
         <>
         {confirmPlan && selectedAnime && (
@@ -742,8 +746,50 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
             contentClass="max-w-[min(96rem,95vw)] w-[95vw] max-h-[92vh] overflow-y-auto"
             title={step === "select-files" ? "Select Episodes" : "Select Anime"}
         >
+            {/* What is being matched, and how far along the match is */}
+            <div className="mb-4 flex flex-col gap-3 rounded-2xl bg-gradient-to-br from-white/[0.05] via-black/20 to-black/30 p-3 ring-1 ring-white/[0.07] sm:flex-row sm:items-center sm:justify-between" data-unmatched-match-header>
+                <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex size-10 flex-none items-center justify-center rounded-xl bg-brand-500/15 text-brand-200 ring-1 ring-white/10">
+                        <BiFolder className="size-5" />
+                    </span>
+                    <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-white" title={torrent.name}>{torrent.name}</p>
+                        <p className="mt-0.5 text-xs text-[--muted]">
+                            {torrentContents
+                                ? `${formatNumber(videoCount)} video${videoCount === 1 ? "" : "s"}${otherCount ? ` · ${formatNumber(otherCount)} other` : ""}${totalBytes ? ` · ${formatBytes(totalBytes)}` : ""}`
+                                : torrent.fileCount ? `${formatNumber(torrent.fileCount)} files` : "Reading the download…"}
+                        </p>
+                    </div>
+                </div>
+                <ol className="flex flex-none items-center gap-1.5" aria-label="Match steps">
+                    {(["Episodes", "Anime", "Confirm"] as const).map((label, i) => (
+                        <React.Fragment key={label}>
+                            {i > 0 && <span className={cn("h-px w-4 sm:w-6", i <= stepIndex ? "bg-brand-400/70" : "bg-white/15")} />}
+                            <li>
+                                <button
+                                    type="button"
+                                    disabled={i === 2 || (i === 1 && selectedFiles.size === 0) || i === stepIndex}
+                                    onClick={() => setStep(i === 0 ? "select-files" : "select-anime")}
+                                    className={cn(
+                                        "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 transition",
+                                        i === stepIndex ? "bg-white text-black ring-white"
+                                            : i < stepIndex ? "bg-brand-500/15 text-brand-100 ring-brand-400/30 hover:bg-brand-500/25"
+                                                : "text-white/45 ring-white/10 enabled:hover:text-white",
+                                    )}
+                                >
+                                    <span className={cn("flex size-4 items-center justify-center rounded-full text-[10px]", i === stepIndex ? "bg-black text-white" : "bg-white/10")}>
+                                        {i < stepIndex ? <BiCheck /> : i + 1}
+                                    </span>
+                                    {label}
+                                </button>
+                            </li>
+                        </React.Fragment>
+                    ))}
+                </ol>
+            </div>
+
             {(isLoadingContents || isLoadingAnimeInfo) ? (
-                <div className="flex flex-col items-center justify-center gap-3 py-10">
+                <div className="flex flex-col items-center justify-center gap-3 py-16">
                     <LoadingSpinner />
                     <p className="text-sm text-[--muted]">Loading torrent files…</p>
                 </div>
@@ -756,113 +802,120 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                     </div>
                 </div>
             ) : step === "select-files" ? (
-                <AppLayoutStack className="space-y-4">
-                    {/* Show anime info banner if we have it */}
-                    {(displayAnimeTitle || selectedAnime) && (
-                        <div className="p-3 border rounded-md bg-brand-900/20 flex items-center gap-3">
-                            {selectedAnime?.coverImage?.medium && (
-                                <Image
-                                    src={selectedAnime.coverImage.medium}
-                                    alt={displayAnimeTitle || ""}
-                                    width={40}
-                                    height={56}
-                                    className="rounded object-cover"
-                                />
-                            )}
-                            <div className="flex-1 min-w-0">
-                                <p className="text-xs text-[--muted]">Matching to:</p>
-                                <p className="font-semibold text-brand-200 line-clamp-1 flex items-center gap-2">
-                                    <span>{displayAnimeTitle || torrent.name}</span>
-                                    {(displayEpisodeCount || displayStartYear || selectedAnime?.format || selectedFiles.size > 0) && (
-                                        <span className="text-xs text-[--muted] flex items-center gap-2">
-                                            {selectedAnime?.format && (
-                                                <span>{selectedAnime.format}</span>
-                                            )}
-                                            {typeof displayEpisodeCount === "number" && (
-                                                <span>· {displayEpisodeCount} eps</span>
-                                            )}
-                                            {selectedFiles.size > 0 && (
-                                                <span className="text-brand-300">· {selectedFiles.size} selected</span>
-                                            )}
-                                            {displayStartYear && (
-                                                <span>· {displayStartYear}</span>
-                                            )}
-                                        </span>
-                                    )}
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+                    {/* The download's files */}
+                    <section className="flex min-w-0 flex-col overflow-hidden rounded-2xl bg-black/25 ring-1 ring-white/[0.07]">
+                        <div className="flex flex-wrap items-center gap-2 border-b border-white/[0.06] px-3 py-2.5">
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold text-white">Episodes</p>
+                                <p className="text-xs text-[--muted]">
+                                    Select the episodes you want to match. You can select entire seasons or individual files.
                                 </p>
-                                {selectedAnime?.title?.romaji && selectedAnime.title.romaji !== displayAnimeTitle && (
-                                    <p className="text-xs text-[--muted] line-clamp-1">{selectedAnime.title.romaji}</p>
-                                )}
-                                {selectedAnime?.title?.english && selectedAnime.title.english !== displayAnimeTitle && (
-                                    <p className="text-xs text-[--muted] line-clamp-1">{selectedAnime.title.english}</p>
-                                )}
-                                {selectedAnime?.title?.native && selectedAnime.title.native !== displayAnimeTitle && (
-                                    <p className="text-xs text-[--muted] line-clamp-1">{selectedAnime.title.native}</p>
-                                )}
                             </div>
+                            <div className="flex flex-wrap gap-1.5">
+                                <PillButton onClick={selectAll}>Select All</PillButton>
+                                <PillButton onClick={deselectAll}>Deselect All</PillButton>
+                                <PillButton onClick={expandAll}>Expand all</PillButton>
+                                <PillButton onClick={collapseAll}>Collapse all</PillButton>
+                            </div>
+                        </div>
+                        <div className="h-1 bg-white/[0.04]">
+                            <div className="h-full bg-gradient-to-r from-brand-500 to-brand-300 transition-[width]" style={{ width: `${videoCount ? (selectedFiles.size / videoCount) * 100 : 0}%` }} />
+                        </div>
+                        <ScrollArea className="h-[min(56vh,520px)] w-full">
+                            <div className="w-full min-w-0 space-y-0.5 p-2">
+                                {fileTree && fileTree.children.map((node) => (
+                                    <TreeNodeItem
+                                        key={node.path}
+                                        node={node}
+                                        depth={0}
+                                        expandedFolders={expandedSeasons}
+                                        toggleFolderExpand={toggleSeasonExpand}
+                                        selectedFiles={selectedFiles}
+                                        toggleFile={toggleFile}
+                                        toggleFolder={toggleFolder}
+                                        getFolderSelectionState={getFolderSelectionState}
+                                        getVideoFilesUnderPath={getVideoFilesUnderPath}
+                                    />
+                                ))}
+                            </div>
+                        </ScrollArea>
+                        <div className="border-t border-white/[0.06] px-3 py-2 text-xs text-[--muted]">
+                            <span className="font-semibold text-white">{selectedFiles.size}</span> files selected
+                            {videoCount > 0 && <> of {formatNumber(videoCount)} episodes</>}
+                        </div>
+                    </section>
+
+                    {/* Where they go, and how they are numbered */}
+                    <aside className="flex flex-col gap-3">
+                        <div className="rounded-2xl bg-black/25 p-3 ring-1 ring-white/[0.07]">
+                            <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-white/50">Matching to</p>
+                            {(displayAnimeTitle || selectedAnime) ? (
+                                <div className="flex gap-3">
+                                    {selectedAnime?.coverImage?.medium ? (
+                                        <Image
+                                            src={selectedAnime.coverImage.medium}
+                                            alt={displayAnimeTitle || ""}
+                                            width={56}
+                                            height={80}
+                                            className="h-20 w-14 flex-none rounded-lg object-cover ring-1 ring-white/10"
+                                        />
+                                    ) : (
+                                        <span className="flex h-20 w-14 flex-none items-center justify-center rounded-lg bg-white/5 text-white/30 ring-1 ring-white/10"><BiSolidStar /></span>
+                                    )}
+                                    <div className="min-w-0 flex-1">
+                                        <p className="line-clamp-2 text-sm font-semibold text-brand-100">{displayAnimeTitle || torrent.name}</p>
+                                        {selectedAnime?.title?.romaji && selectedAnime.title.romaji !== displayAnimeTitle && (
+                                            <p className="text-xs text-[--muted] line-clamp-1">{selectedAnime.title.romaji}</p>
+                                        )}
+                                        {selectedAnime?.title?.english && selectedAnime.title.english !== displayAnimeTitle && (
+                                            <p className="text-xs text-[--muted] line-clamp-1">{selectedAnime.title.english}</p>
+                                        )}
+                                        {selectedAnime?.title?.native && selectedAnime.title.native !== displayAnimeTitle && (
+                                            <p className="text-xs text-[--muted] line-clamp-1">{selectedAnime.title.native}</p>
+                                        )}
+                                        <div className="mt-1.5 flex flex-wrap gap-1">
+                                            {selectedAnime?.format && <MetaChip>{selectedAnime.format}</MetaChip>}
+                                            {typeof displayEpisodeCount === "number" && <MetaChip>{displayEpisodeCount} eps</MetaChip>}
+                                            {displayStartYear && <MetaChip>{displayStartYear}</MetaChip>}
+                                            {selectedFiles.size > 0 && <MetaChip className="bg-brand-500/15 text-brand-100 ring-brand-400/30">{selectedFiles.size} selected</MetaChip>}
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="rounded-xl border border-dashed border-white/15 px-3 py-5 text-center text-xs text-[--muted]">
+                                    No anime chosen yet. Pick episodes, then choose the anime.
+                                </p>
+                            )}
                             <Button
                                 size="sm"
                                 intent="gray-outline"
+                                className="mt-3 w-full"
                                 onClick={() => {
                                     selectTarget(null)
                                     setStep("select-anime")
                                 }}
                             >
-                                Change
+                                {(displayAnimeTitle || selectedAnime) ? "Change" : "Choose anime"}
                             </Button>
                         </div>
-                    )}
 
-                    <div className="flex items-center justify-between">
-                        <p className="text-sm text-[--muted]">
-                            Select the episodes you want to match. You can select entire seasons or individual files.
-                        </p>
-                        <div className="flex gap-2">
-                            <Button size="sm" intent="gray-outline" onClick={selectAll}>
-                                Select All
-                            </Button>
-                            <Button size="sm" intent="gray-outline" onClick={deselectAll}>
-                                Deselect All
-                            </Button>
-                        </div>
-                    </div>
-
-                    <ScrollArea className="h-[400px] border rounded-md overflow-hidden w-full">
-                        <div className="p-2 space-y-1 w-full min-w-0">
-                            {fileTree && fileTree.children.map((node) => (
-                                <TreeNodeItem
-                                    key={node.path}
-                                    node={node}
-                                    depth={0}
-                                    expandedFolders={expandedSeasons}
-                                    toggleFolderExpand={toggleSeasonExpand}
-                                    selectedFiles={selectedFiles}
-                                    toggleFile={toggleFile}
-                                    toggleFolder={toggleFolder}
-                                    getFolderSelectionState={getFolderSelectionState}
-                                    getVideoFilesUnderPath={getVideoFilesUnderPath}
-                                />
-                            ))}
-                        </div>
-                    </ScrollArea>
-
-                    <div className="flex justify-between items-center pt-4">
-                        <span className="text-sm text-[--muted]">
-                            {selectedFiles.size} files selected
-                        </span>
                         {/* Index-based episode matching controls */}
-                        <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm text-[--muted]">Depend on index</span>
+                        <div className="rounded-2xl bg-black/25 p-3 ring-1 ring-white/[0.07]">
+                            <div className="flex items-center justify-between gap-2">
+                                <div>
+                                    <p className="text-sm font-semibold text-white">Depend on index</p>
+                                    <p className="text-[11px] text-[--muted]">{dependOnIndex ? "Number by file order" : "Read numbers from filenames"}</p>
+                                </div>
                                 <Switch
                                     value={dependOnIndex}
                                     onValueChange={setDependOnIndex}
                                 />
                             </div>
                             {dependOnIndex && (
-                                <div className="flex items-center gap-2">
+                                <div className="mt-3 flex items-center justify-between gap-2">
                                     <span className="text-sm text-[--muted]">Start at ep</span>
-                                    <div className="w-20">
+                                    <div className="w-24">
                                         <NumberInput
                                             value={episodeOffset}
                                             onValueChange={v => setEpisodeOffset(v > 0 ? v : 1)}
@@ -871,9 +924,28 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                                     </div>
                                 </div>
                             )}
+                            {matchPlan.entries.length > 0 && (
+                                <div className="mt-3 space-y-1 rounded-xl bg-black/30 p-2">
+                                    <p className="px-1 text-[10px] font-bold uppercase tracking-wider text-white/40">Preview</p>
+                                    {matchPlan.entries.slice(0, 5).map(entry => {
+                                        const differs = entry.parsed !== null && entry.parsed !== entry.episode
+                                        return (
+                                            <div key={entry.file.relativePath} className="flex items-center gap-2 px-1 text-[11px]">
+                                                <span className="min-w-0 flex-1 truncate text-white/55" title={entry.file.name}>{entry.file.name}</span>
+                                                <LuChevronRight className="size-3 flex-none text-white/25" />
+                                                <span className={cn("flex-none font-semibold tabular-nums", differs ? "text-amber-300" : "text-brand-200")}>Ep {entry.episode}</span>
+                                            </div>
+                                        )
+                                    })}
+                                    {matchPlan.entries.length > 5 && (
+                                        <p className="px-1 text-[10px] text-white/35">…and {formatNumber(matchPlan.entries.length - 5)} more, up to ep {matchPlan.lastEpisode}</p>
+                                    )}
+                                </div>
+                            )}
                         </div>
-                        <div className="flex gap-2">
-                            <Button intent="gray-outline" onClick={handleClose}>
+
+                        <div className="mt-auto flex gap-2">
+                            <Button intent="gray-outline" onClick={handleClose} className="flex-1">
                                 Cancel
                             </Button>
                             {selectedAnime ? (
@@ -883,6 +955,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                                     disabled={selectedFiles.size === 0 || isMatching}
                                     loading={isMatching}
                                     leftIcon={<BiCheck />}
+                                    className="flex-[2]"
                                 >
                                     Match {selectedFiles.size} Files
                                 </Button>
@@ -891,15 +964,16 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                                     intent="primary"
                                     onClick={() => setStep("select-anime")}
                                     disabled={selectedFiles.size === 0}
+                                    className="flex-[2]"
                                 >
                                     Match {selectedFiles.size} Files
                                 </Button>
                             )}
                         </div>
-                    </div>
-                </AppLayoutStack>
+                    </aside>
+                </div>
             ) : (
-                <AppLayoutStack className="space-y-4">
+                <div className="space-y-4">
                     {/* The family tree lives in the results below now.
                      *
                      * There used to be a second tree here, above the search, walked automatically
@@ -908,7 +982,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                      * confirmation dialog ended up naming a series nobody had clicked. Every
                      * result below is now its own franchise, expandable in place. */}
 
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 rounded-2xl bg-black/25 p-2 ring-1 ring-white/[0.07]">
                         <TextInput
                             leftIcon={<BiSearch />}
                             placeholder="Search for anime..."
@@ -918,98 +992,112 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                             className="flex-1"
                         />
                         <Button
-                            size="sm"
                             intent="primary"
                             onClick={handleSearch}
                             disabled={!searchInputValue || searchInputValue.length < 2}
                             leftIcon={<BiSearch />}
-                            className="px-3"
+                            className="px-4"
                         >
                             Search
                         </Button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <ScrollArea className="h-[400px] border rounded-md">
-                            {isSearching ? (
-                                <div className="flex justify-center py-10">
-                                    <LoadingSpinner />
-                                </div>
-                            ) : rankedSearchResults.length > 0 ? (
-                                <div className="p-2 space-y-2">
-                                    {/* Every result is the root of its own franchise: expand one and
-                                        its relations nest underneath, indented by how many relations
-                                        deep they are. Root and relative select through the same
-                                        callback, which is the whole point of the rewrite — the old
-                                        picker had two selection paths and the wrong one kept
-                                        winning. */}
-                                    {rankedSearchResults.map((anime) => (
-                                        <UnmatchedFamilyResult
-                                            key={anime?.id}
-                                            anime={anime as AL_BaseAnime}
-                                            selectedId={selectedAnime?.id ?? null}
-                                            isInLibrary={isAnimeInLibrary((anime as AL_BaseAnime).id, localFiles)}
-                                            onSelect={(selection) => {
-                                                // One path in, and it carries everything the row was
-                                                // already showing. No second fetch races it, so the
-                                                // target cannot be replaced by a late answer for
-                                                // something else.
-                                                selectTarget({
-                                                    id: selection.id,
-                                                    title: {
-                                                        romaji: selection.title,
-                                                        english: selection.englishTitle,
-                                                        native: undefined,
-                                                        userPreferred: selection.title,
-                                                    },
-                                                    episodes: selection.episodes || undefined,
-                                                    format: selection.format as AL_BaseAnime["format"] || undefined,
-                                                    coverImage: selection.coverImage
-                                                        ? { large: selection.coverImage, extraLarge: selection.coverImage, medium: selection.coverImage }
-                                                        : undefined,
-                                                } as AL_BaseAnime, "picked")
-                                            }}
-                                        />
-                                    ))}
-                                </div>
-                            ) : hasSearched ? (
-                                <div className="flex justify-center py-10 text-[--muted]">
-                                    No results found
-                                </div>
-                            ) : (
-                                <div className="flex justify-center py-10 text-[--muted]">
-                                    Type at least 2 characters to search
-                                </div>
-                            )}
-                        </ScrollArea>
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
+                        <section className="min-w-0 overflow-hidden rounded-2xl bg-black/25 ring-1 ring-white/[0.07]">
+                            <div className="flex items-center justify-between border-b border-white/[0.06] px-3 py-2.5">
+                                <p className="text-sm font-semibold text-white">Results</p>
+                                {!isSearching && rankedSearchResults.length > 0 && (
+                                    <p className="text-xs text-[--muted]">{formatNumber(rankedSearchResults.length)} for “{searchQuery}” · expand one to see its seasons and movies</p>
+                                )}
+                            </div>
+                            <ScrollArea className="h-[min(56vh,520px)]">
+                                {isSearching ? (
+                                    <div className="flex justify-center py-16">
+                                        <LoadingSpinner />
+                                    </div>
+                                ) : rankedSearchResults.length > 0 ? (
+                                    <div className="p-2 space-y-2">
+                                        {/* Every result is the root of its own franchise: expand one and
+                                            its relations nest underneath, indented by how many relations
+                                            deep they are. Root and relative select through the same
+                                            callback, which is the whole point of the rewrite — the old
+                                            picker had two selection paths and the wrong one kept
+                                            winning. */}
+                                        {rankedSearchResults.map((anime) => (
+                                            <UnmatchedFamilyResult
+                                                key={anime?.id}
+                                                anime={anime as AL_BaseAnime}
+                                                selectedId={selectedAnime?.id ?? null}
+                                                isInLibrary={isAnimeInLibrary((anime as AL_BaseAnime).id, localFiles)}
+                                                onSelect={(selection) => {
+                                                    // One path in, and it carries everything the row was
+                                                    // already showing. No second fetch races it, so the
+                                                    // target cannot be replaced by a late answer for
+                                                    // something else.
+                                                    selectTarget({
+                                                        id: selection.id,
+                                                        title: {
+                                                            romaji: selection.title,
+                                                            english: selection.englishTitle,
+                                                            native: undefined,
+                                                            userPreferred: selection.title,
+                                                        },
+                                                        episodes: selection.episodes || undefined,
+                                                        format: selection.format as AL_BaseAnime["format"] || undefined,
+                                                        coverImage: selection.coverImage
+                                                            ? { large: selection.coverImage, extraLarge: selection.coverImage, medium: selection.coverImage }
+                                                            : undefined,
+                                                    } as AL_BaseAnime, "picked")
+                                                }}
+                                            />
+                                        ))}
+                                    </div>
+                                ) : hasSearched ? (
+                                    <div className="flex flex-col items-center gap-2 py-16 text-[--muted]">
+                                        <BiSearch className="size-6 opacity-50" />
+                                        No results found
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center gap-2 py-16 text-[--muted]">
+                                        <BiSearch className="size-6 opacity-50" />
+                                        Type at least 2 characters to search
+                                    </div>
+                                )}
+                            </ScrollArea>
+                        </section>
 
-                        <div className="h-[400px] border rounded-md bg-gray-950/40 p-3 flex flex-col gap-3">
-                            <p className="text-sm font-medium">Selected target</p>
+                        <aside className="flex flex-col gap-3 rounded-2xl bg-gradient-to-b from-brand-950/30 to-black/30 p-3 ring-1 ring-white/[0.07]">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-white/50">Selected target</p>
                             {selectedAnime ? (
                                 <SelectedAnimeDetails
                                     anime={selectedAnime}
                                     fallbackEpisodes={storedAnimeExpectedEpisodes || undefined}
                                 />
                             ) : (
-                                <div className="flex-1 flex items-center justify-center text-[--muted] text-sm">
+                                <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/15 px-4 py-10 text-center text-sm text-[--muted]">
+                                    <BiSolidStar className="size-5 opacity-40" />
                                     Choose an anime on the left to target (Season / OVA / Movie)
                                 </div>
                             )}
+                            <div className="rounded-xl bg-black/30 px-3 py-2 text-xs text-[--muted]">
+                                <span className="font-semibold text-white">{selectedFiles.size}</span> files ready ·{" "}
+                                {dependOnIndex ? `numbered from ep ${episodeOffset > 0 ? episodeOffset : 1}` : "numbered from filenames"}
+                            </div>
                             {selectedAnime && (
                                 <div className="mt-auto flex gap-2">
-                                    <Button intent="primary" onClick={handleMatch} disabled={isMatching || selectedFiles.size === 0} loading={isMatching} leftIcon={<BiCheck />}>
+                                    <Button intent="primary" onClick={handleMatch} disabled={isMatching || selectedFiles.size === 0} loading={isMatching} leftIcon={<BiCheck />} className="flex-[2]">
                                         Match {selectedFiles.size} Files
                                     </Button>
-                                    <Button intent="gray-outline" onClick={() => selectTarget(null)}>
+                                    <Button intent="gray-outline" onClick={() => selectTarget(null)} className="flex-1">
                                         Clear
                                     </Button>
                                 </div>
                             )}
-                        </div>
+                        </aside>
                     </div>
 
-                    <div className="flex justify-between items-center pt-4">
-                        <Button intent="gray-outline" onClick={() => setStep("select-files")}>
+                    <div className="flex items-center justify-between border-t border-white/[0.06] pt-4">
+                        <Button intent="gray-outline" onClick={() => setStep("select-files")} leftIcon={<LuChevronLeft />}>
                             Back
                         </Button>
                         <div className="flex gap-2">
@@ -1027,11 +1115,39 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                             </Button>
                         </div>
                     </div>
-                </AppLayoutStack>
+                </div>
             )}
         </Modal>
         </>
     )
+}
+
+function PillButton({ children, onClick }: { children: React.ReactNode, onClick: () => void }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className="rounded-lg px-2.5 py-1 text-xs font-semibold text-white/70 ring-1 ring-white/10 transition hover:bg-white/10 hover:text-white"
+        >
+            {children}
+        </button>
+    )
+}
+
+function MetaChip({ children, className }: { children: React.ReactNode, className?: string }) {
+    return <span className={cn("rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold text-white/75 ring-1 ring-white/10", className)}>{children}</span>
+}
+
+function formatBytes(bytes: number) {
+    if (bytes < 1024) return `${bytes} B`
+    const units = ["KB", "MB", "GB", "TB"]
+    let value = bytes / 1024
+    let unit = 0
+    while (value >= 1024 && unit < units.length - 1) {
+        value /= 1024
+        unit++
+    }
+    return `${value.toFixed(value >= 100 ? 0 : 1)} ${units[unit]}`
 }
 
 // ─── Match confirmation ──────────────────────────────────────────────
@@ -1108,14 +1224,34 @@ function MatchPlanConfirmation({
 
     return (
         <div className="space-y-4 py-2">
-            {/* What happens, in one line */}
-            <p className="text-sm">
-                <span className="font-semibold">{formatNumber(count)}</span> file{count === 1 ? "" : "s"} will be{" "}
-                <span className="font-semibold">moved</span> out of the Unmatched folder into your library under{" "}
-                <span className="font-semibold text-brand-200">{destinationFolder}</span>, renamed, and matched to{" "}
-                <span className="font-semibold text-brand-200">{animeTitle}</span>
-                {anime.format ? ` (${anime.format}${expectedEpisodes ? `, ${expectedEpisodes} eps` : ""})` : ""}.
-            </p>
+            {/* What happens, at a glance */}
+            <div className="flex gap-3 rounded-2xl bg-gradient-to-br from-brand-500/15 via-black/20 to-black/30 p-3 ring-1 ring-white/[0.08]">
+                {anime.coverImage?.medium && (
+                    <Image
+                        src={anime.coverImage.medium}
+                        alt=""
+                        width={56}
+                        height={80}
+                        className="h-20 w-14 flex-none rounded-lg object-cover ring-1 ring-white/10"
+                    />
+                )}
+                <div className="min-w-0 flex-1">
+                    <p className="text-sm">
+                        <span className="font-semibold">{formatNumber(count)}</span> file{count === 1 ? "" : "s"} will be{" "}
+                        <span className="font-semibold">moved</span> out of the Unmatched folder into your library under{" "}
+                        <span className="font-semibold text-brand-200">{destinationFolder}</span>, renamed, and matched to{" "}
+                        <span className="font-semibold text-brand-200">{animeTitle}</span>
+                        {anime.format ? ` (${anime.format}${expectedEpisodes ? `, ${expectedEpisodes} eps` : ""})` : ""}.
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                        <MetaChip>{formatNumber(count)} file{count === 1 ? "" : "s"}</MetaChip>
+                        {count > 0 && <MetaChip>{isMovie ? "Movie naming" : `Ep ${plan.entries[0].episode}–${plan.lastEpisode}`}</MetaChip>}
+                        <MetaChip className={warnings.length ? "bg-amber-400/10 text-amber-200 ring-amber-300/25" : "bg-emerald-400/10 text-emerald-200 ring-emerald-300/25"}>
+                            {warnings.length ? `${warnings.length} thing${warnings.length === 1 ? "" : "s"} to check` : "Looks good"}
+                        </MetaChip>
+                    </div>
+                </div>
+            </div>
 
             {/* The one thing that changed about matching: it is queued, not waited out. */}
             <p className="text-sm text-[--muted]">
@@ -1125,7 +1261,7 @@ function MatchPlanConfirmation({
             </p>
 
             {/* How the episode numbers are decided */}
-            <div className="p-3 border rounded-md bg-[--subtle] space-y-1">
+            <div className="space-y-1 rounded-2xl bg-black/25 p-3 ring-1 ring-white/[0.07]">
                 <p className="text-sm font-medium">
                     {dependOnIndex ? "Episode numbers come from the file order" : "Episode numbers come from the filenames"}
                 </p>
@@ -1138,20 +1274,21 @@ function MatchPlanConfirmation({
 
             {/* Exact per-file result */}
             {count > 0 ? (
-                <div className="border rounded-md overflow-hidden">
-                    <div className="px-3 py-2 border-b bg-gray-950/40 flex items-center justify-between">
+                <div className="overflow-hidden rounded-2xl ring-1 ring-white/[0.07]">
+                    <div className="flex items-center justify-between border-b border-white/[0.06] bg-black/30 px-3 py-2">
                         <p className="text-xs font-semibold uppercase tracking-wider text-[--muted]">File → episode</p>
                         <p className="text-xs text-[--muted]">
                             {isMovie ? "Movie naming" : `Episodes ${plan.entries[0].episode}–${plan.lastEpisode}`}
                         </p>
                     </div>
                     <div className="max-h-[220px] overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
-                        <div className="divide-y divide-gray-800/60">
+                        <div className="divide-y divide-white/[0.05]">
                             {plan.entries.map(entry => {
                                 const differs = entry.parsed !== null && entry.parsed !== entry.episode
                                 return (
-                                    <div key={entry.file.relativePath} className="flex items-center gap-3 px-3 py-1.5 text-xs">
-                                        <span className="flex-1 min-w-0 truncate text-gray-300" title={entry.file.relativePath}>
+                                    <div key={entry.file.relativePath} className="flex items-center gap-2 px-3 py-1.5 text-xs">
+                                        <BiFile className="flex-none text-white/30" />
+                                        <span className="min-w-0 flex-1 truncate text-gray-300" title={entry.file.relativePath}>
                                             {entry.file.name}
                                         </span>
                                         {differs && (
@@ -1159,7 +1296,11 @@ function MatchPlanConfirmation({
                                                 was ep {entry.parsed}
                                             </span>
                                         )}
-                                        <span className={cn("flex-shrink-0 font-medium", differs ? "text-amber-300" : "text-brand-300")}>
+                                        <LuChevronRight className="size-3 flex-none text-white/25" />
+                                        <span className={cn(
+                                            "flex-shrink-0 rounded-md px-1.5 py-0.5 font-semibold tabular-nums",
+                                            differs ? "bg-amber-400/10 text-amber-300" : "bg-brand-500/15 text-brand-200",
+                                        )}>
                                             {isMovie ? "Movie" : `Ep ${entry.episode}`}
                                         </span>
                                     </div>
@@ -1178,17 +1319,25 @@ function MatchPlanConfirmation({
             )}
 
             {/* Renaming and deletion — the parts that aren't reversible from here */}
-            <div className="text-xs text-[--muted] space-y-1">
-                <p>
-                    Files are renamed to{" "}
-                    <span className="text-gray-300">
-                        {isMovie ? `${destinationFolder} (year).ext` : `${destinationFolder} - Episode 001 - <episode title>.ext`}
-                    </span>.
-                </p>
-                <p>Creditless openings/endings and anything inside an "Extra" folder are <span className="text-gray-300">deleted</span>, not moved.</p>
-                <p>Moving and renaming can't be undone from here — files would have to be moved back by hand.</p>
-                <p>Anything that needs a decision while it runs — episodes already in the library, a count that does not agree — waits in the To Match tab for your answer.</p>
-            </div>
+            <ul className="space-y-1.5 rounded-2xl bg-black/20 p-3 text-xs text-[--muted] ring-1 ring-white/[0.05]">
+                <li className="flex gap-2"><span className="mt-1 size-1.5 flex-none rounded-full bg-sky-400" />
+                    <span>
+                        Files are renamed to{" "}
+                        <span className="text-gray-300">
+                            {isMovie ? `${destinationFolder} (year).ext` : `${destinationFolder} - Episode 001 - <episode title>.ext`}
+                        </span>.
+                    </span>
+                </li>
+                <li className="flex gap-2"><span className="mt-1 size-1.5 flex-none rounded-full bg-red-400" />
+                    <span>Creditless openings/endings and anything inside an "Extra" folder are <span className="text-gray-300">deleted</span>, not moved.</span>
+                </li>
+                <li className="flex gap-2"><span className="mt-1 size-1.5 flex-none rounded-full bg-amber-400" />
+                    <span>Moving and renaming can't be undone from here — files would have to be moved back by hand.</span>
+                </li>
+                <li className="flex gap-2"><span className="mt-1 size-1.5 flex-none rounded-full bg-violet-400" />
+                    <span>Anything that needs a decision while it runs — episodes already in the library, a count that does not agree — waits in the To Match tab for your answer.</span>
+                </li>
+            </ul>
 
             {warnings.length > 0 && (
                 <div className="space-y-2">
@@ -1248,25 +1397,24 @@ function SelectedAnimeDetails({
                 <Image
                     src={anime.coverImage.medium}
                     alt={anime.title?.romaji || ""}
-                    width={70}
-                    height={98}
-                    className="rounded object-cover flex-shrink-0"
+                    width={84}
+                    height={120}
+                    className="h-[120px] w-[84px] flex-shrink-0 rounded-xl object-cover shadow-lg ring-1 ring-white/10"
                 />
             )}
-            <div className="flex-1 min-w-0 space-y-1">
-                <p className="font-semibold text-sm line-clamp-1">{anime.title?.native || anime.title?.romaji}</p>
-                <p className="text-xs text-[--muted] line-clamp-1">{anime.title?.romaji}</p>
-                <div className="flex items-center gap-2 text-xs text-[--muted] flex-wrap">
-                    {anime.format && <span className="px-2 py-0.5 rounded bg-gray-800/70 text-gray-200">{anime.format}</span>}
-                    {seasonYear && <span>{seasonYear}</span>}
-                    <span>•</span>
-                    <span>{episodeText}</span>
-                    {anime.status && <span className="uppercase tracking-wide text-[10px] text-gray-400">{anime.status.replace(/_/g, " ")}</span>}
+            <div className="min-w-0 flex-1 space-y-1.5">
+                <p className="line-clamp-2 text-base font-semibold text-white">{anime.title?.native || anime.title?.romaji}</p>
+                <p className="line-clamp-1 text-xs text-[--muted]">{anime.title?.romaji}</p>
+                <div className="flex flex-wrap items-center gap-1">
+                    {anime.format && <MetaChip className="bg-brand-500/15 text-brand-100 ring-brand-400/30">{anime.format}</MetaChip>}
+                    {seasonYear && <MetaChip>{seasonYear}</MetaChip>}
+                    <MetaChip>{episodeText}</MetaChip>
+                    {anime.status && <MetaChip className="uppercase tracking-wide">{anime.status.replace(/_/g, " ")}</MetaChip>}
                 </div>
                 {anime.genres && anime.genres.length > 0 && (
-                    <div className="flex items-center gap-1 flex-wrap">
+                    <div className="flex flex-wrap items-center gap-1">
                         {anime.genres.slice(0, 4).map((genre, idx) => (
-                            <span key={idx} className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800/50 text-gray-300">
+                            <span key={idx} className="rounded px-1.5 py-0.5 text-[10px] text-gray-300 bg-white/[0.05]">
                                 {genre}
                             </span>
                         ))}
@@ -1290,6 +1438,21 @@ interface TreeNodeItemProps {
     getVideoFilesUnderPath: (path: string) => string[]
 }
 
+/** A square tick that shows all, some or none — the folder rows need the middle state. */
+function TickBox({ state }: { state: "all" | "some" | "none" }) {
+    return (
+        <span className={cn(
+            "flex size-4 flex-none items-center justify-center rounded-[5px] ring-1 transition",
+            state === "all" ? "bg-brand-500 text-white ring-brand-400"
+                : state === "some" ? "bg-brand-500/40 text-white ring-brand-400/60"
+                    : "bg-black/30 ring-white/25",
+        )}>
+            {state === "all" && <BiCheck className="size-3.5" />}
+            {state === "some" && <span className="h-0.5 w-2 rounded bg-white" />}
+        </span>
+    )
+}
+
 function TreeNodeItem({
     node,
     depth,
@@ -1308,45 +1471,44 @@ function TreeNodeItem({
         // Count only the episodes — i.e. what the folder checkbox actually selects. Counting
         // every file made a folder look like it held far more episodes than it does.
         const fileCount = getVideoFilesUnderPath(node.path).length
+        const selectedCount = getVideoFilesUnderPath(node.path).filter(f => selectedFiles.has(f)).length
 
         return (
             <div>
                 <div
                     className={cn(
-                        "p-2 rounded cursor-pointer hover:bg-gray-800/50",
-                        selectionState === "all" && "bg-brand-900/20"
+                        "group flex items-center gap-2 rounded-lg py-1.5 pr-2 transition-colors hover:bg-white/[0.05]",
+                        selectionState === "all" && "bg-brand-500/10",
                     )}
-                    style={{ paddingLeft: `${8 + depth * 16}px` }}
+                    style={{ paddingLeft: `${6 + depth * 16}px` }}
                 >
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => toggleFolderExpand(node.path)}
-                            className="p-0.5 flex-shrink-0"
-                        >
-                            {isExpanded ? <LuChevronDown className="w-4 h-4" /> : <LuChevronRight className="w-4 h-4" />}
-                        </button>
-                        <div className="flex-shrink-0" onClick={() => toggleFolder(node.path)}>
-                            <Checkbox
-                                value={selectionState === "all"}
-                                onValueChange={() => {}}
-                                containerClass="pointer-events-none"
-                                fieldClass="w-auto"
-                                className={cn(selectionState === "some" && "opacity-50")}
-                            />
-                        </div>
+                    <button
+                        type="button"
+                        onClick={() => toggleFolderExpand(node.path)}
+                        className="flex size-6 flex-shrink-0 items-center justify-center rounded-md text-white/50 hover:bg-white/10 hover:text-white"
+                        aria-label={isExpanded ? "Collapse folder" : "Expand folder"}
+                    >
+                        {isExpanded ? <LuChevronDown className="w-4 h-4" /> : <LuChevronRight className="w-4 h-4" />}
+                    </button>
+                    <button type="button" className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left" onClick={() => toggleFolder(node.path)}>
+                        <TickBox state={selectionState} />
                         {isExpanded ? (
-                            <BiFolderOpen className="text-brand-200 flex-shrink-0" onClick={() => toggleFolder(node.path)} />
+                            <BiFolderOpen className="text-brand-200 flex-shrink-0" />
                         ) : (
-                            <BiFolder className="text-brand-200 flex-shrink-0" onClick={() => toggleFolder(node.path)} />
+                            <BiFolder className="text-brand-200 flex-shrink-0" />
                         )}
-                        <span className="text-sm text-gray-200" onClick={() => toggleFolder(node.path)}>{node.name}</span>
-                        <span className="text-xs text-[--muted] ml-auto flex-shrink-0">
-                            {formatNumber(fileCount)} {fileCount === 1 ? "episode" : "episodes"}
-                        </span>
-                    </div>
+                        <span className="truncate text-sm font-medium text-gray-100">{node.name}</span>
+                    </button>
+                    <span className={cn(
+                        "flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] tabular-nums ring-1",
+                        selectedCount ? "bg-brand-500/15 text-brand-100 ring-brand-400/30" : "text-[--muted] ring-white/10",
+                    )}>
+                        {selectedCount ? `${formatNumber(selectedCount)}/` : ""}{formatNumber(fileCount)} {fileCount === 1 ? "episode" : "episodes"}
+                    </span>
                 </div>
                 {isExpanded && (
-                    <div>
+                    <div className="relative">
+                        <span className="pointer-events-none absolute bottom-1 top-0 w-px bg-white/[0.07]" style={{ left: `${17 + depth * 16}px` }} />
                         {node.children.map((child) => (
                             <TreeNodeItem
                                 key={child.path}
@@ -1370,33 +1532,30 @@ function TreeNodeItem({
     // File node
     const isSelected = node.file ? selectedFiles.has(node.file.relativePath) : false
     const episodeNum = extractEpisodeNumber(node.name)
+    const isVideo = !!node.file?.isVideo
 
     return (
         <div
             className={cn(
-                "p-2 rounded cursor-pointer hover:bg-gray-800/50",
-                isSelected && "bg-brand-900/20"
+                "flex cursor-pointer items-center gap-2 rounded-lg py-1.5 pr-2 transition-colors hover:bg-white/[0.05]",
+                isSelected && "bg-brand-500/10",
+                !isVideo && "opacity-60",
             )}
-            style={{ paddingLeft: `${8 + depth * 16}px` }}
+            style={{ paddingLeft: `${36 + depth * 16}px` }}
             onClick={() => node.file && toggleFile(node.file.relativePath)}
         >
-            <div className="flex items-center gap-2">
-                <div className="flex-shrink-0">
-                    <Checkbox
-                        value={isSelected}
-                        onValueChange={() => {}}
-                        containerClass="pointer-events-none"
-                        fieldClass="w-auto"
-                    />
-                </div>
-                <BiFile className="text-gray-400 flex-shrink-0" />
-                <span className="text-sm text-gray-200 flex-1 min-w-0 truncate">{node.name}</span>
-                {episodeNum !== null && (
-                    <span className="text-xs text-brand-300 flex-shrink-0 ml-2">
-                        Ep {episodeNum}
-                    </span>
-                )}
-            </div>
+            <TickBox state={isSelected ? "all" : "none"} />
+            <BiFile className={cn("flex-shrink-0", isVideo ? "text-gray-300" : "text-gray-500")} />
+            <span className={cn("min-w-0 flex-1 truncate text-sm", isSelected ? "text-white" : "text-gray-300")} title={node.name}>{node.name}</span>
+            {!!node.file?.size && <span className="flex-shrink-0 text-[11px] tabular-nums text-white/35">{formatBytes(node.file.size)}</span>}
+            {episodeNum !== null && (
+                <span className={cn(
+                    "flex-shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums",
+                    isSelected ? "bg-brand-500/20 text-brand-100" : "bg-white/[0.05] text-brand-300",
+                )}>
+                    Ep {episodeNum}
+                </span>
+            )}
         </div>
     )
 }
