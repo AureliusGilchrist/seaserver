@@ -271,10 +271,11 @@ const TorrentItem = React.memo(function TorrentItem({ torrent, isPending }: Torr
                     >{(torrent.status === "other" || !torrent.isReady) ? "" : capitalize(torrent.status)}</strong>
                 </div>
                 {torrent.status !== "seeding" && torrent.status !== "completed" &&
-                    <div data-torrent-item-progress-bar className="w-full h-1 mr-4 mt-2 relative z-[1] bg-gray-700 left-0 overflow-hidden rounded-xl">
+                    <div data-torrent-item-progress-bar className="sea-progress-track w-full h-1 mr-4 mt-2 relative z-[1] bg-gray-700 left-0 overflow-hidden rounded-xl">
                         <div
                             className={cn(
                                 "h-full absolute z-[2] left-0 bg-gray-200 transition-all",
+                                torrent.status === "downloading" && "sea-progress-fill",
                                 {
                                     "bg-green-300": torrent.status === "downloading",
                                     "bg-gray-500": torrent.status === "paused",

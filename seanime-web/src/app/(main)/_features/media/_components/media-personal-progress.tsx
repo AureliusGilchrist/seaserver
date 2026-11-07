@@ -76,9 +76,9 @@ export function MediaPersonalProgress({
                             aria-valuemin={0}
                             aria-valuemax={100}
                             aria-valuenow={completion}
-                            className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/10"
+                            className="sea-progress-track h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/10"
                         >
-                            <div className="h-full rounded-full bg-gradient-to-r from-brand-400 to-sky-300" style={{ width: `${completion}%` }} />
+                            <div className="sea-progress-fill h-full rounded-full bg-gradient-to-r from-brand-400 to-sky-300" style={{ width: `${completion}%` }} />
                         </div>
                         <span className="text-[10px] tabular-nums text-white/50">{completion}%</span>
                         {!!total && progress! >= total && <LuCircleCheck aria-label="Complete" className="size-3.5 text-emerald-300" />}

@@ -44,7 +44,7 @@ export function EnqueueFutureHeader({
         >
             {/* Where in the queue this one is, as a line along the top. */}
             <div className="h-1 bg-white/[0.05]">
-                <div className="h-full bg-gradient-to-r from-brand-500 to-brand-300 transition-[width] duration-300" style={{ width: `${progress}%` }} />
+                <div className="sea-progress-fill h-full bg-gradient-to-r from-brand-500 to-brand-300 transition-[width] duration-300" style={{ width: `${progress}%` }} />
             </div>
 
             <div className="flex flex-wrap items-center gap-4 p-4 sm:p-5">

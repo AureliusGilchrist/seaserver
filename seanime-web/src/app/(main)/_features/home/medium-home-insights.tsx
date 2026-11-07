@@ -94,8 +94,8 @@ function Insights({ medium, metrics, stats, d, afterWelcome, children }: {
                                             <p className="mt-0.5 text-[11px] text-white/50">
                                                 {item.total - item.progress} {lower === "anime" ? "episode" : "chapter"}{item.total - item.progress === 1 ? "" : "s"} left · {item.progress}/{formatCount(item.total)}
                                             </p>
-                                            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/10">
-                                                <div className="h-full rounded-full bg-gradient-to-r from-brand-500 to-brand-300" style={{ width: `${(item.progress / item.total) * 100}%` }} />
+                                            <div className="sea-progress-track mt-1.5 h-1 overflow-hidden rounded-full bg-white/10">
+                                                <div className="sea-progress-fill h-full rounded-full bg-gradient-to-r from-brand-500 to-brand-300" style={{ width: `${(item.progress / item.total) * 100}%` }} />
                                             </div>
                                         </div>
                                     </SeaLink>

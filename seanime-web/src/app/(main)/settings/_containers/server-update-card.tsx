@@ -146,8 +146,8 @@ export function ServerUpdateCard({ remote, running, checking, progress, errorTex
                         <span className="truncate font-medium text-brand-100">{progress?.step || "Starting the update…"}</span>
                         <span className="font-mono text-sm font-semibold tabular-nums text-brand-100">{String(progress?.percent ?? 0).padStart(2, "0")}%</span>
                     </div>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-                        <div className="h-full rounded-full bg-gradient-to-r from-brand-400 to-cyan-300 transition-[width] duration-1000" style={{ width: `${progress?.percent ?? 3}%` }} />
+                    <div className="sea-progress-track h-1.5 overflow-hidden rounded-full bg-white/10">
+                        <div className="sea-progress-fill h-full rounded-full bg-gradient-to-r from-brand-400 to-cyan-300 transition-[width] duration-1000" style={{ width: `${progress?.percent ?? 3}%` }} />
                     </div>
                     {!!detail && <p className="mt-2 truncate font-mono text-[11px] text-white/55" title={detail}>{detail}</p>}
                     <p className="mt-2 text-[11px] text-[--muted]">

@@ -330,7 +330,7 @@ export function CastPlaybackControls({ onStop }: { onStop?: () => void }) {
             <div className="flex items-center gap-2">
                 <span className="text-xs tabular-nums">{formatTime(currentTime)}</span>
                 <div
-                    className="flex-1 h-1 bg-gray-700 rounded-full cursor-pointer"
+                    className="sea-progress-track flex-1 h-1 bg-gray-700 rounded-full cursor-pointer overflow-hidden"
                     onClick={(e) => {
                         if (!duration) return
                         const rect = e.currentTarget.getBoundingClientRect()
@@ -339,7 +339,7 @@ export function CastPlaybackControls({ onStop }: { onStop?: () => void }) {
                     }}
                 >
                     <div
-                        className="h-full bg-brand-500 rounded-full"
+                        className="sea-progress-fill h-full bg-brand-500 rounded-full"
                         style={{ width: `${progress}%` }}
                     />
                 </div>

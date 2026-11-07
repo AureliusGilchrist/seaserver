@@ -96,7 +96,7 @@ function TreeRow({ node, level, totals, closed, onToggle }: {
                 ? <span className="shrink-0 text-[11px] text-white/40">Skipped</span>
                 : <span className="hidden h-1 w-20 shrink-0 overflow-hidden rounded-full bg-white/10 sm:block">
                     <span
-                        className={cn("block h-full rounded-full", percent >= 100 ? "bg-emerald-400/80" : "bg-gradient-to-r from-brand-400 to-cyan-300")}
+                        className={cn("block h-full rounded-full", percent >= 100 ? "bg-emerald-400/80" : "sea-progress-fill bg-gradient-to-r from-brand-400 to-cyan-300")}
                         style={{ width: `${percent}%` }}
                     />
                 </span>}

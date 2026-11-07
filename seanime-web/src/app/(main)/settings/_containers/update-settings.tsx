@@ -198,10 +198,10 @@ function StructuredLog({ lines, logRef }: { lines: string[], logRef: React.RefOb
                         aria-valuemin={0}
                         aria-valuemax={100}
                         aria-valuenow={progress.percent}
-                        className="h-1.5 overflow-hidden rounded-full bg-white/10"
+                        className="sea-progress-track h-1.5 overflow-hidden rounded-full bg-white/10"
                     >
                         <div
-                            className={`h-full rounded-full transition-[width] duration-1000 ease-in-out ${failed ? "bg-red-400" : progress.percent === 100 ? "bg-green-400" : "bg-gradient-to-r from-brand-400 to-cyan-300"} ${isFrontendBuild ? "animate-pulse" : ""}`}
+                            className={`h-full rounded-full transition-[width] duration-1000 ease-in-out ${failed ? "bg-red-400" : progress.percent === 100 ? "bg-green-400" : "sea-progress-fill bg-gradient-to-r from-brand-400 to-cyan-300"} ${isFrontendBuild ? "animate-pulse" : ""}`}
                             style={{ width: `${progress.percent}%` }}
                         />
                     </div>

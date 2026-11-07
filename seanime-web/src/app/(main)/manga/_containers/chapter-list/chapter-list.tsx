@@ -290,9 +290,9 @@ export function ChapterList(props: ChapterListProps) {
             </div>
 
             {!!total && (
-                <div className="relative h-2 overflow-hidden rounded-full bg-white/[0.07]" title={`${readCount} read, ${downloadedCount} downloaded of ${total}`}>
+                <div className="sea-progress-track relative h-2 overflow-hidden rounded-full bg-white/[0.07]" title={`${readCount} read, ${downloadedCount} downloaded of ${total}`}>
                     <div className="absolute inset-y-0 left-0 rounded-full bg-sky-400/35" style={{ width: `${(downloadedCount / total) * 100}%` }} />
-                    <div className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-brand-500 to-brand-300" style={{ width: `${(readCount / total) * 100}%` }} />
+                    <div className="sea-progress-fill absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-brand-500 to-brand-300" style={{ width: `${(readCount / total) * 100}%` }} />
                 </div>
             )}
 

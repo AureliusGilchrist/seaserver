@@ -366,8 +366,8 @@ function TorrentsCard() {
                     {active.map(t => (
                         <div key={t.hash} className="mt-2.5">
                             <p className="truncate text-[11px] text-white/60">{t.name}</p>
-                            <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10">
-                                <div className="h-full rounded-full bg-sky-400" style={{ width: `${Math.round(t.progress * 100)}%` }} />
+                            <div className="sea-progress-track mt-1 h-1 overflow-hidden rounded-full bg-white/10">
+                                <div className="sea-progress-fill h-full rounded-full bg-sky-400" style={{ width: `${Math.round(t.progress * 100)}%` }} />
                             </div>
                         </div>
                     ))}

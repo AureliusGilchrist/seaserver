@@ -238,8 +238,8 @@ const MediaEntryCardWrapper = React.memo(({ item }: {
 
             {!!percentage && (
                 <div data-manga-chapter-card-progress-bar-container className="-mt-2">
-                    <div className="h-1 w-full rounded-full bg-gray-800 overflow-hidden">
-                        <div className="h-full bg-[--brand] rounded-full" style={{ width: `${percentage}%` }} />
+                    <div className="sea-progress-track h-1 w-full rounded-full bg-gray-800 overflow-hidden">
+                        <div className="sea-progress-fill h-full bg-[--brand] rounded-full" style={{ width: `${percentage}%` }} />
                     </div>
                 </div>
             )}

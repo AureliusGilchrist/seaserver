@@ -820,7 +820,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                             </div>
                         </div>
                         <div className="h-1 bg-white/[0.04]">
-                            <div className="h-full bg-gradient-to-r from-brand-500 to-brand-300 transition-[width]" style={{ width: `${videoCount ? (selectedFiles.size / videoCount) * 100 : 0}%` }} />
+                            <div className="sea-progress-fill h-full bg-gradient-to-r from-brand-500 to-brand-300 transition-[width]" style={{ width: `${videoCount ? (selectedFiles.size / videoCount) * 100 : 0}%` }} />
                         </div>
                         <ScrollArea className="h-[min(56vh,520px)] w-full">
                             <div className="w-full min-w-0 space-y-0.5 p-2">

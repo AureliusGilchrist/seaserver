@@ -392,6 +392,13 @@ export class VideoCorePipManager extends EventTarget {
     }
 
     private copyStylesToPipWindow(pipWindow: Window) {
+        // The chosen interface styles (progress bar look, accent colours) are keyed on the root
+        // element's data-sea-* attributes and inline CSS variables, so the PiP root needs them too.
+        const root = document.documentElement
+        const pipRoot = pipWindow.document.documentElement
+        for (const attr of [...root.attributes]) {
+            if (attr.name.startsWith("data-sea-") || attr.name === "style") pipRoot.setAttribute(attr.name, attr.value)
+        }
         [...document.styleSheets].forEach((styleSheet) => {
             try {
                 const cssRules = [...styleSheet.cssRules].map(rule => rule.cssText).join("")

@@ -120,9 +120,9 @@ export default function Page() {
                             <span className="text-[--muted]">Scanning: {progress.folderName}</span>
                             <span className="font-medium">{progress.current} / {formatCount(progress.total)}</span>
                         </div>
-                        <div className="w-full bg-gray-800 rounded-full h-2">
+                        <div className="sea-progress-track w-full bg-gray-800 rounded-full h-2 overflow-hidden">
                             <div
-                                className="bg-brand-500 h-2 rounded-full transition-all duration-300"
+                                className="sea-progress-fill bg-brand-500 h-full rounded-full transition-all duration-300"
                                 style={{ width: `${(progress.current / progress.total) * 100}%` }}
                             />
                         </div>

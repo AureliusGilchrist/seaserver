@@ -396,15 +396,15 @@ export function MediaEntryCardBody(props: MediaEntryCardBodyProps) {
                         <div
                             data-media-entry-card-body-progress-bar-container
                             className={cn(
-                                "absolute top-0 w-full h-1 z-[2] bg-gray-700 left-0",
+                                "sea-progress-track absolute top-0 w-full h-1 z-[2] bg-gray-700 left-0 overflow-hidden",
                                 listStatus === "COMPLETED" && "hidden",
                             )}
                         >
                             <div
                                 data-media-entry-card-body-progress-bar
                                 className={cn(
-                                    "h-1 absolute z-[2] left-0 bg-gray-200 transition-all",
-                                    (listStatus === "CURRENT") ? "bg-brand-400" : "bg-gray-400",
+                                    "h-full absolute z-[2] left-0 bg-gray-200 transition-all",
+                                    (listStatus === "CURRENT") ? "sea-progress-fill bg-brand-400" : "bg-gray-400",
                                 )}
                                 style={{
                                     width: `${String(Math.ceil((progress / progressTotal) * 100))}%`,
@@ -565,13 +565,13 @@ export const MediaEntryCardHoverPopupBanner = memo(({
             {(showProgressBar && progress && listStatus && progressTotal && progress !== progressTotal) &&
                 <div
                     data-media-entry-card-hover-popup-banner-progress-bar-container
-                    className="absolute overflow-hidden top-0 w-full h-1 z-[2] bg-gray-700 left-0"
+                    className="sea-progress-track absolute overflow-hidden top-0 w-full h-1 z-[2] bg-gray-700 left-0"
                 >
                     <div
                         data-media-entry-card-hover-popup-banner-progress-bar
                         className={cn(
-                            "h-1 absolute z-[2] left-0 bg-gray-200 transition-all",
-                            (listStatus === "CURRENT" || listStatus === "COMPLETED") ? "bg-brand-400" : "bg-gray-400",
+                            "h-full absolute z-[2] left-0 bg-gray-200 transition-all",
+                            (listStatus === "CURRENT" || listStatus === "COMPLETED") ? "sea-progress-fill bg-brand-400" : "bg-gray-400",
                         )}
                         style={{ width: `${String(Math.ceil((progress / progressTotal) * 100))}%` }}
                     ></div>

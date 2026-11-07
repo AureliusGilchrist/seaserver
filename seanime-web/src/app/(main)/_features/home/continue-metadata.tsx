@@ -131,8 +131,8 @@ function MetaShell({ headline, progress, notes, score, status, kind, genres }: {
             <div>
                 <p className="line-clamp-1 text-[13px] font-semibold text-white/90">{headline}</p>
                 {progress !== null && (
-                    <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/10">
-                        <div className="h-full rounded-full bg-gradient-to-r from-brand-500 to-brand-300" style={{ width: `${Math.min(100, Math.max(2, progress * 100))}%` }} />
+                    <div className="sea-progress-track mt-1.5 h-1 overflow-hidden rounded-full bg-white/10">
+                        <div className="sea-progress-fill h-full rounded-full bg-gradient-to-r from-brand-500 to-brand-300" style={{ width: `${Math.min(100, Math.max(2, progress * 100))}%` }} />
                     </div>
                 )}
             </div>

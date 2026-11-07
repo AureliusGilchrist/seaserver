@@ -93,8 +93,8 @@ export function EnqueueFutureCatalog({ status }: { status: EnqueueFuture_Status 
             </div>
 
             {catalog?.active && !catalog.done && (
-                <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.07]" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
-                    <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-violet-300 transition-[width] duration-500" style={{ width: `${percent}%` }} />
+                <div className="sea-progress-track h-1.5 overflow-hidden rounded-full bg-white/[0.07]" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
+                    <div className="sea-progress-fill h-full rounded-full bg-gradient-to-r from-violet-500 to-violet-300 transition-[width] duration-500" style={{ width: `${percent}%` }} />
                 </div>
             )}
 

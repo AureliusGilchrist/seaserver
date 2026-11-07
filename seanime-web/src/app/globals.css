@@ -2356,21 +2356,61 @@ html[data-sea-navbar="navbar-pill"] [data-top-navbar] {
 html[data-sea-navbar="navbar-accent"] [data-top-navbar] { border-bottom: 2px solid rgb(var(--color-brand-500) / 0.8) !important; }
 
 /* ── Progress Bars ───────────────────────────────────────────────────────── */
+/* Every progress bar outside the profile follows the chosen style: the UI ProgressBar, and hand-drawn
+   bars marked .sea-progress-track (the groove) / .sea-progress-fill (the filled part). Default leaves
+   each bar's own colours. Fills glide to their new value instead of jumping. */
+.sea-progress-fill { transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1), transform 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
+:where(html[data-sea-slider]:not([data-sea-slider="slider-default"])) .sea-progress-fill { background: rgb(var(--color-brand-500)) !important; }
 html[data-sea-slider="slider-thick"] .UI-ProgressBar__root { height: 0.65rem !important; }
-html[data-sea-slider="slider-gradient"] .UI-ProgressBar__indicator { background-image: linear-gradient(90deg, rgb(var(--color-brand-500)), #ec4899) !important; }
-@keyframes sea-stripes { from { background-position: 0 0; } to { background-position: 32px 0; } }
-html[data-sea-slider="slider-striped"] .UI-ProgressBar__indicator {
-    background-image: repeating-linear-gradient(45deg, rgb(var(--color-brand-500)) 0 8px, rgb(var(--color-brand-400)) 8px 16px) !important;
-    background-size: 32px 32px; animation: sea-stripes 1s linear infinite;
+html[data-sea-slider="slider-thick"] .sea-progress-track { height: 0.5rem !important; }
+html[data-sea-slider="slider-thick"] .sea-progress-track > .sea-progress-fill { height: 100% !important; }
+html[data-sea-slider="slider-gradient"] :is(.UI-ProgressBar__indicator, .sea-progress-fill) {
+    background: linear-gradient(90deg, rgb(var(--color-brand-500)), #ec4899) !important;
 }
-html[data-sea-slider="slider-glow"] .UI-ProgressBar__indicator { box-shadow: 0 0 10px rgb(var(--color-brand-500) / 0.8); }
-html[data-sea-slider="slider-flat"] :is(.UI-ProgressBar__root, .UI-ProgressBar__indicator) { border-radius: 0 !important; }
+@keyframes sea-stripes { from { background-position: 0 0; } to { background-position: 32px 0; } }
+html[data-sea-slider="slider-striped"] :is(.UI-ProgressBar__indicator, .sea-progress-fill) {
+    background: repeating-linear-gradient(45deg, rgb(var(--color-brand-500)) 0 8px, rgb(var(--color-brand-400)) 8px 16px) !important;
+    background-size: 32px 32px !important; animation: sea-stripes 1s linear infinite;
+}
+html[data-sea-slider="slider-glow"] :is(.UI-ProgressBar__indicator, .sea-progress-fill) {
+    box-shadow: 0 0 10px rgb(var(--color-brand-500) / 0.8);
+    animation: sea-progress-glow 2.4s ease-in-out infinite;
+}
+/* The grooves clip their fills, so the glow is drawn around the groove too. */
+html[data-sea-slider="slider-glow"] :is(.UI-ProgressBar__root, .sea-progress-track) {
+    filter: drop-shadow(0 0 3px rgb(var(--color-brand-400) / 0.7));
+}
+@keyframes sea-progress-glow {
+    0%, 100% { box-shadow: 0 0 6px rgb(var(--color-brand-500) / 0.6); }
+    50%      { box-shadow: 0 0 14px rgb(var(--color-brand-400) / 0.95); }
+}
+html[data-sea-slider="slider-flat"] :is(.UI-ProgressBar__root, .UI-ProgressBar__indicator, .sea-progress-track, .sea-progress-fill) { border-radius: 0 !important; }
+html[data-sea-slider="slider-flat"] .sea-progress-fill { background: rgb(229 231 235) !important; }
 html[data-sea-slider]:not([data-sea-slider="slider-default"]) input[type="range"] { accent-color: rgb(var(--color-brand-500)); }
+@media (prefers-reduced-motion: reduce) {
+    .sea-progress-fill { transition: none; }
+    html[data-sea-slider] :is(.UI-ProgressBar__indicator, .sea-progress-fill) { animation: none !important; }
+}
+
+/* The XP-bar skin the player falls back to on Default is drawn as a layer over the fill; with a
+   chosen style that layer would hide it. */
+html[data-sea-slider]:not([data-sea-slider="slider-default"]) [data-vc-element="time-range-chapter-bar"][data-vc-for="progress"] > .sea-xpbar-layer { display: none; }
+/* Volume follows the style too (colour and pattern; it keeps its own size). */
+:where(html[data-sea-slider]:not([data-sea-slider="slider-default"])) [data-vc-element="control-volume-slider-progress"] { background: rgb(var(--color-brand-400)) !important; }
+html[data-sea-slider="slider-gradient"] [data-vc-element="control-volume-slider-progress"] {
+    background: linear-gradient(90deg, rgb(var(--color-brand-700)), rgb(var(--color-brand-400)) 60%, rgb(var(--color-brand-200))) !important;
+}
+html[data-sea-slider="slider-striped"] [data-vc-element="control-volume-slider-progress"] {
+    background: repeating-linear-gradient(45deg, rgb(var(--color-brand-500)) 0 6px, rgb(var(--color-brand-300)) 6px 12px) !important;
+    background-size: 24px 24px !important; animation: sea-stripes-player 0.8s linear infinite;
+}
+html[data-sea-slider="slider-glow"] [data-vc-element="control-volume-slider-progress"] { box-shadow: 0 0 8px rgb(var(--color-brand-400) / 0.9); }
+html[data-sea-slider="slider-flat"] [data-vc-element="control-volume-slider-progress"] { border-radius: 0 !important; background: rgb(229 231 235) !important; }
 
 /* The player's seek bar follows the chosen progress-bar style, in the wallpaper's accent (the brand
    ramp is taken from the wallpaper). The played part moves by transform, so fills here travel with it;
    Default keeps the player's own white bar. */
-html[data-sea-slider]:not([data-sea-slider="slider-default"]) [data-vc-element="time-range-chapter-bar"][data-vc-for="progress"] {
+:where(html[data-sea-slider]:not([data-sea-slider="slider-default"])) [data-vc-element="time-range-chapter-bar"][data-vc-for="progress"] {
     background: rgb(var(--color-brand-400)) !important;
 }
 html[data-sea-slider]:not([data-sea-slider="slider-default"]) [data-vc-element="time-range-chapter-bar"][data-vc-for="seeking-target"] {
@@ -2390,6 +2430,10 @@ html[data-sea-slider="slider-glow"] [data-vc-element="time-range-chapter"] {
     overflow: hidden; filter: drop-shadow(0 0 4px rgb(var(--color-brand-400) / 0.95)) drop-shadow(0 0 10px rgb(var(--color-brand-500) / 0.6));
 }
 html[data-sea-slider="slider-flat"] [data-vc-element="time-range-chapter"] { border-radius: 0 !important; }
+html[data-sea-slider="slider-flat"] [data-vc-element="time-range-chapter-bar"][data-vc-for="progress"] { background: rgb(229 231 235) !important; }
+/* Glowing breathes, like the other bars. */
+html[data-sea-slider="slider-glow"] [data-vc-element="time-range-chapter-bar"][data-vc-for="progress"] { animation: sea-player-glow 2.4s ease-in-out infinite; }
+@keyframes sea-player-glow { 0%, 100% { opacity: 0.88; } 50% { opacity: 1; } }
 
 /* ── Notifications (sonner) ──────────────────────────────────────────────── */
 html[data-sea-toast="toast-glass"] [data-sonner-toast] {

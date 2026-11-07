@@ -364,7 +364,7 @@ function FilePreview({ path, startAt, hovered, onPlayingChange }: EpisodeCardPre
             />
             {visible && <>
                 <div className="absolute inset-x-0 bottom-0 h-0.5 bg-white/15">
-                    <div className="h-full bg-brand-400 transition-[width] duration-300" style={{ width: `${progress * 100}%` }} />
+                    <div className="sea-progress-fill h-full bg-brand-400 transition-[width] duration-300" style={{ width: `${progress * 100}%` }} />
                 </div>
                 <SoundButton sound={sound} onToggle={() => {
                     const next = !sound

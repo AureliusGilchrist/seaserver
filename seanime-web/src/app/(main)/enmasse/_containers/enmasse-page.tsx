@@ -216,9 +216,9 @@ export function EnMassePage() {
                                     {formatNumber(status?.processedCount || 0)} / {formatNumber(status?.totalCount || 0)}
                                 </span>
                             </div>
-                            <div className="w-full bg-gray-700 rounded-full h-2.5">
+                            <div className="sea-progress-track w-full bg-gray-700 rounded-full h-2.5">
                                 <div
-                                    className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                                    className="sea-progress-fill bg-blue-600 h-full rounded-full transition-all duration-300"
                                     style={{
                                         width: `${((status?.processedCount || 0) / (status?.totalCount || 1)) * 100}%`,
                                     }}

@@ -249,9 +249,9 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
                 </div>
             </div>
 
-            <div className="h-2 overflow-hidden rounded-full bg-white/[0.07]" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
+            <div className="sea-progress-track h-2 overflow-hidden rounded-full bg-white/[0.07]" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
                 <div
-                    className={cn("h-full rounded-full transition-[width] duration-500", status.rateLimited ? "bg-orange-400/70" : "bg-gradient-to-r from-sky-500 to-brand-300")}
+                    className={cn("h-full rounded-full transition-[width] duration-500", status.rateLimited ? "bg-orange-400/70" : "sea-progress-fill bg-gradient-to-r from-sky-500 to-brand-300")}
                     style={{ width: `${percent}%` }}
                 />
             </div>

@@ -190,9 +190,9 @@ function AutoTorrentBody({ candidates, onExit }: { candidates: EnqueueFuture_Ite
                             <p className="text-sm text-[--muted]">
                                 Searching SeaDex · <span className="text-[--foreground] font-semibold">{view.searched}</span> of {view.batch?.length ?? 0} done
                             </p>
-                            <div className="mx-auto h-1.5 w-64 overflow-hidden rounded-full bg-gray-800">
+                            <div className="sea-progress-track mx-auto h-1.5 w-64 overflow-hidden rounded-full bg-gray-800">
                                 <div
-                                    className="h-full bg-[--brand] transition-all"
+                                    className="sea-progress-fill h-full bg-[--brand] transition-all"
                                     style={{ width: `${Math.min(100, Math.round((view.searched / Math.max(1, view.batch?.length ?? 1)) * 100))}%` }}
                                 />
                             </div>

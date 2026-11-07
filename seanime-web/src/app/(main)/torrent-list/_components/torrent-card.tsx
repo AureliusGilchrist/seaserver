@@ -116,11 +116,11 @@ export const TorrentCard = React.memo(function TorrentCard({ torrent, onTorrentA
 
             {!isComplete && (
                 <div data-torrent-item-progress-bar className="mt-3 flex items-center gap-3">
-                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+                    <div className="sea-progress-track h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
                         <div
                             className={cn(
                                 "h-full rounded-full transition-[width] duration-1000",
-                                state === "paused" ? "bg-white/30" : "bg-gradient-to-r from-brand-400 to-cyan-300",
+                                state === "paused" ? "bg-white/30" : "sea-progress-fill bg-gradient-to-r from-brand-400 to-cyan-300",
                             )}
                             style={{ width: `${Math.floor(torrent.progress * 100)}%` }}
                         />

@@ -281,9 +281,9 @@ export function UnmatchedTorrentsPage() {
                     </div>
 
                     {sweep!.total > 0 && (
-                        <div className="h-1.5 w-full rounded-full bg-gray-800 overflow-hidden">
+                        <div className="sea-progress-track h-1.5 w-full rounded-full bg-gray-800 overflow-hidden">
                             <div
-                                className="h-full bg-brand-500 transition-[width] duration-300"
+                                className="sea-progress-fill h-full bg-brand-500 transition-[width] duration-300"
                                 style={{ width: `${Math.min(100, Math.round((sweep!.processed / sweep!.total) * 100))}%` }}
                             />
                         </div>

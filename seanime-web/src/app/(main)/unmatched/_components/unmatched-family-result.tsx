@@ -165,7 +165,7 @@ export function UnmatchedFamilyResult({ anime, selectedId, onSelect, isInLibrary
                                 a relation walk is: it does not know its own size until it ends. */}
                             <div className="h-0.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
                                 <div
-                                    className="h-full rounded-full bg-brand-500/80 transition-all duration-300"
+                                    className="sea-progress-fill h-full rounded-full bg-brand-500/80 transition-all duration-300"
                                     style={{ width: `${Math.round(100 * Math.max(nodes.length - remaining, 0) / Math.max(nodes.length, 1))}%` }}
                                 />
                             </div>
