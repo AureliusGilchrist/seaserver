@@ -21,6 +21,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -264,8 +265,10 @@ func (d *Downloader) Start() {
 					}
 				}()
 
-				// Refresh the media map when a chapter is downloaded
-				d.hydrateMediaMap()
+				// The media map is refreshed soon after, not once per chapter: a full refresh
+				// reads every series folder, and doing that for each chapter of a large batch kept
+				// the disk busy and the completion channel overflowing.
+				d.requestMediaMapRefresh()
 			}
 		}
 	}()
@@ -1089,6 +1092,31 @@ func (mm *MediaMap) getMediaDownload(mediaId int, db *db.Database) (MediaDownloa
 }
 
 // hydrateMediaMap hydrates the MediaMap by reading the download directory.
+// mediaMapRefreshInterval is the most often a burst of finished chapters refreshes the media map.
+const mediaMapRefreshInterval = 15 * time.Second
+
+var (
+	mediaMapRefreshPending atomic.Bool
+	mediaMapRefreshLoop    sync.Once
+)
+
+// requestMediaMapRefresh marks the media map stale; one background loop refreshes it at most every
+// mediaMapRefreshInterval while requests keep coming.
+func (d *Downloader) requestMediaMapRefresh() {
+	mediaMapRefreshPending.Store(true)
+	mediaMapRefreshLoop.Do(func() {
+		go func() {
+			ticker := time.NewTicker(mediaMapRefreshInterval)
+			defer ticker.Stop()
+			for range ticker.C {
+				if mediaMapRefreshPending.CompareAndSwap(true, false) {
+					d.hydrateMediaMap()
+				}
+			}
+		}()
+	})
+}
+
 func (d *Downloader) hydrateMediaMap() {
 	d.mediaMapHydrateMu.Lock()
 	defer d.mediaMapHydrateMu.Unlock()

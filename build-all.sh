@@ -99,14 +99,34 @@ step "0.5" "Bump build version"
 node "$SCRIPT_DIR/sync-versions.js" --bump || { fail "Version bump failed"; exit 1; }
 success "Version bumped"
 
+# What the web's source is, by content rather than by file time. Comparing modification times
+# against the last build always found a change: the version bump above rewrites
+# seanime-web/package.json on every build, and a git reset rewrites whatever it touches, so every
+# update re-ran npm ci and the full bundle even for Go-only commits. git's own record of each file's
+# content is used instead, with package.json left out (its only per-build change is the version).
+# Falls back to the time comparison when git cannot answer.
+web_src_hash() {
+  git -C "$SCRIPT_DIR" ls-files -s -- seanime-web 2>/dev/null     | grep -v -E '[[:space:]]seanime-web/package\.json$'     | sha256sum | cut -d' ' -f1
+}
+# Dependencies, by the lockfile's content without its version fields.
+web_deps_hash() {
+  jq -S 'del(.version) | if .packages and .packages[""] then .packages[""] |= del(.version) else . end'     "$SCRIPT_DIR/seanime-web/package-lock.json" 2>/dev/null | sha256sum | cut -d' ' -f1
+}
+
 WEB_CHANGED=1
+WEB_SRC_HASH="$(web_src_hash)"
 if [[ "$WEB_FORCE_BUILD" != "1" && -d "$SCRIPT_DIR/web" ]]; then
-  LAST_BUILD_TS="$SCRIPT_DIR/web/.last-build-ts"
-  if [[ -f "$LAST_BUILD_TS" ]]; then
-    LAST_BUILD_EPOCH=$(cat "$LAST_BUILD_TS" 2>/dev/null || echo 0)
-    NEWEST_SRC=$(find "$SCRIPT_DIR/seanime-web" -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.mjs" -o -name "*.json" -o -name "*.css" -o -name "*.html" -o -name "package-lock.json" \) -newer "$LAST_BUILD_TS" -not -path "*/node_modules*" -not -path "*/out/*" -print -quit 2>/dev/null)
-    if [[ -z "$NEWEST_SRC" ]]; then
+  if [[ -n "$WEB_SRC_HASH" && -f "$SCRIPT_DIR/web/.web-src-hash" ]]; then
+    if [[ "$(cat "$SCRIPT_DIR/web/.web-src-hash" 2>/dev/null)" == "$WEB_SRC_HASH" ]]; then
       WEB_CHANGED=0
+    fi
+  else
+    LAST_BUILD_TS="$SCRIPT_DIR/web/.last-build-ts"
+    if [[ -f "$LAST_BUILD_TS" ]]; then
+      NEWEST_SRC=$(find "$SCRIPT_DIR/seanime-web" -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.mjs" -o -name "*.css" -o -name "*.html" -o -name "package-lock.json" \) -newer "$LAST_BUILD_TS" -not -path "*/node_modules*" -not -path "*/out/*" -print -quit 2>/dev/null)
+      if [[ -z "$NEWEST_SRC" ]]; then
+        WEB_CHANGED=0
+      fi
     fi
   fi
 fi
@@ -115,6 +135,13 @@ if [[ "$WEB_CHANGED" == "1" ]]; then
   step "1.1" "Frontend dependencies"
   (
     cd seanime-web
+    DEPS_HASH="$(web_deps_hash)"
+    if [[ -n "$DEPS_HASH" && -d node_modules && -f node_modules/.seanime-deps-hash           && "$(cat node_modules/.seanime-deps-hash 2>/dev/null)" == "$DEPS_HASH" ]]; then
+      # The lockfile is what it was at the last install: a fresh npm ci would reinstall the same
+      # packages from scratch, which is minutes on a NAS for nothing.
+      substep "Dependencies unchanged since the last install — skipping npm ci"
+      exit 0
+    fi
     substep "Running npm ci..."
     if ! npm ci; then
       # An earlier build run as root (sudo) leaves root-owned files that this user cannot delete.
@@ -130,6 +157,7 @@ if [[ "$WEB_CHANGED" == "1" ]]; then
         rm -rf node_modules.stale-* 2>/dev/null || warn "Could not delete old $STALE (permissions); remove it manually with sudo"
       fi
     fi
+    [[ -n "$DEPS_HASH" ]] && echo "$DEPS_HASH" > node_modules/.seanime-deps-hash || true
   )
   success "Dependencies installed"
 
@@ -182,6 +210,7 @@ if [[ "$WEB_CHANGED" == "1" ]]; then
   touch web/.gitkeep
   # Stamp when the web was last rebuilt — the skip check above compares against it.
   date +%s > web/.last-build-ts
+  [[ -n "$WEB_SRC_HASH" ]] && echo "$WEB_SRC_HASH" > web/.web-src-hash || true
   [[ -d web ]] && success "Web output ready at ./web"
 else
   [[ -d web ]] && success "Web output reused (unchanged)"

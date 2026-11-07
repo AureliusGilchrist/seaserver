@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	chapter_downloader "seanime/internal/manga/downloader"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -24,31 +25,44 @@ type seriesDirIndex struct {
 	builtAt  time.Time
 	dirMtime time.Time
 	byMedia  map[int][]string
+
+	// buildMu serialises builds; rebuilding marks a background rebuild in flight.
+	buildMu    sync.Mutex
+	rebuilding atomic.Bool
 }
 
 // seriesDirsForMedia returns the download folder names (relative to downloadDir) holding chapters
 // for any of the given media IDs.
+//
+// A stale index is rebuilt in the background while lookups keep answering from the current one;
+// only the very first lookup, with no index at all, waits for a build. Rebuilding inline made every
+// chapter list wait for a full read of the download folder each time a new series folder appeared —
+// which during a large download run is all the time.
 func (r *Repository) seriesDirsForMedia(mediaIds ...int) []string {
 	idx := &r.seriesDirIndex
-	idx.mu.Lock()
-	defer idx.mu.Unlock()
 
+	idx.mu.Lock()
+	byMedia := idx.byMedia
 	info, statErr := os.Stat(r.downloadDir)
-	stale := idx.byMedia == nil ||
+	stale := byMedia == nil ||
 		time.Since(idx.builtAt) > seriesDirIndexMaxAge ||
 		(statErr == nil && !info.ModTime().Equal(idx.dirMtime))
-	if stale {
-		idx.byMedia = r.buildSeriesDirIndex()
-		idx.builtAt = time.Now()
-		if statErr == nil {
-			idx.dirMtime = info.ModTime()
-		}
+	idx.mu.Unlock()
+
+	if byMedia == nil {
+		byMedia = r.rebuildSeriesDirIndex()
+	} else if stale && idx.rebuilding.CompareAndSwap(false, true) {
+		go func() {
+			defer idx.rebuilding.Store(false)
+			defer func() { _ = recover() }()
+			r.rebuildSeriesDirIndex()
+		}()
 	}
 
 	seen := make(map[string]struct{})
 	ret := make([]string, 0, 2)
 	for _, id := range mediaIds {
-		for _, dir := range idx.byMedia[id] {
+		for _, dir := range byMedia[id] {
 			if _, ok := seen[dir]; ok {
 				continue
 			}
@@ -57,6 +71,35 @@ func (r *Repository) seriesDirsForMedia(mediaIds ...int) []string {
 		}
 	}
 	return ret
+}
+
+// rebuildSeriesDirIndex builds the index and installs it, one build at a time. A caller arriving
+// while another build runs waits for it and uses its result.
+func (r *Repository) rebuildSeriesDirIndex() map[int][]string {
+	idx := &r.seriesDirIndex
+	idx.buildMu.Lock()
+	defer idx.buildMu.Unlock()
+
+	// Another build may have finished while this one waited for the lock.
+	idx.mu.Lock()
+	if idx.byMedia != nil && time.Since(idx.builtAt) < time.Second {
+		current := idx.byMedia
+		idx.mu.Unlock()
+		return current
+	}
+	idx.mu.Unlock()
+
+	info, statErr := os.Stat(r.downloadDir)
+	built := r.buildSeriesDirIndex()
+
+	idx.mu.Lock()
+	idx.byMedia = built
+	idx.builtAt = time.Now()
+	if statErr == nil {
+		idx.dirMtime = info.ModTime()
+	}
+	idx.mu.Unlock()
+	return built
 }
 
 // invalidateSeriesDirIndex forces the next lookup to rebuild the index.
