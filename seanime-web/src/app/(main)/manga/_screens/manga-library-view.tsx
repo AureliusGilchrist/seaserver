@@ -232,7 +232,7 @@ export function FilteredCollectionLists({ collectionList, genres, showStatuses, 
                 <MangaLibrarySortMenu />
             </div>
 
-            {type === "grid" && <PaginatedMediaGrid type="manga"
+            {type === "grid" && <PaginatedMediaGrid persistKey="manga-library-all" type="manga"
                 items={entries}
                 renderItem={entry => (
                     <div key={entry.media?.id}>
@@ -518,7 +518,7 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
 
             {/* CURRENT list: Use merged entries sorted by reading history */}
             {list.type === "CURRENT" && type === "grid" && displayEntries && (
-                <PaginatedMediaGrid type="manga"
+                <PaginatedMediaGrid persistKey={`manga-list-${list.type}`} type="manga"
                     items={displayEntries}
                     renderItem={item => {
                         if (item.type === "regular" && item.entry) {
@@ -634,7 +634,7 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
 
             {/* Non-CURRENT lists: Use original entries */}
             {list.type !== "CURRENT" && type === "grid" && (
-                <PaginatedMediaGrid type="manga"
+                <PaginatedMediaGrid persistKey={`manga-list-${list.type}`} type="manga"
                     items={sortedEntries}
                     renderItem={entry => (
                         <div key={entry.media?.id}>

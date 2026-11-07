@@ -524,13 +524,10 @@ func (r *Repository) getDownloadedMangaPageContainer(
 		}
 	}
 
-	// Also check all series directories for matching mediaId in registry
-	mediaDirs, _ := os.ReadDir(r.downloadDir)
-	for _, dir := range mediaDirs {
-		if dir.IsDir() {
-			possibleMediaDirs = append(possibleMediaDirs, dir.Name())
-		}
-	}
+	// The series folders that actually hold this manga, from the index — not every folder in the
+	// download directory. Reading all of their registries in turn, on every chapter opened, is
+	// what made opening a chapter take minutes on a large library.
+	possibleMediaDirs = append(possibleMediaDirs, r.seriesDirsForMedia(originalMediaId, mediaId)...)
 
 	r.logger.Debug().
 		Str("provider", provider).
@@ -543,8 +540,8 @@ func (r *Repository) getDownloadedMangaPageContainer(
 	for _, dir := range possibleMediaDirs {
 		mediaDirPath := filepath.Join(r.downloadDir, dir)
 
-		// Try to load series registry
-		seriesRegistry, err := chapter_downloader.LoadSeriesRegistry(mediaDirPath, r.logger)
+		// Try to load series registry (read only: nothing here changes it)
+		seriesRegistry, err := chapter_downloader.LoadSeriesRegistryReadOnly(mediaDirPath, r.logger)
 		if err != nil || len(seriesRegistry.Chapters) == 0 {
 			continue
 		}

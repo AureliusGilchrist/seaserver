@@ -50,6 +50,10 @@ type (
 		inFlightRequests         sync.Map // map[string]chan *PageContainer for deduplicating concurrent requests
 		chapterUpdateCheckMu     sync.Mutex
 		chapterUpdateNextCheckAt map[string]time.Time
+
+		// Which download folders hold which manga, so opening a chapter reads one series'
+		// registry instead of every registry in the download folder. See series_dir_index.go.
+		seriesDirIndex seriesDirIndex
 	}
 
 	NewRepositoryOptions struct {
@@ -74,6 +78,14 @@ func NewRepository(opts *NewRepositoryOptions) *Repository {
 		downloadDir:      opts.DownloadDir,
 		extensionBankRef: opts.ExtensionBankRef,
 		db:               opts.Database,
+	}
+	// Build the series folder index now, in the background, so the first chapter opened after a
+	// start doesn't wait for the download folder to be read.
+	if r.downloadDir != "" {
+		go func() {
+			defer func() { _ = recover() }()
+			r.seriesDirsForMedia()
+		}()
 	}
 	return r
 }

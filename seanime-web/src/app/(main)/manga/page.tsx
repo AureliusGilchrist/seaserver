@@ -709,7 +709,7 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                                 </CarouselContent>
                             </Carousel>
                         ) : (
-                            <PaginatedMediaGrid type="manga"
+                            <PaginatedMediaGrid persistKey="manga-downloads" type="manga"
                                 items={sourceFilteredDownloads}
                                 scrollTargetSelector="[data-local-manga-library]"
                                 renderItem={dlItem => {

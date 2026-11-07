@@ -932,7 +932,7 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
                 </div>
                 <div className="ml-auto">{sortMenu}</div>
             </div>
-            <PaginatedMediaGrid
+            <PaginatedMediaGrid persistKey="anime-local-library"
                 items={localEntries}
                 // Turning the page lands on the stats row rather than the top of the document, so
                 // the counts and the search box that belong to this grid stay on screen with it.

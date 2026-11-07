@@ -1,10 +1,11 @@
-import { AL_MangaDetailsById_Media, HibikeManga_ChapterDetails, Manga_Entry, Manga_MediaDownloadData } from "@/api/generated/types"
+import { AL_MangaDetailsById_Media, HibikeManga_ChapterDetails, Manga_ChapterContainer, Manga_Entry, Manga_MediaDownloadData } from "@/api/generated/types"
 import { useEmptyMangaEntryCache } from "@/api/hooks/manga.hooks"
 import { SeaCommandInjectableItem, useSeaCommandInject } from "@/app/(main)/_features/sea-command/use-inject"
 import { manga_downloadedChapterContainerAtom } from "@/app/(main)/manga/_containers/chapter-list/downloaded-chapter-list"
 import { MangaManualMappingModal } from "@/app/(main)/manga/_containers/chapter-list/manga-manual-mapping-modal"
 import { ChapterReaderDrawer } from "@/app/(main)/manga/_containers/chapter-reader/chapter-reader-drawer"
 import { __manga_selectedChapterAtom } from "@/app/(main)/manga/_lib/handle-chapter-reader"
+import { getChapterListStatus } from "@/app/(main)/manga/_lib/chapter-list-status"
 import { useHandleMangaChapters } from "@/app/(main)/manga/_lib/handle-manga-chapters"
 import { useHandleDownloadMangaChapter } from "@/app/(main)/manga/_lib/handle-manga-downloads"
 import { getChapterNumberFromChapter, getDecimalFromChapter, useMangaDownloadDataUtils } from "@/app/(main)/manga/_lib/handle-manga-utils"
@@ -60,18 +61,66 @@ export function ChapterList(props: ChapterListProps) {
         chapterContainerError,
         refetchChapterContainer,
     } = useHandleMangaChapters(mediaId)
+    const { mutate: clearMangaCache, isPending: isClearingMangaCache } = useEmptyMangaEntryCache()
+
+    const hasSources = providerOptions.length > 0
+
+    // Chapters already on the server, from the download data the page loads anyway. Shown when
+    // the source fails or comes back empty, so downloaded chapters never disappear behind a source
+    // that is down: the reader opens a downloaded chapter from disk by its source and id.
+    const downloadedFallback = React.useMemo(() => {
+        if (chapterContainer?.chapters?.length) return null
+        const out: HibikeManga_ChapterDetails[] = []
+        for (const [provider, items] of Object.entries(downloadData?.downloaded ?? {})) {
+            for (const item of items ?? []) {
+                if (!item?.chapterId) continue
+                const n = getDecimalFromChapter(item.chapterNumber || "")
+                out.push({
+                    provider,
+                    id: item.chapterId,
+                    url: "",
+                    title: `Chapter ${n || item.chapterNumber}`,
+                    chapter: item.chapterNumber,
+                    index: 0,
+                })
+            }
+        }
+        out.sort((a, b) => getDecimalFromChapter(a.chapter) - getDecimalFromChapter(b.chapter))
+        out.forEach((ch, i) => ch.index = i)
+        return out.length ? out : null
+    }, [chapterContainer?.chapters, downloadData?.downloaded])
+    // Loading until the source has actually answered — see getChapterListStatus.
+    const status = getChapterListStatus({
+        busy: isClearingMangaCache || providerExtensionsLoading || chapterContainerLoading,
+        hasData: !!chapterContainer,
+        hasError: !!chapterContainerError,
+        chapterCount: chapterContainer?.chapters?.length ?? 0,
+        downloadedCount: downloadedFallback?.length ?? 0,
+        hasSources,
+        hasProvider: !!selectedProvider,
+    })
+    const usingFallback = status === "fallback"
+    const chapterList = React.useMemo(
+        () => usingFallback ? downloadedFallback! : chapterContainer?.chapters ?? [],
+        [usingFallback, downloadedFallback, chapterContainer?.chapters],
+    )
+    const effectiveContainer = React.useMemo<Manga_ChapterContainer | undefined>(
+        () => usingFallback
+            ? { mediaId: Number(mediaId), provider: selectedProvider || downloadedFallback![0].provider, chapters: downloadedFallback! }
+            : chapterContainer,
+        [usingFallback, downloadedFallback, chapterContainer, mediaId, selectedProvider],
+    )
 
     // Chapter numbers as integers, by chapter id: used for read/unread and by the reader.
     const chapterIdToNumbersMap = React.useMemo(() => {
         const map = new Map<string, number>()
-        for (const chapter of chapterContainer?.chapters ?? []) {
+        for (const chapter of chapterList) {
             map.set(chapter.id, getChapterNumberFromChapter(chapter.chapter))
         }
         return map
-    }, [chapterContainer?.chapters])
+    }, [chapterList])
 
     const setSelectedChapter = useSetAtom(__manga_selectedChapterAtom)
-    const { mutate: clearMangaCache, isPending: isClearingMangaCache } = useEmptyMangaEntryCache()
     const { downloadChapters, isSendingDownloadRequest } = useHandleDownloadMangaChapter(mediaId, entry.media?.title?.romaji ?? undefined)
     const { isChapterQueued, isChapterDownloaded, isChapterLocal } = useMangaDownloadDataUtils(downloadData, downloadDataLoading)
     const { inject, remove } = useSeaCommandInject()
@@ -94,8 +143,8 @@ export function ChapterList(props: ChapterListProps) {
 
     // Oldest first, by number; unread keeps the source's own reading order.
     const ascending = React.useMemo(() => {
-        return [...(chapterContainer?.chapters ?? [])].sort((a, b) => getDecimalFromChapter(a.chapter) - getDecimalFromChapter(b.chapter))
-    }, [chapterContainer?.chapters])
+        return [...chapterList].sort((a, b) => getDecimalFromChapter(a.chapter) - getDecimalFromChapter(b.chapter))
+    }, [chapterList])
     const unreadChapters = React.useMemo(() => ascending.filter(ch => !isRead(ch)), [ascending, isRead])
     const nextChapter = unreadChapters[0]
     const downloadedCount = React.useMemo(() => ascending.filter(ch => isChapterDownloaded(ch)).length, [ascending, isChapterDownloaded])
@@ -157,7 +206,7 @@ export function ChapterList(props: ChapterListProps) {
 
     // Command palette: the next chapter and the ten after it.
     React.useEffect(() => {
-        if (!chapterContainer?.chapters?.length) return
+        if (!chapterList.length) return
         const item = (chapter: HibikeManga_ChapterDetails, heading: string, priority: number, id: string) => ({
             data: chapter,
             id,
@@ -187,13 +236,14 @@ export function ChapterList(props: ChapterListProps) {
             priority: 100,
         })
         return () => remove("manga-chapters")
-    }, [chapterContainer?.chapters, unreadChapters, nextChapter, openChapter])
+    }, [chapterList, unreadChapters, nextChapter, openChapter])
 
     const [downloadedChapterContainer] = useAtom(manga_downloadedChapterContainerAtom)
 
     const total = ascending.length
     const readCount = total - unreadChapters.length
-    const loading = chapterContainerLoading || isClearingMangaCache || providerExtensionsLoading
+    const loading = status === "loading"
+    const failed = status === "error"
 
     return (
         <div
@@ -207,7 +257,7 @@ export function ChapterList(props: ChapterListProps) {
                 <div className="min-w-0">
                     <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[--brand]">Chapters</p>
                     <h2 className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-3xl">
-                        {loading && !total ? "Finding chapters…" : total ? `${formatNumber(total)} chapters` : "No chapters yet"}
+                        {loading && !total ? "Finding chapters…" : total ? `${formatNumber(total)} chapters` : failed ? "Couldn't load chapters" : !hasSources ? "No sources installed" : "No chapters yet"}
                     </h2>
                     {!!total && (
                         <p className="mt-1 text-sm text-white/55">
@@ -340,7 +390,19 @@ export function ChapterList(props: ChapterListProps) {
             </div>
 
             {/* The chapters */}
-            {loading ? <ChapterSkeleton /> : chapterContainerError ? (
+            {usingFallback && !loading && (
+                <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-amber-400/[0.07] px-4 py-3 ring-1 ring-amber-300/20" data-chapter-list-fallback>
+                    <LuHardDrive className="size-4 flex-none text-amber-200" />
+                    <p className="min-w-0 flex-1 text-sm text-amber-100/90">
+                        {chapterContainerError
+                            ? "The source didn't answer, so these are the chapters already downloaded to the server."
+                            : "The source found no chapters, so these are the chapters already downloaded to the server."}
+                    </p>
+                    <Button intent="white-subtle" size="sm" onClick={() => refetchChapterContainer()}>Try the source again</Button>
+                </div>
+            )}
+
+            {loading ? <ChapterSkeleton /> : failed ? (
                 <LuffyError title="No chapters found">
                     <p className="text-sm text-[--muted] mb-2">The source didn't answer in time, or found nothing for this title.</p>
                     <Button intent="primary-subtle" size="md" className="mb-2" onClick={() => refetchChapterContainer()}>Try again</Button>
@@ -349,7 +411,7 @@ export function ChapterList(props: ChapterListProps) {
                     </MangaManualMappingModal>
                 </LuffyError>
             ) : !total ? (
-                <LuffyError title="No chapters found"><p>Try another source</p></LuffyError>
+                <LuffyError title="No chapters found"><p>{hasSources ? "Try another source" : "Install a manga source extension to find chapters."}</p></LuffyError>
             ) : (
                 <div className="space-y-3">
                     {ranges.length > 1 && (
@@ -436,9 +498,9 @@ export function ChapterList(props: ChapterListProps) {
                 </div>
             )}
 
-            {(chapterContainer || downloadedChapterContainer) && <ChapterReaderDrawer
+            {(effectiveContainer || downloadedChapterContainer) && <ChapterReaderDrawer
                 entry={entry}
-                chapterContainer={chapterContainer || downloadedChapterContainer!}
+                chapterContainer={effectiveContainer || downloadedChapterContainer!}
                 chapterIdToNumbersMap={chapterIdToNumbersMap}
             />}
 

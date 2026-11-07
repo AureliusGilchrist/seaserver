@@ -24,6 +24,7 @@ import { FiSearch } from "react-icons/fi"
 import { LuSettings2 } from "react-icons/lu"
 import { useAtom } from "jotai/react"
 import React from "react"
+import { useSeaCommand } from "@/app/(main)/_features/sea-command/sea-command"
 
 /**
  * The responsive home base for the app: media activity, library widgets, and every main
@@ -34,6 +35,9 @@ export function LandingHub() {
     const serverStatus = useServerStatus()
     const { widgets } = useLandingWidgets()
     const { look } = useLandingLook()
+    // Opens the search palette directly, the way the sidebar and toolbar do. A synthetic ⌘K keydown
+    // never reached the palette: it listens for its own shortcut, and Windows has no ⌘.
+    const { setSeaCommandOpen } = useSeaCommand()
     const { continueWatchingList, isLoading: isLibraryLoading } = useHandleLibraryCollection()
 
     const [settingsOpen, setSettingsOpen] = useAtom(__landingSettingsModalOpen)
@@ -95,7 +99,7 @@ export function LandingHub() {
                         </div>
                         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
                             <button
-                                onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
+                                onClick={() => setSeaCommandOpen(true)}
                                 className="flex flex-1 items-center justify-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-medium text-white backdrop-blur-md transition-all hover:border-[--brand]/70 hover:bg-black/60 sm:flex-none sm:px-5"
                             >
                                 <FiSearch className="w-4 h-4" />

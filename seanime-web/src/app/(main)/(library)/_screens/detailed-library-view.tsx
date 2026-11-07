@@ -204,7 +204,7 @@ const LibraryCollectionListItem = React.memo(({ list, streamingMediaIds, type }:
     return (
         <React.Fragment key={list.type}>
             <h2>{getLibraryCollectionTitle(list.type)} <span className="text-[--muted] font-medium ml-3">{formatNumber(list?.entries?.length ?? 0)}</span></h2>
-            {type === "grid" && <PaginatedMediaGrid
+            {type === "grid" && <PaginatedMediaGrid persistKey={`anime-detailed-${list.type}`}
                 items={list.entries}
                 renderItem={entry => (
                     <LibraryCollectionEntryItem key={entry.mediaId} entry={entry} streamingMediaIds={streamingMediaIds} type={type} />
@@ -239,7 +239,7 @@ const MergedLibraryCollectionList = React.memo(({ entries, streamingMediaIds, ty
 
     return (
         <React.Fragment>
-            {type === "grid" && <PaginatedMediaGrid
+            {type === "grid" && <PaginatedMediaGrid persistKey="anime-detailed-merged"
                 items={entries}
                 renderItem={entry => (
                     <LibraryCollectionEntryItem key={entry.mediaId} entry={entry} streamingMediaIds={streamingMediaIds} type={type} />

@@ -13,15 +13,30 @@ export const LIBRARY_PAGE_SIZE = 48
  * libraries as the user types in the search box or switches genre/status filters — without
  * that, filtering down to a handful of entries while on page 7 would show an empty grid.
  */
-export function usePaginatedItems<T>(items: T[] | undefined, pageSize: number = LIBRARY_PAGE_SIZE) {
+export function usePaginatedItems<T>(items: T[] | undefined, pageSize: number = LIBRARY_PAGE_SIZE, persistKey?: string) {
     const all = React.useMemo(() => items ?? [], [items])
-    const [page, setPage] = React.useState(1)
+
+    // The page is remembered for the browser session, per screen and per grid on it, so opening an
+    // entry from page 4 and pressing Back lands on page 4 again rather than page 1. The grid is
+    // unmounted while the entry page is shown, so plain state alone always came back as 1.
+    const autoKey = React.useId()
+    const storageKey = React.useMemo(() => {
+        if (typeof window === "undefined") return null
+        return `sea-library-page:${window.location.pathname}${window.location.search}|${persistKey ?? autoKey}`
+    }, [persistKey, autoKey])
+    const [page, setPageState] = React.useState(() => readStoredPage(storageKey))
+    const setPage = React.useCallback((next: number) => {
+        setPageState(next)
+        writeStoredPage(storageKey, next)
+    }, [storageKey])
 
     const pageCount = Math.max(1, Math.ceil(all.length / pageSize))
 
     React.useEffect(() => {
-        if (page > pageCount) setPage(1)
-    }, [pageCount, page])
+        // Not while the list is still empty: coming back to a library, the collection is reloading
+        // for a moment, and clamping then threw the remembered page away before the items arrived.
+        if (all.length > 0 && page > pageCount) setPage(1)
+    }, [pageCount, page, all.length, setPage])
 
     const currentPage = Math.min(page, pageCount)
 
@@ -37,6 +52,26 @@ export function usePaginatedItems<T>(items: T[] | undefined, pageSize: number = 
         setPage,
         total: all.length,
         isPaginated: all.length > pageSize,
+    }
+}
+
+function readStoredPage(key: string | null): number {
+    if (!key) return 1
+    try {
+        const value = Number(window.sessionStorage.getItem(key))
+        return Number.isInteger(value) && value > 1 ? value : 1
+    } catch {
+        return 1
+    }
+}
+
+function writeStoredPage(key: string | null, page: number) {
+    if (!key) return
+    try {
+        if (page > 1) window.sessionStorage.setItem(key, String(page))
+        else window.sessionStorage.removeItem(key)
+    } catch {
+        // Storage blocked (private mode, full): the page simply isn't remembered.
     }
 }
 
@@ -58,15 +93,20 @@ type PaginatedMediaGridProps<T> = {
     scrollTargetSelector?: string
     /** Which card width the grid uses (see MediaCardGrid). */
     type?: "anime" | "manga"
+    /**
+     * Names this grid for remembering its page. Optional: without it the grid's place in the
+     * screen is used, which is stable as long as the screen's layout is.
+     */
+    persistKey?: string
 }
 
 /**
  * A media grid split into real pages rather than an endlessly growing lazy-loaded list.
  * Used by the local anime and manga libraries, which can hold thousands of series.
  */
-export function PaginatedMediaGrid<T>({ items, renderItem, pageSize = LIBRARY_PAGE_SIZE, gridProps, scrollTargetSelector, type }: PaginatedMediaGridProps<T>) {
+export function PaginatedMediaGrid<T>({ items, renderItem, pageSize = LIBRARY_PAGE_SIZE, gridProps, scrollTargetSelector, type, persistKey }: PaginatedMediaGridProps<T>) {
 
-    const { pageItems, page, pageCount, setPage, total, isPaginated } = usePaginatedItems(items, pageSize)
+    const { pageItems, page, pageCount, setPage, total, isPaginated } = usePaginatedItems(items, pageSize, persistKey)
 
     const handlePageChange = React.useCallback((next: number) => {
         if (next < 1 || next > pageCount) return

@@ -15,6 +15,9 @@ import React from "react"
 import { AiOutlineArrowLeft } from "react-icons/ai"
 import { useMount } from "react-use"
 
+/** The search URL whose filters were last applied, kept for the life of the app (not the page). */
+let lastAppliedSearchUrl: string | null = null
+
 export default function Page() {
 
     const urlParams = useSearchParams()
@@ -29,6 +32,11 @@ export default function Page() {
     const setParams = useSetAtom(__advancedSearch_paramsAtom)
 
     useMount(() => {
+        // Only for a URL not applied yet. Coming back to the same search with Back must keep what
+        // was typed and picked since, or the results — and the place in them — are thrown away.
+        const urlKey = urlParams.toString()
+        if (urlKey === lastAppliedSearchUrl) return
+        lastAppliedSearchUrl = urlKey
         if (sortingUrlParam || genreUrlParam || statusUrlParam || formatUrlParam || seasonUrlParam || yearUrlParam || typeUrlParam) {
             setParams({
                 active: true,

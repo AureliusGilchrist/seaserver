@@ -103,7 +103,7 @@ export function MissedSequelsList({ searchInput = "", withTitle = true, withSort
             {!isError && !items.length && <p className="text-[--muted]">
                 No missed sequels. Every released sequel to a show you completed is already on one of your lists.
             </p>}
-            {!!items.length && <PaginatedMediaGrid
+            {!!items.length && <PaginatedMediaGrid persistKey="missed-sequels"
                 items={items}
                 renderItem={item => <MissedSequelItem key={item.sequel!.id} item={item} />}
             />}

@@ -128,7 +128,7 @@ export function LibraryCollectionFilteredLists({ collectionList, isLoading, stre
             <div className="flex justify-end">
                 <AnimeLibrarySortMenu />
             </div>
-            {type === "grid" && <PaginatedMediaGrid
+            {type === "grid" && <PaginatedMediaGrid persistKey="anime-library-filtered"
                 items={filteredCollectionList?.flatMap(n => n.entries)?.filter(Boolean)}
                 renderItem={entry => (
                     <LibraryCollectionEntryItem key={entryKey(entry)} entry={entry} streamingMediaIds={streamingMediaIds} type={type} />
@@ -199,7 +199,7 @@ export const LibraryCollectionListItem = React.memo(({ list, streamingMediaIds, 
                     </DropdownMenuItem>
                 </DropdownMenu>}
             </div>
-            {type === "grid" && <PaginatedMediaGrid
+            {type === "grid" && <PaginatedMediaGrid persistKey={`anime-library-${list.type}`}
                 items={list.entries}
                 gridProps={{
                     "data-library-collection-list-item-media-card-lazy-grid": true,
