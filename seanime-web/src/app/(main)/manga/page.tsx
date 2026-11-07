@@ -1,5 +1,6 @@
 "use client"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
+import { Manga_CollectionEntry, Manga_CollectionList } from "@/api/generated/types"
 import { MediaCardLazyGrid } from "@/app/(main)/_features/media/_components/media-card-grid"
 import { PaginatedMediaGrid } from "@/app/(main)/_features/media/_components/paginated-media-grid"
 import { MangaBadge, MangaSyntheticOutline, SYNTHETIC_CARD_CLASS } from "@/app/(main)/_features/media/_components/manga-badge"
@@ -30,7 +31,7 @@ import { PageWrapper } from "@/components/shared/page-wrapper"
 import { SeaLink } from "@/components/shared/sea-link"
 import { Alert } from "@/components/ui/alert/alert"
 import { Button } from "@/components/ui/button"
-import { LuBookMarked, LuBookOpen, LuBookOpenCheck, LuDownload, LuFiles, LuImage, LuLibrary } from "react-icons/lu"
+import { LuBookMarked, LuBookOpen, LuBookOpenCheck, LuDownload, LuEye, LuFiles, LuImage, LuLibrary, LuStar } from "react-icons/lu"
 import { cn } from "@/components/ui/core/styling"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Carousel, CarouselContent, CarouselDotButtons, CarouselItem } from "@/components/ui/carousel"
@@ -772,8 +773,13 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
 
     // Local Manga Library Stats, laid out like the anime home's row
     if (item.type === "local-manga-library-stats") {
-        const entries = mangaCollection?.lists?.flatMap((l: any) => l.entries ?? []).filter(Boolean) ?? []
-        const countOf = (type: string) => mangaCollection?.lists?.find((l: any) => l.type === type)?.entries?.length ?? 0
+        const entries: Manga_CollectionEntry[] = mangaCollection?.lists?.flatMap((list: Manga_CollectionList) => list.entries ?? []) ?? []
+        const countOf = (type: string) => mangaCollection?.lists?.find((list: Manga_CollectionList) => list.type === type)?.entries?.length ?? 0
+        const chaptersRead = entries.reduce((total: number, entry: Manga_CollectionEntry) => total + (entry.listData?.progress ?? 0), 0)
+        const scoredEntries = entries.filter((entry: Manga_CollectionEntry) => (entry.listData?.score ?? 0) > 0)
+        const averageScore = scoredEntries.length
+            ? scoredEntries.reduce((total: number, entry: Manga_CollectionEntry) => total + (entry.listData?.score ?? 0), 0) / scoredEntries.length / 10
+            : undefined
         // Nothing to show yet reads as "–", never as a 0 that later turns into the real number.
         const haveCollection = !!mangaCollection && !mangaCollectionLoading
         const haveDownloads = !!downloadedList && !downloadsLoading
@@ -786,6 +792,8 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                         { label: "Entries", value: show(haveCollection, entries.length), icon: <LuLibrary />, tone: "text-emerald-300" },
                         { label: "Reading", value: show(haveCollection, countOf("CURRENT")), icon: <LuBookOpen />, tone: "text-sky-300" },
                         { label: "Completed", value: show(haveCollection, countOf("COMPLETED")), icon: <LuBookOpenCheck />, tone: "text-brand-200" },
+                        { label: "Chapters read", value: show(haveCollection, chaptersRead), icon: <LuEye />, tone: "text-cyan-300" },
+                        { label: "My average score", value: !haveCollection || averageScore == null ? "–" : averageScore.toFixed(1), icon: <LuStar />, tone: "text-amber-200", title: `${scoredEntries.length.toLocaleString()} scored titles` },
                         { label: "Downloaded series", value: show(haveDownloads, downloadedList?.length ?? 0), icon: <LuDownload />, tone: "text-violet-300" },
                         { label: "Downloaded chapters", value: show(haveDownloads, downloadedChaptersTotal), icon: <LuFiles />, tone: "text-amber-300" },
                         { label: "With metadata", value: show(haveDownloads, downloadedWithMedia.length), icon: <LuImage />, tone: "text-rose-300" },

@@ -1,7 +1,7 @@
 import { cachedImageUrl } from "@/lib/server/assets"
 import { HomeSections } from "@/app/(main)/_features/home/home-sections"
 import { HomeStatsStrip } from "@/app/(main)/_features/home/home-stats-strip"
-import { LuFiles, LuFilm, LuHardDrive, LuLibrary, LuSparkles, LuTriangleAlert, LuTv } from "react-icons/lu"
+import { LuEye, LuFiles, LuFilm, LuHardDrive, LuLibrary, LuSparkles, LuStar, LuTriangleAlert, LuTv } from "react-icons/lu"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { AL_ListRecentAnime_Page_AiringSchedules, Anime_LibraryCollectionEntry, Anime_LibraryCollectionList, Anime_ScheduleItem, Models_HomeItem } from "@/api/generated/types"
 import { useAnilistListAnime, useAnilistListRecentAiringAnime } from "@/api/hooks/anilist.hooks"
@@ -706,6 +706,12 @@ export function HomeScreenItem(props: HomeScreenItemProps) {
     }
 
     if (item.type === "local-anime-library-stats") {
+        const collectionEntries = data?.lists?.flatMap(list => list.entries ?? []) ?? []
+        const watchedEpisodes = collectionEntries.reduce((total, entry) => total + (entry.listData?.progress ?? 0), 0)
+        const scoredEntries = collectionEntries.filter(entry => (entry.listData?.score ?? 0) > 0)
+        const averageScore = scoredEntries.length
+            ? scoredEntries.reduce((total, entry) => total + (entry.listData?.score ?? 0), 0) / scoredEntries.length / 10
+            : undefined
         return (
             <PageWrapper>
                 <HomeStatsStrip
@@ -717,6 +723,8 @@ export function HomeScreenItem(props: HomeScreenItemProps) {
                         { label: "Shows", value: statValue(data?.stats?.totalShows), icon: <LuTv />, tone: "text-brand-200" },
                         { label: "Movies", value: statValue(data?.stats?.totalMovies), icon: <LuFilm />, tone: "text-amber-300" },
                         { label: "Specials", value: statValue(data?.stats?.totalSpecials), icon: <LuSparkles />, tone: "text-rose-300" },
+                        { label: "Episodes watched", value: statValue(data ? watchedEpisodes : undefined), icon: <LuEye />, tone: "text-cyan-300" },
+                        { label: "My average score", value: averageScore == null ? "–" : averageScore.toFixed(1), icon: <LuStar />, tone: "text-amber-200", title: `${scoredEntries.length.toLocaleString()} scored titles` },
                         // What the scan found and the library cannot show. Absent when there is none.
                         ...((data?.stats?.unresolvedItems ?? 0) > 0 ? [{
                             label: "Unresolved",

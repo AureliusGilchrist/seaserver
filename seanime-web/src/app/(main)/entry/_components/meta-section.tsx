@@ -7,6 +7,7 @@ import { AnimeDownloadingBadge } from "@/app/(main)/_features/media/_components/
 import { AnimeEntryStudio } from "@/app/(main)/_features/media/_components/anime-entry-studio"
 import { MediaCreatorsLine, MediaStudiosLine } from "@/app/(main)/_features/media/_components/media-info-panel"
 import { MediaHeroInsights } from "@/app/(main)/_features/media/_components/media-hero-insights"
+import { MediaPersonalProgress } from "@/app/(main)/_features/media/_components/media-personal-progress"
 import { MediaMetaChips } from "@/app/(main)/_features/media/_components/media-meta-chips"
 import { useGetMediaInfo } from "@/api/hooks/anilist.hooks"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
@@ -119,6 +120,17 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
                             <MediaMetaChips media={entry.media as any} info={info} type="anime" hideStatus />
                             <AnimeDownloadingBadge mediaId={entry.mediaId} size="lg" />
                         </div>
+
+                        <MediaPersonalProgress
+                            type="anime"
+                            progress={entry.listData?.progress}
+                            total={entry.media.episodes}
+                            score={entry.listData?.score}
+                            status={entry.listData?.status}
+                            fillerCount={entry.episodes?.filter(episode => episode.episodeMetadata?.isFiller === true).length}
+                            fillerTaggedCount={entry.episodes?.filter(episode => episode.episodeMetadata?.isFiller != null).length}
+                            fillerCoverageTotal={entry.media.episodes}
+                        />
 
                         {/* Credits: who made it */}
                         <div className="flex flex-col items-center gap-1 lg:items-start" data-anime-meta-section-credits>

@@ -6,6 +6,7 @@ import {
 import { MangaEntryStaff } from "@/app/(main)/_features/media/_components/manga-entry-staff"
 import { MediaCreatorsLine } from "@/app/(main)/_features/media/_components/media-info-panel"
 import { MediaHeroInsights } from "@/app/(main)/_features/media/_components/media-hero-insights"
+import { MediaPersonalProgress } from "@/app/(main)/_features/media/_components/media-personal-progress"
 import { MediaMetaChips } from "@/app/(main)/_features/media/_components/media-meta-chips"
 import { useGetMediaInfo } from "@/api/hooks/anilist.hooks"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
@@ -82,6 +83,14 @@ export function MetaSection(props: { entry: Manga_Entry | undefined, details: AL
                         <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 lg:justify-start" data-manga-meta-section-stats>
                             <MediaMetaChips media={entry.media as any} info={info} type="manga" hideStatus />
                         </div>
+
+                        <MediaPersonalProgress
+                            type="manga"
+                            progress={entry.listData?.progress}
+                            total={entry.media.chapters}
+                            score={entry.listData?.score}
+                            status={entry.listData?.status}
+                        />
 
                         {hasCreatorsLine && <MediaCreatorsLine info={info} />}
 
