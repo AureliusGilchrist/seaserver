@@ -310,16 +310,7 @@ const _EpisodeCard = React.memo(({ episode, mRef, overrideLink, spoilerActive, w
                 image: episode?.baseAnime?.coverImage?.medium,
                 title: episode?.baseAnime?.title?.userPreferred,
             }}
-            onMouseEnter={() => {
-                onHoverImage?.(episode.baseAnime?.bannerImage || episode.baseAnime?.coverImage?.extraLarge || episode.baseAnime?.coverImage?.large || null)
-                React.startTransition(() => {
-                    setHeaderImage({
-                        bannerImage: episode.baseAnime?.bannerImage || null,
-                        episodeImage: episode.baseAnime?.bannerImage || episode.baseAnime?.coverImage?.extraLarge || null,
-                    })
-                })
-            }}
-            onMouseLeave={() => onHoverImage?.(null)}
+            // Hovering a card leaves the header and wallpaper alone.
             allowAnimeInfo
             mRef={mRef}
             onClick={() => {

@@ -98,6 +98,8 @@ export type ListDescription = {
     countries: Tally[]
     decades: Tally[]
     topRated: Array<{ id: number, title: string, image?: string, score: number }>
+    /** What is being watched or read, fewest episodes or chapters left first. */
+    closest: Array<{ id: number, title: string, image?: string, progress: number, total: number }>
     nextAiring: { id: number, title: string, episode: number, airingAt: number } | null
 }
 
@@ -133,6 +135,7 @@ export function describeLists(collection: DescribableCollection | undefined, med
     let started = 0, paused = 0, dropped = 0, repeats = 0, completedThisYear = 0, minutesWatched = 0, remaining = 0
     let meanSum = 0, meanCount = 0
     const scored: ListDescription["topRated"] = []
+    const closest: ListDescription["closest"] = []
     let nextAiring: ListDescription["nextAiring"] = null
     const nowSeconds = Math.floor(now.getTime() / 1000)
 
@@ -162,7 +165,10 @@ export function describeLists(collection: DescribableCollection | undefined, med
             minutesWatched += progress * minutes + (entry.repeat ?? 0) * length * minutes
         }
         const total = media.episodes ?? media.chapters
-        if (active && total && total > progress) remaining += total - progress
+        if (active && total && total > progress) {
+            remaining += total - progress
+            closest.push({ id: media.id, title: titleOf(media), image: media.coverImage?.large || media.coverImage?.medium, progress, total })
+        }
 
         if (media.meanScore) {
             meanSum += media.meanScore
@@ -194,6 +200,7 @@ export function describeLists(collection: DescribableCollection | undefined, med
         countries: tally(countries),
         decades: tally(decades).sort((a, b) => a.key.localeCompare(b.key)),
         topRated: scored.slice(0, 5),
+        closest: closest.sort((a, b) => (a.total - a.progress) - (b.total - b.progress) || b.progress / b.total - a.progress / a.total).slice(0, 4),
         nextAiring,
     }
 }

@@ -94,7 +94,7 @@ export function LandingCollectionProfileWidget() {
     )
 }
 
-function ProfileBody({ d, medium }: { d: ListDescription, medium: Medium }) {
+export function ProfileBody({ d, medium }: { d: ListDescription, medium: Medium }) {
     const nowSeconds = Math.floor(Date.now() / 1000)
     const tiles: React.ReactNode[] = []
     if (medium === "anime" && d.minutesWatched > 0) {

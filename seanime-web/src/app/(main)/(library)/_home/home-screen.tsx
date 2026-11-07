@@ -1,4 +1,3 @@
-import { cachedImageUrl } from "@/lib/server/assets"
 import { HomeSections } from "@/app/(main)/_features/home/home-sections"
 import { AnimeHomeInsights } from "@/app/(main)/_features/home/medium-home-insights"
 import { HomeStatsStrip } from "@/app/(main)/_features/home/home-stats-strip"
@@ -106,8 +105,6 @@ export function HomeScreen() {
     const mangaCollectionProps = useHandleMangaCollection()
 
     // Hero background image state (hover-driven)
-    const [hoverImage, setHoverImage] = React.useState<string | null>(null)
-    const [activeHero] = useDebounce(hoverImage, 50)
     const [scrolled, setScrolled] = React.useState(false)
 
     React.useEffect(() => {
@@ -290,21 +287,8 @@ export function HomeScreen() {
 
     return (
         <div data-home-screen className="relative">
-            {/* Dynamic blurred background hero */}
+            {/* The background stays put: hovering a card does not swap it. */}
             <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-                <div
-                    className={cn(
-                        "absolute inset-0 transition-opacity duration-500",
-                        activeHero ? "opacity-100" : "opacity-0",
-                    )}
-                    style={{
-                        backgroundImage: activeHero ? `url(${cachedImageUrl(activeHero)})` : undefined,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                        filter: "blur(22px) saturate(120%)",
-                        transform: "scale(1.05)",
-                    }}
-                />
                 <div
                     className={cn(
                         "absolute inset-0 bg-gradient-to-b from-black/60 via-black/70 to-black/80 transition-opacity duration-400",
@@ -406,7 +390,22 @@ export function HomeScreen() {
                     <LibraryHeader list={continueWatchingList} />
                 </div>}
 
-            <PageWrapper className="px-3 py-4 md:px-5"><AnimeHomeInsights /></PageWrapper>
+            <PageWrapper className="px-3 py-4 md:px-5">
+                <AnimeHomeInsights
+                    // Continue watching sits right under the welcome, above the numbers, whenever
+                    // it is one of this home's sections.
+                    afterWelcome={homeItems.some(n => n.type === "anime-continue-watching") && continueWatchingList.length > 0 && (
+                        <div className="relative z-[1] rounded-3xl border border-white/10 bg-black/20 p-2 shadow-xl shadow-black/20 backdrop-blur-md sm:p-3" data-anime-home-continue-watching>
+                            <ContinueWatching
+                                episodes={continueWatchingList}
+                                isLoading={isLoading}
+                                withTitle={homeItems[0]?.type === "anime-continue-watching"}
+                                withMetadata
+                            />
+                        </div>
+                    )}
+                />
+            </PageWrapper>
 
             {!isLoading && <AnimatePresence mode="wait">
                 {view === "base" && <PageWrapper
@@ -422,7 +421,7 @@ export function HomeScreen() {
                     }}
                 >
                     <HomeSections
-                        items={homeItems.filter(n => n.type !== "discover-header" && n.type !== "anime-continue-watching-header")}
+                        items={homeItems.filter(n => n.type !== "discover-header" && n.type !== "anime-continue-watching-header" && n.type !== "anime-continue-watching")}
                         renderItem={item => (
                             <HomeScreenItem
                                 item={item}
@@ -445,7 +444,6 @@ export function HomeScreen() {
                                     isStreamingOnly,
                                     isNakamaLibrary,
                                 }}
-                                onHoverImage={setHoverImage}
                             />
                         )}
                     />

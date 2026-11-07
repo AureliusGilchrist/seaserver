@@ -37,7 +37,7 @@ export const GLANCE_WIDGET_IDS: LandingWidgetId[] = [
 
 const WIDE: LandingWidgetId[] = ["anime-stats", "manga-stats", "airing-today", "schedule"]
 
-const STATUS_COLORS = {
+export const STATUS_COLORS = {
     current: "bg-sky-400",
     completed: "bg-emerald-400",
     paused: "bg-amber-400",
@@ -80,7 +80,7 @@ function GlanceCard({ id }: { id: LandingWidgetId }) {
 
 // ─── Anime and manga ──────────────────────────────────────────────────────────
 
-function useDescription(medium: "anime" | "manga") {
+export function useListDescription(medium: "anime" | "manga") {
     const profile = useServerStatus()?.currentProfile
     const anime = useGetRawAnimeCollection(medium === "anime" && !!profile?.id, profile?.id)
     const manga = useGetRawAnilistMangaCollection(medium === "manga" && !!profile?.id, profile?.id)
@@ -90,7 +90,7 @@ function useDescription(medium: "anime" | "manga") {
 
 function AnimeCard() {
     const { stats, isLoading, isError } = useLandingAnimeStats()
-    const d = useDescription("anime")
+    const d = useListDescription("anime")
     const { data: counts } = useGetHomeCounts()
     return (
         <ListCard
@@ -119,7 +119,7 @@ function AnimeCard() {
 
 function MangaCard() {
     const { stats, isLoading, isError } = useLandingMangaStats()
-    const d = useDescription("manga")
+    const d = useListDescription("manga")
     const { data: counts } = useGetHomeCounts()
     const topOrigin = d?.countries[0]
     const originLabel = topOrigin && ({ JP: "Manga", KR: "Manhwa", CN: "Manhua", TW: "Manhua" } as Record<string, string>)[topOrigin.key]
@@ -427,7 +427,7 @@ function Figure({ value, label, sub, big }: { value: string | null, label: strin
     )
 }
 
-function Ring({ value, size, label, sub, color = "stroke-[--brand]" }: { value: number, size: number, label: string, sub?: string, color?: string }) {
+export function Ring({ value, size, label, sub, color = "stroke-[--brand]" }: { value: number, size: number, label: string, sub?: string, color?: string }) {
     const stroke = Math.max(6, size / 12)
     const r = (size - stroke) / 2
     const c = 2 * Math.PI * r
@@ -450,7 +450,7 @@ function Ring({ value, size, label, sub, color = "stroke-[--brand]" }: { value: 
     )
 }
 
-function SegmentBar({ segments, className }: { segments: { label: string, value: number, color: string }[], className?: string }) {
+export function SegmentBar({ segments, className }: { segments: { label: string, value: number, color: string }[], className?: string }) {
     const total = segments.reduce((n, s) => n + s.value, 0)
     if (!total) return null
     return (

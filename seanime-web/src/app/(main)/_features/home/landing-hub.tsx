@@ -3,7 +3,6 @@
 import { useCurrentUser, useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { ContinueWatching } from "@/app/(main)/(library)/_containers/continue-watching"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
-import { ThemeLibraryScreenBannerType, useThemeSettings } from "@/lib/theme/hooks"
 import { resolveLandingImage, useLandingLook } from "@/lib/theme/landing-look"
 import { useHandleLibraryCollection } from "@/app/(main)/(library)/_lib/handle-library-collection"
 import { LANDING_QUICK_LINKS, useLandingWidgets } from "@/app/(main)/_features/home/landing-widgets"
@@ -16,7 +15,6 @@ import {
 } from "@/app/(main)/_features/home/landing-widget-views"
 import { GLANCE_WIDGET_IDS, LandingGlance } from "@/app/(main)/_features/home/landing-glance"
 import { LandingCollectionProfileWidget } from "@/app/(main)/_features/home/collection-profile-widget"
-import { LandingContinueBanner } from "@/app/(main)/_features/home/landing-continue-banner"
 import { __landingSettingsModalOpen, LandingSettingsModal } from "@/app/(main)/_features/home/landing-settings-modal"
 import { MangaUpcomingChapters } from "@/app/(main)/manga/_containers/manga-upcoming-chapters"
 import { PageWrapper } from "@/components/shared/page-wrapper"
@@ -36,11 +34,9 @@ export function LandingHub() {
     const serverStatus = useServerStatus()
     const { widgets } = useLandingWidgets()
     const { look } = useLandingLook()
-    const ts = useThemeSettings()
     const { continueWatchingList, isLoading: isLibraryLoading } = useHandleLibraryCollection()
 
     const [settingsOpen, setSettingsOpen] = useAtom(__landingSettingsModalOpen)
-    const [hoverImage, setHoverImage] = React.useState<string | null>(null)
     const heroRef = React.useRef<HTMLElement>(null)
 
     React.useEffect(() => {
@@ -81,9 +77,8 @@ export function LandingHub() {
                     isHomeScreen
                     override={{ image: resolveLandingImage(look.banner), position: look.bannerPosition, opacity: look.bannerOpacity }}
                 />
-                : ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Dynamic
-                    ? <LandingContinueBanner hoverImage={hoverImage} />
-                    : !look.wallpaper && <CustomLibraryBanner discrete />}
+                // No banner swaps on hover: the page keeps one quiet background.
+                : !look.wallpaper && <CustomLibraryBanner discrete />}
             <PageWrapper className="relative mx-auto min-h-[100svh] w-full max-w-[1800px] space-y-6 overflow-x-hidden px-3 py-4 sm:space-y-8 sm:px-5 sm:py-6 lg:space-y-10 lg:px-8 xl:px-10">
                 {/* Hero */}
                 <section ref={heroRef} data-landing-hero className="relative z-[1] overflow-hidden rounded-3xl border border-white/10 bg-black/25 p-5 shadow-2xl shadow-black/30 backdrop-blur-md sm:p-7 lg:p-10">
@@ -134,12 +129,11 @@ export function LandingHub() {
                         isLoading={isLibraryLoading}
                         showWhenEmpty
                         withMetadata
-                        onHoverImage={setHoverImage}
                     />
                 </div>
                 {enabled.has("continue-reading") && (
                     <div className="relative z-[1] rounded-3xl border border-white/10 bg-black/20 p-4 shadow-xl shadow-black/20 backdrop-blur-md empty:hidden sm:p-5">
-                        <LandingContinueReadingWidget onHoverImage={setHoverImage} />
+                        <LandingContinueReadingWidget />
                     </div>
                 )}
 
@@ -149,7 +143,7 @@ export function LandingHub() {
                 <LandingGlance ids={glanceIds} />
                 {enabled.has("upcoming-manga") && (
                     <div className="relative z-[1] rounded-3xl border border-white/10 bg-black/20 shadow-xl shadow-black/20 backdrop-blur-md empty:hidden">
-                        <MangaUpcomingChapters onHoverImage={setHoverImage} />
+                        <MangaUpcomingChapters />
                     </div>
                 )}
                 {enabled.has("updates") && <LandingUpdatesWidget />}

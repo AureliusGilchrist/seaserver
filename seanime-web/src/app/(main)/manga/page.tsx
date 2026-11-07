@@ -434,9 +434,19 @@ export default function Page() {
                             },
                         }}
                     >
-                        <div className="px-3 pb-6 md:px-5"><MangaHomeInsights /></div>
+                        <div className="px-3 pb-6 md:px-5">
+                            <MangaHomeInsights
+                                // Continue reading sits right under the welcome, above the numbers,
+                                // whenever it is one of this home's sections.
+                                afterWelcome={homeItems.some(n => n.type === "manga-continue-reading") && continueReadingList.length > 0 && (
+                                    <div className="relative z-[1] rounded-3xl border border-white/10 bg-black/20 p-2 shadow-xl shadow-black/20 backdrop-blur-md sm:p-3" data-manga-home-continue-reading>
+                                        <MangaContinueReading list={continueReadingList} withTitle withMetadata onHoverImage={handleHoverImage} />
+                                    </div>
+                                )}
+                            />
+                        </div>
                         <HomeSections
-                            items={homeItems.filter(n => n.type !== "manga-discover-header" && n.type !== "manga-continue-reading-header")}
+                            items={homeItems.filter(n => n.type !== "manga-discover-header" && n.type !== "manga-continue-reading-header" && n.type !== "manga-continue-reading")}
                             renderItem={item => (
                                 <MangaHomeScreenItem
                                     item={item}
