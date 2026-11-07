@@ -1,15 +1,10 @@
-import { buildSeaQuery, useServerMutation, useServerQuery } from "@/api/client/requests"
-import { getServerBaseUrl } from "@/api/client/server-url"
-import { profileSessionTokenAtom, serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
-import { store } from "@/app/jotai-store"
-import { resolveLibraryResponse, type CompactLibraryResponse, type LibrarySnapshot } from "@/api/hooks/library-collection-compact"
+import { useServerMutation, useServerQuery } from "@/api/client/requests"
 import { AddUnknownMedia_Variables } from "@/api/generated/endpoint.types"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { AL_AnimeCollection, AL_MissedSequel, Anime_LibraryCollection, Anime_ScheduleItem } from "@/api/generated/types"
 import { useRefreshAnimeCollection } from "@/api/hooks/anilist.hooks"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import React from "react"
 
 export function useGetLibraryCollection({ enabled, refetchInterval, staleTime, refetchOnWindowFocus }: {
     enabled?: boolean
@@ -17,7 +12,6 @@ export function useGetLibraryCollection({ enabled, refetchInterval, staleTime, r
     staleTime?: number
     refetchOnWindowFocus?: boolean | "always"
 } = { enabled: true }) {
-    const snapshot = React.useRef<LibrarySnapshot | null>(null)
     return useServerQuery<Anime_LibraryCollection>({
         endpoint: API_ENDPOINTS.ANIME_COLLECTION.GetLibraryCollection.endpoint,
         method: API_ENDPOINTS.ANIME_COLLECTION.GetLibraryCollection.methods[0],
@@ -33,20 +27,6 @@ export function useGetLibraryCollection({ enabled, refetchInterval, staleTime, r
         // connection now, and never for longer than the server's own lookup deadline plus the build.
         abortOnCancel: true,
         timeout: 180_000,
-        queryFn: async ({ signal }) => {
-            const scope = JSON.stringify([getServerBaseUrl(), store.get(serverAuthTokenAtom), store.get(profileSessionTokenAtom)])
-            const previous = snapshot.current?.scope === scope ? snapshot.current : null
-            const response = await buildSeaQuery<Anime_LibraryCollection | CompactLibraryResponse>({
-                endpoint: API_ENDPOINTS.ANIME_COLLECTION.GetLibraryCollection.endpoint,
-                method: "GET",
-                params: { compact: "true", ...(previous ? { known: previous.fingerprint } : {}) },
-                timeout: 180_000,
-                signal,
-            })
-            const resolved = resolveLibraryResponse(response, previous, scope)
-            snapshot.current = resolved.snapshot
-            return resolved.collection
-        },
     })
 }
 
@@ -164,7 +144,7 @@ export function useGetAnimeHydrationStatus() {
         endpoint: "/api/v1/library/hydrate-all/status",
         method: "GET",
         queryKey: ["ANIME-hydrate-all-status"],
-        refetchInterval: query => query.state.data?.isRunning ? 1200 : 30_000,
+        refetchInterval: query => query.state.data?.isRunning ? 1200 : 5000,
         enabled: true,
         muteError: true,
     })

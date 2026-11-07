@@ -7,13 +7,8 @@ export type ListCollection = {
     }
 }
 
-type ListCounts = { onLists: number, planning: number, current: number, completed: number, progress: number }
-const summaries = new WeakMap<ListCollection, ListCounts>()
-
 export function countLists(collection: ListCollection | undefined) {
     if (!collection?.MediaListCollection) return null
-    const cached = summaries.get(collection)
-    if (cached) return cached
     const entries = new Map<number, { status?: string, progress: number }>()
     for (const list of collection.MediaListCollection.lists ?? []) {
         for (const entry of list.entries ?? []) {
@@ -37,7 +32,5 @@ export function countLists(collection: ListCollection | undefined) {
         if (entry.status === "CURRENT" || entry.status === "REPEATING") current++
         if (entry.status === "COMPLETED") completed++
     }
-    const summary = { onLists, planning, current, completed, progress }
-    summaries.set(collection, summary)
-    return summary
+    return { onLists, planning, current, completed, progress }
 }

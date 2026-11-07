@@ -2,7 +2,7 @@ import { AL_MediaListStatus, Anime_LibraryCollectionEntry, Anime_LibraryCollecti
 import { useGetLibraryMissedSequels } from "@/api/hooks/anime_collection.hooks"
 import { MISSED_SEQUELS_TAB, MissedSequelsList, MissedSequelsSortMenu } from "@/app/(main)/(library)/_containers/missed-sequels"
 import { __mainLibrary_paramsAtom } from "@/app/(main)/(library)/_lib/handle-library-collection"
-import { HomeListTabs, useHomeListTab, useVisitedHomeLists } from "@/app/(main)/_features/home/home-sections"
+import { HomeListTabs, useHomeListTab } from "@/app/(main)/_features/home/home-sections"
 import { PaginatedMediaGrid } from "@/app/(main)/_features/media/_components/paginated-media-grid"
 import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-entry-card"
 import { LibrarySortMenu, useLibrarySort } from "@/app/(main)/_features/sorting/library-sort-menu"
@@ -47,7 +47,6 @@ export function LibraryCollectionLists({ collectionList, isLoading, streamingMed
         ...(showMissedSequels ? [MISSED_SEQUELS_TAB] : []),
     ])
     const isMissedSequels = activeList === MISSED_SEQUELS_TAB
-    const visitedLists = useVisitedHomeLists(activeList)
     // Only asked for once the tab is opened; after that the cached answer gives the tab its count.
     const { data: missedSequels } = useGetLibraryMissedSequels({ enabled: isMissedSequels })
 
@@ -74,7 +73,7 @@ export function LibraryCollectionLists({ collectionList, isLoading, streamingMed
                 trailing={isMissedSequels ? <MissedSequelsSortMenu /> : <AnimeLibrarySortMenu />}
             />
             {isMissedSequels && <MissedSequelsList withTitle={false} />}
-            {lists.filter(collection => collection.type === activeList || (collection.type && visitedLists.has(collection.type))).map(collection => (
+            {lists.map(collection => (
                 <div key={collection.type} hidden={collection.type !== activeList} className="space-y-4">
                     <LibraryCollectionListItem
                         list={collection}

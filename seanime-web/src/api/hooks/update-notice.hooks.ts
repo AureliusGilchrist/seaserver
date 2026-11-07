@@ -26,8 +26,7 @@ export function useGetUpdateNotice({ enabled }: { enabled?: boolean } = {}) {
         method: "GET",
         queryKey: ["update-notice"],
         staleTime: 0,
-        refetchInterval: 300_000,
-        refetchOnWindowFocus: true,
+        refetchInterval: 60_000,
         enabled,
     })
 }

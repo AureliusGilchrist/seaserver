@@ -26,7 +26,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/samber/lo"
 	lop "github.com/samber/lo/parallel"
-	"golang.org/x/sync/singleflight"
 	"gorm.io/gorm"
 )
 
@@ -726,47 +725,23 @@ func (h *Handler) HandleGetMissingEpisodes(c echo.Context) error {
 	return h.RespondWithData(c, event.MissingEpisodes)
 }
 
-var profileMissingEpisodeRequests singleflight.Group
-
 // HandleGetProfileMissingEpisodes calculates missing episodes from the signed-in profile's list.
 func (h *Handler) HandleGetProfileMissingEpisodes(c echo.Context) error {
 	profileID := h.GetProfileID(c)
 	if profileID <= 0 || h.App.AnilistClientManager == nil {
 		return h.RespondWithError(c, errors.New("a profile with an AniList account is required"))
 	}
-	result, err := coalesceProfileMissingEpisodes(&profileMissingEpisodeRequests, fmt.Sprintf("%p:%d", h.App, profileID), func() (*anime.MissingEpisodes, error) {
-		return h.profileMissingEpisodes(profileID)
-	})
+	collection, err := h.App.AnilistClientManager.GetAnimeCollection(profileID)
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
-	return h.RespondWithData(c, result)
-}
-
-func coalesceProfileMissingEpisodes(group *singleflight.Group, key string, calculate func() (*anime.MissingEpisodes, error)) (*anime.MissingEpisodes, error) {
-	result, err, _ := group.Do(key, func() (interface{}, error) { return calculate() })
-	if err != nil {
-		return nil, err
-	}
-	missing, ok := result.(*anime.MissingEpisodes)
-	if !ok || missing == nil {
-		return nil, errors.New("invalid missing episodes result")
-	}
-	return missing, nil
-}
-
-func (h *Handler) profileMissingEpisodes(profileID uint) (*anime.MissingEpisodes, error) {
-	collection, err := h.App.AnilistClientManager.GetAnimeCollection(profileID)
-	if err != nil {
-		return nil, err
-	}
 	lfs, _, err := db_bridge.GetLocalFiles(h.App.Database)
 	if err != nil {
-		return nil, err
+		return h.RespondWithError(c, err)
 	}
 	silenced, err := h.App.Database.GetSilencedMediaEntryIds()
 	if err != nil {
-		return nil, err
+		return h.RespondWithError(c, err)
 	}
 	missing := anime.NewMissingEpisodes(&anime.NewMissingEpisodesOptions{
 		AnimeCollection:     collection,
@@ -775,13 +750,13 @@ func (h *Handler) profileMissingEpisodes(profileID uint) (*anime.MissingEpisodes
 		MetadataProviderRef: h.App.MetadataProviderRef,
 	})
 	if missing == nil {
-		return nil, errors.New("could not calculate missing episodes")
+		return h.RespondWithError(c, errors.New("could not calculate missing episodes"))
 	}
 	event := &anime.MissingEpisodesEvent{MissingEpisodes: missing}
 	if err := hook.GlobalHookManager.OnMissingEpisodes().Trigger(event); err != nil {
-		return nil, err
+		return h.RespondWithError(c, err)
 	}
-	return event.MissingEpisodes, nil
+	return h.RespondWithData(c, event.MissingEpisodes)
 }
 
 //----------------------------------------------------------------------------------------------------------------------
