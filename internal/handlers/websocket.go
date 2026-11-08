@@ -113,8 +113,8 @@ func (h *Handler) webSocketEventHandler(c echo.Context) error {
 				}
 			}
 
-			// Send pong response back to the same client
-			h.App.WSEventManager.SendEventTo(event.ClientID, "pong", map[string]int64{"timestamp": timestamp})
+			// Send the pong back on this very connection, not by client id (see SendEventToConn)
+			h.App.WSEventManager.SendEventToConn(ws, "pong", map[string]int64{"timestamp": timestamp})
 			continue // Skip further processing for ping messages
 		}
 

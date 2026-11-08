@@ -338,6 +338,20 @@ func (m *WSEventManager) SendEventTo(clientId string, t string, payload interfac
 	}
 }
 
+// SendEventToConn sends a websocket event to one specific connection. A pong goes back on the socket
+// the ping came in on: answering by the client id in the payload sent the desktop popout's pongs to
+// the main window (whose cookie id the popout put there), so the popout never heard back and tore
+// its socket down every 45 seconds.
+func (m *WSEventManager) SendEventToConn(conn *websocket.Conn, t string, payload interface{}) {
+	evt := WSEvent{Type: t, Payload: payload}
+	for _, c := range m.snapshotConns() {
+		if c.Conn == conn {
+			c.writeJSON(evt)
+			return
+		}
+	}
+}
+
 // SendEventToProfile sends a websocket event to all connections belonging to the specified profile.
 // If profileID is 0, it falls back to broadcasting to all connections.
 func (m *WSEventManager) SendEventToProfile(profileID uint, t string, payload interface{}) {

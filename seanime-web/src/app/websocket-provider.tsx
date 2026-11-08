@@ -420,10 +420,13 @@ function WebsocketManagement() {
                                 try {
                                     const timestamp = Date.now()
                                     // Send a ping message to keep the connection alive
+                                    // This socket's own id: the server answered pings by this id,
+                                    // and the popout sending the main window's id here never got a
+                                    // pong back, so it dropped and reopened its socket every 45s.
                                     socketRef.current?.send(JSON.stringify({
                                         type: "ping",
                                         payload: { timestamp },
-                                        clientId: clientId,
+                                        clientId: socketClientId(clientId),
                                     }))
                                 }
                                 catch (e) {
