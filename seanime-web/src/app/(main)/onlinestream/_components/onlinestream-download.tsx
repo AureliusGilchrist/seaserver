@@ -320,6 +320,10 @@ export function OnlinestreamDownloadButton(props: OnlinestreamDownloadButtonProp
                                 Subtitle tracks: {videoSource.subtitles?.filter(s => !/thumbnail/i.test(s.language)).map(s => s.language).join(", ")}
                             </p>
                         ))}
+                        {!!queue?.blocked && <p className="text-sm text-[--orange] flex gap-2">
+                            <LuTriangleAlert className="flex-none mt-0.5" />
+                            {queue.blocked}
+                        </p>}
                         {!!seriesItems.length && <div className="space-y-1 pt-1">
                             <div className="flex text-xs text-[--muted]">
                                 <span className="flex-1">

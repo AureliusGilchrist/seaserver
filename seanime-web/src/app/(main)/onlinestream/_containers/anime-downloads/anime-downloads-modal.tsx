@@ -217,7 +217,7 @@ export function AnimeDownloadQueue() {
                                 : "text-[--muted] border-[--border]",
                     )}
                 >
-                    {paused ? "Stopped" : running ? "Downloading" : counts.waiting ? "Starting" : "Idle"}
+                    {paused ? "Stopped" : data?.blocked ? "Waiting for disk" : running ? "Downloading" : counts.waiting ? "Starting" : "Idle"}
                 </span>
                 <div className="flex flex-1" />
                 {!isLoading && !isError && <div className="flex gap-2 items-center flex-wrap" data-anime-download-queue-header-actions>
@@ -266,6 +266,15 @@ export function AnimeDownloadQueue() {
                     </Button>}
                 </div>}
             </div>
+
+            {!!data?.blocked && <div className="flex gap-3 rounded-xl border border-[--orange]/50 bg-[--orange]/10 p-4 text-sm" data-anime-download-blocked>
+                <LuTriangleAlert className="text-xl text-[--orange] flex-none mt-0.5" />
+                <div className="space-y-1">
+                    <p className="font-semibold text-[--orange]">Downloads are waiting for the server's disk</p>
+                    <p className="text-gray-300">{data.blocked}</p>
+                    <p className="text-[--muted]">Nothing is lost: waiting episodes keep their place and start on their own once the disk is usable.</p>
+                </div>
+            </div>}
 
             {running && <NowDownloadingCard item={running} paused={paused} />}
 

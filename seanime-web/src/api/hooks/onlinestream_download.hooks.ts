@@ -61,6 +61,8 @@ export type OnlinestreamDownload_Item = {
 export type OnlinestreamDownload_QueueState = {
     paused: boolean
     items: OnlinestreamDownload_Item[]
+    /** Why downloads are waiting on the server's disk (read-only, full), if they are */
+    blocked?: string
 }
 
 export type OnlinestreamDownload_HistoryEntry = {

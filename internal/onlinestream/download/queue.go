@@ -125,6 +125,8 @@ type HistoryEntry struct {
 type QueueState struct {
 	Paused bool    `json:"paused"`
 	Items  []*Item `json:"items"`
+	// Blocked says why downloads are waiting on the server's disk (read-only, full), if they are.
+	Blocked string `json:"blocked,omitempty"`
 }
 
 // RegisterFunc files a finished download in the library database, matched to its media and
@@ -175,6 +177,8 @@ type Manager struct {
 	lastEvent time.Time
 	started   sync.Once
 	saveMu    sync.Mutex
+	// blocked is set while downloads wait on the disk (see checkStorage).
+	blocked string
 
 	// processOverride, when set (tests), replaces the download of one episode.
 	processOverride func(ctx context.Context, it *Item, workDir string) (string, error)
@@ -300,6 +304,9 @@ func (m *Manager) cleanOrphanWorkDirs() {
 // staleWorkDirAge is how long a work folder no queue item owns must sit untouched before it is
 // treated as left over and removed.
 const staleWorkDirAge = 6 * time.Hour
+
+// storageRetryDelay is how often a queue waiting on the disk checks it again.
+const storageRetryDelay = time.Minute
 
 // maxAutoAttempts is how many times an episode is tried before a failure is left for the user.
 const maxAutoAttempts = 3
@@ -727,7 +734,7 @@ func (m *Manager) snapshotLocked() *QueueState {
 		c.cancel = nil
 		out = append(out, &c)
 	}
-	return &QueueState{Paused: m.paused, Items: out}
+	return &QueueState{Paused: m.paused, Items: out, Blocked: m.blocked}
 }
 
 func (it *Item) finished() bool {
@@ -872,10 +879,30 @@ func (m *Manager) run(it *Item) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// The disk first: an episode started on a read-only or full disk only fails, and the next
+	// one after it, until the whole queue is failed. Waiting keeps them all.
+	if problem := m.checkStorage(); problem != "" {
+		m.mu.Lock()
+		changed := m.blocked != problem
+		m.blocked = problem
+		it.retryAt = time.Now().Add(storageRetryDelay)
+		m.mu.Unlock()
+		if changed {
+			m.logger.Warn().Str("reason", problem).Msg("onlinestream download: Waiting for the disk")
+			m.changed()
+		}
+		return
+	}
+
 	m.mu.Lock()
 	if it.Status != StatusQueued || m.paused { // cancelled or stopped while waiting
 		m.mu.Unlock()
 		return
+	}
+	cleared := m.blocked != ""
+	m.blocked = ""
+	if cleared {
+		m.logger.Info().Msg("onlinestream download: The disk is writable again; downloads resume")
 	}
 	now := time.Now()
 	it.cancel = cancel
@@ -913,6 +940,15 @@ func (m *Manager) run(it *Item) {
 	case ctx.Err() != nil || it.Status == StatusCancelled:
 		it.Status = StatusCancelled
 		it.FinishedAt = &finishedAt
+	case isStorageError(err):
+		// The disk failed, not the download: back to the queue, without using up an attempt,
+		// and the queue waits for the disk (checkStorage) before trying anything else.
+		it.Status = StatusQueued
+		it.Progress = 0
+		it.Attempts--
+		it.retryAt = finishedAt.Add(storageRetryDelay)
+		m.blocked = storageMessage(m.opts.WorkDir, err)
+		keepWork = true
 	case err != nil && !isFinal(err) && it.Attempts < maxAutoAttempts:
 		// Retried by itself after a pause, from the segments it already has: a dropped
 		// connection or a provider hiccup should not need the user to press Retry.
@@ -926,7 +962,8 @@ func (m *Manager) run(it *Item) {
 		it.Status = StatusFailed
 		it.Error = err.Error()
 		it.FinishedAt = &finishedAt
-		keepWork = true // a retry reuses the segments it already has
+		// Out of attempts: the partial download goes, so failed episodes do not pile up on the
+		// disk. A manual retry starts that episode over.
 	default:
 		it.Status = StatusCompleted
 		it.Progress = 1

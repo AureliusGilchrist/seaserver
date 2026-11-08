@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 
@@ -88,5 +89,28 @@ func TestFailedEpisodeRetriesByItself(t *testing.T) {
 	m.run(it3)
 	if it3.Status != StatusFailed {
 		t.Fatalf("last attempt: status %s", it3.Status)
+	}
+}
+
+// TestStorageErrorHoldsTheQueue: a read-only or full disk fails every episode it touches. The
+// episode must go back to the queue without using an attempt, and the queue says why it waits.
+func TestStorageErrorHoldsTheQueue(t *testing.T) {
+	logger := zerolog.Nop()
+	m := NewManager(NewManagerOptions{Logger: &logger, WorkDir: t.TempDir(), LibraryPath: func() string { return "x" }, holdQueue: true})
+	m.processOverride = func(ctx context.Context, it *Item, workDir string) (string, error) {
+		return "", &os.PathError{Op: "mkdir", Path: "/home/user/.config/Seanime/cache/x", Err: syscall.EROFS}
+	}
+	it := &Item{ID: "a", MediaId: 1, EpisodeNumber: 5, Status: StatusQueued}
+	m.items = []*Item{it}
+	m.run(it)
+	if it.Status != StatusQueued || it.Attempts != 0 {
+		t.Fatalf("status %s, attempts %d", it.Status, it.Attempts)
+	}
+	if q := m.GetQueue(); q.Blocked == "" {
+		t.Fatal("the queue does not say it is waiting for the disk")
+	}
+
+	if !isStorageError(errors.New("open x: no space left on device")) || isStorageError(errors.New("HTTP 403")) {
+		t.Fatal("storage error detection")
 	}
 }
