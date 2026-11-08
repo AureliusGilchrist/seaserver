@@ -102,10 +102,13 @@ declare global {
                 getGitHubInfo?: () => Promise<{
                     busy: boolean;
                     repo: string;
+                    pendingReload?: boolean;
+                    branch?: string;
                     version: string | null;
+                    commit?: string | null;
                     source: "github" | "local" | "bundled";
                     installedAt?: string | null;
-                    marker?: { version: string; tag?: string; asset?: string; installedAt?: string } | null;
+                    marker?: { version: string; commit?: string; tag?: string; asset?: string; installedAt?: string } | null;
                 }>;
             };
             devFrontend?: {
@@ -222,11 +225,20 @@ declare global {
         /** Version of the frontend currently in use; null when it is a local build. */
         current?: string | null;
         currentSource?: "github" | "local" | "bundled";
+        /** Commit the frontend in use was built from; null for a local or bundled build. */
+        currentCommit?: string | null;
         installedAt?: string | null;
         /** Newest version with a frontend bundle on GitHub; null when none was found. */
         latest?: string | null;
         tag?: string | null;
         assetName?: string | null;
+        assetSize?: number | null;
+        /** Commit, commit time and build time of the newest frontend-live build. */
+        latestCommit?: string | null;
+        latestCommitTime?: string | null;
+        latestBuiltAt?: string | null;
+        /** An update is installed and waits for playback to stop before it reloads. */
+        pendingReload?: boolean;
         releaseUrl?: string | null;
         /** A newer GitHub frontend exists than the one in use. */
         updateAvailable?: boolean;

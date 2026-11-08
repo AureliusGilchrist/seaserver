@@ -1,0 +1,88 @@
+name: Frontend Live
+
+# The fast lane for frontend changes. auto-release.yml builds the Go server and the Windows
+# installer too, which takes ~8 minutes before its frontend exists. This builds only the
+# Denshi frontend and force-pushes it as the single commit of the orphan branch
+# "frontend-live". Denshi watches that branch every minute and hot-swaps it in (see
+# seanime-denshi/src/github-frontend-update.js). No GitHub release is involved.
+#
+# The theme wallpapers (out-denshi/themes, ~350 MB) are left out: they rarely change, and
+# Denshi keeps the copy it already has.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "seanime-web/**"
+      - "versions.json"
+      - ".github/workflows/frontend-live.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Only the newest commit matters; a build still running for an older one is dropped.
+concurrency:
+  group: frontend-live
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: seanime-web/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: seanime-web
+        run: npm ci --no-audit --no-fund
+
+      # Type checking stays in auto-release.yml; this lane only bundles.
+      - name: Build Denshi frontend
+        working-directory: seanime-web
+        run: |
+          npx env-cmd -f .env.denshi rsbuild build
+          test -f out-denshi/index.html
+
+      - name: Package bundle and manifest
+        run: |
+          set -euo pipefail
+          mkdir -p live
+          (cd seanime-web/out-denshi && zip -q -r -X ../../live/frontend-live.zip . -x 'themes/*')
+          version=$(node -p "require('./versions.json').version")
+          commit_time=$(git log -1 --format=%cI)
+          node -e '
+            const fs = require("fs"), crypto = require("crypto")
+            const zip = fs.readFileSync("live/frontend-live.zip")
+            fs.writeFileSync("live/frontend-live.json", JSON.stringify({
+              version: process.argv[1],
+              commit: process.env.GITHUB_SHA,
+              commitTime: process.argv[2],
+              builtAt: new Date().toISOString(),
+              sha256: crypto.createHash("sha256").update(zip).digest("hex"),
+              size: zip.length,
+              asset: "frontend-live.zip",
+            }, null, 2))
+          ' "$version" "$commit_time"
+          cat live/frontend-live.json
+
+      # One commit, force-pushed: the branch never grows, and its head names exactly one
+      # bundle, so a client fetching files at that commit can't mix two builds.
+      - name: Push to the frontend-live branch
+        working-directory: live
+        run: |
+          set -euo pipefail
+          git init -q -b frontend-live
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend-live.zip frontend-live.json
+          git commit -q -m "Frontend live build of $GITHUB_SHA"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" frontend-live:frontend-live

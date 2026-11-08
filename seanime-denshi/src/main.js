@@ -605,6 +605,13 @@ function setupAppProtocol() {
             const urlPath = requestUrl.pathname
             let filePath = path.join(webPath, urlPath)
 
+            // A live frontend ships without the theme wallpapers (github-frontend-update.js);
+            // whatever it lacks comes from the bundled copy.
+            if (webPath !== bundledWebPath && !fs.existsSync(filePath)) {
+                const bundledPath = path.join(bundledWebPath, urlPath)
+                if (path.resolve(bundledPath).startsWith(path.resolve(bundledWebPath)) && fs.existsSync(bundledPath)) filePath = bundledPath
+            }
+
             if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
                 const response = await net.fetch(`file://${filePath}`)
                 const newHeaders = new Headers(response.headers)
@@ -1130,6 +1137,22 @@ const devFrontend = createDevFrontend({
     },
 })
 
+// True while any app window has a video or audio element playing; a live frontend update
+// waits for that to stop before it reloads.
+async function isAnyMediaPlaying() {
+    for (const win of BrowserWindow.getAllWindows()) {
+        if (win.isDestroyed() || !/^(app|http):/.test(win.webContents.getURL())) continue
+        try {
+            const playing = await win.webContents.executeJavaScript(
+                "Array.from(document.querySelectorAll('video,audio')).some(m => !m.paused && !m.ended && m.readyState > 2)",
+                true,
+            )
+            if (playing) return true
+        } catch { /* a window mid-navigation counts as idle */ }
+    }
+    return false
+}
+
 const githubFrontendUpdater = createGitHubFrontendUpdater({
     app,
     log,
@@ -1137,30 +1160,24 @@ const githubFrontendUpdater = createGitHubFrontendUpdater({
     emitProgress: emitUpdateProgress,
     reloadWindows: reloadAppWindows,
     isOtherUpdateRunning: () => liveUpdater.getInfo().busy,
+    isMediaPlaying: isAnyMediaPlaying,
+    getBundledWebDir: () => path.join(__dirname, "../web-denshi"),
 })
 
-// Once per launch, shortly after the main window is up: swap in a newer frontend from GitHub
-// if one has been installed from there before (see github-frontend-update.js). Waits for the
-// renderer to be ready so the swap lands before any real watching session starts.
+// Watches the frontend-live branch for the whole session and installs each new frontend build
+// within a minute of CI publishing it (see github-frontend-update.js). Starts once the renderer
+// is ready, so the first swap never races the startup load.
 function scheduleGitHubFrontendAutoUpdate() {
     if (_development) return
     const startedAt = Date.now()
-    const attempt = async () => {
-        try {
-            if (!denshiSettings.autoUpdateFrontend) return
-            if (!mainWindowStartupReady && Date.now() - startedAt < 30000) {
-                setTimeout(attempt, 3000)
-                return
-            }
-            const res = await githubFrontendUpdater.autoUpdate()
-            if (res.updated) log.info(`[GitHubFrontendUpdate] Auto-updated the frontend to ${res.version}`)
-            else if (!res.ok) log.warn(`[GitHubFrontendUpdate] Auto-update failed: ${res.error}`)
-            else log.info(`[GitHubFrontendUpdate] Auto-update: ${res.skipped}`)
-        } catch (err) {
-            log.warn("[GitHubFrontendUpdate] Auto-update crashed:", err)
+    const start = () => {
+        if (!mainWindowStartupReady && Date.now() - startedAt < 30000) {
+            setTimeout(start, 3000)
+            return
         }
+        githubFrontendUpdater.startPolling(() => denshiSettings.autoUpdateFrontend !== false && !devFrontend.getActiveDir())
     }
-    setTimeout(attempt, 5000)
+    setTimeout(start, 5000)
 }
 
 async function restartSeanimeServer() {

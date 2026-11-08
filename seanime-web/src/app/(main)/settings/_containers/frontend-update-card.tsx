@@ -10,20 +10,21 @@ import { Switch } from "@/components/ui/switch"
 import { useAtom } from "jotai"
 import React from "react"
 import { BiLinkExternal } from "react-icons/bi"
-import { LuCheck, LuChevronDown, LuCircleAlert, LuCircleArrowUp, LuGitCommitHorizontal, LuLoaderCircle, LuMonitor, LuPackage, LuRefreshCw, LuX } from "react-icons/lu"
+import { LuCheck, LuChevronDown, LuCircleAlert, LuCircleArrowUp, LuGitCommitHorizontal, LuLoaderCircle, LuMonitor, LuRefreshCw, LuX } from "react-icons/lu"
 import { toast } from "sonner"
 
 // The Frontend card on Settings → Updates, the sibling of the Server card: what this device shows,
-// whether a newer bundle is on GitHub and what it brings. The app downloads the prebuilt bundle the
-// CI publishes, swaps it in and reloads — no git, no Node and no account needed on this machine.
+// whether a newer build is on GitHub and what it brings. CI pushes every frontend build to the
+// "frontend-live" branch; Denshi watches it once a minute, swaps the new build in and reloads as soon
+// as nothing is playing — no git, no Node and no account needed on this machine.
 // Settings live on the Electron side (denshiSettings), per machine.
 
-const CHECK_INTERVAL_SECONDS = 5 * 60
+const CHECK_INTERVAL_SECONDS = 60
 const GITHUB_API = "https://api.github.com/repos/AureliusGilchrist/seaserver"
 
 // Matches the percentages github-frontend-update.js reports.
 const INSTALL_STEPS = [
-    { percent: 5, label: "Find release" },
+    { percent: 5, label: "Find build" },
     { percent: 15, label: "Download" },
     { percent: 55, label: "Unpack" },
     { percent: 80, label: "Swap in" },
@@ -31,85 +32,18 @@ const INSTALL_STEPS = [
 ]
 
 const SOURCE: Record<NonNullable<LiveUpdateGitHubCheck["currentSource"]>, { label: string, sub: string }> = {
-    github: { label: "GitHub release", sub: "installed from here" },
+    github: { label: "Live build", sub: "installed from GitHub" },
     bundled: { label: "Bundled", sub: "shipped with Denshi" },
     local: { label: "Local build", sub: "built from source" },
 }
 
 type FrontendInfo = Awaited<ReturnType<NonNullable<NonNullable<NonNullable<Window["electron"]>["liveUpdate"]>["getGitHubInfo"]>>>
 
-type FrontendRelease = {
-    version: string
-    tag: string
-    releaseUrl: string
-    publishedAt: number
-    assetName: string
-    assetSize: number
-    commit: string | null
-    installerUrl: string | null
-}
-
 type FrontendChanges = {
     url: string
     total: number
     commits: { hash: string, subject: string, author: string, date: number, url: string }[]
     files: { path: string, insertions: number, deletions: number }[]
-}
-
-/** Dotted versions like "5.3.5-14.auto.154.1", segment by segment (the same rule Denshi uses). */
-function compareFrontendVersions(a: string, b: string) {
-    const pa = a.toLowerCase().split(/[.\-_+]/)
-    const pb = b.toLowerCase().split(/[.\-_+]/)
-    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-        const x = pa[i], y = pb[i]
-        if (x === undefined) return -1
-        if (y === undefined) return 1
-        const nx = /^\d+$/.test(x), ny = /^\d+$/.test(y)
-        if (nx && ny) {
-            if (Number(x) !== Number(y)) return Number(x) < Number(y) ? -1 : 1
-        } else if (nx !== ny) {
-            return nx ? -1 : 1
-        } else if (x !== y) {
-            return x < y ? -1 : 1
-        }
-    }
-    return 0
-}
-
-/** Every release carrying a frontend bundle, newest first. Empty when GitHub can't be reached. */
-async function fetchFrontendReleases(): Promise<FrontendRelease[]> {
-    try {
-        const res = await fetch(`${GITHUB_API}/releases?per_page=100`, { headers: { Accept: "application/vnd.github+json" } })
-        if (!res.ok) return []
-        const releases = await res.json() as {
-            tag_name: string
-            draft?: boolean
-            html_url: string
-            published_at: string
-            body?: string
-            assets?: { name: string, size: number, browser_download_url: string }[]
-        }[]
-        const out: FrontendRelease[] = []
-        for (const r of releases) {
-            const asset = r.assets?.find(a => /^denshi-frontend-.*\.zip$/i.test(a.name))
-            if (r.draft || !asset) continue
-            out.push({
-                version: r.tag_name.replace(/^v/, ""),
-                tag: r.tag_name,
-                releaseUrl: r.html_url,
-                publishedAt: Math.round(new Date(r.published_at).getTime() / 1000),
-                assetName: asset.name,
-                assetSize: asset.size,
-                // The workflow writes "…build from commit <sha>." into each release.
-                commit: r.body?.match(/\bcommit ([0-9a-f]{40})\b/)?.[1] ?? null,
-                installerUrl: r.assets?.find(a => /^seanime-denshi-.*windows.*\.exe$/i.test(a.name))?.browser_download_url ?? null,
-            })
-        }
-        return out.sort((a, b) => compareFrontendVersions(b.version, a.version))
-    }
-    catch {
-        return []
-    }
 }
 
 async function fetchFrontendChanges(from: string, to: string): Promise<FrontendChanges | null> {
@@ -183,7 +117,6 @@ export function FrontendUpdateCard() {
     const [installError, setInstallError] = React.useState<string | null>(null)
     const [result, setResult] = React.useState<LiveUpdateGitHubCheck | null>(null)
     const [checkedAt, setCheckedAt] = React.useState<number | null>(null)
-    const [releases, setReleases] = React.useState<FrontendRelease[]>([])
     const [changes, setChanges] = React.useState<FrontendChanges | null>(null)
     const changesKeyRef = React.useRef<string | null>(null)
     const [showAll, setShowAll] = React.useState(false)
@@ -245,18 +178,17 @@ export function FrontendUpdateCard() {
         setChecking(true)
         const started = Date.now()
         try {
-            const [res, found] = await Promise.all([liveUpdate.checkGitHub(), fetchFrontendReleases()])
+            const res = await liveUpdate.checkGitHub()
             const elapsed = Date.now() - started
             if (elapsed < 900) await new Promise(r => setTimeout(r, 900 - elapsed))
             setResult(res)
-            setReleases(found)
             setCheckedAt(Math.round(Date.now() / 1000))
             refreshInfo()
 
-            // What the update brings, from the commits the two releases were built from. The answer
-            // never changes for a pair, so it isn't asked for again on every 5-minute check.
-            const from = found.find(r => r.version === res.current)?.commit
-            const to = res.updateAvailable ? found.find(r => r.version === res.latest)?.commit : null
+            // What the update brings, from the commits the two builds came from. The answer never
+            // changes for a pair, so it isn't asked for again on every check.
+            const from = res.currentCommit
+            const to = res.updateAvailable ? res.latestCommit : null
             const key = from && to ? `${from}...${to}` : null
             if (key !== changesKeyRef.current) {
                 changesKeyRef.current = key
@@ -283,8 +215,8 @@ export function FrontendUpdateCard() {
         }
     }
 
-    // Checked on open and every 5 minutes while shown, like the server. Only checks: installing
-    // reloads the app, so it waits for a click (or the next launch, with auto-update on).
+    // Checked on open and every minute while shown. Only checks: with auto-update on, Denshi itself
+    // installs new builds in the background.
     React.useEffect(() => {
         void refresh()
         const id = window.setInterval(() => refresh(), CHECK_INTERVAL_SECONDS * 1000)
@@ -328,18 +260,8 @@ export function FrontendUpdateCard() {
     const current = result?.ok ? result.current : (info?.version ?? result?.current)
     const source = (result?.ok ? result.currentSource : undefined) ?? info?.source ?? result?.currentSource
     const installedAt = info?.installedAt ?? result?.installedAt
-    const currentRelease = releases.find(r => r.version === current)
-    const latestRelease = releases.find(r => r.version === result?.latest) ?? releases[0]
-    const latest = (result?.ok ? result.latest : null) ?? latestRelease?.version
+    const latest = result?.ok ? result.latest : null
     const available = !!result?.ok && !!result.updateAvailable
-    // What GitHub itself says is newest. Denshi builds before 5.3.5-15 took the first frontend in
-    // GitHub's release list, which is in tag-name order ("…-9…" before "…-14…"), and so reported
-    // "up to date" on an old version. When that happens the card says so and links the Denshi
-    // installer that fixes it.
-    const newest = releases[0]
-    const missed = !!result?.ok && !available && !!current && !!newest && compareFrontendVersions(newest.version, current) > 0 ? newest : null
-    const pending = available && current ? releases.filter(r => compareFrontendVersions(r.version, current) > 0) : []
-
     const progress = updating ? readProgress(lines) : null
     const percent = progress?.target === "frontend" ? progress.percent : 0
     const step = progress?.target === "frontend" ? progress.step : ""
@@ -347,7 +269,7 @@ export function FrontendUpdateCard() {
 
     const state: UpdateState = updating ? "updating"
         : failure ? "failed"
-            : available || missed ? "available"
+            : available ? "available"
                 : checking ? "checking"
                     : result?.ok ? "uptodate"
                         : "unknown"
@@ -356,11 +278,10 @@ export function FrontendUpdateCard() {
 
     const commits = changes?.commits ?? []
     const shownCommits = showAll ? commits : commits.slice(0, 6)
-    const shownReleases = showAll ? pending : pending.slice(0, 6)
     const files = changes?.files ?? []
     const ins = files.reduce((n, f) => n + f.insertions, 0)
     const del = files.reduce((n, f) => n + f.deletions, 0)
-    const releaseUrl = result?.releaseUrl ?? latestRelease?.releaseUrl
+    const releaseUrl = result?.releaseUrl
     const canInstall = !!result?.canInstall
 
     return (
@@ -382,8 +303,8 @@ export function FrontendUpdateCard() {
                         </span>
                     </div>
                     <p className="mt-0.5 text-sm text-[--muted]">
-                        The interface on this device. It downloads the prebuilt bundle from GitHub releases and swaps it in live, with no git, Node or
-                        GitHub account needed. If anything fails, the current version stays in place.
+                        The interface on this device. New builds arrive within a minute of being pushed and swap in live (after any playing video stops),
+                        with no git, Node or GitHub account needed. If anything fails, the current version stays in place.
                     </p>
                 </div>
             </div>
@@ -393,12 +314,12 @@ export function FrontendUpdateCard() {
                 <Fact
                     label="Running"
                     value={current ?? (source === "local" ? "Unknown" : "—")}
-                    sub={shortCommit(currentRelease?.commit) ?? (source === "local" ? "version unknown" : undefined)}
+                    sub={shortCommit(result?.currentCommit ?? info?.commit) ?? (source === "local" ? "built on this machine" : undefined)}
                 />
                 <Fact
                     label="Latest"
                     value={latest ?? "—"}
-                    sub={latestRelease ? `published ${timeAgo(latestRelease.publishedAt)}` : undefined}
+                    sub={result?.latestBuiltAt ? `${shortCommit(result.latestCommit)} · built ${timeAgo(Math.round(new Date(result.latestBuiltAt).getTime() / 1000))}` : undefined}
                 />
                 <Fact
                     label="Installed"
@@ -407,13 +328,13 @@ export function FrontendUpdateCard() {
                 />
                 <Fact label="Source" value={source ? SOURCE[source].label : "—"} sub={info?.marker?.tag ?? (source ? SOURCE[source].sub : undefined)} />
                 <Fact label="Last checked" value={checking ? "Checking…" : timeAgo(checkedAt ?? undefined)} sub={checkedAt ? "from GitHub" : undefined} />
-                <Fact label="Next check" value={checkedAt ? timeUntil(checkedAt + CHECK_INTERVAL_SECONDS) : "—"} sub="every 5 min" />
+                <Fact label="Next check" value={checkedAt ? timeUntil(checkedAt + CHECK_INTERVAL_SECONDS) : "—"} sub="every minute" />
                 <Fact
                     label="Download size"
-                    value={latestRelease ? formatSize(latestRelease.assetSize) : "—"}
-                    sub={result?.assetName ?? latestRelease?.assetName}
+                    value={result?.assetSize ? formatSize(result.assetSize) : "—"}
+                    sub={result?.assetName ?? undefined}
                 />
-                <Fact label="Auto-update" value={settings?.autoUpdateFrontend ? "On" : "Off"} sub="on launch" />
+                <Fact label="Auto-update" value={settings?.autoUpdateFrontend !== false ? "On" : "Off"} sub={result?.pendingReload ? "waiting for playback" : "live"} />
             </div>
 
             {/* Progress */}
@@ -443,37 +364,19 @@ export function FrontendUpdateCard() {
                 </div>
             )}
 
-            {/* Newer than this Denshi can see */}
-            {missed && (
-                <p className="relative mt-5 rounded-xl bg-amber-400/[0.08] px-3 py-2.5 text-xs text-amber-100/90 ring-1 ring-amber-300/20">
-                    Version <span className="font-medium">{missed.version}</span> is on GitHub, but this copy of Denshi can't see it: its updater picks
-                    releases in the wrong order. Install the new Denshi once and frontend updates work again.{" "}
-                    <a
-                        className="font-semibold text-amber-200 underline underline-offset-2 hover:text-white"
-                        href={missed.installerUrl ?? missed.releaseUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                    >
-                        {missed.installerUrl ? "Download the Denshi installer" : "Open the release"}
-                    </a>
-                </p>
-            )}
-
             {/* A local build has no version to compare, so nothing says it's behind */}
             {isLocal && (
                 <p className="relative mt-5 rounded-xl bg-white/[0.04] px-3 py-2.5 text-xs text-[--muted] ring-1 ring-white/[0.06]">
-                    This frontend was built on this machine, so its version can't be compared with GitHub. Installing replaces it with the latest release
-                    {latest ? ` (${latest})` : ""}, and automatic updates apply from then on.
+                    This frontend was built on this machine after the newest GitHub build, so there is nothing newer to install. The next pushed
+                    build replaces it automatically.
                 </p>
             )}
 
             {/* What's waiting */}
-            {available && (commits.length > 0 || pending.length > 0) && (
+            {available && commits.length > 0 && (
                 <div className="relative mt-5 space-y-3">
                     <p className="text-sm font-semibold">
-                        {changes
-                            ? `${formatCount(changes.total)} new commit${changes.total === 1 ? "" : "s"}`
-                            : `${formatCount(pending.length)} newer release${pending.length === 1 ? "" : "s"}`}
+                        {`${formatCount(changes?.total ?? commits.length)} new commit${(changes?.total ?? commits.length) === 1 ? "" : "s"}`}
                         {files.length > 0 && (
                             <span className="ml-2 font-normal text-[--muted]">
                                 {formatCount(files.length)} file{files.length === 1 ? "" : "s"} · <span className="text-emerald-400">+{ins}</span> <span className="text-red-400">−{del}</span>
@@ -481,8 +384,7 @@ export function FrontendUpdateCard() {
                         )}
                     </p>
                     <ul className="divide-y divide-white/[0.05] overflow-hidden rounded-2xl bg-black/25 ring-1 ring-white/[0.06]">
-                        {changes
-                            ? shownCommits.map(c => (
+                        {shownCommits.map(c => (
                                 <li key={c.hash} className="flex items-start gap-3 px-3.5 py-2.5">
                                     <LuGitCommitHorizontal className="mt-0.5 size-4 shrink-0 text-amber-300/80" />
                                     <div className="min-w-0 flex-1">
@@ -491,21 +393,11 @@ export function FrontendUpdateCard() {
                                     </div>
                                     <a href={c.url} target="_blank" rel="noreferrer" className="shrink-0 rounded-md bg-white/[0.05] px-1.5 py-0.5 font-mono text-[10px] text-fuchsia-300 hover:underline">{c.hash}</a>
                                 </li>
-                            ))
-                            : shownReleases.map(r => (
-                                <li key={r.tag} className="flex items-start gap-3 px-3.5 py-2.5">
-                                    <LuPackage className="mt-0.5 size-4 shrink-0 text-amber-300/80" />
-                                    <div className="min-w-0 flex-1">
-                                        <p className="truncate text-sm font-medium" title={r.version}>{r.version}</p>
-                                        <p className="text-[11px] text-[--muted]">{formatSize(r.assetSize)} · {timeAgo(r.publishedAt)}</p>
-                                    </div>
-                                    <a href={r.releaseUrl} target="_blank" rel="noreferrer" className="shrink-0 rounded-md bg-white/[0.05] px-1.5 py-0.5 font-mono text-[10px] text-fuchsia-300 hover:underline">{shortCommit(r.commit) ?? "release"}</a>
-                                </li>
                             ))}
                     </ul>
-                    {(changes ? commits.length : pending.length) > 6 && (
+                    {commits.length > 6 && (
                         <button type="button" onClick={() => setShowAll(v => !v)} className="text-xs font-medium text-brand-300 hover:text-brand-200">
-                            {showAll ? "Show fewer" : `Show all ${changes ? commits.length : pending.length}`}
+                            {showAll ? "Show fewer" : `Show all ${commits.length}`}
                         </button>
                     )}
                     {files.length > 0 && (
@@ -535,7 +427,7 @@ export function FrontendUpdateCard() {
                     value={!!settings?.autoUpdateFrontend}
                     onValueChange={setAutoUpdate}
                     label="Update the frontend automatically"
-                    help="When enabled, the app checks GitHub on launch and installs a newer frontend before you start watching. Only applies after the first update has been installed from here."
+                    help="When enabled, the app checks GitHub every minute and installs each new frontend build as it is pushed, reloading once nothing is playing."
                 />
             </div>
 

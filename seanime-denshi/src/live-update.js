@@ -343,6 +343,9 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
             fs.rmSync(oldWeb, { recursive: true, force: true })
             emitFrontendStep(97, "Recording the successful build")
             if (delta.tree) await rememberBuiltTree(root, delta.tree)
+            // The live frontend is a local build now, not the one github-frontend-update.js
+            // installed; its marker would claim otherwise.
+            fs.rmSync(path.join(path.dirname(liveWeb), "frontend-version.json"), { force: true })
 
             emitFrontendStep(100, "Frontend updated; reloading...")
             setTimeout(reloadWindows, 400)
