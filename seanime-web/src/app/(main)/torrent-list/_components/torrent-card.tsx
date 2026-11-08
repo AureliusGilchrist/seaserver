@@ -73,7 +73,7 @@ export const TorrentCard = React.memo(function TorrentCard({ torrent, onTorrentA
     return (
         <article
             data-torrent-item-container
-            className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br from-white/[0.05] via-black/25 to-black/40 p-4 shadow-lg shadow-black/10 backdrop-blur-md transition-colors hover:border-white/[0.14]"
+            className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br from-white/[0.06] via-black/40 to-black/55 p-4 shadow-lg shadow-black/10 transition-colors hover:border-white/[0.14] [content-visibility:auto] [contain-intrinsic-size:auto_9rem]"
         >
             <div className="flex items-start gap-3">
                 <div data-torrent-item-title-container className="min-w-0 flex-1">

@@ -101,6 +101,13 @@ const NON_PERSISTED_QUERY_KEYS = new Set<string>([
     // means every one of those cycles re-serializes the whole cache.
     API_ENDPOINTS.MANGA_DOWNLOAD.GetMangaDownloadsList.key,
     API_ENDPOINTS.MANGA_DOWNLOAD.GetMangaDownloadQueue.key,
+    // The torrent list refetches every 1.5s and can hold hundreds of torrents; persisting it
+    // re-serializes the whole cache on that cadence. Live client state is useless after a restart.
+    API_ENDPOINTS.TORRENT_CLIENT.GetActiveTorrentList.key,
+    API_ENDPOINTS.TORRENT_CLIENT.GetTorrentClientTorrentFiles.key,
+    API_ENDPOINTS.TORRENT_CLIENT.GetTorrentAddQueue.key,
+    "TORRENT_CLIENT-get-add-queue",
+    "LANDING-torrent-list",
 ])
 
 export const ClientProviders: React.FC<ClientProvidersProps> = ({ children }) => {

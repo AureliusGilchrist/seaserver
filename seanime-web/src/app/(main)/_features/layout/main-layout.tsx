@@ -41,6 +41,7 @@ import { usePathname, useRouter } from "@/lib/navigation"
 import React from "react"
 import { useServerStatus } from "../../_hooks/use-server-status"
 import { useInvalidateQueriesListener } from "../../_listeners/invalidate-queries.listeners"
+import { useBodyPointerLockGuard } from "@/lib/helpers/body-pointer-lock-guard"
 import { AdminAnnouncementsBanner } from "../admin-announcements"
 import { AnilistStatusBanner } from "../anilist-status-banner"
 import { StaleFrontendBanner } from "../stale-frontend-banner"
@@ -186,6 +187,7 @@ function Loader() {
     useSyncListener()
     useUnmatchedListener()
     useInvalidateQueriesListener()
+    useBodyPointerLockGuard()
     useTorrentStreamListener()
 
     const serverStatus = useServerStatus()

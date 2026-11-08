@@ -33,31 +33,8 @@ export default function Page() {
     return <AdminPage />
 }
 
-/**
- * Radix marks <body> with `pointer-events: none` while a modal layer (dialog, modal popover) is open,
- * and removes it when the layer closes. A layer that is unmounted mid-open or mid-close — which this
- * page invites, since the list is rewritten every 1.5s and a removed torrent takes its row with it —
- * can leave that mark behind, and then nearly nothing in the app can be clicked any more.
- * Clear it whenever no modal layer is actually open, and once more after leaving the page.
- */
-function releaseStuckPointerLock() {
-    if (typeof document === "undefined") return
-    const body = document.body
-    if (body.style.pointerEvents !== "none") return
-    const openLayer = document.querySelector("[role=dialog][data-state=open], [role=alertdialog][data-state=open], [data-radix-popper-content-wrapper]")
-    if (!openLayer) body.style.pointerEvents = ""
-}
-
 function AdminPage() {
     const serverStatus = useServerStatus()
-
-    React.useEffect(() => {
-        return () => {
-            // Radix's own cleanup runs in the same commit; check after it has.
-            window.setTimeout(releaseStuckPointerLock, 0)
-            window.setTimeout(releaseStuckPointerLock, 400)
-        }
-    }, [])
 
     return (
         <>
@@ -163,18 +140,13 @@ function Content() {
             handleTorrentAction({ hash: removeTarget.hash, action: "remove", dir: removeTarget.contentPath })
         },
     })
+    // Stable across the 1.5s refreshes so unchanged rows (memoized) are not re-rendered with them.
+    const openRemoveRef = React.useRef(confirmRemoveProps.open)
+    openRemoveRef.current = confirmRemoveProps.open
     const requestRemove = React.useCallback((torrent: TorrentClient_Torrent) => {
         setRemoveTarget(torrent)
-        confirmRemoveProps.open()
-    }, [confirmRemoveProps.open])
-
-    // Safety net for a body pointer lock left behind by a layer that vanished (see releaseStuckPointerLock).
-    React.useEffect(() => {
-        if (!confirmRemoveProps.isOpen && !confirmStopAllSeedingProps.isOpen) {
-            const t = window.setTimeout(releaseStuckPointerLock, 400)
-            return () => window.clearTimeout(t)
-        }
-    })
+        openRemoveRef.current()
+    }, [])
 
 
     const { totalDownSpeed, totalUpSpeed } = React.useMemo(() => {
