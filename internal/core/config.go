@@ -325,14 +325,11 @@ func getWorkingDir(useBinaryPath bool) (string, error) {
 }
 
 func setDataDirEnv(dataDir string) error {
-	// Set the data directory environment variable
-	if os.Getenv("SEANIME_DATA_DIR") == "" {
-		if err := os.Setenv("SEANIME_DATA_DIR", dataDir); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	// Always the data directory this process resolved (the -datadir flag, else the variable,
+	// else the default). Keeping an inherited value instead made a process started with its own
+	// -datadir expand "$SEANIME_DATA_DIR/cache", logs and extensions to its parent's folders: the
+	// self-updater's smoke test ran on the live cache and deleted the download queue's work.
+	return os.Setenv("SEANIME_DATA_DIR", dataDir)
 }
 
 func setWorkingDirEnv(useBinaryPath bool) error {

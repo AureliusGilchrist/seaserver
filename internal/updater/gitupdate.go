@@ -943,6 +943,19 @@ func builtBinaryName() string {
 // own script: bash runs build-all.sh on the NAS, and on Windows powershell runs the desktop
 // script. The Windows command is created through util.NewCmd so a GUI binary does not flash a
 // console window for the duration of the build.
+// smokeTestEnv is the running process's environment without the variables that point a Seanime
+// process at its folders, so the smoke test cannot reach the live data, cache, logs or downloads.
+func smokeTestEnv(env []string) []string {
+	out := make([]string, 0, len(env))
+	for _, kv := range env {
+		if strings.HasPrefix(kv, "SEANIME_DATA_DIR=") || strings.HasPrefix(kv, "SEANIME_WORKING_DIR=") {
+			continue
+		}
+		out = append(out, kv)
+	}
+	return out
+}
+
 // smokeTestBinary starts the freshly built binary in isolation — a throwaway data directory, a
 // loopback-only free port — and waits for it to answer HTTP. The running server is only replaced
 // once the new one has proven it can start; the test process is always killed afterwards and the
@@ -966,7 +979,7 @@ func smokeTestBinary(binPath string) error {
 
 	cmd := exec.CommandContext(ctx, binPath,
 		"-datadir", dataDir, "-host", "127.0.0.1", "-port", fmt.Sprint(port), "-disable-password")
-	cmd.Env = append(os.Environ(), "SEANIME_AUTO_UPDATE=0")
+	cmd.Env = append(smokeTestEnv(os.Environ()), "SEANIME_AUTO_UPDATE=0")
 	var out bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &out
 	if err := cmd.Start(); err != nil {

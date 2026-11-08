@@ -68,9 +68,9 @@ func (m *Manager) process(ctx context.Context, it *Item, workDir string) (string
 		if m.opts.LibraryFileOwner != nil {
 			if ownerMedia, ownerEp, found := m.opts.LibraryFileOwner(dest); found {
 				if ownerMedia == req.MediaId && ownerEp == req.EpisodeNumber {
-					return "", fmt.Errorf("episode %d is already in your library (%s)", req.EpisodeNumber, filepath.Base(dest))
+					return "", finalError{fmt.Errorf("episode %d is already in your library (%s)", req.EpisodeNumber, filepath.Base(dest))}
 				}
-				return "", fmt.Errorf("%s is in your library matched to another anime or episode; unmatch or move it first", filepath.Base(dest))
+				return "", finalError{fmt.Errorf("%s is in your library matched to another anime or episode; unmatch or move it first", filepath.Base(dest))}
 			}
 		}
 		m.logger.Info().Str("path", dest).Msg("onlinestream download: Replacing a file the library no longer uses")

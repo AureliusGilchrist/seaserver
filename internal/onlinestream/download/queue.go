@@ -96,9 +96,10 @@ type Item struct {
 	// stopping marks a cancel that comes from Stop: the item goes back to the queue and keeps its
 	// downloaded segments, instead of ending as cancelled.
 	stopping    bool
-	phaseBase   float64 // episode progress before the current stream (0, or 0.5 during the dub)
-	phaseWeight float64 // share of the episode progress the current stream covers
-	bytesBase   int64   // bytes of the streams already done in this download (the Japanese one, during the dub)
+	phaseBase   float64   // episode progress before the current stream (0, or 0.5 during the dub)
+	phaseWeight float64   // share of the episode progress the current stream covers
+	retryAt     time.Time // an automatic retry waits until then
+	bytesBase   int64     // bytes of the streams already done in this download (the Japanese one, during the dub)
 	rateAt      time.Time
 	rateBytes   int64
 	downloadAt  time.Time
@@ -166,6 +167,9 @@ type Manager struct {
 	lastEvent time.Time
 	started   sync.Once
 	saveMu    sync.Mutex
+
+	// processOverride, when set (tests), replaces the download of one episode.
+	processOverride func(ctx context.Context, it *Item, workDir string) (string, error)
 
 	// onProgress, when set (tests), sees every progress value an item takes.
 	onProgress func(p float64)
@@ -271,10 +275,36 @@ func (m *Manager) cleanOrphanWorkDirs() {
 	}
 	m.mu.Unlock()
 	for _, e := range entries {
-		if e.IsDir() && !known[e.Name()] {
-			_ = os.RemoveAll(filepath.Join(m.opts.WorkDir, e.Name()))
+		if !e.IsDir() || known[e.Name()] {
+			continue
 		}
+		// Only folders nothing has written to for a while. A folder this queue does not know can
+		// still be in use by another server process on the same cache (a restart that overlaps
+		// the old process); deleting it pulled a running download's files out from under it.
+		info, err := e.Info()
+		if err != nil || time.Since(info.ModTime()) < staleWorkDirAge {
+			continue
+		}
+		_ = os.RemoveAll(filepath.Join(m.opts.WorkDir, e.Name()))
 	}
+}
+
+// staleWorkDirAge is how long a work folder no queue item owns must sit untouched before it is
+// treated as left over and removed.
+const staleWorkDirAge = 6 * time.Hour
+
+// maxAutoAttempts is how many times an episode is tried before a failure is left for the user.
+const maxAutoAttempts = 3
+
+// finalError marks a failure that retrying cannot fix (the file is already in the library, the
+// stream is DRM-protected), so the episode is not retried automatically.
+type finalError struct{ error }
+
+func (e finalError) Unwrap() error { return e.error }
+
+func isFinal(err error) bool {
+	var f finalError
+	return errors.As(err, &f)
 }
 
 func (m *Manager) workDirFor(it *Item) string { return filepath.Join(m.opts.WorkDir, it.ID) }
@@ -576,6 +606,7 @@ func (m *Manager) ResetErrored() int {
 
 func resetForQueue(it *Item) {
 	it.Status = StatusQueued
+	it.retryAt = time.Time{}
 	it.Error = ""
 	it.Progress = 0
 	it.Speed, it.EtaSeconds = 0, 0
@@ -780,8 +811,9 @@ func (m *Manager) nextQueued() *Item {
 	if m.paused {
 		return nil
 	}
+	now := time.Now()
 	for _, it := range m.items {
-		if it.Status == StatusQueued {
+		if it.Status == StatusQueued && !now.Before(it.retryAt) {
 			return it
 		}
 	}
@@ -829,7 +861,11 @@ func (m *Manager) run(it *Item) {
 	m.changed()
 
 	workDir := m.workDirFor(it)
-	dest, err := m.process(ctx, it, workDir)
+	process := m.process
+	if m.processOverride != nil {
+		process = m.processOverride
+	}
+	dest, err := process(ctx, it, workDir)
 
 	m.mu.Lock()
 	it.cancel = nil
@@ -846,6 +882,15 @@ func (m *Manager) run(it *Item) {
 	case ctx.Err() != nil || it.Status == StatusCancelled:
 		it.Status = StatusCancelled
 		it.FinishedAt = &finishedAt
+	case err != nil && !isFinal(err) && it.Attempts < maxAutoAttempts:
+		// Retried by itself after a pause, from the segments it already has: a dropped
+		// connection or a provider hiccup should not need the user to press Retry.
+		delay := time.Duration(it.Attempts) * 30 * time.Second
+		it.Status = StatusQueued
+		it.Progress = 0
+		it.retryAt = finishedAt.Add(delay)
+		it.Warnings = append(it.Warnings, fmt.Sprintf("Attempt %d failed (%v); retrying in %s.", it.Attempts, err, delay))
+		keepWork = true
 	case err != nil:
 		it.Status = StatusFailed
 		it.Error = err.Error()

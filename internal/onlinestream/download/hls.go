@@ -219,7 +219,7 @@ func (d *downloader) downloadMediaPlaylist(ctx context.Context, playlistURL stri
 				}
 				out.WriteString(line + "\n")
 			default:
-				return nil, fmt.Errorf("this stream is DRM-protected (%s) and cannot be downloaded", keyMethod)
+				return nil, finalError{fmt.Errorf("this stream is DRM-protected (%s) and cannot be downloaded", keyMethod)}
 			}
 		case strings.HasPrefix(line, "#EXT-X-MAP:"):
 			a := parseAttrs(strings.TrimPrefix(line, "#EXT-X-MAP:"))
