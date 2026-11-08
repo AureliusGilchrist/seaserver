@@ -203,7 +203,7 @@ function Hero({ status }: { status: EnMasseDownloaderStatus | undefined }) {
         onConfirm: () => stop({ saveProgress: false }),
     })
     const state = runState(status)
-    const hasProgress = !!status?.hasSavedProgress
+    const hasProgress = !!status?.hasSavedProgress || !!status?.isPaused
     // A run that could not start, or stopped on an error, says why in plain sight.
     const startError = !status?.isRunning && status?.status && /^(Could not start|Error)/.test(status.status) ? status.status : ""
     const art = status?.currentImage

@@ -64,6 +64,11 @@ func (d *Downloader) primarySearchQuery(animeItem *AnilistMinifiedItem) string {
 // saveCurrentProgress records the run. nextIndex is the series a resume starts at.
 func (d *Downloader) saveCurrentProgress(nextIndex int) {
 	d.mu.Lock()
+	if d.discardProgress {
+		d.mu.Unlock()
+		return
+	}
+	d.resumeIndex = nextIndex
 	torrentDone := make([]int, 0, len(d.torrentDone))
 	for id := range d.torrentDone {
 		torrentDone = append(torrentDone, id)
@@ -595,6 +600,13 @@ type (
 		lastQueued        int          // episodes queued for the series being processed
 		lastProvider      string       // provider the series being processed was queued from
 		torrentDone       map[int]bool // torrent series this run already handled
+		// resumeIndex is the series a resume starts at: the one being worked on, or the next.
+		resumeIndex int
+		// discardProgress is set by Stop without saving, so a run still winding down does not
+		// write its place back.
+		discardProgress bool
+		// runDone is closed when the current run's goroutine has exited.
+		runDone chan struct{}
 		// resolveOverride replaces the AniList lookup (tests).
 		resolveOverride func(ctx context.Context, item *AnimeOfflineItem) (*AnilistMinifiedItem, error)
 	}
@@ -826,6 +838,19 @@ func (d *Downloader) hasSavedProgress() bool {
 }
 
 func (d *Downloader) Start(resume bool) error {
+	// A paused run may still be finishing the request it was in the middle of; let it finish
+	// first, so the two never run side by side or overwrite each other's place.
+	d.mu.Lock()
+	prev := d.runDone
+	d.mu.Unlock()
+	if prev != nil {
+		select {
+		case <-prev:
+		case <-time.After(90 * time.Second):
+			return errors.New("the previous run is still stopping, try again in a moment")
+		}
+	}
+
 	d.mu.Lock()
 	if d.isRunning {
 		d.mu.Unlock()
@@ -865,6 +890,38 @@ func (d *Downloader) Start(resume bool) error {
 		d.logger.Info().Msg("enmasse-anime: Saved progress found but resume not enabled; starting from scratch")
 	}
 
+	d.discardProgress = false
+	startIndex := 0
+	if autoResume {
+		// The record is restored here, before the run starts, so a pause straight after
+		// resuming saves it back intact.
+		if progress := d.loadProgress(); progress != nil {
+			startIndex = progress.NextIndex
+			if startIndex == 0 && progress.LastIndex > 0 {
+				// A file from before NextIndex: LastIndex was the series being worked on.
+				startIndex = progress.LastIndex
+			}
+			if startIndex < 0 {
+				startIndex = 0
+			}
+			d.downloadedAnime = progress.DownloadedAnime
+			d.failedAnime = progress.FailedAnime
+			d.processedCount = startIndex
+			d.skippedCount = progress.SkippedCount
+			d.details.EpisodesQueued = progress.EpisodesQueued
+			d.recent = progress.Recent
+			d.torrentDone = make(map[int]bool, len(progress.TorrentDone))
+			for _, id := range progress.TorrentDone {
+				d.torrentDone[id] = true
+			}
+			d.logger.Info().Int("resumeAt", startIndex).Int("lastIndex", progress.LastIndex).Msg("enmasse-anime: Resuming from saved progress")
+		} else {
+			// No file (it had not been written yet): continue from what is in memory.
+			startIndex = d.resumeIndex
+		}
+	}
+	d.resumeIndex = startIndex
+
 	if !autoResume {
 		d.skippedCount = 0
 		d.recent = nil
@@ -881,9 +938,13 @@ func (d *Downloader) Start(resume bool) error {
 	d.mu.Unlock()
 
 	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	d.mu.Lock()
 	d.cancelFunc = cancel
+	d.runDone = done
+	d.mu.Unlock()
 
-	go d.run(ctx, autoResume)
+	go d.run(ctx, startIndex, done)
 
 	return nil
 }
@@ -895,27 +956,39 @@ func (d *Downloader) Stop(saveProgress bool) {
 		d.cancelFunc()
 	}
 
+	wasRunning := d.isRunning
 	if saveProgress {
 		d.isPaused = true
 		d.status = "Paused"
 	} else {
+		d.discardProgress = true
 		d.clearProgressUnlocked()
 		d.isPaused = false
 		d.status = "Stopped"
 	}
 
 	d.isRunning = false
+	resumeAt := d.resumeIndex
 	d.mu.Unlock()
+
+	// Write the place now rather than when the run notices it was paused, which can take a
+	// while (and the page would meanwhile offer a fresh start instead of Resume).
+	if saveProgress && wasRunning {
+		d.saveCurrentProgress(resumeAt)
+	}
 
 	d.sendStatusUpdate()
 }
 
-func (d *Downloader) run(ctx context.Context, resume bool) {
+func (d *Downloader) run(ctx context.Context, startIndex int, done chan struct{}) {
 	defer func() {
 		d.mu.Lock()
-		d.isRunning = false
-		d.currentAnime = nil
+		if d.runDone == done {
+			d.isRunning = false
+			d.currentAnime = nil
+		}
 		d.mu.Unlock()
+		close(done)
 		d.sendStatusUpdate()
 	}()
 
@@ -954,33 +1027,8 @@ func (d *Downloader) run(ctx context.Context, resume bool) {
 	d.logger.Info().Int("count", len(animeList)).Msg("enmasse-anime: Loaded anime list")
 	d.setStatus(fmt.Sprintf("Loaded %d anime entries", len(animeList)))
 
-	// Load progress if resuming (index-based, starts 2 before last)
-	startIndex := 0
-	if resume {
-		if progress := d.loadProgress(); progress != nil {
-			startIndex = progress.NextIndex
-			if startIndex == 0 && progress.LastIndex > 0 {
-				// A file from before NextIndex: LastIndex was the series being worked on.
-				startIndex = progress.LastIndex
-			}
-			if startIndex < 0 {
-				startIndex = 0
-			}
-			d.mu.Lock()
-			d.downloadedAnime = progress.DownloadedAnime
-			d.failedAnime = progress.FailedAnime
-			d.processedCount = startIndex
-			d.skippedCount = progress.SkippedCount
-			d.details.EpisodesQueued = progress.EpisodesQueued
-			d.recent = progress.Recent
-			d.torrentDone = make(map[int]bool, len(progress.TorrentDone))
-			for _, id := range progress.TorrentDone {
-				d.torrentDone[id] = true
-			}
-			d.mu.Unlock()
-			d.logger.Info().Int("resumeAt", startIndex).Int("lastIndex", progress.LastIndex).Msg("enmasse-anime: Resumed from saved progress")
-			d.setStatus(fmt.Sprintf("Resumed: starting at %d/%d", startIndex, len(animeList)))
-		}
+	if startIndex > 0 {
+		d.setStatus(fmt.Sprintf("Resumed: starting at %d/%d", startIndex, len(animeList)))
 	}
 
 	d.mu.Lock()
@@ -1023,6 +1071,7 @@ func (d *Downloader) run(ctx context.Context, resume bool) {
 		d.mu.Lock()
 		d.currentAnime = &AnilistMinifiedItem{Title: animeItem.Title}
 		d.processedCount = i + 1
+		d.resumeIndex = i
 		d.status = fmt.Sprintf("Processing %d/%d: %s", i+1, len(animeList), animeItem.Title)
 		d.details.Phase = "processing"
 		d.details.Step = "starting anime processing"

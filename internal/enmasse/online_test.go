@@ -321,3 +321,30 @@ func TestMatchOnProvider(t *testing.T) {
 		t.Fatal("a series the provider does not have was matched")
 	}
 }
+
+// TestPauseSavesPlaceAtOnce: Pause writes the place straight away (the page offers Resume only
+// when it exists), and a Stop is not undone by the run writing its place as it winds down.
+func TestPauseSavesPlaceAtOnce(t *testing.T) {
+	prev := AnimeProgressFilePath
+	AnimeProgressFilePath = filepath.Join(t.TempDir(), "progress.json")
+	defer func() { AnimeProgressFilePath = prev }()
+
+	logger := zerolog.Nop()
+	d := NewDownloader(&NewDownloaderOptions{Logger: &logger})
+	d.isRunning = true
+	d.resumeIndex = 42
+	d.skippedCount = 3
+	d.recent = []ActivityEntry{{Title: "Frieren", Result: "queued"}}
+	d.Stop(true)
+	p := d.loadProgress()
+	if p == nil || p.NextIndex != 42 || p.SkippedCount != 3 || len(p.Recent) != 1 {
+		t.Fatalf("pause did not save the place: %+v", p)
+	}
+
+	d.isRunning = true
+	d.Stop(false)
+	d.saveCurrentProgress(43) // the run winding down
+	if d.loadProgress() != nil {
+		t.Fatal("a stopped run wrote its place back")
+	}
+}
