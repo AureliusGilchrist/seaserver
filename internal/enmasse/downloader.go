@@ -82,6 +82,7 @@ func (d *Downloader) saveCurrentProgress(nextIndex int) {
 		EpisodesQueued:  d.details.EpisodesQueued,
 		Recent:          append([]ActivityEntry(nil), d.recent...),
 		TorrentDone:     torrentDone,
+		Running:         d.isRunning,
 	}
 	d.mu.Unlock()
 
@@ -696,6 +697,9 @@ type (
 		SkippedCount   int             `json:"skipped_count,omitempty"`
 		EpisodesQueued int             `json:"episodes_queued,omitempty"`
 		Recent         []ActivityEntry `json:"recent,omitempty"`
+		// Running records that a run was going when this was written, so a server restart
+		// picks it back up (a pause or stop writes it false).
+		Running bool `json:"running,omitempty"`
 		// TorrentDone lists the torrent series this run already handled.
 		TorrentDone []int `json:"torrent_done,omitempty"`
 	}
@@ -947,9 +951,29 @@ func (d *Downloader) Start(resume bool) error {
 	d.runDone = done
 	d.mu.Unlock()
 
+	// Written now so a server restart before the first series finishes still resumes it.
+	d.saveCurrentProgress(startIndex)
+
 	go d.run(ctx, startIndex, done)
 
 	return nil
+}
+
+// ResumeIfInterrupted restarts a run the server was in the middle of when it stopped. A
+// paused or stopped run is left alone.
+func (d *Downloader) ResumeIfInterrupted() error {
+	progress := d.loadProgress()
+	if progress == nil || !progress.Running {
+		return nil
+	}
+	d.logger.Info().Int("resumeAt", progress.NextIndex).Msg("enmasse-anime: Resuming the run the server restart interrupted")
+	return d.Start(true)
+}
+
+// WasInterrupted reports whether a run was going when the server last stopped.
+func (d *Downloader) WasInterrupted() bool {
+	progress := d.loadProgress()
+	return progress != nil && progress.Running
 }
 
 func (d *Downloader) Stop(saveProgress bool) {

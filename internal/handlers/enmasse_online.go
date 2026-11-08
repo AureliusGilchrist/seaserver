@@ -94,6 +94,7 @@ func (h *Handler) wireEnMasseOnline(app *core.App) {
 	search := h.providerSearchHooks()
 
 	takeovers := newTorrentTakeovers(app, h)
+	defer h.resumeEnMasseAfterRestart(app)
 
 	app.EnMasseDownloader.SetOnlineHooks(&enmasse.OnlineHooks{
 		TorrentSeries:    takeovers.TorrentSeries,
@@ -121,4 +122,26 @@ func (h *Handler) wireEnMasseOnline(app *core.App) {
 			return len(res.Queued), nil
 		},
 	})
+}
+
+// resumeEnMasseAfterRestart picks the anime en masse run back up when the server stopped in the
+// middle of it. It waits for the provider extension to load first, so the run does not start
+// with searches that cannot work and file every series as not found.
+func (h *Handler) resumeEnMasseAfterRestart(app *core.App) {
+	if !app.EnMasseDownloader.WasInterrupted() {
+		return
+	}
+	go func() {
+		deadline := time.Now().Add(10 * time.Minute)
+		for time.Now().Before(deadline) {
+			if _, err := h.onlineProvider(enmasse.OnlineProvider); err == nil {
+				break
+			}
+			time.Sleep(5 * time.Second)
+		}
+		time.Sleep(10 * time.Second) // let the rest of startup settle
+		if err := app.EnMasseDownloader.ResumeIfInterrupted(); err != nil {
+			app.Logger.Error().Err(err).Msg("enmasse-anime: Could not resume after the restart")
+		}
+	}()
 }

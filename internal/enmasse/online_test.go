@@ -348,3 +348,23 @@ func TestPauseSavesPlaceAtOnce(t *testing.T) {
 		t.Fatal("a stopped run wrote its place back")
 	}
 }
+
+// TestInterruptedRunIsRemembered: a run going when the server stops is resumed on the next
+// start; a paused one is not.
+func TestInterruptedRunIsRemembered(t *testing.T) {
+	prev := AnimeProgressFilePath
+	AnimeProgressFilePath = filepath.Join(t.TempDir(), "progress.json")
+	defer func() { AnimeProgressFilePath = prev }()
+
+	logger := zerolog.Nop()
+	d := NewDownloader(&NewDownloaderOptions{Logger: &logger})
+	d.isRunning = true
+	d.saveCurrentProgress(5)
+	if !NewDownloader(&NewDownloaderOptions{Logger: &logger}).WasInterrupted() {
+		t.Fatal("a running run was not remembered")
+	}
+	d.Stop(true)
+	if NewDownloader(&NewDownloaderOptions{Logger: &logger}).WasInterrupted() {
+		t.Fatal("a paused run would be restarted")
+	}
+}

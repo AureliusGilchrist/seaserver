@@ -1,15 +1,15 @@
 "use client"
 
 import { AnimeEnMasseActivity, EnMasseDownloaderStatus, useEnMasseStart, useEnMasseStatus, useEnMasseStop } from "@/api/hooks/enmasse.hooks"
-import { useDownloadingAnime } from "@/app/(main)/_atoms/downloading.atoms"
 import { isOnlinestreamDownloadRunning, useGetOnlinestreamDownloads } from "@/api/hooks/onlinestream_download.hooks"
+import { useDownloadingAnime } from "@/app/(main)/_atoms/downloading.atoms"
 import {
     __anime_streamDownloadsModalIsOpenAtom,
     formatDownloadBytes,
 } from "@/app/(main)/onlinestream/_containers/anime-downloads/anime-downloads-modal"
+import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { SeaLink } from "@/components/shared/sea-link"
-import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
@@ -19,6 +19,7 @@ import { useSetAtom } from "jotai/react"
 import { AnimatePresence, motion } from "motion/react"
 import React, { useEffect, useState } from "react"
 import {
+    LuArrowUpRight,
     LuCheck,
     LuChevronDown,
     LuCircleCheck,
@@ -65,6 +66,12 @@ function timeAgo(iso: string, now: number) {
     return `${Math.floor(s / 86400)}d ago`
 }
 
+function providerName(p?: string) {
+    if (p === "animeheaven") return "AnimeHeaven"
+    if (p === "kickassanime") return "Kickassanime"
+    return p || ""
+}
+
 /** Re-render every few seconds for the clocks (elapsed, time ago). */
 function useNow(intervalMs = 5000) {
     const [now, setNow] = useState(() => Date.now())
@@ -88,8 +95,7 @@ function AnimatedNumber({ value, className }: { value: number, className?: strin
         const step = (t: number) => {
             const k = Math.min(1, (t - start) / duration)
             const eased = 1 - Math.pow(1 - k, 3)
-            const v = Math.round(from + (value - from) * eased)
-            setShown(v)
+            setShown(Math.round(from + (value - from) * eased))
             if (k < 1) raf = requestAnimationFrame(step)
             else fromRef.current = value
         }
@@ -134,13 +140,46 @@ function runState(status: EnMasseDownloaderStatus | undefined): RunState {
     return "idle"
 }
 
-const stateStyle: Record<RunState, { label: string, className: string }> = {
-    running: { label: "Running", className: "text-[--green] border-[--green]/40 bg-[--green]/10" },
-    waiting: { label: "Waiting for downloads", className: "text-sky-300 border-sky-400/40 bg-sky-400/10" },
-    paused: { label: "Paused", className: "text-[--orange] border-[--orange]/40 bg-[--orange]/10" },
-    completed: { label: "Completed", className: "text-[--green] border-[--green]/40 bg-[--green]/10" },
-    idle: { label: "Idle", className: "text-[--muted] border-[--border] bg-white/5" },
+const stateStyle: Record<RunState, { label: string, dot: string, className: string }> = {
+    running: { label: "Running", dot: "bg-emerald-400", className: "text-emerald-200 border-emerald-400/30 bg-emerald-400/10" },
+    waiting: { label: "Waiting for downloads", dot: "bg-sky-400", className: "text-sky-200 border-sky-400/30 bg-sky-400/10" },
+    paused: { label: "Paused", dot: "bg-amber-400", className: "text-amber-200 border-amber-400/30 bg-amber-400/10" },
+    completed: { label: "Completed", dot: "bg-emerald-400", className: "text-emerald-200 border-emerald-400/30 bg-emerald-400/10" },
+    idle: { label: "Idle", dot: "bg-gray-500", className: "text-gray-300 border-white/10 bg-white/5" },
 }
+
+/** The run's progress: the torrents-first pass while it runs, the database after. */
+function useRunProgress(status: EnMasseDownloaderStatus | undefined) {
+    const now = useNow()
+    const torrentPass = !!status?.isRunning && status?.details?.phase === "torrents" && !!status?.details?.torrentTotal
+    const dbTotal = status?.totalCount || status?.details?.currentAnimeTotal || 0
+    const dbDone = status?.processedCount || 0
+    const total = torrentPass ? status!.details!.torrentTotal! : dbTotal
+    const done = torrentPass ? (status!.details!.torrentIndex || 0) : dbDone
+    const pct = total ? Math.min(100, (done / total) * 100) : 0
+    const started = status?.startedAt ? new Date(status.startedAt).getTime() : 0
+    const elapsed = started && status?.isRunning ? now - started : 0
+    const perHour = elapsed > 60000 && status?.processedThisRun ? (status.processedThisRun / elapsed) * 3600000 : 0
+    const remaining = perHour > 0 ? ((dbTotal - dbDone) / perHour) * 3600000 : 0
+    return { torrentPass, total, done, pct, elapsed, perHour, remaining }
+}
+
+/** The covers of the series most recently queued. */
+function useRecentPosters(status: EnMasseDownloaderStatus | undefined, max: number) {
+    return React.useMemo(() => {
+        const seen = new Set<number>()
+        const out: AnimeEnMasseActivity[] = []
+        for (const e of status?.recent ?? []) {
+            if (e.result !== "queued" || !e.image || !e.mediaId || seen.has(e.mediaId)) continue
+            seen.add(e.mediaId)
+            out.push(e)
+            if (out.length >= max) break
+        }
+        return out
+    }, [status?.recent, max])
+}
+
+const panel = "rounded-3xl border border-white/[0.07] bg-gray-950/60 backdrop-blur-xl shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset]"
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Page
@@ -168,28 +207,235 @@ export function EnMassePage() {
     }
 
     return (
-        <PageWrapper className="p-4 sm:p-8 space-y-6" data-enmasse-page>
-            <Hero status={status} />
-            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] gap-6">
-                <ProgressPanel status={status} />
-                <DownloadingNow />
+        <PageWrapper className="relative p-4 sm:p-8 space-y-6" data-enmasse-page>
+            {/* Ambient page glow behind everything. */}
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-[40rem] overflow-hidden -z-10">
+                <div className="absolute -top-40 left-1/4 size-[36rem] rounded-full bg-indigo-600/10 blur-[120px]" />
+                <div className="absolute -top-20 right-0 size-[30rem] rounded-full bg-fuchsia-600/10 blur-[120px]" />
             </div>
-            <StatTiles status={status} />
-            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-6">
-                <NowCard status={status} />
-                <ActivityFeed status={status} />
+
+            <Stage status={status} />
+
+            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_24rem] gap-6 items-start">
+                <div className="space-y-6 min-w-0">
+                    <JustQueued status={status} />
+                    <ActivityFeed status={status} />
+                </div>
+                <div className="space-y-6 min-w-0">
+                    <DownloadingNow />
+                    <Totals status={status} />
+                    <HowItWorks />
+                </div>
             </div>
-            <PosterWall status={status} />
-            <HowItWorks />
         </PageWrapper>
     )
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Hero
+// Stage: what is happening, the progress, and the controls, in one place
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-function Hero({ status }: { status: EnMasseDownloaderStatus | undefined }) {
+function Stage({ status }: { status: EnMasseDownloaderStatus | undefined }) {
+    const state = runState(status)
+    const d = status?.details
+    const active = !!status?.isRunning && !!status?.currentAnime
+    const art = active ? status?.currentImage : undefined
+    const posters = useRecentPosters(status, 3)
+    const backdrop = art || posters[0]?.image
+    const progress = useRunProgress(status)
+    // A run that could not start, or stopped on an error, says why in plain sight.
+    const startError = !status?.isRunning && status?.status && /^(Could not start|Error)/.test(status.status) ? status.status : ""
+
+    const heading = active ? status!.currentAnime!
+        : state === "waiting" ? "Letting the downloads catch up"
+            : state === "paused" ? "Paused, ready to pick up where it left off"
+                : state === "completed" ? "Every series has been checked"
+                    : "Your whole catalogue, downloaded online"
+
+    return (
+        <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-gray-950 shadow-2xl shadow-black/40" data-enmasse-hero>
+            {/* Backdrop: the series being looked up (or the latest queued), blurred, over brand light. */}
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(99,102,241,0.35),transparent_55%),radial-gradient(ellipse_at_bottom_right,rgba(217,70,239,0.25),transparent_55%)]" />
+            <AnimatePresence mode="popLayout">
+                {!!backdrop && <motion.div
+                    key={backdrop}
+                    className="absolute inset-0 bg-cover bg-center blur-3xl saturate-150"
+                    style={{ backgroundImage: `url(${backdrop})` }}
+                    initial={{ opacity: 0, scale: 1.25 }}
+                    animate={{ opacity: art ? 0.45 : 0.25, scale: 1.4 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ opacity: { duration: 1.2 }, scale: { duration: 30, ease: "linear" } }}
+                />}
+            </AnimatePresence>
+            <div className="absolute inset-0 bg-gradient-to-r from-gray-950/95 via-gray-950/70 to-gray-950/40" />
+            <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-transparent to-transparent" />
+            {/* Fine grid for texture. */}
+            <div
+                className="absolute inset-0 opacity-[0.06] [mask-image:radial-gradient(ellipse_at_center,black,transparent_75%)]"
+                style={{
+                    backgroundImage: "linear-gradient(rgba(255,255,255,.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.6) 1px, transparent 1px)",
+                    backgroundSize: "36px 36px",
+                }}
+            />
+
+            <div className="relative grid grid-cols-1 lg:grid-cols-[auto_minmax(0,1fr)_auto] gap-8 p-6 sm:p-10 items-center">
+                {/* Left: the series being looked up, or a fan of the latest queued covers. */}
+                <div className="hidden md:flex justify-center">
+                    <AnimatePresence mode="wait">
+                        {art ? (
+                            <motion.div
+                                key={art}
+                                initial={{ opacity: 0, y: 16, rotate: -3, scale: 0.96 }}
+                                animate={{ opacity: 1, y: 0, rotate: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                                transition={{ duration: 0.55, ease: "easeOut" }}
+                                className="relative w-40 xl:w-44 aspect-[2/3]"
+                            >
+                                <div className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-indigo-500/60 via-fuchsia-500/40 to-pink-500/30 blur-2xl" />
+                                <img src={art} alt="" className="relative w-full h-full object-cover rounded-2xl ring-1 ring-white/25 shadow-2xl" />
+                                {d?.phase === "torrents" && <span
+                                    className="absolute -bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-fuchsia-500 px-3 py-1 text-[11px] font-semibold shadow-lg shadow-fuchsia-500/40"
+                                >
+                                    Replacing a torrent
+                                </span>}
+                            </motion.div>
+                        ) : posters.length ? (
+                            <motion.div key="fan" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative w-56 h-60">
+                                {posters.slice(0, 3).reverse().map((p, i, arr) => {
+                                    const k = i - (arr.length - 1) / 2
+                                    return <img
+                                        key={p.mediaId}
+                                        src={p.image}
+                                        alt=""
+                                        className="absolute top-2 left-1/2 w-32 aspect-[2/3] object-cover rounded-xl ring-1 ring-white/20 shadow-2xl"
+                                        style={{ transform: `translateX(calc(-50% + ${k * 34}px)) rotate(${k * 8}deg)`, zIndex: i }}
+                                    />
+                                })}
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                key="empty"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="relative size-36 rounded-[2rem] bg-gradient-to-br from-indigo-500/30 to-fuchsia-500/20 ring-1 ring-white/10 flex items-center justify-center"
+                            >
+                                <LuSparkles className="text-5xl text-indigo-200" />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+
+                {/* Middle: what is happening. */}
+                <div className="min-w-0 space-y-4">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-indigo-200/80">
+                            <LuSparkles /> Anime En Masse
+                        </span>
+                        <span className={cn("text-[11px] font-semibold px-2.5 py-1 rounded-full border inline-flex items-center gap-1.5", stateStyle[state].className)}>
+                            <span className="relative flex size-1.5">
+                                {(state === "running" || state === "waiting") &&
+                                    <span className={cn("absolute inline-flex size-full rounded-full opacity-75 animate-ping", stateStyle[state].dot)} />}
+                                <span className={cn("relative inline-flex size-1.5 rounded-full", stateStyle[state].dot)} />
+                            </span>
+                            {stateStyle[state].label}
+                        </span>
+                    </div>
+
+                    <AnimatePresence mode="wait">
+                        <motion.div
+                            key={heading}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -6 }}
+                            transition={{ duration: 0.35 }}
+                            className="space-y-2"
+                        >
+                            {active && status?.currentAnimeId && status.currentAnimeId > 0 ? (
+                                <SeaLink
+                                    href={`/entry?id=${status.currentAnimeId}`}
+                                    className="block text-3xl sm:text-4xl xl:text-5xl font-bold tracking-tight leading-[1.1] line-clamp-2 hover:text-indigo-100 transition-colors"
+                                >
+                                    {heading}
+                                </SeaLink>
+                            ) : (
+                                <h1 className={cn("text-3xl sm:text-4xl xl:text-5xl font-bold tracking-tight leading-[1.1] line-clamp-2",
+                                    !active && "bg-gradient-to-r from-white via-indigo-100 to-fuchsia-200 bg-clip-text text-transparent")}>
+                                    {heading}
+                                </h1>
+                            )}
+                            <p className="text-gray-300/90 max-w-2xl text-sm sm:text-base">
+                                {active
+                                    ? [
+                                        `#${formatNumber(d?.currentAnimeIndex || status?.processedCount || 0)}`,
+                                        d?.expectedEpisodes ? `${d.expectedEpisodes} episodes` : "",
+                                        d?.step || "",
+                                    ].filter(Boolean).join("  ·  ")
+                                    : state === "waiting"
+                                        ? `${formatNumber(status?.downloadQueueWaiting ?? 0)} episodes are waiting to download. The search carries on once fewer than 10 series are queued.`
+                                        : "Finds every series your library is missing on Kickassanime, with AnimeHeaven as the backup, queues it whole, and files each episode already matched: best quality, Japanese audio first, soft subtitles."}
+                            </p>
+                        </motion.div>
+                    </AnimatePresence>
+
+                    {active && <Pipeline status={status} />}
+
+                    {!!startError && <div
+                        className="flex gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200 max-w-2xl"
+                        data-enmasse-start-error
+                    >
+                        <LuTriangleAlert className="flex-none mt-0.5 text-red-300" />
+                        <span>{startError}</span>
+                    </div>}
+                    {!!d?.lastError && status?.isRunning && <p className="text-xs text-amber-300/90 flex gap-1.5 max-w-2xl">
+                        <LuTriangleAlert className="flex-none mt-0.5" />{d.lastError}
+                    </p>}
+                </div>
+
+                {/* Right: the progress ring and the controls. */}
+                <Controls status={status} pct={progress.pct} torrentPass={progress.torrentPass} />
+            </div>
+
+            <MetricsStrip status={status} progress={progress} />
+        </section>
+    )
+}
+
+function Pipeline({ status }: { status: EnMasseDownloaderStatus | undefined }) {
+    const d = status?.details
+    const step = pipelineIndex(d?.phase)
+    return (
+        <div className="space-y-3">
+            <div className="flex items-center gap-1.5 flex-wrap">
+                {PIPELINE.map((p, i) => {
+                    const s = step < 0 ? "todo" : i < step ? "done" : i === step ? "now" : "todo"
+                    return (
+                        <React.Fragment key={p.key}>
+                            {i > 0 && <span className={cn("h-px w-5 sm:w-8", i <= step ? "bg-emerald-400/60" : "bg-white/15")} />}
+                            <span className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border transition-all",
+                                s === "done" && "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
+                                s === "now" && "border-white/30 bg-white text-gray-950 shadow-lg shadow-fuchsia-500/30",
+                                s === "todo" && "border-white/10 bg-white/[0.03] text-gray-400")}
+                            >
+                                {s === "done" ? <LuCheck /> : <p.icon className={cn(s === "now" && "animate-pulse")} />}
+                                {p.label}
+                            </span>
+                        </React.Fragment>
+                    )
+                })}
+            </div>
+            {!!d?.variantsTotal && <div className="flex items-center gap-2 text-xs min-w-0 max-w-2xl">
+                <span className="text-gray-400 flex-none">Spelling {d.variantIndex}/{d.variantsTotal}</span>
+                <span className="truncate rounded-lg bg-black/40 border border-white/10 px-2 py-1 font-mono text-gray-200">{d.currentQuery || "—"}</span>
+                {!!d.torrentsCollected && <span className="text-gray-400 flex-none">{formatNumber(d.torrentsCollected)} close</span>}
+            </div>}
+            {!!d?.selectedTorrent && <p className="text-xs text-emerald-300 flex items-center gap-1.5 min-w-0 max-w-2xl">
+                <LuCircleCheck className="flex-none" /> <span className="truncate">Matched to {d.selectedTorrent}</span>
+            </p>}
+        </div>
+    )
+}
+
+function Controls({ status, pct, torrentPass }: { status: EnMasseDownloaderStatus | undefined, pct: number, torrentPass: boolean }) {
     const { mutate: start, isPending: isStarting } = useEnMasseStart()
     const { mutate: stop, isPending: isStopping } = useEnMasseStop()
     const openDownloadQueue = useSetAtom(__anime_streamDownloadsModalIsOpenAtom)
@@ -202,158 +448,18 @@ function Hero({ status }: { status: EnMasseDownloaderStatus | undefined }) {
         actionIntent: "alert",
         onConfirm: () => stop({ saveProgress: false }),
     })
-    const state = runState(status)
     const hasProgress = !!status?.hasSavedProgress || !!status?.isPaused
-    // A run that could not start, or stopped on an error, says why in plain sight.
-    const startError = !status?.isRunning && status?.status && /^(Could not start|Error)/.test(status.status) ? status.status : ""
-    const art = status?.currentImage
+    const running = !!status?.isRunning
 
-    return (
-        <div className="relative overflow-hidden rounded-2xl border border-white/10" data-enmasse-hero>
-            <ConfirmationDialog {...confirmStop} />
-            {/* Backdrop: the series being looked up, blurred, over a brand glow. */}
-            <div className="absolute inset-0 bg-gradient-to-br from-indigo-950 via-gray-950 to-fuchsia-950" />
-            <AnimatePresence mode="popLayout">
-                {!!art && <motion.div
-                    key={art}
-                    className="absolute inset-0 bg-cover bg-center blur-2xl"
-                    style={{ backgroundImage: `url(${art})` }}
-                    initial={{ opacity: 0, scale: 1.2 }}
-                    animate={{ opacity: 0.35, scale: 1.35 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ opacity: { duration: 1 }, scale: { duration: 24, ease: "linear" } }}
-                />}
-            </AnimatePresence>
-            <div className="absolute -top-24 -right-24 size-72 rounded-full bg-[--brand]/30 blur-3xl" />
-            <div className="absolute -bottom-32 -left-16 size-72 rounded-full bg-fuchsia-500/20 blur-3xl" />
-            <div className="absolute inset-0 bg-gradient-to-t from-gray-950/80 to-transparent" />
-
-            <div className="relative p-6 sm:p-8 flex flex-col lg:flex-row lg:items-end gap-6">
-                {/* The series being looked up, as a poster. */}
-                <AnimatePresence mode="wait">
-                    {!!art && status?.isRunning && <motion.div
-                        key={art}
-                        initial={{ opacity: 0, y: 12, rotate: -2 }}
-                        animate={{ opacity: 1, y: 0, rotate: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                        transition={{ duration: 0.5 }}
-                        className="hidden md:block relative flex-none w-32 aspect-[2/3] self-center lg:self-end"
-                    >
-                        <div className="absolute -inset-3 rounded-2xl bg-gradient-to-br from-indigo-500/50 to-fuchsia-500/40 blur-xl" />
-                        <img src={art} alt="" className="relative w-full h-full object-cover rounded-xl ring-1 ring-white/20 shadow-2xl" />
-                    </motion.div>}
-                </AnimatePresence>
-                <div className="flex-1 min-w-0 space-y-3">
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-indigo-200/80">
-                            <LuSparkles /> Anime En Masse
-                        </span>
-                        <span className={cn("text-xs font-semibold px-2.5 py-1 rounded-full border inline-flex items-center gap-1.5",
-                            stateStyle[state].className)}>
-                            {(state === "running" || state === "waiting") && <span className="size-1.5 rounded-full bg-current animate-pulse" />}
-                            {stateStyle[state].label}
-                        </span>
-                    </div>
-                    <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
-                        Your whole catalogue, <span
-                        className="bg-gradient-to-r from-indigo-300 via-fuchsia-300 to-pink-300 bg-clip-text text-transparent"
-                    >downloaded online</span>
-                    </h1>
-                    <p className="text-gray-300 max-w-2xl">
-                        Finds every series your library is missing on Kickassanime (AnimeHeaven as the backup), queues it whole,
-                        and files each episode in your library already matched: best quality, Japanese audio first, soft subtitles.
-                    </p>
-                    {!!status?.status && !startError && <p className="text-sm text-gray-400 line-clamp-1">{status.status}</p>}
-                    {!!startError && <div
-                        className="flex gap-2 rounded-xl border border-red-400/40 bg-red-500/10 p-3 text-sm text-red-200 max-w-2xl"
-                        data-enmasse-start-error
-                    >
-                        <LuTriangleAlert className="flex-none mt-0.5 text-red-300" />
-                        <span>{startError}</span>
-                    </div>}
-                </div>
-
-                <div className="flex flex-col items-stretch sm:items-end gap-3 flex-none">
-                    <div className="flex gap-2 flex-wrap sm:justify-end">
-                        <Button intent="white-subtle" leftIcon={<LuMonitorDown className="text-lg" />} onClick={() => openDownloadQueue(true)}>
-                            Download queue
-                            {!!status?.downloadQueueWaiting && <span
-                                className="ml-1.5 text-xs rounded-full bg-white/15 px-1.5"
-                            >{formatNumber(status.downloadQueueWaiting)}</span>}
-                        </Button>
-                        {status?.isRunning ? (
-                            <>
-                                <Button
-                                    intent="warning"
-                                    leftIcon={<LuPause className="text-lg" />}
-                                    onClick={() => stop({ saveProgress: true })}
-                                    loading={isStopping}
-                                >
-                                    Pause
-                                </Button>
-                                <Button
-                                    intent="alert-subtle"
-                                    leftIcon={<LuSquare className="text-lg" />}
-                                    onClick={() => confirmStop.open()}
-                                    loading={isStopping}
-                                >
-                                    Stop
-                                </Button>
-                            </>
-                        ) : (
-                            <Button
-                                intent="primary"
-                                size="lg"
-                                className="shadow-lg shadow-indigo-500/30"
-                                leftIcon={resume && hasProgress ? <LuRefreshCw className="text-xl" /> : <LuPlay className="text-xl" />}
-                                onClick={() => start({ resume: resume && hasProgress })}
-                                loading={isStarting}
-                            >
-                                {isStarting ? "Starting…" : resume && hasProgress ? "Resume" : hasProgress ? "Start over" : "Start"}
-                            </Button>
-                        )}
-                    </div>
-                    {!status?.isRunning && hasProgress && (
-                        <Switch
-                            value={resume}
-                            onValueChange={setResume}
-                            label="Continue where it left off"
-                            size="sm"
-                        />
-                    )}
-                </div>
-            </div>
-        </div>
-    )
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Progress
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-function ProgressPanel({ status }: { status: EnMasseDownloaderStatus | undefined }) {
-    const now = useNow()
-    // The torrents-first pass comes before the database: shown as its own count while it runs.
-    const torrentPass = status?.isRunning && status?.details?.phase === "torrents" && !!status?.details?.torrentTotal
-    const dbTotal = status?.totalCount || status?.details?.currentAnimeTotal || 0
-    const dbDone = status?.processedCount || 0
-    const total = torrentPass ? status!.details!.torrentTotal! : dbTotal
-    const done = torrentPass ? (status!.details!.torrentIndex || 0) : dbDone
-    const pct = total ? Math.min(100, (done / total) * 100) : 0
-
-    const started = status?.startedAt ? new Date(status.startedAt).getTime() : 0
-    const elapsed = started && status?.isRunning ? now - started : 0
-    const perHour = elapsed > 60000 && status?.processedThisRun ? (status.processedThisRun / elapsed) * 3600000 : 0
-    const remaining = perHour > 0 ? ((dbTotal - dbDone) / perHour) * 3600000 : 0
-
-    // The ring: a circle whose stroke is drawn to the share of the database done.
-    const r = 52
+    const r = 70
     const circumference = 2 * Math.PI * r
 
     return (
-        <div className="rounded-2xl border bg-[--paper] p-5 sm:p-6 flex flex-col sm:flex-row items-center gap-6" data-enmasse-progress>
-            <div className="relative size-36 flex-none">
-                <svg viewBox="0 0 120 120" className="size-full -rotate-90">
+        <div className="flex flex-col items-center gap-4 lg:pl-4">
+            <ConfirmationDialog {...confirmStop} />
+            <div className="relative size-44">
+                {running && <div className="absolute inset-4 rounded-full bg-fuchsia-500/20 blur-2xl animate-pulse" />}
+                <svg viewBox="0 0 160 160" className="relative size-full -rotate-90">
                     <defs>
                         <linearGradient id="enmasse-ring" x1="0" y1="0" x2="1" y2="1">
                             <stop offset="0%" stopColor="#818cf8" />
@@ -361,54 +467,298 @@ function ProgressPanel({ status }: { status: EnMasseDownloaderStatus | undefined
                             <stop offset="100%" stopColor="#f472b6" />
                         </linearGradient>
                     </defs>
-                    <circle cx="60" cy="60" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="10" />
+                    <circle cx="80" cy="80" r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="8" />
+                    <circle cx="80" cy="80" r={r - 12} fill="rgba(3,7,18,0.55)" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
                     <motion.circle
-                        cx="60" cy="60" r={r} fill="none" stroke="url(#enmasse-ring)" strokeWidth="10" strokeLinecap="round"
+                        cx="80" cy="80" r={r} fill="none" stroke="url(#enmasse-ring)" strokeWidth="8" strokeLinecap="round"
                         strokeDasharray={circumference}
                         initial={false}
-                        animate={{ strokeDashoffset: circumference * (1 - Math.max(pct, 0.4) / 100) }}
+                        animate={{ strokeDashoffset: circumference * (1 - Math.max(pct, 0.5) / 100) }}
                         transition={{ duration: 1, ease: "easeOut" }}
                     />
                 </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <p className="text-2xl font-bold tabular-nums leading-none">
-                        {pct.toFixed(pct < 10 ? 1 : 0)}<span className="text-sm text-[--muted]">%</span>
+                <div className="absolute inset-0 flex flex-col items-center justify-center" data-enmasse-progress>
+                    <p className="text-4xl font-bold tabular-nums leading-none tracking-tight">
+                        {pct.toFixed(pct < 10 ? 1 : 0)}<span className="text-lg text-gray-400">%</span>
                     </p>
-                    <p className="text-[10px] uppercase tracking-wider text-[--muted] mt-1">{torrentPass ? "of the torrents" : "of the database"}</p>
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-gray-400 mt-1.5">{torrentPass ? "of the torrents" : "of the database"}</p>
                 </div>
-                {status?.isRunning && <div className="absolute inset-2 rounded-full bg-fuchsia-500/10 blur-xl animate-pulse" />}
             </div>
 
-            <div className="flex-1 min-w-0 w-full space-y-4">
-                <div>
-                    <p className="text-xs uppercase tracking-wider text-[--muted]">{torrentPass ? "Torrent series checked first" : "Series checked"}</p>
-                    <p className="text-2xl font-bold tabular-nums">
-                        <AnimatedNumber value={done} /> <span className="text-base font-normal text-[--muted]">of {formatNumber(total)}</span>
-                    </p>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                    <Metric icon={<LuClock />} label="Running for" value={elapsed ? formatDuration(elapsed) : "—"} />
-                    <Metric icon={<LuGauge />} label="Pace" value={perHour ? `${perHour.toFixed(perHour < 10 ? 1 : 0)}/h` : "—"} />
-                    <Metric icon={<LuHourglass />} label="Time left" value={remaining ? formatDuration(remaining) : "—"} />
-                </div>
-                <div className="relative h-2 rounded-full bg-gray-800 overflow-hidden">
-                    <motion.div
-                        className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-pink-500"
-                        initial={false}
-                        animate={{ width: `${pct}%` }}
-                        transition={{ duration: 1, ease: "easeOut" }}
-                    />
-                </div>
+            <div className="flex flex-col items-stretch gap-2 w-full min-w-[13rem]">
+                {running ? (
+                    <div className="grid grid-cols-2 gap-2">
+                        <Button
+                            intent="warning"
+                            className="rounded-xl"
+                            leftIcon={<LuPause />}
+                            onClick={() => stop({ saveProgress: true })}
+                            loading={isStopping}
+                        >
+                            Pause
+                        </Button>
+                        <Button
+                            intent="alert-subtle"
+                            className="rounded-xl"
+                            leftIcon={<LuSquare />}
+                            onClick={() => confirmStop.open()}
+                            loading={isStopping}
+                        >
+                            Stop
+                        </Button>
+                    </div>
+                ) : (
+                    <Button
+                        intent="white"
+                        size="lg"
+                        className="rounded-xl font-semibold shadow-xl shadow-indigo-500/25"
+                        leftIcon={resume && hasProgress ? <LuRefreshCw className="text-lg" /> : <LuPlay className="text-lg" />}
+                        onClick={() => start({ resume: resume && hasProgress })}
+                        loading={isStarting}
+                    >
+                        {isStarting ? "Starting…" : resume && hasProgress ? "Resume" : hasProgress ? "Start over" : "Start"}
+                    </Button>
+                )}
+                <Button
+                    intent="gray-subtle"
+                    className="rounded-xl"
+                    leftIcon={<LuMonitorDown />}
+                    onClick={() => openDownloadQueue(true)}
+                >
+                    Download queue
+                    {!!status?.downloadQueueWaiting && <span className="ml-1.5 text-xs rounded-full bg-white/15 px-1.5 tabular-nums">
+                        {formatNumber(status.downloadQueueWaiting)}
+                    </span>}
+                </Button>
+                {!running && hasProgress && <div className="flex justify-center pt-1">
+                    <Switch value={resume} onValueChange={setResume} label="Continue where it left off" size="sm" />
+                </div>}
             </div>
         </div>
     )
 }
 
-function Metric({ icon, label, value }: { icon: React.ReactNode, label: string, value: string }) {
+function MetricsStrip({ status, progress }: { status: EnMasseDownloaderStatus | undefined, progress: ReturnType<typeof useRunProgress> }) {
+    const items = [
+        {
+            icon: <LuListVideo />,
+            label: progress.torrentPass ? "Torrent series checked" : "Series checked",
+            value: <><AnimatedNumber value={progress.done} /><span className="text-gray-500 font-normal text-sm"> / {formatNumber(progress.total)}</span></>,
+        },
+        { icon: <LuClock />, label: "Running for", value: progress.elapsed ? formatDuration(progress.elapsed) : "—" },
+        {
+            icon: <LuGauge />,
+            label: "Pace",
+            value: progress.perHour ? <>{progress.perHour.toFixed(progress.perHour < 10 ? 1 : 0)}<span className="text-gray-500 font-normal text-sm"> / hour</span></> : "—",
+        },
+        { icon: <LuHourglass />, label: "Time left", value: progress.remaining ? formatDuration(progress.remaining) : "—" },
+        { icon: <LuDownload />, label: "Waiting to download", value: <AnimatedNumber value={status?.downloadQueueWaiting ?? 0} /> },
+    ]
     return (
-        <div className="rounded-xl bg-white/[0.03] border border-white/5 px-3 py-2">
-            <p className="text-[10px] uppercase tracking-wider text-[--muted] flex items-center gap-1">{icon}{label}</p>
-            <p className="font-semibold tabular-nums mt-0.5">{value}</p>
+        <div className="relative border-t border-white/[0.08] bg-black/30 backdrop-blur-md">
+            <div className="absolute inset-x-0 top-0 h-px overflow-hidden">
+                <motion.div
+                    className="h-full bg-gradient-to-r from-indigo-400 via-fuchsia-400 to-pink-400 shadow-[0_0_12px_rgba(217,70,239,0.8)]"
+                    initial={false}
+                    animate={{ width: `${progress.pct}%` }}
+                    transition={{ duration: 1, ease: "easeOut" }}
+                />
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-white/[0.06] lg:divide-x">
+                {items.map(it => (
+                    <div key={it.label} className="px-6 py-4 sm:px-8">
+                        <p className="text-[10px] uppercase tracking-[0.16em] text-gray-400 flex items-center gap-1.5">{it.icon}{it.label}</p>
+                        <p className="text-xl font-semibold tabular-nums mt-1">{it.value}</p>
+                    </div>
+                ))}
+            </div>
+        </div>
+    )
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Just queued
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+function JustQueued({ status }: { status: EnMasseDownloaderStatus | undefined }) {
+    const posters = useRecentPosters(status, 18)
+    if (!posters.length) return null
+
+    return (
+        <div className={cn(panel, "p-5 sm:p-6 space-y-4")} data-enmasse-posters>
+            <div className="flex items-center gap-2">
+                <span className="size-8 rounded-xl bg-fuchsia-500/15 text-fuchsia-300 flex items-center justify-center"><LuZap /></span>
+                <div className="flex-1">
+                    <h3 className="font-semibold leading-tight">Just queued</h3>
+                    <p className="text-xs text-gray-400">The latest series headed for your library</p>
+                </div>
+            </div>
+            <div className="-mx-5 sm:-mx-6 px-5 sm:px-6 flex gap-3 overflow-x-auto pb-2 snap-x [scrollbar-width:thin]">
+                <AnimatePresence initial={false}>
+                    {posters.map(p => (
+                        <motion.div
+                            key={p.mediaId}
+                            layout
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            transition={{ duration: 0.4 }}
+                            className="flex-none w-28 sm:w-32 snap-start"
+                        >
+                            <SeaLink href={`/entry?id=${p.mediaId}`} className="group block space-y-2" title={p.title}>
+                                <div className="relative aspect-[2/3] overflow-hidden rounded-xl ring-1 ring-white/10 shadow-lg">
+                                    <img
+                                        src={p.image}
+                                        alt=""
+                                        loading="lazy"
+                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                                    {!!p.episodes && <span className="absolute bottom-1.5 left-1.5 rounded-md bg-black/70 backdrop-blur px-1.5 py-0.5 text-[10px] font-semibold">
+                                        {p.episodes} ep
+                                    </span>}
+                                    {p.provider === "animeheaven" && <span className="absolute top-1.5 right-1.5 rounded-md bg-sky-500/80 px-1.5 py-0.5 text-[9px] font-bold uppercase">
+                                        Backup
+                                    </span>}
+                                </div>
+                                <p className="text-xs font-medium leading-snug line-clamp-2 text-gray-200 group-hover:text-white">{p.title}</p>
+                            </SeaLink>
+                        </motion.div>
+                    ))}
+                </AnimatePresence>
+            </div>
+        </div>
+    )
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Activity
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+type FeedTab = "recent" | "queued" | "missing"
+
+const resultStyle: Record<AnimeEnMasseActivity["result"], { label: string, className: string, rail: string, icon: React.ElementType }> = {
+    queued: { label: "Queued", className: "text-emerald-300 bg-emerald-400/10 border-emerald-400/25", rail: "bg-emerald-400", icon: LuCircleCheck },
+    not_found: { label: "Not found", className: "text-amber-300 bg-amber-400/10 border-amber-400/25", rail: "bg-amber-400", icon: LuSearchX },
+    skipped: { label: "Skipped", className: "text-slate-300 bg-slate-400/10 border-slate-400/25", rail: "bg-slate-500", icon: LuSkipForward },
+}
+
+function ActivityFeed({ status }: { status: EnMasseDownloaderStatus | undefined }) {
+    const [tab, setTab] = useState<FeedTab>("recent")
+    const now = useNow(10000)
+    const recent = status?.recent ?? []
+    const queued = React.useMemo(() => [...(status?.downloadedAnime ?? [])].reverse(), [status?.downloadedAnime])
+    const missing = React.useMemo(() => [...(status?.failedAnime ?? [])].reverse(), [status?.failedAnime])
+    const list = tab === "queued" ? queued : missing
+
+    const tabs: [FeedTab, string, number | undefined][] = [
+        ["recent", "Latest", undefined],
+        ["queued", "Queued", queued.length],
+        ["missing", "Not found", missing.length],
+    ]
+
+    return (
+        <div className={cn(panel, "overflow-hidden flex flex-col")} data-enmasse-activity>
+            <div className="px-5 sm:px-6 pt-5 pb-4 flex items-center gap-3 flex-wrap">
+                <div className="flex-1">
+                    <h3 className="font-semibold leading-tight">Activity</h3>
+                    <p className="text-xs text-gray-400">Every series as it is checked</p>
+                </div>
+                <div className="relative flex rounded-xl bg-white/[0.04] border border-white/[0.06] p-1">
+                    {tabs.map(([key, label, count]) => (
+                        <button
+                            key={key}
+                            type="button"
+                            onClick={() => setTab(key)}
+                            className={cn("relative px-3 h-8 rounded-lg text-xs font-medium transition-colors",
+                                tab === key ? "text-gray-950" : "text-gray-400 hover:text-white")}
+                        >
+                            {tab === key && <motion.span
+                                layoutId="enmasse-tab"
+                                className="absolute inset-0 rounded-lg bg-white"
+                                transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
+                            />}
+                            <span className="relative">
+                                {label}{count !== undefined && <span className={cn("ml-1.5 tabular-nums", tab === key ? "text-gray-500" : "text-gray-500")}>
+                                {formatNumber(count)}
+                            </span>}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="border-t border-white/[0.06]">
+                {tab === "recent" ? (
+                    recent.length ? <Virtuoso
+                        style={{ height: "30rem" }}
+                        data={recent}
+                        computeItemKey={(i, e) => `${e.time}-${i}`}
+                        itemContent={(_i, e) => <ActivityRow entry={e} now={now} />}
+                    /> : <EmptyFeed text="Results appear here as each series is checked." />
+                ) : list.length ? (
+                    <Virtuoso
+                        style={{ height: "30rem" }}
+                        data={list}
+                        itemContent={(_i, title) => (
+                            <div className="px-5 sm:px-6 py-2.5 border-b border-white/[0.04] text-sm flex items-center gap-3">
+                                <span className={cn("size-6 rounded-lg flex items-center justify-center flex-none",
+                                    tab === "queued" ? "bg-emerald-400/10 text-emerald-300" : "bg-amber-400/10 text-amber-300")}>
+                                    {tab === "queued" ? <LuCircleCheck /> : <LuSearchX />}
+                                </span>
+                                <span className="truncate text-gray-200">{title}</span>
+                            </div>
+                        )}
+                    />
+                ) : <EmptyFeed text={tab === "queued" ? "Nothing queued yet." : "Nothing missed yet."} />}
+            </div>
+        </div>
+    )
+}
+
+const ActivityRow = React.memo(function ActivityRow({ entry: e, now }: { entry: AnimeEnMasseActivity, now: number }) {
+    const style = resultStyle[e.result] ?? resultStyle.skipped
+    // Rows newer than a few seconds slide in; older ones (scrolled back to) just appear.
+    const fresh = now - new Date(e.time).getTime() < 15000
+    return (
+        <motion.div
+            initial={fresh ? { opacity: 0, x: -12 } : false}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.35 }}
+            className="group relative px-5 sm:px-6 py-3 border-b border-white/[0.04] flex gap-4 items-center hover:bg-white/[0.025] transition-colors"
+        >
+            <span className={cn("absolute left-0 top-3 bottom-3 w-0.5 rounded-r-full opacity-60", style.rail)} />
+            <div className="w-10 h-14 rounded-lg overflow-hidden bg-gray-900 ring-1 ring-white/10 flex-none">
+                {e.image ? <img src={e.image} alt="" loading="lazy" className="w-full h-full object-cover" />
+                    : <div className="w-full h-full flex items-center justify-center text-gray-600"><LuFilm /></div>}
+            </div>
+            <div className="flex-1 min-w-0">
+                {e.mediaId && e.mediaId > 0
+                    ? <SeaLink href={`/entry?id=${e.mediaId}`} className="text-sm font-medium hover:underline line-clamp-1">{e.title}</SeaLink>
+                    : <p className="text-sm font-medium line-clamp-1">{e.title}</p>}
+                <p className="text-xs text-gray-400 line-clamp-1 mt-0.5">
+                    {e.result === "queued"
+                        ? `${formatNumber(e.episodes ?? 0)} episodes from ${providerName(e.provider) || "Kickassanime"}`
+                        : e.detail}
+                </p>
+            </div>
+            <div className="flex flex-col items-end gap-1.5 flex-none">
+                <span className={cn("text-[11px] font-semibold rounded-full border px-2 py-0.5 inline-flex items-center gap-1", style.className)}>
+                    <style.icon /> {style.label}
+                </span>
+                <span className="text-[11px] text-gray-500 tabular-nums">{timeAgo(e.time, now)}</span>
+            </div>
+        </motion.div>
+    )
+})
+
+function EmptyFeed({ text }: { text: string }) {
+    return (
+        <div className="h-[22rem] flex flex-col items-center justify-center gap-3 text-gray-400 text-sm">
+            <span className="size-14 rounded-2xl bg-white/[0.04] ring-1 ring-white/[0.06] flex items-center justify-center text-2xl text-gray-500">
+                <LuListVideo />
+            </span>
+            {text}
         </div>
     )
 }
@@ -429,25 +779,28 @@ function DownloadingNow() {
         <button
             type="button"
             onClick={() => openDownloadQueue(true)}
-            className="group relative overflow-hidden rounded-2xl border bg-[--paper] p-5 text-left transition-colors hover:border-white/20"
+            className={cn(panel, "group relative w-full overflow-hidden p-5 sm:p-6 text-left transition-all hover:border-white/15 hover:-translate-y-0.5")}
             data-enmasse-downloading
         >
             {!!running?.image && <div
-                className="absolute inset-0 bg-cover bg-center opacity-15 blur-xl scale-110"
+                className="absolute inset-0 bg-cover bg-center opacity-25 blur-2xl scale-125 saturate-150"
                 style={{ backgroundImage: `url(${running.image})` }}
             />}
-            <div className="absolute inset-0 bg-gradient-to-br from-gray-950/60 to-gray-950/90" />
+            <div className="absolute inset-0 bg-gradient-to-b from-gray-950/40 to-gray-950/90" />
             <div className="relative space-y-4">
                 <div className="flex items-center gap-2">
-                    <span className={cn("size-2 rounded-full", running ? "bg-emerald-400 animate-pulse" : "bg-gray-600")} />
-                    <p className="text-xs uppercase tracking-wider text-[--muted] flex-1">Downloading now</p>
-                    <span className="text-xs text-[--muted] group-hover:text-white transition-colors">Open queue →</span>
+                    <span className="relative flex size-2">
+                        {running && <span className="absolute inline-flex size-full rounded-full bg-emerald-400 opacity-75 animate-ping" />}
+                        <span className={cn("relative inline-flex size-2 rounded-full", running ? "bg-emerald-400" : "bg-gray-600")} />
+                    </span>
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-gray-400 flex-1">Downloading now</p>
+                    <LuArrowUpRight className="text-gray-500 group-hover:text-white transition-colors" />
                 </div>
                 {running ? (
-                    <div className="flex gap-3">
-                        {!!running.image && <img src={running.image} alt="" className="w-12 h-16 rounded-lg object-cover ring-1 ring-white/10 flex-none" />}
+                    <div className="flex gap-4">
+                        {!!running.image && <img src={running.image} alt="" className="w-14 h-20 rounded-lg object-cover ring-1 ring-white/15 shadow-lg flex-none" />}
                         <div className="min-w-0 flex-1 space-y-2">
-                            <p className="font-semibold line-clamp-1">{running.title}</p>
+                            <p className="font-semibold leading-snug line-clamp-2">{running.title}</p>
                             <p className="text-xs text-gray-300">
                                 Episode {running.episodeNumber}
                                 {running.status === "downloading" ? ` · ${pct}%` : running.status === "muxing" ? " · building the MKV" : ""}
@@ -465,19 +818,19 @@ function DownloadingNow() {
                         </div>
                     </div>
                 ) : (
-                    <p className="text-sm text-[--muted]">
+                    <p className="text-sm text-gray-400">
                         {counts?.queued ? `${formatNumber(counts.queued)} episodes waiting` : "Nothing downloading right now."}
                     </p>
                 )}
                 {!!counts && <div className="grid grid-cols-3 gap-2 text-center">
-                    {[
+                    {([
                         ["Waiting", counts.queued, "text-sky-300"],
                         ["Done", counts.completed, "text-emerald-300"],
-                        ["Failed", counts.failed, counts.failed ? "text-amber-300" : "text-[--muted]"],
-                    ].map(([label, value, tone]) => (
-                        <div key={label as string} className="rounded-lg bg-white/[0.04] py-1.5">
-                            <AnimatedNumber value={value as number} className={cn("text-lg font-bold tabular-nums", tone as string)} />
-                            <p className="text-[10px] uppercase tracking-wider text-[--muted]">{label as string}</p>
+                        ["Failed", counts.failed, counts.failed ? "text-amber-300" : "text-gray-500"],
+                    ] as [string, number, string][]).map(([label, value, tone]) => (
+                        <div key={label} className="rounded-xl bg-white/[0.04] ring-1 ring-white/[0.05] py-2">
+                            <AnimatedNumber value={value} className={cn("text-lg font-bold tabular-nums", tone)} />
+                            <p className="text-[10px] uppercase tracking-wider text-gray-500">{label}</p>
                         </div>
                     ))}
                 </div>}
@@ -487,316 +840,54 @@ function DownloadingNow() {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Stats
+// Totals
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-function StatTiles({ status }: { status: EnMasseDownloaderStatus | undefined }) {
+function Totals({ status }: { status: EnMasseDownloaderStatus | undefined }) {
     const d = status?.details
-    const tiles = [
-        { label: "Series queued", value: status?.downloadedAnime?.length ?? 0, icon: LuCircleCheck, bg: "from-emerald-500/25", fg: "text-emerald-300" },
-        { label: "Episodes queued", value: d?.episodesQueued ?? 0, icon: LuListVideo, bg: "from-indigo-500/25", fg: "text-indigo-300" },
-        { label: "Not found online", value: status?.failedAnime?.length ?? 0, icon: LuSearchX, bg: "from-amber-500/25", fg: "text-amber-300" },
-        { label: "Skipped", value: d?.skippedCount ?? 0, icon: LuSkipForward, bg: "from-slate-500/25", fg: "text-slate-300" },
-        { label: "Waiting to download", value: status?.downloadQueueWaiting ?? 0, icon: LuDownload, bg: "from-sky-500/25", fg: "text-sky-300" },
+    const queued = status?.downloadedAnime?.length ?? 0
+    const missing = status?.failedAnime?.length ?? 0
+    const skipped = d?.skippedCount ?? 0
+    const outcomes = queued + missing + skipped
+    const rows = [
+        { label: "Series queued", value: queued, icon: LuCircleCheck, tone: "text-emerald-300", bar: "bg-emerald-400", share: queued },
+        { label: "Not found online", value: missing, icon: LuSearchX, tone: "text-amber-300", bar: "bg-amber-400", share: missing },
+        { label: "Skipped", value: skipped, icon: LuSkipForward, tone: "text-slate-300", bar: "bg-slate-400", share: skipped },
     ]
-    return (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3" data-enmasse-stats>
-            {tiles.map((t, i) => (
-                <motion.div
-                    key={t.label}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.05, duration: 0.4 }}
-                    whileHover={{ y: -2 }}
-                    className={cn("relative overflow-hidden rounded-xl border bg-gray-950/55 bg-gradient-to-br to-transparent p-4 backdrop-blur-3xl", t.bg)}
-                >
-                    <t.icon className={cn("absolute -right-2 -bottom-3 text-6xl opacity-15", t.fg)} />
-                    <AnimatedNumber value={t.value} className={cn("text-2xl font-bold tabular-nums", t.fg)} />
-                    <p className="text-xs text-gray-300 mt-0.5">{t.label}</p>
-                </motion.div>
-            ))}
-        </div>
-    )
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Now
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-function NowCard({ status }: { status: EnMasseDownloaderStatus | undefined }) {
-    const d = status?.details
-    const step = pipelineIndex(d?.phase)
-    const active = !!status?.isRunning && !!status?.currentAnime
 
     return (
-        <div className="rounded-2xl border bg-[--paper] overflow-hidden" data-enmasse-now>
-            <div className="px-5 pt-5 pb-3 flex items-center gap-2">
-                <h3 className="text-lg font-semibold flex-1">Now</h3>
-                {d?.phase === "torrents" && <span className="text-xs rounded-full border border-fuchsia-400/40 bg-fuchsia-400/10 text-fuchsia-200 px-2 py-0.5">
-                    Replacing a torrent
-                </span>}
-            </div>
-
-            {!active ? (
-                <div className="px-5 pb-6 pt-2 text-center space-y-2">
-                    <div className="mx-auto size-14 rounded-2xl bg-white/5 flex items-center justify-center text-2xl text-[--muted]"><LuSearch /></div>
-                    <p className="text-[--muted] text-sm">
-                        {runState(status) === "completed" ? "Every series in the database has been checked." : "Start a run to see what it's working on."}
-                    </p>
-                </div>
-            ) : (
-                <div className="px-5 pb-5 space-y-5">
-                    <div className="flex gap-4">
-                        <div className="w-20 h-28 rounded-lg overflow-hidden bg-gray-900 border flex-none shadow-lg">
-                            {status?.currentImage
-                                ? <img src={status.currentImage} alt="" className="w-full h-full object-cover" />
-                                : <div className="w-full h-full flex items-center justify-center text-2xl text-[--muted]"><LuFilm /></div>}
-                        </div>
-                        <div className="min-w-0 space-y-1">
-                            {status?.currentAnimeId && status.currentAnimeId > 0
-                                ? <SeaLink href={`/entry?id=${status.currentAnimeId}`} className="text-lg font-bold leading-snug hover:underline line-clamp-2">
-                                    {status.currentAnime}
-                                </SeaLink>
-                                : <p className="text-lg font-bold leading-snug line-clamp-2">{status?.currentAnime}</p>}
-                            <p className="text-sm text-[--muted]">
-                                #{formatNumber(d?.currentAnimeIndex || status?.processedCount || 0)}
-                                {d?.expectedEpisodes ? ` · ${d.expectedEpisodes} episodes` : ""}
-                            </p>
-                            <p className="text-sm text-gray-300 line-clamp-2">{d?.step}</p>
-                        </div>
-                    </div>
-
-                    {/* Pipeline */}
-                    <div className="grid grid-cols-4 gap-1.5">
-                        {PIPELINE.map((p, i) => {
-                            const state = step < 0 ? "todo" : i < step ? "done" : i === step ? "now" : "todo"
-                            return (
-                                <div key={p.key} className="space-y-1.5">
-                                    <div className={cn("h-1.5 rounded-full",
-                                        state === "done" && "bg-emerald-400/70",
-                                        state === "now" && "bg-gradient-to-r from-indigo-400 to-fuchsia-400 animate-pulse",
-                                        state === "todo" && "bg-gray-800")} />
-                                    <p className={cn("text-xs flex items-center gap-1",
-                                        state === "now" ? "text-white font-semibold" : state === "done" ? "text-emerald-300" : "text-[--muted]")}>
-                                        <p.icon className="flex-none" /> {p.label}
-                                    </p>
-                                </div>
-                            )
-                        })}
-                    </div>
-
-                    {d?.phase === "waiting" ? (
-                        <div className="rounded-xl border border-sky-400/30 bg-sky-400/10 p-3 text-sm text-sky-100 flex gap-2">
-                            <LuHourglass className="flex-none mt-0.5" />
-                            Pausing the search while {formatNumber(status?.downloadQueueWaiting ?? 0)} episodes download, so it never runs far ahead.
-                        </div>
-                    ) : (
-                        <div className="space-y-2 text-sm">
-                            <Row label="Spelling">
-                                {d?.variantsTotal ? (
-                                    <span className="inline-flex items-center gap-2 min-w-0">
-                                        <span className="text-[--muted] tabular-nums flex-none">{d.variantIndex}/{d.variantsTotal}</span>
-                                        <span className="truncate rounded-md bg-white/5 border px-2 py-0.5 font-mono text-xs">{d.currentQuery || "—"}</span>
-                                    </span>
-                                ) : "—"}
-                            </Row>
-                            <Row label="Close matches">{formatNumber(d?.torrentsCollected ?? 0)}</Row>
-                            <Row label="Matched to">
-                                {d?.selectedTorrent
-                                    ? <span className="text-emerald-300 truncate">{d.selectedTorrent}</span>
-                                    : <span className="text-[--muted]">—</span>}
-                            </Row>
-                        </div>
-                    )}
-
-                    {!!d?.lastError && <p className="text-xs text-amber-300/90 flex gap-1.5"><LuTriangleAlert className="flex-none mt-0.5" />{d.lastError}</p>}
-                </div>
-            )}
-        </div>
-    )
-}
-
-function Row({ label, children }: { label: string, children: React.ReactNode }) {
-    return (
-        <div className="flex items-center gap-3 min-w-0">
-            <span className="w-28 flex-none text-[--muted]">{label}</span>
-            <span className="min-w-0 flex-1 flex">{children}</span>
-        </div>
-    )
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Activity
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-type FeedTab = "recent" | "queued" | "missing"
-
-const resultStyle: Record<AnimeEnMasseActivity["result"], { label: string, className: string, icon: React.ElementType }> = {
-    queued: { label: "Queued", className: "text-emerald-300 bg-emerald-400/10 border-emerald-400/30", icon: LuCircleCheck },
-    not_found: { label: "Not found", className: "text-amber-300 bg-amber-400/10 border-amber-400/30", icon: LuSearchX },
-    skipped: { label: "Skipped", className: "text-slate-300 bg-slate-400/10 border-slate-400/30", icon: LuSkipForward },
-}
-
-function ActivityFeed({ status }: { status: EnMasseDownloaderStatus | undefined }) {
-    const [tab, setTab] = useState<FeedTab>("recent")
-    const now = useNow(10000)
-    const recent = status?.recent ?? []
-    const queued = React.useMemo(() => [...(status?.downloadedAnime ?? [])].reverse(), [status?.downloadedAnime])
-    const missing = React.useMemo(() => [...(status?.failedAnime ?? [])].reverse(), [status?.failedAnime])
-    const list = tab === "queued" ? queued : missing
-
-    return (
-        <div className="rounded-2xl border bg-[--paper] overflow-hidden flex flex-col" data-enmasse-activity>
-            <div className="px-5 pt-5 pb-3 flex items-center gap-2 flex-wrap">
-                <h3 className="text-lg font-semibold flex-1">Activity</h3>
-                <div className="flex gap-1 rounded-full bg-white/5 p-1">
-                    {([
-                        ["recent", "Latest"],
-                        ["queued", `Queued · ${formatNumber(queued.length)}`],
-                        ["missing", `Not found · ${formatNumber(missing.length)}`],
-                    ] as [FeedTab, string][]).map(([key, label]) => (
-                        <button
-                            key={key}
-                            type="button"
-                            onClick={() => setTab(key)}
-                            className={cn("px-3 h-7 rounded-full text-xs font-medium transition-colors",
-                                tab === key ? "bg-white text-gray-950" : "text-[--muted] hover:text-white")}
-                        >
-                            {label}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            <div className="flex-1 min-h-[22rem]">
-                {tab === "recent" ? (
-                    recent.length ? <Virtuoso
-                        style={{ height: "26rem" }}
-                        data={recent}
-                        computeItemKey={(i, e) => `${e.time}-${i}`}
-                        itemContent={(_i, e) => <ActivityRow entry={e} now={now} />}
-                    /> : <EmptyFeed text="Results appear here as each series is checked." />
-                ) : list.length ? (
-                    <Virtuoso
-                        style={{ height: "26rem" }}
-                        data={list}
-                        itemContent={(_i, title) => (
-                            <div className="px-5 py-2 border-t border-white/5 text-sm flex items-center gap-2">
-                                {tab === "queued"
-                                    ? <LuCircleCheck className="text-emerald-400 flex-none" />
-                                    : <LuSearchX className="text-amber-400 flex-none" />}
-                                <span className="truncate">{title}</span>
-                            </div>
-                        )}
+        <div className={cn(panel, "p-5 sm:p-6 space-y-5")} data-enmasse-stats>
+            <div className="flex items-end justify-between gap-3">
+                <div>
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-gray-400">Episodes queued</p>
+                    <AnimatedNumber
+                        value={d?.episodesQueued ?? 0}
+                        className="text-4xl font-bold tabular-nums tracking-tight bg-gradient-to-r from-indigo-200 via-fuchsia-200 to-pink-200 bg-clip-text text-transparent"
                     />
-                ) : <EmptyFeed text={tab === "queued" ? "Nothing queued yet." : "Nothing missed yet."} />}
+                </div>
+                <span className="size-10 rounded-2xl bg-indigo-500/15 text-indigo-300 flex items-center justify-center text-lg"><LuListVideo /></span>
             </div>
-        </div>
-    )
-}
 
-const ActivityRow = React.memo(function ActivityRow({ entry: e, now }: { entry: AnimeEnMasseActivity, now: number }) {
-    const style = resultStyle[e.result] ?? resultStyle.skipped
-    // Rows newer than a few seconds slide in; older ones (scrolled back to) just appear.
-    const fresh = now - new Date(e.time).getTime() < 15000
-    return (
-        <motion.div
-            initial={fresh ? { opacity: 0, x: -12 } : false}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.35 }}
-            className="px-5 py-3 border-t border-white/5 flex gap-3 items-center hover:bg-white/[0.03] transition-colors"
-        >
-            <div className="w-9 h-12 rounded-md overflow-hidden bg-gray-900 border flex-none">
-                {e.image ? <img src={e.image} alt="" loading="lazy" className="w-full h-full object-cover" />
-                    : <div className="w-full h-full flex items-center justify-center text-[--muted]"><LuFilm /></div>}
+            {/* The outcome of every series checked, as one bar. */}
+            <div className="flex h-2 rounded-full overflow-hidden bg-white/[0.06]">
+                {outcomes > 0 && rows.map(r => r.share > 0 && <motion.div
+                    key={r.label}
+                    className={cn("h-full", r.bar)}
+                    initial={false}
+                    animate={{ width: `${(r.share / outcomes) * 100}%` }}
+                    transition={{ duration: 0.8 }}
+                />)}
             </div>
-            <div className="flex-1 min-w-0">
-                {e.mediaId && e.mediaId > 0
-                    ? <SeaLink href={`/entry?id=${e.mediaId}`} className="text-sm font-medium hover:underline line-clamp-1">{e.title}</SeaLink>
-                    : <p className="text-sm font-medium line-clamp-1">{e.title}</p>}
-                <p className="text-xs text-[--muted] line-clamp-1">
-                    {e.result === "queued"
-                        ? `${formatNumber(e.episodes ?? 0)} episodes queued from ${e.provider === "animeheaven" ? "AnimeHeaven" : "Kickassanime"}`
-                        : e.detail}
-                </p>
-            </div>
-            <div className="flex flex-col items-end gap-1 flex-none">
-                <span className={cn("text-[11px] font-semibold rounded-full border px-2 py-0.5 inline-flex items-center gap-1", style.className)}>
-                    <style.icon /> {style.label}
-                </span>
-                <span className="text-[11px] text-[--muted]">{timeAgo(e.time, now)}</span>
-            </div>
-        </motion.div>
-    )
-})
 
-function EmptyFeed({ text }: { text: string }) {
-    return (
-        <div className="h-[22rem] flex flex-col items-center justify-center gap-2 text-[--muted] text-sm">
-            <LuListVideo className="text-3xl opacity-60" />
-            {text}
-        </div>
-    )
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Poster wall
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/** The covers of the series most recently queued: the run's results at a glance. */
-function PosterWall({ status }: { status: EnMasseDownloaderStatus | undefined }) {
-    const posters = React.useMemo(() => {
-        const seen = new Set<number>()
-        const out: AnimeEnMasseActivity[] = []
-        for (const e of status?.recent ?? []) {
-            if (e.result !== "queued" || !e.image || !e.mediaId || seen.has(e.mediaId)) continue
-            seen.add(e.mediaId)
-            out.push(e)
-            if (out.length >= 16) break
-        }
-        return out
-    }, [status?.recent])
-
-    if (!posters.length) return null
-
-    return (
-        <div className="rounded-2xl border bg-[--paper] p-5 space-y-4" data-enmasse-posters>
-            <div className="flex items-center gap-2">
-                <LuZap className="text-fuchsia-300" />
-                <h3 className="text-lg font-semibold flex-1">Just queued</h3>
-                <span className="text-xs text-[--muted]">Latest {posters.length}</span>
-            </div>
-            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
-                <AnimatePresence initial={false}>
-                    {posters.map(p => (
-                        <motion.div
-                            key={p.mediaId}
-                            layout
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.9 }}
-                            transition={{ duration: 0.4 }}
-                        >
-                            <SeaLink href={`/entry?id=${p.mediaId}`} className="group block" title={p.title}>
-                                <div className="relative aspect-[2/3] overflow-hidden rounded-lg ring-1 ring-white/10">
-                                    <img
-                                        src={p.image}
-                                        alt=""
-                                        loading="lazy"
-                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                                    />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    {!!p.episodes && <span className="absolute top-1.5 right-1.5 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold">
-                                        {p.episodes} ep
-                                    </span>}
-                                    <p className="absolute inset-x-1.5 bottom-1.5 text-[11px] font-medium leading-tight line-clamp-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        {p.title}
-                                    </p>
-                                </div>
-                            </SeaLink>
-                        </motion.div>
-                    ))}
-                </AnimatePresence>
+            <div className="space-y-1">
+                {rows.map(r => (
+                    <div key={r.label} className="flex items-center gap-3 rounded-xl px-2 py-2 -mx-2 hover:bg-white/[0.03] transition-colors">
+                        <span className={cn("size-8 rounded-xl bg-white/[0.04] flex items-center justify-center flex-none", r.tone)}><r.icon /></span>
+                        <span className="flex-1 text-sm text-gray-300">{r.label}</span>
+                        <span className="text-xs text-gray-500 tabular-nums">{outcomes ? `${Math.round((r.share / outcomes) * 100)}%` : ""}</span>
+                        <AnimatedNumber value={r.value} className={cn("w-16 text-right font-semibold tabular-nums", r.tone)} />
+                    </div>
+                ))}
             </div>
         </div>
     )
@@ -806,53 +897,66 @@ function PosterWall({ status }: { status: EnMasseDownloaderStatus | undefined })
 // How it works
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+const HOW_IT_WORKS = [
+    {
+        title: "Torrents first",
+        text: "Series still downloading as torrents are tried first, on Kickassanime only. If Kickassanime has one, its torrent is paused and the series downloads online; once the episodes are in your library the torrent and its files are removed, and if the online download fails the torrent resumes. AnimeHeaven, the backup, only replaces a torrent that has been stalled for 15 minutes or more (no download, no seeders).",
+    },
+    {
+        title: "Skip what you have",
+        text: "Series already in your library or already downloading are skipped, along with adult entries, series that haven't aired, and anything without an AniList entry.",
+    },
+    {
+        title: "Search every spelling",
+        text: "Kickassanime is searched under the English and romaji titles, every synonym, and other spellings: season wording, punctuation, accents, '&' and 'and', and the franchise name. If it doesn't have the series, AnimeHeaven is searched the same way as the backup.",
+    },
+    {
+        title: "Verify the match",
+        text: "A result must closely match one of the series' titles, and its episode list must fit the series, so a movie isn't mistaken for the TV series or a sequel for the original.",
+    },
+    {
+        title: "Queue and match",
+        text: "The whole series goes into the Anime Downloads queue: best quality, Japanese audio first with the English dub when there is one, soft subtitles, filed in your library and matched automatically.",
+    },
+    {
+        title: "Gentle on the site",
+        text: "At least 8 seconds between searches and 30 seconds per series, a 15-second pause between episode downloads, and no new searches while 10 or more series are waiting. Pause keeps your place, and a run the server restart interrupted picks itself back up.",
+    },
+]
+
 function HowItWorks() {
-    const [open, setOpen] = useState(false)
-    const steps = [
-        {
-            title: "Torrents first",
-            text: "Series still downloading as torrents are tried first, on Kickassanime only. If Kickassanime has one, its torrent is paused and the series downloads online; once the episodes are in your library the torrent and its files are removed, and if the online download fails the torrent resumes. AnimeHeaven, the backup, only replaces a torrent that has been stalled for 15 minutes or more (no download, no seeders).",
-        },
-        {
-            title: "Skip what you have",
-            text: "Series already in your library or already downloading are skipped, along with adult entries, series that haven't aired, and anything without an AniList entry.",
-        },
-        {
-            title: "Search every spelling",
-            text: "Kickassanime is searched under the English and romaji titles, every synonym, and other spellings: season wording, punctuation, accents, '&' and 'and', and the franchise name. If it doesn't have the series, AnimeHeaven is searched the same way as the backup.",
-        },
-        {
-            title: "Verify the match",
-            text: "A result must closely match one of the series' titles, and its episode list must fit the series, so a movie isn't mistaken for the TV series or a sequel for the original.",
-        },
-        {
-            title: "Queue and match",
-            text: "The whole series goes into the Anime Downloads queue: best quality, Japanese audio first with the English dub when there is one, soft subtitles, filed in your library and matched automatically.",
-        },
-        {
-            title: "Gentle on the site",
-            text: "At least 8 seconds between searches and 30 seconds per series, a 15-second pause between episode downloads, and no new searches while 10 or more series are waiting. Pause keeps your place.",
-        },
-    ]
+    const [open, setOpen] = useState<number | null>(null)
     return (
-        <div className="rounded-2xl border bg-[--paper]" data-enmasse-how>
-            <button type="button" onClick={() => setOpen(o => !o)} className="w-full px-5 py-4 flex items-center gap-2 text-left">
-                <h3 className="text-lg font-semibold flex-1">How it works</h3>
-                <LuChevronDown className={cn("transition-transform", open && "rotate-180")} />
-            </button>
-            {open && <ol className="px-5 pb-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                {steps.map((s, i) => (
-                    <li key={s.title} className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-1.5">
-                        <p className="text-sm font-semibold flex items-center gap-2">
-                            <span
-                                className="size-6 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white text-xs flex items-center justify-center flex-none"
-                            >{i + 1}</span>
-                            {s.title}
-                        </p>
-                        <p className="text-sm text-[--muted]">{s.text}</p>
+        <div className={cn(panel, "p-5 sm:p-6 space-y-3")} data-enmasse-how>
+            <h3 className="font-semibold">How it works</h3>
+            <ol className="space-y-1">
+                {HOW_IT_WORKS.map((s, i) => (
+                    <li key={s.title}>
+                        <button
+                            type="button"
+                            onClick={() => setOpen(o => o === i ? null : i)}
+                            className="w-full flex items-center gap-3 rounded-xl px-2 py-2 -mx-2 text-left hover:bg-white/[0.03] transition-colors"
+                        >
+                            <span className="size-6 rounded-lg bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white text-[11px] font-bold flex items-center justify-center flex-none">
+                                {i + 1}
+                            </span>
+                            <span className="flex-1 text-sm font-medium">{s.title}</span>
+                            <LuChevronDown className={cn("text-gray-500 transition-transform", open === i && "rotate-180")} />
+                        </button>
+                        <AnimatePresence initial={false}>
+                            {open === i && <motion.p
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.25 }}
+                                className="overflow-hidden pl-9 pr-1 text-sm text-gray-400 leading-relaxed"
+                            >
+                                <span className="block pb-2">{s.text}</span>
+                            </motion.p>}
+                        </AnimatePresence>
                     </li>
                 ))}
-            </ol>}
+            </ol>
         </div>
     )
 }
