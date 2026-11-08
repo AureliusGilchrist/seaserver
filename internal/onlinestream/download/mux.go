@@ -11,14 +11,23 @@ import (
 )
 
 type muxInput struct {
-	VideoPath     string // local HLS playlist or MP4 file
-	VideoHLS      bool
-	AudioPath     string // optional separate audio rendition playlist
-	Subtitles     []*downloadedSubtitle
-	DefaultSub    int
-	AudioLanguage string
-	Title         string
-	OutputPath    string
+	VideoPath  string // local HLS playlist or MP4 file
+	VideoHLS   bool
+	Audio      []*muxAudio // in the order they go in the file; the first is the default
+	Subtitles  []*downloadedSubtitle
+	DefaultSub int
+	Title      string
+	OutputPath string
+}
+
+// muxAudio is one audio track of the output.
+type muxAudio struct {
+	// Path is the input file the track comes from. Empty means the audio of the video input.
+	Path     string
+	HLS      bool
+	Language string
+	Title    string
+	Default  bool
 }
 
 // convertSubtitleToASS turns a VTT/SRT/ASS file into ASS. Doing this per track, before the mux,
@@ -44,7 +53,7 @@ func convertSubtitleToASS(ctx context.Context, ffmpegPath string, inPath string,
 	return nil
 }
 
-// mux copies the video and audio into one Matroska file and adds every subtitle the stream
+// mux copies the video and every audio track into one Matroska file and adds every subtitle the stream
 // served as a soft ASS track. Nothing is re-encoded except the subtitles, which are text.
 func mux(ctx context.Context, ffmpegPath string, in *muxInput) error {
 	args := []string{"-hide_banner", "-nostdin", "-y", "-loglevel", "error"}
@@ -56,13 +65,28 @@ func mux(ctx context.Context, ffmpegPath string, in *muxInput) error {
 	}
 	args = append(args, "-i", in.VideoPath)
 	nextInput := 1
-	audioInput := -1
-	if in.AudioPath != "" {
-		args = append(args, hlsFlags...)
-		args = append(args, "-i", in.AudioPath)
-		audioInput = nextInput
-		nextInput++
+
+	// One input per distinct audio file; the video input supplies its own audio.
+	inputOf := map[string]int{}
+	audioMaps := make([]string, 0, len(in.Audio))
+	for _, a := range in.Audio {
+		if a.Path == "" || a.Path == in.VideoPath {
+			audioMaps = append(audioMaps, "0:a:0")
+			continue
+		}
+		idx, ok := inputOf[a.Path]
+		if !ok {
+			if a.HLS {
+				args = append(args, hlsFlags...)
+			}
+			args = append(args, "-i", a.Path)
+			idx = nextInput
+			inputOf[a.Path] = idx
+			nextInput++
+		}
+		audioMaps = append(audioMaps, fmt.Sprintf("%d:a:0", idx))
 	}
+
 	subInputs := make([]int, len(in.Subtitles))
 	for i, s := range in.Subtitles {
 		args = append(args, "-i", s.Path)
@@ -71,10 +95,11 @@ func mux(ctx context.Context, ffmpegPath string, in *muxInput) error {
 	}
 
 	args = append(args, "-map", "0:v:0")
-	if audioInput >= 0 {
-		args = append(args, "-map", fmt.Sprintf("%d:a:0", audioInput))
-	} else {
+	if len(audioMaps) == 0 {
 		args = append(args, "-map", "0:a?")
+	}
+	for _, m := range audioMaps {
+		args = append(args, "-map", m)
 	}
 	for _, idx := range subInputs {
 		args = append(args, "-map", fmt.Sprintf("%d:s:0", idx))
@@ -89,8 +114,18 @@ func mux(ctx context.Context, ffmpegPath string, in *muxInput) error {
 	if in.Title != "" {
 		args = append(args, "-metadata", "title="+in.Title)
 	}
-	if in.AudioLanguage != "" {
-		args = append(args, "-metadata:s:a", "language="+in.AudioLanguage)
+	for i, a := range in.Audio {
+		if a.Language != "" {
+			args = append(args, fmt.Sprintf("-metadata:s:a:%d", i), "language="+a.Language)
+		}
+		if t := audioTitle(a); t != "" {
+			args = append(args, fmt.Sprintf("-metadata:s:a:%d", i), "title="+t)
+		}
+		disp := "0"
+		if a.Default {
+			disp = "default"
+		}
+		args = append(args, fmt.Sprintf("-disposition:a:%d", i), disp)
 	}
 	for i, s := range in.Subtitles {
 		args = append(args, fmt.Sprintf("-metadata:s:s:%d", i), "language="+s.Language)

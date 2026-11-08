@@ -34,6 +34,10 @@ export type OnlinestreamDownload_Item = {
     image?: string
     banner?: string
     status: OnlinestreamDownload_Status
+    /** The stream being downloaded: "Japanese", then "English dub" for dual audio */
+    phase?: string
+    /** Audio languages of the file, in order (Japanese first) */
+    audioTracks?: string[]
     /** 0..1 within the current status */
     progress: number
     segmentsDone: number

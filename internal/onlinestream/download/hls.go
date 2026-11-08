@@ -131,6 +131,8 @@ func pickVariant(variants []*hlsVariant, quality string) *hlsVariant {
 // localPlaylist is a media playlist rewritten to point at files downloaded into a directory.
 type localPlaylist struct {
 	Path string
+	// Duration is the sum of the segment durations, in seconds.
+	Duration float64
 }
 
 type hlsResource struct {
@@ -169,6 +171,7 @@ func (d *downloader) downloadMediaPlaylist(ctx context.Context, playlistURL stri
 		pendingRange       = false
 		rangeLen, rangeOff int64
 		lastRangeEnd       = make(map[string]int64)
+		duration           float64
 	)
 
 	parseRange := func(spec string, uri string) (int64, int64) {
@@ -241,6 +244,12 @@ func (d *downloader) downloadMediaPlaylist(ctx context.Context, playlistURL stri
 			if len(parts) == 2 {
 				rangeOff, _ = strconv.ParseInt(strings.TrimSpace(parts[1]), 10, 64)
 			}
+		case strings.HasPrefix(line, "#EXTINF:"):
+			spec := strings.SplitN(strings.TrimPrefix(line, "#EXTINF:"), ",", 2)[0]
+			if v, err := strconv.ParseFloat(strings.TrimSpace(spec), 64); err == nil {
+				duration += v
+			}
+			out.WriteString(line + "\n")
 		case strings.HasPrefix(line, "#"):
 			out.WriteString(line + "\n")
 		default:
@@ -296,7 +305,7 @@ func (d *downloader) downloadMediaPlaylist(ctx context.Context, playlistURL stri
 	if err := os.WriteFile(path, []byte(out.String()), 0o644); err != nil {
 		return nil, err
 	}
-	return &localPlaylist{Path: path}, nil
+	return &localPlaylist{Path: path, Duration: duration}, nil
 }
 
 func stripQuery(raw string) string {

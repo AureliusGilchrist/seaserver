@@ -60,18 +60,22 @@ type Request struct {
 
 // Item is one download in the queue as the client sees it.
 type Item struct {
-	ID            string     `json:"id"`
-	MediaId       int        `json:"mediaId"`
-	EpisodeNumber int        `json:"episodeNumber"`
-	EpisodeTitle  string     `json:"episodeTitle,omitempty"`
-	Provider      string     `json:"provider"`
-	Server        string     `json:"server,omitempty"`
-	Quality       string     `json:"quality,omitempty"`
-	Dubbed        bool       `json:"dubbed"`
-	Title         string     `json:"title"`
-	Image         string     `json:"image,omitempty"`
-	Banner        string     `json:"banner,omitempty"`
-	Status        Status     `json:"status"`
+	ID            string `json:"id"`
+	MediaId       int    `json:"mediaId"`
+	EpisodeNumber int    `json:"episodeNumber"`
+	EpisodeTitle  string `json:"episodeTitle,omitempty"`
+	Provider      string `json:"provider"`
+	Server        string `json:"server,omitempty"`
+	Quality       string `json:"quality,omitempty"`
+	Dubbed        bool   `json:"dubbed"`
+	Title         string `json:"title"`
+	Image         string `json:"image,omitempty"`
+	Banner        string `json:"banner,omitempty"`
+	Status        Status `json:"status"`
+	// Phase names the stream being downloaded: "Japanese", then "English dub" for dual audio.
+	Phase string `json:"phase,omitempty"`
+	// AudioTracks lists the file audio languages in order, Japanese first.
+	AudioTracks   []string   `json:"audioTracks,omitempty"`
 	Progress      float64    `json:"progress"` // 0..1 within the current status
 	SegmentsDone  int        `json:"segmentsDone"`
 	SegmentsTotal int        `json:"segmentsTotal"`
@@ -93,6 +97,7 @@ type Item struct {
 	// stopping marks a cancel that comes from Stop: the item goes back to the queue and keeps its
 	// downloaded segments, instead of ending as cancelled.
 	stopping   bool
+	bytesBase  int64 // bytes of the streams already done in this download (the Japanese one, during the dub)
 	rateAt     time.Time
 	rateBytes  int64
 	downloadAt time.Time
@@ -137,7 +142,9 @@ type NewManagerOptions struct {
 	Destination func(media *anilist.BaseAnime, episode int) (dir string, name string)
 	// FfmpegPath returns the ffmpeg binary to use.
 	FfmpegPath func() string
-	Register   RegisterFunc
+	// FfprobePath returns the ffprobe binary to use.
+	FfprobePath func() string
+	Register    RegisterFunc
 }
 
 type Manager struct {
@@ -762,6 +769,8 @@ func (m *Manager) run(it *Item) {
 	it.Attempts++
 	it.StartedAt = &now
 	it.downloadAt = time.Time{}
+	it.bytesBase = 0
+	it.Phase = ""
 	m.mu.Unlock()
 	m.changed()
 

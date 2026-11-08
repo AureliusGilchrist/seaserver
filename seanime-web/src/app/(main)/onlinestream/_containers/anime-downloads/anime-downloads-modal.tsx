@@ -58,6 +58,17 @@ export function formatDownloadBytes(n: number) {
     return `${Math.round(n / 1024)} KB`
 }
 
+const audioNames: Record<string, string> = {
+    jpn: "Japanese", eng: "English", spa: "Spanish", por: "Portuguese", fre: "French", ger: "German", ita: "Italian",
+    rus: "Russian", ara: "Arabic", chi: "Chinese", kor: "Korean", hin: "Hindi",
+}
+
+/** "Japanese + English audio" */
+function formatAudioTracks(tracks: string[]) {
+    const names = tracks.map(t => audioNames[t] ?? t.toUpperCase())
+    return `${names.join(" + ")} audio`
+}
+
 function formatSpeed(bps: number) {
     if (!bps || bps <= 0) return "—"
     return `${formatDownloadBytes(bps)}/s`
@@ -408,7 +419,11 @@ function NowDownloadingCard({ item, paused }: { item: OnlinestreamDownload_Item,
                             isIndeterminate={item.status !== "downloading"}
                         />
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-300">
-                            <span>{statusText[item.status]}{item.status === "downloading" ? ` · ${pct}%` : ""}</span>
+                            <span>
+                                {statusText[item.status]}
+                                {item.status === "downloading" && item.phase ? ` ${item.phase === "English dub" ? "the English dub" : "Japanese"}` : ""}
+                                {item.status === "downloading" ? ` · ${pct}%` : ""}
+                            </span>
                             {item.segmentsTotal > 0 && <span>{formatNumber(item.segmentsDone)} / {formatNumber(item.segmentsTotal)} segments</span>}
                             <span className="flex items-center gap-1"><LuHardDrive /> {formatDownloadBytes(item.bytes)}</span>
                             {item.status === "downloading" && <span className="flex items-center gap-1"><LuGauge /> {formatSpeed(item.speed)}</span>}
@@ -420,7 +435,8 @@ function NowDownloadingCard({ item, paused }: { item: OnlinestreamDownload_Item,
                     </div>
 
                     <p className="text-xs text-[--muted]">
-                        {item.provider}{item.server ? ` / ${item.server}` : ""}{item.quality ? ` · ${item.quality}` : ""} · {item.dubbed ? "Dub" : "Sub"}
+                        {item.provider}{item.server ? ` / ${item.server}` : ""}{item.quality ? ` · ${item.quality}` : ""}
+                        {" · "}{item.audioTracks?.length ? formatAudioTracks(item.audioTracks) : "Japanese audio, plus the English dub if available"}
                         {item.attempts > 1 ? ` · attempt ${item.attempts}` : ""}
                     </p>
                     {!!item.warnings?.length && <ul className="text-xs text-[--orange] space-y-0.5">
@@ -513,10 +529,14 @@ function QueueItemRow({ item }: { item: OnlinestreamDownload_Item }) {
                     </p>
                     <p className={cn("text-xs line-clamp-2", item.status === "failed" ? "text-[--orange]" : "text-[--muted]")}>
                         {item.status === "failed" ? (item.error || "Failed")
-                            : item.status === "completed" ? `${formatDownloadBytes(item.bytes)} · ${item.subtitleCount} subtitle track${item.subtitleCount === 1
+                            : item.status === "completed" ? `${formatDownloadBytes(item.bytes)}${item.audioTracks?.length
+                                    ? ` · ${formatAudioTracks(item.audioTracks)}`
+                                    : ""} · ${item.subtitleCount} subtitle track${item.subtitleCount === 1
                                     ? ""
                                     : "s"}${item.hardsubbed ? " · hardsubbed" : ""}`
-                                : running ? `${statusText[item.status]}${item.status === "downloading" ? ` · ${pct}% · ${formatSpeed(item.speed)}` : ""}`
+                                : running ? `${statusText[item.status]}${item.status === "downloading" && item.phase === "English dub"
+                                        ? " the English dub"
+                                        : ""}${item.status === "downloading" ? ` · ${pct}% · ${formatSpeed(item.speed)}` : ""}`
                                     : `${statusText[item.status]} · ${item.provider}${item.server ? ` / ${item.server}` : ""}`}
                     </p>
                     {item.status === "downloading" && <ProgressBar size="sm" value={pct} className="mt-1" />}

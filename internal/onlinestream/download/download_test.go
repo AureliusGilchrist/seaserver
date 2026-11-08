@@ -153,7 +153,7 @@ func TestDownloadAndMux(t *testing.T) {
 	outPath := filepath.Join(work, "out.mkv")
 	if err := mux(ctx, ffmpeg, &muxInput{
 		VideoPath: pl.Path, VideoHLS: true, Subtitles: subs, DefaultSub: chooseDefaultSubtitle(subs, "English"),
-		AudioLanguage: "jpn", Title: "Test - 01", OutputPath: outPath,
+		Audio: []*muxAudio{{Language: "jpn", Default: true}}, Title: "Test - 01", OutputPath: outPath,
 	}); err != nil {
 		t.Fatalf("mux: %v", err)
 	}

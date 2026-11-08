@@ -57,6 +57,12 @@ func (h *Handler) wireOnlinestreamDownloader(app *core.App) {
 			}
 			return "ffmpeg"
 		},
+		FfprobePath: func() string {
+			if ms := app.SecondarySettings.Mediastream; ms != nil && ms.FfprobePath != "" {
+				return ms.FfprobePath
+			}
+			return "ffprobe"
+		},
 		Register: h.registerOnlinestreamDownload,
 	})
 }

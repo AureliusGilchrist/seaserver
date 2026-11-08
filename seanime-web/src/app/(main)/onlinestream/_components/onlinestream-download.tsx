@@ -125,7 +125,7 @@ export function OnlinestreamDownloadButton(props: OnlinestreamDownloadButtonProp
                         Using <span className="text-[--foreground] font-medium">{provider}</span>
                         {!!server && <> / <span className="text-[--foreground] font-medium">{server}</span></>}
  at <span className="text-[--foreground] font-medium">the best quality available</span>
-                        {props.dubbed ? " · dub" : " · sub"}.
+. Japanese audio comes first, with the English dub added as a second track when {provider} has one.
                         One episode downloads at a time, rate limited so the provider isn't overloaded.
                     </p>
                     {!!videoSource && (hardsubbed ? (

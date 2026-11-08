@@ -69,10 +69,21 @@ func (m *Manager) process(ctx context.Context, it *Item, workDir string) (string
 		return "", err
 	}
 
-	// Source
-	source, err := m.findSource(ctx, req, media, false)
+	// Source: the Japanese (sub) version first, always. The dub is only the main stream when
+	// the provider has no Japanese version of the episode and the dub was asked for.
+	mainReq := req
+	mainReq.Dubbed = false
+	primaryDubbed := false
+	source, err := m.findSource(ctx, mainReq, media, false)
 	if err != nil {
-		return "", err
+		if !req.Dubbed || ctx.Err() != nil {
+			return "", err
+		}
+		mainReq.Dubbed = true
+		primaryDubbed = true
+		if source, err = m.findSource(ctx, mainReq, media, false); err != nil {
+			return "", err
+		}
 	}
 
 	d := &downloader{client: m.client, provider: req.Provider, headers: source.Headers}
@@ -123,32 +134,58 @@ func (m *Manager) process(ctx context.Context, it *Item, workDir string) (string
 		it.Status = StatusDownloading
 	}, true)
 
-	// Video
+	// Video and audio. The Japanese stream is the main one: its video, its audio as the first
+	// and default track. When the provider also has a dub of this episode, the dub's audio is
+	// added as a second track (dual audio), provided it lines up with the Japanese version.
 	in := &muxInput{
-		Subtitles:     assSubs,
-		DefaultSub:    chooseDefaultSubtitle(assSubs, req.SubtitleLanguage),
-		AudioLanguage: "jpn",
-		Title:         fmt.Sprintf("%s - %02d", mediaTitle(media), req.EpisodeNumber),
+		Subtitles:  assSubs,
+		DefaultSub: chooseDefaultSubtitle(assSubs, req.SubtitleLanguage),
+		Title:      fmt.Sprintf("%s - %02d", mediaTitle(media), req.EpisodeNumber),
 	}
-	if req.Dubbed {
-		in.AudioLanguage = "eng"
+	mainLang := "jpn"
+	mainPhase := "Japanese"
+	if primaryDubbed {
+		mainLang, mainPhase = "eng", "English dub"
 	}
 
-	err = m.downloadVideo(ctx, it, d, source, workDir, in)
+	mainDir := filepath.Join(workDir, "video")
+	mainFiles, err := m.downloadStream(ctx, it, d, source, mainDir, mainLang, mainPhase, true)
 	if err != nil && !errors.Is(err, context.Canceled) && isExpiredLinkError(err) {
 		// Stream links expire. Fetch fresh ones once and start over.
 		m.logger.Debug().Err(err).Msg("onlinestream download: Source rejected the request, refreshing the source")
-		fresh, ferr := m.findSource(ctx, req, media, true)
+		fresh, ferr := m.findSource(ctx, mainReq, media, true)
 		if ferr == nil {
 			source = fresh
 			d.headers = fresh.Headers
-			_ = os.RemoveAll(filepath.Join(workDir, "video"))
-			err = m.downloadVideo(ctx, it, d, source, workDir, in)
+			_ = os.RemoveAll(mainDir)
+			mainFiles, err = m.downloadStream(ctx, it, d, source, mainDir, mainLang, mainPhase, true)
 		}
 	}
 	if err != nil {
 		return "", err
 	}
+	in.VideoPath, in.VideoHLS = mainFiles.VideoPath, mainFiles.HLS
+	in.Audio = mainFiles.Audio
+
+	if !primaryDubbed && !hasLanguage(in.Audio, "eng") {
+		dubTracks, dubWarning := m.downloadDubAudio(ctx, it, req, media, workDir, source.URL, mainFiles.Duration)
+		if dubWarning != "" {
+			m.update(it, func(it *Item) { it.Warnings = append(it.Warnings, dubWarning) }, true)
+		}
+		in.Audio = mergeAudio(in.Audio, dubTracks)
+	}
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
+
+	orderAudio(in.Audio)
+	m.update(it, func(it *Item) {
+		it.Phase = ""
+		it.AudioTracks = make([]string, 0, len(in.Audio))
+		for _, a := range in.Audio {
+			it.AudioTracks = append(it.AudioTracks, a.Language)
+		}
+	}, true)
 
 	// Mux
 	m.update(it, func(it *Item) { it.Status = StatusMuxing; it.Progress = 0 }, true)
@@ -267,109 +304,147 @@ func isHLS(source *onlinestream.VideoSource) bool {
 	return strings.EqualFold(path.Ext(u.Path), ".m3u8") || strings.Contains(source.URL, "m3u8")
 }
 
-func (m *Manager) downloadVideo(ctx context.Context, it *Item, d *downloader, source *onlinestream.VideoSource, workDir string, in *muxInput) error {
-	dir := filepath.Join(workDir, "video")
+// streamFiles is one downloaded stream: its video, and every audio track it carries.
+type streamFiles struct {
+	VideoPath string
+	HLS       bool
+	// Audio lists the stream's audio tracks. An entry with no Path is the audio muxed into the
+	// video file itself; the others are separate HLS audio renditions.
+	Audio []*muxAudio
+	// Duration is the length in seconds, used to check a dub lines up before its audio is added.
+	Duration float64
+}
+
+// downloadStream downloads a source into dir: the best video variant and, for HLS, every audio
+// rendition of that variant. phase names the step in the queue ("Japanese", "English dub").
+func (m *Manager) downloadStream(ctx context.Context, it *Item, d *downloader, source *onlinestream.VideoSource, dir string, defaultLang string, phase string, setQuality bool) (*streamFiles, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
+		return nil, err
 	}
+	m.update(it, func(it *Item) {
+		it.Phase = phase
+		it.SegmentsDone, it.SegmentsTotal, it.Progress = 0, 0, 0
+	}, true)
 
 	if !isHLS(source) {
 		out := filepath.Join(dir, "source.mp4")
 		if err := d.downloadFile(ctx, source.URL, out, func(done, total int64) {
 			m.update(it, func(it *Item) {
-				it.Bytes = done
+				it.Bytes = it.bytesBase + done
 				if total > 0 {
 					it.Progress = float64(done) / float64(total)
 				}
 				it.trackRate(time.Now())
 			}, false)
 		}); err != nil {
-			return err
+			return nil, err
 		}
-		in.VideoPath = out
-		in.VideoHLS = false
-		return nil
+		return &streamFiles{
+			VideoPath: out,
+			Audio:     []*muxAudio{{Language: defaultLang}},
+			Duration:  probeDuration(ctx, m.ffprobePath(), out),
+		}, nil
 	}
 
 	body, err := d.client.GetBytes(ctx, d.provider, source.URL, d.headers, maxPlaylistSize)
 	if err != nil {
-		return fmt.Errorf("fetch stream playlist: %w", err)
+		return nil, fmt.Errorf("fetch stream playlist: %w", err)
 	}
 
 	videoURL := source.URL
-	audioURL := ""
+	var renditions []*hlsRendition
 	if isMasterPlaylist(body) {
 		base, _ := url.Parse(source.URL)
 		master := parseMaster(body, base)
 		v := pickVariant(master.Variants, "")
 		if v == nil {
-			return errors.New("the stream playlist has no video variants")
+			return nil, errors.New("the stream playlist has no video variants")
 		}
 		videoURL = v.URL
-		if v.Height > 0 {
+		if v.Height > 0 && setQuality {
 			m.update(it, func(it *Item) { it.Quality = fmt.Sprintf("%dp", v.Height) }, true)
 		}
-		if renditions := master.Audio[v.AudioGroup]; len(renditions) > 0 {
-			chosen := renditions[0]
-			for _, r := range renditions {
-				if r.Default {
-					chosen = r
-					break
-				}
-			}
-			audioURL = chosen.URL
-			if c := languageCode(chosen.Language); c != "und" {
-				in.AudioLanguage = c
+		seen := make(map[string]bool)
+		for _, r := range master.Audio[v.AudioGroup] {
+			if r.URL != "" && !seen[r.URL] {
+				seen[r.URL] = true
+				renditions = append(renditions, r)
 			}
 		}
 	}
 
-	// Progress: the audio rendition (if any) is small; count both in one segment total.
+	// Progress counts the segments of every playlist of this stream together.
 	var (
-		pmu            sync.Mutex
-		vDone, vTotal  int
-		aDone, aTotal  int
-		vBytes, aBytes int64
+		pmu   sync.Mutex
+		done  = make(map[string]int)
+		total = make(map[string]int)
+		bytes = make(map[string]int64)
 	)
-	report := func() {
-		pmu.Lock()
-		done, total, b := vDone+aDone, vTotal+aTotal, vBytes+aBytes
-		pmu.Unlock()
-		m.update(it, func(it *Item) {
-			it.SegmentsDone, it.SegmentsTotal, it.Bytes = done, total, b
-			if total > 0 {
-				it.Progress = float64(done) / float64(total)
-			}
-			it.trackRate(time.Now())
-		}, false)
-	}
-
-	if audioURL != "" {
-		pl, err := d.downloadMediaPlaylist(ctx, audioURL, dir, "a_", func(done, total int, bytes int64) {
+	progressFor := func(key string) progressFn {
+		return func(dn, tt int, b int64) {
 			pmu.Lock()
-			aDone, aTotal, aBytes = done, total, bytes
+			done[key], total[key], bytes[key] = dn, tt, b
+			var sd, st int
+			var sb int64
+			for k := range total {
+				sd, st, sb = sd+done[k], st+total[k], sb+bytes[k]
+			}
 			pmu.Unlock()
-			report()
-		})
-		if err != nil {
-			return fmt.Errorf("audio: %w", err)
+			m.update(it, func(it *Item) {
+				it.SegmentsDone, it.SegmentsTotal, it.Bytes = sd, st, it.bytesBase+sb
+				if st > 0 {
+					it.Progress = float64(sd) / float64(st)
+				}
+				it.trackRate(time.Now())
+			}, false)
 		}
-		in.AudioPath = pl.Path
 	}
 
-	pl, err := d.downloadMediaPlaylist(ctx, videoURL, dir, "v_", func(done, total int, bytes int64) {
-		pmu.Lock()
-		vDone, vTotal, vBytes = done, total, bytes
-		pmu.Unlock()
-		report()
-	})
-	if err != nil {
-		return err
+	out := &streamFiles{HLS: true}
+	for i, r := range renditions {
+		key := fmt.Sprintf("a%d_", i)
+		pl, err := d.downloadMediaPlaylist(ctx, r.URL, dir, key, progressFor(key))
+		if err != nil {
+			return nil, fmt.Errorf("audio track %s: %w", labelOr(firstNonEmpty(r.Name, r.Language)), err)
+		}
+		lang := languageCode(r.Language)
+		if lang == "und" {
+			lang = languageCode(r.Name)
+		}
+		if lang == "und" {
+			lang = defaultLang
+		}
+		out.Audio = append(out.Audio, &muxAudio{Path: pl.Path, HLS: true, Language: lang, Title: r.Name, Default: r.Default})
 	}
-	in.VideoPath = pl.Path
-	in.VideoHLS = true
-	m.emit(true)
-	return nil
+
+	pl, err := d.downloadMediaPlaylist(ctx, videoURL, dir, "v_", progressFor("v_"))
+	if err != nil {
+		return nil, err
+	}
+	out.VideoPath = pl.Path
+	out.Duration = pl.Duration
+	if len(out.Audio) == 0 {
+		out.Audio = []*muxAudio{{Language: defaultLang}}
+	}
+	return out, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func (m *Manager) ffprobePath() string {
+	if m.opts.FfprobePath != nil {
+		if p := m.opts.FfprobePath(); p != "" {
+			return p
+		}
+	}
+	return "ffprobe"
 }
 
 // downloadFile downloads a progressive (MP4) source, resuming with a Range request when the
