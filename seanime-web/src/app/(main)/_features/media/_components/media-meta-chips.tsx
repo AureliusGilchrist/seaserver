@@ -1,6 +1,7 @@
 "use client"
 
 import { MediaFuzzyDate, MediaInfo } from "@/api/hooks/anilist.hooks"
+import { showsMetadata, usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { cn } from "@/components/ui/core/styling"
 import { Tooltip } from "@/components/ui/tooltip"
 import { formatNumber } from "@/lib/helpers/number"
@@ -79,7 +80,9 @@ export function MediaMetaChips({ media, info, type, hideStatus, className }: {
     hideStatus?: boolean
     className?: string
 }) {
+    const { metadataDetail } = usePersonalSettings()
     if (!media) return null
+    const standard = showsMetadata(metadataDetail, "standard")
     const format = info?.format ?? media.format
     const status = info?.status ?? media.status
     const episodes = info?.episodes ?? media.episodes
@@ -114,8 +117,8 @@ export function MediaMetaChips({ media, info, type, hideStatus, className }: {
                 {season && seasonYear && start ? <span className="text-white/40"> · </span> : null}
                 {start}{end && end !== start ? <> <span className="text-white/40">→</span> {end}</> : status === "RELEASING" && start ? <> <span className="text-white/40">→</span> now</> : null}
             </Chip>}
-            {info?.source && <Chip icon={<LuLayers />}>From {MEDIA_SOURCE_LABELS[info.source] ?? capitalize(info.source.replace(/_/g, " "))}</Chip>}
-            {country && <Chip icon={<LuGlobe />}>{MEDIA_COUNTRY[country] ? `${MEDIA_COUNTRY[country].flag} ${MEDIA_COUNTRY[country].name}` : country}</Chip>}
+            {standard && info?.source && <Chip icon={<LuLayers />}>From {MEDIA_SOURCE_LABELS[info.source] ?? capitalize(info.source.replace(/_/g, " "))}</Chip>}
+            {standard && country && <Chip icon={<LuGlobe />}>{MEDIA_COUNTRY[country] ? `${MEDIA_COUNTRY[country].flag} ${MEDIA_COUNTRY[country].name}` : country}</Chip>}
             {(info?.isAdult ?? media.isAdult) && <Chip tone="red">18+</Chip>}
         </div>
     )

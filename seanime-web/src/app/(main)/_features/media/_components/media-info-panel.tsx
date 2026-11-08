@@ -5,6 +5,7 @@ import { useGetKitsuInfo } from "@/api/hooks/kitsu.hooks"
 import { MediaSectionHeading } from "@/app/(main)/_features/media/_components/media-section-heading"
 import { compact } from "@/app/(main)/_features/media/_components/media-meta-chips"
 import { SeaLink } from "@/components/shared/sea-link"
+import { showsMetadata, usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { cn } from "@/components/ui/core/styling"
 import { getImageUrl } from "@/lib/server/assets"
 import { capitalize } from "lodash"
@@ -32,6 +33,9 @@ export function MediaInfoPanel({ info, type, nativeTitle, className, children }:
     children?: React.ReactNode
 }) {
     const { data: kitsu } = useGetKitsuInfo(info?.idMal, type)
+    const { metadataDetail } = usePersonalSettings()
+    const standard = showsMetadata(metadataDetail, "standard")
+    const advanced = showsMetadata(metadataDetail, "advanced")
 
     if (!info) return <>{children}</>
 
@@ -43,17 +47,17 @@ export function MediaInfoPanel({ info, type, nativeTitle, className, children }:
     // What the chips and stat tiles above already say is left out, so this list only ever adds.
     const facts: [string, React.ReactNode][] = []
     if (mainStudios.length) facts.push([mainStudios.length > 1 ? "Studios" : "Studio", <LinkList key="studios" items={mainStudios.map(s => ({ label: s.name, href: `/studio?id=${s.id}` }))} />])
-    if (producers.length) facts.push(["Producers", <LinkList key="producers" items={producers.map(s => ({ label: s.name, href: s.siteUrl }))} external />])
+    if (standard && producers.length) facts.push(["Producers", <LinkList key="producers" items={producers.map(s => ({ label: s.name, href: s.siteUrl }))} external />])
     if (runtime >= 60) facts.push(["Total runtime", `${Math.round(runtime / 60).toLocaleString()} hours`])
     if (kitsu?.serialization) facts.push(["Serialized in", kitsu.serialization])
     if (!info.chapters && kitsu?.chapterCount) facts.push(["Chapters", kitsu.chapterCount])
     if (!info.volumes && kitsu?.volumeCount) facts.push(["Volumes", kitsu.volumeCount])
-    if (kitsu?.averageRating) facts.push(["Kitsu score", `${(Number(kitsu.averageRating) / 10).toFixed(1)} / 10`])
-    if (kitsu?.ratingRank) facts.push(["Kitsu rating rank", `#${kitsu.ratingRank.toLocaleString()}`])
-    if (kitsu?.popularityRank) facts.push(["Kitsu popularity", `#${kitsu.popularityRank.toLocaleString()}`])
-    if (kitsu?.userCount) facts.push(["Kitsu members", compact(kitsu.userCount)])
-    if (info.hashtag) facts.push(["Hashtag", info.hashtag])
-    if (info.isLicensed !== undefined) facts.push(["Licensed", info.isLicensed ? "Yes" : "No"])
+    if (advanced && kitsu?.averageRating) facts.push(["Kitsu score", `${(Number(kitsu.averageRating) / 10).toFixed(1)} / 10`])
+    if (advanced && kitsu?.ratingRank) facts.push(["Kitsu rating rank", `#${kitsu.ratingRank.toLocaleString()}`])
+    if (advanced && kitsu?.popularityRank) facts.push(["Kitsu popularity", `#${kitsu.popularityRank.toLocaleString()}`])
+    if (advanced && kitsu?.userCount) facts.push(["Kitsu members", compact(kitsu.userCount)])
+    if (advanced && info.hashtag) facts.push(["Hashtag", info.hashtag])
+    if (advanced && info.isLicensed !== undefined) facts.push(["Licensed", info.isLicensed ? "Yes" : "No"])
 
     const titles = Array.from(new Set([
         nativeTitle,
@@ -64,9 +68,9 @@ export function MediaInfoPanel({ info, type, nativeTitle, className, children }:
     return (
         <section className={cn("grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr),minmax(18rem,22rem)]", className)} data-media-info-panel>
             <div className="min-w-0 space-y-6">
-                <ScoresCard info={info} type={type} />
-                <RankingsCard info={info} />
-                <TagsCard info={info} type={type} />
+                {standard && <ScoresCard info={info} type={type} />}
+                {advanced && <RankingsCard info={info} />}
+                {advanced && <TagsCard info={info} type={type} />}
                 {children}
             </div>
 

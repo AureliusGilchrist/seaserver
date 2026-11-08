@@ -9,7 +9,7 @@ import { MediaHeroInsights } from "@/app/(main)/_features/media/_components/medi
 import { MediaPersonalProgress } from "@/app/(main)/_features/media/_components/media-personal-progress"
 import { MediaMetaChips } from "@/app/(main)/_features/media/_components/media-meta-chips"
 import { useGetMediaInfo } from "@/api/hooks/anilist.hooks"
-import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
+import { showsMetadata, usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import {
     MediaPageHeader,
     MediaPageHeaderActions,
@@ -49,6 +49,7 @@ export function MetaSection(props: { entry: Manga_Entry | undefined, details: AL
 
     // With the AniList staff known, "Story & art by …" is the short credit line; otherwise the
     // staff badges from the details query stand in for it.
+    const showCredits = showsMetadata(personal.metadataDetail, "standard")
     const hasCreatorsLine = !!info?.staff?.edges?.length
 
     return (
@@ -91,11 +92,11 @@ export function MetaSection(props: { entry: Manga_Entry | undefined, details: AL
                             status={entry.listData?.status}
                         />
 
-                        {hasCreatorsLine && <MediaCreatorsLine info={info} />}
+                        {showCredits && hasCreatorsLine && <MediaCreatorsLine info={info} />}
 
                         <MediaEntryGenresList genres={details?.genres} type="manga" />
 
-                        {!hasCreatorsLine && !!details?.staff?.edges?.length && <div className="flex flex-wrap gap-2 justify-center lg:justify-start">
+                        {showCredits && !hasCreatorsLine && !!details?.staff?.edges?.length && <div className="flex flex-wrap gap-2 justify-center lg:justify-start">
                             <MangaEntryStaff staff={details?.staff} />
                         </div>}
 

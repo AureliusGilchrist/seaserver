@@ -86,6 +86,8 @@ export const clientSettingsSchema = z.object({
     timeZone: z.string().optional(),
     // Display
     hideAudienceScore: z.boolean().optional(),
+    /** How much metadata media pages show: the essentials, the usual, or everything known. */
+    metadataDetail: z.enum(["basic", "standard", "advanced"]).optional(),
     blurAdultContent: z.boolean().optional(),
     disableAnimeCardTrailers: z.boolean().optional(),
     /** Netflix-style previews of an episode while its card is hovered (see episode-card-preview.tsx). */

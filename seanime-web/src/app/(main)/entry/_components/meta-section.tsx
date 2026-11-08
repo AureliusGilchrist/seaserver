@@ -10,7 +10,7 @@ import { MediaHeroInsights } from "@/app/(main)/_features/media/_components/medi
 import { MediaPersonalProgress } from "@/app/(main)/_features/media/_components/media-personal-progress"
 import { MediaMetaChips } from "@/app/(main)/_features/media/_components/media-meta-chips"
 import { useGetMediaInfo } from "@/api/hooks/anilist.hooks"
-import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
+import { showsMetadata, usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import {
     MediaEntryGenresList,
 } from "@/app/(main)/_features/media/_components/media-entry-metadata-components"
@@ -133,7 +133,7 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
                         />
 
                         {/* Credits: who made it */}
-                        <div className="flex flex-col items-center gap-1 lg:items-start" data-anime-meta-section-credits>
+                        {showsMetadata(personal.metadataDetail, "standard") && <div className="flex flex-col items-center gap-1 lg:items-start" data-anime-meta-section-credits>
                             {!isCustomSource(entry.mediaId) ? (info?.studios?.edges?.length
                                 ? <MediaStudiosLine info={info} />
                                 : <AnimeEntryStudio studios={details?.studios} />) : (
@@ -148,7 +148,7 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
                             )}
 
                             <MediaCreatorsLine info={info} />
-                        </div>
+                        </div>}
 
                         <MediaEntryGenresList genres={details?.genres} />
 

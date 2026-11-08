@@ -2,6 +2,7 @@
 
 import { MediaInfo } from "@/api/hooks/anilist.hooks"
 import { useGetKitsuInfo } from "@/api/hooks/kitsu.hooks"
+import { showsMetadata, usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { compact } from "@/app/(main)/_features/media/_components/media-meta-chips"
 import { cn } from "@/components/ui/core/styling"
 import { Tooltip } from "@/components/ui/tooltip"
@@ -27,6 +28,9 @@ export function MediaHeroInsights({ info, meanScore, hideScore, type, className,
     part?: "all" | "stats" | "extras"
 }) {
     const { data: kitsu } = useGetKitsuInfo(info?.idMal, type)
+    const { metadataDetail } = usePersonalSettings()
+    const standard = showsMetadata(metadataDetail, "standard")
+    const advanced = showsMetadata(metadataDetail, "advanced")
 
     const mean = info?.meanScore ?? meanScore
     const rankings = info?.rankings ?? []
@@ -47,18 +51,19 @@ export function MediaHeroInsights({ info, meanScore, hideScore, type, className,
     const streams = (info?.externalLinks ?? []).filter(l => l.type === "STREAMING" && !!l.url).slice(0, 6)
     const ageRating = [kitsu?.ageRating, kitsu?.ageRatingGuide].filter(Boolean).join(" · ")
 
-    const showStats = part !== "extras"
-    const showExtras = part !== "stats"
+    // Basic shows no ribbon; standard keeps the headline numbers; advanced adds the rest.
+    const showStats = part !== "extras" && standard
+    const showExtras = part !== "stats" && advanced
 
     const tiles: React.ReactNode[] = []
     if (!hideScore && !!mean) tiles.push(<ScoreTile key="score" mean={mean} average={info?.averageScore} info={info} />)
-    if (!hideScore && !!topRated) tiles.push(<Tile key="rated" icon={<LuAward className="text-amber-300" />} value={`#${topRated.rank.toLocaleString()}`} label="Highest rated" />)
-    if (!!topPopular) tiles.push(<Tile key="popular" icon={<LuMedal className="text-sky-300" />} value={`#${topPopular.rank.toLocaleString()}`} label="Most popular" />)
+    if (advanced && !hideScore && !!topRated) tiles.push(<Tile key="rated" icon={<LuAward className="text-amber-300" />} value={`#${topRated.rank.toLocaleString()}`} label="Highest rated" />)
+    if (advanced && !!topPopular) tiles.push(<Tile key="popular" icon={<LuMedal className="text-sky-300" />} value={`#${topPopular.rank.toLocaleString()}`} label="Most popular" />)
     if (!!info?.popularity) tiles.push(<Tile key="members" icon={<LuUsers className="text-violet-300" />} value={compact(info.popularity)} label="Members" sub={active ? `${compact(active)} ${type === "anime" ? "watching" : "reading"}` : undefined} />)
     if (!!info?.favourites) tiles.push(<Tile key="fav" icon={<LuHeart className="text-rose-300" />} value={compact(info.favourites)} label="Favourites" />)
-    if (started > 0) tiles.push(<Tile key="finish" icon={<LuCircleCheck className="text-emerald-300" />} value={`${finishRate}%`} label="Finish it" sub={`${dropRate}% drop it`} />)
+    if (advanced && started > 0) tiles.push(<Tile key="finish" icon={<LuCircleCheck className="text-emerald-300" />} value={`${finishRate}%`} label="Finish it" sub={`${dropRate}% drop it`} />)
 
-    const hasPills = !!seasonal.length || !!ageRating || !!info?.trending
+    const hasPills = advanced && (!!seasonal.length || !!ageRating || !!info?.trending)
     const hasStats = !!tiles.length || hasPills
     const hasExtras = !!tags.length || !!streams.length
 

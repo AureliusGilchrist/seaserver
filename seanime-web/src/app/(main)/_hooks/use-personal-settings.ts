@@ -4,6 +4,21 @@ import React from "react"
 
 export type StillWatchingTimingMode = "night" | "always" | "custom"
 
+/**
+ * How much metadata media pages show.
+ * - "basic": format, length, dates, genres and your own progress.
+ * - "standard": adds the score/members/favourites ribbon, studio and creators, source and country.
+ * - "advanced": everything — rankings, finish/drop rates, trending, age rating, themes, Kitsu figures.
+ */
+export type MetadataDetail = "basic" | "standard" | "advanced"
+
+const METADATA_DETAIL_ORDER: Record<MetadataDetail, number> = { basic: 0, standard: 1, advanced: 2 }
+
+/** Whether the chosen detail level includes things shown from `atLeast` upward. */
+export function showsMetadata(level: MetadataDetail, atLeast: MetadataDetail): boolean {
+    return METADATA_DETAIL_ORDER[level] >= METADATA_DETAIL_ORDER[atLeast]
+}
+
 export type PersonalSettings = {
     autoUpdateProgress: boolean
     episodeWatchedThreshold: NonNullable<ClientSettings["episodeWatchedThreshold"]>
@@ -65,6 +80,8 @@ export type PersonalSettings = {
     /** Whether the community timeline shows paced news cards. */
     communityShowNews: boolean
     hideAudienceScore: boolean
+    /** How much metadata media pages show (see MetadataDetail). */
+    metadataDetail: MetadataDetail
     blurAdultContent: boolean
     disableAnimeCardTrailers: boolean
     /** Hover previews of episodes from the library on episode cards. */
@@ -150,6 +167,7 @@ export function usePersonalSettings(): PersonalSettings {
         newsNotifyListManga: clientSettings.newsNotifyListManga ?? false,
         newsNotifyKeywords: clientSettings.newsNotifyKeywords ?? "",
         communityShowNews: clientSettings.communityShowNews ?? true,
+        metadataDetail: clientSettings.metadataDetail ?? "advanced",
         hideAudienceScore: clientSettings.hideAudienceScore ?? serverStatus?.settings?.anilist?.hideAudienceScore ?? false,
         blurAdultContent: clientSettings.blurAdultContent ?? serverStatus?.settings?.anilist?.blurAdultContent ?? false,
         disableAnimeCardTrailers: clientSettings.disableAnimeCardTrailers ?? serverStatus?.settings?.library?.disableAnimeCardTrailers ?? false,

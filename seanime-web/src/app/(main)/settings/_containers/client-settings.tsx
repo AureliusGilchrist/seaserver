@@ -12,11 +12,11 @@ import { cn } from "@/components/ui/core/styling"
 import { NumberInput } from "@/components/ui/number-input"
 import { Switch } from "@/components/ui/switch"
 import { type ClientSettings, resetClientSettings, setClientSettings, useClientSettings } from "@/lib/client-settings"
-import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
+import { type MetadataDetail, usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
 import { __isElectronDesktop__ } from "@/types/constants"
 import { useAtomValue } from "jotai"
 import React from "react"
-import { LuBookmarkCheck, LuBookOpen, LuDownload, LuEye, LuListChecks, LuMessageCircle, LuMonitorPlay, LuNewspaper, LuPlay, LuRefreshCw, LuRotateCcw, LuRss, LuSearch, LuSettings2, LuTags, LuTv, LuUserCog, LuX } from "react-icons/lu"
+import { LuBookmarkCheck, LuLayers, LuLayoutList, LuSquare, LuBookOpen, LuDownload, LuEye, LuListChecks, LuMessageCircle, LuMonitorPlay, LuNewspaper, LuPlay, LuRefreshCw, LuRotateCcw, LuRss, LuSearch, LuSettings2, LuTags, LuTv, LuUserCog, LuX } from "react-icons/lu"
 import { toast } from "sonner"
 
 type ClientSettingsProps = {}
@@ -139,6 +139,49 @@ function NewsNotifyModePicker({ value, onChange, disabled }: { value: "all" | "l
                     </button>
                 )
             })}
+        </div>
+    )
+}
+
+const METADATA_LEVELS: { id: MetadataDetail, title: string, description: string, icon: React.ElementType }[] = [
+    { id: "basic", title: "Basic", description: "Format, length, dates, genres and your progress.", icon: LuSquare },
+    { id: "standard", title: "Standard", description: "Adds score, members, studio, creators, source and country.", icon: LuLayoutList },
+    { id: "advanced", title: "Advanced", description: "Everything: rankings, finish rates, trending, themes, Kitsu figures.", icon: LuLayers },
+]
+
+function MetadataDetailPicker({ value, onChange }: { value: MetadataDetail, onChange: (v: MetadataDetail) => void }) {
+    return (
+        <div>
+            <p className="text-sm font-medium">Metadata detail</p>
+            <p className="mb-2 text-xs text-[--muted]">How much information anime and manga pages show.</p>
+            <div role="radiogroup" aria-label="Metadata detail" className="grid gap-2 sm:grid-cols-3">
+                {METADATA_LEVELS.map(m => {
+                    const Icon = m.icon
+                    const active = value === m.id
+                    return (
+                        <button
+                            key={m.id}
+                            type="button"
+                            role="radio"
+                            aria-checked={active}
+                            onClick={() => onChange(m.id)}
+                            className={cn(
+                                "group relative flex flex-col items-start gap-1.5 rounded-xl border p-3 text-left transition-all",
+                                active
+                                    ? "border-brand-400/60 bg-brand-500/10 shadow-[0_0_0_1px_rgb(var(--color-brand-500)/0.25),0_8px_24px_-12px_rgb(var(--color-brand-500)/0.6)]"
+                                    : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]",
+                            )}
+                        >
+                            <div className="flex w-full items-center justify-between">
+                                <Icon className={cn("size-4", active ? "text-brand-300" : "text-[--muted]")} />
+                                <span className={cn("size-3.5 rounded-full border-2", active ? "border-brand-400 bg-brand-400" : "border-white/25")} />
+                            </div>
+                            <span className="text-sm font-semibold">{m.title}</span>
+                            <span className="text-xs leading-snug text-[--muted]">{m.description}</span>
+                        </button>
+                    )
+                })}
+            </div>
         </div>
     )
 }
@@ -708,6 +751,12 @@ export function ClientSettings(props: ClientSettingsProps) {
                         </SettingRow>
                         <SettingRow settingKey={["franchiseRelations", "franchiseMediaKinds", "franchiseInitialCount"]}>
                             <FranchiseSettings />
+                        </SettingRow>
+                        <SettingRow settingKey="metadataDetail">
+                            <MetadataDetailPicker
+                                value={personal.metadataDetail}
+                                onChange={v => handleSet("metadataDetail", v)}
+                            />
                         </SettingRow>
                         <SettingRow settingKey="hideAudienceScore">
                             <Switch
