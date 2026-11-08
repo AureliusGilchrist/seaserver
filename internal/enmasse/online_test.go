@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"seanime/internal/api/anilist"
 	hibikeonlinestream "seanime/internal/extension/hibike/onlinestream"
 
 	"github.com/rs/zerolog"
@@ -284,5 +285,39 @@ func TestResumeKeepsTheRecord(t *testing.T) {
 		len(p.Recent) != 1 || len(p.TorrentDone) != 1 || p.TorrentDone[0] != 26 ||
 		len(p.DownloadedAnime) != 1 || len(p.FailedAnime) != 1 {
 		t.Fatalf("progress not kept: %+v", p)
+	}
+}
+
+func TestMatchOnProvider(t *testing.T) {
+	onlineRequestGap = time.Millisecond
+	defer func() { onlineRequestGap = 8 * time.Second }()
+
+	english, romaji := "Ghost Hound", "Shinreigari"
+	eps := 22
+	status := anilist.MediaStatusFinished
+	format := anilist.MediaFormatTv
+	media := &anilist.BaseAnime{ID: 3, Title: &anilist.BaseAnime_Title{English: &english, Romaji: &romaji}, Episodes: &eps, Status: &status, Format: &format}
+
+	logger := zerolog.Nop()
+	hooks := &OnlineHooks{
+		Search: func(provider string, opts hibikeonlinestream.SearchOptions) ([]*hibikeonlinestream.SearchResult, error) {
+			if opts.Query == "Shinreigari" {
+				return []*hibikeonlinestream.SearchResult{{ID: "sg", Title: "Shinreigari"}}, nil
+			}
+			return nil, nil
+		},
+		FindEpisodes: func(provider, id string) ([]*hibikeonlinestream.EpisodeDetails, error) {
+			return make([]*hibikeonlinestream.EpisodeDetails, 22), nil
+		},
+	}
+	id, _, err := MatchOnProvider(context.Background(), &logger, hooks, BackupProvider, media)
+	if err != nil || id != "sg" {
+		t.Fatalf("id %q err %v", id, err)
+	}
+	hooks.Search = func(string, hibikeonlinestream.SearchOptions) ([]*hibikeonlinestream.SearchResult, error) {
+		return nil, nil
+	}
+	if _, _, err := MatchOnProvider(context.Background(), &logger, hooks, BackupProvider, media); err == nil {
+		t.Fatal("a series the provider does not have was matched")
 	}
 }

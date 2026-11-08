@@ -162,6 +162,10 @@ type NewManagerOptions struct {
 	// ReplaceOld removes an episode's other library files after an overwrite saved its new one
 	// at keepPath: their library entries and the files themselves.
 	ReplaceOld func(mediaId int, episode int, keepPath string) error
+	// MapProvider makes sure a provider knows which of its entries an anime is (searching every
+	// title and spelling and saving the match). It returns ErrNotOnProvider when the provider
+	// does not have the anime.
+	MapProvider func(ctx context.Context, provider string, mediaId int) error
 	// LibraryFileOwner reports the anime and episode a file is matched to in the library, if any.
 	LibraryFileOwner func(path string) (mediaId int, episode int, found bool)
 }
@@ -980,6 +984,19 @@ func (m *Manager) run(it *Item) {
 	case ctx.Err() != nil || it.Status == StatusCancelled:
 		it.Status = StatusCancelled
 		it.FinishedAt = &finishedAt
+	case isSkipSeries(err):
+		// Neither provider has the series: this episode and the series' other waiting ones are
+		// skipped rather than each failing in turn.
+		it.Status = StatusCancelled
+		it.Error = "Skipped: " + err.Error()
+		it.FinishedAt = &finishedAt
+		for _, other := range m.items {
+			if other != it && other.MediaId == it.MediaId && other.Status == StatusQueued {
+				other.Status = StatusCancelled
+				other.Error = it.Error
+				other.FinishedAt = &finishedAt
+			}
+		}
 	case isStorageError(err):
 		// The disk failed, not the download: back to the queue, without using up an attempt,
 		// and the queue waits for the disk (checkStorage) before trying anything else.

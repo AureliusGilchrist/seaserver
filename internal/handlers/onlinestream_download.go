@@ -73,6 +73,7 @@ func (h *Handler) wireOnlinestreamDownloader(app *core.App) {
 		},
 		Register:         h.registerOnlinestreamDownload,
 		LibraryFileOwner: h.onlinestreamLibraryFileOwner,
+		MapProvider:      h.mapOnlineProvider,
 		EpisodeFiles:     h.onlinestreamEpisodeFiles,
 		ReplaceOld:       h.replaceOldEpisodeFiles,
 	})

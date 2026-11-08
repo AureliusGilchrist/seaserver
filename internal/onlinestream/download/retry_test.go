@@ -114,3 +114,24 @@ func TestStorageErrorHoldsTheQueue(t *testing.T) {
 		t.Fatal("storage error detection")
 	}
 }
+
+// TestSkipSeries: when neither provider has the series, the episode and the series' other waiting
+// episodes are skipped, and other series are left alone.
+func TestSkipSeries(t *testing.T) {
+	logger := zerolog.Nop()
+	m := NewManager(NewManagerOptions{Logger: &logger, WorkDir: t.TempDir(), LibraryPath: func() string { return "x" }, holdQueue: true})
+	m.processOverride = func(ctx context.Context, it *Item, workDir string) (string, error) {
+		return "", skipSeriesError{errors.New("not available on kickassanime and not found on AnimeHeaven")}
+	}
+	a := &Item{ID: "a", MediaId: 1, EpisodeNumber: 1, Status: StatusQueued}
+	b := &Item{ID: "b", MediaId: 1, EpisodeNumber: 2, Status: StatusQueued}
+	c := &Item{ID: "c", MediaId: 2, EpisodeNumber: 1, Status: StatusQueued}
+	m.items = []*Item{a, b, c}
+	m.run(a)
+	if a.Status != StatusCancelled || b.Status != StatusCancelled || c.Status != StatusQueued {
+		t.Fatalf("statuses %s %s %s", a.Status, b.Status, c.Status)
+	}
+	if a.Attempts != 1 || b.Error == "" {
+		t.Fatalf("attempts %d, reason %q", a.Attempts, b.Error)
+	}
+}

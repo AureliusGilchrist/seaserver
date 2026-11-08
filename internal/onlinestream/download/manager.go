@@ -108,6 +108,21 @@ func (m *Manager) process(ctx context.Context, it *Item, workDir string) (string
 	// downloaded from AnimeHeaven instead, whatever the provider was.
 	if err != nil && ctx.Err() == nil && req.Provider != FallbackProvider {
 		firstErr := err
+		// Make sure AnimeHeaven knows which of its entries this anime is, searched the thorough
+		// way (every title, synonym and spelling). When it does not have the series at all,
+		// the series is skipped: none of its episodes can be downloaded from either provider.
+		if m.opts.MapProvider != nil {
+			m.update(it, func(it *Item) { it.Phase = "Looking on AnimeHeaven" }, true)
+			if mapErr := m.opts.MapProvider(ctx, FallbackProvider, req.MediaId); mapErr != nil {
+				if ctx.Err() != nil {
+					return "", ctx.Err()
+				}
+				if errors.Is(mapErr, ErrNotOnProvider) {
+					return "", skipSeriesError{fmt.Errorf("not available on %s (%v) and not found on AnimeHeaven: %v", req.Provider, firstErr, mapErr)}
+				}
+				m.logger.Warn().Err(mapErr).Int("mediaId", req.MediaId).Msg("onlinestream download: Could not match the series on the fallback provider")
+			}
+		}
 		fallback := req
 		fallback.Provider = FallbackProvider
 		fallback.Server, fallback.SourceURL = "", ""
@@ -291,6 +306,20 @@ func samePath(a, b string) bool {
 // FallbackProvider is where an episode is downloaded from when its own provider has no source
 // for it.
 const FallbackProvider = "animeheaven"
+
+// ErrNotOnProvider is what MapProvider returns when the provider does not have the anime.
+var ErrNotOnProvider = errors.New("not found on the provider")
+
+// skipSeriesError ends an episode, and the series' other waiting episodes, as skipped: neither
+// the provider nor the fallback has the series.
+type skipSeriesError struct{ error }
+
+func (e skipSeriesError) Unwrap() error { return e.error }
+
+func isSkipSeries(err error) bool {
+	var s skipSeriesError
+	return errors.As(err, &s)
+}
 
 func isExpiredLinkError(err error) bool {
 	var se *HTTPStatusError

@@ -543,6 +543,7 @@ function QueueItemRow({ item }: { item: OnlinestreamDownload_Item }) {
                     </p>
                     <p className={cn("text-xs line-clamp-2", item.status === "failed" ? "text-[--orange]" : "text-[--muted]")}>
                         {item.status === "failed" ? (item.error || "Failed")
+                            : item.status === "cancelled" && item.error ? item.error
                             : item.status === "completed" ? `${formatDownloadBytes(item.bytes)}${item.audioTracks?.length
                                     ? ` · ${formatAudioTracks(item.audioTracks)}`
                                     : ""} · ${item.subtitleCount} subtitle track${item.subtitleCount === 1

@@ -9,7 +9,10 @@ import (
 	"time"
 	"unicode"
 
+	"seanime/internal/api/anilist"
 	hibikeonlinestream "seanime/internal/extension/hibike/onlinestream"
+
+	"github.com/rs/zerolog"
 
 	"golang.org/x/text/unicode/norm"
 )
@@ -772,4 +775,21 @@ func similarity(a, b string) float64 {
 	}
 	longest := max(len(ra), len(rb))
 	return 1 - float64(prev[len(rb)])/float64(longest)
+}
+
+// MatchOnProvider finds an anime on an online provider the way the en masse downloader does:
+// every title, synonym and spelling, a close title match, and an episode list that fits. Used
+// outside a run, for a download that has to fall back to another provider. It returns the
+// provider's id and title for the anime, or an error when the provider does not have it.
+func MatchOnProvider(ctx context.Context, logger *zerolog.Logger, hooks *OnlineHooks, provider string, media *anilist.BaseAnime) (id string, title string, err error) {
+	if media == nil || hooks == nil || hooks.Search == nil || hooks.FindEpisodes == nil {
+		return "", "", errors.New("nothing to search with")
+	}
+	d := NewDownloader(&NewDownloaderOptions{Logger: logger})
+	item := d.minifyBaseAnime(media)
+	match, err := d.findOnProvider(ctx, hooks, provider, item, media.GetStartYearSafe())
+	if err != nil {
+		return "", "", err
+	}
+	return match.ID, match.Title, nil
 }

@@ -13,6 +13,75 @@ import (
 	"time"
 )
 
+// onlineProvider returns an online stream provider extension by id.
+func (h *Handler) onlineProvider(id string) (hibikeonlinestream.Provider, error) {
+	ext, ok := extension.GetExtension[extension.OnlinestreamProviderExtension](h.App.ExtensionBankRef.Get(), id)
+	if !ok {
+		return nil, fmt.Errorf("the %s extension is not installed", id)
+	}
+	return ext.GetProvider(), nil
+}
+
+// providerSearchHooks are the provider calls the en masse matcher needs.
+func (h *Handler) providerSearchHooks() *enmasse.OnlineHooks {
+	return &enmasse.OnlineHooks{
+		Search: func(provider string, opts hibikeonlinestream.SearchOptions) ([]*hibikeonlinestream.SearchResult, error) {
+			p, err := h.onlineProvider(provider)
+			if err != nil {
+				return nil, err
+			}
+			return p.Search(opts)
+		},
+		FindEpisodes: func(provider string, id string) ([]*hibikeonlinestream.EpisodeDetails, error) {
+			p, err := h.onlineProvider(provider)
+			if err != nil {
+				return nil, err
+			}
+			return p.FindEpisodes(id)
+		},
+	}
+}
+
+// saveProviderMapping records which provider entry an anime is, replacing an earlier one, and
+// drops an episode list cached from an earlier automatic search.
+func (h *Handler) saveProviderMapping(provider string, mediaId int, providerId string) error {
+	_ = h.App.Database.DeleteOnlinestreamMapping(provider, mediaId)
+	if err := h.App.Database.InsertOnlinestreamMapping(provider, mediaId, providerId); err != nil {
+		return err
+	}
+	if h.App.FileCacher != nil {
+		bucket := filecache.NewBucket("onlinestream_"+provider+"_episode-list_"+strconv.Itoa(mediaId), time.Hour)
+		for _, dubbed := range []bool{false, true} {
+			_ = h.App.FileCacher.Delete(bucket, fmt.Sprintf("%d$%s$%v", mediaId, provider, dubbed))
+		}
+	}
+	return nil
+}
+
+// mapOnlineProvider makes sure a provider knows which of its entries an anime is, for a download
+// falling back to it. A saved match is used as it is; otherwise the anime is searched the
+// thorough en masse way (every title, synonym and spelling, checked against the title and the
+// episode count) and the match saved.
+func (h *Handler) mapOnlineProvider(ctx context.Context, provider string, mediaId int) error {
+	if _, found := h.App.Database.GetOnlinestreamMapping(provider, mediaId); found {
+		return nil
+	}
+	media, err := h.App.OnlinestreamRepository.GetMedia(ctx, mediaId)
+	if err != nil {
+		return err
+	}
+	id, title, err := enmasse.MatchOnProvider(ctx, h.App.Logger, h.providerSearchHooks(), provider, media)
+	if err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		return fmt.Errorf("%w: %v", onlinestream_download.ErrNotOnProvider, err)
+	}
+	h.App.Logger.Info().Int("mediaId", mediaId).Str("provider", provider).Str("match", title).
+		Msg("onlinestream download: Matched the series on the fallback provider")
+	return h.saveProviderMapping(provider, mediaId, id)
+}
+
 // wireEnMasseOnline connects the anime en masse downloader to the online stream downloader: it
 // searches a streaming provider for series the library does not have and queues them whole,
 // and the online downloader saves and matches every episode.
@@ -22,13 +91,7 @@ func (h *Handler) wireEnMasseOnline(app *core.App) {
 	}
 	m := app.OnlinestreamDownloader
 
-	providerFor := func(id string) (hibikeonlinestream.Provider, error) {
-		ext, ok := extension.GetExtension[extension.OnlinestreamProviderExtension](app.ExtensionBankRef.Get(), id)
-		if !ok {
-			return nil, fmt.Errorf("the %s extension is not installed", id)
-		}
-		return ext.GetProvider(), nil
-	}
+	search := h.providerSearchHooks()
 
 	takeovers := newTorrentTakeovers(app, h)
 
@@ -42,36 +105,9 @@ func (h *Handler) wireEnMasseOnline(app *core.App) {
 		},
 		InDownloadQueue: m.HasActive,
 		WaitingEpisodes: m.WaitingCount,
-		Search: func(provider string, opts hibikeonlinestream.SearchOptions) ([]*hibikeonlinestream.SearchResult, error) {
-			p, err := providerFor(provider)
-			if err != nil {
-				return nil, err
-			}
-			return p.Search(opts)
-		},
-		FindEpisodes: func(provider string, id string) ([]*hibikeonlinestream.EpisodeDetails, error) {
-			p, err := providerFor(provider)
-			if err != nil {
-				return nil, err
-			}
-			return p.FindEpisodes(id)
-		},
-		SaveMapping: func(provider string, mediaId int, providerId string) error {
-			// One mapping per anime and provider: replace any earlier one.
-			_ = app.Database.DeleteOnlinestreamMapping(provider, mediaId)
-			if err := app.Database.InsertOnlinestreamMapping(provider, mediaId, providerId); err != nil {
-				return err
-			}
-			// Drop an episode list cached from an earlier automatic search, which may be a
-			// different entry than the one just checked.
-			if app.FileCacher != nil {
-				bucket := filecache.NewBucket("onlinestream_"+provider+"_episode-list_"+strconv.Itoa(mediaId), time.Hour)
-				for _, dubbed := range []bool{false, true} {
-					_ = app.FileCacher.Delete(bucket, fmt.Sprintf("%d$%s$%v", mediaId, provider, dubbed))
-				}
-			}
-			return nil
-		},
+		Search:          search.Search,
+		FindEpisodes:    search.FindEpisodes,
+		SaveMapping:     h.saveProviderMapping,
 		EnqueueSeries: func(ctx context.Context, provider string, mediaId int) (int, error) {
 			have := h.libraryEpisodeFiles(mediaId)
 			res, err := m.EnqueueSeries(ctx, onlinestream_download.Request{
