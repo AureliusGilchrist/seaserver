@@ -111,12 +111,33 @@ jobs:
           New-Item -ItemType Directory -Force -Path $binaries | Out-Null
           Copy-Item -LiteralPath seanime.exe -Destination "$binaries\seanime-server-windows.exe" -Force
 
+      # electron-builder downloads Electron, NSIS and its signing tools from GitHub on every run;
+      # cached, a GitHub hiccup (a 502 on nsis-resources) no longer fails the release.
+      - name: Cache electron-builder downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\AppData\Local\electron-builder\Cache
+            ~\AppData\Local\electron\Cache
+          key: electron-builder-${{ runner.os }}-${{ hashFiles('seanime-denshi/package-lock.json') }}
+          restore-keys: |
+            electron-builder-${{ runner.os }}-
+
       - name: Build Windows Denshi installer
         working-directory: seanime-denshi
         shell: pwsh
         run: |
-          npm run build:win
-          if ($LASTEXITCODE -ne 0) { throw "Windows Denshi packaging failed" }
+          # Retried: what fails here is usually a download from GitHub (a 502), not the build.
+          $ok = $false
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            npm run build:win
+            if ($LASTEXITCODE -eq 0) { $ok = $true; break }
+            if ($attempt -lt 3) {
+              Write-Host "Packaging failed (attempt $attempt of 3); retrying in $(30 * $attempt) seconds"
+              Start-Sleep -Seconds (30 * $attempt)
+            }
+          }
+          if (-not $ok) { throw "Windows Denshi packaging failed" }
 
       - name: Verify Denshi package and expose installer
         id: package
