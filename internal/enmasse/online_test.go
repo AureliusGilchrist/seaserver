@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"seanime/internal/connectivity"
 	"strings"
 	"testing"
 	"time"
@@ -408,5 +409,54 @@ func TestBlockedProviderFailsFast(t *testing.T) {
 	}
 	if _, err := d.findOnProvider(context.Background(), hooks, "animepahe", item, 0); !errors.Is(err, ErrProviderBlocked) || calls != 1 {
 		t.Fatalf("a blocked provider was searched again: err %v, %d searches", err, calls)
+	}
+}
+
+// TestWaitsForTheInternet: while offline a series is held, not recorded as not found; once the
+// connection is back it is handled as usual.
+func TestWaitsForTheInternet(t *testing.T) {
+	onlineRequestGap, onlineSeriesGap = time.Millisecond, time.Millisecond
+	defer func() { onlineRequestGap, onlineSeriesGap = 8*time.Second, 30*time.Second }()
+	prevPoll := connectivity.WaitOnlinePoll
+	connectivity.WaitOnlinePoll = 10 * time.Millisecond
+	defer func() { connectivity.WaitOnlinePoll = prevPoll; connectivity.SetForcedOffline(false) }()
+
+	logger := zerolog.Nop()
+	d := NewDownloader(&NewDownloaderOptions{Logger: &logger})
+	d.resolveOverride = func(ctx context.Context, it *AnimeOfflineItem) (*AnilistMinifiedItem, error) {
+		return &AnilistMinifiedItem{ID: it.AnilistID, TitleRomaji: "Mushishi", Episodes: 26, Status: "FINISHED", Format: "TV"}, nil
+	}
+	queued := false
+	hooks := &OnlineHooks{
+		Search: func(provider string, opts hibikeonlinestream.SearchOptions) ([]*hibikeonlinestream.SearchResult, error) {
+			return []*hibikeonlinestream.SearchResult{{ID: "m", Title: "Mushishi"}}, nil
+		},
+		FindEpisodes: func(provider, id string) ([]*hibikeonlinestream.EpisodeDetails, error) {
+			return make([]*hibikeonlinestream.EpisodeDetails, 26), nil
+		},
+		EnqueueSeries: func(ctx context.Context, provider string, mediaId int) (int, error) {
+			queued = true
+			return 26, nil
+		},
+	}
+
+	connectivity.SetForcedOffline(true)
+	done := make(chan error, 1)
+	go func() {
+		done <- d.processWhileOnline(context.Background(), hooks, &AnimeOfflineItem{Title: "Mushishi", AnilistID: 457})
+	}()
+	select {
+	case err := <-done:
+		t.Fatalf("returned while offline: %v", err)
+	case <-time.After(150 * time.Millisecond):
+	}
+	connectivity.SetForcedOffline(false)
+	select {
+	case err := <-done:
+		if err != nil || !queued {
+			t.Fatalf("after the connection came back: err %v, queued %v", err, queued)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("did not continue once back online")
 	}
 }

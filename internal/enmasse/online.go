@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"seanime/internal/connectivity"
 	"strings"
 	"sync"
 	"time"
@@ -184,7 +185,7 @@ func (d *Downloader) processTorrentSeries(ctx context.Context, hooks *OnlineHook
 		}
 		d.sendStatusUpdate()
 
-		err := d.processAnimeOnline(ctx, hooks, &AnimeOfflineItem{Title: title, AnilistID: s.MediaId, torrentBacked: true})
+		err := d.processWhileOnline(ctx, hooks, &AnimeOfflineItem{Title: title, AnilistID: s.MediaId, torrentBacked: true})
 		if ctx.Err() != nil && !errors.Is(err, errOnlineSkipped) && err != nil {
 			return // interrupted: this one is tried again on resume
 		}
@@ -394,6 +395,9 @@ func (d *Downloader) processAnimeOnline(ctx context.Context, hooks *OnlineHooks,
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
+		if connectivity.IsNetworkError(err) {
+			return err // the internet, not the provider: tried again once it is back
+		}
 		misses = append(misses, err.Error())
 	}
 	if match == nil {
@@ -518,6 +522,9 @@ func (d *Downloader) findOnProvider(ctx context.Context, hooks *OnlineHooks, pro
 		if err != nil {
 			// A provider that refuses the server (403, a Cloudflare check) refuses every
 			// spelling: it is left alone for a while instead of being asked 14 times per series.
+			if connectivity.IsNetworkError(err) {
+				return nil, err
+			}
 			if isBlockedError(err) {
 				until := blockProvider(provider)
 				d.logger.Warn().Err(err).Str("provider", provider).Time("until", until).Msg("enmasse-anime: The provider is refusing this server; skipping it for now")
@@ -876,3 +883,82 @@ func ClearProviderBlock(provider string) {
 	defer providerBlocksMu.Unlock()
 	delete(providerBlocks, provider)
 }
+
+// offlineSiteRetries is how often a series is tried again after a network failure while the
+// internet itself stays up (the site was unreachable), before its result is recorded.
+const offlineSiteRetries = 3
+
+// processWhileOnline handles one series, but never while the internet is down: it waits for the
+// connection first, and when the series fails because the connection dropped it waits for it to
+// come back and handles the same series again. Nothing is recorded as not found while offline.
+func (d *Downloader) processWhileOnline(ctx context.Context, hooks *OnlineHooks, item *AnimeOfflineItem) error {
+	siteFailures := 0
+	for {
+		if err := d.waitForInternet(ctx); err != nil {
+			return err
+		}
+		err := d.processAnimeOnline(ctx, hooks, item)
+		if err == nil || ctx.Err() != nil || !connectivity.IsNetworkError(err) {
+			return err
+		}
+		d.logger.Warn().Err(err).Str("title", item.Title).Msg("enmasse-anime: Network failure; checking the connection before trying the series again")
+		waited, werr := d.settleAfterNetworkError(ctx)
+		if werr != nil {
+			return werr
+		}
+		if !waited {
+			siteFailures++
+			if siteFailures >= offlineSiteRetries {
+				return err
+			}
+		}
+	}
+}
+
+// waitForInternet holds the run while the server has no internet connection, as long as it
+// takes, and says so on the page.
+func (d *Downloader) waitForInternet(ctx context.Context) error {
+	if !connectivity.IsOffline() {
+		return nil
+	}
+	d.logger.Warn().Msg("enmasse-anime: No internet connection; waiting for it to come back")
+	d.updateDetails(func(details *AnimeDownloaderDetails) {
+		details.Phase = "offline"
+		details.Step = "no internet connection: waiting for it to come back"
+	})
+	d.setStatus("No internet connection: waiting for it to come back")
+	if err := connectivity.WaitOnline(ctx); err != nil {
+		return err
+	}
+	d.logger.Info().Msg("enmasse-anime: The internet connection is back; continuing")
+	d.updateDetails(func(details *AnimeDownloaderDetails) {
+		details.Phase = "processing"
+		details.Step = "internet connection back: continuing"
+	})
+	d.setStatus("Internet connection back: continuing")
+	return nil
+}
+
+// settleAfterNetworkError gives the connection check time to decide after a request failed on
+// the network; if the internet is down it waits until it is back. Returns true when it waited.
+func (d *Downloader) settleAfterNetworkError(ctx context.Context) (bool, error) {
+	connectivity.ReportNetworkFailure()
+	deadline := time.Now().Add(offlineSettleWindow)
+	for time.Now().Before(deadline) {
+		if connectivity.IsOffline() {
+			return true, d.waitForInternet(ctx)
+		}
+		t := time.NewTimer(2 * time.Second)
+		select {
+		case <-ctx.Done():
+			t.Stop()
+			return false, ctx.Err()
+		case <-t.C:
+		}
+		connectivity.ReportNetworkFailure()
+	}
+	return false, nil
+}
+
+// offlineSettleWindow is how long settleAfterNetworkError gives the probes to agree.
+var offlineSettleWindow = 45 * time.Second

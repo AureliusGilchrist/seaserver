@@ -1120,7 +1120,7 @@ func (d *Downloader) run(ctx context.Context, startIndex int, done chan struct{}
 
 		d.logger.Info().Str("title", animeItem.Title).Int("index", i).Msg("enmasse-anime: Processing anime")
 
-		err := d.processAnimeOnline(ctx, hooks, animeItem)
+		err := d.processWhileOnline(ctx, hooks, animeItem)
 		if err != nil && !errors.Is(err, errOnlineSkipped) && ctx.Err() != nil {
 			d.saveCurrentProgress(i)
 			d.setStatus("Stopped")

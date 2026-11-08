@@ -133,11 +133,14 @@ function pipelineIndex(phase?: string) {
     return -1
 }
 
-type RunState = "running" | "waiting" | "paused" | "completed" | "idle"
+type RunState = "running" | "waiting" | "offline" | "paused" | "completed" | "idle"
 
 function runState(status: EnMasseDownloaderStatus | undefined): RunState {
     if (!status) return "idle"
-    if (status.isRunning) return status.details?.phase === "waiting" ? "waiting" : "running"
+    if (status.isRunning) {
+        if (status.details?.phase === "offline") return "offline"
+        return status.details?.phase === "waiting" ? "waiting" : "running"
+    }
     if (status.status?.startsWith("Completed")) return "completed"
     if (status.isPaused || status.hasSavedProgress) return "paused"
     return "idle"
@@ -146,6 +149,7 @@ function runState(status: EnMasseDownloaderStatus | undefined): RunState {
 const stateStyle: Record<RunState, { label: string, dot: string, className: string }> = {
     running: { label: "Running", dot: "bg-emerald-400", className: "text-emerald-200 border-emerald-400/30 bg-emerald-400/10" },
     waiting: { label: "Waiting for downloads", dot: "bg-sky-400", className: "text-sky-200 border-sky-400/30 bg-sky-400/10" },
+    offline: { label: "Waiting for internet", dot: "bg-amber-400", className: "text-amber-200 border-amber-400/30 bg-amber-400/10" },
     paused: { label: "Paused", dot: "bg-amber-400", className: "text-amber-200 border-amber-400/30 bg-amber-400/10" },
     completed: { label: "Completed", dot: "bg-emerald-400", className: "text-emerald-200 border-emerald-400/30 bg-emerald-400/10" },
     idle: { label: "Idle", dot: "bg-gray-500", className: "text-gray-300 border-white/10 bg-white/5" },
@@ -250,7 +254,8 @@ function Stage({ status }: { status: EnMasseDownloaderStatus | undefined }) {
     // A run that could not start, or stopped on an error, says why in plain sight.
     const startError = !status?.isRunning && status?.status && /^(Could not start|Error)/.test(status.status) ? status.status : ""
 
-    const heading = active ? status!.currentAnime!
+    const heading = state === "offline" ? "Waiting for the internet connection"
+        : active ? status!.currentAnime!
         : state === "waiting" ? "Letting the downloads catch up"
             : state === "paused" ? "Paused, ready to pick up where it left off"
                 : state === "completed" ? "Every series has been checked"
@@ -337,7 +342,7 @@ function Stage({ status }: { status: EnMasseDownloaderStatus | undefined }) {
                         </span>
                         <span className={cn("text-[11px] font-semibold px-2.5 py-1 rounded-full border inline-flex items-center gap-1.5", stateStyle[state].className)}>
                             <span className="relative flex size-1.5">
-                                {(state === "running" || state === "waiting") &&
+                                {(state === "running" || state === "waiting" || state === "offline") &&
                                     <span className={cn("absolute inline-flex size-full rounded-full opacity-75 animate-ping", stateStyle[state].dot)} />}
                                 <span className={cn("relative inline-flex size-1.5 rounded-full", stateStyle[state].dot)} />
                             </span>
@@ -368,7 +373,9 @@ function Stage({ status }: { status: EnMasseDownloaderStatus | undefined }) {
                                 </h1>
                             )}
                             <p className="text-gray-300/90 max-w-2xl text-sm sm:text-base">
-                                {active
+                                {state === "offline"
+                                    ? "The server can't reach the internet. The run is holding its place and carries on by itself as soon as the connection is back; nothing is marked as not found meanwhile."
+                                    : active
                                     ? [
                                         `#${formatNumber(d?.currentAnimeIndex || status?.processedCount || 0)}`,
                                         d?.expectedEpisodes ? `${d.expectedEpisodes} episodes` : "",
@@ -381,7 +388,7 @@ function Stage({ status }: { status: EnMasseDownloaderStatus | undefined }) {
                         </motion.div>
                     </AnimatePresence>
 
-                    {active && <Pipeline status={status} />}
+                    {active && state !== "offline" && <Pipeline status={status} />}
 
                     {!!startError && <div
                         className="flex gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200 max-w-2xl"

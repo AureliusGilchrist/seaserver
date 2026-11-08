@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"seanime/internal/api/anilist"
+	"seanime/internal/connectivity"
 	"seanime/internal/events"
 	"seanime/internal/onlinestream"
 	"sort"
@@ -900,6 +901,12 @@ func (m *Manager) worker() {
 	}
 }
 
+// offlineMessage is what the queue says while there is no internet connection.
+const offlineMessage = "No internet connection: downloads wait until it is back"
+
+// offlineRetryDelay is how often a waiting episode looks for the connection again.
+var offlineRetryDelay = 15 * time.Second
+
 // defaultEpisodeGap is the pause between two episode downloads.
 const defaultEpisodeGap = 15 * time.Second
 
@@ -1006,6 +1013,21 @@ func (m *Manager) run(it *Item) {
 		return
 	}
 
+	// No internet: nothing can download. The episode waits (without using up an attempt) and the
+	// queue says why, until the connection is back.
+	if connectivity.IsOffline() {
+		m.mu.Lock()
+		changed := m.blocked != offlineMessage
+		m.blocked = offlineMessage
+		it.retryAt = time.Now().Add(offlineRetryDelay)
+		m.mu.Unlock()
+		if changed {
+			m.logger.Warn().Msg("onlinestream download: No internet connection; downloads wait until it is back")
+			m.changed()
+		}
+		return
+	}
+
 	m.mu.Lock()
 	if it.Status != StatusQueued || m.paused { // cancelled or stopped while waiting
 		m.mu.Unlock()
@@ -1036,6 +1058,9 @@ func (m *Manager) run(it *Item) {
 		process = m.processOverride
 	}
 	dest, err := process(ctx, it, workDir)
+	if err != nil && connectivity.IsNetworkError(err) {
+		connectivity.ReportNetworkFailure()
+	}
 
 	m.mu.Lock()
 	it.cancel = nil
@@ -1079,6 +1104,15 @@ func (m *Manager) run(it *Item) {
 		it.Attempts--
 		it.retryAt = finishedAt.Add(storageRetryDelay)
 		m.blocked = storageMessage(m.opts.WorkDir, err)
+		keepWork = true
+	case err != nil && connectivity.IsNetworkError(err) && connectivity.IsOffline():
+		// The connection dropped: back to the queue without using up an attempt, segments kept.
+		it.stopping = false
+		it.Status = StatusQueued
+		it.Progress = 0
+		it.Attempts--
+		it.retryAt = finishedAt.Add(offlineRetryDelay)
+		m.blocked = offlineMessage
 		keepWork = true
 	case err != nil && !isFinal(err) && it.Attempts < maxAutoAttempts:
 		// Retried by itself after a pause, from the segments it already has: a dropped

@@ -1,6 +1,9 @@
 package connectivity
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func TestForcedOfflineIgnoresTheConnection(t *testing.T) {
 	reset()
@@ -74,4 +77,21 @@ func TestBlockTakesPriorityAndKeepsTheRealState(t *testing.T) {
 		t.Fatalf("state is %s after unblocking", Current())
 	}
 	reset()
+}
+
+func TestIsNetworkError(t *testing.T) {
+	for _, msg := range []string{
+		`Get "https://x": dial tcp: lookup x on 127.0.0.53:53: privacy/doh: DNS blocked, no DoH resolver is reachable (fail-closed)`,
+		"read tcp 1.2.3.4:5->6.7.8.9:443: connection reset by peer",
+		`Get "https://x": context deadline exceeded (Client.Timeout exceeded while awaiting headers)`,
+	} {
+		if !IsNetworkError(errors.New(msg)) {
+			t.Errorf("%q should be a network error", msg)
+		}
+	}
+	for _, msg := range []string{"anime not found", "animepahe: 403 blocked by Cloudflare's check"} {
+		if IsNetworkError(errors.New(msg)) {
+			t.Errorf("%q is not a network error", msg)
+		}
+	}
 }

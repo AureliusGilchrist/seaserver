@@ -7,7 +7,9 @@ package connectivity
 
 import (
 	"context"
+	"errors"
 	"net"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -155,3 +157,71 @@ func run(ctx context.Context, probe func(context.Context) bool) {
 		}
 	}
 }
+
+// IsNetworkError reports an error that means the request never got an answer: no route, no DNS,
+// a refused or reset connection, a timeout. As opposed to an answer the caller did not like.
+func IsNetworkError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return true
+	}
+	l := strings.ToLower(err.Error())
+	for _, s := range []string{
+		"dial tcp", "no such host", "dns blocked", "no doh resolver", "i/o timeout", "connection refused",
+		"connection reset", "network is unreachable", "no route to host", "tls handshake timeout",
+		"client.timeout exceeded", "server misbehaving", "temporary failure in name resolution",
+	} {
+		if strings.Contains(l, s) {
+			return true
+		}
+	}
+	return false
+}
+
+// WaitOnline returns once the internet can be reached, waiting as long as it takes; it returns
+// ctx's error if ctx ends first. Returns straight away while online.
+func WaitOnline(ctx context.Context) error {
+	for IsOffline() {
+		ReportNetworkFailure()
+		t := time.NewTimer(WaitOnlinePoll)
+		select {
+		case <-ctx.Done():
+			t.Stop()
+			return ctx.Err()
+		case <-t.C:
+		}
+	}
+	return nil
+}
+
+// WaitOnlinePoll is how often WaitOnline looks again.
+var WaitOnlinePoll = 5 * time.Second
+
+// SettleAfterNetworkError is for a request that just failed on the network: it asks for a check
+// and gives the check time to decide (the state flips to offline after a few failed probes). If
+// the internet turns out to be down it waits until it is back. It returns true when it waited
+// for the connection, false when the internet stayed up (the failure was the site's).
+func SettleAfterNetworkError(ctx context.Context) (waited bool, err error) {
+	ReportNetworkFailure()
+	deadline := time.Now().Add(settleWindow)
+	for time.Now().Before(deadline) {
+		if IsOffline() {
+			return true, WaitOnline(ctx)
+		}
+		t := time.NewTimer(2 * time.Second)
+		select {
+		case <-ctx.Done():
+			t.Stop()
+			return false, ctx.Err()
+		case <-t.C:
+		}
+		ReportNetworkFailure()
+	}
+	return false, nil
+}
+
+// settleWindow is how long SettleAfterNetworkError gives the probes to agree the internet is down.
+var settleWindow = 45 * time.Second
