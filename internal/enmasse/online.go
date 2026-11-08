@@ -30,12 +30,12 @@ import (
 // BackupProviders are tried, in order, when OnlineProvider does not have a series. They never
 // replace a healthy torrent: a series still downloading as a torrent is only taken over by
 // OnlineProvider, unless the torrent is stalled.
-var BackupProviders = []string{"animepahe", BackupProvider}
+var BackupProviders = []string{"anizone", "animepahe", BackupProvider}
 
 const (
 	// OnlineProvider is the provider the en masse downloader searches first.
 	OnlineProvider = "kickassanime"
-	// BackupProvider is the last backup, tried after AnimePahe (see BackupProviders).
+	// BackupProvider is the last backup, tried after AniZone and AnimePahe (see BackupProviders).
 	BackupProvider = "animeheaven"
 
 	// onlineMaxWaitingSeries stops the search from running ahead of the downloads: no new
@@ -359,7 +359,7 @@ func (d *Downloader) processAnimeOnline(ctx context.Context, hooks *OnlineHooks,
 	if animeItem.AnimeSeason != nil {
 		year = animeItem.AnimeSeason.Year
 	}
-	// Kickassanime first, then AnimePahe and AnimeHeaven as the backups. A series still downloading as a torrent is
+	// Kickassanime first, then AniZone, AnimePahe and AnimeHeaven as the backups. A series still downloading as a torrent is
 	// only taken over by Kickassanime, unless its torrent is stalled: then the backup may replace
 	// it too. A healthy torrent is never replaced by the backup.
 	torrentBacked := animeItem.torrentBacked || (hooks.HasTorrent != nil && hooks.HasTorrent(resolved.ID))
