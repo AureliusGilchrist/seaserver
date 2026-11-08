@@ -15,6 +15,7 @@ import {
 } from "@/api/hooks/onlinestream_download.hooks"
 import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-entry-card"
 import { SeaLink } from "@/components/shared/sea-link"
+import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { Button, IconButton } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/components/ui/core/styling"
@@ -40,7 +41,6 @@ import {
     LuPlay,
     LuRotateCcw,
     LuCaptions,
-    LuTrash2,
     LuTriangleAlert,
     LuX,
 } from "react-icons/lu"
@@ -159,6 +159,14 @@ export function AnimeDownloadQueue() {
     const { mutate: act, isPending } = useOnlinestreamDownloadQueueAction()
     const [filter, setFilter] = React.useState<QueueFilter>("all")
     const [expanded, setExpanded] = React.useState<Set<number>>(new Set())
+    // Clear all empties the whole queue, waiting episodes included: asked first.
+    const confirmClearAll = useConfirmationDialog({
+        title: "Clear the whole queue?",
+        description: "Every episode in the queue is removed: the ones waiting, the one downloading, and the finished and failed ones. Episodes already in your library stay where they are.",
+        actionText: "Clear all",
+        actionIntent: "alert",
+        onConfirm: () => act({ action: "clear-all" }),
+    })
 
     const counts = data?.counts ?? { queued: 0, running: 0, completed: 0, failed: 0, cancelled: 0, total: 0 }
     const series = data?.series ?? []
@@ -219,7 +227,7 @@ export function AnimeDownloadQueue() {
                         size="sm"
                         disabled={isPending}
                         leftIcon={<MdClear className="text-xl" />}
-                        onClick={() => act({ action: "clear-all" })}
+                        onClick={() => confirmClearAll.open()}
                     >
                         Clear all
                     </Button>}
@@ -261,6 +269,7 @@ export function AnimeDownloadQueue() {
                 <StatTile label="Series" value={series.length} icon={<LuFilm />} />
             </div>
 
+            <ConfirmationDialog {...confirmClearAll} />
             <Card className="p-4 space-y-3" data-anime-download-queue-card>
                 <div className="flex gap-1.5 flex-wrap">
                     {([
@@ -275,7 +284,7 @@ export function AnimeDownloadQueue() {
                             onClick={() => setFilter(key)}
                             className={cn(
                                 "px-3 h-8 rounded-full text-sm border transition-colors",
-                                filter === key ? "bg-[--brand] border-transparent text-white" : "border-[--border] text-[--muted] hover:text-[--foreground]",
+                                filter === key ? "bg-white border-transparent text-gray-950 font-medium" : "border-[--border] text-[--muted] hover:text-[--foreground]",
                             )}
                         >
                             {label}
@@ -351,14 +360,6 @@ const SeriesRow = React.memo(function SeriesRow({ series: s, rev, filter, open, 
                 >
                     Retry {retryable}
                 </Button>}
-                <IconButton
-                    size="sm"
-                    intent="gray-basic"
-                    icon={<LuTrash2 />}
-                    title="Remove this series' waiting and finished episodes"
-                    disabled={isPending}
-                    onClick={() => act({ action: "clear-media", mediaId: s.mediaId })}
-                />
                 <IconButton
                     size="sm"
                     intent="gray-basic"
@@ -581,14 +582,6 @@ function QueueItemRow({ item }: { item: OnlinestreamDownload_Item }) {
                         disabled={isPending}
                         onClick={() => act({ action: "cancel", id: item.id })}
                     />}
-                    {!running && <IconButton
-                        size="xs"
-                        intent="gray-basic"
-                        icon={<LuTrash2 />}
-                        title="Remove from the list"
-                        disabled={isPending}
-                        onClick={() => act({ action: "remove", id: item.id })}
-                    />}
                 </div>
             </div>
         </div>
@@ -629,7 +622,7 @@ export function AnimeDownloadedList() {
                 <p className="text-center text-[--muted] italic py-4">No episodes downloaded from streaming providers yet</p>
             ) : (
                 <VirtuosoGrid
-                    style={{ height: "56vh" }}
+                    style={{ height: "56vh", overflowX: "hidden" }}
                     data={series}
                     computeItemKey={(_i, s) => String(s.mediaId)}
                     listClassName="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-4"
