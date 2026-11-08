@@ -278,6 +278,11 @@ export function EnMassePage() {
                 <Card className="p-4">
                     <h3 className="font-semibold mb-2">How it works</h3>
                     <ul className="text-sm text-[--muted] space-y-1 list-disc list-inside">
+                        <li>
+                            Starts with series that are still <strong>downloading as torrents</strong>: when Kickassanime has
+                            them, the torrent is paused and the series downloads online instead. Once its episodes are in your
+                            library the torrent and its files are removed; if the online download fails, the torrent resumes.
+                        </li>
                         <li>Goes through the anime database one series at a time.</li>
                         <li className="flex-inline">
                             <LuSkipForward className="inline mr-1" />

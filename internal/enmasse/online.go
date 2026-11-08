@@ -65,6 +65,20 @@ type OnlineHooks struct {
 	SaveMapping func(provider string, mediaId int, providerId string) error
 	// EnqueueSeries queues every episode of the anime for download and returns how many were queued.
 	EnqueueSeries func(ctx context.Context, provider string, mediaId int) (queued int, err error)
+
+	// TorrentSeries lists the anime that have a torrent still downloading in the torrent client.
+	// They are handled first: the online download replaces the torrent.
+	TorrentSeries func() []TorrentSeries
+	// TakeOverTorrents hands an anime's unfinished torrents to the online download: they are
+	// paused now, removed with their files once every episode is in the library, and resumed if
+	// the online download fails.
+	TakeOverTorrents func(mediaId int)
+}
+
+// TorrentSeries is an anime with a torrent still downloading.
+type TorrentSeries struct {
+	MediaId int
+	Title   string
 }
 
 // SetOnlineHooks connects the downloader to the online stream downloader.
@@ -101,6 +115,68 @@ func (d *Downloader) paceRequest(ctx context.Context) error {
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
+	}
+}
+
+// processTorrentSeries tries every anime that is still downloading as a torrent before the rest
+// of the database: those are the series the user is waiting for right now.
+func (d *Downloader) processTorrentSeries(ctx context.Context, hooks *OnlineHooks) {
+	if hooks.TorrentSeries == nil {
+		return
+	}
+	series := hooks.TorrentSeries()
+	if len(series) == 0 {
+		return
+	}
+	d.logger.Info().Int("series", len(series)).Msg("enmasse-anime: Trying the series that are downloading as torrents first")
+	d.setStatus(fmt.Sprintf("Trying %d series that are downloading as torrents", len(series)))
+	for i, s := range series {
+		if ctx.Err() != nil {
+			return
+		}
+		title := s.Title
+		if title == "" {
+			title = fmt.Sprintf("AniList %d", s.MediaId)
+		}
+		d.mu.Lock()
+		d.currentAnime = &AnilistMinifiedItem{ID: s.MediaId, Title: title}
+		d.status = fmt.Sprintf("Torrent %d/%d: %s", i+1, len(series), title)
+		d.details.Phase = "torrents"
+		d.details.Step = "replacing a torrent with an online download"
+		d.details.LastError = ""
+		d.mu.Unlock()
+		d.sendStatusUpdate()
+
+		err := d.processAnimeOnline(ctx, hooks, &AnimeOfflineItem{Title: title, AnilistID: s.MediaId})
+		d.recordOnlineResult(ctx, title, err)
+	}
+}
+
+// recordOnlineResult files one series' outcome in the downloaded / not found / skipped tallies.
+func (d *Downloader) recordOnlineResult(ctx context.Context, title string, err error) {
+	switch {
+	case err == nil:
+		d.updateDetails(func(details *AnimeDownloaderDetails) {
+			details.Step = "anime queued successfully"
+			details.LastError = ""
+		})
+		d.addToDownloaded(title)
+	case errors.Is(err, errOnlineSkipped):
+		d.mu.Lock()
+		d.skippedCount++
+		d.mu.Unlock()
+		d.updateDetails(func(details *AnimeDownloaderDetails) {
+			details.Step = "skipped: " + err.Error()
+			details.LastError = ""
+		})
+	case ctx.Err() != nil:
+	default:
+		d.updateDetails(func(details *AnimeDownloaderDetails) {
+			details.Step = "anime failed"
+			details.LastError = err.Error()
+		})
+		d.logger.Info().Err(err).Str("title", title).Msg("enmasse-anime: Not found online")
+		d.addToFailed(title)
 	}
 }
 
@@ -225,6 +301,9 @@ func (d *Downloader) processAnimeOnline(ctx context.Context, hooks *OnlineHooks,
 		details.Step = fmt.Sprintf("queued %d episodes", queued)
 		details.EpisodesQueued += queued
 	})
+	if hooks.TakeOverTorrents != nil {
+		hooks.TakeOverTorrents(resolved.ID)
+	}
 	if d.OnAnimeQueued != nil {
 		d.OnAnimeQueued(resolved.ID)
 	}

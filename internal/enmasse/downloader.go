@@ -879,6 +879,14 @@ func (d *Downloader) run(ctx context.Context, resume bool) {
 		return
 	}
 
+	// Series still downloading as torrents come first.
+	d.processTorrentSeries(ctx, hooks)
+	if ctx.Err() != nil {
+		d.saveCurrentProgress(startIndex)
+		d.setStatus("Stopped")
+		return
+	}
+
 	// Process each anime starting from startIndex
 	for i := startIndex; i < len(animeList); i++ {
 		animeItem := animeList[i]

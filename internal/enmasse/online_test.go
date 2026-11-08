@@ -157,3 +157,38 @@ func TestProcessAnimeOnline(t *testing.T) {
 		t.Fatalf("library series: err %v, searches %d", err, len(searched))
 	}
 }
+
+// TestTorrentSeriesFirst: a series still downloading as a torrent is tried before the database,
+// and once it is queued online its torrents are handed over.
+func TestTorrentSeriesFirst(t *testing.T) {
+	onlineRequestGap, onlineSeriesGap = time.Millisecond, time.Millisecond
+	defer func() { onlineRequestGap, onlineSeriesGap = 8*time.Second, 30*time.Second }()
+
+	logger := zerolog.Nop()
+	d := NewDownloader(&NewDownloaderOptions{Logger: &logger})
+	d.resolveOverride = func(ctx context.Context, it *AnimeOfflineItem) (*AnilistMinifiedItem, error) {
+		return &AnilistMinifiedItem{ID: it.AnilistID, TitleRomaji: it.Title, Episodes: 12, Status: "FINISHED", Format: "TV"}, nil
+	}
+	var tookOver []int
+	hooks := &OnlineHooks{
+		InLibrary: func(int) bool { return false },
+		Search: func(provider string, opts hibikeonlinestream.SearchOptions) ([]*hibikeonlinestream.SearchResult, error) {
+			return []*hibikeonlinestream.SearchResult{{ID: "x", Title: opts.Query}}, nil
+		},
+		FindEpisodes: func(provider, id string) ([]*hibikeonlinestream.EpisodeDetails, error) {
+			return make([]*hibikeonlinestream.EpisodeDetails, 12), nil
+		},
+		EnqueueSeries: func(ctx context.Context, provider string, mediaId int) (int, error) { return 12, nil },
+		TorrentSeries: func() []TorrentSeries {
+			return []TorrentSeries{{MediaId: 7, Title: "Sousou no Frieren"}, {MediaId: 9, Title: ""}}
+		},
+		TakeOverTorrents: func(mediaId int) { tookOver = append(tookOver, mediaId) },
+	}
+	d.processTorrentSeries(context.Background(), hooks)
+	if len(tookOver) != 2 || tookOver[0] != 7 {
+		t.Fatalf("took over %v", tookOver)
+	}
+	if st := d.GetStatus(); len(st.DownloadedAnime) != 2 {
+		t.Fatalf("queued %v", st.DownloadedAnime)
+	}
+}

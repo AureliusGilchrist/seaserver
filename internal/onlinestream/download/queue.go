@@ -1038,3 +1038,22 @@ func (m *Manager) WaitingCount() int {
 	}
 	return n
 }
+
+// SeriesState counts an anime's episodes still waiting or downloading, and those that failed or
+// were cancelled.
+func (m *Manager) SeriesState(mediaId int) (active int, failed int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, it := range m.items {
+		if it.MediaId != mediaId {
+			continue
+		}
+		switch {
+		case !it.finished():
+			active++
+		case it.Status == StatusFailed || it.Status == StatusCancelled:
+			failed++
+		}
+	}
+	return active, failed
+}
