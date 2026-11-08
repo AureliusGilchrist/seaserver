@@ -1,6 +1,6 @@
 "use client"
 
-import { AnimeEnMasseActivity, EnMasseDownloaderStatus, useEnMasseStart, useEnMasseStatus, useEnMasseStop } from "@/api/hooks/enmasse.hooks"
+import { AnimeEnMasseActivity, AnimeEnMasseReady, EnMasseDownloaderStatus, useEnMasseStart, useEnMasseStatus, useEnMasseStop } from "@/api/hooks/enmasse.hooks"
 import { isOnlinestreamDownloadRunning, useGetOnlinestreamDownloads } from "@/api/hooks/onlinestream_download.hooks"
 import { useDownloadingAnime } from "@/app/(main)/_atoms/downloading.atoms"
 import { AnimePaheAccessCard } from "@/app/(main)/enmasse/_containers/animepahe-access-card"
@@ -228,7 +228,6 @@ export function EnMassePage() {
             <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_24rem] gap-6 items-stretch">
                 {/* The activity feed grows to the height of the column beside it. */}
                 <div className="flex flex-col gap-6 min-w-0">
-                    <LinedUp status={status} />
                     <JustQueued status={status} />
                     <ActivityFeed status={status} />
                 </div>
@@ -595,40 +594,6 @@ function MetricsStrip({ status, progress }: { status: EnMasseDownloaderStatus | 
 // Just queued
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** Series looked up while the download queue was full: queued in this order as room appears. */
-function LinedUp({ status }: { status: EnMasseDownloaderStatus | undefined }) {
-    const ready = status?.ready ?? []
-    if (!ready.length) return null
-    return (
-        <div className={cn(panel, "p-5 sm:p-6 space-y-4")} data-enmasse-ready>
-            <div className="flex items-center gap-2">
-                <span className="size-8 rounded-xl bg-sky-500/15 text-sky-300 flex items-center justify-center"><LuListVideo /></span>
-                <div className="flex-1">
-                    <h3 className="font-semibold leading-tight">Lined up <span className="text-gray-500 font-normal tabular-nums">{formatNumber(ready.length)}</span></h3>
-                    <p className="text-xs text-gray-400">Found and ready: queued in this order as soon as fewer than 10 series are waiting</p>
-                </div>
-            </div>
-            <div className="max-h-72 overflow-y-auto -mx-2 px-2 space-y-1 [scrollbar-width:thin]">
-                {ready.map((r, i) => (
-                    <div key={r.mediaId} className="flex items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-white/[0.03]">
-                        <span className="w-6 text-right text-xs text-gray-500 tabular-nums flex-none">{i + 1}</span>
-                        <div className="w-8 h-11 rounded-md overflow-hidden bg-gray-900 ring-1 ring-white/10 flex-none">
-                            {r.image ? <img src={r.image} alt="" loading="lazy" className="w-full h-full object-cover" />
-                                : <div className="w-full h-full flex items-center justify-center text-gray-600"><LuFilm /></div>}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <SeaLink href={`/entry?id=${r.mediaId}`} className="text-sm font-medium hover:underline line-clamp-1">{r.title}</SeaLink>
-                            <p className="text-xs text-gray-400">
-                                {providerName(r.provider)}{r.episodes ? ` · ${r.episodes} episodes` : ""}
-                            </p>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    )
-}
-
 function JustQueued({ status }: { status: EnMasseDownloaderStatus | undefined }) {
     const posters = useRecentPosters(status, 18)
     if (!posters.length) return null
@@ -684,7 +649,7 @@ function JustQueued({ status }: { status: EnMasseDownloaderStatus | undefined })
 // Activity
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-type FeedTab = "recent" | "queued" | "missing"
+type FeedTab = "recent" | "ready" | "queued" | "missing"
 
 const resultStyle: Record<AnimeEnMasseActivity["result"], { label: string, className: string, rail: string, icon: React.ElementType }> = {
     queued: { label: "Queued", className: "text-emerald-300 bg-emerald-400/10 border-emerald-400/25", rail: "bg-emerald-400", icon: LuCircleCheck },
@@ -698,10 +663,12 @@ function ActivityFeed({ status }: { status: EnMasseDownloaderStatus | undefined 
     const recent = status?.recent ?? []
     const queued = React.useMemo(() => [...(status?.downloadedAnime ?? [])].reverse(), [status?.downloadedAnime])
     const missing = React.useMemo(() => [...(status?.failedAnime ?? [])].reverse(), [status?.failedAnime])
+    const ready = status?.ready ?? []
     const list = tab === "queued" ? queued : missing
 
     const tabs: [FeedTab, string, number | undefined][] = [
         ["recent", "Latest", undefined],
+        ["ready", "Lined up", ready.length],
         ["queued", "Queued", queued.length],
         ["missing", "Not found", missing.length],
     ]
@@ -745,6 +712,14 @@ function ActivityFeed({ status }: { status: EnMasseDownloaderStatus | undefined 
                         computeItemKey={(i, e) => `${e.time}-${i}`}
                         itemContent={(_i, e) => <ActivityRow entry={e} now={now} />}
                     /> : <EmptyFeed text="Results appear here as each series is checked." />
+                ) : tab === "ready" ? (
+                    // Found while the download queue was full: queued in this order as room appears.
+                    ready.length ? <Virtuoso
+                        style={{ position: "absolute", inset: 0 }}
+                        data={ready}
+                        computeItemKey={(_i, r) => r.mediaId}
+                        itemContent={(i, r) => <ReadyRow entry={r} position={i + 1} />}
+                    /> : <EmptyFeed text="Nothing lined up. While 10 series are waiting to download, the series found next line up here." />
                 ) : list.length ? (
                     <Virtuoso
                         style={{ position: "absolute", inset: 0 }}
@@ -764,6 +739,27 @@ function ActivityFeed({ status }: { status: EnMasseDownloaderStatus | undefined 
         </div>
     )
 }
+
+const ReadyRow = React.memo(function ReadyRow({ entry: r, position }: { entry: AnimeEnMasseReady, position: number }) {
+    return (
+        <div className="px-5 sm:px-6 py-3 border-b border-white/[0.04] flex gap-4 items-center hover:bg-white/[0.025] transition-colors">
+            <span className="w-6 text-right text-xs text-gray-500 tabular-nums flex-none">{position}</span>
+            <div className="w-10 h-14 rounded-lg overflow-hidden bg-gray-900 ring-1 ring-white/10 flex-none">
+                {r.image ? <img src={r.image} alt="" loading="lazy" className="w-full h-full object-cover" />
+                    : <div className="w-full h-full flex items-center justify-center text-gray-600"><LuFilm /></div>}
+            </div>
+            <div className="flex-1 min-w-0">
+                <SeaLink href={`/entry?id=${r.mediaId}`} className="text-sm font-medium hover:underline line-clamp-1">{r.title}</SeaLink>
+                <p className="text-xs text-gray-400 line-clamp-1 mt-0.5">
+                    Found on {providerName(r.provider)}{r.episodes ? ` · ${r.episodes} episodes` : ""}
+                </p>
+            </div>
+            <span className="text-[11px] font-semibold rounded-full border px-2 py-0.5 inline-flex items-center gap-1 text-sky-300 bg-sky-400/10 border-sky-400/25 flex-none">
+                <LuClock /> Lined up
+            </span>
+        </div>
+    )
+})
 
 const ActivityRow = React.memo(function ActivityRow({ entry: e, now }: { entry: AnimeEnMasseActivity, now: number }) {
     const style = resultStyle[e.result] ?? resultStyle.skipped
