@@ -8,15 +8,16 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { useRouter } from "@/lib/navigation"
+import { __anime_streamDownloadsModalIsOpenAtom } from "@/app/(main)/onlinestream/_containers/anime-downloads/anime-downloads-modal"
+import { useSetAtom } from "jotai/react"
 import React, { useEffect, useRef, useState } from "react"
 import { BiPlay, BiStop, BiPause } from "react-icons/bi"
-import { LuCircleCheck, LuCircleX, LuDownload, LuRefreshCw } from "react-icons/lu"
+import { LuCircleCheck, LuCircleX, LuDownload, LuMonitorDown, LuRefreshCw, LuSkipForward } from "react-icons/lu"
 import { Switch } from "@/components/ui/switch"
 import { formatNumber } from "@/lib/helpers/number"
 
 export function EnMassePage() {
-    const router = useRouter()
+    const openDownloadQueue = useSetAtom(__anime_streamDownloadsModalIsOpenAtom)
     const [shouldPoll, setShouldPoll] = useState<boolean>(false)
     const { data: status, isLoading } = useEnMasseStatus(true, shouldPoll)
     const { mutate: start, isPending: isStarting } = useEnMasseStart()
@@ -52,16 +53,6 @@ export function EnMassePage() {
         }
     }, [status?.currentAnimeId, addDownloadingAnime])
 
-    // Redirect to unmatched when completed
-    useEffect(() => {
-        if (status?.status === "Completed! Redirecting to unmatched...") {
-            const timer = setTimeout(() => {
-                router.push("/unmatched")
-            }, 2000)
-            return () => clearTimeout(timer)
-        }
-    }, [status?.status, router])
-
     if (isLoading) {
         return (
             <PageWrapper className="p-4 sm:p-8 space-y-4">
@@ -78,10 +69,17 @@ export function EnMassePage() {
                 <div>
                     <h2 className="text-2xl font-bold">Anime En Masse Downloader</h2>
                     <p className="text-[--muted]">
-                        Automatically download anime from your AniList collection
+                        Finds every series your library doesn't have on Kickassanime and downloads it, matched automatically
                     </p>
                 </div>
                 <div className="flex gap-2 items-start">
+                    <Button
+                        intent="white-subtle"
+                        leftIcon={<LuMonitorDown className="text-xl" />}
+                        onClick={() => openDownloadQueue(true)}
+                    >
+                        Download queue
+                    </Button>
                     {!status?.isRunning ? (
                         <div className="flex flex-col gap-2 items-end">
                             <Button
@@ -165,30 +163,29 @@ export function EnMassePage() {
                                     {formatNumber(status.details.currentAnimeIndex || 0)}/{formatNumber(status.details.currentAnimeTotal || status.totalCount || 0)}
                                 </div>
                                 <div>
-                                    <span className="text-[--muted]">Providers:</span>{" "}
-                                    {status.details.providersDone || 0}/{status.details.providersTotal || 0}
+                                    <span className="text-[--muted]">Provider:</span> {status.details.currentProvider || "kickassanime"}
                                 </div>
                                 <div>
-                                    <span className="text-[--muted]">Provider:</span> {status.details.currentProvider || "-"}
-                                </div>
-                                <div>
-                                    <span className="text-[--muted]">Variant:</span>{" "}
+                                    <span className="text-[--muted]">Spelling:</span>{" "}
                                     {status.details.variantIndex || 0}/{status.details.variantsTotal || 0}
                                 </div>
                                 <div className="sm:col-span-2">
-                                    <span className="text-[--muted]">Query:</span> {status.details.currentQuery || "-"}
+                                    <span className="text-[--muted]">Searching for:</span> {status.details.currentQuery || "-"}
                                 </div>
                                 <div>
-                                    <span className="text-[--muted]">Torrents collected:</span> {status.details.torrentsCollected || 0}
+                                    <span className="text-[--muted]">Close matches:</span> {status.details.torrentsCollected || 0}
                                 </div>
                                 <div>
                                     <span className="text-[--muted]">Expected episodes:</span> {status.details.expectedEpisodes || 0}
                                 </div>
                                 <div className="sm:col-span-2">
-                                    <span className="text-[--muted]">Selected torrent:</span> {status.details.selectedTorrent || "-"}
+                                    <span className="text-[--muted]">Matched to:</span> {status.details.selectedTorrent || "-"}
                                 </div>
-                                <div className="sm:col-span-2">
-                                    <span className="text-[--muted]">Destination:</span> {status.details.destination || "-"}
+                                <div>
+                                    <span className="text-[--muted]">Episodes queued:</span> {formatNumber(status.details.episodesQueued || 0)}
+                                </div>
+                                <div>
+                                    <span className="text-[--muted]">Skipped series:</span> {formatNumber(status.details.skippedCount || 0)}
                                 </div>
                                 {status.details.lastError ? (
                                     <div className="sm:col-span-2 text-red-400">
@@ -235,7 +232,7 @@ export function EnMassePage() {
                         <div className="flex items-center gap-2 mb-3">
                             <LuCircleCheck className="text-green-500 text-xl" />
                             <h3 className="font-semibold">
-                                Downloaded ({status?.downloadedAnime?.length || 0})
+                                Queued for download ({status?.downloadedAnime?.length || 0})
                             </h3>
                         </div>
                         <div ref={downloadedScrollRef} className="max-h-64 overflow-y-auto space-y-1">
@@ -248,7 +245,7 @@ export function EnMassePage() {
                                 </div>
                             ))}
                             {(!status?.downloadedAnime || status.downloadedAnime.length === 0) && (
-                                <p className="text-sm text-[--muted]">No downloads yet</p>
+                                <p className="text-sm text-[--muted]">Nothing queued yet</p>
                             )}
                         </div>
                     </Card>
@@ -258,7 +255,7 @@ export function EnMassePage() {
                         <div className="flex items-center gap-2 mb-3">
                             <LuCircleX className="text-red-500 text-xl" />
                             <h3 className="font-semibold">
-                                Failed ({status?.failedAnime?.length || 0})
+                                Not found ({status?.failedAnime?.length || 0})
                             </h3>
                         </div>
                         <div ref={failedScrollRef} className="max-h-64 overflow-y-auto space-y-1">
@@ -271,7 +268,7 @@ export function EnMassePage() {
                                 </div>
                             ))}
                             {(!status?.failedAnime || status.failedAnime.length === 0) && (
-                                <p className="text-sm text-[--muted]">No failures</p>
+                                <p className="text-sm text-[--muted]">Nothing missed yet</p>
                             )}
                         </div>
                     </Card>
@@ -281,27 +278,26 @@ export function EnMassePage() {
                 <Card className="p-4">
                     <h3 className="font-semibold mb-2">How it works</h3>
                     <ul className="text-sm text-[--muted] space-y-1 list-disc list-inside">
-                        <li>
-                            Reads anime list from{" "}
-                            <code className="bg-[--subtle] px-1 rounded">
-                                /zroot/Soul/Otaku Media/Database/anilist-minified.json
-                            </code>
-                        </li>
-                        <li>Searches for each anime using the default torrent provider</li>
-                        <li>
-                            Prefers: <strong>Dual-audio</strong> &gt; Multi-audio &gt; 1080p
-                            resolution
+                        <li>Goes through the anime database one series at a time.</li>
+                        <li className="flex-inline">
+                            <LuSkipForward className="inline mr-1" />
+                            Skips series already in your library or already downloading, adult entries, and series that haven't aired.
                         </li>
                         <li>
-                            Downloads to{" "}
-                            <code className="bg-[--subtle] px-1 rounded">
-                                /zroot/torrents/Anime/Unmatched
-                            </code>
+                            Searches <strong>Kickassanime</strong> under the English and romaji titles, every synonym, and other
+                            spellings (season wording, punctuation, accents, the franchise name), and only accepts a result whose
+                            title closely matches and whose episode count fits.
                         </li>
                         <li>
-                            When complete, go to <strong>Unmatched Downloads</strong> to match files
-                            to anime
+                            Queues the whole series in the <strong>Anime Downloads</strong> queue: best quality, Japanese audio
+                            first with the English dub when available, soft subtitles, filed in your library and matched
+                            automatically. No torrents and no Unmatched step.
                         </li>
+                        <li>
+                            Gentle on the site: at least 8 seconds between searches, at least 30 seconds per series, a 15-second
+                            pause between episode downloads, and no new searches while 24 or more episodes are waiting.
+                        </li>
+                        <li>Pause keeps your place; Resume continues from it.</li>
                     </ul>
                 </Card>
             </AppLayoutStack>

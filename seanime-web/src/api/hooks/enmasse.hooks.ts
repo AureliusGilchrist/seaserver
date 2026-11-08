@@ -34,6 +34,10 @@ export interface AnimeEnMasseDetails {
     downloadedCount: number
     failedCount: number
     lastError: string
+    /** Series left alone: already in the library or downloading, adult, not aired, no AniList entry */
+    skippedCount?: number
+    /** Episodes queued for online download in this run */
+    episodesQueued?: number
 }
 
 const ENMASSE_ENDPOINTS = {

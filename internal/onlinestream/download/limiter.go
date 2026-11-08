@@ -19,9 +19,9 @@ import (
 // the server's IP throttled or banned by the provider — which also breaks online streaming.
 const (
 	// hostConcurrency is how many requests may be in flight to one provider host at once.
-	hostConcurrency = 3
+	hostConcurrency = 2
 	// hostMinInterval is the smallest gap between the start of two requests to one host.
-	hostMinInterval = 250 * time.Millisecond
+	hostMinInterval = 400 * time.Millisecond
 	// hostMaxInterval caps how far a host's interval is stretched after it answers 429.
 	hostMaxInterval = 5 * time.Second
 	// maxAttempts is how many times one request is tried before the download fails.

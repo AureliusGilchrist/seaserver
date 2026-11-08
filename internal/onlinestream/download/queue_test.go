@@ -84,7 +84,7 @@ func TestRestoredQueueStartsByItself(t *testing.T) {
 
 	logger := zerolog.Nop()
 	// No repository: each run panics, which must fail that episode and move on.
-	m2 := NewManager(NewManagerOptions{Logger: &logger, WorkDir: t.TempDir(), StatePath: state, LibraryPath: func() string { return "x" }})
+	m2 := NewManager(NewManagerOptions{Logger: &logger, WorkDir: t.TempDir(), StatePath: state, LibraryPath: func() string { return "x" }, EpisodeGap: -1})
 
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {

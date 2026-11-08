@@ -217,6 +217,8 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 
 	// Downloads from online streaming providers into the library. See onlinestream_download.go.
 	h.wireOnlinestreamDownloader(app)
+	// The anime en masse downloader searches a streaming provider and queues whole series in it.
+	h.wireEnMasseOnline(app)
 
 	// Resumes an auto torrent session left open when the server last stopped. See auto_torrent.go.
 	h.wireAutoTorrent(app)

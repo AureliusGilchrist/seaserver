@@ -1,0 +1,574 @@
+package enmasse
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"regexp"
+	"strings"
+	"time"
+	"unicode"
+
+	hibikeonlinestream "seanime/internal/extension/hibike/onlinestream"
+
+	"golang.org/x/text/unicode/norm"
+)
+
+// The anime en masse downloader no longer torrents. For every series the library does not have
+// yet, it looks the series up on an online streaming provider (Kickassanime) under every spelling
+// it can think of, and when it finds a convincing match it queues the whole series in the online
+// stream downloader, which saves each episode into the library already matched.
+//
+// Everything is paced for a provider that is being asked about tens of thousands of series:
+// searches are spaced several seconds apart, each series takes at least half a minute, and the
+// search stops running ahead of the downloads when enough episodes are already waiting.
+
+const (
+	// OnlineProvider is the provider the en masse downloader searches and downloads from.
+	OnlineProvider = "kickassanime"
+
+	// onlineMaxWaitingEpisodes stops the search from running ahead of the downloads: no new
+	// series is looked up while this many episodes are still waiting to download.
+	onlineMaxWaitingEpisodes = 24
+	// onlineMaxVariants caps the spellings tried for one series.
+	onlineMaxVariants = 14
+	// onlineMinSimilarity is how close a provider title must be to one of the series' titles.
+	onlineMinSimilarity = 0.86
+	// onlineSureSimilarity ends the search early: the match cannot get better.
+	onlineSureSimilarity = 0.97
+)
+
+// Pacing; variables so tests can shorten them.
+var (
+	// onlineRequestGap is the minimum time between two requests to the provider's search or
+	// episode list. Downloads have their own, separate limiter.
+	onlineRequestGap = 8 * time.Second
+	// onlineSeriesGap is the minimum time spent on one series, found or not.
+	onlineSeriesGap = 30 * time.Second
+)
+
+// OnlineHooks connect the en masse downloader to the online stream downloader and the library.
+// They are set when the routes are wired, after the modules.
+type OnlineHooks struct {
+	// InLibrary reports whether the library already has episodes of the anime.
+	InLibrary func(mediaId int) bool
+	// InDownloadQueue reports whether the anime already has episodes in the online download queue.
+	InDownloadQueue func(mediaId int) bool
+	// WaitingEpisodes is how many episodes are waiting in the online download queue.
+	WaitingEpisodes func() int
+	// Search searches the provider.
+	Search func(provider string, opts hibikeonlinestream.SearchOptions) ([]*hibikeonlinestream.SearchResult, error)
+	// FindEpisodes lists a provider entry's episodes.
+	FindEpisodes func(provider string, id string) ([]*hibikeonlinestream.EpisodeDetails, error)
+	// SaveMapping remembers which provider entry an anime is, so every later lookup (the online
+	// player, the episode downloads) uses the entry that was checked here.
+	SaveMapping func(provider string, mediaId int, providerId string) error
+	// EnqueueSeries queues every episode of the anime for download and returns how many were queued.
+	EnqueueSeries func(ctx context.Context, provider string, mediaId int) (queued int, err error)
+}
+
+// SetOnlineHooks connects the downloader to the online stream downloader.
+func (d *Downloader) SetOnlineHooks(h *OnlineHooks) {
+	d.mu.Lock()
+	d.online = h
+	d.mu.Unlock()
+}
+
+var errOnlineSkipped = errors.New("skipped")
+
+// onlineSkip is a series the downloader leaves alone (already in the library, adult, not aired).
+type onlineSkip struct{ reason string }
+
+func (e onlineSkip) Error() string        { return e.reason }
+func (e onlineSkip) Is(target error) bool { return target == errOnlineSkipped }
+
+// paceRequest waits until the provider may be asked again.
+func (d *Downloader) paceRequest(ctx context.Context) error {
+	d.mu.Lock()
+	wait := time.Until(d.lastOnlineRequest.Add(onlineRequestGap))
+	if wait < 0 {
+		wait = 0
+	}
+	d.lastOnlineRequest = time.Now().Add(wait)
+	d.mu.Unlock()
+	if wait == 0 {
+		return nil
+	}
+	t := time.NewTimer(wait)
+	defer t.Stop()
+	select {
+	case <-t.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// waitForDownloads holds the search while the download queue is already well fed.
+func (d *Downloader) waitForDownloads(ctx context.Context, hooks *OnlineHooks) error {
+	if hooks.WaitingEpisodes == nil {
+		return nil
+	}
+	announced := false
+	for {
+		waiting := hooks.WaitingEpisodes()
+		if waiting < onlineMaxWaitingEpisodes {
+			return nil
+		}
+		if !announced {
+			announced = true
+			d.updateDetails(func(details *AnimeDownloaderDetails) {
+				details.Phase = "waiting"
+				details.Step = fmt.Sprintf("waiting for downloads (%d episodes queued)", waiting)
+			})
+		}
+		t := time.NewTimer(30 * time.Second)
+		select {
+		case <-t.C:
+		case <-ctx.Done():
+			t.Stop()
+			return ctx.Err()
+		}
+	}
+}
+
+// processAnimeOnline handles one series: look it up, find it on the provider, queue it.
+func (d *Downloader) processAnimeOnline(ctx context.Context, hooks *OnlineHooks, animeItem *AnimeOfflineItem) error {
+	started := time.Now()
+	defer func() {
+		// Every series takes at least onlineSeriesGap, so a run of quick skips or misses does not
+		// turn into a burst of searches.
+		if rest := onlineSeriesGap - time.Since(started); rest > 0 {
+			t := time.NewTimer(rest)
+			select {
+			case <-t.C:
+			case <-ctx.Done():
+				t.Stop()
+			}
+		}
+	}()
+
+	// Quick exits on what the offline database already says, before any request.
+	if animeItem.AnilistID > 0 && hooks.InLibrary != nil && hooks.InLibrary(animeItem.AnilistID) {
+		return onlineSkip{"already in the library"}
+	}
+	if strings.EqualFold(animeItem.Status, "UPCOMING") {
+		return onlineSkip{"not aired yet"}
+	}
+
+	d.updateDetails(func(details *AnimeDownloaderDetails) {
+		details.Phase = "processing"
+		details.Step = "resolving AniList metadata"
+	})
+	resolve := d.resolveAniList
+	if d.resolveOverride != nil {
+		resolve = d.resolveOverride
+	}
+	resolved, err := resolve(ctx, animeItem)
+	if err != nil {
+		return fmt.Errorf("failed to resolve AniList: %w", err)
+	}
+	if resolved.ID <= 0 {
+		return onlineSkip{"no AniList entry, so it could not be matched"}
+	}
+	d.mu.Lock()
+	d.currentAnime = resolved
+	d.mu.Unlock()
+
+	switch {
+	case resolved.IsAdult:
+		return onlineSkip{"adult"}
+	case resolved.Status == "NOT_YET_RELEASED":
+		return onlineSkip{"not aired yet"}
+	case hooks.InLibrary != nil && hooks.InLibrary(resolved.ID):
+		return onlineSkip{"already in the library"}
+	case hooks.InDownloadQueue != nil && hooks.InDownloadQueue(resolved.ID):
+		return onlineSkip{"already downloading"}
+	}
+
+	if err := d.waitForDownloads(ctx, hooks); err != nil {
+		return err
+	}
+
+	year := 0
+	if animeItem.AnimeSeason != nil {
+		year = animeItem.AnimeSeason.Year
+	}
+	match, err := d.findOnProvider(ctx, hooks, resolved, year)
+	if err != nil {
+		return err
+	}
+
+	if hooks.SaveMapping != nil {
+		if err := hooks.SaveMapping(OnlineProvider, resolved.ID, match.ID); err != nil {
+			d.logger.Warn().Err(err).Int("mediaId", resolved.ID).Msg("enmasse-anime: Could not save the provider match")
+		}
+	}
+
+	d.updateDetails(func(details *AnimeDownloaderDetails) {
+		details.Phase = "queueing"
+		details.Step = "queueing the full series for download"
+		details.SelectedTorrent = match.Title
+	})
+	if err := d.paceRequest(ctx); err != nil {
+		return err
+	}
+	queued, err := hooks.EnqueueSeries(ctx, OnlineProvider, resolved.ID)
+	if err != nil {
+		return fmt.Errorf("could not queue the series: %w", err)
+	}
+	if queued == 0 {
+		return onlineSkip{"nothing to download (every episode is already in the library or the queue)"}
+	}
+
+	d.updateDetails(func(details *AnimeDownloaderDetails) {
+		details.Step = fmt.Sprintf("queued %d episodes", queued)
+		details.EpisodesQueued += queued
+	})
+	if d.OnAnimeQueued != nil {
+		d.OnAnimeQueued(resolved.ID)
+	}
+	d.logger.Info().Int("mediaId", resolved.ID).Str("title", resolved.TitleRomaji).Str("match", match.Title).
+		Int("episodes", queued).Msg("enmasse-anime: Queued the series for online download")
+	return nil
+}
+
+// providerMatch is the provider entry chosen for a series.
+type providerMatch struct {
+	ID       string
+	Title    string
+	Score    float64
+	Episodes int
+}
+
+// findOnProvider searches the provider with every spelling of the series and returns the entry
+// whose title is closest to one of them, provided it is close enough and has episodes.
+func (d *Downloader) findOnProvider(ctx context.Context, hooks *OnlineHooks, item *AnilistMinifiedItem, year int) (*providerMatch, error) {
+	titles := seriesTitles(item)
+	queries := onlineSearchQueries(titles)
+	if len(queries) == 0 {
+		return nil, fmt.Errorf("no title to search for")
+	}
+
+	english := item.TitleEnglish
+	media := hibikeonlinestream.Media{
+		ID:           item.ID,
+		Status:       item.Status,
+		Format:       item.Format,
+		EnglishTitle: &english,
+		RomajiTitle:  item.TitleRomaji,
+		EpisodeCount: item.Episodes,
+		Synonyms:     item.Synonyms,
+		IsAdult:      item.IsAdult,
+	}
+	if year > 0 {
+		media.StartDate = &hibikeonlinestream.FuzzyDate{Year: year}
+	}
+
+	d.updateDetails(func(details *AnimeDownloaderDetails) {
+		details.Phase = "searching"
+		details.Step = "searching " + OnlineProvider
+		details.CurrentProvider = OnlineProvider
+		details.ProvidersTotal = 1
+		details.ProvidersDone = 0
+		details.VariantsTotal = len(queries)
+		details.VariantIndex = 0
+		details.TorrentsCollected = 0
+		details.SelectedTorrent = ""
+	})
+
+	seen := make(map[string]bool)
+	var candidates []*providerMatch
+	var best *providerMatch
+	var lastErr error
+	for i, q := range queries {
+		if best != nil && best.Score >= onlineSureSimilarity {
+			break
+		}
+		d.updateDetails(func(details *AnimeDownloaderDetails) {
+			details.CurrentQuery = q
+			details.VariantIndex = i + 1
+		})
+		if err := d.paceRequest(ctx); err != nil {
+			return nil, err
+		}
+		results, err := hooks.Search(OnlineProvider, hibikeonlinestream.SearchOptions{Media: media, Query: q, Year: year})
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		for _, r := range results {
+			if r == nil || r.ID == "" || seen[r.ID] {
+				continue
+			}
+			seen[r.ID] = true
+			score := bestTitleSimilarity(r.Title, titles)
+			if score < onlineMinSimilarity {
+				continue
+			}
+			c := &providerMatch{ID: r.ID, Title: r.Title, Score: score}
+			candidates = append(candidates, c)
+			if best == nil || c.Score > best.Score {
+				best = c
+			}
+		}
+		d.updateDetails(func(details *AnimeDownloaderDetails) { details.TorrentsCollected = len(candidates) })
+	}
+
+	if len(candidates) == 0 {
+		if lastErr != nil {
+			return nil, fmt.Errorf("not found on %s (last search error: %v)", OnlineProvider, lastErr)
+		}
+		return nil, fmt.Errorf("not found on %s (tried %d spellings)", OnlineProvider, len(queries))
+	}
+
+	// Best title first; the episode list decides between close titles (a TV series and its
+	// movie of the same name) and rules out empty entries.
+	sortMatches(candidates)
+	for i, c := range candidates {
+		if i >= 3 {
+			break
+		}
+		if err := d.paceRequest(ctx); err != nil {
+			return nil, err
+		}
+		eps, err := hooks.FindEpisodes(OnlineProvider, c.ID)
+		if err != nil || len(eps) == 0 {
+			continue
+		}
+		c.Episodes = len(eps)
+		if !episodeCountFits(item, c.Episodes) {
+			continue
+		}
+		d.updateDetails(func(details *AnimeDownloaderDetails) {
+			details.ProvidersDone = 1
+			details.SelectedTorrent = fmt.Sprintf("%s (%d episodes)", c.Title, c.Episodes)
+		})
+		return c, nil
+	}
+	return nil, fmt.Errorf("found %q on %s, but its episode list does not fit the series", candidates[0].Title, OnlineProvider)
+}
+
+func sortMatches(m []*providerMatch) {
+	for i := 1; i < len(m); i++ {
+		for j := i; j > 0 && m[j].Score > m[j-1].Score; j-- {
+			m[j], m[j-1] = m[j-1], m[j]
+		}
+	}
+}
+
+// episodeCountFits rejects a provider entry whose episode count cannot be this series: a movie
+// listed with dozens of episodes, or a finished 24-episode series with only 3.
+func episodeCountFits(item *AnilistMinifiedItem, got int) bool {
+	if got <= 0 {
+		return false
+	}
+	want := item.Episodes
+	if want <= 0 {
+		return true // unknown or still airing without a count
+	}
+	if strings.EqualFold(item.Format, "MOVIE") {
+		return got <= 3
+	}
+	if got > want*2+2 {
+		return false
+	}
+	if item.Status == "FINISHED" && got*2 < want {
+		return false
+	}
+	return true
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Titles and spellings
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// seriesTitles is every name the series goes by: English, romaji and the synonyms written in
+// Latin script (the provider has no use for the others).
+func seriesTitles(item *AnilistMinifiedItem) []string {
+	var out []string
+	add := func(s string) {
+		s = strings.TrimSpace(s)
+		if s == "" || !mostlyLatin(s) {
+			return
+		}
+		for _, o := range out {
+			if strings.EqualFold(o, s) {
+				return
+			}
+		}
+		out = append(out, s)
+	}
+	add(item.TitleEnglish)
+	add(item.TitleRomaji)
+	add(item.Title)
+	for _, s := range item.Synonyms {
+		add(s)
+	}
+	return out
+}
+
+func mostlyLatin(s string) bool {
+	letters, latin := 0, 0
+	for _, r := range s {
+		if unicode.IsLetter(r) {
+			letters++
+			if r < 0x250 {
+				latin++
+			}
+		}
+	}
+	return letters > 0 && latin*10 >= letters*8
+}
+
+var (
+	seasonWordRe   = regexp.MustCompile(`(?i)\b(?:season|s)\s*(\d+)\b`)
+	seasonOrdRe    = regexp.MustCompile(`(?i)\b(\d+)(?:st|nd|rd|th)\s+season\b`)
+	romanSuffixRe  = regexp.MustCompile(`\s+(II|III|IV|V|VI)$`)
+	yearParenRe    = regexp.MustCompile(`\s*\((?:19|20)\d\d\)\s*`)
+	tvParenRe      = regexp.MustCompile(`(?i)\s*\((?:tv|ona|ova)\)\s*`)
+	nonWordRe      = regexp.MustCompile(`[^\p{L}\p{N}]+`)
+	romanToNumbers = map[string]string{"II": "2", "III": "3", "IV": "4", "V": "5", "VI": "6"}
+)
+
+// onlineSearchQueries builds the spellings to search for, most likely first: each title as
+// written, without punctuation, with its season written the other common ways, and its main
+// title before a colon (which finds entries named only by the franchise).
+func onlineSearchQueries(all []string) []string {
+	var titles []string
+	for _, t := range all {
+		if mostlyLatin(t) {
+			titles = append(titles, t)
+		}
+	}
+	var out []string
+	add := func(s string) {
+		s = strings.Join(strings.Fields(s), " ")
+		if len([]rune(s)) < 2 {
+			return
+		}
+		for _, o := range out {
+			if strings.EqualFold(o, s) {
+				return
+			}
+		}
+		out = append(out, s)
+	}
+
+	for _, t := range titles {
+		add(t)
+	}
+	for _, t := range titles {
+		clean := tvParenRe.ReplaceAllString(yearParenRe.ReplaceAllString(t, " "), " ")
+		add(clean)
+		add(stripPunctuation(clean))
+		add(strings.ReplaceAll(clean, "&", "and"))
+		add(foldAccents(clean))
+
+		// Season spellings: "Season 2" / "2nd Season" / "S2" / "II".
+		if m := seasonWordRe.FindStringSubmatch(clean); m != nil {
+			add(seasonWordRe.ReplaceAllString(clean, ordinal(m[1])+" Season"))
+			add(seasonWordRe.ReplaceAllString(clean, m[1]))
+		}
+		if m := seasonOrdRe.FindStringSubmatch(clean); m != nil {
+			add(seasonOrdRe.ReplaceAllString(clean, "Season "+m[1]))
+		}
+		if m := romanSuffixRe.FindStringSubmatch(clean); m != nil {
+			add(romanSuffixRe.ReplaceAllString(clean, " Season "+romanToNumbers[m[1]]))
+		}
+	}
+	// Franchise names last: broad searches whose results the title check narrows down.
+	for _, t := range titles {
+		if i := strings.IndexAny(t, ":-–"); i > 3 {
+			add(strings.TrimSpace(t[:i]))
+		}
+	}
+
+	if len(out) > onlineMaxVariants {
+		out = out[:onlineMaxVariants]
+	}
+	return out
+}
+
+func ordinal(n string) string {
+	switch {
+	case strings.HasSuffix(n, "11"), strings.HasSuffix(n, "12"), strings.HasSuffix(n, "13"):
+		return n + "th"
+	case strings.HasSuffix(n, "1"):
+		return n + "st"
+	case strings.HasSuffix(n, "2"):
+		return n + "nd"
+	case strings.HasSuffix(n, "3"):
+		return n + "rd"
+	}
+	return n + "th"
+}
+
+func stripPunctuation(s string) string {
+	return strings.TrimSpace(nonWordRe.ReplaceAllString(s, " "))
+}
+
+func foldAccents(s string) string {
+	var b strings.Builder
+	for _, r := range norm.NFD.String(s) {
+		if unicode.Is(unicode.Mn, r) {
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
+// normalizeTitle reduces a title to lowercase words for comparison: no punctuation, accents,
+// season wording or the year.
+func normalizeTitle(s string) string {
+	s = foldAccents(strings.ToLower(s))
+	s = yearParenRe.ReplaceAllString(s, " ")
+	s = tvParenRe.ReplaceAllString(s, " ")
+	s = seasonOrdRe.ReplaceAllString(s, "season $1")
+	s = seasonWordRe.ReplaceAllString(s, "season $1")
+	s = strings.ReplaceAll(s, "&", " and ")
+	return strings.Join(strings.Fields(nonWordRe.ReplaceAllString(s, " ")), " ")
+}
+
+// bestTitleSimilarity is how close a provider title is to the closest of the series' titles,
+// from 0 to 1.
+func bestTitleSimilarity(candidate string, titles []string) float64 {
+	c := normalizeTitle(candidate)
+	best := 0.0
+	for _, t := range titles {
+		if s := similarity(c, normalizeTitle(t)); s > best {
+			best = s
+		}
+	}
+	return best
+}
+
+// similarity is 1 minus the edit distance relative to the longer string.
+func similarity(a, b string) float64 {
+	if a == "" || b == "" {
+		return 0
+	}
+	if a == b {
+		return 1
+	}
+	ra, rb := []rune(a), []rune(b)
+	prev := make([]int, len(rb)+1)
+	cur := make([]int, len(rb)+1)
+	for j := range prev {
+		prev[j] = j
+	}
+	for i := 1; i <= len(ra); i++ {
+		cur[0] = i
+		for j := 1; j <= len(rb); j++ {
+			cost := 1
+			if ra[i-1] == rb[j-1] {
+				cost = 0
+			}
+			cur[j] = min(prev[j]+1, cur[j-1]+1, prev[j-1]+cost)
+		}
+		prev, cur = cur, prev
+	}
+	longest := max(len(ra), len(rb))
+	return 1 - float64(prev[len(rb)])/float64(longest)
+}

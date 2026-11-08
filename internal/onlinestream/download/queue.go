@@ -134,6 +134,8 @@ type QueueState struct {
 type RegisterFunc func(mediaId int, episode int, path string) error
 
 type NewManagerOptions struct {
+	// EpisodeGap is the pause between episodes: 0 for the default, negative for none.
+	EpisodeGap time.Duration
 	// holdQueue keeps a restored queue from starting (tests).
 	holdQueue bool
 
@@ -820,7 +822,26 @@ func (m *Manager) worker() {
 		}
 		m.runSafely(it)
 		m.trimFinished()
+		// A breather between episodes: a series queued whole (or a whole catalogue, by the en
+		// masse downloader) is still one provider being asked for episode after episode.
+		if gap := m.episodeGap(); gap > 0 {
+			t := time.NewTimer(gap)
+			<-t.C
+		}
 	}
+}
+
+// defaultEpisodeGap is the pause between two episode downloads.
+const defaultEpisodeGap = 15 * time.Second
+
+func (m *Manager) episodeGap() time.Duration {
+	switch {
+	case m.opts.EpisodeGap < 0:
+		return 0
+	case m.opts.EpisodeGap == 0:
+		return defaultEpisodeGap
+	}
+	return m.opts.EpisodeGap
 }
 
 // runSafely runs one episode. A panic fails that episode instead of ending the worker, which
@@ -991,4 +1012,29 @@ func (m *Manager) run(it *Item) {
 		m.logger.Error().Err(err).Int("mediaId", it.MediaId).Int("episode", it.EpisodeNumber).
 			Str("provider", it.Provider).Msg("onlinestream download: Failed")
 	}
+}
+
+// HasActive reports whether an anime has episodes waiting or downloading.
+func (m *Manager) HasActive(mediaId int) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, it := range m.items {
+		if it.MediaId == mediaId && !it.finished() {
+			return true
+		}
+	}
+	return false
+}
+
+// WaitingCount is how many episodes are waiting or downloading.
+func (m *Manager) WaitingCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	n := 0
+	for _, it := range m.items {
+		if !it.finished() {
+			n++
+		}
+	}
+	return n
 }

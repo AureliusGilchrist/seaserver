@@ -46,6 +46,9 @@ func (d *Downloader) setStatus(status string) {
 
 func (d *Downloader) sendStatusUpdate() {
 	defer util.HandlePanicInModuleThen("enmasse-anime/sendStatusUpdate", func() {})
+	if d.wsEventManager == nil {
+		return
+	}
 	d.wsEventManager.SendEvent("enMasseAnimeDownloaderStatus", d.GetStatus())
 }
 
@@ -564,6 +567,13 @@ type (
 		details         AnimeDownloaderDetails
 		// Rate limiting semaphore
 		searchSemaphore chan struct{}
+
+		// online connects the downloader to the online stream downloader (see online.go).
+		online            *OnlineHooks
+		lastOnlineRequest time.Time
+		skippedCount      int
+		// resolveOverride replaces the AniList lookup (tests).
+		resolveOverride func(ctx context.Context, item *AnimeOfflineItem) (*AnilistMinifiedItem, error)
 	}
 
 	NewDownloaderOptions struct {
@@ -607,6 +617,11 @@ type (
 		DownloadedCount   int    `json:"downloadedCount"`
 		FailedCount       int    `json:"failedCount"`
 		LastError         string `json:"lastError"`
+		// SkippedCount counts series left alone: already in the library or downloading, adult,
+		// not aired, or without an AniList entry.
+		SkippedCount int `json:"skippedCount"`
+		// EpisodesQueued counts the episodes queued for online download in this run.
+		EpisodesQueued int `json:"episodesQueued"`
 	}
 
 	DownloaderProgress struct {
@@ -715,6 +730,8 @@ func (d *Downloader) GetStatus() *DownloaderStatus {
 			DownloadedCount:   len(d.downloadedAnime),
 			FailedCount:       len(d.failedAnime),
 			LastError:         d.details.LastError,
+			SkippedCount:      d.skippedCount,
+			EpisodesQueued:    d.details.EpisodesQueued,
 		},
 		HasSavedProgress: d.hasSavedProgress(),
 	}
@@ -750,6 +767,8 @@ func (d *Downloader) Start(resume bool) error {
 	}
 
 	if !autoResume {
+		d.skippedCount = 0
+		d.details.EpisodesQueued = 0
 		d.processedCount = 0
 		d.downloadedAnime = make([]string, 0, MaxAnimeLogEntries)
 		d.failedAnime = make([]string, 0, MaxAnimeLogEntries)
@@ -851,15 +870,12 @@ func (d *Downloader) run(ctx context.Context, resume bool) {
 		}
 	}
 
-	d.setStatus("Starting torrent client...")
-	d.updateDetails(func(details *AnimeDownloaderDetails) {
-		details.Phase = "startup"
-		details.Step = "starting torrent client"
-	})
-
-	if err := d.waitForTorrentClient(ctx, "starting downloader"); err != nil {
-		d.setStatus("Stopped")
-		d.logger.Warn().Err(err).Msg("enmasse-anime: Stopped while waiting for torrent client")
+	d.mu.Lock()
+	hooks := d.online
+	d.mu.Unlock()
+	if hooks == nil || hooks.Search == nil || hooks.EnqueueSeries == nil {
+		d.setStatus("The online downloader is not available")
+		d.logger.Error().Msg("enmasse-anime: The online stream downloader is not connected")
 		return
 	}
 
@@ -907,7 +923,20 @@ func (d *Downloader) run(ctx context.Context, resume bool) {
 
 		d.logger.Info().Str("title", animeItem.Title).Int("index", i).Msg("enmasse-anime: Processing anime")
 
-		err := d.processAnime(ctx, animeItem)
+		err := d.processAnimeOnline(ctx, hooks, animeItem)
+
+		if errors.Is(err, errOnlineSkipped) {
+			d.mu.Lock()
+			d.skippedCount++
+			d.mu.Unlock()
+			d.updateDetails(func(details *AnimeDownloaderDetails) {
+				details.Phase = "processing"
+				details.Step = "skipped: " + err.Error()
+				details.LastError = ""
+			})
+			d.saveCurrentProgress(i)
+			continue
+		}
 
 		if err != nil {
 			if ctx.Err() != nil {
@@ -942,7 +971,7 @@ func (d *Downloader) run(ctx context.Context, resume bool) {
 	}
 
 	d.clearProgress()
-	d.setStatus("Completed! Redirecting to unmatched...")
+	d.setStatus("Completed!")
 	d.updateDetails(func(details *AnimeDownloaderDetails) {
 		details.Phase = "completed"
 		details.Step = "all anime processed"
