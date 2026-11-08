@@ -11,6 +11,7 @@ import (
 	"seanime/internal/events"
 	"seanime/internal/onlinestream"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -189,7 +190,9 @@ type Manager struct {
 	blocked string
 
 	// processOverride, when set (tests), replaces the download of one episode.
-	processOverride func(ctx context.Context, it *Item, workDir string) (string, error)
+	// checkSourceOverride replaces checkSeriesSource (tests).
+	checkSourceOverride func(ctx context.Context, req Request) error
+	processOverride     func(ctx context.Context, it *Item, workDir string) (string, error)
 
 	// onProgress, when set (tests), sees every progress value an item takes.
 	onProgress func(p float64)
@@ -236,6 +239,10 @@ func (m *Manager) load() {
 	}
 	for _, it := range st.Items {
 		if it == nil {
+			continue
+		}
+		// Series skipped by earlier versions stayed in the queue as cancelled; they go.
+		if it.Status == StatusCancelled && strings.HasPrefix(it.Error, "Skipped: ") {
 			continue
 		}
 		// Whatever was running when the server stopped goes back to the queue.
@@ -461,6 +468,14 @@ func (m *Manager) EnqueueSeries(ctx context.Context, base Request, inLibrary fun
 		reqs = append(reqs, r)
 	}
 	m.mu.Unlock()
+
+	// A series whose episodes cannot be fetched from the provider or from AnimeHeaven never
+	// reaches the queue.
+	if len(reqs) > 0 {
+		if err := m.checkSeriesSource(ctx, reqs[0], media); err != nil {
+			return nil, err
+		}
+	}
 
 	res.Queued, err = m.enqueueMany(ctx, reqs, titles)
 	if err != nil {
@@ -985,18 +1000,24 @@ func (m *Manager) run(it *Item) {
 		it.Status = StatusCancelled
 		it.FinishedAt = &finishedAt
 	case isSkipSeries(err):
-		// Neither provider has the series: this episode and the series' other waiting ones are
-		// skipped rather than each failing in turn.
+		// Neither provider has the series: this episode and the series' other waiting ones
+		// leave the queue rather than each failing in turn, or sitting in it as skipped.
 		it.Status = StatusCancelled
 		it.Error = "Skipped: " + err.Error()
 		it.FinishedAt = &finishedAt
+		kept := m.items[:0]
 		for _, other := range m.items {
-			if other != it && other.MediaId == it.MediaId && other.Status == StatusQueued {
-				other.Status = StatusCancelled
-				other.Error = it.Error
-				other.FinishedAt = &finishedAt
+			if other.MediaId == it.MediaId && (other == it || other.Status == StatusQueued) {
+				if other != it {
+					_ = os.RemoveAll(m.workDirFor(other))
+				}
+				continue
 			}
+			kept = append(kept, other)
 		}
+		m.items = kept
+		m.logger.Warn().Int("mediaId", it.MediaId).Str("title", it.Title).Err(err).
+			Msg("onlinestream download: Removed the series from the queue, no provider has it")
 	case isStorageError(err):
 		// The disk failed, not the download: back to the queue, without using up an attempt,
 		// and the queue waits for the disk (checkStorage) before trying anything else.

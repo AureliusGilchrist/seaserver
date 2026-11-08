@@ -316,6 +316,65 @@ type skipSeriesError struct{ error }
 
 func (e skipSeriesError) Unwrap() error { return e.error }
 
+// ErrNoSource is returned when a series is asked for that neither its provider nor AnimeHeaven
+// can supply episodes of.
+var ErrNoSource = errors.New("no provider has episodes of this series")
+
+// isNoSource reports an error that means the provider has no source for the episode (as
+// opposed to a network or provider outage, which is worth trying again).
+func isNoSource(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, onlinestream.ErrNoVideoSourceFound) || errors.Is(err, onlinestream.ErrNoEpisodes) {
+		return true
+	}
+	l := strings.ToLower(err.Error())
+	for _, s := range []string{"no source", "source not found", "no episode server", "no episodes", "episode not found", "not found"} {
+		if strings.Contains(l, s) {
+			return true
+		}
+	}
+	return false
+}
+
+// checkSeriesSource tries one episode before a series is queued: when the provider has no source
+// for it, AnimeHeaven is matched (the thorough search) and tried. When neither has it, the
+// series is refused with ErrNoSource. An outage or network error lets the series through: the
+// downloads retry on their own.
+func (m *Manager) checkSeriesSource(ctx context.Context, req Request, media *anilist.BaseAnime) error {
+	if m.checkSourceOverride != nil {
+		return m.checkSourceOverride(ctx, req)
+	}
+	probe := req
+	probe.Dubbed = false
+	_, err := m.findSource(ctx, probe, media, false)
+	if err == nil || ctx.Err() != nil || !isNoSource(err) {
+		return nil
+	}
+	firstErr := err
+	if req.Provider == FallbackProvider {
+		return fmt.Errorf("%w: AnimeHeaven has no source for episode %d (%v)", ErrNoSource, req.EpisodeNumber, firstErr)
+	}
+	if m.opts.MapProvider != nil {
+		if mapErr := m.opts.MapProvider(ctx, FallbackProvider, req.MediaId); mapErr != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			if errors.Is(mapErr, ErrNotOnProvider) {
+				return fmt.Errorf("%w: not available on %s (%v) and not on AnimeHeaven", ErrNoSource, req.Provider, firstErr)
+			}
+			return nil
+		}
+	}
+	probe.Provider = FallbackProvider
+	probe.Server, probe.SourceURL = "", ""
+	if _, err := m.findSource(ctx, probe, media, false); err != nil && ctx.Err() == nil && isNoSource(err) {
+		return fmt.Errorf("%w: no source for episode %d on %s (%v) or on AnimeHeaven (%v)", ErrNoSource, req.EpisodeNumber, req.Provider, firstErr, err)
+	}
+	return nil
+}
+
 func isSkipSeries(err error) bool {
 	var s skipSeriesError
 	return errors.As(err, &s)

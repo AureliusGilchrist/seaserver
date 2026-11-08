@@ -116,7 +116,7 @@ func TestStorageErrorHoldsTheQueue(t *testing.T) {
 }
 
 // TestSkipSeries: when neither provider has the series, the episode and the series' other waiting
-// episodes are skipped, and other series are left alone.
+// episodes leave the queue, and other series are left alone.
 func TestSkipSeries(t *testing.T) {
 	logger := zerolog.Nop()
 	m := NewManager(NewManagerOptions{Logger: &logger, WorkDir: t.TempDir(), LibraryPath: func() string { return "x" }, holdQueue: true})
@@ -128,10 +128,21 @@ func TestSkipSeries(t *testing.T) {
 	c := &Item{ID: "c", MediaId: 2, EpisodeNumber: 1, Status: StatusQueued}
 	m.items = []*Item{a, b, c}
 	m.run(a)
-	if a.Status != StatusCancelled || b.Status != StatusCancelled || c.Status != StatusQueued {
-		t.Fatalf("statuses %s %s %s", a.Status, b.Status, c.Status)
+	if len(m.items) != 1 || m.items[0] != c || c.Status != StatusQueued {
+		t.Fatalf("the skipped series should leave the queue, the other stay: %d items", len(m.items))
 	}
-	if a.Attempts != 1 || b.Error == "" {
-		t.Fatalf("attempts %d, reason %q", a.Attempts, b.Error)
+}
+
+func TestIsNoSource(t *testing.T) {
+	for _, msg := range []string{
+		"no episode servers found, provider returned: 'no source found for episode: video source not found'",
+		"anime not found",
+	} {
+		if !isNoSource(errors.New(msg)) {
+			t.Fatalf("%q should count as no source", msg)
+		}
+	}
+	if isNoSource(errors.New("dial tcp: i/o timeout")) {
+		t.Fatal("a network error is not a missing source")
 	}
 }
