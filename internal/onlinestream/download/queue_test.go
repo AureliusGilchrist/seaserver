@@ -3,6 +3,7 @@ package onlinestream_download
 import (
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/rs/zerolog"
 )
@@ -14,6 +15,7 @@ func newTestManager(t *testing.T, state string) *Manager {
 		WorkDir:     t.TempDir(),
 		StatePath:   state,
 		LibraryPath: func() string { return t.TempDir() },
+		holdQueue:   true,
 	})
 }
 
@@ -43,11 +45,11 @@ func TestQueueControlsAndPersistence(t *testing.T) {
 		t.Fatalf("clear finished left %d items", got)
 	}
 
-	// A restart: the interrupted download goes back to the queue, the pause is kept.
+	// A restart: the interrupted download goes back to the queue and a Stop does not stick.
 	m2 := newTestManager(t, state)
 	q := m2.GetQueue()
-	if !q.Paused {
-		t.Error("pause was not restored")
+	if q.Paused {
+		t.Error("a Stop survived the restart; the queue must resume on its own")
 	}
 	if len(q.Items) != 4 {
 		t.Fatalf("restored %d items", len(q.Items))
@@ -65,4 +67,33 @@ func TestQueueControlsAndPersistence(t *testing.T) {
 	if len(m2.GetQueue().Items) != 0 {
 		t.Error("clear all left items")
 	}
+}
+
+// TestRestoredQueueStartsByItself checks that a queue saved before a restart starts downloading
+// on its own, and that a crash in one episode does not stop the worker from taking the next.
+func TestRestoredQueueStartsByItself(t *testing.T) {
+	state := filepath.Join(t.TempDir(), "queue.json")
+	m := newTestManager(t, state)
+	m.Stop()
+	m.mu.Lock()
+	m.items = append(m.items,
+		&Item{ID: "a", MediaId: 1, EpisodeNumber: 1, Status: StatusQueued},
+		&Item{ID: "b", MediaId: 1, EpisodeNumber: 2, Status: StatusQueued})
+	m.mu.Unlock()
+	m.save()
+
+	logger := zerolog.Nop()
+	// No repository: each run panics, which must fail that episode and move on.
+	m2 := NewManager(NewManagerOptions{Logger: &logger, WorkDir: t.TempDir(), StatePath: state, LibraryPath: func() string { return "x" }})
+
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		q := m2.GetQueue()
+		if q.Items[0].Status == StatusFailed && q.Items[1].Status == StatusFailed {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	q := m2.GetQueue()
+	t.Fatalf("restored queue did not run: %s, %s (paused=%v)", q.Items[0].Status, q.Items[1].Status, q.Paused)
 }

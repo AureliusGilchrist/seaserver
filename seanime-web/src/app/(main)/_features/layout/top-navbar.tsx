@@ -16,7 +16,7 @@ import { __isDesktop__ } from "@/types/constants"
 import { useSetAtom } from "jotai/react"
 import { usePathname } from "@/lib/navigation"
 import React from "react"
-import { LuFolderDown, LuChevronLeft, LuChevronRight } from "react-icons/lu"
+import { LuChevronLeft, LuChevronRight, LuFolderDown, LuMonitorDown } from "react-icons/lu"
 import { PluginSidebarTray } from "../plugin/tray/plugin-sidebar-tray"
 import { Tooltip } from "@/components/ui/tooltip"
 
@@ -152,7 +152,7 @@ export function SidebarNavbar(props: SidebarNavbarProps) {
                 isSidebar
                 items={[
                     {
-                        iconType: LuFolderDown,
+                        iconType: LuMonitorDown,
                         name: "Anime Downloads",
                         onClick: () => {
                             openAnimeDownloadQueue(true)

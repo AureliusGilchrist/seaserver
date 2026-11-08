@@ -15,7 +15,7 @@ import { Modal } from "@/components/ui/modal"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import { useAtomValue, useSetAtom } from "jotai/react"
 import React from "react"
-import { LuDownload, LuFolderDown, LuLibrary, LuTriangleAlert } from "react-icons/lu"
+import { LuDownload, LuMonitorDown, LuLibrary, LuTriangleAlert } from "react-icons/lu"
 
 type DownloadParams = {
     mediaId: number
@@ -252,7 +252,7 @@ export function OnlinestreamDownloadButton(props: OnlinestreamDownloadButtonProp
                 <Button
                     intent="white-subtle"
                     className="w-full"
-                    leftIcon={<LuFolderDown />}
+                    leftIcon={<LuMonitorDown />}
                     onClick={() => {
                         setOpen(false)
                         openQueue(true)

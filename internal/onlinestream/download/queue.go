@@ -10,7 +10,6 @@ import (
 	"seanime/internal/api/anilist"
 	"seanime/internal/events"
 	"seanime/internal/onlinestream"
-	"seanime/internal/util"
 	"sort"
 	"sync"
 	"time"
@@ -129,6 +128,9 @@ type QueueState struct {
 type RegisterFunc func(mediaId int, episode int, path string) error
 
 type NewManagerOptions struct {
+	// holdQueue keeps a restored queue from starting (tests).
+	holdQueue bool
+
 	Logger         *zerolog.Logger
 	WSEventManager events.WSEventManagerInterface
 	Repository     *onlinestream.Repository
@@ -186,7 +188,7 @@ func NewManager(opts NewManagerOptions) *Manager {
 	m.cleanOrphanWorkDirs()
 
 	m.mu.Lock()
-	resume := !m.paused && m.hasQueuedLocked()
+	resume := !m.paused && m.hasQueuedLocked() && !opts.holdQueue
 	m.mu.Unlock()
 	if resume {
 		m.ensureWorker()
@@ -220,10 +222,17 @@ func (m *Manager) load() {
 		m.items = append(m.items, it)
 	}
 	m.history = st.History
-	m.paused = st.Paused
-	if n := len(m.items); n > 0 {
-		m.logger.Info().Int("items", n).Bool("paused", m.paused).Msg("onlinestream download: Restored the download queue")
+	// A Stop does not outlive the server: the queue exists to download what is in it, and a
+	// restart (the nightly update) silently leaving it paused is how it sat idle for minutes.
+	m.paused = false
+	waiting := 0
+	for _, it := range m.items {
+		if it.Status == StatusQueued {
+			waiting++
+		}
 	}
+	m.logger.Info().Int("items", len(m.items)).Int("waiting", waiting).Str("file", m.opts.StatePath).
+		Msg("onlinestream download: Restored the download queue")
 }
 
 // save writes the queue to disk. Progress is not worth a write; state changes are.
@@ -339,6 +348,9 @@ func (m *Manager) enqueueMany(ctx context.Context, reqs []Request, titles map[in
 	m.mu.Unlock()
 
 	if len(out) > 0 {
+		m.mu.Lock()
+		m.paused = false // adding episodes starts the queue
+		m.mu.Unlock()
 		m.ensureWorker()
 		m.signal()
 		m.changed()
@@ -529,6 +541,7 @@ func (m *Manager) Retry(id string) bool {
 	ok := it != nil && (it.Status == StatusFailed || it.Status == StatusCancelled)
 	if ok {
 		resetForQueue(it)
+		m.paused = false
 	}
 	m.mu.Unlock()
 	if ok {
@@ -548,6 +561,9 @@ func (m *Manager) ResetErrored() int {
 			resetForQueue(it)
 			n++
 		}
+	}
+	if n > 0 {
+		m.paused = false
 	}
 	m.mu.Unlock()
 	if n > 0 {
@@ -720,16 +736,42 @@ func (it *Item) trackRate(now time.Time) {
 
 // worker runs the queue one episode at a time.
 func (m *Manager) worker() {
-	defer util.HandlePanicInModuleThen("onlinestream_download/worker", func() {})
+	// The timer is a safety net: whatever is waiting gets picked up within a minute even if a
+	// signal was missed, so an item never sits in the queue with nothing downloading it.
+	tick := time.NewTicker(time.Minute)
+	defer tick.Stop()
 	for {
 		it := m.nextQueued()
 		if it == nil {
-			<-m.wake
+			select {
+			case <-m.wake:
+			case <-tick.C:
+			}
 			continue
 		}
-		m.run(it)
+		m.runSafely(it)
 		m.trimFinished()
 	}
+}
+
+// runSafely runs one episode. A panic fails that episode instead of ending the worker, which
+// would leave the rest of the queue waiting until the server restarts.
+func (m *Manager) runSafely(it *Item) {
+	defer func() {
+		if r := recover(); r != nil {
+			m.logger.Error().Interface("panic", r).Int("mediaId", it.MediaId).Int("episode", it.EpisodeNumber).
+				Msg("onlinestream download: Crashed while downloading; the episode is marked failed")
+			m.mu.Lock()
+			now := time.Now()
+			it.cancel = nil
+			it.Status = StatusFailed
+			it.Error = fmt.Sprintf("internal error: %v", r)
+			it.FinishedAt = &now
+			m.mu.Unlock()
+			m.changed()
+		}
+	}()
+	m.run(it)
 }
 
 func (m *Manager) nextQueued() *Item {

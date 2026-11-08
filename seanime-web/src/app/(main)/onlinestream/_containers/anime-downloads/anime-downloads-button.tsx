@@ -4,7 +4,7 @@ import { __anime_streamDownloadsModalIsOpenAtom } from "@/app/(main)/onlinestrea
 import { Button } from "@/components/ui/button"
 import { useSetAtom } from "jotai/react"
 import React from "react"
-import { LuFolderDown } from "react-icons/lu"
+import { LuMonitorDown } from "react-icons/lu"
 
 /** Opens the anime download queue. Shows how many episodes are waiting and pulses while one downloads. */
 export function AnimeDownloadsButton() {
@@ -19,7 +19,7 @@ export function AnimeDownloadsButton() {
             intent="white-subtle"
             rounded
             size="sm"
-            leftIcon={<LuFolderDown className={running ? "animate-pulse text-[--green]" : undefined} />}
+            leftIcon={<LuMonitorDown className={running ? "animate-pulse text-[--green]" : undefined} />}
         >
             Anime Downloads{active > 0 ? ` (${active})` : ""}
         </Button>
