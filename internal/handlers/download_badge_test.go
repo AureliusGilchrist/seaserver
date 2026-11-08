@@ -126,3 +126,20 @@ func TestAnAnimeAppearsInExactlyOneList(t *testing.T) {
 		t.Error("5 has files and no record, so it should be matched")
 	}
 }
+
+// A "downloading" badge left on a series that is in the library with nothing downloading it is
+// stale (Link Click downloaded online after a torrent was once queued). One with a torrent or an
+// online episode still coming down is not.
+func TestStaleDownloadingBadges(t *testing.T) {
+	states := []unmatched.AnimeDownloadState{
+		recorded(1, unmatched.DownloadStateDownloading), // in library, nothing active: stale
+		recorded(2, unmatched.DownloadStateDownloading), // in library, torrent still downloading
+		recorded(3, unmatched.DownloadStateDownloading), // in library, online episodes waiting
+		recorded(4, unmatched.DownloadStateDownloading), // not in library: a real download
+		recorded(5, unmatched.DownloadStateMatched),     // already right
+	}
+	got := staleDownloadingBadges(states, library(1, 2, 3, 5), map[int]bool{2: true}, func(id int) bool { return id == 3 })
+	if !slices.Equal(got, []int{1}) {
+		t.Fatalf("stale badges %v, want [1]", got)
+	}
+}

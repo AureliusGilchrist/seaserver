@@ -12,10 +12,13 @@ import (
 	"seanime/internal/events"
 	"seanime/internal/library/anime"
 	onlinestream_download "seanime/internal/onlinestream/download"
+	"seanime/internal/torrent_clients/torrent_client"
+	"seanime/internal/unmatched"
 	"seanime/internal/util"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -75,28 +78,76 @@ func (h *Handler) wireOnlinestreamDownloader(app *core.App) {
 	})
 }
 
-// backfillOnlineDownloadBadges gives the library badge to every series already downloaded
-// through an online provider and still in the library — downloads registered before the badge
-// was recorded with them. Runs once, in the background, when the routes are wired.
+// backfillOnlineDownloadBadges fixes the badges of series that are in the library but still read
+// "downloading": series downloaded online after a torrent had once been queued for them, from
+// before the online downloader recorded the badge itself, whatever their history says. Only when
+// nothing is actually downloading them — no unfinished torrent in the client and nothing in the
+// online queue — so a series with another season genuinely coming down keeps its badge.
+//
+// Runs in the background a couple of minutes after start, once the torrent client has connected:
+// without the client's list it cannot tell a stale badge from a live download, so it does nothing.
 func (h *Handler) backfillOnlineDownloadBadges() {
-	m := h.App.OnlinestreamDownloader
-	if m == nil || h.App.UnmatchedRepository == nil {
+	if h.App.UnmatchedRepository == nil {
 		return
 	}
 	go func() {
 		defer util.HandlePanicInModuleThen("handlers/backfillOnlineDownloadBadges", func() {})
-		marked := 0
-		for _, hs := range m.HistorySummary() {
-			if len(h.libraryEpisodeFiles(hs.MediaId)) == 0 {
+		time.Sleep(2 * time.Minute)
+
+		client := h.App.TorrentClientRepositoryRef
+		if client == nil || client.Get() == nil {
+			h.App.Logger.Debug().Msg("onlinestream download: No torrent client; download badges left as they are")
+			return
+		}
+		torrents, err := client.Get().GetList(&torrent_client.GetListOptions{})
+		if err != nil {
+			h.App.Logger.Debug().Err(err).Msg("onlinestream download: Torrent client unavailable; download badges left as they are")
+			return
+		}
+		torrentActive := make(map[int]bool)
+		for _, tor := range torrents {
+			if tor == nil || tor.Progress >= 1 || tor.Status == torrent_client.TorrentStatusSeeding {
 				continue
 			}
-			h.App.UnmatchedRepository.MarkAnimeMatchedState(hs.MediaId)
-			marked++
+			if meta := h.App.UnmatchedRepository.GetTorrentMetadata(tor.Name); meta != nil && meta.AnimeID > 0 {
+				torrentActive[meta.AnimeID] = true
+			}
 		}
-		if marked > 0 {
-			h.App.Logger.Info().Int("series", marked).Msg("onlinestream download: Library badges set for series downloaded online")
+
+		onlineActive := func(int) bool { return false }
+		if m := h.App.OnlinestreamDownloader; m != nil {
+			onlineActive = m.HasActive
+		}
+
+		ids := staleDownloadingBadges(h.App.UnmatchedRepository.AnimeDownloadStates(), h.animeWithLocalFiles(), torrentActive, onlineActive)
+		for _, id := range ids {
+			h.App.UnmatchedRepository.MarkAnimeMatchedState(id)
+		}
+		if len(ids) > 0 {
+			h.App.Logger.Info().Int("series", len(ids)).Ints("mediaIds", ids).
+				Msg("onlinestream download: Set the library badge on series that are in the library with nothing downloading")
 		}
 	}()
+}
+
+// staleDownloadingBadges picks the anime whose recorded "downloading" badge is stale: the library
+// has their episodes and neither a torrent nor the online queue is downloading them.
+func staleDownloadingBadges(states []unmatched.AnimeDownloadState, inLibrary map[int]struct{}, torrentActive map[int]bool, onlineActive func(int) bool) []int {
+	out := make([]int, 0)
+	for _, st := range states {
+		if st.State != unmatched.DownloadStateDownloading {
+			continue
+		}
+		if _, ok := inLibrary[st.MediaID]; !ok {
+			continue
+		}
+		if torrentActive[st.MediaID] || onlineActive(st.MediaID) {
+			continue
+		}
+		out = append(out, st.MediaID)
+	}
+	sort.Ints(out)
+	return out
 }
 
 // onlinestreamEpisodeFiles lists the library files of an anime episode, whatever their source.
