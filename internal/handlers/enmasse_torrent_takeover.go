@@ -50,6 +50,8 @@ const (
 	stalledFor = 15 * time.Minute
 	// stalledMinAge keeps a torrent that is still finding peers from counting as stalled.
 	stalledMinAge = 30 * time.Minute
+	// stalledOldAge: a torrent this old that looks stalled right now counts as stalled at once.
+	stalledOldAge = 24 * time.Hour
 )
 
 // looksStalled is one look at a torrent: stalled by the client's own account, stuck on its
@@ -76,11 +78,24 @@ func (t *torrentTakeovers) TorrentStalled(mediaId int) bool {
 	}
 	now := time.Now()
 	for _, tor := range list {
+		if !looksStalled(tor) {
+			return false
+		}
+		age := time.Duration(0)
+		if tor.AddedOn > 0 {
+			age = now.Sub(time.Unix(tor.AddedOn, 0))
+		}
+		// A torrent added days ago that is stuck right now has been stuck far longer than this
+		// server has been watching: the stall clock restarts with the server, and a dead torrent
+		// should not have to wait it out again after every update.
+		if age >= stalledOldAge {
+			continue
+		}
 		since, ok := t.stalledSince[tor.Hash]
 		if !ok || now.Sub(since) < stalledFor {
 			return false
 		}
-		if tor.AddedOn > 0 && now.Sub(time.Unix(tor.AddedOn, 0)) < stalledMinAge {
+		if tor.AddedOn > 0 && age < stalledMinAge {
 			return false
 		}
 	}

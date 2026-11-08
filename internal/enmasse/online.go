@@ -167,12 +167,16 @@ func (d *Downloader) processTorrentSeries(ctx context.Context, hooks *OnlineHook
 			return // interrupted: this one is tried again on resume
 		}
 		d.recordOnlineResult(ctx, title, err)
-		d.mu.Lock()
-		if d.torrentDone == nil {
-			d.torrentDone = make(map[int]bool)
+		// Queued or skipped is settled. Not found is not: its torrent may stall later and let the
+		// backup take it, so it is tried again on the next run or resume.
+		if err == nil || errors.Is(err, errOnlineSkipped) {
+			d.mu.Lock()
+			if d.torrentDone == nil {
+				d.torrentDone = make(map[int]bool)
+			}
+			d.torrentDone[s.MediaId] = true
+			d.mu.Unlock()
 		}
-		d.torrentDone[s.MediaId] = true
-		d.mu.Unlock()
 	}
 }
 

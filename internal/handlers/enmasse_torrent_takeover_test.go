@@ -29,4 +29,20 @@ func TestTorrentStalled(t *testing.T) {
 	if tk.TorrentStalled(1) {
 		t.Error("a 2-minute stall counts as stalled")
 	}
+
+	// Added days ago, queued with no seeders and nothing coming in (Zipang after a restart):
+	// stalled at once, without waiting out a fresh clock.
+	dead := &torrent_client.Torrent{Hash: "d", State: torrent_client.TorrentStateQueued, Status: torrent_client.TorrentStatusDownloading,
+		AddedOn: time.Now().Add(-96 * time.Hour).Unix()}
+	tk.cacheList[4] = []*torrent_client.Torrent{dead}
+	if !tk.TorrentStalled(4) {
+		t.Error("a days-old dead torrent waits for the server to watch it")
+	}
+	// The same old torrent while it is actually downloading is not stalled.
+	alive := *dead
+	alive.Hash, alive.DownSpeedBytes, alive.Seeds = "e", 500000, 3
+	tk.cacheList[5] = []*torrent_client.Torrent{&alive}
+	if tk.TorrentStalled(5) {
+		t.Error("an old but downloading torrent counts as stalled")
+	}
 }
