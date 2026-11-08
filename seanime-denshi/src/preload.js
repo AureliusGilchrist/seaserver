@@ -193,6 +193,11 @@ contextBridge.exposeInMainWorld(
         },
 
         // Chromecast
+        // Fork: open AnimePahe for the user to pass Cloudflare's check; resolves to
+        // { cookie, userAgent } or { error }.
+        animepahe: {
+            unlock: () => ipcRenderer.invoke("animepahe:unlock"),
+        },
         cast: {
             discover: () => ipcRenderer.invoke("cast:discover"),
             stopDiscovery: () => ipcRenderer.invoke("cast:stopDiscovery"),

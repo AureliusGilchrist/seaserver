@@ -3,6 +3,7 @@
 import { AnimeEnMasseActivity, EnMasseDownloaderStatus, useEnMasseStart, useEnMasseStatus, useEnMasseStop } from "@/api/hooks/enmasse.hooks"
 import { isOnlinestreamDownloadRunning, useGetOnlinestreamDownloads } from "@/api/hooks/onlinestream_download.hooks"
 import { useDownloadingAnime } from "@/app/(main)/_atoms/downloading.atoms"
+import { AnimePaheAccessCard } from "@/app/(main)/enmasse/_containers/animepahe-access-card"
 import {
     __anime_streamDownloadsModalIsOpenAtom,
     formatDownloadBytes,
@@ -225,6 +226,7 @@ export function EnMassePage() {
                 <div className="space-y-6 min-w-0">
                     <DownloadingNow />
                     <Totals status={status} />
+                    <AnimePaheAccessCard />
                     <HowItWorks />
                 </div>
             </div>

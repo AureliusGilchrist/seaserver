@@ -855,3 +855,10 @@ func providerBlockedUntil(provider string) (time.Time, bool) {
 	}
 	return until, true
 }
+
+// ClearProviderBlock lets a provider be searched again straight away (after it was unlocked).
+func ClearProviderBlock(provider string) {
+	providerBlocksMu.Lock()
+	defer providerBlocksMu.Unlock()
+	delete(providerBlocks, provider)
+}

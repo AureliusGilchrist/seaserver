@@ -26,6 +26,10 @@ declare global {
 
     interface Window {
         electron?: {
+            /** Opens AnimePahe for the user to pass Cloudflare's check (Denshi). */
+            animepahe?: {
+                unlock: () => Promise<{ cookie?: string, userAgent?: string, error?: string }>;
+            };
             window: {
                 minimize: () => void;
                 maximize: () => void;

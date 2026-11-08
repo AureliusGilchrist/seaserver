@@ -218,6 +218,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	// Downloads from online streaming providers into the library. See onlinestream_download.go.
 	h.wireOnlinestreamDownloader(app)
 	// The anime en masse downloader searches a streaming provider and queues whole series in it.
+	loadAnimePaheClearance(app)
 	h.wireEnMasseOnline(app)
 
 	// Resumes an auto torrent session left open when the server last stopped. See auto_torrent.go.
@@ -726,6 +727,9 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.POST("/onlinestream/get-mapping", h.HandleGetOnlinestreamMapping)
 	v1.POST("/onlinestream/remove-mapping", h.HandleRemoveOnlinestreamMapping)
 
+	v1.GET("/onlinestream/animepahe/access", h.HandleGetAnimePaheAccess, h.RequireProfileAdmin)
+	v1.POST("/onlinestream/animepahe/access", h.HandleSetAnimePaheAccess, h.RequireProfileAdmin)
+	v1.DELETE("/onlinestream/animepahe/access", h.HandleDeleteAnimePaheAccess, h.RequireProfileAdmin)
 	v1.POST("/onlinestream/download", h.HandleOnlinestreamDownload)
 	v1.POST("/onlinestream/download/series", h.HandleOnlinestreamDownloadSeries)
 	v1.POST("/onlinestream/download/existing", h.HandleGetOnlinestreamDownloadExisting)

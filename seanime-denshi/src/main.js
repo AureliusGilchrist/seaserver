@@ -1969,6 +1969,62 @@ app.whenReady().then(async () => {
         return false
     })
 
+    // AnimePahe sits behind Cloudflare's "verify you are human" check. This opens the site in a
+    // window of its own where the user passes the check themselves; the clearance cookie it earns
+    // and this browser's user agent are handed back for the server to use.
+    let animepaheUnlockWindow = null
+    ipcMain.handle("animepahe:unlock", async () => {
+        if (animepaheUnlockWindow && !animepaheUnlockWindow.isDestroyed()) {
+            animepaheUnlockWindow.focus()
+            return { error: "The AnimePahe window is already open." }
+        }
+        const { session } = require("electron")
+        const ses = session.fromPartition("persist:animepahe-unlock")
+        const win = new BrowserWindow({
+            width: 1000,
+            height: 760,
+            title: "Unlock AnimePahe",
+            autoHideMenuBar: true,
+            webPreferences: { session: ses, contextIsolation: true, nodeIntegration: false, sandbox: true },
+        })
+        animepaheUnlockWindow = win
+        // A plain Chrome user agent: without the Electron and app tokens.
+        const appName = app.getName().toLowerCase()
+        const ua = win.webContents.getUserAgent()
+            .split(" ")
+            .filter(t => !/^Electron\//i.test(t) && !t.toLowerCase().startsWith(appName + "/"))
+            .join(" ")
+        win.webContents.setUserAgent(ua)
+        win.webContents.setWindowOpenHandler(() => ({ action: "deny" }))
+
+        return await new Promise((resolve) => {
+            let done = false
+            let timer = null
+            const finish = (result) => {
+                if (done) return
+                done = true
+                clearInterval(timer)
+                animepaheUnlockWindow = null
+                try { if (!win.isDestroyed()) win.close() } catch (e) {}
+                resolve(result)
+            }
+            win.on("closed", () => finish({ error: "The window was closed before the check was passed." }))
+            setTimeout(() => finish({ error: "Timed out waiting for the check to be passed." }), 10 * 60 * 1000)
+            timer = setInterval(async () => {
+                if (win.isDestroyed()) return
+                try {
+                    const cookies = await ses.cookies.get({ url: "https://animepahe.pw/" })
+                    const passed = cookies.some(c => c.name === "cf_clearance")
+                    const title = win.webContents.getTitle() || ""
+                    if (passed && !/just a moment|attention required/i.test(title) && !win.webContents.isLoading()) {
+                        finish({ cookie: cookies.map(c => `${c.name}=${c.value}`).join("; "), userAgent: ua })
+                    }
+                } catch (e) {}
+            }, 1000)
+            win.loadURL("https://animepahe.pw/").catch(() => {})
+        })
+    })
+
     // Register server IPC handlers
     ipcMain.on("restart-server", () => {
         console.log("EVENT restart-server")

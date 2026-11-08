@@ -2,7 +2,6 @@ package onlinestream_providers
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -87,32 +86,19 @@ func animepaheNoteRateLimited() {
 func (p *AnimePahe) fetchJson(url string, out interface{}) error {
 	animepahePaceRequest()
 
-	req, err := http.NewRequest("GET", url, nil)
+	status, body, err := animepaheGet(p.Client, url, p.UserAgent, "application/json, text/plain, */*", p.Url+"/")
 	if err != nil {
 		return err
 	}
-	req.Header.Set("User-Agent", p.UserAgent)
-	req.Header.Set("Accept", "application/json, text/plain, */*")
-	req.Header.Set("Referer", p.Url+"/")
-
-	resp, err := p.Client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusTooManyRequests {
+	if status == http.StatusTooManyRequests {
 		animepaheNoteRateLimited()
 		return fmt.Errorf("animepahe: rate limited (429)")
 	}
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("animepahe: unexpected status %s", resp.Status)
+	if status == http.StatusForbidden {
+		return animepaheBlockedError()
 	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
+	if status != http.StatusOK {
+		return fmt.Errorf("animepahe: unexpected status %d", status)
 	}
 
 	// A Cloudflare challenge arrives as HTML with a 200 in front of it sometimes; a response that
@@ -129,29 +115,29 @@ func (p *AnimePahe) fetchJson(url string, out interface{}) error {
 func (p *AnimePahe) fetchPage(url string) ([]byte, error) {
 	animepahePaceRequest()
 
-	req, err := http.NewRequest("GET", url, nil)
+	status, body, err := animepaheGet(p.Client, url, p.UserAgent, "", p.Url+"/")
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", p.UserAgent)
-	req.Header.Set("Referer", p.Url+"/")
-
-	resp, err := p.Client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusTooManyRequests {
+	if status == http.StatusTooManyRequests {
 		animepaheNoteRateLimited()
 		return nil, fmt.Errorf("animepahe: rate limited (429)")
 	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("animepahe: unexpected status %s", resp.Status)
+	if status == http.StatusForbidden {
+		return nil, animepaheBlockedError()
 	}
+	if status != http.StatusOK {
+		return nil, fmt.Errorf("animepahe: unexpected status %d", status)
+	}
+	return body, nil
+}
 
-	return io.ReadAll(resp.Body)
+// animepaheBlockedError explains a 403: Cloudflare's check, passed or expired.
+func animepaheBlockedError() error {
+	if GetAnimePaheClearance() == nil {
+		return fmt.Errorf("animepahe: 403 blocked by Cloudflare's check; unlock AnimePahe on the En Masse page")
+	}
+	return fmt.Errorf("animepahe: 403 blocked by Cloudflare's check; the saved clearance has expired or does not match, unlock AnimePahe again")
 }
 
 func (p *AnimePahe) GetSettings() hibikeonlinestream.Settings {
@@ -338,31 +324,16 @@ func animepaheFindKwikUrl(pageHtml string) string {
 // ecosystem knows is: everything between the first "value" assignment and the eval is garbage
 // aimed at a resolver; the stream lives in a padded hex string assembled from the digits array.
 func (p *AnimePahe) unpackKwik(kwikUrl string) (string, error) {
-	req, err := http.NewRequest("GET", kwikUrl, nil)
+	status, body, err := animepaheGet(p.Client, kwikUrl, p.UserAgent, "", p.Url+"/")
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("User-Agent", p.UserAgent)
-	req.Header.Set("Referer", p.Url+"/")
-
-	resp, err := p.Client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusTooManyRequests {
+	if status == http.StatusTooManyRequests {
 		animepaheNoteRateLimited()
 		return "", fmt.Errorf("animepahe: kwik rate limited (429)")
 	}
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("animepahe: kwik returned %s", resp.Status)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
+	if status != http.StatusOK {
+		return "", fmt.Errorf("animepahe: kwik returned status %d", status)
 	}
 	pageHtml := string(body)
 
