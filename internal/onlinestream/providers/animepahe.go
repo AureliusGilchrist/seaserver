@@ -196,6 +196,10 @@ func (p *AnimePahe) Search(opts hibikeonlinestream.SearchOptions) (ret []*hibike
 		var res animepaheSearchResponse
 		if err := p.fetchJson(endpoint, &res); err != nil {
 			lastSearchError = err
+			// Refused outright (403, a Cloudflare check): every other name would be refused too.
+			if l := err.Error(); strings.Contains(l, "403") || strings.Contains(l, "challenge") {
+				break
+			}
 			continue
 		}
 

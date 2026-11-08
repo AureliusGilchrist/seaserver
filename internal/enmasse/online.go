@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -480,6 +481,10 @@ func (d *Downloader) findOnProvider(ctx context.Context, hooks *OnlineHooks, pro
 		details.SelectedTorrent = ""
 	})
 
+	if until, blocked := providerBlockedUntil(provider); blocked {
+		return nil, fmt.Errorf("%w: %s is refusing this server (Cloudflare check); not searched again until %s", ErrProviderBlocked, provider, until.Format("15:04"))
+	}
+
 	seen := make(map[string]bool)
 	var candidates []*providerMatch
 	var best *providerMatch
@@ -497,6 +502,13 @@ func (d *Downloader) findOnProvider(ctx context.Context, hooks *OnlineHooks, pro
 		}
 		results, err := hooks.Search(provider, hibikeonlinestream.SearchOptions{Media: media, Query: q, Year: year})
 		if err != nil {
+			// A provider that refuses the server (403, a Cloudflare check) refuses every
+			// spelling: it is left alone for a while instead of being asked 14 times per series.
+			if isBlockedError(err) {
+				until := blockProvider(provider)
+				d.logger.Warn().Err(err).Str("provider", provider).Time("until", until).Msg("enmasse-anime: The provider is refusing this server; skipping it for now")
+				return nil, fmt.Errorf("%w: %s is refusing this server (%v); not searched again until %s", ErrProviderBlocked, provider, err, until.Format("15:04"))
+			}
 			lastErr = err
 			continue
 		}
@@ -803,4 +815,43 @@ func MatchOnProvider(ctx context.Context, logger *zerolog.Logger, hooks *OnlineH
 		return "", "", err
 	}
 	return match.ID, match.Title, nil
+}
+
+// ErrProviderBlocked is returned for a provider that is refusing this server (HTTP 403, a
+// Cloudflare check). Such a provider is skipped for providerBlockFor before it is tried again.
+var ErrProviderBlocked = errors.New("the provider is refusing this server")
+
+var providerBlockFor = 30 * time.Minute
+
+var (
+	providerBlocksMu sync.Mutex
+	providerBlocks   = map[string]time.Time{}
+)
+
+func isBlockedError(err error) bool {
+	if err == nil {
+		return false
+	}
+	l := strings.ToLower(err.Error())
+	return strings.Contains(l, "403") || strings.Contains(l, "forbidden") || strings.Contains(l, "cloudflare") ||
+		strings.Contains(l, "challenge")
+}
+
+func blockProvider(provider string) time.Time {
+	providerBlocksMu.Lock()
+	defer providerBlocksMu.Unlock()
+	until := time.Now().Add(providerBlockFor)
+	providerBlocks[provider] = until
+	return until
+}
+
+func providerBlockedUntil(provider string) (time.Time, bool) {
+	providerBlocksMu.Lock()
+	defer providerBlocksMu.Unlock()
+	until, ok := providerBlocks[provider]
+	if !ok || time.Now().After(until) {
+		delete(providerBlocks, provider)
+		return time.Time{}, false
+	}
+	return until, true
 }

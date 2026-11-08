@@ -380,3 +380,26 @@ func TestInterruptedRunIsRemembered(t *testing.T) {
 		t.Fatal("a paused run would be restarted")
 	}
 }
+
+// TestBlockedProviderFailsFast: a provider refusing the server (403) is asked once, not once per
+// spelling, and is skipped for the next series too.
+func TestBlockedProviderFailsFast(t *testing.T) {
+	onlineRequestGap = time.Millisecond
+	defer func() { onlineRequestGap = 8 * time.Second }()
+	defer func() { providerBlocksMu.Lock(); providerBlocks = map[string]time.Time{}; providerBlocksMu.Unlock() }()
+
+	logger := zerolog.Nop()
+	d := NewDownloader(&NewDownloaderOptions{Logger: &logger})
+	calls := 0
+	hooks := &OnlineHooks{Search: func(string, hibikeonlinestream.SearchOptions) ([]*hibikeonlinestream.SearchResult, error) {
+		calls++
+		return nil, errors.New("animepahe: search failed: animepahe: unexpected status 403 Forbidden")
+	}}
+	item := &AnilistMinifiedItem{ID: 1, TitleRomaji: "Mushishi", TitleEnglish: "Mushi-Shi", Episodes: 26}
+	if _, err := d.findOnProvider(context.Background(), hooks, "animepahe", item, 0); !errors.Is(err, ErrProviderBlocked) || calls != 1 {
+		t.Fatalf("err %v after %d searches", err, calls)
+	}
+	if _, err := d.findOnProvider(context.Background(), hooks, "animepahe", item, 0); !errors.Is(err, ErrProviderBlocked) || calls != 1 {
+		t.Fatalf("a blocked provider was searched again: err %v, %d searches", err, calls)
+	}
+}
