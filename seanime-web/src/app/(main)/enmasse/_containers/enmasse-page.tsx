@@ -2,7 +2,11 @@
 
 import { AnimeEnMasseActivity, EnMasseDownloaderStatus, useEnMasseStart, useEnMasseStatus, useEnMasseStop } from "@/api/hooks/enmasse.hooks"
 import { useDownloadingAnime } from "@/app/(main)/_atoms/downloading.atoms"
-import { __anime_streamDownloadsModalIsOpenAtom } from "@/app/(main)/onlinestream/_containers/anime-downloads/anime-downloads-modal"
+import { isOnlinestreamDownloadRunning, useGetOnlinestreamDownloads } from "@/api/hooks/onlinestream_download.hooks"
+import {
+    __anime_streamDownloadsModalIsOpenAtom,
+    formatDownloadBytes,
+} from "@/app/(main)/onlinestream/_containers/anime-downloads/anime-downloads-modal"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { SeaLink } from "@/components/shared/sea-link"
 import { Button } from "@/components/ui/button"
@@ -11,6 +15,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Switch } from "@/components/ui/switch"
 import { formatNumber } from "@/lib/helpers/number"
 import { useSetAtom } from "jotai/react"
+import { AnimatePresence, motion } from "motion/react"
 import React, { useEffect, useState } from "react"
 import {
     LuCheck,
@@ -32,6 +37,7 @@ import {
     LuSparkles,
     LuSquare,
     LuTriangleAlert,
+    LuZap,
 } from "react-icons/lu"
 import { Virtuoso } from "react-virtuoso"
 
@@ -66,6 +72,33 @@ function useNow(intervalMs = 5000) {
         return () => clearInterval(t)
     }, [intervalMs])
     return now
+}
+
+/** A number that glides to its new value instead of jumping. */
+function AnimatedNumber({ value, className }: { value: number, className?: string }) {
+    const [shown, setShown] = useState(value)
+    const fromRef = React.useRef(value)
+    useEffect(() => {
+        const from = fromRef.current
+        if (from === value) return
+        const start = performance.now()
+        const duration = 700
+        let raf = 0
+        const step = (t: number) => {
+            const k = Math.min(1, (t - start) / duration)
+            const eased = 1 - Math.pow(1 - k, 3)
+            const v = Math.round(from + (value - from) * eased)
+            setShown(v)
+            if (k < 1) raf = requestAnimationFrame(step)
+            else fromRef.current = value
+        }
+        raf = requestAnimationFrame(step)
+        return () => {
+            cancelAnimationFrame(raf)
+            fromRef.current = value
+        }
+    }, [value])
+    return <span className={className}>{formatNumber(shown)}</span>
 }
 
 const PIPELINE = [
@@ -136,12 +169,16 @@ export function EnMassePage() {
     return (
         <PageWrapper className="p-4 sm:p-8 space-y-6" data-enmasse-page>
             <Hero status={status} />
-            <ProgressPanel status={status} />
+            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] gap-6">
+                <ProgressPanel status={status} />
+                <DownloadingNow />
+            </div>
             <StatTiles status={status} />
             <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-6">
                 <NowCard status={status} />
                 <ActivityFeed status={status} />
             </div>
+            <PosterWall status={status} />
             <HowItWorks />
         </PageWrapper>
     )
@@ -166,16 +203,36 @@ function Hero({ status }: { status: EnMasseDownloaderStatus | undefined }) {
         <div className="relative overflow-hidden rounded-2xl border border-white/10" data-enmasse-hero>
             {/* Backdrop: the series being looked up, blurred, over a brand glow. */}
             <div className="absolute inset-0 bg-gradient-to-br from-indigo-950 via-gray-950 to-fuchsia-950" />
-            {!!art && <div
-                key={art}
-                className="absolute inset-0 bg-cover bg-center opacity-30 blur-2xl scale-125 transition-opacity duration-700"
-                style={{ backgroundImage: `url(${art})` }}
-            />}
+            <AnimatePresence mode="popLayout">
+                {!!art && <motion.div
+                    key={art}
+                    className="absolute inset-0 bg-cover bg-center blur-2xl"
+                    style={{ backgroundImage: `url(${art})` }}
+                    initial={{ opacity: 0, scale: 1.2 }}
+                    animate={{ opacity: 0.35, scale: 1.35 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ opacity: { duration: 1 }, scale: { duration: 24, ease: "linear" } }}
+                />}
+            </AnimatePresence>
             <div className="absolute -top-24 -right-24 size-72 rounded-full bg-[--brand]/30 blur-3xl" />
             <div className="absolute -bottom-32 -left-16 size-72 rounded-full bg-fuchsia-500/20 blur-3xl" />
             <div className="absolute inset-0 bg-gradient-to-t from-gray-950/80 to-transparent" />
 
             <div className="relative p-6 sm:p-8 flex flex-col lg:flex-row lg:items-end gap-6">
+                {/* The series being looked up, as a poster. */}
+                <AnimatePresence mode="wait">
+                    {!!art && status?.isRunning && <motion.div
+                        key={art}
+                        initial={{ opacity: 0, y: 12, rotate: -2 }}
+                        animate={{ opacity: 1, y: 0, rotate: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ duration: 0.5 }}
+                        className="hidden md:block relative flex-none w-32 aspect-[2/3] self-center lg:self-end"
+                    >
+                        <div className="absolute -inset-3 rounded-2xl bg-gradient-to-br from-indigo-500/50 to-fuchsia-500/40 blur-xl" />
+                        <img src={art} alt="" className="relative w-full h-full object-cover rounded-xl ring-1 ring-white/20 shadow-2xl" />
+                    </motion.div>}
+                </AnimatePresence>
                 <div className="flex-1 min-w-0 space-y-3">
                     <div className="flex items-center gap-2 flex-wrap">
                         <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-indigo-200/80">
@@ -275,34 +332,59 @@ function ProgressPanel({ status }: { status: EnMasseDownloaderStatus | undefined
     const perHour = elapsed > 60000 && status?.processedThisRun ? (status.processedThisRun / elapsed) * 3600000 : 0
     const remaining = perHour > 0 ? ((total - done) / perHour) * 3600000 : 0
 
+    // The ring: a circle whose stroke is drawn to the share of the database done.
+    const r = 52
+    const circumference = 2 * Math.PI * r
+
     return (
-        <div className="rounded-2xl border bg-[--paper] p-5 sm:p-6 space-y-4" data-enmasse-progress>
-            <div className="flex items-end gap-4 flex-wrap">
+        <div className="rounded-2xl border bg-[--paper] p-5 sm:p-6 flex flex-col sm:flex-row items-center gap-6" data-enmasse-progress>
+            <div className="relative size-36 flex-none">
+                <svg viewBox="0 0 120 120" className="size-full -rotate-90">
+                    <defs>
+                        <linearGradient id="enmasse-ring" x1="0" y1="0" x2="1" y2="1">
+                            <stop offset="0%" stopColor="#818cf8" />
+                            <stop offset="55%" stopColor="#d946ef" />
+                            <stop offset="100%" stopColor="#f472b6" />
+                        </linearGradient>
+                    </defs>
+                    <circle cx="60" cy="60" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="10" />
+                    <motion.circle
+                        cx="60" cy="60" r={r} fill="none" stroke="url(#enmasse-ring)" strokeWidth="10" strokeLinecap="round"
+                        strokeDasharray={circumference}
+                        initial={false}
+                        animate={{ strokeDashoffset: circumference * (1 - Math.max(pct, 0.4) / 100) }}
+                        transition={{ duration: 1, ease: "easeOut" }}
+                    />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <p className="text-2xl font-bold tabular-nums leading-none">
+                        {pct.toFixed(pct < 10 ? 1 : 0)}<span className="text-sm text-[--muted]">%</span>
+                    </p>
+                    <p className="text-[10px] uppercase tracking-wider text-[--muted] mt-1">of the database</p>
+                </div>
+                {status?.isRunning && <div className="absolute inset-2 rounded-full bg-fuchsia-500/10 blur-xl animate-pulse" />}
+            </div>
+
+            <div className="flex-1 min-w-0 w-full space-y-4">
                 <div>
-                    <p className="text-xs uppercase tracking-wider text-[--muted]">Progress through the anime database</p>
-                    <p className="text-4xl font-bold tabular-nums leading-tight">
-                        {pct.toFixed(pct < 10 ? 2 : 1)}<span className="text-xl text-[--muted]">%</span>
+                    <p className="text-xs uppercase tracking-wider text-[--muted]">Series checked</p>
+                    <p className="text-2xl font-bold tabular-nums">
+                        <AnimatedNumber value={done} /> <span className="text-base font-normal text-[--muted]">of {formatNumber(total)}</span>
                     </p>
                 </div>
-                <p className="text-sm text-[--muted] pb-1.5 tabular-nums">
-                    {formatNumber(done)} of {formatNumber(total)} series
-                </p>
-                <div className="flex-1" />
-                <div className="flex gap-5 text-sm">
+                <div className="grid grid-cols-3 gap-3">
                     <Metric icon={<LuClock />} label="Running for" value={elapsed ? formatDuration(elapsed) : "—"} />
-                    <Metric icon={<LuGauge />} label="Pace" value={perHour ? `${perHour.toFixed(perHour < 10 ? 1 : 0)} series/h` : "—"} />
+                    <Metric icon={<LuGauge />} label="Pace" value={perHour ? `${perHour.toFixed(perHour < 10 ? 1 : 0)}/h` : "—"} />
                     <Metric icon={<LuHourglass />} label="Time left" value={remaining ? formatDuration(remaining) : "—"} />
                 </div>
-            </div>
-            <div className="relative h-3 rounded-full bg-gray-800 overflow-hidden">
-                <div
-                    className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-pink-500 transition-[width] duration-700"
-                    style={{ width: `${pct}%` }}
-                />
-                {status?.isRunning && <div
-                    className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"
-                    style={{ width: `${pct}%` }}
-                />}
+                <div className="relative h-2 rounded-full bg-gray-800 overflow-hidden">
+                    <motion.div
+                        className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-pink-500"
+                        initial={false}
+                        animate={{ width: `${pct}%` }}
+                        transition={{ duration: 1, ease: "easeOut" }}
+                    />
+                </div>
             </div>
         </div>
     )
@@ -310,10 +392,83 @@ function ProgressPanel({ status }: { status: EnMasseDownloaderStatus | undefined
 
 function Metric({ icon, label, value }: { icon: React.ReactNode, label: string, value: string }) {
     return (
-        <div className="text-right">
-            <p className="text-[11px] uppercase tracking-wider text-[--muted] flex items-center gap-1 justify-end">{icon}{label}</p>
-            <p className="font-semibold tabular-nums">{value}</p>
+        <div className="rounded-xl bg-white/[0.03] border border-white/5 px-3 py-2">
+            <p className="text-[10px] uppercase tracking-wider text-[--muted] flex items-center gap-1">{icon}{label}</p>
+            <p className="font-semibold tabular-nums mt-0.5">{value}</p>
         </div>
+    )
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Downloading now
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/** The episode the online download queue is fetching, next to the search that feeds it. */
+function DownloadingNow() {
+    const { data } = useGetOnlinestreamDownloads()
+    const openDownloadQueue = useSetAtom(__anime_streamDownloadsModalIsOpenAtom)
+    const running = data?.running && isOnlinestreamDownloadRunning(data.running) ? data.running : undefined
+    const pct = Math.round((running?.progress ?? 0) * 100)
+    const counts = data?.counts
+
+    return (
+        <button
+            type="button"
+            onClick={() => openDownloadQueue(true)}
+            className="group relative overflow-hidden rounded-2xl border bg-[--paper] p-5 text-left transition-colors hover:border-white/20"
+            data-enmasse-downloading
+        >
+            {!!running?.image && <div
+                className="absolute inset-0 bg-cover bg-center opacity-15 blur-xl scale-110"
+                style={{ backgroundImage: `url(${running.image})` }}
+            />}
+            <div className="absolute inset-0 bg-gradient-to-br from-gray-950/60 to-gray-950/90" />
+            <div className="relative space-y-4">
+                <div className="flex items-center gap-2">
+                    <span className={cn("size-2 rounded-full", running ? "bg-emerald-400 animate-pulse" : "bg-gray-600")} />
+                    <p className="text-xs uppercase tracking-wider text-[--muted] flex-1">Downloading now</p>
+                    <span className="text-xs text-[--muted] group-hover:text-white transition-colors">Open queue →</span>
+                </div>
+                {running ? (
+                    <div className="flex gap-3">
+                        {!!running.image && <img src={running.image} alt="" className="w-12 h-16 rounded-lg object-cover ring-1 ring-white/10 flex-none" />}
+                        <div className="min-w-0 flex-1 space-y-2">
+                            <p className="font-semibold line-clamp-1">{running.title}</p>
+                            <p className="text-xs text-gray-300">
+                                Episode {running.episodeNumber}
+                                {running.status === "downloading" ? ` · ${pct}%` : running.status === "muxing" ? " · building the MKV" : ""}
+                                {running.speed > 0 && running.status === "downloading" ? ` · ${formatDownloadBytes(running.speed)}/s` : ""}
+                            </p>
+                            <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                                <motion.div
+                                    className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-sky-400"
+                                    initial={false}
+                                    animate={{ width: `${running.status === "downloading" ? pct : 100}%` }}
+                                    transition={{ duration: 0.6 }}
+                                    style={{ opacity: running.status === "downloading" ? 1 : 0.4 }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <p className="text-sm text-[--muted]">
+                        {counts?.queued ? `${formatNumber(counts.queued)} episodes waiting` : "Nothing downloading right now."}
+                    </p>
+                )}
+                {!!counts && <div className="grid grid-cols-3 gap-2 text-center">
+                    {[
+                        ["Waiting", counts.queued, "text-sky-300"],
+                        ["Done", counts.completed, "text-emerald-300"],
+                        ["Failed", counts.failed, counts.failed ? "text-amber-300" : "text-[--muted]"],
+                    ].map(([label, value, tone]) => (
+                        <div key={label as string} className="rounded-lg bg-white/[0.04] py-1.5">
+                            <AnimatedNumber value={value as number} className={cn("text-lg font-bold tabular-nums", tone as string)} />
+                            <p className="text-[10px] uppercase tracking-wider text-[--muted]">{label as string}</p>
+                        </div>
+                    ))}
+                </div>}
+            </div>
+        </button>
     )
 }
 
@@ -332,12 +487,19 @@ function StatTiles({ status }: { status: EnMasseDownloaderStatus | undefined }) 
     ]
     return (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3" data-enmasse-stats>
-            {tiles.map(t => (
-                <div key={t.label} className={cn("relative overflow-hidden rounded-xl border bg-gradient-to-br to-transparent p-4", t.bg)}>
+            {tiles.map((t, i) => (
+                <motion.div
+                    key={t.label}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.05, duration: 0.4 }}
+                    whileHover={{ y: -2 }}
+                    className={cn("relative overflow-hidden rounded-xl border bg-gradient-to-br to-transparent p-4", t.bg)}
+                >
                     <t.icon className={cn("absolute -right-2 -bottom-3 text-6xl opacity-15", t.fg)} />
-                    <p className={cn("text-2xl font-bold tabular-nums", t.fg)}>{formatNumber(t.value)}</p>
+                    <AnimatedNumber value={t.value} className={cn("text-2xl font-bold tabular-nums", t.fg)} />
                     <p className="text-xs text-gray-300 mt-0.5">{t.label}</p>
-                </div>
+                </motion.div>
             ))}
         </div>
     )
@@ -521,8 +683,15 @@ function ActivityFeed({ status }: { status: EnMasseDownloaderStatus | undefined 
 
 const ActivityRow = React.memo(function ActivityRow({ entry: e, now }: { entry: AnimeEnMasseActivity, now: number }) {
     const style = resultStyle[e.result] ?? resultStyle.skipped
+    // Rows newer than a few seconds slide in; older ones (scrolled back to) just appear.
+    const fresh = now - new Date(e.time).getTime() < 15000
     return (
-        <div className="px-5 py-3 border-t border-white/5 flex gap-3 items-center hover:bg-white/[0.03] transition-colors">
+        <motion.div
+            initial={fresh ? { opacity: 0, x: -12 } : false}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.35 }}
+            className="px-5 py-3 border-t border-white/5 flex gap-3 items-center hover:bg-white/[0.03] transition-colors"
+        >
             <div className="w-9 h-12 rounded-md overflow-hidden bg-gray-900 border flex-none">
                 {e.image ? <img src={e.image} alt="" loading="lazy" className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center text-[--muted]"><LuFilm /></div>}
@@ -543,7 +712,7 @@ const ActivityRow = React.memo(function ActivityRow({ entry: e, now }: { entry: 
                 </span>
                 <span className="text-[11px] text-[--muted]">{timeAgo(e.time, now)}</span>
             </div>
-        </div>
+        </motion.div>
     )
 })
 
@@ -552,6 +721,69 @@ function EmptyFeed({ text }: { text: string }) {
         <div className="h-[22rem] flex flex-col items-center justify-center gap-2 text-[--muted] text-sm">
             <LuListVideo className="text-3xl opacity-60" />
             {text}
+        </div>
+    )
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Poster wall
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/** The covers of the series most recently queued: the run's results at a glance. */
+function PosterWall({ status }: { status: EnMasseDownloaderStatus | undefined }) {
+    const posters = React.useMemo(() => {
+        const seen = new Set<number>()
+        const out: AnimeEnMasseActivity[] = []
+        for (const e of status?.recent ?? []) {
+            if (e.result !== "queued" || !e.image || !e.mediaId || seen.has(e.mediaId)) continue
+            seen.add(e.mediaId)
+            out.push(e)
+            if (out.length >= 16) break
+        }
+        return out
+    }, [status?.recent])
+
+    if (!posters.length) return null
+
+    return (
+        <div className="rounded-2xl border bg-[--paper] p-5 space-y-4" data-enmasse-posters>
+            <div className="flex items-center gap-2">
+                <LuZap className="text-fuchsia-300" />
+                <h3 className="text-lg font-semibold flex-1">Just queued</h3>
+                <span className="text-xs text-[--muted]">Latest {posters.length}</span>
+            </div>
+            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
+                <AnimatePresence initial={false}>
+                    {posters.map(p => (
+                        <motion.div
+                            key={p.mediaId}
+                            layout
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            transition={{ duration: 0.4 }}
+                        >
+                            <SeaLink href={`/entry?id=${p.mediaId}`} className="group block" title={p.title}>
+                                <div className="relative aspect-[2/3] overflow-hidden rounded-lg ring-1 ring-white/10">
+                                    <img
+                                        src={p.image}
+                                        alt=""
+                                        loading="lazy"
+                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    {!!p.episodes && <span className="absolute top-1.5 right-1.5 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold">
+                                        {p.episodes} ep
+                                    </span>}
+                                    <p className="absolute inset-x-1.5 bottom-1.5 text-[11px] font-medium leading-tight line-clamp-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        {p.title}
+                                    </p>
+                                </div>
+                            </SeaLink>
+                        </motion.div>
+                    ))}
+                </AnimatePresence>
+            </div>
         </div>
     )
 }
