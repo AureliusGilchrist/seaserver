@@ -36,6 +36,7 @@ func (h *Handler) wireEnMasseOnline(app *core.App) {
 		TorrentSeries:    takeovers.TorrentSeries,
 		TakeOverTorrents: takeovers.TakeOver,
 		HasTorrent:       takeovers.HasTorrent,
+		TorrentStalled:   takeovers.TorrentStalled,
 		InLibrary: func(mediaId int) bool {
 			return len(h.libraryEpisodeFiles(mediaId)) > 0
 		},

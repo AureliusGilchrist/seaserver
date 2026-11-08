@@ -74,6 +74,9 @@ type OnlineHooks struct {
 	TorrentSeries func() []TorrentSeries
 	// HasTorrent reports whether an anime has a torrent still downloading.
 	HasTorrent func(mediaId int) bool
+	// TorrentStalled reports whether every unfinished torrent of an anime has been stalled for a
+	// while (no download, no seeders). Only then may the backup provider replace it.
+	TorrentStalled func(mediaId int) bool
 	// TakeOverTorrents hands an anime's unfinished torrents to the online download: they are
 	// paused now, removed with their files once every episode is in the library, and resumed if
 	// the online download fails.
@@ -322,10 +325,12 @@ func (d *Downloader) processAnimeOnline(ctx context.Context, hooks *OnlineHooks,
 		year = animeItem.AnimeSeason.Year
 	}
 	// Kickassanime first, AnimeHeaven as the backup. A series still downloading as a torrent is
-	// only taken over by Kickassanime; when Kickassanime does not have it the torrent carries on.
+	// only taken over by Kickassanime, unless its torrent is stalled: then the backup may replace
+	// it too. A healthy torrent is never replaced by the backup.
 	torrentBacked := animeItem.torrentBacked || (hooks.HasTorrent != nil && hooks.HasTorrent(resolved.ID))
+	stalled := torrentBacked && hooks.TorrentStalled != nil && hooks.TorrentStalled(resolved.ID)
 	providers := []string{OnlineProvider}
-	if !torrentBacked {
+	if !torrentBacked || stalled {
 		providers = append(providers, BackupProvider)
 	}
 	var match *providerMatch
@@ -344,8 +349,10 @@ func (d *Downloader) processAnimeOnline(ctx context.Context, hooks *OnlineHooks,
 	}
 	if match == nil {
 		msg := strings.Join(misses, "; ")
-		if torrentBacked {
+		if torrentBacked && !stalled {
 			msg += " (the torrent keeps downloading)"
+		} else if stalled {
+			msg += " (the torrent is stalled and was left as it is)"
 		}
 		return errors.New(msg)
 	}
@@ -383,8 +390,8 @@ func (d *Downloader) processAnimeOnline(ctx context.Context, hooks *OnlineHooks,
 		details.Step = fmt.Sprintf("queued %d episodes", queued)
 		details.EpisodesQueued += queued
 	})
-	// Only the main provider replaces a torrent.
-	if provider == OnlineProvider && hooks.TakeOverTorrents != nil {
+	// The main provider replaces a torrent; the backup only replaces a stalled one.
+	if (provider == OnlineProvider || stalled) && hooks.TakeOverTorrents != nil {
 		hooks.TakeOverTorrents(resolved.ID)
 	}
 	if d.OnAnimeQueued != nil {

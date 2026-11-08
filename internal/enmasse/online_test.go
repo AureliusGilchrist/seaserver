@@ -249,4 +249,13 @@ func TestBackupProvider(t *testing.T) {
 			t.Fatal("a torrent series was searched on the backup provider")
 		}
 	}
+	// The torrent has stalled: now the backup may take it over.
+	searchedOn, queuedOn = nil, ""
+	hooks.TorrentStalled = func(int) bool { return true }
+	if err := d.processAnimeOnline(context.Background(), hooks, &AnimeOfflineItem{Title: "Mushishi", AnilistID: 457}); err != nil {
+		t.Fatal(err)
+	}
+	if queuedOn != BackupProvider || !tookOver {
+		t.Fatalf("stalled torrent series: queued on %q, took over %v", queuedOn, tookOver)
+	}
 }

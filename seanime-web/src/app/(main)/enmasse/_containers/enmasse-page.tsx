@@ -565,7 +565,7 @@ function HowItWorks() {
     const steps = [
         {
             title: "Torrents first",
-            text: "Series still downloading as torrents are tried first, on Kickassanime only. If Kickassanime has one, its torrent is paused and the series downloads online; once the episodes are in your library the torrent and its files are removed, and if the online download fails the torrent resumes. The backup never replaces a torrent.",
+            text: "Series still downloading as torrents are tried first, on Kickassanime only. If Kickassanime has one, its torrent is paused and the series downloads online; once the episodes are in your library the torrent and its files are removed, and if the online download fails the torrent resumes. AnimeHeaven, the backup, only replaces a torrent that has been stalled for 15 minutes or more (no download, no seeders).",
         },
         {
             title: "Skip what you have",

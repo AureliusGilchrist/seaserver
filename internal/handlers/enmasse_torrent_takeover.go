@@ -40,6 +40,78 @@ type torrentTakeovers struct {
 	cacheMu   sync.Mutex
 	cacheAt   time.Time
 	cacheList map[int][]*torrent_client.Torrent
+	// stalledSince remembers when each torrent was first seen stalled; a torrent counts as
+	// stalled only once that has lasted stalledFor.
+	stalledSince map[string]time.Time
+}
+
+const (
+	// stalledFor is how long a torrent must look stalled before the backup may replace it.
+	stalledFor = 15 * time.Minute
+	// stalledMinAge keeps a torrent that is still finding peers from counting as stalled.
+	stalledMinAge = 30 * time.Minute
+)
+
+// looksStalled is one look at a torrent: stalled by the client's own account, stuck on its
+// metadata, or downloading at nothing with no one to download from.
+func looksStalled(tor *torrent_client.Torrent) bool {
+	switch tor.State {
+	case torrent_client.TorrentStateStalled, torrent_client.TorrentStateMetadata:
+		return true
+	}
+	return tor.DownSpeedBytes == 0 && tor.Seeds == 0 && tor.Status == torrent_client.TorrentStatusDownloading
+}
+
+// TorrentStalled reports whether every unfinished torrent of an anime has looked stalled for
+// stalledFor, and is old enough not to be still finding peers.
+func (t *torrentTakeovers) TorrentStalled(mediaId int) bool {
+	t.cacheMu.Lock()
+	defer t.cacheMu.Unlock()
+	if t.cacheList == nil || time.Since(t.cacheAt) > time.Minute {
+		t.refreshLocked()
+	}
+	list := t.cacheList[mediaId]
+	if len(list) == 0 {
+		return false
+	}
+	now := time.Now()
+	for _, tor := range list {
+		since, ok := t.stalledSince[tor.Hash]
+		if !ok || now.Sub(since) < stalledFor {
+			return false
+		}
+		if tor.AddedOn > 0 && now.Sub(time.Unix(tor.AddedOn, 0)) < stalledMinAge {
+			return false
+		}
+	}
+	return true
+}
+
+// refreshLocked reloads the torrent list and updates the stalled clocks. cacheMu must be held.
+func (t *torrentTakeovers) refreshLocked() {
+	t.cacheList = t.unfinished()
+	t.cacheAt = time.Now()
+	if t.stalledSince == nil {
+		t.stalledSince = make(map[string]time.Time)
+	}
+	seen := make(map[string]bool)
+	for _, list := range t.cacheList {
+		for _, tor := range list {
+			seen[tor.Hash] = true
+			if looksStalled(tor) {
+				if _, ok := t.stalledSince[tor.Hash]; !ok {
+					t.stalledSince[tor.Hash] = t.cacheAt
+				}
+			} else {
+				delete(t.stalledSince, tor.Hash)
+			}
+		}
+	}
+	for h := range t.stalledSince {
+		if !seen[h] {
+			delete(t.stalledSince, h)
+		}
+	}
 }
 
 // HasTorrent reports whether an anime has a torrent still downloading.
@@ -47,8 +119,7 @@ func (t *torrentTakeovers) HasTorrent(mediaId int) bool {
 	t.cacheMu.Lock()
 	defer t.cacheMu.Unlock()
 	if t.cacheList == nil || time.Since(t.cacheAt) > time.Minute {
-		t.cacheList = t.unfinished()
-		t.cacheAt = time.Now()
+		t.refreshLocked()
 	}
 	return len(t.cacheList[mediaId]) > 0
 }
@@ -71,6 +142,18 @@ func newTorrentTakeovers(app *core.App, h *Handler) *torrentTakeovers {
 		}
 	}
 	go t.watch()
+	// Watch torrents for stalls from the start, so a stall is already timed when a series is
+	// reached.
+	go func() {
+		defer util.HandlePanicInModuleThen("handlers/torrentTakeovers.stallWatch", func() {})
+		tick := time.NewTicker(2 * time.Minute)
+		defer tick.Stop()
+		for range tick.C {
+			t.cacheMu.Lock()
+			t.refreshLocked()
+			t.cacheMu.Unlock()
+		}
+	}()
 	return t
 }
 
