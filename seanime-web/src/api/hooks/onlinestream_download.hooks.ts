@@ -115,6 +115,12 @@ export type OnlinestreamDownload_SeriesResult = {
     queued: OnlinestreamDownload_Item[]
     skipped: number[]
     total: number
+    /** The provider the series was queued from (when the best available one was picked). */
+    provider?: string
+}
+
+function providerDisplayName(id: string) {
+    return ({ animepahe: "AnimePahe", kickassanime: "Kickassanime", anizone: "AniZone", animeheaven: "AnimeHeaven" } as Record<string, string>)[id] ?? id
 }
 
 export type OnlinestreamDownload_Action =
@@ -250,14 +256,17 @@ export function useOnlinestreamDownloadSeries() {
         endpoint: API_ENDPOINTS.ONLINESTREAM_DOWNLOAD.OnlinestreamDownloadSeries.endpoint,
         method: API_ENDPOINTS.ONLINESTREAM_DOWNLOAD.OnlinestreamDownloadSeries.methods[0],
         mutationKey: [API_ENDPOINTS.ONLINESTREAM_DOWNLOAD.OnlinestreamDownloadSeries.key],
+        // Finding the series on a source can take a few searches, spaced out to go easy on the sites.
+        timeout: 10 * 60 * 1000,
         onSuccess: async data => {
             if (!data) return
             const q = data.queued?.length ?? 0
             const s = data.skipped?.length ?? 0
+            const from = data.provider ? ` from ${providerDisplayName(data.provider)}` : ""
             if (q === 0) {
                 toast.info(`Nothing to download — all ${data.total} episodes are already in your library or the queue`)
             } else {
-                toast.success(`${q} of ${data.total} episodes added to the download queue${s ? ` (${s} skipped)` : ""}`)
+                toast.success(`${q} of ${data.total} episodes added to the download queue${from}${s ? ` (${s} skipped)` : ""}`)
             }
             await qc.invalidateQueries({ queryKey: queueKey })
         },

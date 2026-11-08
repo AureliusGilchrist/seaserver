@@ -526,14 +526,48 @@ func (h *Handler) HandleOnlinestreamDownloadSeries(c echo.Context) error {
 		}
 	}
 
-	res, err := m.EnqueueSeries(c.Request().Context(), onlinestream_download.Request{
-		MediaId:          b.MediaId,
-		Provider:         b.Provider,
-		Dubbed:           b.Dubbed,
-		Server:           b.Server,
-		Quality:          b.Quality,
-		SubtitleLanguage: b.SubtitleLanguage,
-	}, func(ep int) bool { return have[ep] }, overwrite)
+	ctx := c.Request().Context()
+	enqueue := func(provider string) (*onlinestream_download.SeriesResult, error) {
+		// The thorough match (every title, synonym and spelling) first; when it finds nothing the
+		// provider's own matching still gets its turn inside EnqueueSeries.
+		if err := h.mapOnlineProvider(ctx, provider, b.MediaId); err != nil {
+			h.App.Logger.Debug().Err(err).Str("provider", provider).Int("mediaId", b.MediaId).
+				Msg("onlinestream download: Thorough match found nothing; using the provider's own")
+		}
+		res, err := m.EnqueueSeries(ctx, onlinestream_download.Request{
+			MediaId:          b.MediaId,
+			Provider:         provider,
+			Dubbed:           b.Dubbed,
+			Server:           b.Server,
+			Quality:          b.Quality,
+			SubtitleLanguage: b.SubtitleLanguage,
+		}, func(ep int) bool { return have[ep] }, overwrite)
+		if err == nil {
+			res.Provider = provider
+		}
+		return res, err
+	}
+
+	// "auto": the first provider, in the usual order, that has the series.
+	if b.Provider == "auto" {
+		var misses []string
+		for _, p := range onlinestream_download.FallbackProviders {
+			if _, err := h.onlineProvider(p); err != nil {
+				continue
+			}
+			res, err := enqueue(p)
+			if err == nil {
+				return h.RespondWithData(c, res)
+			}
+			if ctx.Err() != nil {
+				return h.RespondWithError(c, ctx.Err())
+			}
+			misses = append(misses, onlinestream_download.ProviderLabel(p)+": "+err.Error())
+		}
+		return h.RespondWithError(c, fmt.Errorf("no provider has this series (%s)", strings.Join(misses, "; ")))
+	}
+
+	res, err := enqueue(b.Provider)
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}

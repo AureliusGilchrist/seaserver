@@ -30,6 +30,7 @@ import { AnimeEntryDropdownMenu } from "@/app/(main)/entry/_containers/entry-act
 import { AnimeEntrySilenceToggle } from "@/app/(main)/entry/_containers/entry-actions/anime-entry-silence-toggle"
 import { EnqueueFutureButton } from "@/app/(main)/entry/_containers/enqueue-future/enqueue-future-button"
 import { TorrentSearchButton } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-button"
+import { DirectDownloadButton } from "@/app/(main)/entry/_containers/direct-download/direct-download-button"
 import { SeaLink } from "@/components/shared/sea-link"
 import { Badge } from "@/components/ui/badge"
 import { Button, ButtonProps, IconButton } from "@/components/ui/button"
@@ -236,6 +237,11 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
                                 if (currentView !== "library") setView("library")
                             }}
                         />
+                    )}
+
+                    {/* Next to the torrent Download: the same series from an online source. */}
+                    {entry.media.status !== "NOT_YET_RELEASED" && !entry._isNakamaEntry && (
+                        <DirectDownloadButton entry={entry} />
                     )}
 
                     {(

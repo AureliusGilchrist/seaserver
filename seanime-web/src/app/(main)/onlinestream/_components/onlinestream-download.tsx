@@ -44,7 +44,7 @@ function useShownSubtitleLanguage() {
 }
 
 /** A download waiting on the overwrite question. */
-type PendingDownload = {
+export type PendingDownload = {
     kind: "episodes" | "series"
     episodes: number[]
     existing: OnlinestreamDownload_ExistingEpisode[]
@@ -99,11 +99,13 @@ export function useOnlinestreamEpisodeDownloader(params: DownloadParams) {
     }, [params.provider, params.mediaId, params.dubbed, params.server, params.quality, shownSubtitle, mutate, mutateSeries])
 
     const request = React.useCallback(async (kind: PendingDownload["kind"], episodes: number[], videoSource?: Onlinestream_VideoSource) => {
-        if (!params.provider || !params.mediaId || !episodes.length) return
+        // A series from the best available source has no episode list yet (the server picks the source).
+        const anySource = kind === "series" && params.provider === "auto"
+        if (!params.provider || !params.mediaId || (!episodes.length && !anySource)) return
         // Fresh: an episode may have been added or removed since the page loaded.
         const latest = (await refetchExisting()).data ?? existing ?? []
         const wanted = new Set(episodes)
-        const inLibrary = latest.filter(e => wanted.has(e.episodeNumber))
+        const inLibrary = anySource ? latest : latest.filter(e => wanted.has(e.episodeNumber))
         const p: PendingDownload = { kind, episodes, existing: inLibrary, videoSource }
         if (!inLibrary.length) {
             send(p, [])
@@ -252,6 +254,30 @@ type OnlinestreamDownloadButtonProps = DownloadParams & {
     currentEpisodeNumber: number | null
     episodes: Onlinestream_Episode[] | undefined
     videoSource: Onlinestream_VideoSource | undefined
+    /** Replaces the default "Download" button (Direct Download on the anime page). */
+    trigger?: React.ReactElement
+    title?: string
+    /** Shown at the top of the window, above the source details (the source picker). */
+    header?: React.ReactNode
+    /** Set while the episode list is loading. */
+    episodesLoading?: boolean
+}
+
+/** Display names of the providers the downloader uses. "auto" is the best available one. */
+export function onlinestreamProviderLabel(id: string | null | undefined) {
+    switch (id) {
+        case "auto":
+            return "the best available source"
+        case "animepahe":
+            return "AnimePahe"
+        case "kickassanime":
+            return "Kickassanime"
+        case "anizone":
+            return "AniZone"
+        case "animeheaven":
+            return "AnimeHeaven"
+    }
+    return id ?? ""
 }
 
 export function OnlinestreamDownloadButton(props: OnlinestreamDownloadButtonProps) {
@@ -293,10 +319,10 @@ export function OnlinestreamDownloadButton(props: OnlinestreamDownloadButtonProp
             <Modal
                 open={open}
                 onOpenChange={setOpen}
-                title="Download from the provider"
+                title={props.title ?? "Download from the provider"}
                 description="Saved to your library as an MKV with the stream's subtitles as separate tracks, and matched automatically."
                 contentClass="max-w-2xl max-sm:w-[calc(100vw-1.5rem)]"
-                trigger={<Button
+                trigger={props.trigger ?? <Button
                     size="sm"
                     rounded
                     intent={runningHere ? "primary-subtle" : "gray-basic"}
@@ -306,12 +332,13 @@ export function OnlinestreamDownloadButton(props: OnlinestreamDownloadButtonProp
                 </Button>}
             >
                 <div className="space-y-5">
+                    {props.header}
                     <div className="rounded-lg border bg-gray-900/50 p-3 space-y-2">
                         <p className="text-sm text-[--muted]">
-                            Using <span className="text-[--foreground] font-medium">{provider}</span>
+                            Using <span className="text-[--foreground] font-medium">{onlinestreamProviderLabel(provider)}</span>
                             {!!server && <> / <span className="text-[--foreground] font-medium">{server}</span></>}
                             {" "}at <span className="text-[--foreground] font-medium">the best quality available</span>.
-                            Japanese audio comes first, with the English dub added as a second track when {provider} has one.
+                            Japanese audio comes first, with the English dub added as a second track when {provider === "auto" ? "the source" : onlinestreamProviderLabel(provider)} has one.
                             One episode downloads at a time, rate limited so the provider isn't overloaded.
                         </p>
                         {!!videoSource && (hardsubbed ? (
@@ -351,7 +378,9 @@ export function OnlinestreamDownloadButton(props: OnlinestreamDownloadButtonProp
                             <div className="flex-1">
                                 <p className="font-semibold">Download the full series</p>
                                 <p className="text-sm text-[--muted]">
-                                    Queues every episode {provider} lists{sortedEpisodes.length ? ` (${sortedEpisodes.length})` : ""}.
+                                    {provider === "auto"
+                                        ? "Queues every episode from the first source that has the series: AnimePahe, then Kickassanime, AniZone and AnimeHeaven."
+                                        : `Queues every episode ${onlinestreamProviderLabel(provider)} lists${sortedEpisodes.length ? ` (${sortedEpisodes.length})` : ""}.`}
                                     {libraryCount > 0 && ` ${libraryCount} ${libraryCount === 1 ? "is" : "are"} already in your library; you'll be asked whether to overwrite them.`}
                                 </p>
                             </div>
@@ -361,7 +390,7 @@ export function OnlinestreamDownloadButton(props: OnlinestreamDownloadButtonProp
                             className="w-full"
                             leftIcon={<LuDownload />}
                             loading={isPending}
-                            disabled={!sortedEpisodes.length}
+                            disabled={!sortedEpisodes.length && provider !== "auto"}
                             onClick={() => downloadSeries(sortedEpisodes.map(e => e.number).filter(n => !busyEpisodes.has(n)), videoSource)}
                         >
                             Download full series

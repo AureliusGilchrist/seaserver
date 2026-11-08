@@ -423,6 +423,8 @@ type SeriesResult struct {
 	Queued  []*Item `json:"queued"`
 	Skipped []int   `json:"skipped"` // episodes in the library or already queued
 	Total   int     `json:"total"`   // episodes the provider lists
+	// Provider is the provider the series was queued from (set when it was picked automatically).
+	Provider string `json:"provider,omitempty"`
 }
 
 // EnqueueSeries queues every episode the provider lists for the media. inLibrary reports
