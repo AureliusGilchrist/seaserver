@@ -223,8 +223,9 @@ export function EnMassePage() {
 
             <Stage status={status} />
 
-            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_24rem] gap-6 items-start">
-                <div className="space-y-6 min-w-0">
+            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_24rem] gap-6 items-stretch">
+                {/* The activity feed grows to the height of the column beside it. */}
+                <div className="flex flex-col gap-6 min-w-0">
                     <LinedUp status={status} />
                     <JustQueued status={status} />
                     <ActivityFeed status={status} />
@@ -704,7 +705,7 @@ function ActivityFeed({ status }: { status: EnMasseDownloaderStatus | undefined 
     ]
 
     return (
-        <div className={cn(panel, "overflow-hidden flex flex-col")} data-enmasse-activity>
+        <div className={cn(panel, "overflow-hidden flex flex-col flex-1 min-h-[30rem]")} data-enmasse-activity>
             <div className="px-5 sm:px-6 pt-5 pb-4 flex items-center gap-3 flex-wrap">
                 <div className="flex-1">
                     <h3 className="font-semibold leading-tight">Activity</h3>
@@ -734,17 +735,17 @@ function ActivityFeed({ status }: { status: EnMasseDownloaderStatus | undefined 
                 </div>
             </div>
 
-            <div className="border-t border-white/[0.06]">
+            <div className="border-t border-white/[0.06] relative flex-1 min-h-[22rem]">
                 {tab === "recent" ? (
                     recent.length ? <Virtuoso
-                        style={{ height: "30rem" }}
+                        style={{ position: "absolute", inset: 0 }}
                         data={recent}
                         computeItemKey={(i, e) => `${e.time}-${i}`}
                         itemContent={(_i, e) => <ActivityRow entry={e} now={now} />}
                     /> : <EmptyFeed text="Results appear here as each series is checked." />
                 ) : list.length ? (
                     <Virtuoso
-                        style={{ height: "30rem" }}
+                        style={{ position: "absolute", inset: 0 }}
                         data={list}
                         itemContent={(_i, title) => (
                             <div className="px-5 sm:px-6 py-2.5 border-b border-white/[0.04] text-sm flex items-center gap-3">
@@ -800,7 +801,7 @@ const ActivityRow = React.memo(function ActivityRow({ entry: e, now }: { entry: 
 
 function EmptyFeed({ text }: { text: string }) {
     return (
-        <div className="h-[22rem] flex flex-col items-center justify-center gap-3 text-gray-400 text-sm">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-gray-400 text-sm">
             <span className="size-14 rounded-2xl bg-white/[0.04] ring-1 ring-white/[0.06] flex items-center justify-center text-2xl text-gray-500">
                 <LuListVideo />
             </span>
