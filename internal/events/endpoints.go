@@ -227,6 +227,7 @@ const (
 	GetNotificationsEndpoint                           = "NOTIFICATION-get-notifications"
 	GetOnlineStreamEpisodeListEndpoint                 = "ONLINESTREAM-get-online-stream-episode-list"
 	GetOnlineStreamEpisodeSourceEndpoint               = "ONLINESTREAM-get-online-stream-episode-source"
+	GetOnlinestreamDownloadExistingEndpoint            = "ONLINESTREAM-DOWNLOAD-get-onlinestream-download-existing"
 	GetOnlinestreamDownloadHistoryEndpoint             = "ONLINESTREAM-DOWNLOAD-get-onlinestream-download-history"
 	GetOnlinestreamDownloadsEndpoint                   = "ONLINESTREAM-DOWNLOAD-get-onlinestream-downloads"
 	GetOnlinestreamMappingEndpoint                     = "ONLINESTREAM-get-onlinestream-mapping"

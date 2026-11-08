@@ -61,16 +61,29 @@ func (m *Manager) process(ctx context.Context, it *Item, workDir string) (string
 		fileName = fmt.Sprintf("%s - Episode %03d.mkv", title, req.EpisodeNumber)
 	}
 	dest := filepath.Join(folder, fileName)
+
+	// The episode may be in the library under any name (a torrent, an earlier download). It is
+	// only downloaded again when the user chose to overwrite it.
+	if !req.Overwrite && m.opts.EpisodeFiles != nil {
+		for _, p := range m.opts.EpisodeFiles(req.MediaId, req.EpisodeNumber) {
+			if !samePath(p, dest) {
+				return "", finalError{fmt.Errorf("episode %d is already in your library (%s); download it again and choose Overwrite to replace it", req.EpisodeNumber, filepath.Base(p))}
+			}
+		}
+	}
+
 	if _, err := os.Stat(dest); err == nil {
 		// A file is already there. It blocks the download only while the library has it: matched
 		// to this episode it is a duplicate, matched to something else it is not ours to replace.
 		// A file nothing points at any more (left behind by unmatching) is replaced.
 		if m.opts.LibraryFileOwner != nil {
 			if ownerMedia, ownerEp, found := m.opts.LibraryFileOwner(dest); found {
-				if ownerMedia == req.MediaId && ownerEp == req.EpisodeNumber {
+				if ownerMedia == req.MediaId && ownerEp == req.EpisodeNumber && !req.Overwrite {
 					return "", finalError{fmt.Errorf("episode %d is already in your library (%s)", req.EpisodeNumber, filepath.Base(dest))}
 				}
-				return "", finalError{fmt.Errorf("%s is in your library matched to another anime or episode; unmatch or move it first", filepath.Base(dest))}
+				if ownerMedia != req.MediaId || ownerEp != req.EpisodeNumber {
+					return "", finalError{fmt.Errorf("%s is in your library matched to another anime or episode; unmatch or move it first", filepath.Base(dest))}
+				}
 			}
 		}
 		m.logger.Info().Str("path", dest).Msg("onlinestream download: Replacing a file the library no longer uses")
@@ -232,9 +245,22 @@ func (m *Manager) process(ctx context.Context, it *Item, workDir string) (string
 		}
 	}
 
+	// Overwrite: the new file is in place and registered, so the old ones can go.
+	if req.Overwrite && m.opts.ReplaceOld != nil {
+		if err := m.opts.ReplaceOld(req.MediaId, req.EpisodeNumber, dest); err != nil {
+			m.update(it, func(it *Item) {
+				it.Warnings = append(it.Warnings, fmt.Sprintf("The new file is in your library, but an old copy could not be removed: %v", err))
+			}, true)
+		}
+	}
+
 	m.logger.Info().Str("path", dest).Int("mediaId", req.MediaId).Int("episode", req.EpisodeNumber).
-		Int("subtitles", len(assSubs)).Msg("onlinestream download: Episode added to the library")
+		Int("subtitles", len(assSubs)).Bool("overwrite", req.Overwrite).Msg("onlinestream download: Episode added to the library")
 	return dest, nil
+}
+
+func samePath(a, b string) bool {
+	return strings.EqualFold(filepath.ToSlash(filepath.Clean(a)), filepath.ToSlash(filepath.Clean(b)))
 }
 
 func isExpiredLinkError(err error) bool {

@@ -753,7 +753,7 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
         server,
         quality,
     }
-    const { download: downloadEpisodes } = useOnlinestreamEpisodeDownloader(downloadParams)
+    const { download: downloadEpisodes, prompt: downloadPrompt } = useOnlinestreamEpisodeDownloader(downloadParams)
 
     const tryAllProvidersButton = autoProviderCycler.showButton ? <Button
         size="sm"
@@ -846,6 +846,7 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
 
     return (
         <>
+            {downloadPrompt}
             <VideoCoreInlineHelpers
                 playerRef={playerRef}
                 currentEpisodeNumber={currentEpisodeNumber}

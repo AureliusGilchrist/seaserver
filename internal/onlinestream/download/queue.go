@@ -55,6 +55,9 @@ type Request struct {
 	SourceURL string `json:"sourceUrl,omitempty"`
 	// SubtitleLanguage is the subtitle the player was showing; it becomes the default track.
 	SubtitleLanguage string `json:"subtitleLanguage,omitempty"`
+	// Overwrite replaces the episode's files already in the library. Without it, an episode the
+	// library has is not downloaded again.
+	Overwrite bool `json:"overwrite,omitempty"`
 }
 
 // Item is one download in the queue as the client sees it.
@@ -150,6 +153,11 @@ type NewManagerOptions struct {
 	// FfprobePath returns the ffprobe binary to use.
 	FfprobePath func() string
 	Register    RegisterFunc
+	// EpisodeFiles lists the library files of an anime episode (any source, any name).
+	EpisodeFiles func(mediaId int, episode int) []string
+	// ReplaceOld removes an episode's other library files after an overwrite saved its new one
+	// at keepPath: their library entries and the files themselves.
+	ReplaceOld func(mediaId int, episode int, keepPath string) error
 	// LibraryFileOwner reports the anime and episode a file is matched to in the library, if any.
 	LibraryFileOwner func(path string) (mediaId int, episode int, found bool)
 }
@@ -397,7 +405,7 @@ type SeriesResult struct {
 
 // EnqueueSeries queues every episode the provider lists for the media. inLibrary reports
 // episodes that are already downloaded, which are skipped unless includeExisting is set.
-func (m *Manager) EnqueueSeries(ctx context.Context, base Request, inLibrary func(ep int) bool, includeExisting bool) (*SeriesResult, error) {
+func (m *Manager) EnqueueSeries(ctx context.Context, base Request, inLibrary func(ep int) bool, overwrite map[int]bool) (*SeriesResult, error) {
 	media, err := m.opts.Repository.GetMedia(ctx, base.MediaId)
 	if err != nil {
 		return nil, err
@@ -427,13 +435,14 @@ func (m *Manager) EnqueueSeries(ctx context.Context, base Request, inLibrary fun
 	reqs := make([]Request, 0, len(numbers))
 	m.mu.Lock()
 	for _, n := range numbers {
-		if m.activeLocked(base.MediaId, n) != nil || (!includeExisting && inLibrary != nil && inLibrary(n)) {
+		if m.activeLocked(base.MediaId, n) != nil || (!overwrite[n] && inLibrary != nil && inLibrary(n)) {
 			res.Skipped = append(res.Skipped, n)
 			continue
 		}
 		r := base
 		r.EpisodeNumber = n
 		r.SourceURL = ""
+		r.Overwrite = overwrite[n]
 		reqs = append(reqs, r)
 	}
 	m.mu.Unlock()
@@ -580,6 +589,28 @@ func (m *Manager) Retry(id string) bool {
 		m.changed()
 	}
 	return ok
+}
+
+// RetryMedia puts the failed and cancelled episodes of one anime back in the queue.
+func (m *Manager) RetryMedia(mediaId int) int {
+	m.mu.Lock()
+	n := 0
+	for _, it := range m.items {
+		if it.MediaId == mediaId && (it.Status == StatusFailed || it.Status == StatusCancelled) {
+			resetForQueue(it)
+			n++
+		}
+	}
+	if n > 0 {
+		m.paused = false
+	}
+	m.mu.Unlock()
+	if n > 0 {
+		m.ensureWorker()
+		m.signal()
+		m.changed()
+	}
+	return n
 }
 
 // ResetErrored puts every failed item back in the queue.

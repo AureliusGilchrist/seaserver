@@ -3,6 +3,8 @@ package handlers
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
 	"path/filepath"
 	"seanime/internal/api/anilist"
 	"seanime/internal/core"
@@ -11,6 +13,7 @@ import (
 	"seanime/internal/library/anime"
 	onlinestream_download "seanime/internal/onlinestream/download"
 	"seanime/internal/util"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -66,7 +69,109 @@ func (h *Handler) wireOnlinestreamDownloader(app *core.App) {
 		},
 		Register:         h.registerOnlinestreamDownload,
 		LibraryFileOwner: h.onlinestreamLibraryFileOwner,
+		EpisodeFiles:     h.onlinestreamEpisodeFiles,
+		ReplaceOld:       h.replaceOldEpisodeFiles,
 	})
+}
+
+// onlinestreamEpisodeFiles lists the library files of an anime episode, whatever their source.
+func (h *Handler) onlinestreamEpisodeFiles(mediaId int, episode int) []string {
+	return h.libraryEpisodeFiles(mediaId)[episode]
+}
+
+// libraryEpisodeFiles maps each main episode of an anime to its library files.
+func (h *Handler) libraryEpisodeFiles(mediaId int) map[int][]string {
+	out := make(map[int][]string)
+	lfs, _, err := db_bridge.GetLocalFiles(h.App.Database)
+	if err != nil {
+		return out
+	}
+	for _, lf := range lfs {
+		if lf.MediaId != mediaId || lf.Metadata == nil || lf.Metadata.Type != anime.LocalFileTypeMain || lf.Metadata.Episode <= 0 {
+			continue
+		}
+		out[lf.Metadata.Episode] = append(out[lf.Metadata.Episode], lf.Path)
+	}
+	return out
+}
+
+// replaceOldEpisodeFiles finishes an overwrite: the new file for the episode is saved and
+// registered at keepPath, so every other library file of that episode is dropped from the
+// library and deleted from disk.
+func (h *Handler) replaceOldEpisodeFiles(mediaId int, episode int, keepPath string) error {
+	keep := util.NormalizePath(keepPath)
+	var removed []string
+
+	injectMu.Lock()
+	lfs, lfsId, err := db_bridge.GetLocalFiles(h.App.Database)
+	if err != nil {
+		injectMu.Unlock()
+		return err
+	}
+	kept := make([]*anime.LocalFile, 0, len(lfs))
+	for _, lf := range lfs {
+		if lf.MediaId == mediaId && lf.Metadata != nil && lf.Metadata.Type == anime.LocalFileTypeMain &&
+			lf.Metadata.Episode == episode && !strings.EqualFold(lf.GetNormalizedPath(), keep) {
+			removed = append(removed, lf.Path)
+			continue
+		}
+		kept = append(kept, lf)
+	}
+	if len(removed) > 0 {
+		if _, err := db_bridge.SaveLocalFiles(h.App.Database, lfsId, kept); err != nil {
+			injectMu.Unlock()
+			return err
+		}
+	}
+	injectMu.Unlock()
+
+	var lastErr error
+	for _, p := range removed {
+		if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
+			lastErr = err
+			h.App.Logger.Warn().Err(err).Str("path", p).Msg("onlinestream download: Could not delete the old copy of an overwritten episode")
+			continue
+		}
+		h.App.Logger.Info().Str("path", p).Int("mediaId", mediaId).Int("episode", episode).
+			Msg("onlinestream download: Deleted the old copy of an overwritten episode")
+	}
+	if len(removed) > 0 && h.App.WSEventManager != nil {
+		h.App.WSEventManager.SendEvent(events.InvalidateQueries, []string{events.GetLocalFilesEndpoint, events.GetAnimeEntryEndpoint})
+	}
+	return lastErr
+}
+
+// HandleGetOnlinestreamDownloadExisting
+//
+//	@summary returns the episodes of an anime that are already in the library, with their files.
+//	@desc The client asks about overwriting these before downloading them again.
+//	@route /api/v1/onlinestream/download/existing [POST]
+//	@returns []handlers.OnlinestreamExistingEpisode
+func (h *Handler) HandleGetOnlinestreamDownloadExisting(c echo.Context) error {
+	type body struct {
+		MediaId int `json:"mediaId"`
+	}
+	var b body
+	if err := c.Bind(&b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+	byEpisode := h.libraryEpisodeFiles(b.MediaId)
+	out := make([]OnlinestreamExistingEpisode, 0, len(byEpisode))
+	for ep, paths := range byEpisode {
+		names := make([]string, 0, len(paths))
+		for _, p := range paths {
+			names = append(names, filepath.Base(p))
+		}
+		out = append(out, OnlinestreamExistingEpisode{EpisodeNumber: ep, Files: names})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].EpisodeNumber < out[j].EpisodeNumber })
+	return h.RespondWithData(c, out)
+}
+
+// OnlinestreamExistingEpisode is an episode the library already has.
+type OnlinestreamExistingEpisode struct {
+	EpisodeNumber int      `json:"episodeNumber"`
+	Files         []string `json:"files"`
 }
 
 // onlinestreamLibraryFileOwner reports which anime and episode the library has a file matched
@@ -180,6 +285,8 @@ func (h *Handler) HandleOnlinestreamDownload(c echo.Context) error {
 		Quality          string `json:"quality,omitempty"`
 		SourceURL        string `json:"sourceUrl,omitempty"`
 		SubtitleLanguage string `json:"subtitleLanguage,omitempty"`
+		// OverwriteEpisodes are the episodes the user chose to replace in the library.
+		OverwriteEpisodes []int `json:"overwriteEpisodes,omitempty"`
 	}
 
 	var b body
@@ -199,10 +306,21 @@ func (h *Handler) HandleOnlinestreamDownload(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
+	overwrite := make(map[int]bool, len(b.OverwriteEpisodes))
+	for _, ep := range b.OverwriteEpisodes {
+		overwrite[ep] = true
+	}
+	have := h.libraryEpisodeFiles(b.MediaId)
+
 	queued := make([]*onlinestream_download.Item, 0, len(b.EpisodeNumbers))
 	var lastErr error
 	for _, ep := range b.EpisodeNumbers {
+		if len(have[ep]) > 0 && !overwrite[ep] {
+			lastErr = fmt.Errorf("episode %d is already in your library", ep)
+			continue
+		}
 		req := onlinestream_download.Request{
+			Overwrite:     overwrite[ep],
 			MediaId:       b.MediaId,
 			EpisodeNumber: ep,
 			Provider:      b.Provider,
@@ -258,7 +376,7 @@ func (h *Handler) HandleGetOnlinestreamDownloadHistory(c echo.Context) error {
 // HandleOnlinestreamDownloadSeries
 //
 //	@summary queues every episode the provider lists for an anime.
-//	@desc Episodes already in the library or already in the queue are skipped unless includeExisting is set.
+//	@desc Episodes already in the queue are skipped, and so are episodes in the library unless listed in overwriteEpisodes.
 //	@route /api/v1/onlinestream/download/series [POST]
 //	@returns onlinestream_download.SeriesResult
 func (h *Handler) HandleOnlinestreamDownloadSeries(c echo.Context) error {
@@ -269,7 +387,9 @@ func (h *Handler) HandleOnlinestreamDownloadSeries(c echo.Context) error {
 		Server           string `json:"server,omitempty"`
 		Quality          string `json:"quality,omitempty"`
 		SubtitleLanguage string `json:"subtitleLanguage,omitempty"`
-		IncludeExisting  bool   `json:"includeExisting,omitempty"`
+		// OverwriteEpisodes are the episodes in the library the user chose to replace; the
+		// other episodes the library has are skipped.
+		OverwriteEpisodes []int `json:"overwriteEpisodes,omitempty"`
 	}
 	var b body
 	if err := c.Bind(&b); err != nil {
@@ -284,6 +404,11 @@ func (h *Handler) HandleOnlinestreamDownloadSeries(c echo.Context) error {
 	m, err := h.onlinestreamDownloader()
 	if err != nil {
 		return h.RespondWithError(c, err)
+	}
+
+	overwrite := make(map[int]bool, len(b.OverwriteEpisodes))
+	for _, ep := range b.OverwriteEpisodes {
+		overwrite[ep] = true
 	}
 
 	// Episodes the library already has, from any source.
@@ -303,7 +428,7 @@ func (h *Handler) HandleOnlinestreamDownloadSeries(c echo.Context) error {
 		Server:           b.Server,
 		Quality:          b.Quality,
 		SubtitleLanguage: b.SubtitleLanguage,
-	}, func(ep int) bool { return have[ep] }, b.IncludeExisting)
+	}, func(ep int) bool { return have[ep] }, overwrite)
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
@@ -313,7 +438,7 @@ func (h *Handler) HandleOnlinestreamDownloadSeries(c echo.Context) error {
 // HandleOnlinestreamDownloadQueueAction
 //
 //	@summary controls the online stream download queue.
-//	@desc Actions: start, stop, reset-errored, clear-finished, clear-all, clear-media (mediaId),
+//	@desc Actions: start, stop, reset-errored, clear-finished, clear-all, clear-media and retry-media (mediaId),
 //	@desc and per item (id): cancel, retry, remove, move-to-top.
 //	@route /api/v1/onlinestream/downloads/action [POST]
 //	@returns bool
@@ -349,6 +474,8 @@ func (h *Handler) HandleOnlinestreamDownloadQueueAction(c echo.Context) error {
 		ok = m.Cancel(b.ID)
 	case "retry":
 		ok = m.Retry(b.ID)
+	case "retry-media":
+		ok = m.RetryMedia(b.MediaId) > 0
 	case "remove":
 		ok = m.Remove(b.ID)
 	case "move-to-top":

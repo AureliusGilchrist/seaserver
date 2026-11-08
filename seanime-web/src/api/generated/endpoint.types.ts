@@ -3789,6 +3789,7 @@ export type OnlinestreamDownload_Variables = {
     quality?: string
     sourceUrl?: string
     subtitleLanguage?: string
+    overwriteEpisodes?: Array<number>
 }
 
 /**
@@ -3805,7 +3806,7 @@ export type OnlinestreamDownloadSeries_Variables = {
     server?: string
     quality?: string
     subtitleLanguage?: string
-    includeExisting?: boolean
+    overwriteEpisodes?: Array<number>
 }
 
 /**
@@ -3821,3 +3822,13 @@ export type OnlinestreamDownloadQueueAction_Variables = {
     mediaId?: number
 }
 
+/**
+ * - Filepath: internal/handlers/onlinestream_download.go
+ * - Filename: onlinestream_download.go
+ * - Endpoint: /api/v1/onlinestream/download/existing
+ * @description
+ * Route returns the episodes of an anime that are already in the library, with their files.
+ */
+export type GetOnlinestreamDownloadExisting_Variables = {
+    mediaId: number
+}

@@ -457,6 +457,7 @@ function QueueGroupHeader({ group, allItems, collapsed, onToggle }: {
     const { mutate: act, isPending } = useOnlinestreamDownloadQueueAction()
     const done = allItems.filter(i => i.status === "completed").length
     const failed = allItems.filter(i => i.status === "failed").length
+    const retryable = allItems.filter(i => i.status === "failed" || i.status === "cancelled").length
     const runningItem = allItems.find(isOnlinestreamDownloadRunning)
     // Series progress: finished episodes plus the fraction of the one downloading.
     const fraction = allItems.length
@@ -479,6 +480,16 @@ function QueueGroupHeader({ group, allItems, collapsed, onToggle }: {
                         </span>
                     </div>
                 </div>
+                {retryable > 0 && <Button
+                    size="sm"
+                    intent="warning-subtle"
+                    leftIcon={<LuRotateCcw />}
+                    disabled={isPending}
+                    title="Retry every failed or cancelled episode of this series"
+                    onClick={() => act({ action: "retry-media", mediaId: group.mediaId })}
+                >
+                    Retry {retryable}
+                </Button>}
                 <IconButton
                     size="sm"
                     intent="gray-basic"

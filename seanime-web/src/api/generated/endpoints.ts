@@ -2937,6 +2937,15 @@ export const API_ENDPOINTS = {
         },
         /**
          *  @description
+         *  Route returns the episodes of an anime that are already in the library, with their files.
+         */
+        GetOnlinestreamDownloadExisting: {
+            key: "ONLINESTREAM-DOWNLOAD-get-onlinestream-download-existing",
+            methods: ["POST"],
+            endpoint: "/api/v1/onlinestream/download/existing",
+        },
+        /**
+         *  @description
          *  Route returns the online stream download queue.
          */
         GetOnlinestreamDownloads: {

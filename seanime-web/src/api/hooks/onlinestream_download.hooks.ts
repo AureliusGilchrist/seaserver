@@ -1,5 +1,6 @@
 import { useServerMutation, useServerQuery } from "@/api/client/requests"
 import {
+    GetOnlinestreamDownloadExisting_Variables,
     OnlinestreamDownload_Variables,
     OnlinestreamDownloadQueueAction_Variables,
     OnlinestreamDownloadSeries_Variables,
@@ -82,7 +83,13 @@ export type OnlinestreamDownload_SeriesResult = {
 
 export type OnlinestreamDownload_Action =
     | "start" | "stop" | "reset-errored" | "clear-finished" | "clear-all" | "clear-media"
-    | "cancel" | "retry" | "remove" | "move-to-top"
+    | "cancel" | "retry" | "remove" | "move-to-top" | "retry-media"
+
+/** An episode the library already has, with its file names. */
+export type OnlinestreamDownload_ExistingEpisode = {
+    episodeNumber: number
+    files: string[]
+}
 
 export function isOnlinestreamDownloadActive(item: OnlinestreamDownload_Item) {
     return item.status !== "completed" && item.status !== "failed" && item.status !== "cancelled"
@@ -94,6 +101,7 @@ export function isOnlinestreamDownloadRunning(item: OnlinestreamDownload_Item) {
 
 const queueKey = [API_ENDPOINTS.ONLINESTREAM_DOWNLOAD.GetOnlinestreamDownloads.key]
 const historyKey = [API_ENDPOINTS.ONLINESTREAM_DOWNLOAD.GetOnlinestreamDownloadHistory.key]
+const existingKey = API_ENDPOINTS.ONLINESTREAM_DOWNLOAD.GetOnlinestreamDownloadExisting.key
 
 /**
  * Keeps the queue current from the server's websocket event and announces finished episodes.
@@ -119,7 +127,10 @@ export function useOnlinestreamDownloadsListener() {
                     toast.error(`${item.title} — Episode ${item.episodeNumber} failed: ${item.error ?? "unknown error"}`)
                 }
             }
-            if (completed) qc.invalidateQueries({ queryKey: historyKey })
+            if (completed) {
+                qc.invalidateQueries({ queryKey: historyKey })
+                qc.invalidateQueries({ queryKey: [existingKey] })
+            }
         },
     })
 }
@@ -139,6 +150,17 @@ export function useGetOnlinestreamDownloadHistory(enabled = true) {
         method: API_ENDPOINTS.ONLINESTREAM_DOWNLOAD.GetOnlinestreamDownloadHistory.methods[0],
         queryKey: historyKey,
         enabled,
+    })
+}
+
+/** The episodes of an anime already in the library, to ask before overwriting them. */
+export function useGetOnlinestreamDownloadExisting(mediaId: number | null | undefined) {
+    return useServerQuery<OnlinestreamDownload_ExistingEpisode[], GetOnlinestreamDownloadExisting_Variables>({
+        endpoint: API_ENDPOINTS.ONLINESTREAM_DOWNLOAD.GetOnlinestreamDownloadExisting.endpoint,
+        method: API_ENDPOINTS.ONLINESTREAM_DOWNLOAD.GetOnlinestreamDownloadExisting.methods[0],
+        queryKey: [existingKey, mediaId],
+        data: { mediaId: Number(mediaId) },
+        enabled: !!mediaId,
     })
 }
 
