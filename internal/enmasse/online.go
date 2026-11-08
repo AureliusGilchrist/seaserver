@@ -491,6 +491,7 @@ func (d *Downloader) findOnProvider(ctx context.Context, hooks *OnlineHooks, pro
 		details.Phase = "verifying"
 		details.Step = "checking the episode list"
 	})
+	var reasons []string
 	for i, c := range candidates {
 		if i >= 3 {
 			break
@@ -500,10 +501,14 @@ func (d *Downloader) findOnProvider(ctx context.Context, hooks *OnlineHooks, pro
 		}
 		eps, err := hooks.FindEpisodes(provider, c.ID)
 		if err != nil || len(eps) == 0 {
+			// The site lists the title but has no episodes for it (no language available), or
+			// the episode list could not be read.
+			reasons = append(reasons, fmt.Sprintf("%q is listed on %s but has no episodes", c.Title, provider))
 			continue
 		}
 		c.Episodes = len(eps)
 		if !episodeCountFits(item, c.Episodes) {
+			reasons = append(reasons, fmt.Sprintf("%q on %s has %d episodes, the series has %d", c.Title, provider, c.Episodes, item.Episodes))
 			continue
 		}
 		d.updateDetails(func(details *AnimeDownloaderDetails) {
@@ -511,6 +516,9 @@ func (d *Downloader) findOnProvider(ctx context.Context, hooks *OnlineHooks, pro
 			details.SelectedTorrent = fmt.Sprintf("%s (%d episodes)", c.Title, c.Episodes)
 		})
 		return c, nil
+	}
+	if len(reasons) > 0 {
+		return nil, errors.New(reasons[0])
 	}
 	return nil, fmt.Errorf("found %q on %s, but its episode list does not fit the series", candidates[0].Title, provider)
 }
