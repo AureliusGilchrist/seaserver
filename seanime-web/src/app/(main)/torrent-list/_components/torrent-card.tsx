@@ -3,7 +3,6 @@ import { TorrentClient_Torrent } from "@/api/generated/types"
 import { useGetTorrentClientFiles } from "@/api/hooks/torrent_client.hooks"
 import { countFilesAndFolders } from "@/app/(main)/entry/_containers/torrent-search/torrent-download-file-selection"
 import { TorrentFileTree } from "@/app/(main)/torrent-list/_components/torrent-file-tree"
-import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { IconButton } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
@@ -48,10 +47,12 @@ function Stat({ icon, children, title }: { icon: React.ReactNode, children: Reac
 type TorrentCardProps = {
     torrent: TorrentClient_Torrent
     onTorrentAction: (props: TorrentClientAction_Variables) => void
+    /** Asks the page to confirm removal; the dialog lives on the page, not in this card. */
+    onRequestRemove: (torrent: TorrentClient_Torrent) => void
     isPending?: boolean
 }
 
-export const TorrentCard = React.memo(function TorrentCard({ torrent, onTorrentAction, isPending }: TorrentCardProps) {
+export const TorrentCard = React.memo(function TorrentCard({ torrent, onTorrentAction, onRequestRemove, isPending }: TorrentCardProps) {
     const [expanded, setExpanded] = React.useState(false)
 
     // A server older than this frontend sends no state, and answers no file list.
@@ -64,12 +65,6 @@ export const TorrentCard = React.memo(function TorrentCard({ torrent, onTorrentA
     const counts = React.useMemo(() => countFilesAndFolders(files?.map(f => f.path)), [files])
 
     const action = (name: TorrentClientAction_Variables["action"]) => onTorrentAction({ hash: torrent.hash, action: name, dir: torrent.contentPath })
-
-    const confirmDeleteTorrentProps = useConfirmationDialog({
-        title: "Remove torrent",
-        description: `"${torrent.name}" and its downloaded files will be deleted from disk. This action cannot be undone.`,
-        onConfirm: () => action("remove"),
-    })
 
     const contentsLabel = !counts.files
         ? "Show folders"
@@ -109,7 +104,7 @@ export const TorrentCard = React.memo(function TorrentCard({ torrent, onTorrentA
                             ? <Tooltip trigger={<IconButton icon={<BiPlay />} size="sm" intent="white" onClick={() => action("resume")} disabled={isPending} />}>Resume</Tooltip>
                             : <Tooltip trigger={<IconButton icon={<BiPause />} size="sm" intent="gray-subtle" onClick={() => action("pause")} disabled={isPending} />}>Pause</Tooltip>}
                     <Tooltip
-                        trigger={<IconButton icon={<BiTrash />} size="sm" intent="alert-subtle" onClick={() => confirmDeleteTorrentProps.open()} disabled={isPending} />}
+                        trigger={<IconButton icon={<BiTrash />} size="sm" intent="alert-subtle" onClick={() => onRequestRemove(torrent)} disabled={isPending} />}
                     >Remove</Tooltip>
                 </div>
             </div>
@@ -159,8 +154,6 @@ export const TorrentCard = React.memo(function TorrentCard({ torrent, onTorrentA
                     {!!files?.length && <TorrentFileTree files={files} />}
                 </div>
             )}
-
-            <ConfirmationDialog {...confirmDeleteTorrentProps} />
         </article>
     )
 })
