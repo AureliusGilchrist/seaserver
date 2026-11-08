@@ -99,15 +99,40 @@ func (m *Manager) process(ctx context.Context, it *Item, workDir string) (string
 	mainReq.Dubbed = false
 	primaryDubbed := false
 	source, err := m.findSource(ctx, mainReq, media, false)
-	if err != nil {
-		if !req.Dubbed || ctx.Err() != nil {
-			return "", err
-		}
+	if err != nil && req.Dubbed && ctx.Err() == nil {
 		mainReq.Dubbed = true
 		primaryDubbed = true
-		if source, err = m.findSource(ctx, mainReq, media, false); err != nil {
-			return "", err
+		source, err = m.findSource(ctx, mainReq, media, false)
+	}
+	// No source on the provider (no episode servers, "video source not found"): the episode is
+	// downloaded from AnimeHeaven instead, whatever the provider was.
+	if err != nil && ctx.Err() == nil && req.Provider != FallbackProvider {
+		firstErr := err
+		fallback := req
+		fallback.Provider = FallbackProvider
+		fallback.Server, fallback.SourceURL = "", ""
+		fbMain := fallback
+		fbMain.Dubbed = false
+		fbSource, fbErr := m.findSource(ctx, fbMain, media, false)
+		if fbErr != nil && fallback.Dubbed && ctx.Err() == nil {
+			fbMain.Dubbed = true
+			fbSource, fbErr = m.findSource(ctx, fbMain, media, false)
 		}
+		if fbErr != nil {
+			return "", fmt.Errorf("%s: %v; %s: %v", req.Provider, firstErr, FallbackProvider, fbErr)
+		}
+		m.logger.Info().Int("mediaId", req.MediaId).Int("episode", req.EpisodeNumber).Str("provider", req.Provider).Err(firstErr).
+			Msg("onlinestream download: No source on the provider; downloading the episode from the fallback provider")
+		warning := fmt.Sprintf("%s had no source for this episode (%v); downloaded from AnimeHeaven instead.", req.Provider, firstErr)
+		m.update(it, func(it *Item) {
+			it.Provider = FallbackProvider
+			it.Warnings = append(it.Warnings, warning)
+		}, true)
+		req, mainReq, source, err = fallback, fbMain, fbSource, nil
+		primaryDubbed = fbMain.Dubbed
+	}
+	if err != nil {
+		return "", err
 	}
 
 	d := &downloader{client: m.client, provider: req.Provider, headers: source.Headers}
@@ -262,6 +287,10 @@ func (m *Manager) process(ctx context.Context, it *Item, workDir string) (string
 func samePath(a, b string) bool {
 	return strings.EqualFold(filepath.ToSlash(filepath.Clean(a)), filepath.ToSlash(filepath.Clean(b)))
 }
+
+// FallbackProvider is where an episode is downloaded from when its own provider has no source
+// for it.
+const FallbackProvider = "animeheaven"
 
 func isExpiredLinkError(err error) bool {
 	var se *HTTPStatusError
