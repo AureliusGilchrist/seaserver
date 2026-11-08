@@ -236,9 +236,9 @@ func TestBackupProvider(t *testing.T) {
 		t.Fatalf("queued on %q, took over a torrent: %v", queuedOn, tookOver)
 	}
 	if searchedOn[0] != OnlineProvider {
-		t.Fatalf("searched %v: Kickassanime must come first", searchedOn)
+		t.Fatalf("searched %v: AnimePahe must come first", searchedOn)
 	}
-	// AniZone, then AnimePahe, then AnimeHeaven.
+	// AnimePahe, Kickassanime, AniZone, AnimeHeaven.
 	firstAt := func(p string) int {
 		for i, q := range searchedOn {
 			if q == p {
@@ -247,8 +247,11 @@ func TestBackupProvider(t *testing.T) {
 		}
 		return -1
 	}
-	if zone, pahe, heaven := firstAt("anizone"), firstAt("animepahe"), firstAt(BackupProvider); zone < 0 || zone > pahe || pahe > heaven {
-		t.Fatalf("searched %v: AniZone, AnimePahe and AnimeHeaven must come in that order", searchedOn)
+	order := []string{"animepahe", "kickassanime", "anizone", BackupProvider}
+	for i := 1; i < len(order); i++ {
+		if prev, cur := firstAt(order[i-1]), firstAt(order[i]); prev < 0 || cur < 0 || prev > cur {
+			t.Fatalf("searched %v: want the order %v", searchedOn, order)
+		}
 	}
 
 	// The same series with a torrent downloading: Kickassanime only, and the torrent is left alone.

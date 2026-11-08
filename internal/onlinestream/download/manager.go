@@ -105,7 +105,7 @@ func (m *Manager) process(ctx context.Context, it *Item, workDir string) (string
 		source, err = m.findSource(ctx, mainReq, media, false)
 	}
 	// No source on the provider (no episode servers, "video source not found"): the episode is
-	// downloaded from the fallback providers instead, in order (AniZone, AnimePahe, then AnimeHeaven).
+	// downloaded from the fallback providers instead, in order (AnimePahe, Kickassanime, AniZone, then AnimeHeaven; never its own).
 	if err != nil && ctx.Err() == nil {
 		firstErr := err
 		var misses []string
@@ -330,7 +330,7 @@ func samePath(a, b string) bool {
 
 // FallbackProviders are where an episode is downloaded from, in order, when its own provider
 // has no source for it.
-var FallbackProviders = []string{"anizone", "animepahe", "animeheaven"}
+var FallbackProviders = []string{"animepahe", "kickassanime", "anizone", "animeheaven"}
 
 // ProviderLabel is a provider's display name.
 func ProviderLabel(id string) string {
