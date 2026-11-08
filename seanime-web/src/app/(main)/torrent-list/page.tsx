@@ -2,6 +2,7 @@
 import { formatCount } from "@/lib/helpers/number"
 import { useRequireAdmin } from "@/app/(main)/_hooks/use-require-admin"
 import { TorrentClientAction_Variables } from "@/api/generated/endpoint.types"
+import { TorrentClient_Torrent } from "@/api/generated/types"
 import { useGetActiveTorrentList, useGetTorrentAddQueue, useTorrentClientAction } from "@/api/hooks/torrent_client.hooks"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
@@ -32,8 +33,31 @@ export default function Page() {
     return <AdminPage />
 }
 
+/**
+ * Radix marks <body> with `pointer-events: none` while a modal layer (dialog, modal popover) is open,
+ * and removes it when the layer closes. A layer that is unmounted mid-open or mid-close — which this
+ * page invites, since the list is rewritten every 1.5s and a removed torrent takes its row with it —
+ * can leave that mark behind, and then nearly nothing in the app can be clicked any more.
+ * Clear it whenever no modal layer is actually open, and once more after leaving the page.
+ */
+function releaseStuckPointerLock() {
+    if (typeof document === "undefined") return
+    const body = document.body
+    if (body.style.pointerEvents !== "none") return
+    const openLayer = document.querySelector("[role=dialog][data-state=open], [role=alertdialog][data-state=open], [data-radix-popper-content-wrapper]")
+    if (!openLayer) body.style.pointerEvents = ""
+}
+
 function AdminPage() {
     const serverStatus = useServerStatus()
+
+    React.useEffect(() => {
+        return () => {
+            // Radix's own cleanup runs in the same commit; check after it has.
+            window.setTimeout(releaseStuckPointerLock, 0)
+            window.setTimeout(releaseStuckPointerLock, 400)
+        }
+    }, [])
 
     return (
         <>
@@ -105,7 +129,8 @@ function OfflineAddQueuePanel() {
     )
 }
 
-function Content() {    const serverStatus = useServerStatus()
+function Content() {
+    const serverStatus = useServerStatus()
     const [enabled, setEnabled] = React.useState(true)
     const [categoryInput, setCategoryInput] = React.useState("")
     const [category, setCategory] = React.useState("")
@@ -126,6 +151,30 @@ function Content() {    const serverStatus = useServerStatus()
     const handleTorrentAction = React.useCallback((props: TorrentClientAction_Variables) => {
         mutate(props)
     }, [mutate])
+
+    // One page-level dialog for removal: a dialog inside a row would be unmounted together with the
+    // row as soon as the torrent is gone, while it is still closing.
+    const [removeTarget, setRemoveTarget] = React.useState<TorrentClient_Torrent | null>(null)
+    const confirmRemoveProps = useConfirmationDialog({
+        title: "Remove torrent",
+        description: `"${removeTarget?.name ?? ""}" and its downloaded files will be deleted from disk. This action cannot be undone.`,
+        onConfirm: () => {
+            if (!removeTarget) return
+            handleTorrentAction({ hash: removeTarget.hash, action: "remove", dir: removeTarget.contentPath })
+        },
+    })
+    const requestRemove = React.useCallback((torrent: TorrentClient_Torrent) => {
+        setRemoveTarget(torrent)
+        confirmRemoveProps.open()
+    }, [confirmRemoveProps.open])
+
+    // Safety net for a body pointer lock left behind by a layer that vanished (see releaseStuckPointerLock).
+    React.useEffect(() => {
+        if (!confirmRemoveProps.isOpen && !confirmStopAllSeedingProps.isOpen) {
+            const t = window.setTimeout(releaseStuckPointerLock, 400)
+            return () => window.clearTimeout(t)
+        }
+    })
 
 
     const { totalDownSpeed, totalUpSpeed } = React.useMemo(() => {
@@ -157,7 +206,12 @@ function Content() {    const serverStatus = useServerStatus()
         },
     })
 
-    if (!enabled) return <LuffyError title="Failed to connect">
+    const dialogs = <>
+        <ConfirmationDialog {...confirmStopAllSeedingProps} />
+        <ConfirmationDialog {...confirmRemoveProps} />
+    </>
+
+    if (!enabled) return <>{dialogs}<LuffyError title="Failed to connect">
         <div className="flex flex-col gap-4 items-center">
             <p className="max-w-md">Failed to connect to the torrent client, verify your settings and make sure it is running.</p>
             <Button
@@ -166,9 +220,9 @@ function Content() {    const serverStatus = useServerStatus()
             }}
             >Retry</Button>
         </div>
-    </LuffyError>
+    </LuffyError></>
 
-    if (isLoading) return <LoadingSpinner />
+    if (isLoading) return <>{dialogs}<LoadingSpinner /></>
 
     return (
         <AppLayoutStack className={""}>
@@ -203,6 +257,7 @@ function Content() {    const serverStatus = useServerStatus()
                     </li>}
                     <div className="flex flex-1"></div>
                     {serverStatus?.settings?.torrent?.defaultTorrentClient === "qbittorrent" && <Popover
+                        modal={false}
                         trigger={<Button
                             size="xs"
                             intent="gray-basic"
@@ -255,13 +310,14 @@ function Content() {    const serverStatus = useServerStatus()
                         key={torrent.hash}
                         torrent={torrent}
                         onTorrentAction={handleTorrentAction}
+                        onRequestRemove={requestRemove}
                         isPending={isPending}
                     />
                 })}
                 {(!isLoading && !data?.length) && <LuffyError title="Nothing to see"></LuffyError>}
             </div>
 
-            <ConfirmationDialog {...confirmStopAllSeedingProps} />
+            {dialogs}
         </AppLayoutStack>
     )
 

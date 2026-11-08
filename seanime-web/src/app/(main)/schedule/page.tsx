@@ -5,6 +5,7 @@ import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-l
 import { PluginWebviewSlot } from "@/app/(main)/_features/plugin/webview/plugin-webviews"
 import { MissingEpisodes } from "@/app/(main)/schedule/_components/missing-episodes"
 import { ComingUpNext } from "@/app/(main)/schedule/_containers/coming-up-next"
+import { UnwatchedEpisodes } from "@/app/(main)/schedule/_containers/unwatched-episodes"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { AppLayoutStack } from "@/components/ui/app-layout"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
@@ -26,6 +27,7 @@ export default function Page() {
                 className="p-4 sm:p-8 space-y-10 pb-10"
             >
                 <PluginWebviewSlot slot="schedule-screen-top" />
+                <UnwatchedEpisodes />
                 <MissingEpisodes data={data} isLoading={isLoading} />
                 <AppLayoutStack>
 

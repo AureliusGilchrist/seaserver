@@ -21,7 +21,6 @@ import {
     MediaPageHeaderEntryDetails,
     MediaPageHeaderReveal,
 } from "@/app/(main)/_features/media/_components/media-page-header-components"
-import { MediaSyncTrackButton } from "@/app/(main)/_features/media/_containers/media-sync-track-button"
 import { ToWatchButton } from "@/app/(main)/_features/media/_components/to-watch-button"
 import { PluginWebviewSlot } from "@/app/(main)/_features/plugin/webview/plugin-webviews"
 import { useHasDebridService, useHasTorrentProvider, useServerStatus } from "@/app/(main)/_hooks/use-server-status"
@@ -250,7 +249,6 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
                     <AnimeAutoDownloaderButton entry={entry} size="md" />
 
                     {isLibraryView && !entry._isNakamaEntry && !!entry.libraryData && <>
-                        <MediaSyncTrackButton mediaId={entry.mediaId} type="anime" size="md" />
                         <AnimeEntrySilenceToggle mediaId={entry.mediaId} size="md" />
                         <ToggleLockFilesButton
                             allFilesLocked={entry.libraryData.allFilesLocked}
