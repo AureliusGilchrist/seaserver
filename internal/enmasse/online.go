@@ -185,11 +185,42 @@ func (d *Downloader) processTorrentSeries(ctx context.Context, hooks *OnlineHook
 		}
 		d.sendStatusUpdate()
 
-		err := d.processWhileOnline(ctx, hooks, &AnimeOfflineItem{Title: title, AnilistID: s.MediaId, torrentBacked: true})
+		d.mu.Lock()
+		resumeAt := d.resumeIndex
+		d.mu.Unlock()
+		save := func() { d.saveCurrentProgress(resumeAt) }
+
+		// Queue what was lined up earlier first, while there is room.
+		if err := d.drainReady(ctx, hooks, false, save); err != nil {
+			return
+		}
+
+		// Look it up like any series: while the download queue is full this searches ahead and
+		// lines the series up instead of waiting.
+		gap := onlineSeriesGap
+		if !d.queueHasRoom(hooks) {
+			gap = onlineLookaheadGap
+			d.updateDetails(func(details *AnimeDownloaderDetails) {
+				details.Step = "searching ahead while the download queue is full"
+			})
+		}
+		item := &AnimeOfflineItem{Title: title, AnilistID: s.MediaId, torrentBacked: true}
+		var ready *ReadySeries
+		err := d.whileOnline(ctx, title, func() error {
+			r, perr := d.prepareSeries(ctx, hooks, item, gap)
+			ready = r
+			return perr
+		})
 		if ctx.Err() != nil && !errors.Is(err, errOnlineSkipped) && err != nil {
 			return // interrupted: this one is tried again on resume
 		}
-		d.recordOnlineResult(ctx, title, err)
+		if err != nil {
+			d.recordOnlineResult(ctx, title, err)
+		} else {
+			d.mu.Lock()
+			d.ready = append(d.ready, ready)
+			d.mu.Unlock()
+		}
 		// Settled for this run, found or not, so a resume does not search it all over again. A
 		// torrent not found online is tried again on the next fresh start (it may have stalled
 		// by then and let the backup take it).
@@ -199,10 +230,12 @@ func (d *Downloader) processTorrentSeries(ctx context.Context, hooks *OnlineHook
 		}
 		d.torrentDone[s.MediaId] = true
 		d.details.TorrentIndex = i + 1
-		resumeAt := d.resumeIndex
 		d.mu.Unlock()
 		// Saved after every series, like the main pass.
-		d.saveCurrentProgress(resumeAt)
+		save()
+		if err := d.drainReady(ctx, hooks, false, save); err != nil {
+			return
+		}
 	}
 	d.mu.Lock()
 	d.details.TorrentIndex = len(series)

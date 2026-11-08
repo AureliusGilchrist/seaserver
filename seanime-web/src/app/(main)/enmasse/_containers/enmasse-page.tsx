@@ -158,7 +158,9 @@ const stateStyle: Record<RunState, { label: string, dot: string, className: stri
 /** The run's progress: the torrents-first pass while it runs, the database after. */
 function useRunProgress(status: EnMasseDownloaderStatus | undefined) {
     const now = useNow()
-    const torrentPass = !!status?.isRunning && status?.details?.phase === "torrents" && !!status?.details?.torrentTotal
+    // The torrents-first pass runs until every torrent series has been checked, whatever step it is on.
+    const torrentPass = !!status?.isRunning && !!status?.details?.torrentTotal
+        && (status.details.torrentIndex ?? 0) < status.details.torrentTotal
     const dbTotal = status?.totalCount || status?.details?.currentAnimeTotal || 0
     const dbDone = status?.processedCount || 0
     const total = torrentPass ? status!.details!.torrentTotal! : dbTotal

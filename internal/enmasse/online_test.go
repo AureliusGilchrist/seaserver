@@ -550,3 +550,43 @@ func TestReadyListIsSaved(t *testing.T) {
 		t.Fatalf("ready list not kept: %+v", p)
 	}
 }
+
+// TestTorrentPassSearchesAheadWhenFull: with the download queue full the torrents-first pass
+// keeps looking series up and lines them up, instead of waiting for room.
+func TestTorrentPassSearchesAheadWhenFull(t *testing.T) {
+	onlineRequestGap, onlineSeriesGap, onlineLookaheadGap = time.Millisecond, time.Millisecond, time.Millisecond
+	defer func() {
+		onlineRequestGap, onlineSeriesGap, onlineLookaheadGap = 8*time.Second, 30*time.Second, 45*time.Second
+	}()
+
+	logger := zerolog.Nop()
+	d := NewDownloader(&NewDownloaderOptions{Logger: &logger})
+	d.resolveOverride = func(ctx context.Context, it *AnimeOfflineItem) (*AnilistMinifiedItem, error) {
+		return &AnilistMinifiedItem{ID: it.AnilistID, TitleRomaji: "Mushishi", Episodes: 26, Status: "FINISHED", Format: "TV"}, nil
+	}
+	enqueued := 0
+	hooks := &OnlineHooks{
+		TorrentSeries: func() []TorrentSeries { return []TorrentSeries{{MediaId: 457, Title: "Mushishi"}} },
+		WaitingSeries: func() int { return onlineMaxWaitingSeries },
+		Search: func(provider string, opts hibikeonlinestream.SearchOptions) ([]*hibikeonlinestream.SearchResult, error) {
+			return []*hibikeonlinestream.SearchResult{{ID: "m", Title: "Mushishi"}}, nil
+		},
+		FindEpisodes: func(provider, id string) ([]*hibikeonlinestream.EpisodeDetails, error) {
+			return make([]*hibikeonlinestream.EpisodeDetails, 26), nil
+		},
+		EnqueueSeries: func(ctx context.Context, provider string, mediaId int) (int, error) {
+			enqueued++
+			return 26, nil
+		},
+	}
+	done := make(chan struct{})
+	go func() { d.processTorrentSeries(context.Background(), hooks); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the torrent pass waited for room instead of searching ahead")
+	}
+	if d.readyCount() != 1 || enqueued != 0 {
+		t.Fatalf("lined up %d, queued %d", d.readyCount(), enqueued)
+	}
+}
