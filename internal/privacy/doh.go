@@ -25,7 +25,10 @@ type DoHManager struct {
 	failClosed bool
 	stopCh     chan struct{}
 	stopped    atomic.Bool
-	mu         sync.RWMutex
+	// degraded is set while no DoH resolver is installed (DNS is on the fallback): the health
+	// check then retries every resolver on each tick until one answers, and installs it.
+	degraded atomic.Bool
+	mu       sync.RWMutex
 }
 
 // errDNSBlocked is returned for every lookup while fail-closed DNS has no working resolver.
@@ -141,16 +144,34 @@ func (m *DoHManager) Stop() {
 	}
 }
 
-// healthCheckLoop runs every 60 seconds, testing the active resolver and promoting if it fails.
+// healthCheckInterval is how often the active resolver is checked; recoveryInterval is how
+// often every resolver is retried while DNS is on the fallback.
+var (
+	healthCheckInterval = 60 * time.Second
+	recoveryInterval    = 10 * time.Second
+)
+
+// healthCheckLoop tests the active resolver every minute and promotes a backup if it fails.
+// While no resolver works (DNS on the fallback, which blocks every lookup when failing closed)
+// it retries them all every few seconds, so a short outage does not leave DNS blocked.
 func (m *DoHManager) healthCheckLoop() {
-	ticker := time.NewTicker(60 * time.Second)
+	ticker := time.NewTicker(healthCheckInterval)
 	defer ticker.Stop()
+	recovery := time.NewTicker(recoveryInterval)
+	defer recovery.Stop()
 
 	for {
 		select {
 		case <-m.stopCh:
 			return
+		case <-recovery.C:
+			if m.degraded.Load() {
+				m.promote()
+			}
 		case <-ticker.C:
+			if m.degraded.Load() {
+				continue // the recovery ticker handles it
+			}
 			idx := int(m.activeIndex.Load())
 			if !m.testResolver(idx) {
 				m.logger.Warn().
@@ -172,11 +193,16 @@ func (m *DoHManager) testResolver(index int) bool {
 	resolver := m.resolvers[index]
 	m.mu.RUnlock()
 
-	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
-	defer cancel()
-
-	_, err := resolver.LookupIPAddr(ctx, "dns.google")
-	return err == nil
+	// Two tries: one dropped packet or slow handshake should not take DNS down.
+	for attempt := 0; attempt < 2; attempt++ {
+		ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
+		_, err := resolver.LookupIPAddr(ctx, "dns.google")
+		cancel()
+		if err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 // promote finds the next working resolver and sets it as the active one.
@@ -204,6 +230,10 @@ func (m *DoHManager) promote() {
 			m.mu.RUnlock()
 
 			m.activeIndex.Store(int32(nextIdx))
+			if m.degraded.Swap(false) {
+				m.logger.Info().Str("provider", m.providers[nextIdx]).Msg("privacy/doh: A resolver answers again; DNS restored")
+				return
+			}
 			m.logger.Info().
 				Str("provider", m.providers[nextIdx]).
 				Msg("privacy/doh: Promoted backup resolver to active")
@@ -211,6 +241,9 @@ func (m *DoHManager) promote() {
 		}
 	}
 
+	if m.degraded.Swap(true) {
+		return // still down; already reported
+	}
 	if m.failClosed {
 		m.logger.Error().Msg("privacy/doh: All DoH resolvers failed, blocking DNS until one recovers (fail-closed)")
 	} else {
