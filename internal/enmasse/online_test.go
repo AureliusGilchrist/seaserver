@@ -126,7 +126,7 @@ func TestProcessAnimeOnline(t *testing.T) {
 
 	item := &AnilistMinifiedItem{ID: 161645, TitleEnglish: "The Apothecary Diaries", TitleRomaji: "Kusuriya no Hitorigoto",
 		Episodes: 24, Status: "FINISHED", Format: "TV"}
-	match, err := d.findOnProvider(context.Background(), hooks, item, 2023)
+	match, err := d.findOnProvider(context.Background(), hooks, OnlineProvider, item, 2023)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,5 +190,63 @@ func TestTorrentSeriesFirst(t *testing.T) {
 	}
 	if st := d.GetStatus(); len(st.DownloadedAnime) != 2 {
 		t.Fatalf("queued %v", st.DownloadedAnime)
+	}
+}
+
+// TestBackupProvider: a series Kickassanime does not have is queued from AnimeHeaven, but a
+// series still downloading as a torrent is never handed to the backup.
+func TestBackupProvider(t *testing.T) {
+	onlineRequestGap, onlineSeriesGap = time.Millisecond, time.Millisecond
+	defer func() { onlineRequestGap, onlineSeriesGap = 8*time.Second, 30*time.Second }()
+
+	logger := zerolog.Nop()
+	d := NewDownloader(&NewDownloaderOptions{Logger: &logger})
+	d.resolveOverride = func(ctx context.Context, it *AnimeOfflineItem) (*AnilistMinifiedItem, error) {
+		return &AnilistMinifiedItem{ID: it.AnilistID, TitleRomaji: "Mushishi", Episodes: 26, Status: "FINISHED", Format: "TV"}, nil
+	}
+
+	var searchedOn []string
+	var queuedOn string
+	tookOver := false
+	hooks := &OnlineHooks{
+		Search: func(provider string, opts hibikeonlinestream.SearchOptions) ([]*hibikeonlinestream.SearchResult, error) {
+			searchedOn = append(searchedOn, provider)
+			if provider == BackupProvider {
+				return []*hibikeonlinestream.SearchResult{{ID: "m", Title: "Mushishi"}}, nil
+			}
+			return nil, nil
+		},
+		FindEpisodes: func(provider, id string) ([]*hibikeonlinestream.EpisodeDetails, error) {
+			return make([]*hibikeonlinestream.EpisodeDetails, 26), nil
+		},
+		EnqueueSeries: func(ctx context.Context, provider string, mediaId int) (int, error) {
+			queuedOn = provider
+			return 26, nil
+		},
+		HasTorrent:       func(int) bool { return false },
+		TakeOverTorrents: func(int) { tookOver = true },
+	}
+
+	if err := d.processAnimeOnline(context.Background(), hooks, &AnimeOfflineItem{Title: "Mushishi", AnilistID: 457}); err != nil {
+		t.Fatal(err)
+	}
+	if queuedOn != BackupProvider || tookOver {
+		t.Fatalf("queued on %q, took over a torrent: %v", queuedOn, tookOver)
+	}
+	if searchedOn[0] != OnlineProvider {
+		t.Fatalf("searched %v: Kickassanime must come first", searchedOn)
+	}
+
+	// The same series with a torrent downloading: Kickassanime only, and the torrent is left alone.
+	searchedOn, queuedOn = nil, ""
+	hooks.HasTorrent = func(int) bool { return true }
+	err := d.processAnimeOnline(context.Background(), hooks, &AnimeOfflineItem{Title: "Mushishi", AnilistID: 457})
+	if err == nil || queuedOn != "" || tookOver {
+		t.Fatalf("torrent series: err %v, queued on %q, took over %v", err, queuedOn, tookOver)
+	}
+	for _, p := range searchedOn {
+		if p == BackupProvider {
+			t.Fatal("a torrent series was searched on the backup provider")
+		}
 	}
 }

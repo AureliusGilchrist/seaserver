@@ -35,6 +35,22 @@ type torrentTakeovers struct {
 
 	mu    sync.Mutex
 	items map[int]*torrentTakeover
+
+	// The torrent list for HasTorrent, kept a minute: it is asked once per series.
+	cacheMu   sync.Mutex
+	cacheAt   time.Time
+	cacheList map[int][]*torrent_client.Torrent
+}
+
+// HasTorrent reports whether an anime has a torrent still downloading.
+func (t *torrentTakeovers) HasTorrent(mediaId int) bool {
+	t.cacheMu.Lock()
+	defer t.cacheMu.Unlock()
+	if t.cacheList == nil || time.Since(t.cacheAt) > time.Minute {
+		t.cacheList = t.unfinished()
+		t.cacheAt = time.Now()
+	}
+	return len(t.cacheList[mediaId]) > 0
 }
 
 func newTorrentTakeovers(app *core.App, h *Handler) *torrentTakeovers {

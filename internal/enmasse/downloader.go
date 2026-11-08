@@ -577,7 +577,8 @@ type (
 		recent            []ActivityEntry
 		startedAt         time.Time
 		processedThisRun  int
-		lastQueued        int // episodes queued for the series being processed
+		lastQueued        int    // episodes queued for the series being processed
+		lastProvider      string // provider the series being processed was queued from
 		// resolveOverride replaces the AniList lookup (tests).
 		resolveOverride func(ctx context.Context, item *AnimeOfflineItem) (*AnilistMinifiedItem, error)
 	}
@@ -624,6 +625,7 @@ type (
 		Result   string    `json:"result"` // queued, not_found, skipped
 		Detail   string    `json:"detail,omitempty"`
 		Episodes int       `json:"episodes,omitempty"`
+		Provider string    `json:"provider,omitempty"`
 	}
 
 	AnimeDownloaderDetails struct {
@@ -681,6 +683,9 @@ type (
 		// Parsed IDs
 		AnilistID int `json:"-"`
 		MalID     int `json:"-"`
+		// torrentBacked marks a series taken from the torrent client: only the main online
+		// provider may replace its torrent.
+		torrentBacked bool
 	}
 
 	AnilistMinifiedItem struct {

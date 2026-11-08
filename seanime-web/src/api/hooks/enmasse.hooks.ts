@@ -34,6 +34,8 @@ export interface AnimeEnMasseActivity {
     result: "queued" | "not_found" | "skipped"
     detail?: string
     episodes?: number
+    /** Provider the series was queued from (kickassanime, or animeheaven as the backup) */
+    provider?: string
 }
 
 export interface AnimeEnMasseDetails {

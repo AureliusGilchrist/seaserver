@@ -35,6 +35,7 @@ func (h *Handler) wireEnMasseOnline(app *core.App) {
 	app.EnMasseDownloader.SetOnlineHooks(&enmasse.OnlineHooks{
 		TorrentSeries:    takeovers.TorrentSeries,
 		TakeOverTorrents: takeovers.TakeOver,
+		HasTorrent:       takeovers.HasTorrent,
 		InLibrary: func(mediaId int) bool {
 			return len(h.libraryEpisodeFiles(mediaId)) > 0
 		},

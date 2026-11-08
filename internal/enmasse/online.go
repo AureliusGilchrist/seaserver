@@ -24,8 +24,11 @@ import (
 // search stops running ahead of the downloads when enough episodes are already waiting.
 
 const (
-	// OnlineProvider is the provider the en masse downloader searches and downloads from.
+	// OnlineProvider is the provider the en masse downloader searches first.
 	OnlineProvider = "kickassanime"
+	// BackupProvider is tried when OnlineProvider does not have a series. It never replaces a
+	// torrent: a series still downloading as a torrent is only taken over by OnlineProvider.
+	BackupProvider = "animeheaven"
 
 	// onlineMaxWaitingEpisodes stops the search from running ahead of the downloads: no new
 	// series is looked up while this many episodes are still waiting to download.
@@ -69,6 +72,8 @@ type OnlineHooks struct {
 	// TorrentSeries lists the anime that have a torrent still downloading in the torrent client.
 	// They are handled first: the online download replaces the torrent.
 	TorrentSeries func() []TorrentSeries
+	// HasTorrent reports whether an anime has a torrent still downloading.
+	HasTorrent func(mediaId int) bool
 	// TakeOverTorrents hands an anime's unfinished torrents to the online download: they are
 	// paused now, removed with their files once every episode is in the library, and resumed if
 	// the online download fails.
@@ -147,7 +152,7 @@ func (d *Downloader) processTorrentSeries(ctx context.Context, hooks *OnlineHook
 		d.mu.Unlock()
 		d.sendStatusUpdate()
 
-		err := d.processAnimeOnline(ctx, hooks, &AnimeOfflineItem{Title: title, AnilistID: s.MediaId})
+		err := d.processAnimeOnline(ctx, hooks, &AnimeOfflineItem{Title: title, AnilistID: s.MediaId, torrentBacked: true})
 		d.recordOnlineResult(ctx, title, err)
 	}
 }
@@ -156,7 +161,7 @@ func (d *Downloader) processTorrentSeries(ctx context.Context, hooks *OnlineHook
 // and the activity feed.
 func (d *Downloader) recordOnlineResult(ctx context.Context, title string, err error) {
 	d.mu.Lock()
-	entry := ActivityEntry{Time: time.Now(), Title: title, Episodes: d.lastQueued}
+	entry := ActivityEntry{Time: time.Now(), Title: title, Episodes: d.lastQueued, Provider: d.lastProvider}
 	if d.currentAnime != nil {
 		entry.MediaId = d.currentAnime.ID
 		entry.Image = d.currentAnime.CoverImage
@@ -165,6 +170,7 @@ func (d *Downloader) recordOnlineResult(ctx context.Context, title string, err e
 		}
 	}
 	d.lastQueued = 0
+	d.lastProvider = ""
 	d.processedThisRun++
 	d.mu.Unlock()
 
@@ -315,13 +321,41 @@ func (d *Downloader) processAnimeOnline(ctx context.Context, hooks *OnlineHooks,
 	if animeItem.AnimeSeason != nil {
 		year = animeItem.AnimeSeason.Year
 	}
-	match, err := d.findOnProvider(ctx, hooks, resolved, year)
-	if err != nil {
-		return err
+	// Kickassanime first, AnimeHeaven as the backup. A series still downloading as a torrent is
+	// only taken over by Kickassanime; when Kickassanime does not have it the torrent carries on.
+	torrentBacked := animeItem.torrentBacked || (hooks.HasTorrent != nil && hooks.HasTorrent(resolved.ID))
+	providers := []string{OnlineProvider}
+	if !torrentBacked {
+		providers = append(providers, BackupProvider)
+	}
+	var match *providerMatch
+	var provider string
+	var misses []string
+	for _, p := range providers {
+		m, err := d.findOnProvider(ctx, hooks, p, resolved, year)
+		if err == nil {
+			match, provider = m, p
+			break
+		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		misses = append(misses, err.Error())
+	}
+	if match == nil {
+		msg := strings.Join(misses, "; ")
+		if torrentBacked {
+			msg += " (the torrent keeps downloading)"
+		}
+		return errors.New(msg)
 	}
 
+	d.mu.Lock()
+	d.lastProvider = provider
+	d.mu.Unlock()
+
 	if hooks.SaveMapping != nil {
-		if err := hooks.SaveMapping(OnlineProvider, resolved.ID, match.ID); err != nil {
+		if err := hooks.SaveMapping(provider, resolved.ID, match.ID); err != nil {
 			d.logger.Warn().Err(err).Int("mediaId", resolved.ID).Msg("enmasse-anime: Could not save the provider match")
 		}
 	}
@@ -334,7 +368,7 @@ func (d *Downloader) processAnimeOnline(ctx context.Context, hooks *OnlineHooks,
 	if err := d.paceRequest(ctx); err != nil {
 		return err
 	}
-	queued, err := hooks.EnqueueSeries(ctx, OnlineProvider, resolved.ID)
+	queued, err := hooks.EnqueueSeries(ctx, provider, resolved.ID)
 	if err != nil {
 		return fmt.Errorf("could not queue the series: %w", err)
 	}
@@ -349,13 +383,14 @@ func (d *Downloader) processAnimeOnline(ctx context.Context, hooks *OnlineHooks,
 		details.Step = fmt.Sprintf("queued %d episodes", queued)
 		details.EpisodesQueued += queued
 	})
-	if hooks.TakeOverTorrents != nil {
+	// Only the main provider replaces a torrent.
+	if provider == OnlineProvider && hooks.TakeOverTorrents != nil {
 		hooks.TakeOverTorrents(resolved.ID)
 	}
 	if d.OnAnimeQueued != nil {
 		d.OnAnimeQueued(resolved.ID)
 	}
-	d.logger.Info().Int("mediaId", resolved.ID).Str("title", resolved.TitleRomaji).Str("match", match.Title).
+	d.logger.Info().Int("mediaId", resolved.ID).Str("title", resolved.TitleRomaji).Str("provider", provider).Str("match", match.Title).
 		Int("episodes", queued).Msg("enmasse-anime: Queued the series for online download")
 	return nil
 }
@@ -370,7 +405,7 @@ type providerMatch struct {
 
 // findOnProvider searches the provider with every spelling of the series and returns the entry
 // whose title is closest to one of them, provided it is close enough and has episodes.
-func (d *Downloader) findOnProvider(ctx context.Context, hooks *OnlineHooks, item *AnilistMinifiedItem, year int) (*providerMatch, error) {
+func (d *Downloader) findOnProvider(ctx context.Context, hooks *OnlineHooks, provider string, item *AnilistMinifiedItem, year int) (*providerMatch, error) {
 	titles := seriesTitles(item)
 	queries := onlineSearchQueries(titles)
 	if len(queries) == 0 {
@@ -394,8 +429,8 @@ func (d *Downloader) findOnProvider(ctx context.Context, hooks *OnlineHooks, ite
 
 	d.updateDetails(func(details *AnimeDownloaderDetails) {
 		details.Phase = "searching"
-		details.Step = "searching " + OnlineProvider
-		details.CurrentProvider = OnlineProvider
+		details.Step = "searching " + provider
+		details.CurrentProvider = provider
 		details.ProvidersTotal = 1
 		details.ProvidersDone = 0
 		details.VariantsTotal = len(queries)
@@ -419,7 +454,7 @@ func (d *Downloader) findOnProvider(ctx context.Context, hooks *OnlineHooks, ite
 		if err := d.paceRequest(ctx); err != nil {
 			return nil, err
 		}
-		results, err := hooks.Search(OnlineProvider, hibikeonlinestream.SearchOptions{Media: media, Query: q, Year: year})
+		results, err := hooks.Search(provider, hibikeonlinestream.SearchOptions{Media: media, Query: q, Year: year})
 		if err != nil {
 			lastErr = err
 			continue
@@ -444,9 +479,9 @@ func (d *Downloader) findOnProvider(ctx context.Context, hooks *OnlineHooks, ite
 
 	if len(candidates) == 0 {
 		if lastErr != nil {
-			return nil, fmt.Errorf("not found on %s (last search error: %v)", OnlineProvider, lastErr)
+			return nil, fmt.Errorf("not found on %s (last search error: %v)", provider, lastErr)
 		}
-		return nil, fmt.Errorf("not found on %s (tried %d spellings)", OnlineProvider, len(queries))
+		return nil, fmt.Errorf("not found on %s (tried %d spellings)", provider, len(queries))
 	}
 
 	// Best title first; the episode list decides between close titles (a TV series and its
@@ -463,7 +498,7 @@ func (d *Downloader) findOnProvider(ctx context.Context, hooks *OnlineHooks, ite
 		if err := d.paceRequest(ctx); err != nil {
 			return nil, err
 		}
-		eps, err := hooks.FindEpisodes(OnlineProvider, c.ID)
+		eps, err := hooks.FindEpisodes(provider, c.ID)
 		if err != nil || len(eps) == 0 {
 			continue
 		}
@@ -477,7 +512,7 @@ func (d *Downloader) findOnProvider(ctx context.Context, hooks *OnlineHooks, ite
 		})
 		return c, nil
 	}
-	return nil, fmt.Errorf("found %q on %s, but its episode list does not fit the series", candidates[0].Title, OnlineProvider)
+	return nil, fmt.Errorf("found %q on %s, but its episode list does not fit the series", candidates[0].Title, provider)
 }
 
 func sortMatches(m []*providerMatch) {

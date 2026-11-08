@@ -193,8 +193,8 @@ function Hero({ status }: { status: EnMasseDownloaderStatus | undefined }) {
                     >downloaded online</span>
                     </h1>
                     <p className="text-gray-300 max-w-2xl">
-                        Finds every series your library is missing on Kickassanime, queues it whole, and files each episode in your
-                        library already matched: best quality, Japanese audio first, soft subtitles.
+                        Finds every series your library is missing on Kickassanime (AnimeHeaven as the backup), queues it whole,
+                        and files each episode in your library already matched: best quality, Japanese audio first, soft subtitles.
                     </p>
                     {!!status?.status && !startError && <p className="text-sm text-gray-400 line-clamp-1">{status.status}</p>}
                     {!!startError && <div
@@ -326,7 +326,7 @@ function StatTiles({ status }: { status: EnMasseDownloaderStatus | undefined }) 
     const tiles = [
         { label: "Series queued", value: status?.downloadedAnime?.length ?? 0, icon: LuCircleCheck, bg: "from-emerald-500/25", fg: "text-emerald-300" },
         { label: "Episodes queued", value: d?.episodesQueued ?? 0, icon: LuListVideo, bg: "from-indigo-500/25", fg: "text-indigo-300" },
-        { label: "Not on Kickassanime", value: status?.failedAnime?.length ?? 0, icon: LuSearchX, bg: "from-amber-500/25", fg: "text-amber-300" },
+        { label: "Not found online", value: status?.failedAnime?.length ?? 0, icon: LuSearchX, bg: "from-amber-500/25", fg: "text-amber-300" },
         { label: "Skipped", value: d?.skippedCount ?? 0, icon: LuSkipForward, bg: "from-slate-500/25", fg: "text-slate-300" },
         { label: "Waiting to download", value: status?.downloadQueueWaiting ?? 0, icon: LuDownload, bg: "from-sky-500/25", fg: "text-sky-300" },
     ]
@@ -532,7 +532,9 @@ const ActivityRow = React.memo(function ActivityRow({ entry: e, now }: { entry: 
                     ? <SeaLink href={`/entry?id=${e.mediaId}`} className="text-sm font-medium hover:underline line-clamp-1">{e.title}</SeaLink>
                     : <p className="text-sm font-medium line-clamp-1">{e.title}</p>}
                 <p className="text-xs text-[--muted] line-clamp-1">
-                    {e.result === "queued" ? `${formatNumber(e.episodes ?? 0)} episodes added to the download queue` : e.detail}
+                    {e.result === "queued"
+                        ? `${formatNumber(e.episodes ?? 0)} episodes queued from ${e.provider === "animeheaven" ? "AnimeHeaven" : "Kickassanime"}`
+                        : e.detail}
                 </p>
             </div>
             <div className="flex flex-col items-end gap-1 flex-none">
@@ -563,7 +565,7 @@ function HowItWorks() {
     const steps = [
         {
             title: "Torrents first",
-            text: "Series still downloading as torrents are tried first. If Kickassanime has one, its torrent is paused and the series downloads online; once the episodes are in your library the torrent and its files are removed, and if the online download fails the torrent resumes.",
+            text: "Series still downloading as torrents are tried first, on Kickassanime only. If Kickassanime has one, its torrent is paused and the series downloads online; once the episodes are in your library the torrent and its files are removed, and if the online download fails the torrent resumes. The backup never replaces a torrent.",
         },
         {
             title: "Skip what you have",
@@ -571,7 +573,7 @@ function HowItWorks() {
         },
         {
             title: "Search every spelling",
-            text: "Kickassanime is searched under the English and romaji titles, every synonym, and other spellings: season wording, punctuation, accents, '&' and 'and', and the franchise name.",
+            text: "Kickassanime is searched under the English and romaji titles, every synonym, and other spellings: season wording, punctuation, accents, '&' and 'and', and the franchise name. If it doesn't have the series, AnimeHeaven is searched the same way as the backup.",
         },
         {
             title: "Verify the match",
