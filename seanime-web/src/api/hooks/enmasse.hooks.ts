@@ -27,7 +27,7 @@ export interface EnMasseDownloaderStatus {
     /** Series looked up while the download queue was full, queued in order as room appears */
     ready?: AnimeEnMasseReady[]
     /** Every series' result this run, counted (the list itself: /api/v1/enmasse/results) */
-    results?: { total: number, queued: number, skipped: number, notFound: number }
+    results?: { total: number, queued: number, torrent?: number, skipped: number, notFound: number }
 }
 
 export interface AnimeEnMasseReady {
@@ -44,7 +44,8 @@ export interface AnimeEnMasseActivity {
     title: string
     mediaId?: number
     image?: string
-    result: "queued" | "not_found" | "skipped"
+    /** torrent: no streaming provider had it, so a torrent (SeaDex) was sent to the client */
+    result: "queued" | "torrent" | "not_found" | "skipped"
     detail?: string
     episodes?: number
     /** Provider the series was queued from (kickassanime, or animeheaven as the backup) */

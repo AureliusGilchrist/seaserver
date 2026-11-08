@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
+
+	hibikeonlinestream "seanime/internal/extension/hibike/onlinestream"
 
 	"github.com/rs/zerolog"
 )
@@ -98,5 +101,54 @@ func TestEveryResultIsKept(t *testing.T) {
 	d.recordOnlineResult(ctx, "late", nil)
 	if c := d.results.counts(); c.Total != 0 {
 		t.Fatalf("reset kept %d results", c.Total)
+	}
+}
+
+// TestTorrentFallback: a series no streaming provider has is handed to the torrent fallback; when
+// that has nothing either it is not found, with the torrent's reason; a series already downloading
+// as a torrent is never handed over.
+func TestTorrentFallback(t *testing.T) {
+	onlineRequestGap, onlineSeriesGap = time.Millisecond, time.Millisecond
+	defer func() { onlineRequestGap, onlineSeriesGap = 8*time.Second, 30*time.Second }()
+
+	logger := zerolog.Nop()
+	d := NewDownloader(&NewDownloaderOptions{Logger: &logger})
+	d.resolveOverride = func(ctx context.Context, it *AnimeOfflineItem) (*AnilistMinifiedItem, error) {
+		return &AnilistMinifiedItem{ID: it.AnilistID, TitleRomaji: "Mushishi", Episodes: 26, Status: "FINISHED", Format: "TV"}, nil
+	}
+	calls := 0
+	torrentName, torrentReason := "[SubsPlease] Mushishi (01-26)", ""
+	hooks := &OnlineHooks{
+		Search: func(string, hibikeonlinestream.SearchOptions) ([]*hibikeonlinestream.SearchResult, error) {
+			return nil, nil
+		},
+		TorrentFallback: func(ctx context.Context, mediaId int) (string, string, error) {
+			calls++
+			return torrentName, torrentReason, nil
+		},
+	}
+	ctx := context.Background()
+	err := d.processAnimeOnline(ctx, hooks, &AnimeOfflineItem{Title: "Mushishi", AnilistID: 457})
+	if !errors.Is(err, errTorrented) || calls != 1 {
+		t.Fatalf("err %v, calls %d", err, calls)
+	}
+	d.results.reset()
+	d.recordOnlineResult(ctx, "Mushishi", err)
+	if p := d.Results(0, 1, "torrent", ""); p.Total != 1 || p.Items[0].Reason != ReasonTorrent || p.Items[0].Detail != torrentName {
+		t.Fatalf("recorded %+v", p)
+	}
+
+	torrentName, torrentReason = "", "no release has 3 or more seeders"
+	err = d.processAnimeOnline(ctx, hooks, &AnimeOfflineItem{Title: "Mushishi", AnilistID: 457})
+	reason, parts := explainResult(err)
+	if errors.Is(err, errTorrented) || len(parts) == 0 || parts[len(parts)-1].Reason != ReasonNoTorrent {
+		t.Fatalf("no torrent: err %v, reason %q, parts %+v", err, reason, parts)
+	}
+
+	calls = 0
+	hooks.HasTorrent = func(int) bool { return true }
+	_ = d.processAnimeOnline(ctx, hooks, &AnimeOfflineItem{Title: "Mushishi", AnilistID: 457})
+	if calls != 0 {
+		t.Fatal("a series already downloading as a torrent was handed to the torrent fallback")
 	}
 }

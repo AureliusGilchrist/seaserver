@@ -787,3 +787,53 @@ func nonNil(ids []int) []int {
 	}
 	return ids
 }
+
+// TorrentOne picks a torrent for one anime the way auto torrent does (SeaDex first, the same
+// rules) and hands it to the background adder with auto-match on: it goes to the torrent client,
+// lands in unmatched when it is moved, and is matched and moved into the library when it completes.
+// For the anime en masse downloader, for a series no streaming provider has.
+//
+// Returns the pick. Its Torrent is nil (and Reason says why) when nothing passed the rules.
+func (r *Repository) TorrentOne(ctx context.Context, mediaID int) (*AutoPick, error) {
+	a := r.autoTorrent
+	a.mu.Lock()
+	hooks := a.hooks
+	a.mu.Unlock()
+	if hooks == nil || hooks.Add == nil {
+		return nil, errors.New("the torrent client is not set up")
+	}
+	var client *http.Client
+	if hooks.ContentsClient != nil {
+		client = hooks.ContentsClient()
+	}
+	picks := a.pick(ctx, []int{mediaID}, client)
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	if len(picks) == 0 || picks[0] == nil {
+		return nil, errors.New("the torrent search returned nothing")
+	}
+	p := picks[0]
+	if p.Torrent == nil {
+		return p, nil
+	}
+
+	mark := hooks.MarkDownloading != nil
+	a.mu.Lock()
+	a.state.Adds = slices.DeleteFunc(a.state.Adds, func(j AutoTorrentJob) bool { return j.MediaID == mediaID })
+	a.state.Adds = append(a.state.Adds, AutoTorrentJob{
+		MediaID:           mediaID,
+		Torrent:           *p.Torrent,
+		Media:             p.Media,
+		AutoMatch:         true,
+		MarkedDownloading: mark,
+	})
+	a.saveLocked()
+	a.mu.Unlock()
+	if mark {
+		hooks.MarkDownloading(mediaID)
+	}
+	r.logger.Info().Int("mediaId", mediaID).Str("torrent", p.Torrent.Name).Msg("enqueuefuture: Torrent queued for the anime en masse downloader")
+	a.kickAdder()
+	return p, nil
+}

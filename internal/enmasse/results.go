@@ -86,6 +86,7 @@ func (s *resultStore) reset() {
 type ResultCounts struct {
 	Total    int `json:"total"`
 	Queued   int `json:"queued"`
+	Torrent  int `json:"torrent"`
 	Skipped  int `json:"skipped"`
 	NotFound int `json:"notFound"`
 }
@@ -99,6 +100,8 @@ func (s *resultStore) counts() ResultCounts {
 		switch e.Result {
 		case "queued":
 			c.Queued++
+		case "torrent":
+			c.Torrent++
 		case "skipped":
 			c.Skipped++
 		case "not_found":

@@ -650,12 +650,13 @@ function JustQueued({ status }: { status: EnMasseDownloaderStatus | undefined })
 // Activity
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-type FeedTab = "all" | "ready" | "queued" | "skipped" | "not_found"
+type FeedTab = "all" | "ready" | "queued" | "torrent" | "skipped" | "not_found"
 
 const resultStyle: Record<AnimeEnMasseActivity["result"], { label: string, className: string, rail: string, icon: React.ElementType }> = {
     queued: { label: "Queued", className: "text-emerald-300 bg-emerald-400/10 border-emerald-400/25", rail: "bg-emerald-400", icon: LuCircleCheck },
     not_found: { label: "Not found", className: "text-amber-300 bg-amber-400/10 border-amber-400/25", rail: "bg-amber-400", icon: LuSearchX },
     skipped: { label: "Skipped", className: "text-slate-300 bg-slate-400/10 border-slate-400/25", rail: "bg-slate-500", icon: LuSkipForward },
+    torrent: { label: "Torrent", className: "text-fuchsia-300 bg-fuchsia-400/10 border-fuchsia-400/25", rail: "bg-fuchsia-400", icon: LuDownload },
 }
 
 /** Results come a page at a time; a page is this many. */
@@ -730,17 +731,19 @@ function ActivityFeed({ status }: { status: EnMasseDownloaderStatus | undefined 
     const [tab, setTab] = useState<FeedTab>("all")
     const [search, setSearch] = useState("")
     const now = useNow(10000)
-    const counts = status?.results ?? { total: 0, queued: 0, skipped: 0, notFound: 0 }
+    const counts = { torrent: 0, ...(status?.results ?? { total: 0, queued: 0, skipped: 0, notFound: 0 }) }
     const ready = status?.ready ?? []
 
     const tabs: [FeedTab, string, number][] = [
         ["all", "All", counts.total],
         ["ready", "Lined up", ready.length],
         ["queued", "Queued", counts.queued],
+        ["torrent", "Torrented", counts.torrent ?? 0],
         ["skipped", "Skipped", counts.skipped],
         ["not_found", "Not found", counts.notFound],
     ]
-    const tabTotal = tab === "all" ? counts.total : tab === "queued" ? counts.queued : tab === "skipped" ? counts.skipped : counts.notFound
+    const tabTotal = tab === "all" ? counts.total : tab === "queued" ? counts.queued : tab === "torrent" ? (counts.torrent ?? 0)
+        : tab === "skipped" ? counts.skipped : counts.notFound
     const results = useResultPages(tab === "ready" ? "all" : tab, search, tabTotal)
 
     return (
@@ -803,7 +806,8 @@ function ActivityFeed({ status }: { status: EnMasseDownloaderStatus | undefined 
                 ) : <EmptyFeed text={!results.loaded ? "Loading…"
                     : search ? "Nothing matches that title."
                         : tab === "all" ? "Results appear here as each series is checked."
-                            : tab === "queued" ? "Nothing queued yet." : tab === "skipped" ? "Nothing skipped yet." : "Nothing missed yet."} />}
+                            : tab === "queued" ? "Nothing queued yet." : tab === "torrent" ? "Nothing sent to the torrent client yet."
+                                : tab === "skipped" ? "Nothing skipped yet." : "Nothing missed yet."} />}
             </div>
         </div>
     )
@@ -862,7 +866,11 @@ const ActivityRow = React.memo(function ActivityRow({ entry: e, now }: { entry: 
                 {e.mediaId && e.mediaId > 0
                     ? <SeaLink href={`/entry?id=${e.mediaId}`} className="text-sm font-medium hover:underline line-clamp-1">{e.title}</SeaLink>
                     : <p className="text-sm font-medium line-clamp-1">{e.title}</p>}
-                {e.result === "queued" ? (
+                {e.result === "torrent" ? (
+                    <p className="text-xs text-gray-400 line-clamp-1 mt-0.5" title={e.detail}>
+                        No streaming provider had it · torrent sent to the client: {e.detail}
+                    </p>
+                ) : e.result === "queued" ? (
                     <p className="text-xs text-gray-400 line-clamp-1 mt-0.5">
                         {`${formatNumber(e.episodes ?? 0)} episodes from ${providerName(e.provider) || "Kickassanime"}`}
                     </p>
@@ -993,10 +1001,12 @@ function Totals({ status }: { status: EnMasseDownloaderStatus | undefined }) {
     const queued = status?.results?.queued ?? status?.downloadedAnime?.length ?? 0
     const missing = status?.results?.notFound ?? status?.failedAnime?.length ?? 0
     const skipped = status?.results?.skipped ?? d?.skippedCount ?? 0
-    const outcomes = queued + missing + skipped
+    const torrented = status?.results?.torrent ?? 0
+    const outcomes = queued + torrented + missing + skipped
     const rows = [
         { label: "Series queued", value: queued, icon: LuCircleCheck, tone: "text-emerald-300", bar: "bg-emerald-400", share: queued },
-        { label: "Not found online", value: missing, icon: LuSearchX, tone: "text-amber-300", bar: "bg-amber-400", share: missing },
+        { label: "Sent as torrents", value: torrented, icon: LuDownload, tone: "text-fuchsia-300", bar: "bg-fuchsia-400", share: torrented },
+        { label: "Not found anywhere", value: missing, icon: LuSearchX, tone: "text-amber-300", bar: "bg-amber-400", share: missing },
         { label: "Skipped", value: skipped, icon: LuSkipForward, tone: "text-slate-300", bar: "bg-slate-400", share: skipped },
     ]
 
@@ -1053,7 +1063,7 @@ const HOW_IT_WORKS = [
     },
     {
         title: "Search every spelling",
-        text: "Kickassanime is searched under the English and romaji titles, every synonym, and other spellings: season wording, punctuation, accents, '&' and 'and', and the franchise name. If it doesn't have the series, AniZone, AnimeHeaven and then AnimePahe are searched the same way as backups. An episode with no source on its provider is fetched from the others in the same order.",
+        text: "Kickassanime is searched under the English and romaji titles, every synonym, and other spellings: season wording, punctuation, accents, '&' and 'and', and the franchise name. If it doesn't have the series, AniZone, AnimeHeaven and then AnimePahe are searched the same way as backups. If none of them has it, a torrent is picked the way Enqueue Future's auto torrent does (SeaDex first) and sent to the torrent client: it lands in unmatched when it is moved and is matched into your library when it completes. An episode with no source on its provider is fetched from the others in the same order.",
     },
     {
         title: "Verify the match",

@@ -40,6 +40,8 @@ const (
 	ReasonNoInternet        = "No internet"
 	ReasonNoTitle           = "No title to search"
 	ReasonNotOnAnyProvider  = "Not on any provider"
+	ReasonTorrent           = "Torrent (SeaDex)"
+	ReasonNoTorrent         = "No torrent"
 )
 
 var skipLabels = []struct{ prefix, label string }{
@@ -52,7 +54,7 @@ var skipLabels = []struct{ prefix, label string }{
 	{"nothing to download", ReasonNothingToDownload},
 }
 
-var knownProviders = []string{"kickassanime", "anizone", "animeheaven", "animepahe"}
+var knownProviders = []string{"kickassanime", "anizone", "animeheaven", "animepahe", "torrent"}
 
 var (
 	countRe    = regexp.MustCompile(`has (\d+) episodes, the series has (\d+)`)
@@ -128,6 +130,9 @@ func providerIn(s string) string {
 // labelFor gives one provider's failure its short label.
 func labelFor(s string) string {
 	l := strings.ToLower(s)
+	if strings.HasPrefix(l, "torrent: ") {
+		return ReasonNoTorrent
+	}
 	switch {
 	case strings.Contains(l, "refusing this server") || strings.Contains(l, "403") || strings.Contains(l, "cloudflare"):
 		return ReasonRefused

@@ -96,6 +96,10 @@ type OnlineHooks struct {
 	// TorrentSeries lists the anime that have a torrent still downloading in the torrent client.
 	// They are handled first: the online download replaces the torrent.
 	TorrentSeries func() []TorrentSeries
+	// TorrentFallback picks a torrent for a series no streaming provider has (SeaDex first, the
+	// Enqueue Future auto torrent rules) and sends it to the torrent client, auto-matched. Returns
+	// the torrent's name, or why there was none.
+	TorrentFallback func(ctx context.Context, mediaId int) (name string, reason string, err error)
 	// HasTorrent reports whether an anime has a torrent still downloading.
 	HasTorrent func(mediaId int) bool
 	// TorrentStalled reports whether every unfinished torrent of an anime has been stalled for a
@@ -267,6 +271,11 @@ func (d *Downloader) recordOnlineResult(ctx context.Context, title string, err e
 	switch {
 	case err == nil:
 		entry.Result = "queued"
+	case errors.Is(err, errTorrented):
+		entry.Result = "torrent"
+		entry.Detail = strings.TrimPrefix(err.Error(), "torrent: ")
+		entry.Reason = ReasonTorrent
+		entry.Provider = "torrent"
 	case errors.Is(err, errOnlineSkipped):
 		entry.Result = "skipped"
 		entry.Detail = err.Error()
@@ -295,6 +304,11 @@ func (d *Downloader) recordOnlineResult(ctx context.Context, title string, err e
 			details.LastError = ""
 		})
 		d.addToDownloaded(title)
+	case errors.Is(err, errTorrented):
+		d.updateDetails(func(details *AnimeDownloaderDetails) {
+			details.Step = "sent to the torrent client"
+			details.LastError = ""
+		})
 	case errors.Is(err, errOnlineSkipped):
 		d.mu.Lock()
 		d.skippedCount++
@@ -478,7 +492,7 @@ func (d *Downloader) prepareSeries(ctx context.Context, hooks *OnlineHooks, anim
 			ReadyAt:       time.Now(),
 		}, nil
 	}
-	return nil, newNotFound(misses, torrentBacked, d.torrentStalled(hooks, resolved.ID, torrentBacked))
+	return nil, d.torrentOrNotFound(ctx, hooks, resolved, misses, torrentBacked)
 }
 
 func (d *Downloader) torrentStalled(hooks *OnlineHooks, mediaId int, torrentBacked bool) bool {
@@ -600,7 +614,9 @@ func (d *Downloader) queueReady(ctx context.Context, hooks *OnlineHooks, r *Read
 		provider = p
 	}
 	if !ok {
-		return newNotFound(misses, r.TorrentBacked, stalled)
+		_ = stalled
+		resolvedCopy := r.Resolved
+		return d.torrentOrNotFound(ctx, hooks, &resolvedCopy, misses, r.TorrentBacked)
 	}
 	if queued == 0 {
 		return onlineSkip{"nothing to download (every episode is already in the library or the queue)"}
@@ -1242,4 +1258,55 @@ func (d *Downloader) readyPreviewLocked() []ReadyPreview {
 			Provider: r.Provider, Episodes: r.Resolved.Episodes, ReadyAt: r.ReadyAt})
 	}
 	return out
+}
+
+// errTorrented marks a series handed to the torrent client after every streaming provider came up
+// empty.
+var errTorrented = errors.New("sent to the torrent client")
+
+type torrentHandoff struct{ name string }
+
+func (e torrentHandoff) Error() string        { return "torrent: " + e.name }
+func (e torrentHandoff) Is(target error) bool { return target == errTorrented }
+
+// torrentOrNotFound is the last resort for a series every streaming provider (AnimeHeaven and
+// AnimePahe included) came up empty for: a torrent, picked the way Enqueue Future's auto torrent
+// does (SeaDex first) and sent to the client auto-matched. It starts in the torrent client, lands
+// in unmatched when it is moved, and is matched into the library when it completes. A series that
+// is already downloading as a torrent is left as it is.
+func (d *Downloader) torrentOrNotFound(ctx context.Context, hooks *OnlineHooks, resolved *AnilistMinifiedItem, misses []ProviderReason, torrentBacked bool) error {
+	stalled := d.torrentStalled(hooks, resolved.ID, torrentBacked)
+	if torrentBacked || hooks.TorrentFallback == nil {
+		return newNotFound(misses, torrentBacked, stalled)
+	}
+	d.updateDetails(func(details *AnimeDownloaderDetails) {
+		details.Phase = "searching"
+		details.Step = "no streaming provider has it: looking for a torrent on SeaDex"
+		details.CurrentProvider = "torrent"
+	})
+	if err := d.paceRequest(ctx); err != nil {
+		return err
+	}
+	name, reason, err := hooks.TorrentFallback(ctx, resolved.ID)
+	switch {
+	case ctx.Err() != nil:
+		return ctx.Err()
+	case err != nil:
+		if connectivity.IsNetworkError(err) {
+			return err
+		}
+		misses = append(misses, ProviderReason{Provider: "torrent", Detail: "torrent: " + err.Error()})
+	case name == "":
+		if reason == "" {
+			reason = "no torrent passed the rules"
+		}
+		misses = append(misses, ProviderReason{Provider: "torrent", Detail: "torrent: " + reason})
+	default:
+		d.logger.Info().Int("mediaId", resolved.ID).Str("torrent", name).Msg("enmasse-anime: No streaming provider has it; sent a torrent to the client")
+		if d.OnAnimeQueued != nil {
+			d.OnAnimeQueued(resolved.ID)
+		}
+		return torrentHandoff{name}
+	}
+	return newNotFound(misses, torrentBacked, stalled)
 }
