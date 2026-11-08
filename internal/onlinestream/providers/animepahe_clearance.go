@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/goccy/go-json"
@@ -36,7 +37,27 @@ var (
 	animepaheClearance     *AnimePaheClearance
 	animepaheClearancePath string
 	animepaheClearClient   = req.C().ImpersonateChrome().SetTimeout(30 * time.Second)
+	// animepaheExpiredAt is when AnimePahe began refusing the saved clearance (nil while it works).
+	animepaheExpiredAt atomic.Pointer[time.Time]
 )
+
+// AnimePaheClearanceExpiredAt reports since when AnimePahe has refused the saved clearance: it
+// has expired (or no longer matches) and the check must be passed again. Nil while it works.
+func AnimePaheClearanceExpiredAt() *time.Time {
+	return animepaheExpiredAt.Load()
+}
+
+func noteAnimePaheAnswer(status int) {
+	switch {
+	case status == http.StatusForbidden:
+		if animepaheExpiredAt.Load() == nil {
+			now := time.Now()
+			animepaheExpiredAt.Store(&now)
+		}
+	case status >= 200 && status < 300:
+		animepaheExpiredAt.Store(nil)
+	}
+}
 
 // SetAnimePaheClearanceFile sets where the clearance is kept and loads a saved one.
 func SetAnimePaheClearanceFile(path string) {
@@ -65,6 +86,7 @@ func SetAnimePaheClearance(c *AnimePaheClearance) error {
 		}
 	}
 	animepaheClearance = c
+	animepaheExpiredAt.Store(nil)
 	if animepaheClearancePath == "" {
 		return nil
 	}
@@ -133,12 +155,17 @@ func animepaheGet(client *http.Client, rawURL, userAgent, accept, referer string
 	if accept != "" {
 		r.SetHeader("Accept", accept)
 	}
+	ownSite := false
 	if u, err := url.Parse(rawURL); err == nil && strings.Contains(u.Host, "animepahe") {
 		r.SetHeader("Cookie", c.Cookie)
+		ownSite = true
 	}
 	resp, err := r.Get(rawURL)
 	if err != nil {
 		return 0, nil, err
+	}
+	if ownSite {
+		noteAnimePaheAnswer(resp.StatusCode)
 	}
 	b, err := resp.ToBytes()
 	return resp.StatusCode, b, err

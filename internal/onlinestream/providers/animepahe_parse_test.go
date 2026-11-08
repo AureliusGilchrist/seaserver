@@ -49,3 +49,20 @@ func TestAnimePaheUnpackKwik(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestAnimePaheExpiry(t *testing.T) {
+	defer animepaheExpiredAt.Store(nil)
+	noteAnimePaheAnswer(403)
+	first := AnimePaheClearanceExpiredAt()
+	if first == nil {
+		t.Fatal("a 403 should mark the clearance expired")
+	}
+	noteAnimePaheAnswer(403)
+	if AnimePaheClearanceExpiredAt() != first {
+		t.Fatal("the first refusal's time should be kept")
+	}
+	noteAnimePaheAnswer(200)
+	if AnimePaheClearanceExpiredAt() != nil {
+		t.Fatal("an answer should clear it")
+	}
+}

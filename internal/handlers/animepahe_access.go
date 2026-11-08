@@ -24,6 +24,9 @@ type AnimePaheAccess struct {
 	Working   *bool      `json:"working,omitempty"`
 	Error     string     `json:"error,omitempty"`
 	CheckedAt *time.Time `json:"checkedAt,omitempty"`
+	// Expired is set while AnimePahe refuses the saved clearance: the check must be passed again.
+	Expired   bool       `json:"expired"`
+	ExpiredAt *time.Time `json:"expiredAt,omitempty"`
 }
 
 var (
@@ -50,6 +53,11 @@ func animepaheAccessState() *AnimePaheAccess {
 	animepaheCheckMu.Lock()
 	st.Working, st.Error, st.CheckedAt = animepaheCheck.working, animepaheCheck.err, animepaheCheck.at
 	animepaheCheckMu.Unlock()
+	if st.Unlocked {
+		if at := onlinestream_providers.AnimePaheClearanceExpiredAt(); at != nil {
+			st.Expired, st.ExpiredAt = true, at
+		}
+	}
 	return st
 }
 
