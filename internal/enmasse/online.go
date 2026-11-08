@@ -27,13 +27,14 @@ import (
 // searches are spaced several seconds apart, each series takes at least half a minute, and the
 // search stops running ahead of the downloads when enough episodes are already waiting.
 
-// PrimaryProviders are searched first, in order: AnimePahe, then Kickassanime. Either may take
-// over a series still downloading as a torrent.
-var PrimaryProviders = []string{OnlineProvider, "kickassanime"}
+// PrimaryProviders are searched first: Kickassanime. It may take over a series still
+// downloading as a torrent.
+var PrimaryProviders = []string{OnlineProvider}
 
 // BackupProviders are tried, in order, when no primary provider has a series. They never
-// replace a healthy torrent, only a stalled one.
-var BackupProviders = []string{"anizone", BackupProvider}
+// replace a healthy torrent, only a stalled one. AnimePahe comes last: its Cloudflare token
+// only lasts about 15 minutes, so it is usually skipped.
+var BackupProviders = []string{"anizone", BackupProvider, "animepahe"}
 
 func isPrimaryProvider(p string) bool {
 	for _, q := range PrimaryProviders {
@@ -46,8 +47,8 @@ func isPrimaryProvider(p string) bool {
 
 const (
 	// OnlineProvider is the provider the en masse downloader searches first.
-	OnlineProvider = "animepahe"
-	// BackupProvider is the last backup, tried after AniZone (see BackupProviders).
+	OnlineProvider = "kickassanime"
+	// BackupProvider is AnimeHeaven, tried after AniZone (see BackupProviders).
 	BackupProvider = "animeheaven"
 
 	// onlineMaxWaitingSeries stops the search from running ahead of the downloads: no new
@@ -371,10 +372,10 @@ func (d *Downloader) processAnimeOnline(ctx context.Context, hooks *OnlineHooks,
 	if animeItem.AnimeSeason != nil {
 		year = animeItem.AnimeSeason.Year
 	}
-	// AnimePahe, then Kickassanime, then AniZone and AnimeHeaven as the backups. A series still
-	// downloading as a torrent is only taken over by AnimePahe or Kickassanime, unless its
-	// torrent is stalled: then the backups may replace it too. A healthy torrent is never
-	// replaced by a backup.
+	// Kickassanime, then AniZone, AnimeHeaven and AnimePahe as the backups. A series still
+	// downloading as a torrent is only taken over by Kickassanime, unless its torrent is
+	// stalled: then the backups may replace it too. A healthy torrent is never replaced by a
+	// backup.
 	torrentBacked := animeItem.torrentBacked || (hooks.HasTorrent != nil && hooks.HasTorrent(resolved.ID))
 	stalled := torrentBacked && hooks.TorrentStalled != nil && hooks.TorrentStalled(resolved.ID)
 	providers := append([]string(nil), PrimaryProviders...)

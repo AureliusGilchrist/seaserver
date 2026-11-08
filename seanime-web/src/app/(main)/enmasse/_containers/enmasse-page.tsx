@@ -376,7 +376,7 @@ function Stage({ status }: { status: EnMasseDownloaderStatus | undefined }) {
                                     ].filter(Boolean).join("  ·  ")
                                     : state === "waiting"
                                         ? `${formatNumber(status?.downloadQueueWaiting ?? 0)} episodes are waiting to download. The search carries on once fewer than 10 series are queued.`
-                                        : "Finds every series your library is missing on AnimePahe and Kickassanime, with AniZone and AnimeHeaven as the backups, queues it whole, and files each episode already matched: best quality, Japanese audio first, soft subtitles."}
+                                        : "Finds every series your library is missing on Kickassanime, with AniZone, AnimeHeaven and AnimePahe as the backups, queues it whole, and files each episode already matched: best quality, Japanese audio first, soft subtitles."}
                             </p>
                         </motion.div>
                     </AnimatePresence>
@@ -904,7 +904,7 @@ function Totals({ status }: { status: EnMasseDownloaderStatus | undefined }) {
 const HOW_IT_WORKS = [
     {
         title: "Torrents first",
-        text: "Series still downloading as torrents are tried first, on AnimePahe and Kickassanime only. If either has one, its torrent is paused and the series downloads online; once the episodes are in your library the torrent and its files are removed, and if the online download fails the torrent resumes. The backups (AniZone, then AnimeHeaven) only replace a torrent that has been stalled for 15 minutes or more (no download, no seeders).",
+        text: "Series still downloading as torrents are tried first, on Kickassanime only. If Kickassanime has one, its torrent is paused and the series downloads online; once the episodes are in your library the torrent and its files are removed, and if the online download fails the torrent resumes. The backups (AniZone, AnimeHeaven, then AnimePahe) only replace a torrent that has been stalled for 15 minutes or more (no download, no seeders).",
     },
     {
         title: "Skip what you have",
@@ -912,7 +912,7 @@ const HOW_IT_WORKS = [
     },
     {
         title: "Search every spelling",
-        text: "AnimePahe, then Kickassanime, is searched under the English and romaji titles, every synonym, and other spellings: season wording, punctuation, accents, '&' and 'and', and the franchise name. If neither has the series, AniZone and then AnimeHeaven are searched the same way as backups. An episode with no source on its provider is fetched from the others in the same order.",
+        text: "Kickassanime is searched under the English and romaji titles, every synonym, and other spellings: season wording, punctuation, accents, '&' and 'and', and the franchise name. If it doesn't have the series, AniZone, AnimeHeaven and then AnimePahe are searched the same way as backups. An episode with no source on its provider is fetched from the others in the same order.",
     },
     {
         title: "Verify the match",

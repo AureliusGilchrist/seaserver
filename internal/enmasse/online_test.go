@@ -236,9 +236,9 @@ func TestBackupProvider(t *testing.T) {
 		t.Fatalf("queued on %q, took over a torrent: %v", queuedOn, tookOver)
 	}
 	if searchedOn[0] != OnlineProvider {
-		t.Fatalf("searched %v: AnimePahe must come first", searchedOn)
+		t.Fatalf("searched %v: Kickassanime must come first", searchedOn)
 	}
-	// AnimePahe, Kickassanime, AniZone, AnimeHeaven.
+	// Kickassanime, AniZone, AnimeHeaven, AnimePahe.
 	firstAt := func(p string) int {
 		for i, q := range searchedOn {
 			if q == p {
@@ -247,7 +247,11 @@ func TestBackupProvider(t *testing.T) {
 		}
 		return -1
 	}
-	order := []string{"animepahe", "kickassanime", "anizone", BackupProvider}
+	// AnimeHeaven has it here, so AnimePahe, last, is never searched.
+	if firstAt("animepahe") >= 0 {
+		t.Fatalf("searched %v: AnimePahe must come after AnimeHeaven", searchedOn)
+	}
+	order := []string{"kickassanime", "anizone", BackupProvider}
 	for i := 1; i < len(order); i++ {
 		if prev, cur := firstAt(order[i-1]), firstAt(order[i]); prev < 0 || cur < 0 || prev > cur {
 			t.Fatalf("searched %v: want the order %v", searchedOn, order)

@@ -379,7 +379,7 @@ export function OnlinestreamDownloadButton(props: OnlinestreamDownloadButtonProp
                                 <p className="font-semibold">Download the full series</p>
                                 <p className="text-sm text-[--muted]">
                                     {provider === "auto"
-                                        ? "Queues every episode from the first source that has the series: AnimePahe, then Kickassanime, AniZone and AnimeHeaven."
+                                        ? "Queues every episode from the first source that has the series: Kickassanime, then AniZone, AnimeHeaven and AnimePahe."
                                         : `Queues every episode ${onlinestreamProviderLabel(provider)} lists${sortedEpisodes.length ? ` (${sortedEpisodes.length})` : ""}.`}
                                     {libraryCount > 0 && ` ${libraryCount} ${libraryCount === 1 ? "is" : "are"} already in your library; you'll be asked whether to overwrite them.`}
                                 </p>

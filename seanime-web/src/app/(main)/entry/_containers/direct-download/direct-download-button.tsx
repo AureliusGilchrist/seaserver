@@ -13,10 +13,10 @@ import { LuCloudDownload, LuSparkles } from "react-icons/lu"
 /** Sources offered, in the order "Best available" tries them. */
 const SOURCES = [
     { id: "auto", label: "Best available" },
-    { id: "animepahe", label: "AnimePahe" },
     { id: "kickassanime", label: "Kickassanime" },
     { id: "anizone", label: "AniZone" },
     { id: "animeheaven", label: "AnimeHeaven" },
+    { id: "animepahe", label: "AnimePahe" },
 ] as const
 
 /**

@@ -471,8 +471,8 @@ func (m *Manager) EnqueueSeries(ctx context.Context, base Request, inLibrary fun
 	}
 	m.mu.Unlock()
 
-	// A series whose episodes cannot be fetched from the provider or a fallback (AnimePahe,
-	// Kickassanime, AniZone, AnimeHeaven) never
+	// A series whose episodes cannot be fetched from the provider or a fallback (Kickassanime,
+	// AniZone, AnimeHeaven, AnimePahe) never
 	// reaches the queue.
 	if len(reqs) > 0 {
 		if err := m.checkSeriesSource(ctx, reqs[0], media); err != nil {
