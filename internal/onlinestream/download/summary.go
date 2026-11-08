@@ -29,6 +29,7 @@ type QueueCounts struct {
 // SeriesSummary is one anime's line in the queue.
 type SeriesSummary struct {
 	MediaId        int     `json:"mediaId"`
+	Queue          string  `json:"queue"`
 	Title          string  `json:"title"`
 	Image          string  `json:"image,omitempty"`
 	Total          int     `json:"total"`
@@ -78,7 +79,7 @@ func (m *Manager) summaryLocked() *QueueSummary {
 	for _, it := range m.items {
 		ss, ok := bySeries[it.MediaId]
 		if !ok {
-			ss = &SeriesSummary{MediaId: it.MediaId, Title: it.Title, Image: it.Image}
+			ss = &SeriesSummary{MediaId: it.MediaId, Queue: normalizeQueue(it.Queue), Title: it.Title, Image: it.Image}
 			bySeries[it.MediaId] = ss
 			s.Series = append(s.Series, ss) // queue order of each series' first episode
 		}

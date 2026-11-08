@@ -105,8 +105,8 @@ func (h *Handler) wireEnMasseOnline(app *core.App) {
 			return len(h.libraryEpisodeFiles(mediaId)) > 0
 		},
 		InDownloadQueue: m.HasActive,
-		WaitingEpisodes: m.WaitingCount,
-		WaitingSeries:   m.WaitingSeriesCount,
+		WaitingEpisodes: m.WaitingEnMasseEpisodes,
+		WaitingSeries:   m.WaitingEnMasseSeries,
 		Search:          search.Search,
 		FindEpisodes:    search.FindEpisodes,
 		SaveMapping:     h.saveProviderMapping,
@@ -115,6 +115,7 @@ func (h *Handler) wireEnMasseOnline(app *core.App) {
 			res, err := m.EnqueueSeries(ctx, onlinestream_download.Request{
 				MediaId:  mediaId,
 				Provider: provider,
+				Queue:    onlinestream_download.QueueEnMasse,
 			}, func(ep int) bool { return len(have[ep]) > 0 }, nil)
 			if err != nil {
 				return 0, err

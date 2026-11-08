@@ -69,8 +69,13 @@ export type OnlinestreamDownload_QueueCounts = {
 }
 
 /** One anime's line in the queue (internal/onlinestream/download/summary.go). */
+/** The two download queues, taken in turn a series at a time. */
+export type OnlinestreamDownload_Queue = "personal" | "enmasse"
+
 export type OnlinestreamDownload_SeriesSummary = {
     mediaId: number
+    /** The queue the series is in */
+    queue: OnlinestreamDownload_Queue
     title: string
     image?: string
     total: number

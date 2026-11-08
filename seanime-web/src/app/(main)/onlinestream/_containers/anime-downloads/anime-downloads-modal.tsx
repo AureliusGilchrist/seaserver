@@ -158,6 +158,7 @@ export function AnimeDownloadQueue() {
     const { data, isLoading, isError } = useGetOnlinestreamDownloads()
     const { mutate: act, isPending } = useOnlinestreamDownloadQueueAction()
     const [filter, setFilter] = React.useState<QueueFilter>("all")
+    const [queueTab, setQueueTab] = React.useState<"personal" | "enmasse">("personal")
     const [expanded, setExpanded] = React.useState<Set<number>>(new Set())
     // Clear all empties the whole queue, waiting episodes included: asked first.
     const confirmClearAll = useConfirmationDialog({
@@ -169,7 +170,13 @@ export function AnimeDownloadQueue() {
     })
 
     const counts = data?.counts ?? { queued: 0, running: 0, completed: 0, failed: 0, cancelled: 0, total: 0 }
-    const series = data?.series ?? []
+    const allSeries = data?.series ?? []
+    // Two queues, taken in turn a series at a time; the list shows one of them.
+    const queueSeries = React.useMemo(() => ({
+        personal: allSeries.filter(s => (s.queue ?? "personal") !== "enmasse"),
+        enmasse: allSeries.filter(s => s.queue === "enmasse"),
+    }), [allSeries])
+    const series = queueSeries[queueTab]
     const paused = !!data?.paused
     const running = data?.running && isOnlinestreamDownloadRunning(data.running) ? data.running : undefined
 
@@ -271,6 +278,34 @@ export function AnimeDownloadQueue() {
 
             <ConfirmationDialog {...confirmClearAll} />
             <Card className="p-4 space-y-3" data-anime-download-queue-card>
+                <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex rounded-xl bg-white/[0.04] border border-white/[0.06] p-1" data-anime-download-queue-tabs>
+                        {([
+                            ["personal", "Personal"],
+                            ["enmasse", "En masse"],
+                        ] as const).map(([key, label]) => {
+                            const active = queueSeries[key].filter(s => s.queued > 0 || s.running).length
+                            return (
+                                <button
+                                    key={key}
+                                    type="button"
+                                    onClick={() => setQueueTab(key)}
+                                    className={cn("px-3 h-8 rounded-lg text-sm transition-colors inline-flex items-center gap-2",
+                                        queueTab === key ? "bg-white text-gray-950 font-medium" : "text-[--muted] hover:text-[--foreground]")}
+                                >
+                                    {label}
+                                    <span className={cn("text-xs tabular-nums", queueTab === key ? "text-gray-500" : "text-[--muted]")}>
+                                        {formatNumber(queueSeries[key].length)}
+                                    </span>
+                                    {active > 0 && <span className="size-1.5 rounded-full bg-emerald-400" title={`${active} series waiting or downloading`} />}
+                                </button>
+                            )
+                        })}
+                    </div>
+                    <p className="text-xs text-[--muted] flex-1 min-w-[12rem]">
+                        The two queues take turns: one en masse series, then one personal, and so on.
+                    </p>
+                </div>
                 <div className="flex gap-1.5 flex-wrap">
                     {([
                         ["all", `All (${formatNumber(filterCounts.all)})`],
@@ -298,7 +333,9 @@ export function AnimeDownloadQueue() {
                     <div className="py-10 text-center space-y-2">
                         <LuDownload className="text-4xl mx-auto text-[--muted]" />
                         <p className="text-[--muted] text-sm">
-                            {series.length ? "Nothing matches this filter" : "Nothing in the queue. Use Download in the online player to add episodes or a whole series."}
+                            {series.length ? "Nothing matches this filter"
+                                : queueTab === "enmasse" ? "Nothing from the en masse downloader in the queue."
+                                    : "Nothing in the queue. Use Direct Download on an anime, or Download in the online player."}
                         </p>
                     </div>
                 ) : (

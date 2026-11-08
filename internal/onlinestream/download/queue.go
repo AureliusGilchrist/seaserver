@@ -45,6 +45,23 @@ const (
 
 // Request is what the client asks to download: an episode, and the provider/server/quality the
 // online player had selected.
+// The download queue is two queues: the user's own downloads and the en masse downloader's. The
+// worker takes them a series at a time, in turn: one en masse series, then one personal, and so
+// on, so neither waits on the other's whole backlog.
+const (
+	QueuePersonal = "personal"
+	QueueEnMasse  = "enmasse"
+)
+
+// normalizeQueue maps a queue name to one of the two queues; anything else (including items
+// saved before the queues existed) is personal.
+func normalizeQueue(q string) string {
+	if q == QueueEnMasse {
+		return QueueEnMasse
+	}
+	return QueuePersonal
+}
+
 type Request struct {
 	MediaId       int    `json:"mediaId"`
 	EpisodeNumber int    `json:"episodeNumber"`
@@ -59,6 +76,8 @@ type Request struct {
 	// Overwrite replaces the episode's files already in the library. Without it, an episode the
 	// library has is not downloaded again.
 	Overwrite bool `json:"overwrite,omitempty"`
+	// Queue is QueuePersonal (the default) or QueueEnMasse.
+	Queue string `json:"queue,omitempty"`
 }
 
 // Item is one download in the queue as the client sees it.
@@ -75,6 +94,8 @@ type Item struct {
 	Image         string `json:"image,omitempty"`
 	Banner        string `json:"banner,omitempty"`
 	Status        Status `json:"status"`
+	// Queue is the queue the episode is in: QueuePersonal or QueueEnMasse.
+	Queue string `json:"queue"`
 	// Phase names the stream being downloaded: "Japanese", then "English dub" for dual audio.
 	Phase string `json:"phase,omitempty"`
 	// AudioTracks lists the file audio languages in order, Japanese first.
@@ -188,6 +209,10 @@ type Manager struct {
 	rev int64
 	// blocked is set while downloads wait on the disk (see checkStorage).
 	blocked string
+	// curQueue and curMedia are the queue and series the worker is on. It finishes the series,
+	// then turns to the other queue.
+	curQueue string
+	curMedia int
 
 	// processOverride, when set (tests), replaces the download of one episode.
 	// checkSourceOverride replaces checkSeriesSource (tests).
@@ -245,6 +270,8 @@ func (m *Manager) load() {
 		if it.Status == StatusCancelled && strings.HasPrefix(it.Error, "Skipped: ") {
 			continue
 		}
+		// Items from before the two queues existed belong to the personal one.
+		it.Queue = normalizeQueue(it.Queue)
 		// Whatever was running when the server stopped goes back to the queue.
 		if !it.finished() && it.Status != StatusQueued {
 			it.Status = StatusQueued
@@ -397,6 +424,7 @@ func (m *Manager) enqueueMany(ctx context.Context, reqs []Request, titles map[in
 			Image:         media.GetCoverImageSafe(),
 			Banner:        media.GetBannerImageSafe(),
 			Status:        StatusQueued,
+			Queue:         normalizeQueue(req.Queue),
 			CreatedAt:     time.Now(),
 			Req:           req,
 		}
@@ -911,10 +939,32 @@ func (m *Manager) nextQueued() *Item {
 	if m.paused {
 		return nil
 	}
-	now := time.Now()
-	for _, it := range m.items {
-		if it.Status == StatusQueued && !now.Before(it.retryAt) {
-			return it
+	return m.pickLocked(time.Now())
+}
+
+// pickLocked chooses the next episode: the rest of the series the worker is on, then the first
+// waiting series of the other queue, so the two queues take turns a series at a time (en masse
+// first). A queue with nothing waiting is passed over.
+func (m *Manager) pickLocked(now time.Time) *Item {
+	ready := func(it *Item) bool { return it.Status == StatusQueued && !now.Before(it.retryAt) }
+
+	if m.curMedia != 0 {
+		for _, it := range m.items {
+			if ready(it) && it.MediaId == m.curMedia && normalizeQueue(it.Queue) == m.curQueue {
+				return it
+			}
+		}
+	}
+	other := QueueEnMasse
+	if m.curQueue == QueueEnMasse {
+		other = QueuePersonal
+	}
+	for _, q := range []string{other, normalizeQueue(m.curQueue)} {
+		for _, it := range m.items {
+			if ready(it) && normalizeQueue(it.Queue) == q {
+				m.curQueue, m.curMedia = q, it.MediaId
+				return it
+			}
 		}
 	}
 	return nil
@@ -1108,11 +1158,33 @@ func (m *Manager) WaitingCount() int {
 
 // WaitingSeriesCount is how many series have episodes waiting or downloading.
 func (m *Manager) WaitingSeriesCount() int {
+	return m.waitingSeries("")
+}
+
+// WaitingEnMasseSeries is how many en masse series have episodes waiting or downloading.
+func (m *Manager) WaitingEnMasseSeries() int {
+	return m.waitingSeries(QueueEnMasse)
+}
+
+// WaitingEnMasseEpisodes is how many en masse episodes are waiting or downloading.
+func (m *Manager) WaitingEnMasseEpisodes() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	n := 0
+	for _, it := range m.items {
+		if !it.finished() && normalizeQueue(it.Queue) == QueueEnMasse {
+			n++
+		}
+	}
+	return n
+}
+
+func (m *Manager) waitingSeries(queue string) int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	seen := make(map[int]bool)
 	for _, it := range m.items {
-		if !it.finished() {
+		if !it.finished() && (queue == "" || normalizeQueue(it.Queue) == queue) {
 			seen[it.MediaId] = true
 		}
 	}

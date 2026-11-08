@@ -2,6 +2,7 @@ package onlinestream_download
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -126,5 +127,47 @@ func TestSummary(t *testing.T) {
 	}
 	if h := m.HistorySummary(); len(h) != 1 || h[0].Episodes != 2 || h[0].Bytes != 150 {
 		t.Fatalf("history %+v", h)
+	}
+}
+
+// TestQueuesAlternateBySeries: the worker finishes a series, then takes the other queue's next
+// series: en masse first, then personal, and so on. A queue with nothing waiting is passed over.
+func TestQueuesAlternateBySeries(t *testing.T) {
+	logger := zerolog.Nop()
+	m := NewManager(NewManagerOptions{Logger: &logger, WorkDir: t.TempDir(), LibraryPath: func() string { return "x" }, holdQueue: true})
+	add := func(id string, media int, queue string) *Item {
+		it := &Item{ID: id, MediaId: media, Status: StatusQueued, Queue: normalizeQueue(queue)}
+		m.items = append(m.items, it)
+		return it
+	}
+	add("p1a", 1, "")
+	add("p1b", 1, "")
+	add("e2a", 2, QueueEnMasse)
+	add("p3a", 3, QueuePersonal)
+	add("e4a", 4, QueueEnMasse)
+	add("e4b", 4, QueueEnMasse)
+
+	var order []string
+	for {
+		m.mu.Lock()
+		it := m.pickLocked(time.Now())
+		if it != nil {
+			it.Status = StatusCompleted
+			order = append(order, it.ID)
+		}
+		m.mu.Unlock()
+		if it == nil {
+			break
+		}
+	}
+	want := []string{"e2a", "p1a", "p1b", "e4a", "e4b", "p3a"}
+	if strings.Join(order, ",") != strings.Join(want, ",") {
+		t.Fatalf("order %v, want %v", order, want)
+	}
+}
+
+func TestQueueMigratesToPersonal(t *testing.T) {
+	if normalizeQueue("") != QueuePersonal || normalizeQueue("bogus") != QueuePersonal || normalizeQueue(QueueEnMasse) != QueueEnMasse {
+		t.Fatal("queue names")
 	}
 }
