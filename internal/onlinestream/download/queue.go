@@ -96,11 +96,13 @@ type Item struct {
 	cancel context.CancelFunc
 	// stopping marks a cancel that comes from Stop: the item goes back to the queue and keeps its
 	// downloaded segments, instead of ending as cancelled.
-	stopping   bool
-	bytesBase  int64 // bytes of the streams already done in this download (the Japanese one, during the dub)
-	rateAt     time.Time
-	rateBytes  int64
-	downloadAt time.Time
+	stopping    bool
+	phaseBase   float64 // episode progress before the current stream (0, or 0.5 during the dub)
+	phaseWeight float64 // share of the episode progress the current stream covers
+	bytesBase   int64   // bytes of the streams already done in this download (the Japanese one, during the dub)
+	rateAt      time.Time
+	rateBytes   int64
+	downloadAt  time.Time
 }
 
 // HistoryEntry is a finished download, kept for the Downloaded list.
@@ -145,6 +147,8 @@ type NewManagerOptions struct {
 	// FfprobePath returns the ffprobe binary to use.
 	FfprobePath func() string
 	Register    RegisterFunc
+	// LibraryFileOwner reports the anime and episode a file is matched to in the library, if any.
+	LibraryFileOwner func(path string) (mediaId int, episode int, found bool)
 }
 
 type Manager struct {
@@ -160,6 +164,9 @@ type Manager struct {
 	lastEvent time.Time
 	started   sync.Once
 	saveMu    sync.Mutex
+
+	// onProgress, when set (tests), sees every progress value an item takes.
+	onProgress func(p float64)
 }
 
 type persistedState struct {
@@ -680,7 +687,11 @@ func (m *Manager) update(it *Item, fn func(it *Item), force bool) {
 		return
 	}
 	fn(it)
+	p := it.Progress
 	m.mu.Unlock()
+	if m.onProgress != nil {
+		m.onProgress(p)
+	}
 	m.emit(force)
 }
 
@@ -770,6 +781,7 @@ func (m *Manager) run(it *Item) {
 	it.StartedAt = &now
 	it.downloadAt = time.Time{}
 	it.bytesBase = 0
+	it.phaseBase, it.phaseWeight = 0, 1
 	it.Phase = ""
 	m.mu.Unlock()
 	m.changed()

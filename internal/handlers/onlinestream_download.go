@@ -10,6 +10,7 @@ import (
 	"seanime/internal/events"
 	"seanime/internal/library/anime"
 	onlinestream_download "seanime/internal/onlinestream/download"
+	"seanime/internal/util"
 	"strconv"
 	"strings"
 
@@ -63,8 +64,30 @@ func (h *Handler) wireOnlinestreamDownloader(app *core.App) {
 			}
 			return "ffprobe"
 		},
-		Register: h.registerOnlinestreamDownload,
+		Register:         h.registerOnlinestreamDownload,
+		LibraryFileOwner: h.onlinestreamLibraryFileOwner,
 	})
+}
+
+// onlinestreamLibraryFileOwner reports which anime and episode the library has a file matched
+// to. A file left on disk after unmatching is matched to nothing, so a download may replace it.
+func (h *Handler) onlinestreamLibraryFileOwner(path string) (int, int, bool) {
+	lfs, _, err := db_bridge.GetLocalFiles(h.App.Database)
+	if err != nil {
+		return 0, 0, false
+	}
+	target := util.NormalizePath(path)
+	for _, lf := range lfs {
+		if lf.MediaId <= 0 || !strings.EqualFold(lf.GetNormalizedPath(), target) {
+			continue
+		}
+		ep := 0
+		if lf.Metadata != nil {
+			ep = lf.Metadata.Episode
+		}
+		return lf.MediaId, ep, true
+	}
+	return 0, 0, false
 }
 
 // registerOnlinestreamDownload records a downloaded episode as a locked local file matched to

@@ -62,7 +62,18 @@ func (m *Manager) process(ctx context.Context, it *Item, workDir string) (string
 	}
 	dest := filepath.Join(folder, fileName)
 	if _, err := os.Stat(dest); err == nil {
-		return "", fmt.Errorf("%s is already in the library", filepath.Base(dest))
+		// A file is already there. It blocks the download only while the library has it: matched
+		// to this episode it is a duplicate, matched to something else it is not ours to replace.
+		// A file nothing points at any more (left behind by unmatching) is replaced.
+		if m.opts.LibraryFileOwner != nil {
+			if ownerMedia, ownerEp, found := m.opts.LibraryFileOwner(dest); found {
+				if ownerMedia == req.MediaId && ownerEp == req.EpisodeNumber {
+					return "", fmt.Errorf("episode %d is already in your library (%s)", req.EpisodeNumber, filepath.Base(dest))
+				}
+				return "", fmt.Errorf("%s is in your library matched to another anime or episode; unmatch or move it first", filepath.Base(dest))
+			}
+		}
+		m.logger.Info().Str("path", dest).Msg("onlinestream download: Replacing a file the library no longer uses")
 	}
 
 	if err := os.MkdirAll(workDir, 0o755); err != nil {
@@ -148,8 +159,18 @@ func (m *Manager) process(ctx context.Context, it *Item, workDir string) (string
 		mainLang, mainPhase = "eng", "English dub"
 	}
 
+	// The dub, when there is one, is the second half of the episode progress.
+	var dubSource *onlinestream.VideoSource
+	if !primaryDubbed && !m.streamHasEnglishAudio(ctx, d, source) {
+		dubSource = m.findDubSource(ctx, req, media, source.URL)
+	}
+	mainWeight := 1.0
+	if dubSource != nil {
+		mainWeight = 0.5
+	}
+
 	mainDir := filepath.Join(workDir, "video")
-	mainFiles, err := m.downloadStream(ctx, it, d, source, mainDir, mainLang, mainPhase, true)
+	mainFiles, err := m.downloadStream(ctx, it, d, source, mainDir, mainLang, mainPhase, true, 0, mainWeight)
 	if err != nil && !errors.Is(err, context.Canceled) && isExpiredLinkError(err) {
 		// Stream links expire. Fetch fresh ones once and start over.
 		m.logger.Debug().Err(err).Msg("onlinestream download: Source rejected the request, refreshing the source")
@@ -158,7 +179,7 @@ func (m *Manager) process(ctx context.Context, it *Item, workDir string) (string
 			source = fresh
 			d.headers = fresh.Headers
 			_ = os.RemoveAll(mainDir)
-			mainFiles, err = m.downloadStream(ctx, it, d, source, mainDir, mainLang, mainPhase, true)
+			mainFiles, err = m.downloadStream(ctx, it, d, source, mainDir, mainLang, mainPhase, true, 0, mainWeight)
 		}
 	}
 	if err != nil {
@@ -167,8 +188,8 @@ func (m *Manager) process(ctx context.Context, it *Item, workDir string) (string
 	in.VideoPath, in.VideoHLS = mainFiles.VideoPath, mainFiles.HLS
 	in.Audio = mainFiles.Audio
 
-	if !primaryDubbed && !hasLanguage(in.Audio, "eng") {
-		dubTracks, dubWarning := m.downloadDubAudio(ctx, it, req, media, workDir, source.URL, mainFiles.Duration)
+	if dubSource != nil && !hasLanguage(in.Audio, "eng") {
+		dubTracks, dubWarning := m.downloadDubAudio(ctx, it, req, media, dubSource, workDir, mainFiles.Duration)
 		if dubWarning != "" {
 			m.update(it, func(it *Item) { it.Warnings = append(it.Warnings, dubWarning) }, true)
 		}
@@ -317,14 +338,23 @@ type streamFiles struct {
 
 // downloadStream downloads a source into dir: the best video variant and, for HLS, every audio
 // rendition of that variant. phase names the step in the queue ("Japanese", "English dub").
-func (m *Manager) downloadStream(ctx context.Context, it *Item, d *downloader, source *onlinestream.VideoSource, dir string, defaultLang string, phase string, setQuality bool) (*streamFiles, error) {
+func (m *Manager) downloadStream(ctx context.Context, it *Item, d *downloader, source *onlinestream.VideoSource, dir string, defaultLang string, phase string, setQuality bool, base float64, weight float64) (*streamFiles, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
 	m.update(it, func(it *Item) {
 		it.Phase = phase
-		it.SegmentsDone, it.SegmentsTotal, it.Progress = 0, 0, 0
+		it.SegmentsDone, it.SegmentsTotal = 0, 0
+		it.phaseBase, it.phaseWeight = base, weight
+		it.Progress = base
 	}, true)
+	// setFraction moves the episode progress to this stream's share of it, forward only: segment
+	// callbacks from parallel workers can arrive slightly out of order.
+	setFraction := func(it *Item, f float64) {
+		if p := it.phaseBase + it.phaseWeight*f; p > it.Progress {
+			it.Progress = p
+		}
+	}
 
 	if !isHLS(source) {
 		out := filepath.Join(dir, "source.mp4")
@@ -332,7 +362,7 @@ func (m *Manager) downloadStream(ctx context.Context, it *Item, d *downloader, s
 			m.update(it, func(it *Item) {
 				it.Bytes = it.bytesBase + done
 				if total > 0 {
-					it.Progress = float64(done) / float64(total)
+					setFraction(it, float64(done)/float64(total))
 				}
 				it.trackRate(time.Now())
 			}, false)
@@ -371,9 +401,14 @@ func (m *Manager) downloadStream(ctx context.Context, it *Item, d *downloader, s
 				renditions = append(renditions, r)
 			}
 		}
+		renditions = keepDualAudio(renditions)
 	}
 
-	// Progress counts the segments of every playlist of this stream together.
+	playlists := len(renditions) + 1
+
+	// Progress: each playlist of the stream (audio renditions, then the video) counts for an equal
+	// share, so the bar does not fall back when the next playlist starts and its segments are added
+	// to the total.
 	var (
 		pmu   sync.Mutex
 		done  = make(map[string]int)
@@ -386,15 +421,20 @@ func (m *Manager) downloadStream(ctx context.Context, it *Item, d *downloader, s
 			done[key], total[key], bytes[key] = dn, tt, b
 			var sd, st int
 			var sb int64
+			var frac float64
 			for k := range total {
 				sd, st, sb = sd+done[k], st+total[k], sb+bytes[k]
+				if total[k] > 0 {
+					frac += float64(done[k]) / float64(total[k]) / float64(playlists)
+				}
 			}
 			pmu.Unlock()
 			m.update(it, func(it *Item) {
-				it.SegmentsDone, it.SegmentsTotal, it.Bytes = sd, st, it.bytesBase+sb
-				if st > 0 {
-					it.Progress = float64(sd) / float64(st)
+				if sd >= it.SegmentsDone || st != it.SegmentsTotal {
+					it.SegmentsDone, it.SegmentsTotal = sd, st
 				}
+				it.Bytes = it.bytesBase + sb
+				setFraction(it, frac)
 				it.trackRate(time.Now())
 			}, false)
 		}
