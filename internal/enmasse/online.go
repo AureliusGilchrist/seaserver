@@ -33,9 +33,9 @@ const (
 	// torrent: a series still downloading as a torrent is only taken over by OnlineProvider.
 	BackupProvider = "animeheaven"
 
-	// onlineMaxWaitingEpisodes stops the search from running ahead of the downloads: no new
-	// series is looked up while this many episodes are still waiting to download.
-	onlineMaxWaitingEpisodes = 24
+	// onlineMaxWaitingSeries stops the search from running ahead of the downloads: no new
+	// series is looked up while this many series still have episodes waiting to download.
+	onlineMaxWaitingSeries = 10
 	// onlineMaxVariants caps the spellings tried for one series.
 	onlineMaxVariants = 14
 	// onlineMinSimilarity is how close a provider title must be to one of the series' titles.
@@ -62,6 +62,8 @@ type OnlineHooks struct {
 	InDownloadQueue func(mediaId int) bool
 	// WaitingEpisodes is how many episodes are waiting in the online download queue.
 	WaitingEpisodes func() int
+	// WaitingSeries is how many series have episodes waiting in the online download queue.
+	WaitingSeries func() int
 	// Search searches the provider.
 	Search func(provider string, opts hibikeonlinestream.SearchOptions) ([]*hibikeonlinestream.SearchResult, error)
 	// FindEpisodes lists a provider entry's episodes.
@@ -259,20 +261,20 @@ func firstTitle(it *AnilistMinifiedItem) string {
 
 // waitForDownloads holds the search while the download queue is already well fed.
 func (d *Downloader) waitForDownloads(ctx context.Context, hooks *OnlineHooks) error {
-	if hooks.WaitingEpisodes == nil {
+	if hooks.WaitingSeries == nil {
 		return nil
 	}
 	announced := false
 	for {
-		waiting := hooks.WaitingEpisodes()
-		if waiting < onlineMaxWaitingEpisodes {
+		waiting := hooks.WaitingSeries()
+		if waiting < onlineMaxWaitingSeries {
 			return nil
 		}
 		if !announced {
 			announced = true
 			d.updateDetails(func(details *AnimeDownloaderDetails) {
 				details.Phase = "waiting"
-				details.Step = fmt.Sprintf("waiting for downloads (%d episodes queued)", waiting)
+				details.Step = fmt.Sprintf("waiting for downloads (%d series queued)", waiting)
 			})
 		}
 		t := time.NewTimer(30 * time.Second)

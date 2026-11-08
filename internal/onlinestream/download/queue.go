@@ -1082,6 +1082,19 @@ func (m *Manager) WaitingCount() int {
 	return n
 }
 
+// WaitingSeriesCount is how many series have episodes waiting or downloading.
+func (m *Manager) WaitingSeriesCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	seen := make(map[int]bool)
+	for _, it := range m.items {
+		if !it.finished() {
+			seen[it.MediaId] = true
+		}
+	}
+	return len(seen)
+}
+
 // SeriesState counts an anime's episodes still waiting or downloading, and those that failed or
 // were cancelled.
 func (m *Manager) SeriesState(mediaId int) (active int, failed int) {

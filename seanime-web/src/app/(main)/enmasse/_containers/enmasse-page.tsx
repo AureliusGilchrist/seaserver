@@ -827,7 +827,7 @@ function HowItWorks() {
         },
         {
             title: "Gentle on the site",
-            text: "At least 8 seconds between searches and 30 seconds per series, a 15-second pause between episode downloads, and no new searches while 24 or more episodes are waiting. Pause keeps your place.",
+            text: "At least 8 seconds between searches and 30 seconds per series, a 15-second pause between episode downloads, and no new searches while 10 or more series are waiting. Pause keeps your place.",
         },
     ]
     return (

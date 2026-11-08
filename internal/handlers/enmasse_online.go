@@ -105,6 +105,7 @@ func (h *Handler) wireEnMasseOnline(app *core.App) {
 		},
 		InDownloadQueue: m.HasActive,
 		WaitingEpisodes: m.WaitingCount,
+		WaitingSeries:   m.WaitingSeriesCount,
 		Search:          search.Search,
 		FindEpisodes:    search.FindEpisodes,
 		SaveMapping:     h.saveProviderMapping,
