@@ -104,8 +104,8 @@ func parseMaster(body []byte, base *url.URL) *hlsMaster {
 
 var qualityHeightRe = regexp.MustCompile(`(\d{3,4})p`)
 
-// pickVariant takes the variant matching the quality the player had selected ("1080p"), and
-// otherwise the best one available.
+// pickVariant takes the variant matching quality ("1080p") when one is given, and otherwise the
+// best one available. Downloads pass no quality, so they always get the best.
 func pickVariant(variants []*hlsVariant, quality string) *hlsVariant {
 	if len(variants) == 0 {
 		return nil

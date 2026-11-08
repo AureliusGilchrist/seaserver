@@ -9,6 +9,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	hibikeonlinestream "seanime/internal/extension/hibike/onlinestream"
+	"seanime/internal/onlinestream"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -205,5 +207,31 @@ func TestEncryptedHLS(t *testing.T) {
 	out := filepath.Join(work, "out.mkv")
 	if err := mux(context.Background(), ffmpeg, &muxInput{VideoPath: pl.Path, VideoHLS: true, DefaultSub: -1, OutputPath: out}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestBestSourcePicksHighestQuality(t *testing.T) {
+	mk := func(q, typ string, subs int) *onlinestream.VideoSource {
+		s := &onlinestream.VideoSource{Quality: q, Type: hibikeonlinestream.VideoSourceType(typ), URL: q}
+		for i := 0; i < subs; i++ {
+			s.Subtitles = append(s.Subtitles, &onlinestream.Subtitle{URL: "x"})
+		}
+		return s
+	}
+	cases := []struct {
+		name    string
+		sources []*onlinestream.VideoSource
+		want    string
+	}{
+		{"explicit highest", []*onlinestream.VideoSource{mk("360p", "mp4", 0), mk("1080p", "mp4", 0), mk("720p", "mp4", 0)}, "1080p"},
+		{"auto master beats 720p", []*onlinestream.VideoSource{mk("720p", "m3u8", 0), mk("auto", "m3u8", 0)}, "auto"},
+		{"explicit 1080p beats auto", []*onlinestream.VideoSource{mk("auto", "m3u8", 0), mk("1080p", "m3u8", 0)}, "1080p"},
+		{"soft subs break ties", []*onlinestream.VideoSource{mk("1080p", "m3u8", 0), mk("1080p ", "m3u8", 2)}, "1080p "},
+		{"4k label", []*onlinestream.VideoSource{mk("1080p", "mp4", 0), mk("4K", "mp4", 0)}, "4K"},
+	}
+	for _, c := range cases {
+		if got := bestSource(c.sources); got.Quality != c.want {
+			t.Errorf("%s: got %q, want %q", c.name, got.Quality, c.want)
+		}
 	}
 }

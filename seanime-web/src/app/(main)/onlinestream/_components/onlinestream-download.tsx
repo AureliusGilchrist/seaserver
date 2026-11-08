@@ -124,7 +124,7 @@ export function OnlinestreamDownloadButton(props: OnlinestreamDownloadButtonProp
                     <p className="text-sm text-[--muted]">
                         Using <span className="text-[--foreground] font-medium">{provider}</span>
                         {!!server && <> / <span className="text-[--foreground] font-medium">{server}</span></>}
-                        {!!quality && <> at <span className="text-[--foreground] font-medium">{quality}</span></>}
+ at <span className="text-[--foreground] font-medium">the best quality available</span>
                         {props.dubbed ? " · dub" : " · sub"}.
                         One episode downloads at a time, rate limited so the provider isn't overloaded.
                     </p>

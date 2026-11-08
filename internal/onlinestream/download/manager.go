@@ -187,8 +187,10 @@ func isExpiredLinkError(err error) bool {
 	return false
 }
 
-// findSource picks the video source the player had selected: the same URL, else the same server
-// and quality, else the same server, else the best available.
+// findSource picks the best video source on the server the player had selected (any server if
+// that one has none): the highest resolution, preferring a source with separate subtitles when two
+// are equally good. Downloads always take the best quality; the player's quality setting is a
+// playback choice and is ignored here.
 func (m *Manager) findSource(ctx context.Context, req Request, media *anilist.BaseAnime, refresh bool) (*onlinestream.VideoSource, error) {
 	sources, err := m.opts.Repository.GetEpisodeSources(ctx, req.Provider, req.MediaId, req.EpisodeNumber, req.Dubbed, media.GetStartYearSafe(), refresh)
 	if err != nil {
@@ -197,40 +199,58 @@ func (m *Manager) findSource(ctx context.Context, req Request, media *anilist.Ba
 	if sources == nil || len(sources.VideoSources) == 0 {
 		return nil, onlinestream.ErrNoVideoSourceFound
 	}
-	vs := sources.VideoSources
-	if req.SourceURL != "" && !refresh {
-		for _, s := range vs {
-			if s.URL == req.SourceURL {
-				return s, nil
-			}
-		}
-	}
+	candidates := make([]*onlinestream.VideoSource, 0, len(sources.VideoSources))
 	if req.Server != "" {
-		for _, s := range vs {
-			if s.Server == req.Server && req.Quality != "" && s.Quality == req.Quality {
-				return s, nil
-			}
-		}
-		for _, s := range vs {
-			if s.Server == req.Server {
-				return s, nil
+		for _, s := range sources.VideoSources {
+			if s != nil && s.Server == req.Server {
+				candidates = append(candidates, s)
 			}
 		}
 	}
-	if req.Quality != "" {
-		for _, s := range vs {
-			if s.Quality == req.Quality {
-				return s, nil
+	if len(candidates) == 0 {
+		for _, s := range sources.VideoSources {
+			if s != nil {
+				candidates = append(candidates, s)
 			}
 		}
 	}
-	// Prefer a source that carries subtitles: it is the one without burnt-in subs.
-	for _, s := range vs {
+	return bestSource(candidates), nil
+}
+
+// sourceRank orders sources by quality. A source with an explicit resolution ranks by it. One
+// without ("auto", "default") that is an HLS playlist is usually the master with every variant,
+// the best of which is taken later, so it ranks as 1080p — above anything lower and level with
+// 1080p, where the explicit one wins the tie.
+func sourceRank(s *onlinestream.VideoSource) float64 {
+	for _, label := range []string{s.Quality, s.Label} {
+		if m := qualityHeightRe.FindStringSubmatch(label); m != nil {
+			h, _ := strconv.Atoi(m[1])
+			return float64(h)
+		}
+		l := strings.ToLower(label)
+		if strings.Contains(l, "4k") || strings.Contains(l, "uhd") {
+			return 2160
+		}
+	}
+	if isHLS(s) {
+		return 1079.5
+	}
+	return 0
+}
+
+func bestSource(candidates []*onlinestream.VideoSource) *onlinestream.VideoSource {
+	var best *onlinestream.VideoSource
+	bestRank := -1.0
+	for _, s := range candidates {
+		r := sourceRank(s)
 		if len(s.Subtitles) > 0 {
-			return s, nil
+			r += 0.1 // soft subtitles break ties
+		}
+		if r > bestRank {
+			best, bestRank = s, r
 		}
 	}
-	return vs[0], nil
+	return best
 }
 
 func isHLS(source *onlinestream.VideoSource) bool {
@@ -281,11 +301,14 @@ func (m *Manager) downloadVideo(ctx context.Context, it *Item, d *downloader, so
 	if isMasterPlaylist(body) {
 		base, _ := url.Parse(source.URL)
 		master := parseMaster(body, base)
-		v := pickVariant(master.Variants, source.Quality)
+		v := pickVariant(master.Variants, "")
 		if v == nil {
 			return errors.New("the stream playlist has no video variants")
 		}
 		videoURL = v.URL
+		if v.Height > 0 {
+			m.update(it, func(it *Item) { it.Quality = fmt.Sprintf("%dp", v.Height) }, true)
+		}
 		if renditions := master.Audio[v.AudioGroup]; len(renditions) > 0 {
 			chosen := renditions[0]
 			for _, r := range renditions {
