@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"seanime/internal/connectivity"
 	"seanime/internal/core"
 	"seanime/internal/enmasse"
 	"seanime/internal/extension"
@@ -74,6 +76,11 @@ func (h *Handler) mapOnlineProvider(ctx context.Context, provider string, mediaI
 	if err != nil {
 		if ctx.Err() != nil {
 			return ctx.Err()
+		}
+		// A provider refusing the server, or the network failing, says nothing about whether it
+		// has the series: only a search that ran and found nothing counts as "not on the provider".
+		if errors.Is(err, enmasse.ErrProviderBlocked) || connectivity.IsNetworkError(err) {
+			return err
 		}
 		return fmt.Errorf("%w: %v", onlinestream_download.ErrNotOnProvider, err)
 	}

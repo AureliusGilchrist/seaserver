@@ -383,22 +383,57 @@ func (d *Downloader) processAnimeOnline(ctx context.Context, hooks *OnlineHooks,
 	if !torrentBacked || stalled {
 		providers = append(providers, BackupProviders...)
 	}
+	// Each provider in turn: find the series, then queue it. A provider that has the series but
+	// cannot supply it (no playable source, no episode list) does not end the search: the next
+	// provider is tried, and the series only counts as not found once every one has been.
 	var match *providerMatch
 	var provider string
 	var misses []string
+	queued := 0
 	for _, p := range providers {
 		m, err := d.findOnProvider(ctx, hooks, p, resolved, year)
-		if err == nil {
-			match, provider = m, p
-			break
+		if err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			if connectivity.IsNetworkError(err) {
+				return err // the internet, not the provider: tried again once it is back
+			}
+			misses = append(misses, err.Error())
+			continue
 		}
-		if ctx.Err() != nil {
-			return ctx.Err()
+
+		d.mu.Lock()
+		d.lastProvider = p
+		d.mu.Unlock()
+		if hooks.SaveMapping != nil {
+			if err := hooks.SaveMapping(p, resolved.ID, m.ID); err != nil {
+				d.logger.Warn().Err(err).Int("mediaId", resolved.ID).Msg("enmasse-anime: Could not save the provider match")
+			}
 		}
-		if connectivity.IsNetworkError(err) {
-			return err // the internet, not the provider: tried again once it is back
+		d.updateDetails(func(details *AnimeDownloaderDetails) {
+			details.Phase = "queueing"
+			details.Step = "queueing the full series for download"
+			details.SelectedTorrent = m.Title
+		})
+		if err := d.paceRequest(ctx); err != nil {
+			return err
 		}
-		misses = append(misses, err.Error())
+		n, err := hooks.EnqueueSeries(ctx, p, resolved.ID)
+		if err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			if connectivity.IsNetworkError(err) {
+				return err
+			}
+			d.logger.Info().Err(err).Int("mediaId", resolved.ID).Str("provider", p).
+				Msg("enmasse-anime: Found the series but could not queue it there; trying the next provider")
+			misses = append(misses, fmt.Sprintf("found on %s but could not queue it there: %v", p, err))
+			continue
+		}
+		match, provider, queued = m, p, n
+		break
 	}
 	if match == nil {
 		msg := strings.Join(misses, "; ")
@@ -408,29 +443,6 @@ func (d *Downloader) processAnimeOnline(ctx context.Context, hooks *OnlineHooks,
 			msg += " (the torrent is stalled and was left as it is)"
 		}
 		return errors.New(msg)
-	}
-
-	d.mu.Lock()
-	d.lastProvider = provider
-	d.mu.Unlock()
-
-	if hooks.SaveMapping != nil {
-		if err := hooks.SaveMapping(provider, resolved.ID, match.ID); err != nil {
-			d.logger.Warn().Err(err).Int("mediaId", resolved.ID).Msg("enmasse-anime: Could not save the provider match")
-		}
-	}
-
-	d.updateDetails(func(details *AnimeDownloaderDetails) {
-		details.Phase = "queueing"
-		details.Step = "queueing the full series for download"
-		details.SelectedTorrent = match.Title
-	})
-	if err := d.paceRequest(ctx); err != nil {
-		return err
-	}
-	queued, err := hooks.EnqueueSeries(ctx, provider, resolved.ID)
-	if err != nil {
-		return fmt.Errorf("could not queue the series: %w", err)
 	}
 	if queued == 0 {
 		return onlineSkip{"nothing to download (every episode is already in the library or the queue)"}

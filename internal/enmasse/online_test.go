@@ -460,3 +460,40 @@ func TestWaitsForTheInternet(t *testing.T) {
 		t.Fatal("did not continue once back online")
 	}
 }
+
+// TestNextProviderWhenQueueingFails: a provider that has the series but cannot supply it (no
+// playable source) does not end the search; the next provider is tried.
+func TestNextProviderWhenQueueingFails(t *testing.T) {
+	onlineRequestGap, onlineSeriesGap = time.Millisecond, time.Millisecond
+	defer func() { onlineRequestGap, onlineSeriesGap = 8*time.Second, 30*time.Second }()
+
+	logger := zerolog.Nop()
+	d := NewDownloader(&NewDownloaderOptions{Logger: &logger})
+	d.resolveOverride = func(ctx context.Context, it *AnimeOfflineItem) (*AnilistMinifiedItem, error) {
+		return &AnilistMinifiedItem{ID: it.AnilistID, TitleRomaji: "Mushishi", Episodes: 26, Status: "FINISHED", Format: "TV"}, nil
+	}
+	var tried []string
+	queuedOn := ""
+	hooks := &OnlineHooks{
+		Search: func(provider string, opts hibikeonlinestream.SearchOptions) ([]*hibikeonlinestream.SearchResult, error) {
+			return []*hibikeonlinestream.SearchResult{{ID: "m", Title: "Mushishi"}}, nil
+		},
+		FindEpisodes: func(provider, id string) ([]*hibikeonlinestream.EpisodeDetails, error) {
+			return make([]*hibikeonlinestream.EpisodeDetails, 26), nil
+		},
+		EnqueueSeries: func(ctx context.Context, provider string, mediaId int) (int, error) {
+			tried = append(tried, provider)
+			if provider == OnlineProvider {
+				return 0, errors.New("no source found for episode: video source not found")
+			}
+			queuedOn = provider
+			return 26, nil
+		},
+	}
+	if err := d.processAnimeOnline(context.Background(), hooks, &AnimeOfflineItem{Title: "Mushishi", AnilistID: 457}); err != nil {
+		t.Fatal(err)
+	}
+	if len(tried) != 2 || tried[0] != OnlineProvider || queuedOn != BackupProviders[0] {
+		t.Fatalf("tried %v, queued on %q", tried, queuedOn)
+	}
+}
