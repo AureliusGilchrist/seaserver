@@ -61,8 +61,15 @@ func (d *Downloader) primarySearchQuery(animeItem *AnilistMinifiedItem) string {
 	return variants[0]
 }
 
+// progressSaveMu serializes progress saves.
+var progressSaveMu sync.Mutex
+
 // saveCurrentProgress records the run. nextIndex is the series a resume starts at.
 func (d *Downloader) saveCurrentProgress(nextIndex int) {
+	// One save at a time: Stop saves at once while the stopped run may be saving too, and two
+	// writers of the same temporary file make one of them fail.
+	progressSaveMu.Lock()
+	defer progressSaveMu.Unlock()
 	d.mu.Lock()
 	if d.discardProgress {
 		d.mu.Unlock()
@@ -1080,13 +1087,9 @@ func (d *Downloader) run(ctx context.Context, startIndex int, done chan struct{}
 		return
 	}
 
-	// Series still downloading as torrents come first.
-	d.processTorrentSeries(ctx, hooks)
-	if ctx.Err() != nil {
-		d.saveCurrentProgress(startIndex)
-		d.setStatus("Stopped")
-		return
-	}
+	// The database in its own order, from its first entry. A series still downloading as a
+	// torrent is handled when the database reaches it (the torrent rules apply there); torrent
+	// series the database does not list are checked after it (see below).
 
 	// Process each anime starting from startIndex
 	for i := startIndex; i < len(animeList); i++ {
@@ -1176,6 +1179,22 @@ func (d *Downloader) run(ctx context.Context, startIndex int, done chan struct{}
 				details.Step = fmt.Sprintf("found on %s; %d series lined up", ready.Provider, n)
 			})
 		}
+		// A series downloading as a torrent is settled now: the pass after the database skips it.
+		d.mu.Lock()
+		handledID := 0
+		if d.currentAnime != nil {
+			handledID = d.currentAnime.ID
+		}
+		d.mu.Unlock()
+		if handledID > 0 && hooks.HasTorrent != nil && hooks.HasTorrent(handledID) {
+			d.mu.Lock()
+			if d.torrentDone == nil {
+				d.torrentDone = make(map[int]bool)
+			}
+			d.torrentDone[handledID] = true
+			d.mu.Unlock()
+		}
+
 		// Save progress after every anime for reliable resume: this one is done (or lined up), so
 		// a resume starts at the next.
 		d.saveCurrentProgress(i + 1)
@@ -1192,8 +1211,16 @@ func (d *Downloader) run(ctx context.Context, startIndex int, done chan struct{}
 		time.Sleep(DelayBetweenAnime)
 	}
 
-	// Every series has been looked up: queue the ones still lined up as room appears.
 	end := len(animeList)
+	// Torrent series the database does not list.
+	d.processTorrentSeries(ctx, hooks)
+	if ctx.Err() != nil {
+		d.saveCurrentProgress(end)
+		d.setStatus("Stopped")
+		return
+	}
+
+	// Every series has been looked up: queue the ones still lined up as room appears.
 	if err := d.drainReady(ctx, hooks, true, func() { d.saveCurrentProgress(end) }); err != nil {
 		d.saveCurrentProgress(end)
 		d.setStatus("Stopped")

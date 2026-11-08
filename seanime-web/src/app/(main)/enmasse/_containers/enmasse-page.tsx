@@ -156,10 +156,10 @@ const stateStyle: Record<RunState, { label: string, dot: string, className: stri
     idle: { label: "Idle", dot: "bg-gray-500", className: "text-gray-300 border-white/10 bg-white/5" },
 }
 
-/** The run's progress: the torrents-first pass while it runs, the database after. */
+/** The run's progress: the database, then the torrent series it does not list. */
 function useRunProgress(status: EnMasseDownloaderStatus | undefined) {
     const now = useNow()
-    // The torrents-first pass runs until every torrent series has been checked, whatever step it is on.
+    // The pass over torrent series outside the database, after it, until every one has been checked.
     const torrentPass = !!status?.isRunning && !!status?.details?.torrentTotal
         && (status.details.torrentIndex ?? 0) < status.details.torrentTotal
     const dbTotal = status?.totalCount || status?.details?.currentAnimeTotal || 0
@@ -1044,8 +1044,8 @@ function Totals({ status }: { status: EnMasseDownloaderStatus | undefined }) {
 
 const HOW_IT_WORKS = [
     {
-        title: "Torrents first",
-        text: "Series still downloading as torrents are tried first, on Kickassanime only. If Kickassanime has one, its torrent is paused and the series downloads online; once the episodes are in your library the torrent and its files are removed, and if the online download fails the torrent resumes. The backups (AniZone, AnimeHeaven, then AnimePahe) only replace a torrent that has been stalled for 15 minutes or more (no download, no seeders).",
+        title: "Database order, torrents included",
+        text: "The run goes through the anime database in its own order, from its first entry. A series you are downloading as a torrent is handled when the database reaches it: if Kickassanime has it, its torrent is paused and the series downloads online; once the episodes are in your library the torrent and its files are removed, and if the online download fails the torrent resumes. The backups (AniZone, AnimeHeaven, then AnimePahe) only replace a torrent that has been stalled for 15 minutes or more. Torrent series the database doesn't list are checked at the end.",
     },
     {
         title: "Skip what you have",
