@@ -11,6 +11,7 @@ import { toast } from "sonner"
 
 type AnimePaheAccess = {
     unlocked: boolean
+    expired?: boolean
     savedAt?: string
     userAgent?: string
     working?: boolean
@@ -61,7 +62,7 @@ export function AnimePaheAccessCard({ className }: { className?: string }) {
         }
     }
 
-    const state = !data?.unlocked ? "locked" : data.working === false ? "failing" : "unlocked"
+    const state = !data?.unlocked ? "locked" : (data.expired || data.working === false) ? "failing" : "unlocked"
 
     return (
         <div className={cn("rounded-3xl border border-white/[0.07] bg-gray-950/60 backdrop-blur-xl p-5 sm:p-6 space-y-4", className)} data-animepahe-access>
@@ -74,7 +75,7 @@ export function AnimePaheAccessCard({ className }: { className?: string }) {
                     <h3 className="font-semibold leading-tight">AnimePahe access</h3>
                     <p className="text-xs text-gray-400 mt-0.5">
                         {state === "unlocked" ? "Unlocked: the server gets through Cloudflare's check."
-                            : state === "failing" ? "The saved unlock no longer works. Unlock it again."
+                            : state === "failing" ? "The token expired: Cloudflare refuses it. Unlock it again."
                                 : "Cloudflare checks every visitor. Pass the check once yourself and the server can use it."}
                     </p>
                 </div>
