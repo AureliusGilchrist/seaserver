@@ -444,7 +444,6 @@ function StepIndicator({ status }: { status: OnlinestreamDownload_Item["status"]
 }
 
 function NowDownloadingCard({ item, paused }: { item: OnlinestreamDownload_Item, paused: boolean }) {
-    const { mutate: act, isPending } = useOnlinestreamDownloadQueueAction()
     const pct = Math.round((item.progress ?? 0) * 100)
     const art = item.banner || item.image
 
@@ -474,14 +473,6 @@ function NowDownloadingCard({ item, paused }: { item: OnlinestreamDownload_Item,
                                 Episode {item.episodeNumber}{item.episodeTitle && !/^episode\s*\d+$/i.test(item.episodeTitle) ? ` — ${item.episodeTitle}` : ""}
                             </p>
                         </div>
-                        <IconButton
-                            size="sm"
-                            intent="alert-subtle"
-                            icon={<LuX />}
-                            title="Cancel this episode"
-                            disabled={isPending}
-                            onClick={() => act({ action: "cancel", id: item.id })}
-                        />
                     </div>
 
                     <StepIndicator status={item.status} />
