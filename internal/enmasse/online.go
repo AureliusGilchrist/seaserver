@@ -155,8 +155,24 @@ func (d *Downloader) processTorrentSeries(ctx context.Context, hooks *OnlineHook
 		d.mu.Unlock()
 		d.sendStatusUpdate()
 
+		d.mu.Lock()
+		done := d.torrentDone[s.MediaId]
+		d.mu.Unlock()
+		if done {
+			continue // handled before the pause
+		}
+
 		err := d.processAnimeOnline(ctx, hooks, &AnimeOfflineItem{Title: title, AnilistID: s.MediaId, torrentBacked: true})
+		if ctx.Err() != nil && !errors.Is(err, errOnlineSkipped) && err != nil {
+			return // interrupted: this one is tried again on resume
+		}
 		d.recordOnlineResult(ctx, title, err)
+		d.mu.Lock()
+		if d.torrentDone == nil {
+			d.torrentDone = make(map[int]bool)
+		}
+		d.torrentDone[s.MediaId] = true
+		d.mu.Unlock()
 	}
 }
 

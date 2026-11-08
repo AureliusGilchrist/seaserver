@@ -9,6 +9,7 @@ import {
 } from "@/app/(main)/onlinestream/_containers/anime-downloads/anime-downloads-modal"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { SeaLink } from "@/components/shared/sea-link"
+import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
@@ -193,6 +194,14 @@ function Hero({ status }: { status: EnMasseDownloaderStatus | undefined }) {
     const { mutate: stop, isPending: isStopping } = useEnMasseStop()
     const openDownloadQueue = useSetAtom(__anime_streamDownloadsModalIsOpenAtom)
     const [resume, setResume] = useState(true)
+    // Stop throws the run's progress away; Pause is the one that keeps it. Asked first.
+    const confirmStop = useConfirmationDialog({
+        title: "Stop and reset progress?",
+        description: "Stopping resets the en masse downloader: the next start begins again at the first series in the database, and the list of what it has queued, not found and skipped is cleared. Episodes already in the download queue keep downloading. To keep your place, use Pause instead.",
+        actionText: "Stop and reset",
+        actionIntent: "alert",
+        onConfirm: () => stop({ saveProgress: false }),
+    })
     const state = runState(status)
     const hasProgress = !!status?.hasSavedProgress
     // A run that could not start, or stopped on an error, says why in plain sight.
@@ -201,6 +210,7 @@ function Hero({ status }: { status: EnMasseDownloaderStatus | undefined }) {
 
     return (
         <div className="relative overflow-hidden rounded-2xl border border-white/10" data-enmasse-hero>
+            <ConfirmationDialog {...confirmStop} />
             {/* Backdrop: the series being looked up, blurred, over a brand glow. */}
             <div className="absolute inset-0 bg-gradient-to-br from-indigo-950 via-gray-950 to-fuchsia-950" />
             <AnimatePresence mode="popLayout">
@@ -284,7 +294,7 @@ function Hero({ status }: { status: EnMasseDownloaderStatus | undefined }) {
                                 <Button
                                     intent="alert-subtle"
                                     leftIcon={<LuSquare className="text-lg" />}
-                                    onClick={() => stop({ saveProgress: false })}
+                                    onClick={() => confirmStop.open()}
                                     loading={isStopping}
                                 >
                                     Stop
@@ -494,7 +504,7 @@ function StatTiles({ status }: { status: EnMasseDownloaderStatus | undefined }) 
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.05, duration: 0.4 }}
                     whileHover={{ y: -2 }}
-                    className={cn("relative overflow-hidden rounded-xl border bg-gradient-to-br to-transparent p-4", t.bg)}
+                    className={cn("relative overflow-hidden rounded-xl border bg-gray-950/55 bg-gradient-to-br to-transparent p-4 backdrop-blur-3xl", t.bg)}
                 >
                     <t.icon className={cn("absolute -right-2 -bottom-3 text-6xl opacity-15", t.fg)} />
                     <AnimatedNumber value={t.value} className={cn("text-2xl font-bold tabular-nums", t.fg)} />

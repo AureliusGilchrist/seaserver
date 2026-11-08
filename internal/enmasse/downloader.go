@@ -61,12 +61,24 @@ func (d *Downloader) primarySearchQuery(animeItem *AnilistMinifiedItem) string {
 	return variants[0]
 }
 
-func (d *Downloader) saveCurrentProgress(lastIndex int) {
-	progress := &DownloaderProgress{
-		LastIndex:       lastIndex,
-		DownloadedAnime: d.downloadedAnime,
-		FailedAnime:     d.failedAnime,
+// saveCurrentProgress records the run. nextIndex is the series a resume starts at.
+func (d *Downloader) saveCurrentProgress(nextIndex int) {
+	d.mu.Lock()
+	torrentDone := make([]int, 0, len(d.torrentDone))
+	for id := range d.torrentDone {
+		torrentDone = append(torrentDone, id)
 	}
+	progress := &DownloaderProgress{
+		LastIndex:       nextIndex,
+		NextIndex:       nextIndex,
+		DownloadedAnime: append([]string(nil), d.downloadedAnime...),
+		FailedAnime:     append([]string(nil), d.failedAnime...),
+		SkippedCount:    d.skippedCount,
+		EpisodesQueued:  d.details.EpisodesQueued,
+		Recent:          append([]ActivityEntry(nil), d.recent...),
+		TorrentDone:     torrentDone,
+	}
+	d.mu.Unlock()
 
 	data, err := json.Marshal(progress)
 	if err != nil {
@@ -536,7 +548,6 @@ func (d *Downloader) filterOutSeasonEpisodePattern(torrents []*hibiketorrent.Ani
 
 const (
 	GlobalAnimeOfflineDatabasePath = "/zroot/Soul/Otaku Media/Databases/anime-offline-database-minified.json"
-	AnimeProgressFilePath          = "/zroot/Soul/Otaku Media/Databases/enmasse-anime-progress.json"
 	MaxConcurrentSearches          = 6
 	DelayBetweenAnime              = 500 * time.Millisecond
 	DelayBetweenSearches           = 300 * time.Millisecond
@@ -544,6 +555,10 @@ const (
 	MaxAnimeLogEntries             = 300
 	AniListRateLimitBackoff        = 60 * time.Second
 )
+
+// AnimeProgressFilePath is where a run's progress is kept for Resume. A variable so tests can use
+// a temporary file.
+var AnimeProgressFilePath = "/zroot/Soul/Otaku Media/Databases/enmasse-anime-progress.json"
 
 type (
 	Downloader struct {
@@ -577,8 +592,9 @@ type (
 		recent            []ActivityEntry
 		startedAt         time.Time
 		processedThisRun  int
-		lastQueued        int    // episodes queued for the series being processed
-		lastProvider      string // provider the series being processed was queued from
+		lastQueued        int          // episodes queued for the series being processed
+		lastProvider      string       // provider the series being processed was queued from
+		torrentDone       map[int]bool // torrent series this run already handled
 		// resolveOverride replaces the AniList lookup (tests).
 		resolveOverride func(ctx context.Context, item *AnimeOfflineItem) (*AnilistMinifiedItem, error)
 	}
@@ -657,6 +673,16 @@ type (
 		LastIndex       int      `json:"last_index"`
 		DownloadedAnime []string `json:"downloaded_anime"`
 		FailedAnime     []string `json:"failed_anime"`
+		// NextIndex is the series to continue at: the one after the last finished, or the one
+		// that was interrupted. Zero in files written before it existed (see run).
+		NextIndex int `json:"next_index,omitempty"`
+		// What the page shows about the run, so a resume (also after a server restart)
+		// continues it instead of starting the record over.
+		SkippedCount   int             `json:"skipped_count,omitempty"`
+		EpisodesQueued int             `json:"episodes_queued,omitempty"`
+		Recent         []ActivityEntry `json:"recent,omitempty"`
+		// TorrentDone lists the torrent series this run already handled.
+		TorrentDone []int `json:"torrent_done,omitempty"`
 	}
 
 	// AnimeOfflineDatabase represents the offline JSON structure
@@ -841,6 +867,8 @@ func (d *Downloader) Start(resume bool) error {
 
 	if !autoResume {
 		d.skippedCount = 0
+		d.recent = nil
+		d.torrentDone = nil
 		d.details.EpisodesQueued = 0
 		d.processedCount = 0
 		d.downloadedAnime = make([]string, 0, MaxAnimeLogEntries)
@@ -930,8 +958,11 @@ func (d *Downloader) run(ctx context.Context, resume bool) {
 	startIndex := 0
 	if resume {
 		if progress := d.loadProgress(); progress != nil {
-			// Start 2 entries before the last processed index
-			startIndex = progress.LastIndex - 2
+			startIndex = progress.NextIndex
+			if startIndex == 0 && progress.LastIndex > 0 {
+				// A file from before NextIndex: LastIndex was the series being worked on.
+				startIndex = progress.LastIndex
+			}
 			if startIndex < 0 {
 				startIndex = 0
 			}
@@ -939,6 +970,13 @@ func (d *Downloader) run(ctx context.Context, resume bool) {
 			d.downloadedAnime = progress.DownloadedAnime
 			d.failedAnime = progress.FailedAnime
 			d.processedCount = startIndex
+			d.skippedCount = progress.SkippedCount
+			d.details.EpisodesQueued = progress.EpisodesQueued
+			d.recent = progress.Recent
+			d.torrentDone = make(map[int]bool, len(progress.TorrentDone))
+			for _, id := range progress.TorrentDone {
+				d.torrentDone[id] = true
+			}
 			d.mu.Unlock()
 			d.logger.Info().Int("resumeAt", startIndex).Int("lastIndex", progress.LastIndex).Msg("enmasse-anime: Resumed from saved progress")
 			d.setStatus(fmt.Sprintf("Resumed: starting at %d/%d", startIndex, len(animeList)))
@@ -1014,8 +1052,9 @@ func (d *Downloader) run(ctx context.Context, resume bool) {
 		}
 		d.recordOnlineResult(ctx, animeItem.Title, err)
 
-		// Save progress after every anime for reliable resume
-		d.saveCurrentProgress(i)
+		// Save progress after every anime for reliable resume: this one is done, so a resume
+		// starts at the next.
+		d.saveCurrentProgress(i + 1)
 
 		// Delay between anime
 		time.Sleep(DelayBetweenAnime)

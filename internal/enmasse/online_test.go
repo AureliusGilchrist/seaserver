@@ -3,6 +3,7 @@ package enmasse
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -257,5 +258,31 @@ func TestBackupProvider(t *testing.T) {
 	}
 	if queuedOn != BackupProvider || !tookOver {
 		t.Fatalf("stalled torrent series: queued on %q, took over %v", queuedOn, tookOver)
+	}
+}
+
+// TestResumeKeepsTheRecord: pausing and resuming (also across a server restart) keeps what the
+// run did, and continues at the next series rather than stepping back.
+func TestResumeKeepsTheRecord(t *testing.T) {
+	prev := AnimeProgressFilePath
+	AnimeProgressFilePath = filepath.Join(t.TempDir(), "progress.json")
+	defer func() { AnimeProgressFilePath = prev }()
+
+	logger := zerolog.Nop()
+	d := NewDownloader(&NewDownloaderOptions{Logger: &logger})
+	d.downloadedAnime = []string{"Frieren"}
+	d.failedAnime = []string{"Texhnolyze"}
+	d.skippedCount = 7
+	d.details.EpisodesQueued = 28
+	d.recent = []ActivityEntry{{Title: "Frieren", Result: "queued", Episodes: 28}}
+	d.torrentDone = map[int]bool{26: true}
+	d.saveCurrentProgress(1285)
+
+	// A new downloader, as after a restart.
+	p := NewDownloader(&NewDownloaderOptions{Logger: &logger}).loadProgress()
+	if p == nil || p.NextIndex != 1285 || p.SkippedCount != 7 || p.EpisodesQueued != 28 ||
+		len(p.Recent) != 1 || len(p.TorrentDone) != 1 || p.TorrentDone[0] != 26 ||
+		len(p.DownloadedAnime) != 1 || len(p.FailedAnime) != 1 {
+		t.Fatalf("progress not kept: %+v", p)
 	}
 }
