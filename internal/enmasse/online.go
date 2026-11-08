@@ -265,11 +265,13 @@ func (d *Downloader) recordOnlineResult(ctx context.Context, title string, err e
 	case errors.Is(err, errOnlineSkipped):
 		entry.Result = "skipped"
 		entry.Detail = err.Error()
+		entry.Reason, _ = explainResult(err)
 	case ctx.Err() != nil:
 		return
 	default:
 		entry.Result = "not_found"
 		entry.Detail = err.Error()
+		entry.Reason, entry.Reasons = explainResult(err)
 	}
 	d.mu.Lock()
 	d.recent = append([]ActivityEntry{entry}, d.recent...)
@@ -444,7 +446,7 @@ func (d *Downloader) prepareSeries(ctx context.Context, hooks *OnlineHooks, anim
 	torrentBacked := animeItem.torrentBacked || (hooks.HasTorrent != nil && hooks.HasTorrent(resolved.ID))
 	providers := d.providersFor(hooks, resolved.ID, torrentBacked)
 
-	var misses []string
+	var misses []ProviderReason
 	for i, p := range providers {
 		m, err := d.findOnProvider(ctx, hooks, p, resolved, year)
 		if err != nil {
@@ -454,7 +456,7 @@ func (d *Downloader) prepareSeries(ctx context.Context, hooks *OnlineHooks, anim
 			if connectivity.IsNetworkError(err) {
 				return nil, err // the internet, not the provider: tried again once it is back
 			}
-			misses = append(misses, err.Error())
+			misses = append(misses, ProviderReason{Provider: p, Detail: err.Error()})
 			continue
 		}
 		return &ReadySeries{
@@ -468,7 +470,7 @@ func (d *Downloader) prepareSeries(ctx context.Context, hooks *OnlineHooks, anim
 			ReadyAt:       time.Now(),
 		}, nil
 	}
-	return nil, errors.New(notFoundMessage(misses, torrentBacked, d.torrentStalled(hooks, resolved.ID, torrentBacked)))
+	return nil, newNotFound(misses, torrentBacked, d.torrentStalled(hooks, resolved.ID, torrentBacked))
 }
 
 func (d *Downloader) torrentStalled(hooks *OnlineHooks, mediaId int, torrentBacked bool) bool {
@@ -484,8 +486,27 @@ func (d *Downloader) providersFor(hooks *OnlineHooks, mediaId int, torrentBacked
 	return providers
 }
 
-func notFoundMessage(misses []string, torrentBacked, stalled bool) string {
-	msg := strings.Join(misses, "; ")
+// notFoundError is a series no provider could supply, with what each one said.
+type notFoundError struct {
+	msg   string
+	parts []ProviderReason
+}
+
+func (e *notFoundError) Error() string { return e.msg }
+
+func newNotFound(misses []ProviderReason, torrentBacked, stalled bool) error {
+	for i := range misses {
+		misses[i].Reason = labelFor(misses[i].Detail)
+	}
+	return &notFoundError{msg: notFoundMessage(misses, torrentBacked, stalled), parts: misses}
+}
+
+func notFoundMessage(misses []ProviderReason, torrentBacked, stalled bool) string {
+	details := make([]string, 0, len(misses))
+	for _, m := range misses {
+		details = append(details, m.Detail)
+	}
+	msg := strings.Join(details, "; ")
 	if torrentBacked && !stalled {
 		msg += " (the torrent keeps downloading)"
 	} else if stalled {
@@ -512,7 +533,7 @@ func (d *Downloader) queueReady(ctx context.Context, hooks *OnlineHooks, r *Read
 	}
 
 	stalled := d.torrentStalled(hooks, resolved.ID, r.TorrentBacked)
-	var misses []string
+	var misses []ProviderReason
 	try := func(p string, m *providerMatch) (int, bool, error) {
 		d.mu.Lock()
 		d.lastProvider = p
@@ -537,7 +558,7 @@ func (d *Downloader) queueReady(ctx context.Context, hooks *OnlineHooks, r *Read
 			}
 			d.logger.Info().Err(err).Int("mediaId", resolved.ID).Str("provider", p).
 				Msg("enmasse-anime: Found the series but could not queue it there; trying the next provider")
-			misses = append(misses, fmt.Sprintf("found on %s but could not queue it there: %v", p, err))
+			misses = append(misses, ProviderReason{Provider: p, Detail: fmt.Sprintf("found on %s but could not queue it there: %v", p, err)})
 			return 0, false, nil
 		}
 		return n, true, nil
@@ -561,7 +582,7 @@ func (d *Downloader) queueReady(ctx context.Context, hooks *OnlineHooks, r *Read
 			if connectivity.IsNetworkError(ferr) {
 				return ferr
 			}
-			misses = append(misses, ferr.Error())
+			misses = append(misses, ProviderReason{Provider: p, Detail: ferr.Error()})
 			continue
 		}
 		match = *m
@@ -571,7 +592,7 @@ func (d *Downloader) queueReady(ctx context.Context, hooks *OnlineHooks, r *Read
 		provider = p
 	}
 	if !ok {
-		return errors.New(notFoundMessage(misses, r.TorrentBacked, stalled))
+		return newNotFound(misses, r.TorrentBacked, stalled)
 	}
 	if queued == 0 {
 		return onlineSkip{"nothing to download (every episode is already in the library or the queue)"}

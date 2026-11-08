@@ -47,6 +47,16 @@ export interface AnimeEnMasseActivity {
     episodes?: number
     /** Provider the series was queued from (kickassanime, or animeheaven as the backup) */
     provider?: string
+    /** Short label of a skip or miss: "In library", "Video source null", ... */
+    reason?: string
+    /** What each provider said, for a series none of them could supply */
+    reasons?: AnimeEnMasseProviderReason[]
+}
+
+export interface AnimeEnMasseProviderReason {
+    provider: string
+    reason: string
+    detail?: string
 }
 
 export interface AnimeEnMasseDetails {

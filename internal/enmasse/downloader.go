@@ -660,6 +660,10 @@ type (
 		Detail   string    `json:"detail,omitempty"`
 		Episodes int       `json:"episodes,omitempty"`
 		Provider string    `json:"provider,omitempty"`
+		// Reason is the short label of a skip or a miss ("In library", "Video source null", ...).
+		Reason string `json:"reason,omitempty"`
+		// Reasons is what each provider said, for a series none of them could supply.
+		Reasons []ProviderReason `json:"reasons,omitempty"`
 	}
 
 	AnimeDownloaderDetails struct {
@@ -825,7 +829,7 @@ func (d *Downloader) GetStatus() *DownloaderStatus {
 		HasSavedProgress: d.hasSavedProgress(),
 		CurrentImage:     currentImage,
 		ProcessedThisRun: d.processedThisRun,
-		Recent:           append([]ActivityEntry(nil), d.recent...),
+		Recent:           withReasons(d.recent),
 		Ready:            d.readyPreviewLocked(),
 	}
 	if !d.startedAt.IsZero() {
@@ -2802,4 +2806,22 @@ func (d *Downloader) containsVariant(variants []string, variant string) bool {
 		}
 	}
 	return false
+}
+
+// withReasons copies the activity feed, giving entries recorded before reasons existed theirs.
+func withReasons(recent []ActivityEntry) []ActivityEntry {
+	out := append([]ActivityEntry(nil), recent...)
+	for i := range out {
+		e := &out[i]
+		if e.Reason != "" || e.Detail == "" {
+			continue
+		}
+		switch e.Result {
+		case "skipped":
+			e.Reason, _ = explainResult(onlineSkip{e.Detail})
+		case "not_found":
+			e.Reason, e.Reasons = explainResult(errors.New(e.Detail))
+		}
+	}
+	return out
 }

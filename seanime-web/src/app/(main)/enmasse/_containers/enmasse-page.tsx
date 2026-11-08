@@ -781,15 +781,33 @@ const ActivityRow = React.memo(function ActivityRow({ entry: e, now }: { entry: 
                 {e.mediaId && e.mediaId > 0
                     ? <SeaLink href={`/entry?id=${e.mediaId}`} className="text-sm font-medium hover:underline line-clamp-1">{e.title}</SeaLink>
                     : <p className="text-sm font-medium line-clamp-1">{e.title}</p>}
-                <p className="text-xs text-gray-400 line-clamp-1 mt-0.5">
-                    {e.result === "queued"
-                        ? `${formatNumber(e.episodes ?? 0)} episodes from ${providerName(e.provider) || "Kickassanime"}`
-                        : e.detail}
-                </p>
+                {e.result === "queued" ? (
+                    <p className="text-xs text-gray-400 line-clamp-1 mt-0.5">
+                        {`${formatNumber(e.episodes ?? 0)} episodes from ${providerName(e.provider) || "Kickassanime"}`}
+                    </p>
+                ) : !!e.reasons?.length ? (
+                    // What each provider said, the full message on hover.
+                    <div className="flex flex-wrap gap-1 mt-1">
+                        {e.reasons.map((r, i) => (
+                            <span
+                                key={`${r.provider}-${i}`}
+                                title={r.detail}
+                                className="text-[11px] rounded-md bg-white/[0.05] border border-white/[0.06] px-1.5 py-0.5 text-gray-300 cursor-help"
+                            >
+                                {!!r.provider && <span className="text-gray-500">{providerName(r.provider)} · </span>}{r.reason}
+                            </span>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-xs text-gray-400 line-clamp-1 mt-0.5" title={e.detail}>{e.detail}</p>
+                )}
             </div>
             <div className="flex flex-col items-end gap-1.5 flex-none">
-                <span className={cn("text-[11px] font-semibold rounded-full border px-2 py-0.5 inline-flex items-center gap-1", style.className)}>
-                    <style.icon /> {style.label}
+                <span
+                    className={cn("text-[11px] font-semibold rounded-full border px-2 py-0.5 inline-flex items-center gap-1", style.className)}
+                    title={e.detail}
+                >
+                    <style.icon /> {e.result === "queued" ? style.label : (e.reason || style.label)}
                 </span>
                 <span className="text-[11px] text-gray-500 tabular-nums">{timeAgo(e.time, now)}</span>
             </div>
