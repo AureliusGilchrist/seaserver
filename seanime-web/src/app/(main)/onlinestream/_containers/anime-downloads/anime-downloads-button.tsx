@@ -1,5 +1,5 @@
 "use client"
-import { isOnlinestreamDownloadActive, isOnlinestreamDownloadRunning, useGetOnlinestreamDownloads } from "@/api/hooks/onlinestream_download.hooks"
+import { useGetOnlinestreamDownloads } from "@/api/hooks/onlinestream_download.hooks"
 import { __anime_streamDownloadsModalIsOpenAtom } from "@/app/(main)/onlinestream/_containers/anime-downloads/anime-downloads-modal"
 import { Button } from "@/components/ui/button"
 import { useSetAtom } from "jotai/react"
@@ -10,8 +10,8 @@ import { LuMonitorDown } from "react-icons/lu"
 export function AnimeDownloadsButton() {
     const openQueue = useSetAtom(__anime_streamDownloadsModalIsOpenAtom)
     const { data } = useGetOnlinestreamDownloads()
-    const active = data?.items?.filter(isOnlinestreamDownloadActive).length ?? 0
-    const running = !!data?.items?.some(isOnlinestreamDownloadRunning)
+    const active = (data?.counts?.queued ?? 0) + (data?.counts?.running ?? 0)
+    const running = (data?.counts?.running ?? 0) > 0
 
     return (
         <Button

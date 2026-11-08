@@ -14,6 +14,26 @@ export interface EnMasseDownloaderStatus {
     status: string
     details?: AnimeEnMasseDetails
     hasSavedProgress: boolean
+    /** Cover of the series being looked up */
+    currentImage?: string
+    /** When this run started */
+    startedAt?: string
+    /** Series handled since startedAt */
+    processedThisRun?: number
+    /** Episodes waiting in the online download queue */
+    downloadQueueWaiting?: number
+    /** Latest results, newest first */
+    recent?: AnimeEnMasseActivity[]
+}
+
+export interface AnimeEnMasseActivity {
+    time: string
+    title: string
+    mediaId?: number
+    image?: string
+    result: "queued" | "not_found" | "skipped"
+    detail?: string
+    episodes?: number
 }
 
 export interface AnimeEnMasseDetails {

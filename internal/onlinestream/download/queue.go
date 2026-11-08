@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	// QueueUpdatedEvent carries the whole queue state whenever it changes.
+	// QueueUpdatedEvent carries the queue summary (see summary.go) whenever the queue changes.
 	QueueUpdatedEvent = "onlinestream-download-queue-updated"
 
 	progressEventInterval = 500 * time.Millisecond
@@ -179,6 +179,8 @@ type Manager struct {
 	lastEvent time.Time
 	started   sync.Once
 	saveMu    sync.Mutex
+	// rev counts structural changes; see QueueSummary.Rev.
+	rev int64
 	// blocked is set while downloads wait on the disk (see checkStorage).
 	blocked string
 
@@ -750,20 +752,33 @@ func (m *Manager) signal() {
 	}
 }
 
-// emit sends the queue to clients. Progress updates are throttled; state changes are not.
+// emit sends the queue summary to clients after a change of state.
 func (m *Manager) emit(force bool) {
 	if m.opts.WSEventManager == nil {
 		return
 	}
 	m.mu.Lock()
-	if !force && time.Since(m.lastEvent) < progressEventInterval {
+	m.rev++
+	summary := m.summaryLocked()
+	m.mu.Unlock()
+	m.opts.WSEventManager.SendEvent(QueueUpdatedEvent, summary)
+}
+
+// emitProgress sends just the episode downloading now, a few times a second at most: the
+// summary stays put while bytes come in.
+func (m *Manager) emitProgress(it *Item) {
+	if m.opts.WSEventManager == nil {
+		return
+	}
+	m.mu.Lock()
+	if time.Since(m.lastEvent) < progressEventInterval {
 		m.mu.Unlock()
 		return
 	}
 	m.lastEvent = time.Now()
-	snap := m.snapshotLocked()
+	c := copyItem(it)
 	m.mu.Unlock()
-	m.opts.WSEventManager.SendEvent(QueueUpdatedEvent, snap)
+	m.opts.WSEventManager.SendEvent(ProgressEvent, c)
 }
 
 func (m *Manager) update(it *Item, fn func(it *Item), force bool) {
@@ -779,7 +794,11 @@ func (m *Manager) update(it *Item, fn func(it *Item), force bool) {
 	if m.onProgress != nil {
 		m.onProgress(p)
 	}
-	m.emit(force)
+	if force {
+		m.emit(true)
+	} else {
+		m.emitProgress(it)
+	}
 }
 
 // trackRate updates the speed (smoothed) and the time left from the item's byte count and
@@ -1002,11 +1021,18 @@ func (m *Manager) run(it *Item) {
 			CompletedAt:   finishedAt,
 		})
 	}
+	var finished *Item
+	if it.Status == StatusCompleted || it.Status == StatusFailed {
+		finished = copyItem(it)
+	}
 	m.mu.Unlock()
 	if !keepWork {
 		_ = os.RemoveAll(workDir)
 	}
 	m.changed()
+	if finished != nil && m.opts.WSEventManager != nil {
+		m.opts.WSEventManager.SendEvent(FinishedEvent, finished)
+	}
 
 	if err != nil && ctx.Err() == nil {
 		m.logger.Error().Err(err).Int("mediaId", it.MediaId).Int("episode", it.EpisodeNumber).

@@ -134,6 +134,7 @@ func (d *Downloader) minifyBaseAnime(media *anilist.BaseAnime) *AnilistMinifiedI
 	if media.Episodes != nil {
 		episodes = *media.Episodes
 	}
+	cover := media.GetCoverImageSafe()
 
 	status := "UNKNOWN"
 	if media.Status != nil {
@@ -167,6 +168,7 @@ func (d *Downloader) minifyBaseAnime(media *anilist.BaseAnime) *AnilistMinifiedI
 		Format:       format,
 		IsAdult:      isAdult,
 		Synonyms:     syns,
+		CoverImage:   cover,
 	}
 }
 
@@ -572,6 +574,10 @@ type (
 		online            *OnlineHooks
 		lastOnlineRequest time.Time
 		skippedCount      int
+		recent            []ActivityEntry
+		startedAt         time.Time
+		processedThisRun  int
+		lastQueued        int // episodes queued for the series being processed
 		// resolveOverride replaces the AniList lookup (tests).
 		resolveOverride func(ctx context.Context, item *AnimeOfflineItem) (*AnilistMinifiedItem, error)
 	}
@@ -597,6 +603,27 @@ type (
 		Status           string                 `json:"status"`
 		Details          AnimeDownloaderDetails `json:"details"`
 		HasSavedProgress bool                   `json:"hasSavedProgress"`
+		// CurrentImage is the cover of the series being looked up.
+		CurrentImage string `json:"currentImage,omitempty"`
+		// StartedAt is when this run started, for the pace and time-left estimate.
+		StartedAt *time.Time `json:"startedAt,omitempty"`
+		// ProcessedThisRun counts the series handled since StartedAt.
+		ProcessedThisRun int `json:"processedThisRun"`
+		// DownloadQueueWaiting is how many episodes the online download queue holds.
+		DownloadQueueWaiting int `json:"downloadQueueWaiting"`
+		// Recent is the latest results, newest first.
+		Recent []ActivityEntry `json:"recent"`
+	}
+
+	// ActivityEntry is one series' outcome in the activity feed.
+	ActivityEntry struct {
+		Time     time.Time `json:"time"`
+		Title    string    `json:"title"`
+		MediaId  int       `json:"mediaId,omitempty"`
+		Image    string    `json:"image,omitempty"`
+		Result   string    `json:"result"` // queued, not_found, skipped
+		Detail   string    `json:"detail,omitempty"`
+		Episodes int       `json:"episodes,omitempty"`
 	}
 
 	AnimeDownloaderDetails struct {
@@ -666,6 +693,7 @@ type (
 		Format       string   `json:"format"`
 		IsAdult      bool     `json:"is_adult"`
 		Synonyms     []string `json:"synonyms,omitempty"`
+		CoverImage   string   `json:"cover_image,omitempty"`
 	}
 )
 
@@ -702,7 +730,11 @@ func (d *Downloader) GetStatus() *DownloaderStatus {
 		currentAnimeId = d.currentAnime.ID
 	}
 
-	return &DownloaderStatus{
+	currentImage := ""
+	if d.currentAnime != nil {
+		currentImage = d.currentAnime.CoverImage
+	}
+	st := &DownloaderStatus{
 		IsRunning:       d.isRunning,
 		IsPaused:        d.isPaused,
 		CurrentAnime:    currentAnime,
@@ -734,7 +766,18 @@ func (d *Downloader) GetStatus() *DownloaderStatus {
 			EpisodesQueued:    d.details.EpisodesQueued,
 		},
 		HasSavedProgress: d.hasSavedProgress(),
+		CurrentImage:     currentImage,
+		ProcessedThisRun: d.processedThisRun,
+		Recent:           append([]ActivityEntry(nil), d.recent...),
 	}
+	if !d.startedAt.IsZero() {
+		t := d.startedAt
+		st.StartedAt = &t
+	}
+	if d.online != nil && d.online.WaitingEpisodes != nil {
+		st.DownloadQueueWaiting = d.online.WaitingEpisodes()
+	}
+	return st
 }
 
 func (d *Downloader) updateDetails(updateFn func(*AnimeDownloaderDetails)) {
@@ -775,6 +818,8 @@ func (d *Downloader) Start(resume bool) error {
 		d.clearProgress()
 	}
 	d.status = "Starting..."
+	d.startedAt = time.Now()
+	d.processedThisRun = 0
 	d.mu.Unlock()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -932,44 +977,12 @@ func (d *Downloader) run(ctx context.Context, resume bool) {
 		d.logger.Info().Str("title", animeItem.Title).Int("index", i).Msg("enmasse-anime: Processing anime")
 
 		err := d.processAnimeOnline(ctx, hooks, animeItem)
-
-		if errors.Is(err, errOnlineSkipped) {
-			d.mu.Lock()
-			d.skippedCount++
-			d.mu.Unlock()
-			d.updateDetails(func(details *AnimeDownloaderDetails) {
-				details.Phase = "processing"
-				details.Step = "skipped: " + err.Error()
-				details.LastError = ""
-			})
+		if err != nil && !errors.Is(err, errOnlineSkipped) && ctx.Err() != nil {
 			d.saveCurrentProgress(i)
-			continue
+			d.setStatus("Stopped")
+			return
 		}
-
-		if err != nil {
-			if ctx.Err() != nil {
-				d.saveCurrentProgress(i)
-				d.setStatus("Stopped")
-				return
-			}
-			if d.isProviderSearchTimeoutError(err) {
-				d.setStatus(fmt.Sprintf("Provider timeout on %s, skipping", animeItem.Title))
-			}
-			d.updateDetails(func(details *AnimeDownloaderDetails) {
-				details.Phase = "processing"
-				details.Step = "anime failed"
-				details.LastError = err.Error()
-			})
-			d.logger.Error().Err(err).Str("title", animeItem.Title).Msg("enmasse-anime: Failed to process anime")
-			d.addToFailed(animeItem.Title)
-		} else {
-			d.updateDetails(func(details *AnimeDownloaderDetails) {
-				details.Phase = "processing"
-				details.Step = "anime queued successfully"
-				details.LastError = ""
-			})
-			d.addToDownloaded(animeItem.Title)
-		}
+		d.recordOnlineResult(ctx, animeItem.Title, err)
 
 		// Save progress after every anime for reliable resume
 		d.saveCurrentProgress(i)

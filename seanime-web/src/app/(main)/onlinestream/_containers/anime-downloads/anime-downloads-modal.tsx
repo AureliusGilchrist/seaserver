@@ -4,10 +4,12 @@ import { useGetAnimeCollection } from "@/api/hooks/anilist.hooks"
 import {
     isOnlinestreamDownloadActive,
     isOnlinestreamDownloadRunning,
-    OnlinestreamDownload_HistoryEntry,
+    OnlinestreamDownload_HistorySeries,
     OnlinestreamDownload_Item,
+    OnlinestreamDownload_SeriesSummary,
     useGetOnlinestreamDownloadHistory,
     useGetOnlinestreamDownloads,
+    useGetOnlinestreamDownloadSeries,
     useOnlinestreamDownloadQueueAction,
     useOnlinestreamDownloadsListener,
 } from "@/api/hooks/onlinestream_download.hooks"
@@ -136,69 +138,42 @@ export function AnimeStreamDownloadsModal() {
 
 type QueueFilter = "all" | "waiting" | "failed" | "done"
 
-type QueueGroup = {
-    mediaId: number
-    title: string
-    image?: string
-    items: OnlinestreamDownload_Item[]
+function matchesFilter(s: OnlinestreamDownload_SeriesSummary, f: QueueFilter) {
+    switch (f) {
+        case "waiting":
+            return s.queued > 0 || s.running
+        case "failed":
+            return s.failed + s.cancelled > 0
+        case "done":
+            return s.done > 0
+    }
+    return true
 }
 
-type Row =
-    | { kind: "group", group: QueueGroup }
-    | { kind: "item", item: OnlinestreamDownload_Item }
-
+/**
+ * The queue, one line per series. A series' episodes are only fetched when it is opened, and a
+ * long series scrolls inside its own list, so a whole catalogue in the queue stays smooth.
+ */
 export function AnimeDownloadQueue() {
     const { data, isLoading, isError } = useGetOnlinestreamDownloads()
     const { mutate: act, isPending } = useOnlinestreamDownloadQueueAction()
     const [filter, setFilter] = React.useState<QueueFilter>("all")
-    const [collapsed, setCollapsed] = React.useState<Set<number>>(new Set())
+    const [expanded, setExpanded] = React.useState<Set<number>>(new Set())
 
-    const items = data?.items ?? []
+    const counts = data?.counts ?? { queued: 0, running: 0, completed: 0, failed: 0, cancelled: 0, total: 0 }
+    const series = data?.series ?? []
     const paused = !!data?.paused
-    const running = items.find(isOnlinestreamDownloadRunning)
+    const running = data?.running && isOnlinestreamDownloadRunning(data.running) ? data.running : undefined
 
-    const counts = React.useMemo(() => ({
-        waiting: items.filter(i => i.status === "queued").length,
-        failed: items.filter(i => i.status === "failed").length,
-        done: items.filter(i => i.status === "completed").length,
-        cancelled: items.filter(i => i.status === "cancelled").length,
-    }), [items])
+    const filtered = React.useMemo(() => series.filter(s => matchesFilter(s, filter)), [series, filter])
+    const filterCounts = React.useMemo(() => ({
+        all: series.length,
+        waiting: series.filter(s => matchesFilter(s, "waiting")).length,
+        failed: series.filter(s => matchesFilter(s, "failed")).length,
+        done: series.filter(s => matchesFilter(s, "done")).length,
+    }), [series])
 
-    const filtered = React.useMemo(() => items.filter(i => {
-        switch (filter) {
-            case "waiting":
-                return isOnlinestreamDownloadActive(i)
-            case "failed":
-                return i.status === "failed" || i.status === "cancelled"
-            case "done":
-                return i.status === "completed"
-            default:
-                return true
-        }
-    }), [items, filter])
-
-    // Grouped by series, in queue order of each series' first episode.
-    const rows = React.useMemo<Row[]>(() => {
-        const groups = new Map<number, QueueGroup>()
-        for (const it of filtered) {
-            let g = groups.get(it.mediaId)
-            if (!g) {
-                g = { mediaId: it.mediaId, title: it.title, image: it.image, items: [] }
-                groups.set(it.mediaId, g)
-            }
-            g.items.push(it)
-        }
-        const out: Row[] = []
-        for (const g of groups.values()) {
-            out.push({ kind: "group", group: g })
-            if (!collapsed.has(g.mediaId)) {
-                for (const it of g.items) out.push({ kind: "item", item: it })
-            }
-        }
-        return out
-    }, [filtered, collapsed])
-
-    const toggleGroup = (id: number) => setCollapsed(prev => {
+    const toggle = (id: number) => setExpanded(prev => {
         const next = new Set(prev)
         if (next.has(id)) next.delete(id)
         else next.add(id)
@@ -213,11 +188,12 @@ export function AnimeDownloadQueue() {
                     className={cn(
                         "text-xs font-semibold px-2.5 py-1 rounded-full border",
                         paused ? "text-[--orange] border-[--orange]/40 bg-[--orange]/10"
-                            : running ? "text-[--green] border-[--green]/40 bg-[--green]/10"
-                                : "text-[--muted] border-[--border]",
+                            : data?.blocked ? "text-[--orange] border-[--orange]/40 bg-[--orange]/10"
+                                : running ? "text-[--green] border-[--green]/40 bg-[--green]/10"
+                                    : "text-[--muted] border-[--border]",
                     )}
                 >
-                    {paused ? "Stopped" : data?.blocked ? "Waiting for disk" : running ? "Downloading" : counts.waiting ? "Starting" : "Idle"}
+                    {paused ? "Stopped" : data?.blocked ? "Waiting for disk" : running ? "Downloading" : counts.queued ? "Starting" : "Idle"}
                 </span>
                 <div className="flex flex-1" />
                 {!isLoading && !isError && <div className="flex gap-2 items-center flex-wrap" data-anime-download-queue-header-actions>
@@ -228,9 +204,9 @@ export function AnimeDownloadQueue() {
                         leftIcon={<LuRotateCcw />}
                         onClick={() => act({ action: "reset-errored" })}
                     >
-                        Retry failed ({counts.failed})
+                        Retry failed ({formatNumber(counts.failed)})
                     </Button>}
-                    {(counts.done + counts.failed + counts.cancelled) > 0 && <Button
+                    {(counts.completed + counts.failed + counts.cancelled) > 0 && <Button
                         intent="gray-subtle"
                         size="sm"
                         disabled={isPending}
@@ -238,7 +214,7 @@ export function AnimeDownloadQueue() {
                     >
                         Clear finished
                     </Button>}
-                    {!!items.length && <Button
+                    {counts.total > 0 && <Button
                         intent="alert-subtle"
                         size="sm"
                         disabled={isPending}
@@ -255,7 +231,7 @@ export function AnimeDownloadQueue() {
                         onClick={() => act({ action: "start" })}
                     >
                         Start
-                    </Button> : (running || counts.waiting > 0) && <Button
+                    </Button> : (running || counts.queued > 0) && <Button
                         intent="alert-subtle"
                         size="sm"
                         disabled={isPending}
@@ -279,19 +255,19 @@ export function AnimeDownloadQueue() {
             {running && <NowDownloadingCard item={running} paused={paused} />}
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2" data-anime-download-queue-stats>
-                <StatTile label="Waiting" value={counts.waiting} icon={<LuClock />} />
-                <StatTile label="Done" value={counts.done} icon={<LuCheck />} tone="green" />
+                <StatTile label="Waiting" value={counts.queued} icon={<LuClock />} />
+                <StatTile label="Done" value={counts.completed} icon={<LuCheck />} tone="green" />
                 <StatTile label="Failed" value={counts.failed} icon={<LuCircleAlert />} tone={counts.failed ? "orange" : undefined} />
-                <StatTile label="Series" value={new Set(items.map(i => i.mediaId)).size} icon={<LuFilm />} />
+                <StatTile label="Series" value={series.length} icon={<LuFilm />} />
             </div>
 
             <Card className="p-4 space-y-3" data-anime-download-queue-card>
                 <div className="flex gap-1.5 flex-wrap">
                     {([
-                        ["all", `All (${items.length})`],
-                        ["waiting", `Active (${items.filter(isOnlinestreamDownloadActive).length})`],
-                        ["failed", `Failed (${counts.failed + counts.cancelled})`],
-                        ["done", `Done (${counts.done})`],
+                        ["all", `All (${formatNumber(filterCounts.all)})`],
+                        ["waiting", `Active (${formatNumber(filterCounts.waiting)})`],
+                        ["failed", `Failed (${formatNumber(filterCounts.failed)})`],
+                        ["done", `Done (${formatNumber(filterCounts.done)})`],
                     ] as [QueueFilter, string][]).map(([key, label]) => (
                         <button
                             key={key}
@@ -309,32 +285,121 @@ export function AnimeDownloadQueue() {
 
                 {isLoading ? <LoadingSpinner /> : isError ? (
                     <p className="text-center text-[--muted] text-sm">Could not fetch the download queue</p>
-                ) : !rows.length ? (
+                ) : !filtered.length ? (
                     <div className="py-10 text-center space-y-2">
                         <LuDownload className="text-4xl mx-auto text-[--muted]" />
                         <p className="text-[--muted] text-sm">
-                            {items.length ? "Nothing matches this filter" : "Nothing in the queue. Use Download in the online player to add episodes or a whole series."}
+                            {series.length ? "Nothing matches this filter" : "Nothing in the queue. Use Download in the online player to add episodes or a whole series."}
                         </p>
                     </div>
                 ) : (
-                    // Virtualized: a few full series in the queue are hundreds of rows.
+                    // Virtualized: only the series on screen exist, whatever the size of the queue.
                     <Virtuoso
                         style={{ height: "min(46vh, 32rem)" }}
-                        data={rows}
-                        computeItemKey={(_i, row) => row.kind === "group" ? `g-${row.group.mediaId}` : row.item.id}
-                        itemContent={(_i, row) => row.kind === "group"
-                            ? <QueueGroupHeader
-                                group={row.group}
-                                allItems={items.filter(i => i.mediaId === row.group.mediaId)}
-                                collapsed={collapsed.has(row.group.mediaId)}
-                                onToggle={() => toggleGroup(row.group.mediaId)}
-                            />
-                            : <QueueItemRow item={row.item} />}
+                        data={filtered}
+                        computeItemKey={(_i, s) => s.mediaId}
+                        increaseViewportBy={200}
+                        itemContent={(_i, s) => <SeriesRow
+                            series={s}
+                            rev={data?.rev}
+                            filter={filter}
+                            open={expanded.has(s.mediaId)}
+                            onToggle={() => toggle(s.mediaId)}
+                        />}
                     />
                 )}
             </Card>
         </div>
     )
+}
+
+const SeriesRow = React.memo(function SeriesRow({ series: s, rev, filter, open, onToggle }: {
+    series: OnlinestreamDownload_SeriesSummary
+    rev: number | undefined
+    filter: QueueFilter
+    open: boolean
+    onToggle: () => void
+}) {
+    const { mutate: act, isPending } = useOnlinestreamDownloadQueueAction()
+    const retryable = s.failed + s.cancelled
+
+    return (
+        <div className="pt-3 pb-1">
+            <div className="flex items-center gap-3 rounded-lg bg-gray-900/70 border px-3 py-2">
+                {!!s.image && <img src={s.image} alt="" loading="lazy" className="w-9 h-12 object-cover rounded flex-none" />}
+                <button type="button" className="flex-1 min-w-0 space-y-1 text-left" onClick={onToggle}>
+                    <div className="flex items-center gap-2">
+                        <span className="font-semibold line-clamp-1">{s.title}</span>
+                        {s.running && <span className="size-2 rounded-full bg-[--green] animate-pulse flex-none" />}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <ProgressBar size="sm" value={Math.round(s.progress * 100)} className="flex-1 max-w-64" />
+                        <span className="text-xs text-[--muted] whitespace-nowrap">
+                            {s.done} / {s.total} episodes
+                            {s.running && s.runningEpisode ? ` · downloading ${s.runningEpisode}` : ""}
+                            {s.failed ? ` · ${s.failed} failed` : ""}
+                        </span>
+                    </div>
+                </button>
+                {retryable > 0 && <Button
+                    size="sm"
+                    intent="warning-subtle"
+                    leftIcon={<LuRotateCcw />}
+                    disabled={isPending}
+                    title="Retry every failed or cancelled episode of this series"
+                    onClick={() => act({ action: "retry-media", mediaId: s.mediaId })}
+                >
+                    Retry {retryable}
+                </Button>}
+                <IconButton
+                    size="sm"
+                    intent="gray-basic"
+                    icon={<LuTrash2 />}
+                    title="Remove this series' waiting and finished episodes"
+                    disabled={isPending}
+                    onClick={() => act({ action: "clear-media", mediaId: s.mediaId })}
+                />
+                <IconButton
+                    size="sm"
+                    intent="gray-basic"
+                    icon={<LuChevronDown className={cn("transition-transform", !open && "-rotate-90")} />}
+                    title={open ? "Hide episodes" : "Show episodes"}
+                    onClick={onToggle}
+                />
+            </div>
+            {open && <SeriesEpisodes mediaId={s.mediaId} rev={rev} filter={filter} />}
+        </div>
+    )
+})
+
+/** A series' episodes, fetched when the series is opened and refetched when the queue changes. */
+function SeriesEpisodes({ mediaId, rev, filter }: { mediaId: number, rev: number | undefined, filter: QueueFilter }) {
+    const { data, isLoading } = useGetOnlinestreamDownloadSeries(mediaId, rev)
+    const items = React.useMemo(() => (data ?? []).filter(it => {
+        switch (filter) {
+            case "waiting":
+                return isOnlinestreamDownloadActive(it)
+            case "failed":
+                return it.status === "failed" || it.status === "cancelled"
+            case "done":
+                return it.status === "completed"
+        }
+        return true
+    }), [data, filter])
+
+    if (isLoading && !data) return <div className="py-3"><LoadingSpinner /></div>
+    if (!items.length) return <p className="pl-4 py-2 text-xs text-[--muted]">No episodes match this filter</p>
+
+    // A long series scrolls inside its own list instead of stretching the queue.
+    if (items.length > 12) {
+        return <Virtuoso
+            style={{ height: "22rem" }}
+            data={items}
+            computeItemKey={(_i, it) => it.id}
+            itemContent={(_i, it) => <QueueItemRow item={it} />}
+        />
+    }
+    return <div className="pt-1">{items.map(it => <QueueItemRow key={it.id} item={it} />)}</div>
 }
 
 function StatTile({ label, value, icon, tone }: { label: string, value: number, icon: React.ReactNode, tone?: "green" | "orange" }) {
@@ -457,68 +522,6 @@ function NowDownloadingCard({ item, paused }: { item: OnlinestreamDownload_Item,
     )
 }
 
-function QueueGroupHeader({ group, allItems, collapsed, onToggle }: {
-    group: QueueGroup,
-    allItems: OnlinestreamDownload_Item[],
-    collapsed: boolean,
-    onToggle: () => void
-}) {
-    const { mutate: act, isPending } = useOnlinestreamDownloadQueueAction()
-    const done = allItems.filter(i => i.status === "completed").length
-    const failed = allItems.filter(i => i.status === "failed").length
-    const retryable = allItems.filter(i => i.status === "failed" || i.status === "cancelled").length
-    const runningItem = allItems.find(isOnlinestreamDownloadRunning)
-    // Series progress: finished episodes plus the fraction of the one downloading.
-    const fraction = allItems.length
-        ? (done + (runningItem?.status === "downloading" ? runningItem.progress : 0)) / allItems.length
-        : 0
-
-    return (
-        <div className="pt-3 pb-2">
-            <div className="flex items-center gap-3 rounded-lg bg-gray-900/70 border px-3 py-2">
-                {!!group.image && <img src={group.image} alt="" className="w-9 h-12 object-cover rounded flex-none" />}
-                <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex items-center gap-2">
-                        <SeaLink href={`/entry?id=${group.mediaId}`} className="font-semibold hover:underline line-clamp-1">{group.title}</SeaLink>
-                        {!!runningItem && <span className="size-2 rounded-full bg-[--green] animate-pulse flex-none" />}
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <ProgressBar size="sm" value={Math.round(fraction * 100)} className="flex-1 max-w-64" />
-                        <span className="text-xs text-[--muted] whitespace-nowrap">
-                            {done} / {allItems.length} episodes{failed ? ` · ${failed} failed` : ""}
-                        </span>
-                    </div>
-                </div>
-                {retryable > 0 && <Button
-                    size="sm"
-                    intent="warning-subtle"
-                    leftIcon={<LuRotateCcw />}
-                    disabled={isPending}
-                    title="Retry every failed or cancelled episode of this series"
-                    onClick={() => act({ action: "retry-media", mediaId: group.mediaId })}
-                >
-                    Retry {retryable}
-                </Button>}
-                <IconButton
-                    size="sm"
-                    intent="gray-basic"
-                    icon={<LuTrash2 />}
-                    title="Remove this series' waiting and finished episodes"
-                    disabled={isPending}
-                    onClick={() => act({ action: "clear-media", mediaId: group.mediaId })}
-                />
-                <IconButton
-                    size="sm"
-                    intent="gray-basic"
-                    icon={<LuChevronDown className={cn("transition-transform", collapsed && "-rotate-90")} />}
-                    title={collapsed ? "Show episodes" : "Hide episodes"}
-                    onClick={onToggle}
-                />
-            </div>
-        </div>
-    )
-}
-
 function QueueItemRow({ item }: { item: OnlinestreamDownload_Item }) {
     const { mutate: act, isPending } = useOnlinestreamDownloadQueueAction()
     const running = isOnlinestreamDownloadRunning(item)
@@ -604,16 +607,6 @@ function QueueItemRow({ item }: { item: OnlinestreamDownload_Item }) {
 // Downloaded
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-type DownloadedSeries = {
-    mediaId: number
-    title: string
-    image?: string
-    episodes: number
-    bytes: number
-    lastAt: string
-    media?: AL_BaseAnime
-}
-
 export function AnimeDownloadedList() {
     const { data: history, isLoading } = useGetOnlinestreamDownloadHistory()
     const { data: collection } = useGetAnimeCollection()
@@ -626,20 +619,7 @@ export function AnimeDownloadedList() {
         return map
     }, [collection])
 
-    const series = React.useMemo<DownloadedSeries[]>(() => {
-        const bySeries = new Map<number, DownloadedSeries>()
-        for (const h of (history ?? []) as OnlinestreamDownload_HistoryEntry[]) {
-            let s = bySeries.get(h.mediaId)
-            if (!s) {
-                s = { mediaId: h.mediaId, title: h.title, image: h.image, episodes: 0, bytes: 0, lastAt: h.completedAt, media: mediaMap.get(h.mediaId) }
-                bySeries.set(h.mediaId, s)
-            }
-            s.episodes++
-            s.bytes += h.bytes || 0
-        }
-        return [...bySeries.values()]
-    }, [history, mediaMap])
-
+    const series = (history ?? []) as OnlinestreamDownload_HistorySeries[]
     const totalBytes = series.reduce((a, s) => a + s.bytes, 0)
     const totalEpisodes = series.reduce((a, s) => a + s.episodes, 0)
 
@@ -649,7 +629,7 @@ export function AnimeDownloadedList() {
                 <h3>Downloaded</h3>
                 <div className="flex flex-1" />
                 {!!series.length && <p className="text-sm text-[--muted]">
-                    {formatNumber(totalEpisodes)} episode{totalEpisodes === 1 ? "" : "s"} · {series.length} series · {formatDownloadBytes(totalBytes)}
+                    {formatNumber(totalEpisodes)} episode{totalEpisodes === 1 ? "" : "s"} · {formatNumber(series.length)} series · {formatDownloadBytes(totalBytes)}
                 </p>}
             </div>
 
@@ -663,12 +643,13 @@ export function AnimeDownloadedList() {
                     listClassName="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-4"
                     itemClassName="col-span-1"
                     itemContent={(_i, s) => {
+                        const media = mediaMap.get(s.mediaId)
                         const badge = <p
                             className="font-semibold text-white bg-gray-950 z-[-1] absolute right-0 w-fit whitespace-nowrap px-4 py-1.5 text-center !bg-opacity-90 text-sm lg:text-base rounded-none rounded-bl-lg"
                         >{s.episodes} episode{s.episodes === 1 ? "" : "s"}</p>
-                        if (s.media) {
+                        if (media) {
                             return <MediaEntryCard
-                                media={s.media}
+                                media={media}
                                 type="anime"
                                 hideUnseenCountBadge
                                 hideAnilistEntryEditButton
@@ -678,7 +659,7 @@ export function AnimeDownloadedList() {
                         return (
                             <SeaLink href={`/entry?id=${s.mediaId}`} className="block group">
                                 <div className="relative aspect-[6/8] rounded-md overflow-hidden border bg-gray-900">
-                                    {!!s.image && <img src={s.image} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />}
+                                    {!!s.image && <img src={s.image} alt="" loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />}
                                     <div className="absolute top-0 right-0 z-[1]">{badge}</div>
                                 </div>
                                 <p className="mt-2 text-sm font-medium line-clamp-2">{s.title}</p>

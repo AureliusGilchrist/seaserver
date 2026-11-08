@@ -50,6 +50,8 @@ export const enum WSEvents {
     TORRENTSTREAM_STATE = "torrentstream-state",
     DEBRID_DOWNLOAD_PROGRESS = "debrid-download-progress",
     ONLINESTREAM_DOWNLOAD_QUEUE_UPDATED = "onlinestream-download-queue-updated",
+    ONLINESTREAM_DOWNLOAD_PROGRESS = "onlinestream-download-progress",
+    ONLINESTREAM_DOWNLOAD_FINISHED = "onlinestream-download-finished",
     DEBRID_STREAM_STATE = "debrid-stream-state",
     CHECK_FOR_UPDATES = "check-for-updates",
     CHECK_FOR_ANNOUNCEMENTS = "check-for-announcements",

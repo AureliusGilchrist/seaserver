@@ -229,6 +229,7 @@ const (
 	GetOnlineStreamEpisodeSourceEndpoint               = "ONLINESTREAM-get-online-stream-episode-source"
 	GetOnlinestreamDownloadExistingEndpoint            = "ONLINESTREAM-DOWNLOAD-get-onlinestream-download-existing"
 	GetOnlinestreamDownloadHistoryEndpoint             = "ONLINESTREAM-DOWNLOAD-get-onlinestream-download-history"
+	GetOnlinestreamDownloadSeriesEndpoint              = "ONLINESTREAM-DOWNLOAD-get-onlinestream-download-series"
 	GetOnlinestreamDownloadsEndpoint                   = "ONLINESTREAM-DOWNLOAD-get-onlinestream-downloads"
 	GetOnlinestreamMappingEndpoint                     = "ONLINESTREAM-get-onlinestream-mapping"
 	GetPendingProgressSyncEndpoint                     = "ANIME-ENTRIES-get-pending-progress-sync"

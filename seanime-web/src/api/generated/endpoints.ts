@@ -2957,6 +2957,15 @@ export const API_ENDPOINTS = {
          *  @description
          *  Route returns the episodes downloaded through online streaming providers, newest first.
          */
+        /**
+         *  @description
+         *  Route returns the episodes of one anime in the online stream download queue.
+         */
+        GetOnlinestreamDownloadSeries: {
+            key: "ONLINESTREAM-DOWNLOAD-get-onlinestream-download-series",
+            methods: ["POST"],
+            endpoint: "/api/v1/onlinestream/downloads/series",
+        },
         GetOnlinestreamDownloadHistory: {
             key: "ONLINESTREAM-DOWNLOAD-get-onlinestream-download-history",
             methods: ["GET"],

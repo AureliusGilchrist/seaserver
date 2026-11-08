@@ -3832,3 +3832,14 @@ export type OnlinestreamDownloadQueueAction_Variables = {
 export type GetOnlinestreamDownloadExisting_Variables = {
     mediaId: number
 }
+
+/**
+ * - Filepath: internal/handlers/onlinestream_download.go
+ * - Filename: onlinestream_download.go
+ * - Endpoint: /api/v1/onlinestream/downloads/series
+ * @description
+ * Route returns the episodes of one anime in the online stream download queue.
+ */
+export type GetOnlinestreamDownloadSeries_Variables = {
+    mediaId: number
+}

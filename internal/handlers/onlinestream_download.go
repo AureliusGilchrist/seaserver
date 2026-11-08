@@ -349,28 +349,49 @@ func (h *Handler) HandleOnlinestreamDownload(c echo.Context) error {
 
 // HandleGetOnlinestreamDownloads
 //
-//	@summary returns the online stream download queue.
+//	@summary returns the online stream download queue as a summary: counts, one line per series and the running episode.
+//	@desc The episodes of a series are fetched separately (downloads/series), so a queue of thousands stays light.
 //	@route /api/v1/onlinestream/downloads [GET]
-//	@returns onlinestream_download.QueueState
+//	@returns onlinestream_download.QueueSummary
 func (h *Handler) HandleGetOnlinestreamDownloads(c echo.Context) error {
 	m, err := h.onlinestreamDownloader()
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
-	return h.RespondWithData(c, m.GetQueue())
+	return h.RespondWithData(c, m.Summary())
+}
+
+// HandleGetOnlinestreamDownloadSeries
+//
+//	@summary returns the episodes of one anime in the online stream download queue.
+//	@route /api/v1/onlinestream/downloads/series [POST]
+//	@returns []onlinestream_download.Item
+func (h *Handler) HandleGetOnlinestreamDownloadSeries(c echo.Context) error {
+	type body struct {
+		MediaId int `json:"mediaId"`
+	}
+	var b body
+	if err := c.Bind(&b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+	m, err := h.onlinestreamDownloader()
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	return h.RespondWithData(c, m.SeriesItems(b.MediaId))
 }
 
 // HandleGetOnlinestreamDownloadHistory
 //
-//	@summary returns the episodes downloaded through online streaming providers, newest first.
+//	@summary returns the anime downloaded through online streaming providers, with episode counts, most recent first.
 //	@route /api/v1/onlinestream/downloads/history [GET]
-//	@returns []onlinestream_download.HistoryEntry
+//	@returns []onlinestream_download.HistorySeries
 func (h *Handler) HandleGetOnlinestreamDownloadHistory(c echo.Context) error {
 	m, err := h.onlinestreamDownloader()
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
-	return h.RespondWithData(c, m.GetHistory())
+	return h.RespondWithData(c, m.HistorySummary())
 }
 
 // HandleOnlinestreamDownloadSeries

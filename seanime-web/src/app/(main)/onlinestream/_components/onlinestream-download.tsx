@@ -5,6 +5,7 @@ import {
     OnlinestreamDownload_ExistingEpisode,
     useGetOnlinestreamDownloadExisting,
     useGetOnlinestreamDownloads,
+    useGetOnlinestreamDownloadSeries,
     useOnlinestreamDownload,
     useOnlinestreamDownloadSeries,
 } from "@/api/hooks/onlinestream_download.hooks"
@@ -261,12 +262,16 @@ export function OnlinestreamDownloadButton(props: OnlinestreamDownloadButtonProp
     const [open, setOpen] = React.useState(false)
     const [selected, setSelected] = React.useState<Set<number>>(new Set())
 
-    const seriesItems = React.useMemo(() => queue?.items?.filter(i => i.mediaId === mediaId) ?? [], [queue, mediaId])
-    const activeSeries = seriesItems.filter(isOnlinestreamDownloadActive)
-    const busyEpisodes = React.useMemo(() => new Set(activeSeries.map(i => i.episodeNumber)), [activeSeries])
+    // The queue summary has this series' counts; its episodes are fetched only while the window is open.
+    const seriesLine = queue?.series?.find(s => s.mediaId === mediaId)
+    const { data: seriesItems } = useGetOnlinestreamDownloadSeries(mediaId, queue?.rev, open && !!seriesLine)
+    const activeCount = seriesLine ? seriesLine.queued + (seriesLine.running ? 1 : 0) : 0
+    const busyEpisodes = React.useMemo(() => new Set((seriesItems ?? []).filter(isOnlinestreamDownloadActive).map(i => i.episodeNumber)),
+        [seriesItems])
     const inLibrary = React.useMemo(() => new Set((existing ?? []).map(e => e.episodeNumber)), [existing])
-    const runningHere = seriesItems.find(isOnlinestreamDownloadRunning)
-    const doneHere = seriesItems.filter(i => i.status === "completed").length
+    const runningHere = queue?.running && queue.running.mediaId === mediaId && isOnlinestreamDownloadRunning(queue.running) ? queue.running : undefined
+    const doneHere = seriesLine?.done ?? 0
+    const seriesTotal = seriesLine?.total ?? 0
     const hardsubbed = !!videoSource && !videoSource.subtitles?.filter(s => !/thumbnail/i.test(s.language)).length
     const sortedEpisodes = React.useMemo(() => [...(episodes ?? [])].sort((a, b) => a.number - b.number), [episodes])
     const libraryCount = sortedEpisodes.filter(e => inLibrary.has(e.number)).length
@@ -297,7 +302,7 @@ export function OnlinestreamDownloadButton(props: OnlinestreamDownloadButtonProp
                     intent={runningHere ? "primary-subtle" : "gray-basic"}
                     leftIcon={<LuDownload className={cn("text-xl", runningHere && "animate-pulse")} />}
                 >
-                    Download{activeSeries.length > 0 ? ` (${activeSeries.length})` : ""}
+                    Download{activeCount > 0 ? ` (${activeCount})` : ""}
                 </Button>}
             >
                 <div className="space-y-5">
@@ -324,17 +329,17 @@ export function OnlinestreamDownloadButton(props: OnlinestreamDownloadButtonProp
                             <LuTriangleAlert className="flex-none mt-0.5" />
                             {queue.blocked}
                         </p>}
-                        {!!seriesItems.length && <div className="space-y-1 pt-1">
+                        {seriesTotal > 0 && <div className="space-y-1 pt-1">
                             <div className="flex text-xs text-[--muted]">
                                 <span className="flex-1">
-                                    {runningHere ? `Downloading episode ${runningHere.episodeNumber}` : activeSeries.length ? "Waiting in the queue" : "This series"}
-                                    {" · "}{doneHere} / {seriesItems.length} done
+                                    {runningHere ? `Downloading episode ${runningHere.episodeNumber}` : activeCount ? "Waiting in the queue" : "This series"}
+                                    {" · "}{doneHere} / {seriesTotal} done
                                 </span>
                                 {queue?.paused && <span className="text-[--orange]">Queue stopped</span>}
                             </div>
                             <ProgressBar
                                 size="sm"
-                                value={Math.round(((doneHere + (runningHere?.status === "downloading" ? runningHere.progress : 0)) / seriesItems.length) * 100)}
+                                value={Math.round(((doneHere + (runningHere?.status === "downloading" ? runningHere.progress : 0)) / seriesTotal) * 100)}
                             />
                         </div>}
                     </div>

@@ -97,3 +97,34 @@ func TestRestoredQueueStartsByItself(t *testing.T) {
 	q := m2.GetQueue()
 	t.Fatalf("restored queue did not run: %s, %s (paused=%v)", q.Items[0].Status, q.Items[1].Status, q.Paused)
 }
+
+// TestSummary: the queue sends counts and one line per series, not every episode.
+func TestSummary(t *testing.T) {
+	m := newTestManager(t, "")
+	m.mu.Lock()
+	m.items = []*Item{
+		{ID: "a", MediaId: 1, Title: "One", EpisodeNumber: 1, Status: StatusCompleted, Bytes: 100},
+		{ID: "b", MediaId: 1, Title: "One", EpisodeNumber: 2, Status: StatusDownloading, Progress: 0.5},
+		{ID: "c", MediaId: 2, Title: "Two", EpisodeNumber: 1, Status: StatusQueued},
+		{ID: "d", MediaId: 2, Title: "Two", EpisodeNumber: 2, Status: StatusFailed},
+	}
+	m.history = []*HistoryEntry{{MediaId: 1, Title: "One", Bytes: 100, CompletedAt: time.Now()}, {MediaId: 1, Title: "One", Bytes: 50, CompletedAt: time.Now()}}
+	m.mu.Unlock()
+
+	s := m.Summary()
+	if s.Counts.Total != 4 || s.Counts.Running != 1 || s.Counts.Queued != 1 || s.Counts.Failed != 1 || s.Counts.Completed != 1 {
+		t.Fatalf("counts %+v", s.Counts)
+	}
+	if len(s.Series) != 2 || s.Series[0].MediaId != 1 || s.Running == nil || s.Running.ID != "b" {
+		t.Fatalf("series %+v running %+v", s.Series, s.Running)
+	}
+	if p := s.Series[0].Progress; p < 0.74 || p > 0.76 {
+		t.Fatalf("series progress %.2f, want 0.75", p)
+	}
+	if items := m.SeriesItems(2); len(items) != 2 || items[0].ID != "c" {
+		t.Fatalf("series items %v", items)
+	}
+	if h := m.HistorySummary(); len(h) != 1 || h[0].Episodes != 2 || h[0].Bytes != 150 {
+		t.Fatalf("history %+v", h)
+	}
+}

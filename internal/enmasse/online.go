@@ -152,8 +152,41 @@ func (d *Downloader) processTorrentSeries(ctx context.Context, hooks *OnlineHook
 	}
 }
 
-// recordOnlineResult files one series' outcome in the downloaded / not found / skipped tallies.
+// recordOnlineResult files one series' outcome in the downloaded / not found / skipped tallies
+// and the activity feed.
 func (d *Downloader) recordOnlineResult(ctx context.Context, title string, err error) {
+	d.mu.Lock()
+	entry := ActivityEntry{Time: time.Now(), Title: title, Episodes: d.lastQueued}
+	if d.currentAnime != nil {
+		entry.MediaId = d.currentAnime.ID
+		entry.Image = d.currentAnime.CoverImage
+		if t := firstTitle(d.currentAnime); t != "" {
+			entry.Title = t
+		}
+	}
+	d.lastQueued = 0
+	d.processedThisRun++
+	d.mu.Unlock()
+
+	switch {
+	case err == nil:
+		entry.Result = "queued"
+	case errors.Is(err, errOnlineSkipped):
+		entry.Result = "skipped"
+		entry.Detail = err.Error()
+	case ctx.Err() != nil:
+		return
+	default:
+		entry.Result = "not_found"
+		entry.Detail = err.Error()
+	}
+	d.mu.Lock()
+	d.recent = append([]ActivityEntry{entry}, d.recent...)
+	if len(d.recent) > maxRecentActivity {
+		d.recent = d.recent[:maxRecentActivity]
+	}
+	d.mu.Unlock()
+
 	switch {
 	case err == nil:
 		d.updateDetails(func(details *AnimeDownloaderDetails) {
@@ -178,6 +211,18 @@ func (d *Downloader) recordOnlineResult(ctx context.Context, title string, err e
 		d.logger.Info().Err(err).Str("title", title).Msg("enmasse-anime: Not found online")
 		d.addToFailed(title)
 	}
+}
+
+// maxRecentActivity is how many results the activity feed keeps.
+const maxRecentActivity = 60
+
+func firstTitle(it *AnilistMinifiedItem) string {
+	for _, t := range []string{it.TitleEnglish, it.TitleRomaji, it.Title} {
+		if strings.TrimSpace(t) != "" {
+			return t
+		}
+	}
+	return ""
 }
 
 // waitForDownloads holds the search while the download queue is already well fed.
@@ -297,6 +342,9 @@ func (d *Downloader) processAnimeOnline(ctx context.Context, hooks *OnlineHooks,
 		return onlineSkip{"nothing to download (every episode is already in the library or the queue)"}
 	}
 
+	d.mu.Lock()
+	d.lastQueued = queued
+	d.mu.Unlock()
 	d.updateDetails(func(details *AnimeDownloaderDetails) {
 		details.Step = fmt.Sprintf("queued %d episodes", queued)
 		details.EpisodesQueued += queued
@@ -404,6 +452,10 @@ func (d *Downloader) findOnProvider(ctx context.Context, hooks *OnlineHooks, ite
 	// Best title first; the episode list decides between close titles (a TV series and its
 	// movie of the same name) and rules out empty entries.
 	sortMatches(candidates)
+	d.updateDetails(func(details *AnimeDownloaderDetails) {
+		details.Phase = "verifying"
+		details.Step = "checking the episode list"
+	})
 	for i, c := range candidates {
 		if i >= 3 {
 			break
