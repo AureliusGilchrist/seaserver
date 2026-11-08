@@ -679,6 +679,9 @@ type (
 		SkippedCount int `json:"skippedCount"`
 		// EpisodesQueued counts the episodes queued for online download in this run.
 		EpisodesQueued int `json:"episodesQueued"`
+		// TorrentIndex / TorrentTotal: progress through the torrents-first pass.
+		TorrentIndex int `json:"torrentIndex"`
+		TorrentTotal int `json:"torrentTotal"`
 	}
 
 	DownloaderProgress struct {

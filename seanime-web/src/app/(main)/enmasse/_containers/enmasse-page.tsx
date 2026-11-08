@@ -333,14 +333,18 @@ function Hero({ status }: { status: EnMasseDownloaderStatus | undefined }) {
 
 function ProgressPanel({ status }: { status: EnMasseDownloaderStatus | undefined }) {
     const now = useNow()
-    const total = status?.totalCount || status?.details?.currentAnimeTotal || 0
-    const done = status?.processedCount || 0
+    // The torrents-first pass comes before the database: shown as its own count while it runs.
+    const torrentPass = status?.isRunning && status?.details?.phase === "torrents" && !!status?.details?.torrentTotal
+    const dbTotal = status?.totalCount || status?.details?.currentAnimeTotal || 0
+    const dbDone = status?.processedCount || 0
+    const total = torrentPass ? status!.details!.torrentTotal! : dbTotal
+    const done = torrentPass ? (status!.details!.torrentIndex || 0) : dbDone
     const pct = total ? Math.min(100, (done / total) * 100) : 0
 
     const started = status?.startedAt ? new Date(status.startedAt).getTime() : 0
     const elapsed = started && status?.isRunning ? now - started : 0
     const perHour = elapsed > 60000 && status?.processedThisRun ? (status.processedThisRun / elapsed) * 3600000 : 0
-    const remaining = perHour > 0 ? ((total - done) / perHour) * 3600000 : 0
+    const remaining = perHour > 0 ? ((dbTotal - dbDone) / perHour) * 3600000 : 0
 
     // The ring: a circle whose stroke is drawn to the share of the database done.
     const r = 52
@@ -370,14 +374,14 @@ function ProgressPanel({ status }: { status: EnMasseDownloaderStatus | undefined
                     <p className="text-2xl font-bold tabular-nums leading-none">
                         {pct.toFixed(pct < 10 ? 1 : 0)}<span className="text-sm text-[--muted]">%</span>
                     </p>
-                    <p className="text-[10px] uppercase tracking-wider text-[--muted] mt-1">of the database</p>
+                    <p className="text-[10px] uppercase tracking-wider text-[--muted] mt-1">{torrentPass ? "of the torrents" : "of the database"}</p>
                 </div>
                 {status?.isRunning && <div className="absolute inset-2 rounded-full bg-fuchsia-500/10 blur-xl animate-pulse" />}
             </div>
 
             <div className="flex-1 min-w-0 w-full space-y-4">
                 <div>
-                    <p className="text-xs uppercase tracking-wider text-[--muted]">Series checked</p>
+                    <p className="text-xs uppercase tracking-wider text-[--muted]">{torrentPass ? "Torrent series checked first" : "Series checked"}</p>
                     <p className="text-2xl font-bold tabular-nums">
                         <AnimatedNumber value={done} /> <span className="text-base font-normal text-[--muted]">of {formatNumber(total)}</span>
                     </p>

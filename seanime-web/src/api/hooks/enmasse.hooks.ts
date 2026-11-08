@@ -46,6 +46,8 @@ export interface AnimeEnMasseDetails {
     currentProvider: string
     providersDone: number
     providersTotal: number
+    torrentIndex?: number
+    torrentTotal?: number
     currentQuery: string
     variantIndex: number
     variantsTotal: number

@@ -157,32 +157,37 @@ func (d *Downloader) processTorrentSeries(ctx context.Context, hooks *OnlineHook
 		d.details.Phase = "torrents"
 		d.details.Step = "replacing a torrent with an online download"
 		d.details.LastError = ""
-		d.mu.Unlock()
-		d.sendStatusUpdate()
-
-		d.mu.Lock()
+		d.details.TorrentIndex = i
+		d.details.TorrentTotal = len(series)
 		done := d.torrentDone[s.MediaId]
 		d.mu.Unlock()
 		if done {
 			continue // handled before the pause
 		}
+		d.sendStatusUpdate()
 
 		err := d.processAnimeOnline(ctx, hooks, &AnimeOfflineItem{Title: title, AnilistID: s.MediaId, torrentBacked: true})
 		if ctx.Err() != nil && !errors.Is(err, errOnlineSkipped) && err != nil {
 			return // interrupted: this one is tried again on resume
 		}
 		d.recordOnlineResult(ctx, title, err)
-		// Queued or skipped is settled. Not found is not: its torrent may stall later and let the
-		// backup take it, so it is tried again on the next run or resume.
-		if err == nil || errors.Is(err, errOnlineSkipped) {
-			d.mu.Lock()
-			if d.torrentDone == nil {
-				d.torrentDone = make(map[int]bool)
-			}
-			d.torrentDone[s.MediaId] = true
-			d.mu.Unlock()
+		// Settled for this run, found or not, so a resume does not search it all over again. A
+		// torrent not found online is tried again on the next fresh start (it may have stalled
+		// by then and let the backup take it).
+		d.mu.Lock()
+		if d.torrentDone == nil {
+			d.torrentDone = make(map[int]bool)
 		}
+		d.torrentDone[s.MediaId] = true
+		d.details.TorrentIndex = i + 1
+		resumeAt := d.resumeIndex
+		d.mu.Unlock()
+		// Saved after every series, like the main pass.
+		d.saveCurrentProgress(resumeAt)
 	}
+	d.mu.Lock()
+	d.details.TorrentIndex = len(series)
+	d.mu.Unlock()
 }
 
 // recordOnlineResult files one series' outcome in the downloaded / not found / skipped tallies
