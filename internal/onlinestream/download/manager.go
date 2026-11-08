@@ -106,8 +106,9 @@ type NewManagerOptions struct {
 	WorkDir string
 	// LibraryPath returns the library folder downloads go into.
 	LibraryPath func() string
-	// ExistingFolder returns the folder that already holds this media's episodes, if any.
-	ExistingFolder func(mediaId int) string
+	// Destination returns the folder and file name (with the .mkv extension) the episode is filed
+	// under — the same place and name a matched download from the Unmatched screen gets.
+	Destination func(media *anilist.BaseAnime, episode int) (dir string, name string)
 	// FfmpegPath returns the ffmpeg binary to use.
 	FfmpegPath func() string
 	Register   RegisterFunc
@@ -365,21 +366,19 @@ func (m *Manager) process(ctx context.Context, it *Item, workDir string) (string
 	}
 
 	// Destination
-	folder := ""
-	if m.opts.ExistingFolder != nil {
-		folder = m.opts.ExistingFolder(req.MediaId)
+	var folder, fileName string
+	if m.opts.Destination != nil {
+		folder, fileName = m.opts.Destination(media, req.EpisodeNumber)
 	}
-	title := sanitizeFileName(media.GetRomajiTitleSafe())
-	if title == "" {
-		title = sanitizeFileName(mediaTitle(media))
-	}
-	if title == "" {
-		title = "Anime " + strconv.Itoa(req.MediaId)
-	}
-	if folder == "" {
+	if folder == "" || fileName == "" {
+		title := sanitizeFileName(media.GetRomajiTitleSafe())
+		if title == "" {
+			title = "Anime " + strconv.Itoa(req.MediaId)
+		}
 		folder = filepath.Join(m.opts.LibraryPath(), title)
+		fileName = fmt.Sprintf("%s - Episode %03d.mkv", title, req.EpisodeNumber)
 	}
-	dest := filepath.Join(folder, fmt.Sprintf("%s - %02d.mkv", title, req.EpisodeNumber))
+	dest := filepath.Join(folder, fileName)
 	if _, err := os.Stat(dest); err == nil {
 		return "", fmt.Errorf("%s is already in the library", filepath.Base(dest))
 	}

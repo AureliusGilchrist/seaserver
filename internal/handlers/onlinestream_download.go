@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"seanime/internal/api/anilist"
 	"seanime/internal/core"
 	"seanime/internal/database/db_bridge"
 	"seanime/internal/events"
@@ -34,7 +35,21 @@ func (h *Handler) wireOnlinestreamDownloader(app *core.App) {
 			}
 			return p
 		},
-		ExistingFolder: h.existingFolderForMedia,
+		Destination: func(media *anilist.BaseAnime, episode int) (string, string) {
+			if app.UnmatchedRepository == nil || media == nil {
+				return "", ""
+			}
+			// Same title the Unmatched screen files a match under: the romaji title.
+			title := media.GetRomajiTitleSafe()
+			if title == "" {
+				title = media.GetTitleSafe()
+			}
+			format := ""
+			if media.Format != nil {
+				format = string(*media.Format)
+			}
+			return app.UnmatchedRepository.LibraryDestination(media.ID, title, episode, format, media.GetStartYearSafe(), ".mkv")
+		},
 		FfmpegPath: func() string {
 			if ms := app.SecondarySettings.Mediastream; ms != nil && ms.FfmpegPath != "" {
 				return ms.FfmpegPath
@@ -43,28 +58,6 @@ func (h *Handler) wireOnlinestreamDownloader(app *core.App) {
 		},
 		Register: h.registerOnlinestreamDownload,
 	})
-}
-
-// existingFolderForMedia returns the folder already holding this anime's episodes, so a
-// downloaded episode lands next to the ones the library has instead of in a second folder.
-func (h *Handler) existingFolderForMedia(mediaId int) string {
-	lfs, _, err := db_bridge.GetLocalFiles(h.App.Database)
-	if err != nil {
-		return ""
-	}
-	counts := make(map[string]int)
-	best, bestCount := "", 0
-	for _, lf := range lfs {
-		if lf.MediaId != mediaId || lf.Path == "" {
-			continue
-		}
-		dir := filepath.Dir(lf.Path)
-		counts[dir]++
-		if counts[dir] > bestCount {
-			best, bestCount = dir, counts[dir]
-		}
-	}
-	return best
 }
 
 // registerOnlinestreamDownload records a downloaded episode as a locked local file matched to
