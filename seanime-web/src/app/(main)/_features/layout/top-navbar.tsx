@@ -5,6 +5,8 @@ import { ManualProgressTrackingButton } from "@/app/(main)/_features/progress-tr
 import { PlaybackManagerProgressTrackingButton } from "@/app/(main)/_features/progress-tracking/playback-manager-progress-tracking"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { ChapterDownloadsButton } from "@/app/(main)/manga/_containers/chapter-downloads/chapter-downloads-button"
+import { AnimeDownloadsButton } from "@/app/(main)/onlinestream/_containers/anime-downloads/anime-downloads-button"
+import { __anime_streamDownloadsModalIsOpenAtom } from "@/app/(main)/onlinestream/_containers/anime-downloads/anime-downloads-modal"
 import { __manga_chapterDownloadsDrawerIsOpenAtom } from "@/app/(main)/manga/_containers/chapter-downloads/chapter-downloads-drawer"
 import { AppSidebarTrigger } from "@/components/ui/app-layout"
 import { cn } from "@/components/ui/core/styling"
@@ -99,6 +101,7 @@ export function TopNavbar(props: TopNavbarProps) {
                         <ManualProgressTrackingButton />
                         <div data-top-navbar-content-separator className="flex flex-1"></div>
                         <PluginSidebarTray place="top" />
+                        {!isOffline && <AnimeDownloadsButton />}
                         {!isOffline && <ChapterDownloadsButton />}
                         {/*{!isOffline && <RefreshAnilistButton />}*/}
                     </div>
@@ -128,6 +131,7 @@ export function SidebarNavbar(props: SidebarNavbarProps) {
     const serverStatus = useServerStatus()
     const ts = useThemeSettings()
     const openDownloadQueue = useSetAtom(__manga_chapterDownloadsDrawerIsOpenAtom)
+    const openAnimeDownloadQueue = useSetAtom(__anime_streamDownloadsModalIsOpenAtom)
 
     if (!ts.hideTopNavbar && process.env.NEXT_PUBLIC_PLATFORM !== "desktop") return null
 
@@ -147,6 +151,13 @@ export function SidebarNavbar(props: SidebarNavbarProps) {
                 onMouseLeave={handleUnexpandedSidebar}
                 isSidebar
                 items={[
+                    {
+                        iconType: LuFolderDown,
+                        name: "Anime Downloads",
+                        onClick: () => {
+                            openAnimeDownloadQueue(true)
+                        },
+                    },
                     {
                         iconType: LuFolderDown,
                         name: "Manga Downloads",

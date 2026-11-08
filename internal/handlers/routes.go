@@ -725,9 +725,10 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.POST("/onlinestream/remove-mapping", h.HandleRemoveOnlinestreamMapping)
 
 	v1.POST("/onlinestream/download", h.HandleOnlinestreamDownload)
+	v1.POST("/onlinestream/download/series", h.HandleOnlinestreamDownloadSeries)
 	v1.GET("/onlinestream/downloads", h.HandleGetOnlinestreamDownloads)
-	v1.POST("/onlinestream/downloads/cancel", h.HandleCancelOnlinestreamDownload)
-	v1.DELETE("/onlinestream/downloads/finished", h.HandleClearOnlinestreamDownloads)
+	v1.GET("/onlinestream/downloads/history", h.HandleGetOnlinestreamDownloadHistory)
+	v1.POST("/onlinestream/downloads/action", h.HandleOnlinestreamDownloadQueueAction)
 
 	//
 	// Metadata Provider

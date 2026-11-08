@@ -2920,29 +2920,47 @@ export const API_ENDPOINTS = {
         /**
          *  @description
          *  Route queues an episode download through an online streaming provider.
-         *  The video is fetched through the provider's source (rate limited per provider and host),
-         *  the subtitles the stream serves are converted to ASS, and everything is muxed into an MKV in the library.
-         *  The file is then registered as a matched local file. Progress is sent over the websocket.
          */
         OnlinestreamDownload: {
             key: "ONLINESTREAM-DOWNLOAD-onlinestream-download",
             methods: ["POST"],
             endpoint: "/api/v1/onlinestream/download",
         },
+        /**
+         *  @description
+         *  Route queues every episode the provider lists for an anime.
+         */
+        OnlinestreamDownloadSeries: {
+            key: "ONLINESTREAM-DOWNLOAD-onlinestream-download-series",
+            methods: ["POST"],
+            endpoint: "/api/v1/onlinestream/download/series",
+        },
+        /**
+         *  @description
+         *  Route returns the online stream download queue.
+         */
         GetOnlinestreamDownloads: {
             key: "ONLINESTREAM-DOWNLOAD-get-onlinestream-downloads",
             methods: ["GET"],
             endpoint: "/api/v1/onlinestream/downloads",
         },
-        CancelOnlinestreamDownload: {
-            key: "ONLINESTREAM-DOWNLOAD-cancel-onlinestream-download",
-            methods: ["POST"],
-            endpoint: "/api/v1/onlinestream/downloads/cancel",
+        /**
+         *  @description
+         *  Route returns the episodes downloaded through online streaming providers, newest first.
+         */
+        GetOnlinestreamDownloadHistory: {
+            key: "ONLINESTREAM-DOWNLOAD-get-onlinestream-download-history",
+            methods: ["GET"],
+            endpoint: "/api/v1/onlinestream/downloads/history",
         },
-        ClearOnlinestreamDownloads: {
-            key: "ONLINESTREAM-DOWNLOAD-clear-onlinestream-downloads",
-            methods: ["DELETE"],
-            endpoint: "/api/v1/onlinestream/downloads/finished",
+        /**
+         *  @description
+         *  Route controls the online stream download queue.
+         */
+        OnlinestreamDownloadQueueAction: {
+            key: "ONLINESTREAM-DOWNLOAD-onlinestream-download-queue-action",
+            methods: ["POST"],
+            endpoint: "/api/v1/onlinestream/downloads/action",
         },
     },
     PLANNING_SLUT: {

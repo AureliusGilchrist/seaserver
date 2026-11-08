@@ -28,6 +28,7 @@ func (h *Handler) wireOnlinestreamDownloader(app *core.App) {
 		WSEventManager: app.WSEventManager,
 		Repository:     app.OnlinestreamRepository,
 		WorkDir:        filepath.Join(app.Config.Cache.Dir, "onlinestream-downloads"),
+		StatePath:      filepath.Join(app.Config.Data.AppDataDir, "onlinestream-download-queue.json"),
 		LibraryPath: func() string {
 			p, err := app.Database.GetLibraryPathFromSettings()
 			if err != nil {
@@ -203,7 +204,7 @@ func (h *Handler) HandleOnlinestreamDownload(c echo.Context) error {
 //
 //	@summary returns the online stream download queue.
 //	@route /api/v1/onlinestream/downloads [GET]
-//	@returns []onlinestream_download.Item
+//	@returns onlinestream_download.QueueState
 func (h *Handler) HandleGetOnlinestreamDownloads(c echo.Context) error {
 	m, err := h.onlinestreamDownloader()
 	if err != nil {
@@ -212,14 +213,86 @@ func (h *Handler) HandleGetOnlinestreamDownloads(c echo.Context) error {
 	return h.RespondWithData(c, m.GetQueue())
 }
 
-// HandleCancelOnlinestreamDownload
+// HandleGetOnlinestreamDownloadHistory
 //
-//	@summary cancels a running or queued online stream download.
-//	@route /api/v1/onlinestream/downloads/cancel [POST]
-//	@returns bool
-func (h *Handler) HandleCancelOnlinestreamDownload(c echo.Context) error {
+//	@summary returns the episodes downloaded through online streaming providers, newest first.
+//	@route /api/v1/onlinestream/downloads/history [GET]
+//	@returns []onlinestream_download.HistoryEntry
+func (h *Handler) HandleGetOnlinestreamDownloadHistory(c echo.Context) error {
+	m, err := h.onlinestreamDownloader()
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	return h.RespondWithData(c, m.GetHistory())
+}
+
+// HandleOnlinestreamDownloadSeries
+//
+//	@summary queues every episode the provider lists for an anime.
+//	@desc Episodes already in the library or already in the queue are skipped unless includeExisting is set.
+//	@route /api/v1/onlinestream/download/series [POST]
+//	@returns onlinestream_download.SeriesResult
+func (h *Handler) HandleOnlinestreamDownloadSeries(c echo.Context) error {
 	type body struct {
-		ID string `json:"id"`
+		MediaId          int    `json:"mediaId"`
+		Provider         string `json:"provider"`
+		Dubbed           bool   `json:"dubbed"`
+		Server           string `json:"server,omitempty"`
+		Quality          string `json:"quality,omitempty"`
+		SubtitleLanguage string `json:"subtitleLanguage,omitempty"`
+		IncludeExisting  bool   `json:"includeExisting,omitempty"`
+	}
+	var b body
+	if err := c.Bind(&b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+	if h.App.Settings == nil || !h.App.Settings.GetLibrary().EnableOnlinestream {
+		return h.RespondWithError(c, errors.New("enable online streaming in the settings"))
+	}
+	if b.MediaId <= 0 || b.Provider == "" {
+		return h.RespondWithError(c, errors.New("missing anime or provider"))
+	}
+	m, err := h.onlinestreamDownloader()
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	// Episodes the library already has, from any source.
+	have := make(map[int]bool)
+	if lfs, _, lfErr := db_bridge.GetLocalFiles(h.App.Database); lfErr == nil {
+		for _, lf := range lfs {
+			if lf.MediaId == b.MediaId && lf.Metadata != nil && lf.Metadata.Type == anime.LocalFileTypeMain {
+				have[lf.Metadata.Episode] = true
+			}
+		}
+	}
+
+	res, err := m.EnqueueSeries(c.Request().Context(), onlinestream_download.Request{
+		MediaId:          b.MediaId,
+		Provider:         b.Provider,
+		Dubbed:           b.Dubbed,
+		Server:           b.Server,
+		Quality:          b.Quality,
+		SubtitleLanguage: b.SubtitleLanguage,
+	}, func(ep int) bool { return have[ep] }, b.IncludeExisting)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	return h.RespondWithData(c, res)
+}
+
+// HandleOnlinestreamDownloadQueueAction
+//
+//	@summary controls the online stream download queue.
+//	@desc Actions: start, stop, reset-errored, clear-finished, clear-all, clear-media (mediaId),
+//	@desc and per item (id): cancel, retry, remove, move-to-top.
+//	@route /api/v1/onlinestream/downloads/action [POST]
+//	@returns bool
+func (h *Handler) HandleOnlinestreamDownloadQueueAction(c echo.Context) error {
+	type body struct {
+		Action  string `json:"action"`
+		ID      string `json:"id,omitempty"`
+		MediaId int    `json:"mediaId,omitempty"`
 	}
 	var b body
 	if err := c.Bind(&b); err != nil {
@@ -229,19 +302,30 @@ func (h *Handler) HandleCancelOnlinestreamDownload(c echo.Context) error {
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
-	return h.RespondWithData(c, m.Cancel(b.ID))
-}
-
-// HandleClearOnlinestreamDownloads
-//
-//	@summary removes finished items from the online stream download queue.
-//	@route /api/v1/onlinestream/downloads/finished [DELETE]
-//	@returns bool
-func (h *Handler) HandleClearOnlinestreamDownloads(c echo.Context) error {
-	m, err := h.onlinestreamDownloader()
-	if err != nil {
-		return h.RespondWithError(c, err)
+	ok := true
+	switch b.Action {
+	case "start":
+		m.Start()
+	case "stop":
+		m.Stop()
+	case "reset-errored":
+		ok = m.ResetErrored() > 0
+	case "clear-finished":
+		m.ClearFinished()
+	case "clear-all":
+		m.ClearAll()
+	case "clear-media":
+		m.ClearMedia(b.MediaId)
+	case "cancel":
+		ok = m.Cancel(b.ID)
+	case "retry":
+		ok = m.Retry(b.ID)
+	case "remove":
+		ok = m.Remove(b.ID)
+	case "move-to-top":
+		ok = m.MoveToTop(b.ID)
+	default:
+		return h.RespondWithError(c, errors.New("unknown action"))
 	}
-	m.ClearFinished()
-	return h.RespondWithData(c, true)
+	return h.RespondWithData(c, ok)
 }

@@ -30,6 +30,7 @@ import { DebridStreamOverlay } from "@/app/(main)/entry/_containers/debrid-strea
 import { useTorrentStreamListener } from "@/app/(main)/entry/_containers/torrent-stream/_lib/handle-torrent-stream"
 import { TorrentStreamOverlay } from "@/app/(main)/entry/_containers/torrent-stream/torrent-stream-overlay"
 import { ChapterDownloadsDrawer } from "@/app/(main)/manga/_containers/chapter-downloads/chapter-downloads-drawer"
+import { AnimeStreamDownloadsModal } from "@/app/(main)/onlinestream/_containers/anime-downloads/anime-downloads-modal"
 import { LoadingOverlayWithLogo } from "@/components/shared/loading-overlay-with-logo"
 import { AppLayout, AppLayoutContent, AppLayoutSidebar, AppSidebarProvider } from "@/components/ui/app-layout"
 import { cn } from "@/components/ui/core/styling"
@@ -108,6 +109,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
             <LibraryWatcher />
             <ScannerModal />
             <ChapterDownloadsDrawer />
+            <AnimeStreamDownloadsModal />
             <TorrentStreamOverlay />
             <DebridStreamOverlay />
             <MediaPreviewModal />

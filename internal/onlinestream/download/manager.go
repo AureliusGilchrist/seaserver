@@ -17,331 +17,13 @@ import (
 	"path"
 	"path/filepath"
 	"seanime/internal/api/anilist"
-	"seanime/internal/events"
 	hibikeonlinestream "seanime/internal/extension/hibike/onlinestream"
 	"seanime/internal/onlinestream"
-	"seanime/internal/util"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/google/uuid"
-	"github.com/rs/zerolog"
 )
-
-const (
-	// QueueUpdatedEvent carries the whole queue whenever it changes.
-	QueueUpdatedEvent = "onlinestream-download-queue-updated"
-
-	progressEventInterval = 500 * time.Millisecond
-	// keepFinished is how many finished items stay visible in the queue.
-	keepFinished = 30
-)
-
-type Status string
-
-const (
-	StatusQueued      Status = "queued"
-	StatusFetching    Status = "fetching"
-	StatusDownloading Status = "downloading"
-	StatusMuxing      Status = "muxing"
-	StatusRegistering Status = "registering"
-	StatusCompleted   Status = "completed"
-	StatusFailed      Status = "failed"
-	StatusCancelled   Status = "cancelled"
-)
-
-// Request is what the client asks to download: an episode, and the provider/server/quality the
-// online player had selected.
-type Request struct {
-	MediaId       int    `json:"mediaId"`
-	EpisodeNumber int    `json:"episodeNumber"`
-	Provider      string `json:"provider"`
-	Dubbed        bool   `json:"dubbed"`
-	Server        string `json:"server,omitempty"`
-	Quality       string `json:"quality,omitempty"`
-	// SourceURL identifies the exact video source the player was playing, when known.
-	SourceURL string `json:"sourceUrl,omitempty"`
-	// SubtitleLanguage is the subtitle the player was showing; it becomes the default track.
-	SubtitleLanguage string `json:"subtitleLanguage,omitempty"`
-}
-
-// Item is one download in the queue as the client sees it.
-type Item struct {
-	ID            string    `json:"id"`
-	MediaId       int       `json:"mediaId"`
-	EpisodeNumber int       `json:"episodeNumber"`
-	Provider      string    `json:"provider"`
-	Server        string    `json:"server,omitempty"`
-	Quality       string    `json:"quality,omitempty"`
-	Dubbed        bool      `json:"dubbed"`
-	Title         string    `json:"title"`
-	Image         string    `json:"image,omitempty"`
-	Status        Status    `json:"status"`
-	Progress      float64   `json:"progress"` // 0..1 within the current status
-	SegmentsDone  int       `json:"segmentsDone"`
-	SegmentsTotal int       `json:"segmentsTotal"`
-	Bytes         int64     `json:"bytes"`
-	SubtitleCount int       `json:"subtitleCount"`
-	Hardsubbed    bool      `json:"hardsubbed"`
-	Warnings      []string  `json:"warnings,omitempty"`
-	Error         string    `json:"error,omitempty"`
-	Destination   string    `json:"destination,omitempty"`
-	CreatedAt     time.Time `json:"createdAt"`
-
-	req    Request
-	cancel context.CancelFunc
-}
-
-// RegisterFunc files a finished download in the library database, matched to its media and
-// episode.
-type RegisterFunc func(mediaId int, episode int, path string) error
-
-type NewManagerOptions struct {
-	Logger         *zerolog.Logger
-	WSEventManager events.WSEventManagerInterface
-	Repository     *onlinestream.Repository
-	// WorkDir holds the segments of the episode being downloaded.
-	WorkDir string
-	// LibraryPath returns the library folder downloads go into.
-	LibraryPath func() string
-	// Destination returns the folder and file name (with the .mkv extension) the episode is filed
-	// under — the same place and name a matched download from the Unmatched screen gets.
-	Destination func(media *anilist.BaseAnime, episode int) (dir string, name string)
-	// FfmpegPath returns the ffmpeg binary to use.
-	FfmpegPath func() string
-	Register   RegisterFunc
-}
-
-type Manager struct {
-	opts   NewManagerOptions
-	logger *zerolog.Logger
-	client *RateLimitedClient
-
-	mu        sync.Mutex
-	items     []*Item
-	wake      chan struct{}
-	lastEvent time.Time
-	started   sync.Once
-}
-
-func NewManager(opts NewManagerOptions) *Manager {
-	return &Manager{
-		opts:   opts,
-		logger: opts.Logger,
-		client: NewRateLimitedClient(),
-		wake:   make(chan struct{}, 1),
-	}
-}
-
-// Enqueue adds a download to the end of the queue.
-func (m *Manager) Enqueue(ctx context.Context, req Request) (*Item, error) {
-	if req.MediaId <= 0 || req.EpisodeNumber < 0 || req.Provider == "" {
-		return nil, errors.New("missing media, episode or provider")
-	}
-	if m.opts.LibraryPath() == "" {
-		return nil, errors.New("set a library folder in the settings first")
-	}
-
-	media, err := m.opts.Repository.GetMedia(ctx, req.MediaId)
-	if err != nil {
-		return nil, err
-	}
-
-	m.mu.Lock()
-	for _, it := range m.items {
-		if it.MediaId == req.MediaId && it.EpisodeNumber == req.EpisodeNumber && !it.finished() {
-			m.mu.Unlock()
-			return nil, fmt.Errorf("episode %d is already in the download queue", req.EpisodeNumber)
-		}
-	}
-	item := &Item{
-		ID:            uuid.NewString(),
-		MediaId:       req.MediaId,
-		EpisodeNumber: req.EpisodeNumber,
-		Provider:      req.Provider,
-		Server:        req.Server,
-		Quality:       req.Quality,
-		Dubbed:        req.Dubbed,
-		Title:         mediaTitle(media),
-		Image:         media.GetCoverImageSafe(),
-		Status:        StatusQueued,
-		CreatedAt:     time.Now(),
-		req:           req,
-	}
-	m.items = append(m.items, item)
-	m.mu.Unlock()
-
-	m.started.Do(func() { go m.worker() })
-	m.signal()
-	m.emit(true)
-	return item, nil
-}
-
-// Cancel stops a running download or removes a queued one.
-func (m *Manager) Cancel(id string) bool {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	for _, it := range m.items {
-		if it.ID != id || it.finished() {
-			continue
-		}
-		if it.cancel != nil {
-			it.cancel()
-		}
-		it.Status = StatusCancelled
-		go m.emit(true)
-		return true
-	}
-	return false
-}
-
-// ClearFinished drops completed, failed and cancelled items from the list.
-func (m *Manager) ClearFinished() {
-	m.mu.Lock()
-	kept := m.items[:0]
-	for _, it := range m.items {
-		if !it.finished() {
-			kept = append(kept, it)
-		}
-	}
-	m.items = kept
-	m.mu.Unlock()
-	m.emit(true)
-}
-
-// GetQueue returns a snapshot of the queue.
-func (m *Manager) GetQueue() []*Item {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.snapshotLocked()
-}
-
-func (m *Manager) snapshotLocked() []*Item {
-	out := make([]*Item, 0, len(m.items))
-	for _, it := range m.items {
-		c := *it
-		c.Warnings = append([]string(nil), it.Warnings...)
-		c.cancel = nil
-		out = append(out, &c)
-	}
-	return out
-}
-
-func (it *Item) finished() bool {
-	return it.Status == StatusCompleted || it.Status == StatusFailed || it.Status == StatusCancelled
-}
-
-func (m *Manager) signal() {
-	select {
-	case m.wake <- struct{}{}:
-	default:
-	}
-}
-
-// emit sends the queue to clients. Progress updates are throttled; state changes are not.
-func (m *Manager) emit(force bool) {
-	if m.opts.WSEventManager == nil {
-		return
-	}
-	m.mu.Lock()
-	if !force && time.Since(m.lastEvent) < progressEventInterval {
-		m.mu.Unlock()
-		return
-	}
-	m.lastEvent = time.Now()
-	snap := m.snapshotLocked()
-	m.mu.Unlock()
-	m.opts.WSEventManager.SendEvent(QueueUpdatedEvent, snap)
-}
-
-func (m *Manager) update(it *Item, fn func(it *Item), force bool) {
-	m.mu.Lock()
-	fn(it)
-	m.mu.Unlock()
-	m.emit(force)
-}
-
-// worker runs the queue one episode at a time.
-func (m *Manager) worker() {
-	defer util.HandlePanicInModuleThen("onlinestream_download/worker", func() {})
-	for {
-		it := m.nextQueued()
-		if it == nil {
-			<-m.wake
-			continue
-		}
-		m.run(it)
-		m.trimFinished()
-	}
-}
-
-func (m *Manager) nextQueued() *Item {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	for _, it := range m.items {
-		if it.Status == StatusQueued {
-			return it
-		}
-	}
-	return nil
-}
-
-func (m *Manager) trimFinished() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	finished := 0
-	for i := len(m.items) - 1; i >= 0; i-- {
-		if m.items[i].finished() {
-			finished++
-			if finished > keepFinished {
-				m.items = append(m.items[:i], m.items[i+1:]...)
-			}
-		}
-	}
-}
-
-func (m *Manager) run(it *Item) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	m.mu.Lock()
-	if it.Status != StatusQueued { // cancelled while waiting
-		m.mu.Unlock()
-		return
-	}
-	it.cancel = cancel
-	it.Status = StatusFetching
-	m.mu.Unlock()
-	m.emit(true)
-
-	workDir := filepath.Join(m.opts.WorkDir, it.ID)
-	defer os.RemoveAll(workDir)
-
-	dest, err := m.process(ctx, it, workDir)
-
-	m.mu.Lock()
-	it.cancel = nil
-	switch {
-	case ctx.Err() != nil || it.Status == StatusCancelled:
-		it.Status = StatusCancelled
-	case err != nil:
-		it.Status = StatusFailed
-		it.Error = err.Error()
-	default:
-		it.Status = StatusCompleted
-		it.Progress = 1
-		it.Destination = dest
-	}
-	m.mu.Unlock()
-	m.emit(true)
-
-	if err != nil && ctx.Err() == nil {
-		m.logger.Error().Err(err).Int("mediaId", it.MediaId).Int("episode", it.EpisodeNumber).
-			Str("provider", it.Provider).Msg("onlinestream download: Failed")
-	}
-}
 
 // downloader carries the per-download request context: the provider (the limiter key) and the
 // headers the video source needs.
@@ -358,7 +40,7 @@ type subtitleSource struct {
 }
 
 func (m *Manager) process(ctx context.Context, it *Item, workDir string) (string, error) {
-	req := it.req
+	req := it.Req
 
 	media, err := m.opts.Repository.GetMedia(ctx, req.MediaId)
 	if err != nil {
@@ -579,6 +261,7 @@ func (m *Manager) downloadVideo(ctx context.Context, it *Item, d *downloader, so
 				if total > 0 {
 					it.Progress = float64(done) / float64(total)
 				}
+				it.trackRate(time.Now())
 			}, false)
 		}); err != nil {
 			return err
@@ -634,6 +317,7 @@ func (m *Manager) downloadVideo(ctx context.Context, it *Item, d *downloader, so
 			if total > 0 {
 				it.Progress = float64(done) / float64(total)
 			}
+			it.trackRate(time.Now())
 		}, false)
 	}
 

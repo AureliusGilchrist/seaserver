@@ -273,6 +273,21 @@ func (d *downloader) downloadMediaPlaylist(ctx context.Context, playlistURL stri
 		out.WriteString("#EXT-X-ENDLIST\n")
 	}
 
+	// Segments are named by position, so ones left by an earlier attempt are only reusable when
+	// they came from the same playlist. Anything else is cleared before downloading.
+	marker := filepath.Join(dir, prefix+"source.txt")
+	signature := fmt.Sprintf("%s|%d", stripQuery(playlistURL), len(resources))
+	if prev, err := os.ReadFile(marker); err != nil || string(prev) != signature {
+		if entries, err := os.ReadDir(dir); err == nil {
+			for _, e := range entries {
+				if strings.HasPrefix(e.Name(), prefix) && !strings.HasSuffix(e.Name(), ".key") {
+					_ = os.Remove(filepath.Join(dir, e.Name()))
+				}
+			}
+		}
+		_ = os.WriteFile(marker, []byte(signature), 0o644)
+	}
+
 	if err := d.fetchResources(ctx, resources, dir, onProgress); err != nil {
 		return nil, err
 	}
@@ -282,6 +297,15 @@ func (d *downloader) downloadMediaPlaylist(ctx context.Context, playlistURL stri
 		return nil, err
 	}
 	return &localPlaylist{Path: path}, nil
+}
+
+func stripQuery(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return raw
+	}
+	u.RawQuery, u.Fragment = "", ""
+	return u.String()
 }
 
 // fetchResources downloads the resources with a small worker pool. Every request still goes

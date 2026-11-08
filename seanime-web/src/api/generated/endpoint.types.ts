@@ -3794,11 +3794,30 @@ export type OnlinestreamDownload_Variables = {
 /**
  * - Filepath: internal/handlers/onlinestream_download.go
  * - Filename: onlinestream_download.go
- * - Endpoint: /api/v1/onlinestream/downloads/cancel
+ * - Endpoint: /api/v1/onlinestream/download/series
  * @description
- * Route cancels a running or queued online stream download.
+ * Route queues every episode the provider lists for an anime.
  */
-export type CancelOnlinestreamDownload_Variables = {
-    id: string
+export type OnlinestreamDownloadSeries_Variables = {
+    mediaId: number
+    provider: string
+    dubbed: boolean
+    server?: string
+    quality?: string
+    subtitleLanguage?: string
+    includeExisting?: boolean
+}
+
+/**
+ * - Filepath: internal/handlers/onlinestream_download.go
+ * - Filename: onlinestream_download.go
+ * - Endpoint: /api/v1/onlinestream/downloads/action
+ * @description
+ * Route controls the online stream download queue.
+ */
+export type OnlinestreamDownloadQueueAction_Variables = {
+    action: string
+    id?: string
+    mediaId?: number
 }
 
