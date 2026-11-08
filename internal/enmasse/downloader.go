@@ -604,6 +604,8 @@ type (
 		torrentDone       map[int]bool // torrent series this run already handled
 		// ready are series looked up while the download queue was full, queued as room appears.
 		ready []*ReadySeries
+		// results holds every series' result for the run (see results.go).
+		results resultStore
 		// resumeIndex is the series a resume starts at: the one being worked on, or the next.
 		resumeIndex int
 		// discardProgress is set by Stop without saving, so a run still winding down does not
@@ -648,6 +650,8 @@ type (
 		Recent []ActivityEntry `json:"recent"`
 		// Ready lists the series looked up and lined up to be queued once there is room.
 		Ready []ReadyPreview `json:"ready"`
+		// Results counts every series' result this run (the list itself is paged: Results).
+		Results ResultCounts `json:"results"`
 	}
 
 	// ActivityEntry is one series' outcome in the activity feed.
@@ -831,6 +835,7 @@ func (d *Downloader) GetStatus() *DownloaderStatus {
 		ProcessedThisRun: d.processedThisRun,
 		Recent:           withReasons(d.recent),
 		Ready:            d.readyPreviewLocked(),
+		Results:          d.results.counts(),
 	}
 	if !d.startedAt.IsZero() {
 		t := d.startedAt
@@ -943,15 +948,7 @@ func (d *Downloader) Start(resume bool) error {
 	d.resumeIndex = startIndex
 
 	if !autoResume {
-		d.skippedCount = 0
-		d.recent = nil
-		d.torrentDone = nil
-		d.ready = nil
-		d.details.EpisodesQueued = 0
-		d.processedCount = 0
-		d.downloadedAnime = make([]string, 0, MaxAnimeLogEntries)
-		d.failedAnime = make([]string, 0, MaxAnimeLogEntries)
-		d.clearProgress()
+		d.resetRunLocked()
 	}
 	d.status = "Starting..."
 	d.startedAt = time.Now()
@@ -1002,8 +999,10 @@ func (d *Downloader) Stop(saveProgress bool) {
 		d.isPaused = true
 		d.status = "Paused"
 	} else {
+		// Stop and reset: everything goes now, not when the next run starts, and the stopped
+		// run's last moments are not recorded (discardProgress).
 		d.discardProgress = true
-		d.clearProgressUnlocked()
+		d.resetRunLocked()
 		d.isPaused = false
 		d.status = "Stopped"
 	}
@@ -1118,7 +1117,9 @@ func (d *Downloader) run(ctx context.Context, startIndex int, done chan struct{}
 		}
 
 		d.mu.Lock()
-		d.currentAnime = &AnilistMinifiedItem{Title: animeItem.Title}
+		// What the offline database says, so even a series skipped before any lookup shows its
+		// cover and links to its page.
+		d.currentAnime = &AnilistMinifiedItem{ID: animeItem.AnilistID, Title: animeItem.Title, CoverImage: animeItem.Picture}
 		d.processedCount = i + 1
 		d.resumeIndex = i
 		d.status = fmt.Sprintf("Processing %d/%d: %s", i+1, len(animeList), animeItem.Title)
@@ -2824,4 +2825,21 @@ func withReasons(recent []ActivityEntry) []ActivityEntry {
 		}
 	}
 	return out
+}
+
+// resetRunLocked forgets the run: its place, its record and every result. Called with d.mu held.
+func (d *Downloader) resetRunLocked() {
+	d.skippedCount = 0
+	d.recent = nil
+	d.torrentDone = nil
+	d.ready = nil
+	d.details = AnimeDownloaderDetails{}
+	d.processedCount = 0
+	d.resumeIndex = 0
+	d.processedThisRun = 0
+	d.currentAnime = nil
+	d.downloadedAnime = make([]string, 0, MaxAnimeLogEntries)
+	d.failedAnime = make([]string, 0, MaxAnimeLogEntries)
+	d.clearProgressUnlocked()
+	d.results.reset()
 }

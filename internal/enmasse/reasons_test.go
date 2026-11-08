@@ -1,8 +1,12 @@
 package enmasse
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"testing"
+
+	"github.com/rs/zerolog"
 )
 
 func TestExplainSkips(t *testing.T) {
@@ -55,5 +59,44 @@ func TestExplainNotFoundRecorded(t *testing.T) {
 	reason, parts := explainResult(err)
 	if reason != ReasonVideoSourceNull || len(parts) != 2 || parts[0].Reason != ReasonVideoSourceNull || parts[1].Reason != ReasonRefused {
 		t.Fatalf("%q %+v", reason, parts)
+	}
+}
+
+// TestEveryResultIsKept: every series' result is kept and paged newest first; Stop and reset
+// clears them at once, and the stopped run's last result is not recorded.
+func TestEveryResultIsKept(t *testing.T) {
+	logger := zerolog.Nop()
+	d := NewDownloader(&NewDownloaderOptions{Logger: &logger})
+	d.results.reset()
+	ctx := context.Background()
+	for i := 0; i < 250; i++ {
+		d.mu.Lock()
+		d.currentAnime = &AnilistMinifiedItem{ID: i + 1, Title: fmt.Sprintf("S%d", i)}
+		d.mu.Unlock()
+		var err error
+		if i%2 == 0 {
+			err = onlineSkip{"already in the library"}
+		}
+		d.recordOnlineResult(ctx, fmt.Sprintf("S%d", i), err)
+	}
+	page := d.Results(0, 100, "all", "")
+	if page.Total != 250 || len(page.Items) != 100 || page.Items[0].Title != "S249" {
+		t.Fatalf("total %d, items %d, first %q", page.Total, len(page.Items), page.Items[0].Title)
+	}
+	skipped := d.Results(0, 500, "skipped", "")
+	if skipped.Total != 125 || skipped.Items[0].Reason != ReasonInLibrary {
+		t.Fatalf("skipped %d, reason %q", skipped.Total, skipped.Items[0].Reason)
+	}
+	// From the file, as after a restart.
+	fresh := NewDownloader(&NewDownloaderOptions{Logger: &logger})
+	if got := fresh.Results(0, 10, "", "S24").Total; got != 11 { // S24, S240..S249
+		t.Fatalf("after reload, search found %d", got)
+	}
+
+	d.isRunning = true
+	d.Stop(false)
+	d.recordOnlineResult(ctx, "late", nil)
+	if c := d.results.counts(); c.Total != 0 {
+		t.Fatalf("reset kept %d results", c.Total)
 	}
 }

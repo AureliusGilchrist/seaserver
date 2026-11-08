@@ -26,6 +26,8 @@ export interface EnMasseDownloaderStatus {
     recent?: AnimeEnMasseActivity[]
     /** Series looked up while the download queue was full, queued in order as room appears */
     ready?: AnimeEnMasseReady[]
+    /** Every series' result this run, counted (the list itself: /api/v1/enmasse/results) */
+    results?: { total: number, queued: number, skipped: number, notFound: number }
 }
 
 export interface AnimeEnMasseReady {

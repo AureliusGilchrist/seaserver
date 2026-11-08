@@ -246,6 +246,11 @@ func (d *Downloader) processTorrentSeries(ctx context.Context, hooks *OnlineHook
 // and the activity feed.
 func (d *Downloader) recordOnlineResult(ctx context.Context, title string, err error) {
 	d.mu.Lock()
+	if d.discardProgress {
+		// The run was stopped and reset; what it was finishing is not recorded.
+		d.mu.Unlock()
+		return
+	}
 	entry := ActivityEntry{Time: time.Now(), Title: title, Episodes: d.lastQueued, Provider: d.lastProvider}
 	if d.currentAnime != nil {
 		entry.MediaId = d.currentAnime.ID
@@ -272,6 +277,9 @@ func (d *Downloader) recordOnlineResult(ctx context.Context, title string, err e
 		entry.Result = "not_found"
 		entry.Detail = err.Error()
 		entry.Reason, entry.Reasons = explainResult(err)
+	}
+	if rerr := d.results.add(entry); rerr != nil {
+		d.logger.Warn().Err(rerr).Msg("enmasse-anime: Could not save the result")
 	}
 	d.mu.Lock()
 	d.recent = append([]ActivityEntry{entry}, d.recent...)

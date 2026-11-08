@@ -1081,6 +1081,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1EnMasse.GET("/status", h.HandleEnMasseGetStatus)
 	v1EnMasse.POST("/start", h.HandleEnMasseStart)
 	v1EnMasse.POST("/stop", h.HandleEnMasseStop)
+	v1EnMasse.GET("/results", h.HandleEnMasseResults)
 
 	//
 	// Manga En Masse Downloader

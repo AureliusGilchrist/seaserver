@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"github.com/labstack/echo/v4"
+	"strconv"
 )
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -40,6 +41,18 @@ func (h *Handler) HandleEnMasseStart(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 	return h.RespondWithData(c, true)
+}
+
+// HandleEnMasseResults
+//
+//	@summary every series' result in the current anime en masse run, newest first, a page at a time.
+//	@desc filter: all, queued, skipped or not_found. search: part of the title.
+//	@returns enmasse.ResultsPage
+//	@route /api/v1/enmasse/results [GET]
+func (h *Handler) HandleEnMasseResults(c echo.Context) error {
+	offset, _ := strconv.Atoi(c.QueryParam("offset"))
+	limit, _ := strconv.Atoi(c.QueryParam("limit"))
+	return h.RespondWithData(c, h.App.EnMasseDownloader.Results(offset, limit, c.QueryParam("filter"), c.QueryParam("search")))
 }
 
 type EnMasseStopBody struct {

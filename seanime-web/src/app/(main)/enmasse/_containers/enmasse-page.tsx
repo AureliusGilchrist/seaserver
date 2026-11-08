@@ -1,5 +1,6 @@
 "use client"
 
+import { buildSeaQuery } from "@/api/client/requests"
 import { AnimeEnMasseActivity, AnimeEnMasseReady, EnMasseDownloaderStatus, useEnMasseStart, useEnMasseStatus, useEnMasseStop } from "@/api/hooks/enmasse.hooks"
 import { isOnlinestreamDownloadRunning, useGetOnlinestreamDownloads } from "@/api/hooks/onlinestream_download.hooks"
 import { useDownloadingAnime } from "@/app/(main)/_atoms/downloading.atoms"
@@ -649,7 +650,7 @@ function JustQueued({ status }: { status: EnMasseDownloaderStatus | undefined })
 // Activity
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-type FeedTab = "recent" | "ready" | "queued" | "missing"
+type FeedTab = "all" | "ready" | "queued" | "skipped" | "not_found"
 
 const resultStyle: Record<AnimeEnMasseActivity["result"], { label: string, className: string, rail: string, icon: React.ElementType }> = {
     queued: { label: "Queued", className: "text-emerald-300 bg-emerald-400/10 border-emerald-400/25", rail: "bg-emerald-400", icon: LuCircleCheck },
@@ -657,30 +658,99 @@ const resultStyle: Record<AnimeEnMasseActivity["result"], { label: string, class
     skipped: { label: "Skipped", className: "text-slate-300 bg-slate-400/10 border-slate-400/25", rail: "bg-slate-500", icon: LuSkipForward },
 }
 
-function ActivityFeed({ status }: { status: EnMasseDownloaderStatus | undefined }) {
-    const [tab, setTab] = useState<FeedTab>("recent")
-    const now = useNow(10000)
-    const recent = status?.recent ?? []
-    const queued = React.useMemo(() => [...(status?.downloadedAnime ?? [])].reverse(), [status?.downloadedAnime])
-    const missing = React.useMemo(() => [...(status?.failedAnime ?? [])].reverse(), [status?.failedAnime])
-    const ready = status?.ready ?? []
-    const list = tab === "queued" ? queued : missing
+/** Results come a page at a time; a page is this many. */
+const RESULTS_PAGE = 100
 
-    const tabs: [FeedTab, string, number | undefined][] = [
-        ["recent", "Latest", undefined],
+/**
+ * Every series' result in the run, newest first, loaded a page at a time as the list scrolls.
+ * When a new result arrives everything shifts down one, so the pages are fetched again.
+ */
+function useResultPages(filter: string, search: string, total: number) {
+    const [pages, setPages] = useState<Map<number, AnimeEnMasseActivity[]>>(new Map())
+    const [count, setCount] = useState(0)
+    const loading = React.useRef(new Set<number>())
+    const generation = React.useRef(0)
+
+    const load = React.useCallback(async (page: number, gen: number) => {
+        if (loading.current.has(page)) return
+        loading.current.add(page)
+        try {
+            const res = await buildSeaQuery<{ total: number, items: AnimeEnMasseActivity[] }>({
+                endpoint: "/api/v1/enmasse/results",
+                method: "GET",
+                params: { offset: page * RESULTS_PAGE, limit: RESULTS_PAGE, filter, search },
+            })
+            if (gen !== generation.current || !res) return
+            setCount(res.total)
+            setPages(prev => new Map(prev).set(page, res.items ?? []))
+        }
+        catch {
+        }
+        finally {
+            loading.current.delete(page)
+        }
+    }, [filter, search])
+
+    // A new filter or search: start over from the first page.
+    useEffect(() => {
+        generation.current++
+        loading.current.clear()
+        setPages(new Map())
+        const t = setTimeout(() => load(0, generation.current), search ? 300 : 0)
+        return () => clearTimeout(t)
+    }, [filter, search, load])
+
+    // A new result: the pages already shown are fetched again, kept on screen until they arrive.
+    const pagesRef = React.useRef(pages)
+    pagesRef.current = pages
+    const firstTotal = React.useRef(true)
+    useEffect(() => {
+        if (firstTotal.current) {
+            firstTotal.current = false
+            return
+        }
+        generation.current++
+        loading.current.clear()
+        const gen = generation.current
+        const shown = [...pagesRef.current.keys()]
+        for (const p of shown.length ? shown : [0]) load(p, gen)
+    }, [total])
+
+    const ensure = React.useCallback((start: number, end: number) => {
+        for (let p = Math.floor(start / RESULTS_PAGE); p <= Math.floor(end / RESULTS_PAGE); p++) {
+            if (!pages.has(p)) load(p, generation.current)
+        }
+    }, [pages, load])
+
+    const at = (i: number) => pages.get(Math.floor(i / RESULTS_PAGE))?.[i % RESULTS_PAGE]
+    return { count, at, ensure, loaded: pages.has(0) }
+}
+
+function ActivityFeed({ status }: { status: EnMasseDownloaderStatus | undefined }) {
+    const [tab, setTab] = useState<FeedTab>("all")
+    const [search, setSearch] = useState("")
+    const now = useNow(10000)
+    const counts = status?.results ?? { total: 0, queued: 0, skipped: 0, notFound: 0 }
+    const ready = status?.ready ?? []
+
+    const tabs: [FeedTab, string, number][] = [
+        ["all", "All", counts.total],
         ["ready", "Lined up", ready.length],
-        ["queued", "Queued", queued.length],
-        ["missing", "Not found", missing.length],
+        ["queued", "Queued", counts.queued],
+        ["skipped", "Skipped", counts.skipped],
+        ["not_found", "Not found", counts.notFound],
     ]
+    const tabTotal = tab === "all" ? counts.total : tab === "queued" ? counts.queued : tab === "skipped" ? counts.skipped : counts.notFound
+    const results = useResultPages(tab === "ready" ? "all" : tab, search, tabTotal)
 
     return (
         <div className={cn(panel, "overflow-hidden flex flex-col flex-1 min-h-[30rem]")} data-enmasse-activity>
             <div className="px-5 sm:px-6 pt-5 pb-4 flex items-center gap-3 flex-wrap">
-                <div className="flex-1">
+                <div className="flex-1 min-w-[10rem]">
                     <h3 className="font-semibold leading-tight">Activity</h3>
-                    <p className="text-xs text-gray-400">Every series as it is checked</p>
+                    <p className="text-xs text-gray-400">Every series from the database, with why it was or wasn't queued</p>
                 </div>
-                <div className="relative flex rounded-xl bg-white/[0.04] border border-white/[0.06] p-1">
+                <div className="relative flex flex-wrap rounded-xl bg-white/[0.04] border border-white/[0.06] p-1">
                     {tabs.map(([key, label, count]) => (
                         <button
                             key={key}
@@ -695,24 +765,23 @@ function ActivityFeed({ status }: { status: EnMasseDownloaderStatus | undefined 
                                 transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
                             />}
                             <span className="relative">
-                                {label}{count !== undefined && <span className={cn("ml-1.5 tabular-nums", tab === key ? "text-gray-500" : "text-gray-500")}>
-                                {formatNumber(count)}
-                            </span>}
+                                {label}<span className="ml-1.5 tabular-nums text-gray-500">{formatNumber(count)}</span>
                             </span>
                         </button>
                     ))}
                 </div>
             </div>
+            {tab !== "ready" && <div className="px-5 sm:px-6 pb-3">
+                <input
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search titles"
+                    className="w-full h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] px-3 text-sm placeholder:text-gray-500 focus:outline-none focus:border-white/20"
+                />
+            </div>}
 
             <div className="border-t border-white/[0.06] relative flex-1 min-h-[22rem]">
-                {tab === "recent" ? (
-                    recent.length ? <Virtuoso
-                        style={{ position: "absolute", inset: 0 }}
-                        data={recent}
-                        computeItemKey={(i, e) => `${e.time}-${i}`}
-                        itemContent={(_i, e) => <ActivityRow entry={e} now={now} />}
-                    /> : <EmptyFeed text="Results appear here as each series is checked." />
-                ) : tab === "ready" ? (
+                {tab === "ready" ? (
                     // Found while the download queue was full: queued in this order as room appears.
                     ready.length ? <Virtuoso
                         style={{ position: "absolute", inset: 0 }}
@@ -720,21 +789,33 @@ function ActivityFeed({ status }: { status: EnMasseDownloaderStatus | undefined 
                         computeItemKey={(_i, r) => r.mediaId}
                         itemContent={(i, r) => <ReadyRow entry={r} position={i + 1} />}
                     /> : <EmptyFeed text="Nothing lined up. While 10 series are waiting to download, the series found next line up here." />
-                ) : list.length ? (
+                ) : results.count > 0 ? (
                     <Virtuoso
                         style={{ position: "absolute", inset: 0 }}
-                        data={list}
-                        itemContent={(_i, title) => (
-                            <div className="px-5 sm:px-6 py-2.5 border-b border-white/[0.04] text-sm flex items-center gap-3">
-                                <span className={cn("size-6 rounded-lg flex items-center justify-center flex-none",
-                                    tab === "queued" ? "bg-emerald-400/10 text-emerald-300" : "bg-amber-400/10 text-amber-300")}>
-                                    {tab === "queued" ? <LuCircleCheck /> : <LuSearchX />}
-                                </span>
-                                <span className="truncate text-gray-200">{title}</span>
-                            </div>
-                        )}
+                        totalCount={results.count}
+                        increaseViewportBy={400}
+                        rangeChanged={r => results.ensure(r.startIndex, r.endIndex)}
+                        itemContent={i => {
+                            const e = results.at(i)
+                            return e ? <ActivityRow entry={e} now={now} /> : <PlaceholderRow />
+                        }}
                     />
-                ) : <EmptyFeed text={tab === "queued" ? "Nothing queued yet." : "Nothing missed yet."} />}
+                ) : <EmptyFeed text={!results.loaded ? "Loading…"
+                    : search ? "Nothing matches that title."
+                        : tab === "all" ? "Results appear here as each series is checked."
+                            : tab === "queued" ? "Nothing queued yet." : tab === "skipped" ? "Nothing skipped yet." : "Nothing missed yet."} />}
+            </div>
+        </div>
+    )
+}
+
+function PlaceholderRow() {
+    return (
+        <div className="px-5 sm:px-6 py-3 border-b border-white/[0.04] flex gap-4 items-center">
+            <div className="w-10 h-14 rounded-lg bg-white/[0.04] flex-none" />
+            <div className="flex-1 space-y-2">
+                <div className="h-3 w-1/3 rounded bg-white/[0.05]" />
+                <div className="h-2.5 w-1/2 rounded bg-white/[0.04]" />
             </div>
         </div>
     )
@@ -908,9 +989,10 @@ function DownloadingNow() {
 
 function Totals({ status }: { status: EnMasseDownloaderStatus | undefined }) {
     const d = status?.details
-    const queued = status?.downloadedAnime?.length ?? 0
-    const missing = status?.failedAnime?.length ?? 0
-    const skipped = d?.skippedCount ?? 0
+    // Counted from every result of the run (the old title lists only kept the last few hundred).
+    const queued = status?.results?.queued ?? status?.downloadedAnime?.length ?? 0
+    const missing = status?.results?.notFound ?? status?.failedAnime?.length ?? 0
+    const skipped = status?.results?.skipped ?? d?.skippedCount ?? 0
     const outcomes = queued + missing + skipped
     const rows = [
         { label: "Series queued", value: queued, icon: LuCircleCheck, tone: "text-emerald-300", bar: "bg-emerald-400", share: queued },
