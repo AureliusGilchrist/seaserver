@@ -3768,3 +3768,37 @@ export type WatchPartyStop_Variables = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // websocket
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// onlinestream_download
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - Filepath: internal/handlers/onlinestream_download.go
+ * - Filename: onlinestream_download.go
+ * - Endpoint: /api/v1/onlinestream/download
+ * @description
+ * Route queues an episode download through an online streaming provider.
+ */
+export type OnlinestreamDownload_Variables = {
+    mediaId: number
+    episodeNumbers: Array<number>
+    provider: string
+    dubbed: boolean
+    server?: string
+    quality?: string
+    sourceUrl?: string
+    subtitleLanguage?: string
+}
+
+/**
+ * - Filepath: internal/handlers/onlinestream_download.go
+ * - Filename: onlinestream_download.go
+ * - Endpoint: /api/v1/onlinestream/downloads/cancel
+ * @description
+ * Route cancels a running or queued online stream download.
+ */
+export type CancelOnlinestreamDownload_Variables = {
+    id: string
+}
+

@@ -215,6 +215,9 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 
 	h := &Handler{App: app}
 
+	// Downloads from online streaming providers into the library. See onlinestream_download.go.
+	h.wireOnlinestreamDownloader(app)
+
 	// Resumes an auto torrent session left open when the server last stopped. See auto_torrent.go.
 	h.wireAutoTorrent(app)
 
@@ -720,6 +723,11 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.POST("/onlinestream/manual-mapping", h.HandleOnlinestreamManualMapping)
 	v1.POST("/onlinestream/get-mapping", h.HandleGetOnlinestreamMapping)
 	v1.POST("/onlinestream/remove-mapping", h.HandleRemoveOnlinestreamMapping)
+
+	v1.POST("/onlinestream/download", h.HandleOnlinestreamDownload)
+	v1.GET("/onlinestream/downloads", h.HandleGetOnlinestreamDownloads)
+	v1.POST("/onlinestream/downloads/cancel", h.HandleCancelOnlinestreamDownload)
+	v1.DELETE("/onlinestream/downloads/finished", h.HandleClearOnlinestreamDownloads)
 
 	//
 	// Metadata Provider

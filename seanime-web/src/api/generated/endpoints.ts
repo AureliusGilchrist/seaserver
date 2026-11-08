@@ -2916,6 +2916,35 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/onlinestream/remove-mapping",
         },
     },
+    ONLINESTREAM_DOWNLOAD: {
+        /**
+         *  @description
+         *  Route queues an episode download through an online streaming provider.
+         *  The video is fetched through the provider's source (rate limited per provider and host),
+         *  the subtitles the stream serves are converted to ASS, and everything is muxed into an MKV in the library.
+         *  The file is then registered as a matched local file. Progress is sent over the websocket.
+         */
+        OnlinestreamDownload: {
+            key: "ONLINESTREAM-DOWNLOAD-onlinestream-download",
+            methods: ["POST"],
+            endpoint: "/api/v1/onlinestream/download",
+        },
+        GetOnlinestreamDownloads: {
+            key: "ONLINESTREAM-DOWNLOAD-get-onlinestream-downloads",
+            methods: ["GET"],
+            endpoint: "/api/v1/onlinestream/downloads",
+        },
+        CancelOnlinestreamDownload: {
+            key: "ONLINESTREAM-DOWNLOAD-cancel-onlinestream-download",
+            methods: ["POST"],
+            endpoint: "/api/v1/onlinestream/downloads/cancel",
+        },
+        ClearOnlinestreamDownloads: {
+            key: "ONLINESTREAM-DOWNLOAD-clear-onlinestream-downloads",
+            methods: ["DELETE"],
+            endpoint: "/api/v1/onlinestream/downloads/finished",
+        },
+    },
     PLANNING_SLUT: {
         /**
          *  @description

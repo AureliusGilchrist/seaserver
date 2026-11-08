@@ -49,6 +49,7 @@ export const enum WSEvents {
     SYNC_ANILIST_FINISHED = "sync-anilist-finished",
     TORRENTSTREAM_STATE = "torrentstream-state",
     DEBRID_DOWNLOAD_PROGRESS = "debrid-download-progress",
+    ONLINESTREAM_DOWNLOAD_QUEUE_UPDATED = "onlinestream-download-queue-updated",
     DEBRID_STREAM_STATE = "debrid-stream-state",
     CHECK_FOR_UPDATES = "check-for-updates",
     CHECK_FOR_ANNOUNCEMENTS = "check-for-announcements",

@@ -44,6 +44,7 @@ import (
 	"seanime/internal/nakama"
 	"seanime/internal/nativeplayer"
 	"seanime/internal/onlinestream"
+	onlinestream_download "seanime/internal/onlinestream/download"
 	"seanime/internal/platforms/anilist_platform"
 	kitsuplatform "seanime/internal/platforms/kitsu_platform"
 	"seanime/internal/platforms/offline_platform"
@@ -113,8 +114,11 @@ type (
 		ExtensionPlaygroundRepository *extension_playground.PlaygroundRepository
 
 		// Streaming
-		DirectStreamManager     *directstream.Manager
-		OnlinestreamRepository  *onlinestream.Repository
+		DirectStreamManager    *directstream.Manager
+		OnlinestreamRepository *onlinestream.Repository
+		// OnlinestreamDownloader downloads episodes through a streaming provider into the
+		// library. Set up in handlers.InitRoutes, which owns the library registration step.
+		OnlinestreamDownloader  *onlinestream_download.Manager
 		MediastreamRepository   *mediastream.Repository
 		TorrentstreamRepository *torrentstream.Repository
 

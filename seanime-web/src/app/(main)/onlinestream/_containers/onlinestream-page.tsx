@@ -31,6 +31,7 @@ import { vc_useLibassRendererAtom, VideoCore_VideoPlaybackInfo, VideoCore_VideoS
 import { useServerHMACAuth } from "@/app/(main)/_hooks/use-server-status"
 import { OnlinestreamManualMappingModal } from "@/app/(main)/onlinestream/_containers/onlinestream-manual-matching"
 import { useNakamaOnlineStreamWatchParty } from "@/app/(main)/onlinestream/_lib/handle-onlinestream"
+import { OnlinestreamDownloadButton, useOnlinestreamEpisodeDownloader } from "@/app/(main)/onlinestream/_components/onlinestream-download"
 import { useHandleOnlinestreamProviderExtensions } from "@/app/(main)/onlinestream/_lib/handle-onlinestream-providers"
 import {
     __onlinestream_audioTrackPreferenceByMediaAtom,
@@ -66,7 +67,7 @@ import { FaSearch } from "react-icons/fa"
 import "@/app/vidstack-theme.css"
 import "@vidstack/react/player/styles/default/layouts/video.css"
 import { HiOutlineCog6Tooth } from "react-icons/hi2"
-import { LuRefreshCw, LuSpeech } from "react-icons/lu"
+import { LuDownload, LuRefreshCw, LuSpeech } from "react-icons/lu"
 import { MdOutlineSubtitles } from "react-icons/md"
 import { toast } from "sonner"
 import { PluginEpisodeGridItemMenuItems } from "../../_features/plugin/actions/plugin-actions"
@@ -745,6 +746,15 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
         autoProviderCycler.onPlaybackError(reason)
     }
 
+    const downloadParams = {
+        mediaId: mediaId!,
+        provider,
+        dubbed,
+        server,
+        quality,
+    }
+    const { download: downloadEpisodes } = useOnlinestreamEpisodeDownloader(downloadParams)
+
     const tryAllProvidersButton = autoProviderCycler.showButton ? <Button
         size="sm"
         rounded
@@ -864,6 +874,12 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
                             Manual match
                         </Button>
                     </OnlinestreamManualMappingModal>}
+                    {(!!provider && !!mediaId) && <OnlinestreamDownloadButton
+                        {...downloadParams}
+                        currentEpisodeNumber={currentEpisodeNumber}
+                        episodes={episodes}
+                        videoSource={videoSource}
+                    />}
                     <Button
                         className=""
                         rounded
@@ -1011,6 +1027,18 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
                                                     episodeTitle={episode.title}
                                                     summary={episode?.description}
                                                 />
+
+                                                {!!provider && <IconButton
+                                                    size="sm"
+                                                    intent="gray-basic"
+                                                    icon={<LuDownload />}
+                                                    title={`Download episode ${episode.number} to your library`}
+                                                    onClick={e => {
+                                                        e.stopPropagation()
+                                                        downloadEpisodes([episode.number],
+                                                            episode.number === currentEpisodeNumber ? videoSource : undefined)
+                                                    }}
+                                                />}
 
                                                 <PluginEpisodeGridItemMenuItems isDropdownMenu={true} type="onlinestream" episode={episode} />
                                             </>}
