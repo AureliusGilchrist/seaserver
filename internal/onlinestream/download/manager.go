@@ -105,46 +105,71 @@ func (m *Manager) process(ctx context.Context, it *Item, workDir string) (string
 		source, err = m.findSource(ctx, mainReq, media, false)
 	}
 	// No source on the provider (no episode servers, "video source not found"): the episode is
-	// downloaded from AnimeHeaven instead, whatever the provider was.
-	if err != nil && ctx.Err() == nil && req.Provider != FallbackProvider {
+	// downloaded from the fallback providers instead, in order (AnimePahe, then AnimeHeaven).
+	if err != nil && ctx.Err() == nil {
 		firstErr := err
-		// Make sure AnimeHeaven knows which of its entries this anime is, searched the thorough
-		// way (every title, synonym and spelling). When it does not have the series at all,
-		// the series is skipped: none of its episodes can be downloaded from either provider.
-		if m.opts.MapProvider != nil {
-			m.update(it, func(it *Item) { it.Phase = "Looking on AnimeHeaven" }, true)
-			if mapErr := m.opts.MapProvider(ctx, FallbackProvider, req.MediaId); mapErr != nil {
-				if ctx.Err() != nil {
-					return "", ctx.Err()
-				}
-				if errors.Is(mapErr, ErrNotOnProvider) {
-					return "", skipSeriesError{fmt.Errorf("not available on %s (%v) and not found on AnimeHeaven: %v", req.Provider, firstErr, mapErr)}
-				}
-				m.logger.Warn().Err(mapErr).Int("mediaId", req.MediaId).Msg("onlinestream download: Could not match the series on the fallback provider")
+		var misses []string
+		tried := false
+		// notOnAny stays true while every fallback reports not having the series at all; then
+		// none of its episodes can be downloaded and the series is skipped.
+		notOnAny := true
+		for _, fb := range FallbackProviders {
+			if fb == req.Provider {
+				continue
 			}
+			tried = true
+			name := ProviderLabel(fb)
+			// Make sure the provider knows which of its entries this anime is, searched the
+			// thorough way (every title, synonym and spelling).
+			if m.opts.MapProvider != nil {
+				m.update(it, func(it *Item) { it.Phase = "Looking on " + name }, true)
+				if mapErr := m.opts.MapProvider(ctx, fb, req.MediaId); mapErr != nil {
+					if ctx.Err() != nil {
+						return "", ctx.Err()
+					}
+					if errors.Is(mapErr, ErrNotOnProvider) {
+						misses = append(misses, "not found on "+name)
+						continue
+					}
+					m.logger.Warn().Err(mapErr).Int("mediaId", req.MediaId).Str("provider", fb).Msg("onlinestream download: Could not match the series on the fallback provider")
+				}
+			}
+			notOnAny = false
+			fallback := req
+			fallback.Provider = fb
+			fallback.Server, fallback.SourceURL = "", ""
+			fbMain := fallback
+			fbMain.Dubbed = false
+			fbSource, fbErr := m.findSource(ctx, fbMain, media, false)
+			if fbErr != nil && fallback.Dubbed && ctx.Err() == nil {
+				fbMain.Dubbed = true
+				fbSource, fbErr = m.findSource(ctx, fbMain, media, false)
+			}
+			if ctx.Err() != nil {
+				return "", ctx.Err()
+			}
+			if fbErr != nil {
+				misses = append(misses, fmt.Sprintf("%s: %v", name, fbErr))
+				continue
+			}
+			m.logger.Info().Int("mediaId", req.MediaId).Int("episode", req.EpisodeNumber).Str("provider", req.Provider).Str("fallback", fb).Err(firstErr).
+				Msg("onlinestream download: No source on the provider; downloading the episode from a fallback provider")
+			warning := fmt.Sprintf("%s had no source for this episode (%v); downloaded from %s instead.", req.Provider, firstErr, name)
+			m.update(it, func(it *Item) {
+				it.Provider = fb
+				it.Warnings = append(it.Warnings, warning)
+			}, true)
+			req, mainReq, source, err = fallback, fbMain, fbSource, nil
+			primaryDubbed = fbMain.Dubbed
+			break
 		}
-		fallback := req
-		fallback.Provider = FallbackProvider
-		fallback.Server, fallback.SourceURL = "", ""
-		fbMain := fallback
-		fbMain.Dubbed = false
-		fbSource, fbErr := m.findSource(ctx, fbMain, media, false)
-		if fbErr != nil && fallback.Dubbed && ctx.Err() == nil {
-			fbMain.Dubbed = true
-			fbSource, fbErr = m.findSource(ctx, fbMain, media, false)
+		if err != nil && tried {
+			combined := fmt.Errorf("not available on %s (%v); %s", req.Provider, firstErr, strings.Join(misses, "; "))
+			if notOnAny {
+				return "", skipSeriesError{combined}
+			}
+			return "", combined
 		}
-		if fbErr != nil {
-			return "", fmt.Errorf("%s: %v; %s: %v", req.Provider, firstErr, FallbackProvider, fbErr)
-		}
-		m.logger.Info().Int("mediaId", req.MediaId).Int("episode", req.EpisodeNumber).Str("provider", req.Provider).Err(firstErr).
-			Msg("onlinestream download: No source on the provider; downloading the episode from the fallback provider")
-		warning := fmt.Sprintf("%s had no source for this episode (%v); downloaded from AnimeHeaven instead.", req.Provider, firstErr)
-		m.update(it, func(it *Item) {
-			it.Provider = FallbackProvider
-			it.Warnings = append(it.Warnings, warning)
-		}, true)
-		req, mainReq, source, err = fallback, fbMain, fbSource, nil
-		primaryDubbed = fbMain.Dubbed
 	}
 	if err != nil {
 		return "", err
@@ -303,9 +328,22 @@ func samePath(a, b string) bool {
 	return strings.EqualFold(filepath.ToSlash(filepath.Clean(a)), filepath.ToSlash(filepath.Clean(b)))
 }
 
-// FallbackProvider is where an episode is downloaded from when its own provider has no source
-// for it.
-const FallbackProvider = "animeheaven"
+// FallbackProviders are where an episode is downloaded from, in order, when its own provider
+// has no source for it.
+var FallbackProviders = []string{"animepahe", "animeheaven"}
+
+// ProviderLabel is a provider's display name.
+func ProviderLabel(id string) string {
+	switch id {
+	case "kickassanime":
+		return "Kickassanime"
+	case "animepahe":
+		return "AnimePahe"
+	case "animeheaven":
+		return "AnimeHeaven"
+	}
+	return id
+}
 
 // ErrNotOnProvider is what MapProvider returns when the provider does not have the anime.
 var ErrNotOnProvider = errors.New("not found on the provider")
@@ -316,8 +354,8 @@ type skipSeriesError struct{ error }
 
 func (e skipSeriesError) Unwrap() error { return e.error }
 
-// ErrNoSource is returned when a series is asked for that neither its provider nor AnimeHeaven
-// can supply episodes of.
+// ErrNoSource is returned when a series is asked for that neither its provider nor a fallback
+// provider can supply episodes of.
 var ErrNoSource = errors.New("no provider has episodes of this series")
 
 // isNoSource reports an error that means the provider has no source for the episode (as
@@ -339,8 +377,8 @@ func isNoSource(err error) bool {
 }
 
 // checkSeriesSource tries one episode before a series is queued: when the provider has no source
-// for it, AnimeHeaven is matched (the thorough search) and tried. When neither has it, the
-// series is refused with ErrNoSource. An outage or network error lets the series through: the
+// for it, each fallback provider is matched (the thorough search) and tried in turn. When none
+// has it, the series is refused with ErrNoSource. An outage or network error lets the series through: the
 // downloads retry on their own.
 func (m *Manager) checkSeriesSource(ctx context.Context, req Request, media *anilist.BaseAnime) error {
 	if m.checkSourceOverride != nil {
@@ -352,27 +390,34 @@ func (m *Manager) checkSeriesSource(ctx context.Context, req Request, media *ani
 	if err == nil || ctx.Err() != nil || !isNoSource(err) {
 		return nil
 	}
-	firstErr := err
-	if req.Provider == FallbackProvider {
-		return fmt.Errorf("%w: AnimeHeaven has no source for episode %d (%v)", ErrNoSource, req.EpisodeNumber, firstErr)
-	}
-	if m.opts.MapProvider != nil {
-		if mapErr := m.opts.MapProvider(ctx, FallbackProvider, req.MediaId); mapErr != nil {
-			if ctx.Err() != nil {
-				return ctx.Err()
+	misses := []string{fmt.Sprintf("%s: %v", ProviderLabel(req.Provider), err)}
+	for _, fb := range FallbackProviders {
+		if fb == req.Provider {
+			continue
+		}
+		name := ProviderLabel(fb)
+		if m.opts.MapProvider != nil {
+			if mapErr := m.opts.MapProvider(ctx, fb, req.MediaId); mapErr != nil {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				if errors.Is(mapErr, ErrNotOnProvider) {
+					misses = append(misses, "not found on "+name)
+					continue
+				}
+				return nil // could not tell: let it through, the downloads retry
 			}
-			if errors.Is(mapErr, ErrNotOnProvider) {
-				return fmt.Errorf("%w: not available on %s (%v) and not on AnimeHeaven", ErrNoSource, req.Provider, firstErr)
-			}
+		}
+		fbProbe := probe
+		fbProbe.Provider = fb
+		fbProbe.Server, fbProbe.SourceURL = "", ""
+		_, fbErr := m.findSource(ctx, fbProbe, media, false)
+		if fbErr == nil || ctx.Err() != nil || !isNoSource(fbErr) {
 			return nil
 		}
+		misses = append(misses, fmt.Sprintf("%s: %v", name, fbErr))
 	}
-	probe.Provider = FallbackProvider
-	probe.Server, probe.SourceURL = "", ""
-	if _, err := m.findSource(ctx, probe, media, false); err != nil && ctx.Err() == nil && isNoSource(err) {
-		return fmt.Errorf("%w: no source for episode %d on %s (%v) or on AnimeHeaven (%v)", ErrNoSource, req.EpisodeNumber, req.Provider, firstErr, err)
-	}
-	return nil
+	return fmt.Errorf("%w: episode %d (%s)", ErrNoSource, req.EpisodeNumber, strings.Join(misses, "; "))
 }
 
 func isSkipSeries(err error) bool {

@@ -238,6 +238,18 @@ func TestBackupProvider(t *testing.T) {
 	if searchedOn[0] != OnlineProvider {
 		t.Fatalf("searched %v: Kickassanime must come first", searchedOn)
 	}
+	// AnimePahe is tried before AnimeHeaven.
+	firstAt := func(p string) int {
+		for i, q := range searchedOn {
+			if q == p {
+				return i
+			}
+		}
+		return -1
+	}
+	if pahe, heaven := firstAt("animepahe"), firstAt(BackupProvider); pahe < 0 || pahe > heaven {
+		t.Fatalf("searched %v: AnimePahe must come before AnimeHeaven", searchedOn)
+	}
 
 	// The same series with a torrent downloading: Kickassanime only, and the torrent is left alone.
 	searchedOn, queuedOn = nil, ""
