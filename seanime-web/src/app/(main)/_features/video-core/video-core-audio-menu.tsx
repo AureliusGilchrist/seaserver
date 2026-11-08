@@ -1,14 +1,14 @@
 import { MKVParser_TrackInfo } from "@/api/generated/types"
 import { nativePlayer_stateAtom } from "@/app/(main)/_features/native-player/native-player.atoms"
 import { vc_audioManager } from "@/app/(main)/_features/video-core/video-core"
-import { vc_requestTranscodeForAudio } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_playbackInfo, vc_requestTranscodeForAudio } from "@/app/(main)/_features/video-core/video-core-atoms"
 
 import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_miniPlayer } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_containerElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { VideoCoreControlButtonIcon } from "@/app/(main)/_features/video-core/video-core-control-bar"
-import { HlsAudioTrack, vc_hlsAudioTracks, vc_hlsCurrentAudioTrack } from "@/app/(main)/_features/video-core/video-core-hls"
+import { HlsAudioTrack, vc_hlsAudioTracks, vc_hlsCurrentAudioTrack, vc_hlsSetAudioTrack } from "@/app/(main)/_features/video-core/video-core-hls"
 import { VideoCoreMenu, VideoCoreMenuBody, VideoCoreMenuTitle, VideoCoreSettingSelect } from "@/app/(main)/_features/video-core/video-core-menu"
 import { vc_dispatchAction } from "@/app/(main)/_features/video-core/video-core.utils"
 import { vc_saveTrackOverride } from "@/app/(main)/_features/video-core/video-core.atoms"
@@ -21,7 +21,12 @@ import { LuHeadphones } from "react-icons/lu"
 export function VideoCoreAudioMenu({ mediaId }: { mediaId?: number }) {
     const action = useSetAtom(vc_dispatchAction)
     const isMiniPlayer = useAtomValue(vc_miniPlayer)
-    const state = useAtomValue(nativePlayer_stateAtom)
+    // The playback of the player this menu belongs to. Every VideoCore (the local player, the
+    // online player, the native-player drawer) publishes its own here; the native-player state
+    // is only the drawer's, so reading it alone hid this menu everywhere else.
+    const nativePlayerState = useAtomValue(nativePlayer_stateAtom)
+    const currentPlaybackInfo = useAtomValue(vc_playbackInfo)
+    const playbackInfo = currentPlaybackInfo ?? nativePlayerState.playbackInfo
     const audioManager = useAtomValue(vc_audioManager)
     const videoElement = useAtomValue(vc_videoElement)
     const isFullscreen = useAtomValue(vc_isFullscreen)
@@ -36,14 +41,17 @@ export function VideoCoreAudioMenu({ mediaId }: { mediaId?: number }) {
     const [selectedTrack, setSelectedTrack] = React.useState<number | null>(null)
 
     // Get MKV audio tracks
-    const mkvAudioTracks = state.playbackInfo?.mkvMetadata?.audioTracks
+    const mkvAudioTracks = playbackInfo?.mkvMetadata?.audioTracks
 
     // Get HLS audio tracks
     const hlsAudioTracks = useAtomValue(vc_hlsAudioTracks)
     const hlsCurrentAudioTrack = useAtomValue(vc_hlsCurrentAudioTrack)
+    const hlsSetAudioTrack = useAtomValue(vc_hlsSetAudioTrack)
 
-    // Determine which audio tracks to use based on whether the manager is HLS-backed
-    const isHls = audioManager?.isHLS ?? false
+    // HLS (transcoded playback) switches through hls.js whenever it has listed audio groups.
+    // Not keyed on the audio manager alone: the manager can be built before hls.js parses the
+    // manifest, and then believes the stream is not HLS while only hls.js can switch it.
+    const isHls = (audioManager?.isHLS ?? false) || (hlsAudioTracks.length > 0 && !!hlsSetAudioTrack)
     const audioTracks = isHls ? hlsAudioTracks : mkvAudioTracks
 
     function onAudioChange() {
@@ -69,6 +77,14 @@ export function VideoCoreAudioMenu({ mediaId }: { mediaId?: number }) {
             setSelectedTrack(hlsCurrentAudioTrack)
         }
     }, [hlsCurrentAudioTrack, isHls])
+
+    // What the menu shows as selected: the track in use, else the track that plays by default.
+    const shownTrack = React.useMemo(() => {
+        if (selectedTrack !== null && selectedTrack !== undefined) return selectedTrack
+        if (isHls) return hlsCurrentAudioTrack >= 0 ? hlsCurrentAudioTrack : (hlsAudioTracks.find(t => t.default)?.id ?? hlsAudioTracks[0]?.id ?? 0)
+        const tracks = mkvAudioTracks ?? []
+        return (tracks.find(t => t.default) ?? tracks[0])?.number ?? 0
+    }, [selectedTrack, isHls, hlsCurrentAudioTrack, hlsAudioTracks, mkvAudioTracks])
 
     if (isMiniPlayer || !audioTracks?.length || audioTracks.length === 1) return null
 
@@ -118,7 +134,11 @@ export function VideoCoreAudioMenu({ mediaId }: { mediaId?: number }) {
                         // in Chromium is a silent no-op.
                         const canSelectNatively = !!videoElement?.audioTracks && videoElement.audioTracks.length > 0
 
-                        if ((isHls || canSelectNatively) && audioManager) {
+                        if (isHls) {
+                            setSelectedTrack(value)
+                            if (audioManager?.isHLS) audioManager.selectTrack(value)
+                            else hlsSetAudioTrack?.(value)
+                        } else if (canSelectNatively && audioManager) {
                             audioManager.selectTrack(value)
                             action({ type: "seek", payload: { time: -1 } })
                         } else if (requestTranscodeForAudio) {
@@ -157,7 +177,7 @@ export function VideoCoreAudioMenu({ mediaId }: { mediaId?: number }) {
                                 })
                         }
                     }}
-                    value={selectedTrack || 0}
+                    value={shownTrack}
                 />
             </VideoCoreMenuBody>
         </VideoCoreMenu>
