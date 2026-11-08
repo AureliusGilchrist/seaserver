@@ -27,6 +27,7 @@ func (h *Handler) wireOnlinestreamDownloader(app *core.App) {
 	if app.OnlinestreamDownloader != nil || app.OnlinestreamRepository == nil {
 		return
 	}
+	defer h.backfillOnlineDownloadBadges()
 	app.OnlinestreamDownloader = onlinestream_download.NewManager(onlinestream_download.NewManagerOptions{
 		Logger:         app.Logger,
 		WSEventManager: app.WSEventManager,
@@ -72,6 +73,30 @@ func (h *Handler) wireOnlinestreamDownloader(app *core.App) {
 		EpisodeFiles:     h.onlinestreamEpisodeFiles,
 		ReplaceOld:       h.replaceOldEpisodeFiles,
 	})
+}
+
+// backfillOnlineDownloadBadges gives the library badge to every series already downloaded
+// through an online provider and still in the library — downloads registered before the badge
+// was recorded with them. Runs once, in the background, when the routes are wired.
+func (h *Handler) backfillOnlineDownloadBadges() {
+	m := h.App.OnlinestreamDownloader
+	if m == nil || h.App.UnmatchedRepository == nil {
+		return
+	}
+	go func() {
+		defer util.HandlePanicInModuleThen("handlers/backfillOnlineDownloadBadges", func() {})
+		marked := 0
+		for _, hs := range m.HistorySummary() {
+			if len(h.libraryEpisodeFiles(hs.MediaId)) == 0 {
+				continue
+			}
+			h.App.UnmatchedRepository.MarkAnimeMatchedState(hs.MediaId)
+			marked++
+		}
+		if marked > 0 {
+			h.App.Logger.Info().Int("series", marked).Msg("onlinestream download: Library badges set for series downloaded online")
+		}
+	}()
 }
 
 // onlinestreamEpisodeFiles lists the library files of an anime episode, whatever their source.
@@ -240,6 +265,13 @@ func (h *Handler) registerOnlinestreamDownload(mediaId int, episode int, path st
 
 	h.App.Logger.Info().Str("path", path).Int("mediaId", mediaId).Int("episode", episode).
 		Msg("onlinestream download: Registered the episode in the library")
+
+	// The library badge, the same one a match from the Unmatched screen gives. It also replaces a
+	// "downloading" state left by a torrent this series once had, which otherwise outranks the
+	// files and keeps the series badged as downloading after it is in the library.
+	if h.App.UnmatchedRepository != nil {
+		h.App.UnmatchedRepository.MarkAnimeMatchedState(mediaId)
+	}
 
 	// The library only lists anime that are on a list, same as a manual match.
 	if added, addErr := h.addAnimeToPlanningIfAbsent(context.Background(), mediaId); addErr != nil {
