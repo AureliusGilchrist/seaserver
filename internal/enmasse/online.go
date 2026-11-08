@@ -311,13 +311,43 @@ func (d *Downloader) waitForDownloads(ctx context.Context, hooks *OnlineHooks) e
 	}
 }
 
-// processAnimeOnline handles one series: look it up, find it on the provider, queue it.
+// ReadySeries is a series that has been looked up and found on a provider, waiting for room in
+// the download queue. While the queue is full the run keeps looking series up and lines them up
+// here; they are queued, in order, as soon as there is room. Saved with the run's progress.
+type ReadySeries struct {
+	// Title is the series' name in the offline database (what the activity feed records).
+	Title         string              `json:"title"`
+	Resolved      AnilistMinifiedItem `json:"resolved"`
+	Year          int                 `json:"year,omitempty"`
+	TorrentBacked bool                `json:"torrentBacked,omitempty"`
+	// Provider and Match are where it was found; Rest are the providers after it, tried if the
+	// series cannot be queued from Provider after all.
+	Provider string        `json:"provider"`
+	Match    providerMatch `json:"match"`
+	Rest     []string      `json:"rest,omitempty"`
+	ReadyAt  time.Time     `json:"readyAt"`
+}
+
+// processAnimeOnline handles one series start to finish: look it up, then queue it as soon as
+// there is room. (The run itself splits the two; see run and drainReady.)
 func (d *Downloader) processAnimeOnline(ctx context.Context, hooks *OnlineHooks, animeItem *AnimeOfflineItem) error {
+	r, err := d.prepareSeries(ctx, hooks, animeItem, onlineSeriesGap)
+	if err != nil {
+		return err
+	}
+	if err := d.waitForDownloads(ctx, hooks); err != nil {
+		return err
+	}
+	return d.queueReady(ctx, hooks, r)
+}
+
+// prepareSeries looks a series up: AniList, then each provider in turn until one has it. It
+// does not queue anything. minGap is the least time it takes, so a run of quick skips or misses
+// does not turn into a burst of searches.
+func (d *Downloader) prepareSeries(ctx context.Context, hooks *OnlineHooks, animeItem *AnimeOfflineItem, minGap time.Duration) (*ReadySeries, error) {
 	started := time.Now()
 	defer func() {
-		// Every series takes at least onlineSeriesGap, so a run of quick skips or misses does not
-		// turn into a burst of searches.
-		if rest := onlineSeriesGap - time.Since(started); rest > 0 {
+		if rest := minGap - time.Since(started); rest > 0 {
 			t := time.NewTimer(rest)
 			select {
 			case <-t.C:
@@ -329,10 +359,13 @@ func (d *Downloader) processAnimeOnline(ctx context.Context, hooks *OnlineHooks,
 
 	// Quick exits on what the offline database already says, before any request.
 	if animeItem.AnilistID > 0 && hooks.InLibrary != nil && hooks.InLibrary(animeItem.AnilistID) {
-		return onlineSkip{"already in the library"}
+		return nil, onlineSkip{"already in the library"}
 	}
 	if strings.EqualFold(animeItem.Status, "UPCOMING") {
-		return onlineSkip{"not aired yet"}
+		return nil, onlineSkip{"not aired yet"}
+	}
+	if animeItem.AnilistID > 0 && d.isReady(animeItem.AnilistID) {
+		return nil, onlineSkip{"already lined up to be queued"}
 	}
 
 	d.updateDetails(func(details *AnimeDownloaderDetails) {
@@ -345,10 +378,10 @@ func (d *Downloader) processAnimeOnline(ctx context.Context, hooks *OnlineHooks,
 	}
 	resolved, err := resolve(ctx, animeItem)
 	if err != nil {
-		return fmt.Errorf("failed to resolve AniList: %w", err)
+		return nil, fmt.Errorf("failed to resolve AniList: %w", err)
 	}
 	if resolved.ID <= 0 {
-		return onlineSkip{"no AniList entry, so it could not be matched"}
+		return nil, onlineSkip{"no AniList entry, so it could not be matched"}
 	}
 	d.mu.Lock()
 	d.currentAnime = resolved
@@ -356,17 +389,15 @@ func (d *Downloader) processAnimeOnline(ctx context.Context, hooks *OnlineHooks,
 
 	switch {
 	case resolved.IsAdult:
-		return onlineSkip{"adult"}
+		return nil, onlineSkip{"adult"}
 	case resolved.Status == "NOT_YET_RELEASED":
-		return onlineSkip{"not aired yet"}
+		return nil, onlineSkip{"not aired yet"}
 	case hooks.InLibrary != nil && hooks.InLibrary(resolved.ID):
-		return onlineSkip{"already in the library"}
+		return nil, onlineSkip{"already in the library"}
 	case hooks.InDownloadQueue != nil && hooks.InDownloadQueue(resolved.ID):
-		return onlineSkip{"already downloading"}
-	}
-
-	if err := d.waitForDownloads(ctx, hooks); err != nil {
-		return err
+		return nil, onlineSkip{"already downloading"}
+	case d.isReady(resolved.ID):
+		return nil, onlineSkip{"already lined up to be queued"}
 	}
 
 	year := 0
@@ -378,31 +409,78 @@ func (d *Downloader) processAnimeOnline(ctx context.Context, hooks *OnlineHooks,
 	// stalled: then the backups may replace it too. A healthy torrent is never replaced by a
 	// backup.
 	torrentBacked := animeItem.torrentBacked || (hooks.HasTorrent != nil && hooks.HasTorrent(resolved.ID))
-	stalled := torrentBacked && hooks.TorrentStalled != nil && hooks.TorrentStalled(resolved.ID)
-	providers := append([]string(nil), PrimaryProviders...)
-	if !torrentBacked || stalled {
-		providers = append(providers, BackupProviders...)
-	}
-	// Each provider in turn: find the series, then queue it. A provider that has the series but
-	// cannot supply it (no playable source, no episode list) does not end the search: the next
-	// provider is tried, and the series only counts as not found once every one has been.
-	var match *providerMatch
-	var provider string
+	providers := d.providersFor(hooks, resolved.ID, torrentBacked)
+
 	var misses []string
-	queued := 0
-	for _, p := range providers {
+	for i, p := range providers {
 		m, err := d.findOnProvider(ctx, hooks, p, resolved, year)
 		if err != nil {
 			if ctx.Err() != nil {
-				return ctx.Err()
+				return nil, ctx.Err()
 			}
 			if connectivity.IsNetworkError(err) {
-				return err // the internet, not the provider: tried again once it is back
+				return nil, err // the internet, not the provider: tried again once it is back
 			}
 			misses = append(misses, err.Error())
 			continue
 		}
+		return &ReadySeries{
+			Title:         animeItem.Title,
+			Resolved:      *resolved,
+			Year:          year,
+			TorrentBacked: torrentBacked,
+			Provider:      p,
+			Match:         *m,
+			Rest:          append([]string(nil), providers[i+1:]...),
+			ReadyAt:       time.Now(),
+		}, nil
+	}
+	return nil, errors.New(notFoundMessage(misses, torrentBacked, d.torrentStalled(hooks, resolved.ID, torrentBacked)))
+}
 
+func (d *Downloader) torrentStalled(hooks *OnlineHooks, mediaId int, torrentBacked bool) bool {
+	return torrentBacked && hooks.TorrentStalled != nil && hooks.TorrentStalled(mediaId)
+}
+
+// providersFor is the provider order for a series.
+func (d *Downloader) providersFor(hooks *OnlineHooks, mediaId int, torrentBacked bool) []string {
+	providers := append([]string(nil), PrimaryProviders...)
+	if !torrentBacked || d.torrentStalled(hooks, mediaId, torrentBacked) {
+		providers = append(providers, BackupProviders...)
+	}
+	return providers
+}
+
+func notFoundMessage(misses []string, torrentBacked, stalled bool) string {
+	msg := strings.Join(misses, "; ")
+	if torrentBacked && !stalled {
+		msg += " (the torrent keeps downloading)"
+	} else if stalled {
+		msg += " (the torrent is stalled and was left as it is)"
+	}
+	return msg
+}
+
+// queueReady queues a looked-up series. When its provider cannot supply it after all (no
+// playable source, no episode list), the providers after it are searched and tried in turn; the
+// series only counts as not found once every one has been.
+func (d *Downloader) queueReady(ctx context.Context, hooks *OnlineHooks, r *ReadySeries) error {
+	resolved := r.Resolved
+	d.mu.Lock()
+	d.currentAnime = &resolved
+	d.mu.Unlock()
+
+	// Things may have moved on while it waited.
+	switch {
+	case hooks.InLibrary != nil && hooks.InLibrary(resolved.ID):
+		return onlineSkip{"already in the library"}
+	case hooks.InDownloadQueue != nil && hooks.InDownloadQueue(resolved.ID):
+		return onlineSkip{"already downloading"}
+	}
+
+	stalled := d.torrentStalled(hooks, resolved.ID, r.TorrentBacked)
+	var misses []string
+	try := func(p string, m *providerMatch) (int, bool, error) {
 		d.mu.Lock()
 		d.lastProvider = p
 		d.mu.Unlock()
@@ -417,32 +495,50 @@ func (d *Downloader) processAnimeOnline(ctx context.Context, hooks *OnlineHooks,
 			details.SelectedTorrent = m.Title
 		})
 		if err := d.paceRequest(ctx); err != nil {
-			return err
+			return 0, false, err
 		}
 		n, err := hooks.EnqueueSeries(ctx, p, resolved.ID)
 		if err != nil {
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-			if connectivity.IsNetworkError(err) {
-				return err
+			if ctx.Err() != nil || connectivity.IsNetworkError(err) {
+				return 0, false, err
 			}
 			d.logger.Info().Err(err).Int("mediaId", resolved.ID).Str("provider", p).
 				Msg("enmasse-anime: Found the series but could not queue it there; trying the next provider")
 			misses = append(misses, fmt.Sprintf("found on %s but could not queue it there: %v", p, err))
+			return 0, false, nil
+		}
+		return n, true, nil
+	}
+
+	match := r.Match
+	queued, ok, err := try(r.Provider, &match)
+	if err != nil {
+		return err
+	}
+	provider := r.Provider
+	for _, p := range r.Rest {
+		if ok {
+			break
+		}
+		m, ferr := d.findOnProvider(ctx, hooks, p, &resolved, r.Year)
+		if ferr != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			if connectivity.IsNetworkError(ferr) {
+				return ferr
+			}
+			misses = append(misses, ferr.Error())
 			continue
 		}
-		match, provider, queued = m, p, n
-		break
-	}
-	if match == nil {
-		msg := strings.Join(misses, "; ")
-		if torrentBacked && !stalled {
-			msg += " (the torrent keeps downloading)"
-		} else if stalled {
-			msg += " (the torrent is stalled and was left as it is)"
+		match = *m
+		if queued, ok, err = try(p, m); err != nil {
+			return err
 		}
-		return errors.New(msg)
+		provider = p
+	}
+	if !ok {
+		return errors.New(notFoundMessage(misses, r.TorrentBacked, stalled))
 	}
 	if queued == 0 {
 		return onlineSkip{"nothing to download (every episode is already in the library or the queue)"}
@@ -904,16 +1000,22 @@ const offlineSiteRetries = 3
 // connection first, and when the series fails because the connection dropped it waits for it to
 // come back and handles the same series again. Nothing is recorded as not found while offline.
 func (d *Downloader) processWhileOnline(ctx context.Context, hooks *OnlineHooks, item *AnimeOfflineItem) error {
+	return d.whileOnline(ctx, item.Title, func() error { return d.processAnimeOnline(ctx, hooks, item) })
+}
+
+// whileOnline runs fn, but never while the internet is down: it waits for the connection first,
+// and when fn fails because the connection dropped it waits for it and runs fn again.
+func (d *Downloader) whileOnline(ctx context.Context, title string, fn func() error) error {
 	siteFailures := 0
 	for {
 		if err := d.waitForInternet(ctx); err != nil {
 			return err
 		}
-		err := d.processAnimeOnline(ctx, hooks, item)
+		err := fn()
 		if err == nil || ctx.Err() != nil || !connectivity.IsNetworkError(err) {
 			return err
 		}
-		d.logger.Warn().Err(err).Str("title", item.Title).Msg("enmasse-anime: Network failure; checking the connection before trying the series again")
+		d.logger.Warn().Err(err).Str("title", title).Msg("enmasse-anime: Network failure; checking the connection before trying the series again")
 		waited, werr := d.settleAfterNetworkError(ctx)
 		if werr != nil {
 			return werr
@@ -974,3 +1076,108 @@ func (d *Downloader) settleAfterNetworkError(ctx context.Context) (bool, error) 
 
 // offlineSettleWindow is how long settleAfterNetworkError gives the probes to agree.
 var offlineSettleWindow = 45 * time.Second
+
+// readyAheadMax caps how far the run looks ahead while the download queue is full.
+var readyAheadMax = 100
+
+// onlineLookaheadGap is the least time a series takes to look up while the run is searching
+// ahead (the download queue is full): gentler than the normal pace, since nothing is waiting on it.
+var onlineLookaheadGap = 45 * time.Second
+
+func (d *Downloader) isReady(mediaId int) bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for _, r := range d.ready {
+		if r.Resolved.ID == mediaId {
+			return true
+		}
+	}
+	return false
+}
+
+func (d *Downloader) readyCount() int {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return len(d.ready)
+}
+
+// queueHasRoom reports whether another series may be queued (fewer than onlineMaxWaitingSeries
+// en masse series waiting).
+func (d *Downloader) queueHasRoom(hooks *OnlineHooks) bool {
+	return hooks.WaitingSeries == nil || hooks.WaitingSeries() < onlineMaxWaitingSeries
+}
+
+// drainReady queues lined-up series, oldest first, while the download queue has room. With
+// untilEmpty it waits for room until the list is empty (the end of the run); otherwise it returns
+// as soon as the queue is full, unless the list itself is full, when it waits for room too.
+// save is called after each series so a pause or restart keeps the list as it is.
+func (d *Downloader) drainReady(ctx context.Context, hooks *OnlineHooks, untilEmpty bool, save func()) error {
+	announced := false
+	for {
+		n := d.readyCount()
+		if n == 0 {
+			return nil
+		}
+		if !d.queueHasRoom(hooks) {
+			if !untilEmpty && n < readyAheadMax {
+				return nil
+			}
+			if !announced {
+				announced = true
+				d.updateDetails(func(details *AnimeDownloaderDetails) {
+					details.Phase = "waiting"
+					details.Step = fmt.Sprintf("waiting for downloads: %d series lined up to queue", n)
+				})
+				d.setStatus(fmt.Sprintf("Waiting for downloads: %d series lined up to queue", n))
+			}
+			t := time.NewTimer(30 * time.Second)
+			select {
+			case <-t.C:
+			case <-ctx.Done():
+				t.Stop()
+				return ctx.Err()
+			}
+			continue
+		}
+		announced = false
+
+		d.mu.Lock()
+		r := d.ready[0]
+		d.mu.Unlock()
+		d.setStatus(fmt.Sprintf("Queueing %s (lined up earlier)", firstTitle(&r.Resolved)))
+		err := d.whileOnline(ctx, r.Title, func() error { return d.queueReady(ctx, hooks, r) })
+		if ctx.Err() != nil {
+			return ctx.Err() // stays at the front of the list for the resume
+		}
+		d.mu.Lock()
+		if len(d.ready) > 0 && d.ready[0] == r {
+			d.ready = d.ready[1:]
+		}
+		d.mu.Unlock()
+		d.recordOnlineResult(ctx, r.Title, err)
+		save()
+	}
+}
+
+// ReadyPreview is a lined-up series as the page shows it.
+type ReadyPreview struct {
+	MediaId  int       `json:"mediaId"`
+	Title    string    `json:"title"`
+	Image    string    `json:"image,omitempty"`
+	Provider string    `json:"provider"`
+	Episodes int       `json:"episodes,omitempty"`
+	ReadyAt  time.Time `json:"readyAt"`
+}
+
+func (d *Downloader) readyPreviewLocked() []ReadyPreview {
+	out := make([]ReadyPreview, 0, len(d.ready))
+	for _, r := range d.ready {
+		title := firstTitle(&r.Resolved)
+		if title == "" {
+			title = r.Title
+		}
+		out = append(out, ReadyPreview{MediaId: r.Resolved.ID, Title: title, Image: r.Resolved.CoverImage,
+			Provider: r.Provider, Episodes: r.Resolved.Episodes, ReadyAt: r.ReadyAt})
+	}
+	return out
+}

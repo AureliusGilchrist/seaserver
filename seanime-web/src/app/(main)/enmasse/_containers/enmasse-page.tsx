@@ -225,6 +225,7 @@ export function EnMassePage() {
 
             <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_24rem] gap-6 items-start">
                 <div className="space-y-6 min-w-0">
+                    <LinedUp status={status} />
                     <JustQueued status={status} />
                     <ActivityFeed status={status} />
                 </div>
@@ -382,7 +383,7 @@ function Stage({ status }: { status: EnMasseDownloaderStatus | undefined }) {
                                         d?.step || "",
                                     ].filter(Boolean).join("  ·  ")
                                     : state === "waiting"
-                                        ? `${formatNumber(status?.downloadQueueWaiting ?? 0)} episodes are waiting to download. The search carries on once fewer than 10 series are queued.`
+                                        ? `${formatNumber(status?.ready?.length ?? 0)} series are lined up and ${formatNumber(status?.downloadQueueWaiting ?? 0)} episodes are waiting to download. Lined-up series are queued in order as soon as fewer than 10 series are waiting.`
                                         : "Finds every series your library is missing on Kickassanime, with AniZone, AnimeHeaven and AnimePahe as the backups, queues it whole, and files each episode already matched: best quality, Japanese audio first, soft subtitles."}
                             </p>
                         </motion.div>
@@ -590,6 +591,40 @@ function MetricsStrip({ status, progress }: { status: EnMasseDownloaderStatus | 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Just queued
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/** Series looked up while the download queue was full: queued in this order as room appears. */
+function LinedUp({ status }: { status: EnMasseDownloaderStatus | undefined }) {
+    const ready = status?.ready ?? []
+    if (!ready.length) return null
+    return (
+        <div className={cn(panel, "p-5 sm:p-6 space-y-4")} data-enmasse-ready>
+            <div className="flex items-center gap-2">
+                <span className="size-8 rounded-xl bg-sky-500/15 text-sky-300 flex items-center justify-center"><LuListVideo /></span>
+                <div className="flex-1">
+                    <h3 className="font-semibold leading-tight">Lined up <span className="text-gray-500 font-normal tabular-nums">{formatNumber(ready.length)}</span></h3>
+                    <p className="text-xs text-gray-400">Found and ready: queued in this order as soon as fewer than 10 series are waiting</p>
+                </div>
+            </div>
+            <div className="max-h-72 overflow-y-auto -mx-2 px-2 space-y-1 [scrollbar-width:thin]">
+                {ready.map((r, i) => (
+                    <div key={r.mediaId} className="flex items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-white/[0.03]">
+                        <span className="w-6 text-right text-xs text-gray-500 tabular-nums flex-none">{i + 1}</span>
+                        <div className="w-8 h-11 rounded-md overflow-hidden bg-gray-900 ring-1 ring-white/10 flex-none">
+                            {r.image ? <img src={r.image} alt="" loading="lazy" className="w-full h-full object-cover" />
+                                : <div className="w-full h-full flex items-center justify-center text-gray-600"><LuFilm /></div>}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <SeaLink href={`/entry?id=${r.mediaId}`} className="text-sm font-medium hover:underline line-clamp-1">{r.title}</SeaLink>
+                            <p className="text-xs text-gray-400">
+                                {providerName(r.provider)}{r.episodes ? ` · ${r.episodes} episodes` : ""}
+                            </p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    )
+}
 
 function JustQueued({ status }: { status: EnMasseDownloaderStatus | undefined }) {
     const posters = useRecentPosters(status, 18)
@@ -931,7 +966,7 @@ const HOW_IT_WORKS = [
     },
     {
         title: "Gentle on the site",
-        text: "At least 8 seconds between searches and 30 seconds per series, a 15-second pause between episode downloads, and no new searches while 10 or more series are waiting. Pause keeps your place, and a run the server restart interrupted picks itself back up.",
+        text: "At least 8 seconds between searches and 30 seconds per series, a 15-second pause between episode downloads, and at most 10 series waiting in the download queue. While it is full the search keeps going ahead, more gently (45 seconds a series), and lines up what it finds to be queued in order as room appears. The lined-up list is kept through pauses and restarts. Pause keeps your place, and a run the server restart interrupted picks itself back up.",
     },
 ]
 

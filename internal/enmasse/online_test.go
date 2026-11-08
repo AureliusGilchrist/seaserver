@@ -497,3 +497,56 @@ func TestNextProviderWhenQueueingFails(t *testing.T) {
 		t.Fatalf("tried %v, queued on %q", tried, queuedOn)
 	}
 }
+
+// TestReadyListQueuesInOrderWhenThereIsRoom: series looked up while the queue was full wait in
+// the ready list, and are queued in order, up to the limit, once there is room.
+func TestReadyListQueuesInOrderWhenThereIsRoom(t *testing.T) {
+	onlineRequestGap = time.Millisecond
+	defer func() { onlineRequestGap = 8 * time.Second }()
+
+	logger := zerolog.Nop()
+	d := NewDownloader(&NewDownloaderOptions{Logger: &logger})
+	waiting := onlineMaxWaitingSeries // full
+	var queued []int
+	hooks := &OnlineHooks{
+		WaitingSeries: func() int { return waiting },
+		EnqueueSeries: func(ctx context.Context, provider string, mediaId int) (int, error) {
+			queued = append(queued, mediaId)
+			waiting++
+			return 12, nil
+		},
+	}
+	for _, id := range []int{1, 2, 3} {
+		d.ready = append(d.ready, &ReadySeries{Title: "S", Resolved: AnilistMinifiedItem{ID: id}, Provider: OnlineProvider, Match: providerMatch{ID: "x"}})
+	}
+	saves := 0
+	save := func() { saves++ }
+
+	if err := d.drainReady(context.Background(), hooks, false, save); err != nil || len(queued) != 0 {
+		t.Fatalf("queued %v while the queue was full (err %v)", queued, err)
+	}
+	waiting = onlineMaxWaitingSeries - 2 // room for two
+	if err := d.drainReady(context.Background(), hooks, false, save); err != nil {
+		t.Fatal(err)
+	}
+	if len(queued) != 2 || queued[0] != 1 || queued[1] != 2 || d.readyCount() != 1 || saves != 2 {
+		t.Fatalf("queued %v, %d left, %d saves", queued, d.readyCount(), saves)
+	}
+}
+
+// TestReadyListIsSaved: the lined-up series survive a pause or a server restart.
+func TestReadyListIsSaved(t *testing.T) {
+	prev := AnimeProgressFilePath
+	AnimeProgressFilePath = filepath.Join(t.TempDir(), "progress.json")
+	defer func() { AnimeProgressFilePath = prev }()
+
+	logger := zerolog.Nop()
+	d := NewDownloader(&NewDownloaderOptions{Logger: &logger})
+	d.ready = []*ReadySeries{{Title: "Mushishi", Resolved: AnilistMinifiedItem{ID: 457}, Provider: "anizone", Match: providerMatch{ID: "m", Title: "Mushishi"}, Rest: []string{"animeheaven"}}}
+	d.isRunning = true
+	d.Stop(true)
+	p := NewDownloader(&NewDownloaderOptions{Logger: &logger}).loadProgress()
+	if p == nil || len(p.Ready) != 1 || p.Ready[0].Resolved.ID != 457 || p.Ready[0].Match.ID != "m" || len(p.Ready[0].Rest) != 1 {
+		t.Fatalf("ready list not kept: %+v", p)
+	}
+}

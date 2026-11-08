@@ -24,6 +24,17 @@ export interface EnMasseDownloaderStatus {
     downloadQueueWaiting?: number
     /** Latest results, newest first */
     recent?: AnimeEnMasseActivity[]
+    /** Series looked up while the download queue was full, queued in order as room appears */
+    ready?: AnimeEnMasseReady[]
+}
+
+export interface AnimeEnMasseReady {
+    mediaId: number
+    title: string
+    image?: string
+    provider: string
+    episodes?: number
+    readyAt: string
 }
 
 export interface AnimeEnMasseActivity {

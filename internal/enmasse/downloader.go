@@ -83,6 +83,7 @@ func (d *Downloader) saveCurrentProgress(nextIndex int) {
 		Recent:          append([]ActivityEntry(nil), d.recent...),
 		TorrentDone:     torrentDone,
 		Running:         d.isRunning,
+		Ready:           append([]*ReadySeries(nil), d.ready...),
 	}
 	d.mu.Unlock()
 
@@ -601,6 +602,8 @@ type (
 		lastQueued        int          // episodes queued for the series being processed
 		lastProvider      string       // provider the series being processed was queued from
 		torrentDone       map[int]bool // torrent series this run already handled
+		// ready are series looked up while the download queue was full, queued as room appears.
+		ready []*ReadySeries
 		// resumeIndex is the series a resume starts at: the one being worked on, or the next.
 		resumeIndex int
 		// discardProgress is set by Stop without saving, so a run still winding down does not
@@ -643,6 +646,8 @@ type (
 		DownloadQueueWaiting int `json:"downloadQueueWaiting"`
 		// Recent is the latest results, newest first.
 		Recent []ActivityEntry `json:"recent"`
+		// Ready lists the series looked up and lined up to be queued once there is room.
+		Ready []ReadyPreview `json:"ready"`
 	}
 
 	// ActivityEntry is one series' outcome in the activity feed.
@@ -702,6 +707,8 @@ type (
 		Running bool `json:"running,omitempty"`
 		// TorrentDone lists the torrent series this run already handled.
 		TorrentDone []int `json:"torrent_done,omitempty"`
+		// Ready are the series looked up and lined up to be queued.
+		Ready []*ReadySeries `json:"ready,omitempty"`
 	}
 
 	// AnimeOfflineDatabase represents the offline JSON structure
@@ -819,6 +826,7 @@ func (d *Downloader) GetStatus() *DownloaderStatus {
 		CurrentImage:     currentImage,
 		ProcessedThisRun: d.processedThisRun,
 		Recent:           append([]ActivityEntry(nil), d.recent...),
+		Ready:            d.readyPreviewLocked(),
 	}
 	if !d.startedAt.IsZero() {
 		t := d.startedAt
@@ -917,6 +925,7 @@ func (d *Downloader) Start(resume bool) error {
 			d.skippedCount = progress.SkippedCount
 			d.details.EpisodesQueued = progress.EpisodesQueued
 			d.recent = progress.Recent
+			d.ready = progress.Ready
 			d.torrentDone = make(map[int]bool, len(progress.TorrentDone))
 			for _, id := range progress.TorrentDone {
 				d.torrentDone[id] = true
@@ -933,6 +942,7 @@ func (d *Downloader) Start(resume bool) error {
 		d.skippedCount = 0
 		d.recent = nil
 		d.torrentDone = nil
+		d.ready = nil
 		d.details.EpisodesQueued = 0
 		d.processedCount = 0
 		d.downloadedAnime = make([]string, 0, MaxAnimeLogEntries)
@@ -1087,6 +1097,14 @@ func (d *Downloader) run(ctx context.Context, startIndex int, done chan struct{}
 		default:
 		}
 
+		// Queue what was lined up earlier first, while there is room.
+		here := i
+		if err := d.drainReady(ctx, hooks, false, func() { d.saveCurrentProgress(here) }); err != nil {
+			d.saveCurrentProgress(i)
+			d.setStatus("Stopped")
+			return
+		}
+
 		// Rate limit: anime en masse 12 per minute
 		if err := acquireAnimeEnMasse(ctx); err != nil {
 			d.logger.Warn().Err(err).Msg("enmasse-anime: Rate limiter blocked, aborting")
@@ -1120,20 +1138,61 @@ func (d *Downloader) run(ctx context.Context, startIndex int, done chan struct{}
 
 		d.logger.Info().Str("title", animeItem.Title).Int("index", i).Msg("enmasse-anime: Processing anime")
 
-		err := d.processWhileOnline(ctx, hooks, animeItem)
+		// Look the series up. While the download queue is full this is searching ahead: the series
+		// is lined up instead of queued, at a gentler pace.
+		ahead := !d.queueHasRoom(hooks)
+		gap := onlineSeriesGap
+		if ahead {
+			gap = onlineLookaheadGap
+			d.updateDetails(func(details *AnimeDownloaderDetails) {
+				details.Step = "searching ahead while the download queue is full"
+			})
+		}
+		var ready *ReadySeries
+		err := d.whileOnline(ctx, animeItem.Title, func() error {
+			r, perr := d.prepareSeries(ctx, hooks, animeItem, gap)
+			ready = r
+			return perr
+		})
 		if err != nil && !errors.Is(err, errOnlineSkipped) && ctx.Err() != nil {
 			d.saveCurrentProgress(i)
 			d.setStatus("Stopped")
 			return
 		}
-		d.recordOnlineResult(ctx, animeItem.Title, err)
-
-		// Save progress after every anime for reliable resume: this one is done, so a resume
-		// starts at the next.
+		if err != nil {
+			d.recordOnlineResult(ctx, animeItem.Title, err)
+		} else {
+			// Lined up behind any series looked up earlier, so they are queued in order.
+			d.mu.Lock()
+			d.ready = append(d.ready, ready)
+			n := len(d.ready)
+			d.mu.Unlock()
+			d.updateDetails(func(details *AnimeDownloaderDetails) {
+				details.Step = fmt.Sprintf("found on %s; %d series lined up", ready.Provider, n)
+			})
+		}
+		// Save progress after every anime for reliable resume: this one is done (or lined up), so
+		// a resume starts at the next.
 		d.saveCurrentProgress(i + 1)
+
+		// Queue what there is room for.
+		next := i + 1
+		if err := d.drainReady(ctx, hooks, false, func() { d.saveCurrentProgress(next) }); err != nil {
+			d.saveCurrentProgress(next)
+			d.setStatus("Stopped")
+			return
+		}
 
 		// Delay between anime
 		time.Sleep(DelayBetweenAnime)
+	}
+
+	// Every series has been looked up: queue the ones still lined up as room appears.
+	end := len(animeList)
+	if err := d.drainReady(ctx, hooks, true, func() { d.saveCurrentProgress(end) }); err != nil {
+		d.saveCurrentProgress(end)
+		d.setStatus("Stopped")
+		return
 	}
 
 	d.clearProgress()
