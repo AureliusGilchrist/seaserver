@@ -95,10 +95,16 @@ export function useEnMasseStart(onSuccess?: () => void) {
         endpoint: ENMASSE_ENDPOINTS.Start.endpoint,
         method: ENMASSE_ENDPOINTS.Start.methods[0],
         mutationKey: [ENMASSE_ENDPOINTS.Start.key],
+        // Starting can include downloading the anime database (~60 MB) the first time.
+        timeout: 6 * 60 * 1000,
         onSuccess: async () => {
             toast.success("En Masse Downloader started")
             await queryClient.invalidateQueries({ queryKey: [ENMASSE_ENDPOINTS.GetStatus.key] })
             onSuccess?.()
+        },
+        // A failed start leaves its reason in the status; fetch it so the page shows it.
+        onSettled: async () => {
+            await queryClient.invalidateQueries({ queryKey: [ENMASSE_ENDPOINTS.GetStatus.key] })
         },
     })
 }

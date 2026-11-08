@@ -802,7 +802,32 @@ func (d *Downloader) Start(resume bool) error {
 	}
 	d.isRunning = true
 	d.isPaused = false
+	hooks := d.online
+	d.mu.Unlock()
 
+	// Everything that would make the run stop straight away is checked here, so Start fails
+	// with the reason instead of starting a run that ends silently.
+	fail := func(err error) error {
+		d.mu.Lock()
+		d.isRunning = false
+		d.status = "Could not start: " + err.Error()
+		d.details.LastError = err.Error()
+		d.mu.Unlock()
+		d.sendStatusUpdate()
+		d.logger.Error().Err(err).Msg("enmasse-anime: Could not start")
+		return err
+	}
+	if hooks == nil || hooks.Search == nil || hooks.EnqueueSeries == nil {
+		return fail(errors.New("the online stream downloader is not available"))
+	}
+	dbCtx, cancelDb := context.WithTimeout(context.Background(), 6*time.Minute)
+	err := d.ensureAnimeDatabase(dbCtx)
+	cancelDb()
+	if err != nil {
+		return fail(err)
+	}
+
+	d.mu.Lock()
 	// Only resume when explicitly requested; otherwise start fresh even if progress exists
 	autoResume := resume
 	if !autoResume && d.hasSavedProgress() {

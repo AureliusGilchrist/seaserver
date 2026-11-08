@@ -158,6 +158,8 @@ function Hero({ status }: { status: EnMasseDownloaderStatus | undefined }) {
     const [resume, setResume] = useState(true)
     const state = runState(status)
     const hasProgress = !!status?.hasSavedProgress
+    // A run that could not start, or stopped on an error, says why in plain sight.
+    const startError = !status?.isRunning && status?.status && /^(Could not start|Error)/.test(status.status) ? status.status : ""
     const art = status?.currentImage
 
     return (
@@ -194,7 +196,14 @@ function Hero({ status }: { status: EnMasseDownloaderStatus | undefined }) {
                         Finds every series your library is missing on Kickassanime, queues it whole, and files each episode in your
                         library already matched: best quality, Japanese audio first, soft subtitles.
                     </p>
-                    {!!status?.status && <p className="text-sm text-gray-400 line-clamp-1">{status.status}</p>}
+                    {!!status?.status && !startError && <p className="text-sm text-gray-400 line-clamp-1">{status.status}</p>}
+                    {!!startError && <div
+                        className="flex gap-2 rounded-xl border border-red-400/40 bg-red-500/10 p-3 text-sm text-red-200 max-w-2xl"
+                        data-enmasse-start-error
+                    >
+                        <LuTriangleAlert className="flex-none mt-0.5 text-red-300" />
+                        <span>{startError}</span>
+                    </div>}
                 </div>
 
                 <div className="flex flex-col items-stretch sm:items-end gap-3 flex-none">
@@ -233,7 +242,7 @@ function Hero({ status }: { status: EnMasseDownloaderStatus | undefined }) {
                                 onClick={() => start({ resume: resume && hasProgress })}
                                 loading={isStarting}
                             >
-                                {resume && hasProgress ? "Resume" : hasProgress ? "Start over" : "Start"}
+                                {isStarting ? "Starting…" : resume && hasProgress ? "Resume" : hasProgress ? "Start over" : "Start"}
                             </Button>
                         )}
                     </div>
