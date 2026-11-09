@@ -99,15 +99,14 @@ export function usePageTurnTrack({ enabled, wrapperRef, currentMapIndex, paginat
             settleTimer.current = null
         }
         el.style.transition = durationMs > 0 ? `transform ${durationMs}ms ${EASING}` : "none"
-        el.style.willChange = "transform"
+        // The wrapper is always its own layer (see the reader's style): never toggle will-change
+        // here. Promoting/dropping the layer on touch makes the WebView repaint the page, which
+        // shows as a full-screen flash.
         el.style.transform = `translate3d(${x}px,0,0)`
         if (x === 0) {
-            // At rest: drop the layer so the page is not kept as a composited bitmap
             settleTimer.current = setTimeout(() => {
                 settleTimer.current = null
                 el.style.transition = ""
-                el.style.transform = ""
-                el.style.willChange = ""
             }, durationMs + 40)
         }
     }, [])
@@ -173,8 +172,6 @@ export function usePageTurnTrack({ enabled, wrapperRef, currentMapIndex, paginat
         if (!enabled || !e.isPrimary || (e.pointerType === "mouse" && e.button !== 0)) return
         suppressClickUntil.current = 0
         releaseV.current = 0
-        // Promote the layer now, so the first moved frame does not also pay for it
-        if (wrapperRef.current) wrapperRef.current.style.willChange = "transform"
         drag.current = {
             id: e.pointerId,
             startX: e.clientX,
@@ -237,11 +234,7 @@ export function usePageTurnTrack({ enabled, wrapperRef, currentMapIndex, paginat
         drag.current = null
         cancelFrame()
         if (!el) return
-        if (d.axis !== "x") {
-            // Only promoted for a drag that never came: give the layer back if nothing moves it
-            if (!el.style.transform) el.style.willChange = ""
-            return
-        }
+        if (d.axis !== "x") return
         suppressClickUntil.current = performance.now() + 400
         // Bring the track to the last finger position before deciding (a frame may be pending)
         setX(el, d.x, 0)

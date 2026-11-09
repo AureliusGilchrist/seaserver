@@ -236,7 +236,8 @@ export function MangaHorizontalReader({ pageContainer }: MangaHorizontalReaderPr
                     animated && "relative",
                 )}
                 // Vertical panning and pinch stay with the browser; horizontal moves drive the track
-                style={animated ? { touchAction: "pan-y pinch-zoom" } : undefined}
+                // A permanent layer at a fixed transform: promoting or dropping it mid-gesture flashes the page
+                style={animated ? { touchAction: "pan-y pinch-zoom", willChange: "transform", transform: "translate3d(0,0,0)" } : undefined}
                 ref={pageWrapperRef}
                 onClick={onPageWrapperClick}
                 {...pageTurn.handlers}
@@ -262,7 +263,7 @@ export function MangaHorizontalReader({ pageContainer }: MangaHorizontalReaderPr
                                 // Last, so it wins over "flex" in the class merge
                                 !near && "hidden",
                             )}
-                            style={offset !== 0 && near ? { transform: pageTurn.slotTransform(offset), contain: "layout paint" } : undefined}
+                            style={offset !== 0 && near ? { transform: pageTurn.slotTransform(offset) } : undefined}
                             aria-hidden={offset !== 0}
                         >
                             {spread?.map(index => sortedPages[index] ? renderPage(sortedPages[index], index, spread, true) : null)}
