@@ -35,7 +35,7 @@ var PrimaryProviders = []string{OnlineProvider}
 // BackupProviders are tried, in order, when no primary provider has a series. They never
 // replace a healthy torrent, only a stalled one. AnimePahe comes last: its Cloudflare token
 // only lasts about 15 minutes, so it is usually skipped.
-var BackupProviders = []string{"anizone", BackupProvider, "animepahe"}
+var BackupProviders = []string{"anizone", BackupProvider, "animegg", "animepahe"}
 
 func isPrimaryProvider(p string) bool {
 	for _, q := range PrimaryProviders {

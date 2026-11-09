@@ -125,7 +125,7 @@ export type OnlinestreamDownload_SeriesResult = {
 }
 
 function providerDisplayName(id: string) {
-    return ({ animepahe: "AnimePahe", kickassanime: "Kickassanime", anizone: "AniZone", animeheaven: "AnimeHeaven" } as Record<string, string>)[id] ?? id
+    return ({ animepahe: "AnimePahe", kickassanime: "Kickassanime", anizone: "AniZone", animeheaven: "AnimeHeaven", animegg: "AnimeGG" } as Record<string, string>)[id] ?? id
 }
 
 export type OnlinestreamDownload_Action =

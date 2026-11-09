@@ -72,6 +72,7 @@ function providerName(p?: string) {
     if (p === "animeheaven") return "AnimeHeaven"
     if (p === "animepahe") return "AnimePahe"
     if (p === "anizone") return "AniZone"
+    if (p === "animegg") return "AnimeGG"
     if (p === "kickassanime") return "Kickassanime"
     return p || ""
 }
@@ -387,7 +388,7 @@ function Stage({ status }: { status: EnMasseDownloaderStatus | undefined }) {
                                     ].filter(Boolean).join("  ·  ")
                                     : state === "waiting"
                                         ? `${formatNumber(status?.ready?.length ?? 0)} series are lined up and ${formatNumber(status?.downloadQueueWaiting ?? 0)} episodes are waiting to download. Lined-up series are queued in order as soon as fewer than 10 series are waiting.`
-                                        : "Finds every series your library is missing on Kickassanime, with AniZone, AnimeHeaven and AnimePahe as the backups, queues it whole, and files each episode already matched: best quality, Japanese audio first, soft subtitles."}
+                                        : "Finds every series your library is missing on Kickassanime, with AniZone, AnimeHeaven, AnimeGG and AnimePahe as the backups, queues it whole, and files each episode already matched: best quality, Japanese audio first, soft subtitles."}
                             </p>
                         </motion.div>
                     </AnimatePresence>
@@ -632,7 +633,7 @@ function JustQueued({ status }: { status: EnMasseDownloaderStatus | undefined })
                                     {!!p.episodes && <span className="absolute bottom-1.5 left-1.5 rounded-md bg-black/70 backdrop-blur px-1.5 py-0.5 text-[10px] font-semibold">
                                         {p.episodes} ep
                                     </span>}
-                                    {(p.provider === "anizone" || p.provider === "animeheaven") && <span className="absolute top-1.5 right-1.5 rounded-md bg-sky-500/80 px-1.5 py-0.5 text-[9px] font-bold uppercase">
+                                    {(p.provider === "anizone" || p.provider === "animeheaven" || p.provider === "animegg") && <span className="absolute top-1.5 right-1.5 rounded-md bg-sky-500/80 px-1.5 py-0.5 text-[9px] font-bold uppercase">
                                         Backup
                                     </span>}
                                 </div>
@@ -1055,7 +1056,7 @@ function Totals({ status }: { status: EnMasseDownloaderStatus | undefined }) {
 const HOW_IT_WORKS = [
     {
         title: "Database order, torrents included",
-        text: "The run goes through the anime database in its own order, from its first entry. A series you are downloading as a torrent is handled when the database reaches it: if Kickassanime has it, its torrent is paused and the series downloads online; once the episodes are in your library the torrent and its files are removed, and if the online download fails the torrent resumes. The backups (AniZone, AnimeHeaven, then AnimePahe) only replace a torrent that has been stalled for 15 minutes or more. Torrent series the database doesn't list are checked at the end.",
+        text: "The run goes through the anime database in its own order, from its first entry. A series you are downloading as a torrent is handled when the database reaches it: if Kickassanime has it, its torrent is paused and the series downloads online; once the episodes are in your library the torrent and its files are removed, and if the online download fails the torrent resumes. The backups (AniZone, AnimeHeaven, AnimeGG, then AnimePahe) only replace a torrent that has been stalled for 15 minutes or more. Torrent series the database doesn't list are checked at the end.",
     },
     {
         title: "Skip what you have",
@@ -1063,7 +1064,7 @@ const HOW_IT_WORKS = [
     },
     {
         title: "Search every spelling",
-        text: "Kickassanime is searched under the English and romaji titles, every synonym, and other spellings: season wording, punctuation, accents, '&' and 'and', and the franchise name. If it doesn't have the series, AniZone, AnimeHeaven and then AnimePahe are searched the same way as backups. If none of them has it, a torrent is picked the way Enqueue Future's auto torrent does (SeaDex first) and sent to the torrent client: it lands in unmatched when it is moved and is matched into your library when it completes. An episode with no source on its provider is fetched from the others in the same order.",
+        text: "Kickassanime is searched under the English and romaji titles, every synonym, and other spellings: season wording, punctuation, accents, '&' and 'and', and the franchise name. If it doesn't have the series, AniZone, AnimeHeaven, AnimeGG and then AnimePahe are searched the same way as backups. If none of them has it, a torrent is picked the way Enqueue Future's auto torrent does (SeaDex first) and sent to the torrent client: it lands in unmatched when it is moved and is matched into your library when it completes. An episode with no source on its provider is fetched from the others in the same order.",
     },
     {
         title: "Verify the match",
