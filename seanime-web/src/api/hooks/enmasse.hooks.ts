@@ -27,7 +27,22 @@ export interface EnMasseDownloaderStatus {
     /** Series looked up while the download queue was full, queued in order as room appears */
     ready?: AnimeEnMasseReady[]
     /** Every series' result this run, counted (the list itself: /api/v1/enmasse/results) */
-    results?: { total: number, queued: number, torrent?: number, skipped: number, notFound: number }
+    results?: {
+        total: number, queued: number, torrent?: number, skipped: number, notFound: number
+        /** Skips by reason: In library, Adult, No AniList entry, ... */
+        skippedBy?: AnimeEnMasseReasonCount[]
+        /** Series no provider could supply, by their overall reason */
+        notFoundBy?: AnimeEnMasseReasonCount[]
+        /** What each provider said for those: "AniZone: No episodes" */
+        providerMisses?: AnimeEnMasseReasonCount[]
+        /** Series queued, by where they came from */
+        queuedFrom?: AnimeEnMasseReasonCount[]
+    }
+}
+
+export interface AnimeEnMasseReasonCount {
+    reason: string
+    count: number
 }
 
 export interface AnimeEnMasseReady {

@@ -152,3 +152,51 @@ func TestTorrentFallback(t *testing.T) {
 		t.Fatal("a series already downloading as a torrent was handed to the torrent fallback")
 	}
 }
+
+func TestReasonStatistics(t *testing.T) {
+	logger := zerolog.Nop()
+	d := NewDownloader(&NewDownloaderOptions{Logger: &logger})
+	d.results.reset()
+	ctx := context.Background()
+	record := func(err error, provider string) {
+		d.mu.Lock()
+		d.currentAnime = &AnilistMinifiedItem{ID: 1, Title: "S"}
+		d.lastProvider = provider
+		d.mu.Unlock()
+		d.recordOnlineResult(ctx, "S", err)
+	}
+	record(onlineSkip{"already in the library"}, "")
+	record(onlineSkip{"already in the library"}, "")
+	record(onlineSkip{"no AniList entry, so it could not be matched"}, "")
+	record(nil, "kickassanime")
+	record(newNotFound([]ProviderReason{
+		{Provider: "kickassanime", Detail: `"X" is listed on kickassanime but has no episodes`},
+		{Provider: "anizone", Detail: `"X" on anizone has 24 episodes, the series has 50`},
+	}, false, false), "")
+	record(newNotFound([]ProviderReason{
+		{Provider: "kickassanime", Detail: "not found on kickassanime (tried 6 spellings)"},
+	}, false, false), "")
+
+	c := d.results.counts()
+	find := func(list []ReasonCount, key string) int {
+		for _, r := range list {
+			if r.Reason == key {
+				return r.Count
+			}
+		}
+		return 0
+	}
+	if find(c.SkippedBy, ReasonInLibrary) != 2 || find(c.SkippedBy, ReasonNoAniList) != 1 {
+		t.Fatalf("skipped by %+v", c.SkippedBy)
+	}
+	if find(c.QueuedFrom, "Kickassanime") != 1 {
+		t.Fatalf("queued from %+v", c.QueuedFrom)
+	}
+	if find(c.NotFoundBy, ReasonNoEpisodes) != 1 || find(c.NotFoundBy, ReasonNotFound) != 1 {
+		t.Fatalf("not found by %+v", c.NotFoundBy)
+	}
+	if find(c.ProviderMisses, "Kickassanime: No episodes") != 1 || find(c.ProviderMisses, "AniZone: Episode count mismatch") != 1 ||
+		find(c.ProviderMisses, "Kickassanime: Not found") != 1 {
+		t.Fatalf("provider misses %+v", c.ProviderMisses)
+	}
+}

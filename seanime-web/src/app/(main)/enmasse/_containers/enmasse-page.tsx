@@ -1,7 +1,7 @@
 "use client"
 
 import { buildSeaQuery } from "@/api/client/requests"
-import { AnimeEnMasseActivity, AnimeEnMasseReady, EnMasseDownloaderStatus, useEnMasseStart, useEnMasseStatus, useEnMasseStop } from "@/api/hooks/enmasse.hooks"
+import { AnimeEnMasseActivity, AnimeEnMasseReady, AnimeEnMasseReasonCount, EnMasseDownloaderStatus, useEnMasseStart, useEnMasseStatus, useEnMasseStop } from "@/api/hooks/enmasse.hooks"
 import { isOnlinestreamDownloadRunning, useGetOnlinestreamDownloads } from "@/api/hooks/onlinestream_download.hooks"
 import { useDownloadingAnime } from "@/app/(main)/_atoms/downloading.atoms"
 import { AnimePaheAccessCard } from "@/app/(main)/enmasse/_containers/animepahe-access-card"
@@ -1045,6 +1045,55 @@ function Totals({ status }: { status: EnMasseDownloaderStatus | undefined }) {
                     </div>
                 ))}
             </div>
+
+            {/* Every reason, counted. */}
+            <ReasonBreakdown title="Queued from" items={status?.results?.queuedFrom} bar="bg-emerald-400" tone="text-emerald-300" />
+            <ReasonBreakdown title="Skipped because" items={status?.results?.skippedBy} bar="bg-slate-400" tone="text-slate-300" />
+            <ReasonBreakdown title="Not found because" items={status?.results?.notFoundBy} bar="bg-amber-400" tone="text-amber-300" />
+            <ReasonBreakdown title="What each provider said" items={status?.results?.providerMisses} bar="bg-orange-400" tone="text-orange-300" collapsed />
+        </div>
+    )
+}
+
+/** One group of reasons with their counts, largest first, each with a bar against the group's total. */
+function ReasonBreakdown({ title, items, bar, tone, collapsed }: {
+    title: string
+    items: AnimeEnMasseReasonCount[] | undefined
+    bar: string
+    tone: string
+    collapsed?: boolean
+}) {
+    const [open, setOpen] = useState(!collapsed)
+    const list = items ?? []
+    if (!list.length) return null
+    const total = list.reduce((a, r) => a + r.count, 0)
+    const max = Math.max(...list.map(r => r.count))
+    return (
+        <div className="space-y-2 pt-4 border-t border-white/[0.06]" data-enmasse-breakdown>
+            <button type="button" onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-2 text-left">
+                <p className="text-[11px] uppercase tracking-[0.16em] text-gray-400 flex-1">{title}</p>
+                <span className="text-xs text-gray-500 tabular-nums">{formatNumber(total)}</span>
+                <LuChevronDown className={cn("text-gray-500 transition-transform", !open && "-rotate-90")} />
+            </button>
+            {open && <div className="space-y-1.5">
+                {list.map(r => (
+                    <div key={r.reason} className="space-y-1">
+                        <div className="flex items-center gap-2 text-sm">
+                            <span className="flex-1 min-w-0 truncate text-gray-300" title={r.reason}>{r.reason}</span>
+                            <span className="text-xs text-gray-500 tabular-nums">{Math.round((r.count / total) * 100)}%</span>
+                            <span className={cn("w-12 text-right font-semibold tabular-nums", tone)}>{formatNumber(r.count)}</span>
+                        </div>
+                        <div className="h-1 rounded-full bg-white/[0.05] overflow-hidden">
+                            <motion.div
+                                className={cn("h-full rounded-full opacity-70", bar)}
+                                initial={false}
+                                animate={{ width: `${(r.count / max) * 100}%` }}
+                                transition={{ duration: 0.6 }}
+                            />
+                        </div>
+                    </div>
+                ))}
+            </div>}
         </div>
     )
 }
