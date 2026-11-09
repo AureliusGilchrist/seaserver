@@ -58,6 +58,14 @@ const (
 	// How long the "restarting" message is given to reach the client before the process is
 	// replaced underneath it.
 	gitUpdateRestartDelay = 5 * time.Second
+	// An update waits until the fork's newest commit is at least this old before pulling, so a burst
+	// of pushes lands as one update and one build.
+	gitUpdateSettleQuiet = 90 * time.Second
+	// ...but never waits longer than this for the fork to stop moving.
+	gitUpdateSettleMax = 10 * time.Minute
+	// Builds per update: the first, plus rebuilds for commits that arrived while building. Bounded
+	// so a fork that is pushed to all night cannot keep an update from ever finishing.
+	gitUpdateMaxBuildRounds = 3
 )
 
 type GitAutoUpdater struct {
@@ -535,93 +543,61 @@ func (u *GitAutoUpdater) runUpdate() {
 		u.logger.Error().Msg("selfupdate: The update stopped unexpectedly — the running version is untouched")
 	})
 
-	u.progress(5, "Fetching the latest commits from origin")
-	// An update always lands: local work is saved under refs/seanime-backup/ and the checkout is
-	// moved onto the fork's latest commit, so nothing is left behind and nothing is lost.
-	remoteRef := u.remoteRef()
-	if _, err := u.git("fetch", gitUpdateRemote); err != nil {
-		u.fail("fetching the fork", err, "")
-		return
-	}
-	u.progress(15, "Reviewing local changes and update contents")
-	if note := u.localWork(remoteRef); note != "" {
-		u.logger.Warn().Msg("selfupdate: " + note)
-		u.notify("Saving local work to a backup ref before updating")
-		u.progress(20, "Backing up local changes")
-	}
-
-	stats := u.diffStats(remoteRef)
-
 	// Record what the running binary was built from before the checkout moves, so a failed build
-	// still counts as "update available" afterwards.
+	// still counts as "update available" afterwards, and so the update summary measures everything
+	// this update brings, however many rounds it takes.
 	if u.builtCommit() == "" {
 		u.setBuiltCommit(u.headCommit())
 	}
-	remoteHead, _ := u.git("rev-parse", remoteRef)
-	// Also reset when HEAD already matches but the tree or index is dirty (an earlier attempt can
-	// move HEAD and then fail halfway, leaving staged leftovers).
-	dirty, _ := u.git("status", "--porcelain", "--untracked-files=no")
-	if strings.TrimSpace(remoteHead) != u.headCommit() || strings.TrimSpace(dirty) != "" {
-		u.progress(25, "Moving the checkout to the latest commit")
-		if err := u.shelve(remoteRef); err != nil {
-			u.fail("moving the checkout to the fork's latest commit (git reset --hard)", err, "")
+	remoteRef := u.remoteRef()
+
+	// Every pending commit is pulled before anything is built. Commits usually arrive in bursts (a
+	// few pushes in a row), so the update first waits for the fork to stop moving, then takes all of
+	// it in one go — rather than building the first commit of the burst and restarting into a
+	// version that is already behind.
+	u.progress(5, "Fetching the latest commits from origin")
+	if err := u.fetchUntilSettled(); err != nil {
+		u.fail("fetching the fork", err, "")
+		return
+	}
+
+	var buildOut bytes.Buffer
+	for round := 1; ; round++ {
+		if err := u.syncCheckout(remoteRef); err != nil {
+			return // syncCheckout reported the failure
+		}
+		var ok bool
+		buildOut, ok = u.runBuild(round)
+		if !ok {
 			return
 		}
-	}
+		// Read after the build: the Windows build script pulls on its own, so what was built is
+		// whatever HEAD is now.
+		builtHead := u.headCommit()
 
-	// The tree has to stay clean through the whole update; the merge is the step most able to have
-	// left something behind.
-	u.progress(30, "Verifying the updated checkout")
-	status, err := u.git("status", "--porcelain", "--untracked-files=no")
-	if err != nil || strings.TrimSpace(status) != "" {
-		u.fail("verifying the checkout after the reset", fmt.Errorf("tracked files are still modified: %s %v", strings.TrimSpace(status), err), "")
-		return
-	}
-
-	u.notify("A new version was found — building it now…")
-	u.progress(38, "Preparing the build")
-	u.logger.Info().Msg("selfupdate: Building the new version while the current one keeps running")
-
-	// The build is the web interface first and the server second, which is what the embed in the
-	// binary needs. A failed build writes no binary — go build only replaces what it compiled — so
-	// the running version is untouched by it. The script is run through its shell (bash on the NAS,
-	// powershell on Windows) so the platform's own script handles the platform's own paths, and the
-	// command runs attached to a console-independent process on Windows so a GUI binary does not
-	// flash a shell window for every step of the build.
-	build, err := buildCommand(u.repoDir)
-	if err != nil {
-		u.fail("preparing the build", err, "")
-		return
-	}
-	u.notify("Build started: " + strings.Join(build.Args, " "))
-	u.progress(42, "Building the web assets and backend")
-	started := time.Now()
-	build.Dir = u.repoDir
-	var buildOut bytes.Buffer
-	tail := &lineTail{}
-	build.Stdout = io.MultiWriter(os.Stdout, &buildOut, tail)
-	build.Stderr = io.MultiWriter(os.Stderr, &buildOut, tail)
-	// The build is most of an update's time; while it runs, its latest output line and an
-	// estimated percentage are published every few seconds, so the page shows it moving.
-	stopTicker := make(chan struct{})
-	go func() {
-		ticker := time.NewTicker(3 * time.Second)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-stopTicker:
-				return
-			case <-ticker.C:
-				u.buildDetail(tail.Last(), time.Since(started))
-			}
+		// The build takes minutes; anything pushed meanwhile is pulled now and built into this same
+		// update, so the server restarts once, on the fork's latest commit, instead of restarting
+		// into a version that is already behind and doing the whole update again.
+		if round >= gitUpdateMaxBuildRounds {
+			break
 		}
-	}()
-	buildErr := build.Run()
-	close(stopTicker)
-	if buildErr != nil {
-		u.fail(fmt.Sprintf("running the build script (%s, failed after %s)", strings.Join(build.Args, " "), time.Since(started).Round(time.Millisecond)), buildErr, buildOut.String())
-		return
+		u.progress(69, "Checking for commits pushed during the build")
+		if err := u.fetchUntilSettled(); err != nil {
+			// The build that just finished is good; a failed re-check only means the newer commits
+			// wait for the next update.
+			u.logger.Warn().Err(err).Msg("selfupdate: Could not re-check the fork after the build; installing what was built")
+			break
+		}
+		if newHead, _ := u.git("rev-parse", remoteRef); strings.TrimSpace(newHead) == builtHead || strings.TrimSpace(newHead) == "" {
+			break
+		}
+		u.logger.Info().Int("round", round+1).Msg("selfupdate: New commits arrived during the build — pulling them and rebuilding before restarting")
+		u.notify("More commits arrived during the build — pulling them in and rebuilding before restarting…")
 	}
+
+	// Measured against HEAD, which is what was built: a fetch after the last round may have moved
+	// the remote ref past it.
+	stats := u.diffStats("HEAD")
 
 	u.progress(70, "Build finished; validating the new binary")
 	exePath := getExePath()
@@ -695,6 +671,129 @@ func (u *GitAutoUpdater) runUpdate() {
 	if err := syscallExec(exePath, args, os.Environ()); err != nil {
 		u.logger.Error().Err(err).Msg("selfupdate: Could not restart with the new version")
 	}
+}
+
+// fetchUntilSettled fetches origin and, while the fork's newest commit is very recent, waits and
+// fetches again until the fork stops moving, so a burst of pushes is taken as one update. Bounded:
+// a fork that keeps moving is taken as it is after gitUpdateSettleMax.
+func (u *GitAutoUpdater) fetchUntilSettled() error {
+	remoteRef := u.remoteRef()
+	deadline := time.Now().Add(gitUpdateSettleMax)
+	for {
+		if _, err := u.git("fetch", gitUpdateRemote); err != nil {
+			return err
+		}
+		out, err := u.git("show", "-s", "--format=%ct", remoteRef)
+		if err != nil {
+			return nil // nothing to judge the age by; take what was fetched
+		}
+		secs, err := strconv.ParseInt(strings.TrimSpace(out), 10, 64)
+		if err != nil {
+			return nil
+		}
+		age := time.Since(time.Unix(secs, 0))
+		if age >= gitUpdateSettleQuiet || time.Now().After(deadline) {
+			return nil
+		}
+		wait := gitUpdateSettleQuiet - age
+		if remaining := time.Until(deadline); wait > remaining {
+			wait = remaining
+		}
+		u.progress(8, "Waiting for the fork to finish receiving pushes, so every commit is pulled at once")
+		u.logger.Info().Dur("wait", wait.Round(time.Second)).Msg("selfupdate: The fork's newest commit is very recent — waiting for more pushes before pulling")
+		time.Sleep(wait)
+	}
+}
+
+// syncCheckout moves the checkout onto the fetched remote ref and verifies it is clean. It reports
+// its own failure; a nil error means the checkout is exactly the remote ref.
+func (u *GitAutoUpdater) syncCheckout(remoteRef string) error {
+	// An update always lands: local work is saved under refs/seanime-backup/ and the checkout is
+	// moved onto the fork's latest commit, so nothing is left behind and nothing is lost.
+	u.progress(15, "Reviewing local changes and update contents")
+	if note := u.localWork(remoteRef); note != "" {
+		u.logger.Warn().Msg("selfupdate: " + note)
+		u.notify("Saving local work to a backup ref before updating")
+		u.progress(20, "Backing up local changes")
+	}
+
+	remoteHead, _ := u.git("rev-parse", remoteRef)
+	// Also reset when HEAD already matches but the tree or index is dirty (an earlier attempt can
+	// move HEAD and then fail halfway, leaving staged leftovers).
+	dirty, _ := u.git("status", "--porcelain", "--untracked-files=no")
+	if strings.TrimSpace(remoteHead) != u.headCommit() || strings.TrimSpace(dirty) != "" {
+		u.progress(25, "Moving the checkout to the latest commit")
+		if err := u.shelve(remoteRef); err != nil {
+			u.fail("moving the checkout to the fork's latest commit (git reset --hard)", err, "")
+			return err
+		}
+	}
+
+	// The tree has to stay clean through the whole update; the reset is the step most able to have
+	// left something behind.
+	u.progress(30, "Verifying the updated checkout")
+	status, err := u.git("status", "--porcelain", "--untracked-files=no")
+	if err != nil || strings.TrimSpace(status) != "" {
+		verr := fmt.Errorf("tracked files are still modified: %s %v", strings.TrimSpace(status), err)
+		u.fail("verifying the checkout after the reset", verr, "")
+		return verr
+	}
+	return nil
+}
+
+// runBuild runs the platform's build script on the checkout as it is. It reports its own failure.
+func (u *GitAutoUpdater) runBuild(round int) (bytes.Buffer, bool) {
+	var buildOut bytes.Buffer
+	if round == 1 {
+		u.notify("A new version was found — building it now…")
+	}
+	u.progress(38, "Preparing the build")
+	u.logger.Info().Int("round", round).Msg("selfupdate: Building the new version while the current one keeps running")
+
+	// The build is the web interface first and the server second, which is what the embed in the
+	// binary needs. A failed build writes no binary — go build only replaces what it compiled — so
+	// the running version is untouched by it. The script is run through its shell (bash on the NAS,
+	// powershell on Windows) so the platform's own script handles the platform's own paths, and the
+	// command runs attached to a console-independent process on Windows so a GUI binary does not
+	// flash a shell window for every step of the build.
+	build, err := buildCommand(u.repoDir)
+	if err != nil {
+		u.fail("preparing the build", err, "")
+		return buildOut, false
+	}
+	u.notify("Build started: " + strings.Join(build.Args, " "))
+	step := "Building the web assets and backend"
+	if round > 1 {
+		step = "Rebuilding with the commits that arrived during the build"
+	}
+	u.progress(42, step)
+	started := time.Now()
+	build.Dir = u.repoDir
+	tail := &lineTail{}
+	build.Stdout = io.MultiWriter(os.Stdout, &buildOut, tail)
+	build.Stderr = io.MultiWriter(os.Stderr, &buildOut, tail)
+	// The build is most of an update's time; while it runs, its latest output line and an
+	// estimated percentage are published every few seconds, so the page shows it moving.
+	stopTicker := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(3 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stopTicker:
+				return
+			case <-ticker.C:
+				u.buildDetail(tail.Last(), time.Since(started))
+			}
+		}
+	}()
+	buildErr := build.Run()
+	close(stopTicker)
+	if buildErr != nil {
+		u.fail(fmt.Sprintf("running the build script (%s, failed after %s)", strings.Join(build.Args, " "), time.Since(started).Round(time.Millisecond)), buildErr, buildOut.String())
+		return buildOut, false
+	}
+	return buildOut, true
 }
 
 // UpdateNotice is what an update was, shown to the client after it signs in.
