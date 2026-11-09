@@ -763,7 +763,12 @@ func (h *Handler) HandleUpdateMangaProgress(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
-	// Update the progress on AniList
+	// Update the progress on AniList.
+	//
+	// A failure here is reported to the client, but only after the read has been recorded below:
+	// the chapter was read either way, and returning early used to drop it from the activity
+	// log, the heatmap and the reading streak whenever AniList refused the update.
+	var anilistErr error
 	profileID := h.GetProfileID(c)
 
 	// For profile users, use their own AniList client to avoid mutating the admin account.
@@ -790,7 +795,7 @@ func (h *Handler) HandleUpdateMangaProgress(c echo.Context) error {
 			h.App.AnilistClientManager.EnqueueProgressUpdate(profileID, b.MediaId, b.ChapterNumber, &status, startedAt, completedAt)
 			h.App.AnilistClientManager.ApplyMangaListEntryUpdate(profileID, b.MediaId, nil, &status, nil, &b.ChapterNumber, startedAt, completedAt)
 		} else if err != nil {
-			return h.RespondWithError(c, err)
+			anilistErr = err
 		}
 	} else {
 		err := h.App.AnilistPlatformRef.Get().UpdateEntryProgress(
@@ -800,7 +805,7 @@ func (h *Handler) HandleUpdateMangaProgress(c echo.Context) error {
 			&b.TotalChapters,
 		)
 		if err != nil {
-			return h.RespondWithError(c, err)
+			anilistErr = err
 		}
 	}
 
@@ -871,6 +876,10 @@ func (h *Handler) HandleUpdateMangaProgress(c echo.Context) error {
 			h.App.MilestoneEngine.EvaluateProfile(profileID)
 		}
 	}()
+
+	if anilistErr != nil {
+		return h.RespondWithError(c, anilistErr)
+	}
 
 	if profileID > 0 {
 		h.App.AnilistClientManager.InvalidateMangaCollection(profileID)
