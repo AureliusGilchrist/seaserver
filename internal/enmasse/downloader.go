@@ -606,9 +606,10 @@ type (
 		recent            []ActivityEntry
 		startedAt         time.Time
 		processedThisRun  int
-		lastQueued        int          // episodes queued for the series being processed
-		lastProvider      string       // provider the series being processed was queued from
-		torrentDone       map[int]bool // torrent series this run already handled
+		lastQueued        int              // episodes queued for the series being processed
+		lastProvider      string           // provider the series being processed was queued from
+		lastMisses        []ProviderReason // what the providers before it said
+		torrentDone       map[int]bool     // torrent series this run already handled
 		// ready are series looked up while the download queue was full, queued as room appears.
 		ready []*ReadySeries
 		// results holds every series' result for the run (see results.go).

@@ -41,6 +41,7 @@ import {
     LuSparkles,
     LuSquare,
     LuTriangleAlert,
+    LuX,
     LuZap,
 } from "react-icons/lu"
 import { Virtuoso } from "react-virtuoso"
@@ -653,11 +654,81 @@ function JustQueued({ status }: { status: EnMasseDownloaderStatus | undefined })
 
 type FeedTab = "all" | "ready" | "queued" | "torrent" | "skipped" | "not_found"
 
-const resultStyle: Record<AnimeEnMasseActivity["result"], { label: string, className: string, rail: string, icon: React.ElementType }> = {
-    queued: { label: "Queued", className: "text-emerald-300 bg-emerald-400/10 border-emerald-400/25", rail: "bg-emerald-400", icon: LuCircleCheck },
-    not_found: { label: "Not found", className: "text-amber-300 bg-amber-400/10 border-amber-400/25", rail: "bg-amber-400", icon: LuSearchX },
-    skipped: { label: "Skipped", className: "text-slate-300 bg-slate-400/10 border-slate-400/25", rail: "bg-slate-500", icon: LuSkipForward },
-    torrent: { label: "Torrent", className: "text-fuchsia-300 bg-fuchsia-400/10 border-fuchsia-400/25", rail: "bg-fuchsia-400", icon: LuDownload },
+const resultStyle: Record<AnimeEnMasseActivity["result"], { label: string, className: string, rail: string, dot: string, icon: React.ElementType }> = {
+    queued: { label: "Queued", className: "text-emerald-200 bg-emerald-400/10 ring-emerald-400/25", rail: "bg-emerald-400", dot: "bg-emerald-400", icon: LuCircleCheck },
+    torrent: { label: "Torrent", className: "text-fuchsia-200 bg-fuchsia-400/10 ring-fuchsia-400/25", rail: "bg-fuchsia-400", dot: "bg-fuchsia-400", icon: LuDownload },
+    not_found: { label: "Not found", className: "text-amber-200 bg-amber-400/10 ring-amber-400/25", rail: "bg-amber-400", dot: "bg-amber-400", icon: LuSearchX },
+    skipped: { label: "Skipped", className: "text-slate-300 bg-slate-400/10 ring-slate-400/20", rail: "bg-slate-500", dot: "bg-slate-400", icon: LuSkipForward },
+}
+
+/** The columns: every source, in the order they are tried. */
+const SOURCE_COLUMNS = [
+    { id: "kickassanime", label: "Kickass" },
+    { id: "anizone", label: "AniZone" },
+    { id: "animeheaven", label: "Heaven" },
+    { id: "animegg", label: "AnimeGG" },
+    { id: "animepahe", label: "Pahe" },
+    { id: "torrent", label: "Torrent" },
+] as const
+
+/** The grid every row and the header share: series, result, then one column per source. */
+const ACTIVITY_GRID = "xl:grid xl:grid-cols-[minmax(0,1fr)_7.25rem_repeat(6,4.85rem)] xl:items-center xl:gap-x-1.5"
+
+type CellTone = "ok" | "sent" | "amber" | "orange" | "rose" | "violet" | "gray"
+
+const cellTone: Record<CellTone, string> = {
+    ok: "text-emerald-200 bg-emerald-400/10 ring-emerald-400/25",
+    sent: "text-fuchsia-200 bg-fuchsia-400/10 ring-fuchsia-400/25",
+    amber: "text-amber-200 bg-amber-400/10 ring-amber-400/20",
+    orange: "text-orange-200 bg-orange-400/10 ring-orange-400/20",
+    rose: "text-rose-200 bg-rose-400/10 ring-rose-400/20",
+    violet: "text-violet-200 bg-violet-400/10 ring-violet-400/20",
+    gray: "text-gray-300 bg-white/[0.04] ring-white/[0.06]",
+}
+
+/** A provider's reason as a cell: a short word or two and a colour. */
+function reasonCell(reason: string): { text: string, tone: CellTone } {
+    const counts = reason.match(/\((\d+) vs (\d+)\)/)
+    if (reason.startsWith("Episode count mismatch")) return { text: counts ? `${counts[1]} vs ${counts[2]}` : "Count off", tone: "orange" }
+    if (reason.startsWith("Not found")) return { text: "Not found", tone: "gray" }
+    switch (reason) {
+        case "No episodes":
+            return { text: "No episodes", tone: "amber" }
+        case "No episode list":
+            return { text: "No list", tone: "amber" }
+        case "Episode list doesn't fit":
+            return { text: "Doesn't fit", tone: "orange" }
+        case "Video source null":
+            return { text: "No video", tone: "rose" }
+        case "Couldn't queue":
+            return { text: "Failed", tone: "rose" }
+        case "Search failed":
+            return { text: "Error", tone: "rose" }
+        case "Refused (Cloudflare)":
+            return { text: "Refused", tone: "violet" }
+        case "No torrent":
+            return { text: "None", tone: "gray" }
+        case "No title to search":
+            return { text: "No title", tone: "gray" }
+    }
+    return { text: reason, tone: "gray" }
+}
+
+/** What each source did for a result: a cell per source (undefined: not tried). */
+function sourceCells(e: AnimeEnMasseActivity): Record<string, { text: string, tone: CellTone, title?: string } | undefined> {
+    const cells: Record<string, { text: string, tone: CellTone, title?: string } | undefined> = {}
+    for (const r of e.reasons ?? []) {
+        if (!r.provider) continue
+        const c = reasonCell(r.reason)
+        cells[r.provider] = { ...c, title: r.detail || r.reason }
+    }
+    if (e.result === "queued" && e.provider) {
+        cells[e.provider] = { text: e.episodes ? `${e.episodes} eps` : "Queued", tone: "ok", title: `Queued ${e.episodes ?? ""} episodes from ${providerName(e.provider)}` }
+    }
+    if (e.result === "torrent") {
+        cells["torrent"] = { text: "Sent", tone: "sent", title: e.detail }
+    }
+    return cells
 }
 
 /** Results come a page at a time; a page is this many. */
@@ -735,56 +806,78 @@ function ActivityFeed({ status }: { status: EnMasseDownloaderStatus | undefined 
     const counts = { torrent: 0, ...(status?.results ?? { total: 0, queued: 0, skipped: 0, notFound: 0 }) }
     const ready = status?.ready ?? []
 
-    const tabs: [FeedTab, string, number][] = [
-        ["all", "All", counts.total],
-        ["ready", "Lined up", ready.length],
-        ["queued", "Queued", counts.queued],
-        ["torrent", "Torrented", counts.torrent ?? 0],
-        ["skipped", "Skipped", counts.skipped],
-        ["not_found", "Not found", counts.notFound],
+    const tabs: [FeedTab, string, number, string][] = [
+        ["all", "All", counts.total, "bg-white"],
+        ["ready", "Lined up", ready.length, "bg-sky-400"],
+        ["queued", "Queued", counts.queued, "bg-emerald-400"],
+        ["torrent", "Torrented", counts.torrent ?? 0, "bg-fuchsia-400"],
+        ["not_found", "Not found", counts.notFound, "bg-amber-400"],
+        ["skipped", "Skipped", counts.skipped, "bg-slate-400"],
     ]
     const tabTotal = tab === "all" ? counts.total : tab === "queued" ? counts.queued : tab === "torrent" ? (counts.torrent ?? 0)
         : tab === "skipped" ? counts.skipped : counts.notFound
     const results = useResultPages(tab === "ready" ? "all" : tab, search, tabTotal)
 
     return (
-        <div className={cn(panel, "overflow-hidden flex flex-col flex-1 min-h-[30rem]")} data-enmasse-activity>
-            <div className="px-5 sm:px-6 pt-5 pb-4 flex items-center gap-3 flex-wrap">
-                <div className="flex-1 min-w-[10rem]">
-                    <h3 className="font-semibold leading-tight">Activity</h3>
-                    <p className="text-xs text-gray-400">Every series from the database, with why it was or wasn't queued</p>
+        <div className={cn(panel, "overflow-hidden flex flex-col flex-1 min-h-[34rem]")} data-enmasse-activity>
+            {/* Header */}
+            <div className="px-5 sm:px-6 pt-5 pb-4 space-y-4">
+                <div className="flex items-start gap-3 flex-wrap">
+                    <span className="size-9 rounded-xl bg-gradient-to-br from-indigo-500/25 to-fuchsia-500/20 ring-1 ring-white/10 text-indigo-200 flex items-center justify-center flex-none">
+                        <LuListVideo />
+                    </span>
+                    <div className="flex-1 min-w-[12rem]">
+                        <h3 className="font-semibold leading-tight">Activity</h3>
+                        <p className="text-xs text-gray-400 mt-0.5">Every series from the database, and what each source said</p>
+                    </div>
+                    {tab !== "ready" && <div className="relative w-full sm:w-64">
+                        <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                        <input
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            placeholder="Search titles"
+                            className="w-full h-9 rounded-xl bg-black/30 ring-1 ring-white/[0.08] pl-9 pr-8 text-sm placeholder:text-gray-500 focus:outline-none focus:ring-white/25 transition-shadow"
+                        />
+                        {!!search && <button
+                            type="button"
+                            onClick={() => setSearch("")}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 size-6 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center justify-center"
+                            title="Clear"
+                        >
+                            <LuX />
+                        </button>}
+                    </div>}
                 </div>
-                <div className="relative flex flex-wrap rounded-xl bg-white/[0.04] border border-white/[0.06] p-1">
-                    {tabs.map(([key, label, count]) => (
+                <div className="flex flex-wrap gap-1.5">
+                    {tabs.map(([key, label, count, dot]) => (
                         <button
                             key={key}
                             type="button"
                             onClick={() => setTab(key)}
-                            className={cn("relative px-3 h-8 rounded-lg text-xs font-medium transition-colors",
-                                tab === key ? "text-gray-950" : "text-gray-400 hover:text-white")}
+                            className={cn("relative h-8 pl-2.5 pr-3 rounded-full text-xs font-medium transition-colors inline-flex items-center gap-2 ring-1",
+                                tab === key ? "text-gray-950 ring-transparent" : "text-gray-300 ring-white/[0.08] hover:ring-white/20 hover:text-white")}
                         >
                             {tab === key && <motion.span
                                 layoutId="enmasse-tab"
-                                className="absolute inset-0 rounded-lg bg-white"
+                                className="absolute inset-0 rounded-full bg-white"
                                 transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
                             />}
-                            <span className="relative">
-                                {label}<span className="ml-1.5 tabular-nums text-gray-500">{formatNumber(count)}</span>
-                            </span>
+                            <span className={cn("relative size-1.5 rounded-full", tab === key && key === "all" ? "bg-gray-950" : dot)} />
+                            <span className="relative">{label}</span>
+                            <span className={cn("relative tabular-nums", tab === key ? "text-gray-500" : "text-gray-500")}>{formatNumber(count)}</span>
                         </button>
                     ))}
                 </div>
             </div>
-            {tab !== "ready" && <div className="px-5 sm:px-6 pb-3">
-                <input
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    placeholder="Search titles"
-                    className="w-full h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] px-3 text-sm placeholder:text-gray-500 focus:outline-none focus:border-white/20"
-                />
+
+            {/* Column heads */}
+            {tab !== "ready" && <div className={cn("hidden px-5 sm:px-6 py-2 border-y border-white/[0.06] bg-white/[0.015] text-[10px] uppercase tracking-[0.14em] text-gray-500", ACTIVITY_GRID)}>
+                <span>Series</span>
+                <span>Result</span>
+                {SOURCE_COLUMNS.map(c => <span key={c.id} className="text-center truncate" title={providerName(c.id) || c.label}>{c.label}</span>)}
             </div>}
 
-            <div className="border-t border-white/[0.06] relative flex-1 min-h-[22rem]">
+            <div className={cn("relative flex-1 min-h-[24rem]", tab === "ready" ? "border-t border-white/[0.06]" : "xl:border-t-0 border-t border-white/[0.06]")}>
                 {tab === "ready" ? (
                     // Found while the download queue was full: queued in this order as room appears.
                     ready.length ? <Virtuoso
@@ -816,11 +909,13 @@ function ActivityFeed({ status }: { status: EnMasseDownloaderStatus | undefined 
 
 function PlaceholderRow() {
     return (
-        <div className="px-5 sm:px-6 py-3 border-b border-white/[0.04] flex gap-4 items-center">
-            <div className="w-10 h-14 rounded-lg bg-white/[0.04] flex-none" />
-            <div className="flex-1 space-y-2">
-                <div className="h-3 w-1/3 rounded bg-white/[0.05]" />
-                <div className="h-2.5 w-1/2 rounded bg-white/[0.04]" />
+        <div className={cn("px-5 sm:px-6 py-3 border-b border-white/[0.04] flex gap-3 items-center", ACTIVITY_GRID)}>
+            <div className="flex gap-3 items-center min-w-0">
+                <div className="w-9 h-12 rounded-lg bg-white/[0.04] flex-none animate-pulse" />
+                <div className="flex-1 space-y-2">
+                    <div className="h-3 w-2/5 rounded bg-white/[0.05]" />
+                    <div className="h-2.5 w-1/4 rounded bg-white/[0.04]" />
+                </div>
             </div>
         </div>
     )
@@ -828,9 +923,10 @@ function PlaceholderRow() {
 
 const ReadyRow = React.memo(function ReadyRow({ entry: r, position }: { entry: AnimeEnMasseReady, position: number }) {
     return (
-        <div className="px-5 sm:px-6 py-3 border-b border-white/[0.04] flex gap-4 items-center hover:bg-white/[0.025] transition-colors">
-            <span className="w-6 text-right text-xs text-gray-500 tabular-nums flex-none">{position}</span>
-            <div className="w-10 h-14 rounded-lg overflow-hidden bg-gray-900 ring-1 ring-white/10 flex-none">
+        <div className="group relative px-5 sm:px-6 py-3 border-b border-white/[0.04] flex gap-4 items-center hover:bg-white/[0.025] transition-colors">
+            <span className="absolute left-0 top-3 bottom-3 w-0.5 rounded-r-full bg-sky-400 opacity-60" />
+            <span className="w-7 text-right text-sm font-semibold text-gray-500 tabular-nums flex-none">{position}</span>
+            <div className="w-9 h-12 rounded-lg overflow-hidden bg-gray-900 ring-1 ring-white/10 flex-none shadow-md">
                 {r.image ? <img src={r.image} alt="" loading="lazy" className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center text-gray-600"><LuFilm /></div>}
             </div>
@@ -840,7 +936,7 @@ const ReadyRow = React.memo(function ReadyRow({ entry: r, position }: { entry: A
                     Found on {providerName(r.provider)}{r.episodes ? ` · ${r.episodes} episodes` : ""}
                 </p>
             </div>
-            <span className="text-[11px] font-semibold rounded-full border px-2 py-0.5 inline-flex items-center gap-1 text-sky-300 bg-sky-400/10 border-sky-400/25 flex-none">
+            <span className="text-[11px] font-semibold rounded-full ring-1 px-2.5 py-1 inline-flex items-center gap-1.5 text-sky-200 bg-sky-400/10 ring-sky-400/25 flex-none">
                 <LuClock /> Lined up
             </span>
         </div>
@@ -849,66 +945,87 @@ const ReadyRow = React.memo(function ReadyRow({ entry: r, position }: { entry: A
 
 const ActivityRow = React.memo(function ActivityRow({ entry: e, now }: { entry: AnimeEnMasseActivity, now: number }) {
     const style = resultStyle[e.result] ?? resultStyle.skipped
+    const cells = sourceCells(e)
+    const anyCell = SOURCE_COLUMNS.some(c => cells[c.id])
+    const badgeText = e.result === "queued" ? "Queued" : e.result === "torrent" ? "Torrent" : (e.reason || style.label)
     // Rows newer than a few seconds slide in; older ones (scrolled back to) just appear.
     const fresh = now - new Date(e.time).getTime() < 15000
     return (
         <motion.div
-            initial={fresh ? { opacity: 0, x: -12 } : false}
-            animate={{ opacity: 1, x: 0 }}
+            initial={fresh ? { opacity: 0, y: -6 } : false}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35 }}
-            className="group relative px-5 sm:px-6 py-3 border-b border-white/[0.04] flex gap-4 items-center hover:bg-white/[0.025] transition-colors"
+            className={cn("group relative px-5 sm:px-6 py-2.5 border-b border-white/[0.04] hover:bg-white/[0.025] transition-colors", ACTIVITY_GRID)}
         >
-            <span className={cn("absolute left-0 top-3 bottom-3 w-0.5 rounded-r-full opacity-60", style.rail)} />
-            <div className="w-10 h-14 rounded-lg overflow-hidden bg-gray-900 ring-1 ring-white/10 flex-none">
-                {e.image ? <img src={e.image} alt="" loading="lazy" className="w-full h-full object-cover" />
-                    : <div className="w-full h-full flex items-center justify-center text-gray-600"><LuFilm /></div>}
-            </div>
-            <div className="flex-1 min-w-0">
-                {e.mediaId && e.mediaId > 0
-                    ? <SeaLink href={`/entry?id=${e.mediaId}`} className="text-sm font-medium hover:underline line-clamp-1">{e.title}</SeaLink>
-                    : <p className="text-sm font-medium line-clamp-1">{e.title}</p>}
-                {e.result === "torrent" ? (
-                    <p className="text-xs text-gray-400 line-clamp-1 mt-0.5" title={e.detail}>
-                        No streaming provider had it · torrent sent to the client: {e.detail}
+            <span className={cn("absolute left-0 top-2.5 bottom-2.5 w-0.5 rounded-r-full opacity-70", style.rail)} />
+
+            {/* Series */}
+            <div className="flex gap-3 items-center min-w-0">
+                <div className="w-9 h-12 rounded-lg overflow-hidden bg-gray-900 ring-1 ring-white/10 flex-none shadow-md">
+                    {e.image ? <img src={e.image} alt="" loading="lazy" className="w-full h-full object-cover" />
+                        : <div className="w-full h-full flex items-center justify-center text-gray-600"><LuFilm /></div>}
+                </div>
+                <div className="min-w-0 flex-1">
+                    {e.mediaId && e.mediaId > 0
+                        ? <SeaLink href={`/entry?id=${e.mediaId}`} className="text-sm font-medium hover:underline line-clamp-1" title={e.title}>{e.title}</SeaLink>
+                        : <p className="text-sm font-medium line-clamp-1" title={e.title}>{e.title}</p>}
+                    <p className="text-[11px] text-gray-500 line-clamp-1 mt-0.5 tabular-nums" title={e.detail}>
+                        {timeAgo(e.time, now)}
+                        {e.result === "torrent" && !!e.detail && <> · <span className="text-gray-400">{e.detail}</span></>}
                     </p>
-                ) : e.result === "queued" ? (
-                    <p className="text-xs text-gray-400 line-clamp-1 mt-0.5">
-                        {`${formatNumber(e.episodes ?? 0)} episodes from ${providerName(e.provider) || "Kickassanime"}`}
-                    </p>
-                ) : !!e.reasons?.length ? (
-                    // What each provider said, the full message on hover.
-                    <div className="flex flex-wrap gap-1 mt-1">
-                        {e.reasons.map((r, i) => (
-                            <span
-                                key={`${r.provider}-${i}`}
-                                title={r.detail}
-                                className="text-[11px] rounded-md bg-white/[0.05] border border-white/[0.06] px-1.5 py-0.5 text-gray-300 cursor-help"
-                            >
-                                {!!r.provider && <span className="text-gray-500">{providerName(r.provider)} · </span>}{r.reason}
+                    {/* Narrow screens: the sources as chips. */}
+                    {anyCell && <div className="xl:hidden flex flex-wrap gap-1 mt-1.5">
+                        {SOURCE_COLUMNS.filter(c => cells[c.id]).map(c => {
+                            const cell = cells[c.id]!
+                            return <span key={c.id} title={cell.title} className={cn("text-[10px] rounded-md ring-1 px-1.5 py-0.5", cellTone[cell.tone])}>
+                                <span className="opacity-60">{c.label} · </span>{cell.text}
                             </span>
-                        ))}
-                    </div>
-                ) : (
-                    <p className="text-xs text-gray-400 line-clamp-1 mt-0.5" title={e.detail}>{e.detail}</p>
-                )}
+                        })}
+                    </div>}
+                    {/* Narrow screens: the result. */}
+                    <span className={cn("xl:hidden mt-1.5 text-[11px] font-semibold rounded-full ring-1 px-2 py-0.5 inline-flex items-center gap-1", style.className)}>
+                        <style.icon /> {badgeText}
+                    </span>
+                </div>
             </div>
-            <div className="flex flex-col items-end gap-1.5 flex-none">
+
+            {/* Result */}
+            <div className="hidden xl:block min-w-0">
                 <span
-                    className={cn("text-[11px] font-semibold rounded-full border px-2 py-0.5 inline-flex items-center gap-1", style.className)}
                     title={e.detail}
+                    className={cn("max-w-full text-[11px] font-semibold rounded-full ring-1 px-2 py-1 inline-flex items-center gap-1.5", style.className)}
                 >
-                    <style.icon /> {e.result === "queued" ? style.label : (e.reason || style.label)}
+                    <style.icon className="flex-none" /> <span className="truncate">{badgeText}</span>
                 </span>
-                <span className="text-[11px] text-gray-500 tabular-nums">{timeAgo(e.time, now)}</span>
             </div>
+
+            {/* One cell per source */}
+            {e.result === "skipped" ? (
+                <div className="hidden xl:flex col-span-6 items-center gap-2 text-[11px] text-gray-500 pl-1">
+                    <span className="h-px flex-1 bg-white/[0.06]" />
+                    <span className="truncate" title={e.detail}>not searched: {(e.reason || "skipped").toLowerCase()}</span>
+                    <span className="h-px flex-1 bg-white/[0.06]" />
+                </div>
+            ) : SOURCE_COLUMNS.map(c => {
+                const cell = cells[c.id]
+                return (
+                    <div key={c.id} className="hidden xl:flex justify-center min-w-0">
+                        {cell
+                            ? <span title={cell.title} className={cn("max-w-full truncate text-[11px] font-medium rounded-lg ring-1 px-1.5 py-1 text-center w-full", cellTone[cell.tone])}>
+                                {cell.text}
+                            </span>
+                            : <span className="text-gray-700 text-xs" title="Not tried">—</span>}
+                    </div>
+                )
+            })}
         </motion.div>
     )
 })
 
 function EmptyFeed({ text }: { text: string }) {
     return (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-gray-400 text-sm">
-            <span className="size-14 rounded-2xl bg-white/[0.04] ring-1 ring-white/[0.06] flex items-center justify-center text-2xl text-gray-500">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-gray-400 text-sm px-6 text-center">
+            <span className="size-14 rounded-2xl bg-gradient-to-br from-white/[0.06] to-white/[0.02] ring-1 ring-white/[0.08] flex items-center justify-center text-2xl text-gray-500">
                 <LuListVideo />
             </span>
             {text}

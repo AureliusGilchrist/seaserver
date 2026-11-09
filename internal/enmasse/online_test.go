@@ -496,6 +496,13 @@ func TestNextProviderWhenQueueingFails(t *testing.T) {
 	if len(tried) != 2 || tried[0] != OnlineProvider || queuedOn != BackupProviders[0] {
 		t.Fatalf("tried %v, queued on %q", tried, queuedOn)
 	}
+	// The record keeps what the provider before it said.
+	d.mu.Lock()
+	misses := d.lastMisses
+	d.mu.Unlock()
+	if len(misses) != 1 || misses[0].Provider != OnlineProvider || misses[0].Reason != ReasonVideoSourceNull {
+		t.Fatalf("misses %+v", misses)
+	}
 }
 
 // TestReadyListQueuesInOrderWhenThereIsRoom: series looked up while the queue was full wait in

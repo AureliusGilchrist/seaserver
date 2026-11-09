@@ -256,6 +256,8 @@ func (d *Downloader) recordOnlineResult(ctx context.Context, title string, err e
 		return
 	}
 	entry := ActivityEntry{Time: time.Now(), Title: title, Episodes: d.lastQueued, Provider: d.lastProvider}
+	lastMisses := d.lastMisses
+	d.lastMisses = nil
 	if d.currentAnime != nil {
 		entry.MediaId = d.currentAnime.ID
 		entry.Image = d.currentAnime.CoverImage
@@ -271,7 +273,9 @@ func (d *Downloader) recordOnlineResult(ctx context.Context, title string, err e
 	switch {
 	case err == nil:
 		entry.Result = "queued"
+		entry.Reasons = lastMisses
 	case errors.Is(err, errTorrented):
+		entry.Reasons = lastMisses
 		entry.Result = "torrent"
 		entry.Detail = strings.TrimPrefix(err.Error(), "torrent: ")
 		entry.Reason = ReasonTorrent
@@ -383,6 +387,8 @@ type ReadySeries struct {
 	Match    providerMatch `json:"match"`
 	Rest     []string      `json:"rest,omitempty"`
 	ReadyAt  time.Time     `json:"readyAt"`
+	// Misses are what the providers before Provider said.
+	Misses []ProviderReason `json:"misses,omitempty"`
 }
 
 // processAnimeOnline handles one series start to finish: look it up, then queue it as soon as
@@ -489,6 +495,7 @@ func (d *Downloader) prepareSeries(ctx context.Context, hooks *OnlineHooks, anim
 			Provider:      p,
 			Match:         *m,
 			Rest:          append([]string(nil), providers[i+1:]...),
+			Misses:        labelled(misses),
 			ReadyAt:       time.Now(),
 		}, nil
 	}
@@ -555,7 +562,7 @@ func (d *Downloader) queueReady(ctx context.Context, hooks *OnlineHooks, r *Read
 	}
 
 	stalled := d.torrentStalled(hooks, resolved.ID, r.TorrentBacked)
-	var misses []ProviderReason
+	misses := append([]ProviderReason(nil), r.Misses...)
 	try := func(p string, m *providerMatch) (int, bool, error) {
 		d.mu.Lock()
 		d.lastProvider = p
@@ -623,6 +630,7 @@ func (d *Downloader) queueReady(ctx context.Context, hooks *OnlineHooks, r *Read
 	}
 
 	d.mu.Lock()
+	d.lastMisses = labelled(misses)
 	d.lastQueued = queued
 	d.mu.Unlock()
 	d.updateDetails(func(details *AnimeDownloaderDetails) {
@@ -1309,7 +1317,22 @@ func (d *Downloader) torrentOrNotFound(ctx context.Context, hooks *OnlineHooks, 
 		if d.OnAnimeQueued != nil {
 			d.OnAnimeQueued(resolved.ID)
 		}
+		d.mu.Lock()
+		d.lastMisses = labelled(misses)
+		d.mu.Unlock()
 		return torrentHandoff{name}
 	}
 	return newNotFound(misses, torrentBacked, stalled)
+}
+
+// labelled gives each provider's miss its short label.
+func labelled(misses []ProviderReason) []ProviderReason {
+	out := make([]ProviderReason, 0, len(misses))
+	for _, m := range misses {
+		if m.Reason == "" {
+			m.Reason = labelFor(m.Detail)
+		}
+		out = append(out, m)
+	}
+	return out
 }
