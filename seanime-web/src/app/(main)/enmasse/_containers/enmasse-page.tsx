@@ -1046,28 +1046,43 @@ function Totals({ status }: { status: EnMasseDownloaderStatus | undefined }) {
                 ))}
             </div>
 
-            {/* Every reason, counted. */}
-            <ReasonBreakdown title="Queued from" items={status?.results?.queuedFrom} bar="bg-emerald-400" tone="text-emerald-300" />
-            <ReasonBreakdown title="Skipped because" items={status?.results?.skippedBy} bar="bg-slate-400" tone="text-slate-300" />
-            <ReasonBreakdown title="Not found because" items={status?.results?.notFoundBy} bar="bg-amber-400" tone="text-amber-300" />
+            {/* Every reason, counted: every one listed, 0 until it happens. */}
+            <ReasonBreakdown title="Queued from" items={status?.results?.queuedFrom} known={QUEUED_FROM} bar="bg-emerald-400" tone="text-emerald-300" />
+            <ReasonBreakdown title="Skipped because" items={status?.results?.skippedBy} known={SKIP_REASONS} bar="bg-slate-400" tone="text-slate-300" />
+            <ReasonBreakdown title="Not found because" items={status?.results?.notFoundBy} known={NOT_FOUND_REASONS} bar="bg-amber-400" tone="text-amber-300" />
             <ReasonBreakdown title="What each provider said" items={status?.results?.providerMisses} bar="bg-orange-400" tone="text-orange-300" collapsed />
         </div>
     )
 }
 
-/** One group of reasons with their counts, largest first, each with a bar against the group's total. */
-function ReasonBreakdown({ title, items, bar, tone, collapsed }: {
+// Every reason the server can give, so each shows (with 0) before it has happened.
+const QUEUED_FROM = ["Kickassanime", "AniZone", "AnimeHeaven", "AnimeGG", "AnimePahe", "Torrent (SeaDex)"]
+const SKIP_REASONS = ["In library", "Already downloading", "Already lined up", "Not aired yet", "Adult", "No AniList entry", "Nothing to download"]
+const NOT_FOUND_REASONS = [
+    "Video source null", "No episode list", "No episodes", "Episode count mismatch", "Episode list doesn't fit", "Couldn't queue",
+    "Refused (Cloudflare)", "Search failed", "Not found", "Not on any provider", "No torrent", "No title to search",
+    "AniList lookup failed", "No internet",
+]
+
+/** One group of reasons with their counts, largest first, each with a bar against the largest. */
+function ReasonBreakdown({ title, items, known, bar, tone, collapsed }: {
     title: string
     items: AnimeEnMasseReasonCount[] | undefined
+    known?: string[]
     bar: string
     tone: string
     collapsed?: boolean
 }) {
     const [open, setOpen] = useState(!collapsed)
-    const list = items ?? []
-    if (!list.length) return null
+    const list = React.useMemo(() => {
+        const counted = [...(items ?? [])]
+        for (const reason of known ?? []) {
+            if (!counted.some(r => r.reason === reason)) counted.push({ reason, count: 0 })
+        }
+        return counted
+    }, [items, known])
     const total = list.reduce((a, r) => a + r.count, 0)
-    const max = Math.max(...list.map(r => r.count))
+    const max = Math.max(1, ...list.map(r => r.count))
     return (
         <div className="space-y-2 pt-4 border-t border-white/[0.06]" data-enmasse-breakdown>
             <button type="button" onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-2 text-left">
@@ -1075,13 +1090,14 @@ function ReasonBreakdown({ title, items, bar, tone, collapsed }: {
                 <span className="text-xs text-gray-500 tabular-nums">{formatNumber(total)}</span>
                 <LuChevronDown className={cn("text-gray-500 transition-transform", !open && "-rotate-90")} />
             </button>
+            {open && !list.length && <p className="text-xs text-gray-500">Nothing yet.</p>}
             {open && <div className="space-y-1.5">
                 {list.map(r => (
-                    <div key={r.reason} className="space-y-1">
+                    <div key={r.reason} className={cn("space-y-1", r.count === 0 && "opacity-45")}>
                         <div className="flex items-center gap-2 text-sm">
                             <span className="flex-1 min-w-0 truncate text-gray-300" title={r.reason}>{r.reason}</span>
-                            <span className="text-xs text-gray-500 tabular-nums">{Math.round((r.count / total) * 100)}%</span>
-                            <span className={cn("w-12 text-right font-semibold tabular-nums", tone)}>{formatNumber(r.count)}</span>
+                            <span className="text-xs text-gray-500 tabular-nums">{total ? `${Math.round((r.count / total) * 100)}%` : ""}</span>
+                            <span className={cn("w-12 text-right font-semibold tabular-nums", r.count ? tone : "text-gray-500")}>{formatNumber(r.count)}</span>
                         </div>
                         <div className="h-1 rounded-full bg-white/[0.05] overflow-hidden">
                             <motion.div
