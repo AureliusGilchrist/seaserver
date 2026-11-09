@@ -17,8 +17,10 @@ import (
 	"path"
 	"path/filepath"
 	"seanime/internal/api/anilist"
+	"seanime/internal/connectivity"
 	hibikeonlinestream "seanime/internal/extension/hibike/onlinestream"
 	"seanime/internal/onlinestream"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -260,6 +262,43 @@ func (m *Manager) process(ctx context.Context, it *Item, workDir string) (string
 			mainFiles, err = m.downloadStream(ctx, it, d, source, mainDir, mainLang, mainPhase, true, 0, mainWeight)
 		}
 	}
+	if err != nil && ctx.Err() == nil && !isStorageError(err) && !connectivity.IsNetworkError(err) {
+		// The chosen server failed: the provider's other servers (mirrors) and qualities, best
+		// first, before the episode counts as failed.
+		failed := err
+		if alts, aerr := m.rankedSources(ctx, mainReq, media, false); aerr == nil {
+			tried := 0
+			for _, alt := range alts {
+				if alt == nil || alt.URL == source.URL || tried >= maxMirrorTries {
+					continue
+				}
+				tried++
+				m.logger.Info().Err(failed).Int("mediaId", req.MediaId).Int("episode", req.EpisodeNumber).
+					Str("from", source.Server).Str("to", alt.Server).Str("quality", alt.Quality).
+					Msg("onlinestream download: The server failed; trying another mirror")
+				d.headers = alt.Headers
+				_ = os.RemoveAll(mainDir)
+				mainFiles, err = m.downloadStream(ctx, it, d, alt, mainDir, mainLang, mainPhase, true, 0, mainWeight)
+				if err == nil {
+					warning := fmt.Sprintf("The %s server failed (%v); downloaded from %s (%s) instead.", labelOr(source.Server), failed, labelOr(alt.Server), labelOr(alt.Quality))
+					src := alt
+					m.update(it, func(it *Item) {
+						it.Server = src.Server
+						it.Quality = src.Quality
+						it.Warnings = append(it.Warnings, warning)
+					}, true)
+					source = alt
+					break
+				}
+				if ctx.Err() != nil || isStorageError(err) || connectivity.IsNetworkError(err) {
+					break
+				}
+			}
+		}
+		if err != nil {
+			err = fmt.Errorf("%v (and %s)", err, failed)
+		}
+	}
 	if err != nil {
 		return "", err
 	}
@@ -327,6 +366,9 @@ func (m *Manager) process(ctx context.Context, it *Item, workDir string) (string
 func samePath(a, b string) bool {
 	return strings.EqualFold(filepath.ToSlash(filepath.Clean(a)), filepath.ToSlash(filepath.Clean(b)))
 }
+
+// maxMirrorTries caps the other servers and qualities tried after the chosen one fails.
+const maxMirrorTries = 4
 
 // FallbackProviders are where an episode is downloaded from, in order, when its own provider
 // has no source for it.
@@ -442,6 +484,16 @@ func isExpiredLinkError(err error) bool {
 // are equally good. Downloads always take the best quality; the player's quality setting is a
 // playback choice and is ignored here.
 func (m *Manager) findSource(ctx context.Context, req Request, media *anilist.BaseAnime, refresh bool) (*onlinestream.VideoSource, error) {
+	ranked, err := m.rankedSources(ctx, req, media, refresh)
+	if err != nil {
+		return nil, err
+	}
+	return ranked[0], nil
+}
+
+// rankedSources is every source the provider's servers (its mirrors) have for the episode, best
+// first: the chosen server's first, the right audio, then by quality.
+func (m *Manager) rankedSources(ctx context.Context, req Request, media *anilist.BaseAnime, refresh bool) ([]*onlinestream.VideoSource, error) {
 	sources, err := m.opts.Repository.GetEpisodeSources(ctx, req.Provider, req.MediaId, req.EpisodeNumber, req.Dubbed, media.GetStartYearSafe(), refresh)
 	if err != nil {
 		return nil, err
@@ -469,7 +521,18 @@ func (m *Manager) findSource(ctx context.Context, req Request, media *anilist.Ba
 	if picked := filterAudio(candidates, req.Dubbed); len(picked) > 0 {
 		candidates = picked
 	}
-	return bestSource(candidates), nil
+	best := bestSource(candidates)
+	ranked := []*onlinestream.VideoSource{best}
+	rest := make([]*onlinestream.VideoSource, 0, len(sources.VideoSources))
+	for _, s := range sources.VideoSources {
+		if s != nil && s != best {
+			if f := filterAudio([]*onlinestream.VideoSource{s}, req.Dubbed); len(f) > 0 || len(filterAudio(candidates, req.Dubbed)) == 0 {
+				rest = append(rest, s)
+			}
+		}
+	}
+	sort.SliceStable(rest, func(i, j int) bool { return sourceRank(rest[i]) > sourceRank(rest[j]) })
+	return append(ranked, rest...), nil
 }
 
 // sourceRank orders sources by quality. A source with an explicit resolution ranks by it. One

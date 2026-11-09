@@ -760,6 +760,9 @@ func (d *Downloader) findOnProvider(ctx context.Context, hooks *OnlineHooks, pro
 			return nil, err
 		}
 		eps, err := hooks.FindEpisodes(provider, c.ID)
+		if err != nil && connectivity.IsNetworkError(err) {
+			return nil, err // the connection, not the site: waited out and tried again
+		}
 		if err != nil || len(eps) == 0 {
 			// The site lists the title but has no episodes for it (no language available), or
 			// the episode list could not be read.
