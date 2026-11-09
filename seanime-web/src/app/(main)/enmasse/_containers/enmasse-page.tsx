@@ -655,10 +655,10 @@ function JustQueued({ status }: { status: EnMasseDownloaderStatus | undefined })
 type FeedTab = "all" | "ready" | "queued" | "torrent" | "skipped" | "not_found"
 
 const resultStyle: Record<AnimeEnMasseActivity["result"], { label: string, className: string, rail: string, dot: string, icon: React.ElementType }> = {
-    queued: { label: "Queued", className: "text-emerald-200 bg-emerald-400/10 ring-emerald-400/25", rail: "bg-emerald-400", dot: "bg-emerald-400", icon: LuCircleCheck },
-    torrent: { label: "Torrent", className: "text-fuchsia-200 bg-fuchsia-400/10 ring-fuchsia-400/25", rail: "bg-fuchsia-400", dot: "bg-fuchsia-400", icon: LuDownload },
-    not_found: { label: "Not found", className: "text-amber-200 bg-amber-400/10 ring-amber-400/25", rail: "bg-amber-400", dot: "bg-amber-400", icon: LuSearchX },
-    skipped: { label: "Skipped", className: "text-slate-300 bg-slate-400/10 ring-slate-400/20", rail: "bg-slate-500", dot: "bg-slate-400", icon: LuSkipForward },
+    queued: { label: "Queued", className: "text-gray-200 bg-white/[0.04] ring-white/[0.08] [&>svg]:text-emerald-400", rail: "bg-emerald-400", dot: "bg-emerald-400", icon: LuCircleCheck },
+    torrent: { label: "Torrent", className: "text-gray-200 bg-white/[0.04] ring-white/[0.08] [&>svg]:text-fuchsia-400", rail: "bg-fuchsia-400", dot: "bg-fuchsia-400", icon: LuDownload },
+    not_found: { label: "Not found", className: "text-gray-300 bg-white/[0.04] ring-white/[0.08] [&>svg]:text-amber-400/80", rail: "bg-amber-400", dot: "bg-amber-400", icon: LuSearchX },
+    skipped: { label: "Skipped", className: "text-gray-400 bg-white/[0.03] ring-white/[0.06]", rail: "bg-slate-500", dot: "bg-slate-400", icon: LuSkipForward },
 }
 
 /** The columns: every source, in the order they are tried. */
@@ -676,14 +676,15 @@ const ACTIVITY_GRID = "xl:grid xl:grid-cols-[minmax(0,1fr)_7.25rem_repeat(6,4.85
 
 type CellTone = "ok" | "sent" | "amber" | "orange" | "rose" | "violet" | "gray"
 
+// Mostly neutral: what was queued or sent stands out, the misses stay quiet.
 const cellTone: Record<CellTone, string> = {
-    ok: "text-emerald-200 bg-emerald-400/10 ring-emerald-400/25",
-    sent: "text-fuchsia-200 bg-fuchsia-400/10 ring-fuchsia-400/25",
-    amber: "text-amber-200 bg-amber-400/10 ring-amber-400/20",
-    orange: "text-orange-200 bg-orange-400/10 ring-orange-400/20",
-    rose: "text-rose-200 bg-rose-400/10 ring-rose-400/20",
-    violet: "text-violet-200 bg-violet-400/10 ring-violet-400/20",
-    gray: "text-gray-300 bg-white/[0.04] ring-white/[0.06]",
+    ok: "text-emerald-300 bg-emerald-400/[0.07] ring-emerald-400/20",
+    sent: "text-fuchsia-300 bg-fuchsia-400/[0.07] ring-fuchsia-400/20",
+    amber: "text-gray-300 bg-white/[0.035] ring-white/[0.06]",
+    orange: "text-gray-300 bg-white/[0.035] ring-white/[0.06]",
+    rose: "text-gray-300 bg-white/[0.035] ring-white/[0.06]",
+    violet: "text-gray-300 bg-white/[0.035] ring-white/[0.06]",
+    gray: "text-gray-500 bg-transparent ring-white/[0.05]",
 }
 
 /** A provider's reason as a cell: a short word or two and a colour. */
@@ -957,7 +958,7 @@ const ActivityRow = React.memo(function ActivityRow({ entry: e, now }: { entry: 
             transition={{ duration: 0.35 }}
             className={cn("group relative px-5 sm:px-6 py-2.5 border-b border-white/[0.04] hover:bg-white/[0.025] transition-colors", ACTIVITY_GRID)}
         >
-            <span className={cn("absolute left-0 top-2.5 bottom-2.5 w-0.5 rounded-r-full opacity-70", style.rail)} />
+            <span className={cn("absolute left-0 top-2.5 bottom-2.5 w-0.5 rounded-r-full opacity-40", style.rail)} />
 
             {/* Series */}
             <div className="flex gap-3 items-center min-w-0">
