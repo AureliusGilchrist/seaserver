@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -331,44 +332,123 @@ func (p *AnimePahe) FindEpisodeServer(episode *hibikeonlinestream.EpisodeDetails
 		return nil, err
 	}
 
-	// The play page embeds a linkButton per quality, each carrying a kwik embed URL. The highest
-	// quality is the one the site lists first; taking the first kwik URL is taking what the page
-	// means by "the stream".
-	kwikUrl, resolution := animepaheBestKwik(string(body), server == "dub")
-	if kwikUrl == "" {
+	// The way Seanime's own AnimePahe provider did it: every release on the play page (each
+	// resolution and fansub, Japanese and English audio) becomes a source of its own, labelled
+	// "1080p - SubsPlease" and "(Eng)" for the English audio. The audio asked for comes first,
+	// highest resolution first.
+	buttons := animepaheKwikButtons(string(body), server == "dub")
+	if len(buttons) == 0 {
 		return nil, ErrSourceNotFound
 	}
 
-	videoUrl, err := p.unpackKwik(kwikUrl)
-	if err != nil {
-		return nil, err
+	sources := make([]*hibikeonlinestream.VideoSource, 0, len(buttons))
+	headers := map[string]string{}
+	var lastErr error
+	for i, b := range buttons {
+		if i >= animepaheMaxSources {
+			break
+		}
+		videoUrl, err := p.unpackKwik(b.url)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		if len(headers) == 0 {
+			headers["Referer"] = animepaheKwikOrigin(b.url) + "/"
+			headers["Origin"] = animepaheKwikOrigin(b.url)
+		}
+		sources = append(sources, &hibikeonlinestream.VideoSource{
+			URL:       videoUrl,
+			Type:      hibikeonlinestream.VideoSourceM3U8,
+			Quality:   b.label(),
+			Subtitles: make([]*hibikeonlinestream.VideoSubtitle, 0),
+		})
+	}
+	if len(sources) == 0 {
+		if lastErr != nil {
+			return nil, lastErr
+		}
+		return nil, ErrSourceNotFound
 	}
 
 	serverName := "kwik"
 	if server != "" && server != "default" {
 		serverName = server
 	}
-	quality := "default"
-	if resolution > 0 {
-		quality = fmt.Sprintf("%dp", resolution)
-	}
-
 	return &hibikeonlinestream.EpisodeServer{
-		Provider: AnimePaheProvider,
-		Server:   serverName,
-		Headers: map[string]string{
-			"Referer": animepaheKwikOrigin(kwikUrl) + "/",
-			"Origin":  animepaheKwikOrigin(kwikUrl),
-		},
-		VideoSources: []*hibikeonlinestream.VideoSource{
-			{
-				URL:       videoUrl,
-				Type:      hibikeonlinestream.VideoSourceM3U8,
-				Quality:   quality,
-				Subtitles: make([]*hibikeonlinestream.VideoSubtitle, 0),
-			},
-		},
+		Provider:     AnimePaheProvider,
+		Server:       serverName,
+		Headers:      headers,
+		VideoSources: sources,
 	}, nil
+}
+
+// animepaheMaxSources caps how many releases of one episode are unpacked (each is a request).
+const animepaheMaxSources = 8
+
+// animepaheButton is one release on the play page.
+type animepaheButton struct {
+	url        string
+	resolution int
+	audio      string
+	fansub     string
+	av1        bool
+}
+
+func (b animepaheButton) label() string {
+	l := "default"
+	if b.resolution > 0 {
+		l = fmt.Sprintf("%dp", b.resolution)
+	}
+	if b.fansub != "" {
+		l += " - " + b.fansub
+	}
+	if b.av1 {
+		l += " (AV1)"
+	}
+	if b.audio == "eng" {
+		l += " (Eng)"
+	}
+	return l
+}
+
+// animepaheKwikButtons lists the play page's releases: the audio asked for first (Japanese,
+// English for dub), then by resolution, H.264 before AV1; the other audio after.
+func animepaheKwikButtons(pageHtml string, dub bool) []animepaheButton {
+	want := "jpn"
+	if dub {
+		want = "eng"
+	}
+	var out []animepaheButton
+	seen := map[string]bool{}
+	for _, m := range animepaheButtonRegex.FindAllStringSubmatch(pageHtml, -1) {
+		if seen[m[1]] {
+			continue
+		}
+		seen[m[1]] = true
+		attrs := map[string]string{}
+		for _, a := range animepaheAttrRegex.FindAllStringSubmatch(m[0], -1) {
+			attrs[a[1]] = a[2]
+		}
+		res, _ := strconv.Atoi(attrs["resolution"])
+		out = append(out, animepaheButton{url: m[1], resolution: res, audio: attrs["audio"], fansub: attrs["fansub"], av1: attrs["av1"] == "1"})
+	}
+	if len(out) == 0 {
+		if u := animepaheKwikRegex.FindString(pageHtml); u != "" {
+			out = append(out, animepaheButton{url: u})
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		wi, wj := out[i].audio == want || out[i].audio == "", out[j].audio == want || out[j].audio == ""
+		if wi != wj {
+			return wi
+		}
+		if out[i].resolution != out[j].resolution {
+			return out[i].resolution > out[j].resolution
+		}
+		return !out[i].av1 && out[j].av1
+	})
+	return out
 }
 
 var (
@@ -381,32 +461,11 @@ var (
 // kwik embed, resolution and audio language. The highest resolution in Japanese wins (English
 // when dub is asked for), preferring H.264 over AV1, which more players handle.
 func animepaheBestKwik(pageHtml string, dub bool) (string, int) {
-	wantAudio := "jpn"
-	if dub {
-		wantAudio = "eng"
+	buttons := animepaheKwikButtons(pageHtml, dub)
+	if len(buttons) == 0 {
+		return "", 0
 	}
-	best, bestRes, bestScore := "", 0, -1
-	for _, m := range animepaheButtonRegex.FindAllStringSubmatch(pageHtml, -1) {
-		attrs := map[string]string{}
-		for _, a := range animepaheAttrRegex.FindAllStringSubmatch(m[0], -1) {
-			attrs[a[1]] = a[2]
-		}
-		res, _ := strconv.Atoi(attrs["resolution"])
-		score := res
-		if attrs["audio"] == wantAudio || attrs["audio"] == "" {
-			score += 100000
-		}
-		if attrs["av1"] != "1" {
-			score += 10
-		}
-		if score > bestScore {
-			best, bestRes, bestScore = m[1], res, score
-		}
-	}
-	if best == "" {
-		best = animepaheKwikRegex.FindString(pageHtml)
-	}
-	return best, bestRes
+	return buttons[0].url, buttons[0].resolution
 }
 
 func animepaheKwikOrigin(kwikUrl string) string {
@@ -423,6 +482,7 @@ func animepaheKwikOrigin(kwikUrl string) string {
 // ecosystem knows is: everything between the first "value" assignment and the eval is garbage
 // aimed at a resolver; the stream lives in a padded hex string assembled from the digits array.
 func (p *AnimePahe) unpackKwik(kwikUrl string) (string, error) {
+	animepahePaceRequest()
 	status, body, err := animepaheGet(p.Client, kwikUrl, p.UserAgent, "", p.Url+"/")
 	if err != nil {
 		return "", err

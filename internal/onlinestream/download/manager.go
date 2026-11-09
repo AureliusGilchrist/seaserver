@@ -462,6 +462,11 @@ func (m *Manager) findSource(ctx context.Context, req Request, media *anilist.Ba
 			}
 		}
 	}
+	// A provider that lists both audios as separate sources marks the English ones "(Eng)"; the
+	// Japanese download leaves them out (and the dub takes only them) while there is a choice.
+	if picked := filterAudio(candidates, req.Dubbed); len(picked) > 0 {
+		candidates = picked
+	}
 	return bestSource(candidates), nil
 }
 
@@ -764,4 +769,15 @@ func sanitizeFileName(s string) string {
 		s = strings.TrimRight(string(r[:120]), ". ")
 	}
 	return s
+}
+
+func filterAudio(candidates []*onlinestream.VideoSource, dub bool) []*onlinestream.VideoSource {
+	var out []*onlinestream.VideoSource
+	for _, c := range candidates {
+		eng := strings.Contains(strings.ToLower(c.Quality+" "+c.Label), "(eng)")
+		if eng == dub {
+			out = append(out, c)
+		}
+	}
+	return out
 }

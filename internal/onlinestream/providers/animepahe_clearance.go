@@ -125,16 +125,28 @@ func NormalizeAnimePaheCookie(s string) string {
 	return s
 }
 
+// animepaheGuardCookies are the empty DDoS-Guard cookies Seanime's own AnimePahe provider sent.
+const animepaheGuardCookies = "__ddg1_=; __ddg2_="
+
 // animepaheGet fetches a URL. AnimePahe's own pages go through the clearance when there is one;
 // other hosts (the kwik embed) get the same browser identity without the cookie.
 func animepaheGet(client *http.Client, rawURL, userAgent, accept, referer string) (int, []byte, error) {
 	c := GetAnimePaheClearance()
+	ownSiteURL := false
+	if u, err := url.Parse(rawURL); err == nil && strings.Contains(u.Host, "animepahe") {
+		ownSiteURL = true
+	}
 	if c == nil {
 		r, err := http.NewRequest("GET", rawURL, nil)
 		if err != nil {
 			return 0, nil, err
 		}
 		r.Header.Set("User-Agent", userAgent)
+		if ownSiteURL {
+			// The empty DDoS-Guard cookies Seanime's own provider sent; they get through that
+			// guard, not Cloudflare's check (which needs the clearance).
+			r.Header.Set("Cookie", animepaheGuardCookies)
+		}
 		if accept != "" {
 			r.Header.Set("Accept", accept)
 		}
@@ -157,7 +169,7 @@ func animepaheGet(client *http.Client, rawURL, userAgent, accept, referer string
 	}
 	ownSite := false
 	if u, err := url.Parse(rawURL); err == nil && strings.Contains(u.Host, "animepahe") {
-		r.SetHeader("Cookie", c.Cookie)
+		r.SetHeader("Cookie", c.Cookie+"; "+animepaheGuardCookies)
 		ownSite = true
 	}
 	resp, err := r.Get(rawURL)

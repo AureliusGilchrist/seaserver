@@ -66,3 +66,30 @@ func TestAnimePaheExpiry(t *testing.T) {
 		t.Fatal("an answer should clear it")
 	}
 }
+
+// TestAnimePaheAllReleases: every release is a source, the asked-for audio first, labelled the
+// way Seanime's provider did.
+func TestAnimePaheAllReleases(t *testing.T) {
+	page := `
+<button data-src="https://kwik.si/e/aaa" data-fansub="SubsPlease" data-resolution="360" data-audio="jpn" data-av1="0">
+<button data-src="https://kwik.si/e/bbb" data-fansub="SubsPlease" data-resolution="1080" data-audio="eng" data-av1="0">
+<button data-src="https://kwik.si/e/ccc" data-fansub="SubsPlease" data-resolution="1080" data-audio="jpn" data-av1="1">
+<button data-src="https://kwik.si/e/ddd" data-fansub="SubsPlease" data-resolution="1080" data-audio="jpn" data-av1="0">`
+	got := animepaheKwikButtons(page, false)
+	var labels []string
+	for _, b := range got {
+		labels = append(labels, b.label())
+	}
+	want := []string{"1080p - SubsPlease", "1080p - SubsPlease (AV1)", "360p - SubsPlease", "1080p - SubsPlease (Eng)"}
+	if len(labels) != len(want) {
+		t.Fatalf("labels %v", labels)
+	}
+	for i := range want {
+		if labels[i] != want[i] {
+			t.Fatalf("labels %v, want %v", labels, want)
+		}
+	}
+	if dub := animepaheKwikButtons(page, true); dub[0].url != "https://kwik.si/e/bbb" {
+		t.Fatalf("dub first: %s", dub[0].url)
+	}
+}

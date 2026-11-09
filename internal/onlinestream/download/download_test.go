@@ -235,3 +235,18 @@ func TestBestSourcePicksHighestQuality(t *testing.T) {
 		}
 	}
 }
+
+func TestFilterAudio(t *testing.T) {
+	jp := &onlinestream.VideoSource{Quality: "1080p - SubsPlease"}
+	en := &onlinestream.VideoSource{Quality: "1080p - SubsPlease (Eng)"}
+	if got := filterAudio([]*onlinestream.VideoSource{en, jp}, false); len(got) != 1 || got[0] != jp {
+		t.Fatalf("sub picked %+v", got)
+	}
+	if got := filterAudio([]*onlinestream.VideoSource{en, jp}, true); len(got) != 1 || got[0] != en {
+		t.Fatalf("dub picked %+v", got)
+	}
+	plain := &onlinestream.VideoSource{Quality: "720p"}
+	if got := filterAudio([]*onlinestream.VideoSource{plain}, true); len(got) != 0 {
+		t.Fatal("a source with no audio label is not a dub")
+	}
+}
