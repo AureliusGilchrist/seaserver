@@ -245,7 +245,9 @@ export function MangaHorizontalReader({ pageContainer }: MangaHorizontalReaderPr
                 {animated && spreadIndexes.map(mapIndex => {
                     const spread = paginationMap[mapIndex]
                     const offset = mapIndex - currentMapIndex
-                    const near = Math.abs(offset) <= 1
+                    // Two either side stay laid out (off-screen), so the page after next is already
+                    // decoded when a turn makes it a neighbour, instead of decoding mid-slide
+                    const near = Math.abs(offset) <= 2
                     const spreadTwo = readingMode === MangaReadingMode.DOUBLE_PAGE && spread?.length === 2
                     return (
                         <div
@@ -260,7 +262,7 @@ export function MangaHorizontalReader({ pageContainer }: MangaHorizontalReaderPr
                                 // Last, so it wins over "flex" in the class merge
                                 !near && "hidden",
                             )}
-                            style={offset !== 0 && near ? { transform: pageTurn.slotTransform(offset) } : undefined}
+                            style={offset !== 0 && near ? { transform: pageTurn.slotTransform(offset), contain: "layout paint" } : undefined}
                             aria-hidden={offset !== 0}
                         >
                             {spread?.map(index => sortedPages[index] ? renderPage(sortedPages[index], index, spread, true) : null)}

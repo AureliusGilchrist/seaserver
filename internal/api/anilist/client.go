@@ -264,8 +264,12 @@ func (ac *AnilistClientImpl) UpdateMediaListEntry(ctx context.Context, mediaID *
 	if !ac.IsAuthenticated() {
 		return nil, ErrNotAuthenticated
 	}
-	ac.logger.Debug().Int("mediaId", *mediaID).Msg("anilist: Updating media list entry")
-	return ac.Client.UpdateMediaListEntry(ctx, mediaID, status, scoreRaw, progress, startedAt, completedAt, interceptors...)
+	if mediaID != nil {
+		ac.logger.Debug().Int("mediaId", *mediaID).Msg("anilist: Updating media list entry")
+	}
+	// Not the generated mutation: it sends nil fields as explicit nulls, which AniList rejects
+	// ("The score raw must be an integer") — e.g. every manga chapter read, which has no score.
+	return ac.updateMediaListEntrySetFields(ctx, mediaID, status, scoreRaw, progress, startedAt, completedAt, interceptors...)
 }
 
 func (ac *AnilistClientImpl) UpdateMediaListEntryProgress(ctx context.Context, mediaID *int, progress *int, status *MediaListStatus, startedAt *FuzzyDateInput, completedAt *FuzzyDateInput, interceptors ...clientv2.RequestInterceptor) (*UpdateMediaListEntryProgress, error) {

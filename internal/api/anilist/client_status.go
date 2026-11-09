@@ -2,6 +2,7 @@ package anilist
 
 import (
 	"context"
+	"strings"
 
 	"github.com/Yamashou/gqlgenc/clientv2"
 )
@@ -43,5 +44,50 @@ func (ac *AnilistClientImpl) UpdateMediaListEntryStatus(ctx context.Context, med
 		return nil, err
 	}
 
+	return &res, nil
+}
+
+// buildUpdateMediaListEntryDocument builds a SaveMediaListEntry mutation that declares only the
+// variables that are set. A nil pointer in the generated mutation is sent as an explicit null,
+// which AniList refuses for scoreRaw and progress (see updateMediaListEntryStatusDocument), so
+// leaving a field out of the mutation is the only way to say "don't change it".
+func buildUpdateMediaListEntryDocument(mediaID *int, status *MediaListStatus, scoreRaw *int, progress *int, startedAt *FuzzyDateInput, completedAt *FuzzyDateInput) (string, map[string]any) {
+	type field struct {
+		name, gqlType string
+		value         any
+		set           bool
+	}
+	fields := []field{
+		{"mediaId", "Int", mediaID, mediaID != nil},
+		{"status", "MediaListStatus", status, status != nil},
+		{"scoreRaw", "Int", scoreRaw, scoreRaw != nil},
+		{"progress", "Int", progress, progress != nil},
+		{"startedAt", "FuzzyDateInput", startedAt, startedAt != nil},
+		{"completedAt", "FuzzyDateInput", completedAt, completedAt != nil},
+	}
+
+	var decls, args []string
+	vars := map[string]any{}
+	for _, f := range fields {
+		if !f.set {
+			continue
+		}
+		decls = append(decls, "$"+f.name+": "+f.gqlType)
+		args = append(args, f.name+": $"+f.name)
+		vars[f.name] = f.value
+	}
+
+	doc := "mutation UpdateMediaListEntry (" + strings.Join(decls, ", ") + ") {\n" +
+		"\tSaveMediaListEntry(" + strings.Join(args, ", ") + ") {\n\t\tid\n\t}\n}\n"
+	return doc, vars
+}
+
+// updateMediaListEntrySetFields runs SaveMediaListEntry with only the non-nil fields.
+func (ac *AnilistClientImpl) updateMediaListEntrySetFields(ctx context.Context, mediaID *int, status *MediaListStatus, scoreRaw *int, progress *int, startedAt *FuzzyDateInput, completedAt *FuzzyDateInput, interceptors ...clientv2.RequestInterceptor) (*UpdateMediaListEntry, error) {
+	doc, vars := buildUpdateMediaListEntryDocument(mediaID, status, scoreRaw, progress, startedAt, completedAt)
+	var res UpdateMediaListEntry
+	if err := ac.Client.Client.Post(ctx, "UpdateMediaListEntry", doc, &res, vars, interceptors...); err != nil {
+		return nil, err
+	}
 	return &res, nil
 }

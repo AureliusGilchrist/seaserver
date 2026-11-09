@@ -5,7 +5,15 @@ export const PAGE_TURN_GAP = 16
 /** Full slide duration (a tap/key turn); a released swipe finishes the remaining distance proportionally faster. */
 const DURATION_MS = 300
 const MIN_DURATION_MS = 140
+/** A released swipe may take a little longer than a tap turn when the finger was moving slowly. */
+const MAX_RELEASE_MS = 380
 const EASING = "cubic-bezier(0.22, 0.61, 0.36, 1)"
+/** Starting slope of [EASING] (y1 / x1): how much faster than average the slide begins. */
+const EASING_START_SLOPE = 0.61 / 0.22
+/** A finger that stopped this long before lifting is not flinging. */
+const FLING_STALE_MS = 80
+/** px/ms; a release faster than this turns the page even if it did not travel far. */
+const FLING_VELOCITY = 0.3
 /** Finger travel before the gesture picks an axis. */
 const AXIS_LOCK_PX = 8
 
@@ -75,6 +83,10 @@ export function usePageTurnTrack({ enabled, wrapperRef, currentMapIndex, paginat
         lastT: number
         v: number
     } | null>(null)
+    // The drag writes its transform once per frame, not once per pointer event
+    const frame = React.useRef<number | null>(null)
+    // Finger speed (px/ms) of the last release, so the slide that follows starts at that speed
+    const releaseV = React.useRef(0)
 
     const latest = React.useRef({ currentMapIndex, paginationMap, dir, onSwipe })
     latest.current = { currentMapIndex, paginationMap, dir, onSwipe }
@@ -100,13 +112,26 @@ export function usePageTurnTrack({ enabled, wrapperRef, currentMapIndex, paginat
         }
     }, [])
 
-    const slideToRest = React.useCallback((el: HTMLElement, from: number) => {
+    const cancelFrame = React.useCallback(() => {
+        if (frame.current !== null) {
+            cancelAnimationFrame(frame.current)
+            frame.current = null
+        }
+    }, [])
+
+    const slideToRest = React.useCallback((el: HTMLElement, from: number, velocity = 0) => {
+        cancelFrame()
         if (prefersReducedMotion()) {
             setX(el, 0, 0)
             return
         }
         const width = el.offsetWidth + PAGE_TURN_GAP
-        const duration = Math.max(MIN_DURATION_MS, Math.min(DURATION_MS, Math.abs(from) / width * DURATION_MS))
+        let duration = Math.max(MIN_DURATION_MS, Math.min(DURATION_MS, Math.abs(from) / width * DURATION_MS))
+        // Released while moving toward rest: pick the duration whose starting speed is the
+        // finger's, so the page carries on at the same pace instead of lurching or braking.
+        if (from !== 0 && Math.sign(velocity) === -Math.sign(from) && Math.abs(velocity) > 0.05) {
+            duration = Math.max(MIN_DURATION_MS, Math.min(MAX_RELEASE_MS, EASING_START_SLOPE * Math.abs(from) / Math.abs(velocity)))
+        }
         setX(el, from, 0)
         void el.offsetWidth // commit the start position before transitioning
         setX(el, 0, duration)
@@ -134,16 +159,22 @@ export function usePageTurnTrack({ enabled, wrapperRef, currentMapIndex, paginat
             setX(el, 0, 0)
             return
         }
-        slideToRest(el, readTranslateX(el) + slotPx(el, delta))
+        const v = releaseV.current
+        releaseV.current = 0
+        slideToRest(el, readTranslateX(el) + slotPx(el, delta), v)
     }, [currentMapIndex, resetKey, enabled])
 
     React.useEffect(() => () => {
         if (settleTimer.current) clearTimeout(settleTimer.current)
+        if (frame.current !== null) cancelAnimationFrame(frame.current)
     }, [])
 
     const onPointerDown = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
         if (!enabled || !e.isPrimary || (e.pointerType === "mouse" && e.button !== 0)) return
         suppressClickUntil.current = 0
+        releaseV.current = 0
+        // Promote the layer now, so the first moved frame does not also pay for it
+        if (wrapperRef.current) wrapperRef.current.style.willChange = "transform"
         drag.current = {
             id: e.pointerId,
             startX: e.clientX,
@@ -190,7 +221,13 @@ export function usePageTurnTrack({ enabled, wrapperRef, currentMapIndex, paginat
         d.lastX = e.clientX
         d.lastT = e.timeStamp
         d.x = x
-        setX(el, x, 0)
+        if (frame.current === null) {
+            frame.current = requestAnimationFrame(() => {
+                frame.current = null
+                const cur = drag.current
+                if (cur && cur.axis === "x") setX(el, cur.x, 0)
+            })
+        }
     }, [setX])
 
     const endDrag = React.useCallback((e: React.PointerEvent<HTMLDivElement>, cancelled: boolean) => {
@@ -198,21 +235,32 @@ export function usePageTurnTrack({ enabled, wrapperRef, currentMapIndex, paginat
         const el = wrapperRef.current
         if (!d || e.pointerId !== d.id) return
         drag.current = null
-        if (!el || d.axis !== "x") return
+        cancelFrame()
+        if (!el) return
+        if (d.axis !== "x") {
+            // Only promoted for a drag that never came: give the layer back if nothing moves it
+            if (!el.style.transform) el.style.willChange = ""
+            return
+        }
         suppressClickUntil.current = performance.now() + 400
+        // Bring the track to the last finger position before deciding (a frame may be pending)
+        setX(el, d.x, 0)
+        // A finger that paused before lifting is not flinging
+        const v = e.timeStamp - d.lastT > FLING_STALE_MS ? 0 : d.v
 
         const { currentMapIndex, paginationMap, dir, onSwipe } = latest.current
         const moved = d.x - d.base
         const width = el.offsetWidth
-        const flung = Math.abs(d.v) > 0.4 && Math.abs(moved) > 24 && Math.sign(d.v) === Math.sign(moved)
+        const flung = Math.abs(v) > FLING_VELOCITY && Math.abs(moved) > 20 && Math.sign(v) === Math.sign(moved)
         const target = currentMapIndex + (moved < 0 ? dir : -dir)
         if (!cancelled && (Math.abs(moved) > width * 0.2 || flung) && paginationMap.hasOwnProperty(target)) {
             // The index change slides the rest of the way from the current drag position
+            releaseV.current = v
             onSwipe(moved < 0 ? "right" : "left")
             return
         }
-        slideToRest(el, d.x)
-    }, [slideToRest])
+        slideToRest(el, d.x, v)
+    }, [slideToRest, setX, cancelFrame])
 
     const onPointerUp = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => endDrag(e, false), [endDrag])
     const onPointerCancel = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => endDrag(e, true), [endDrag])
