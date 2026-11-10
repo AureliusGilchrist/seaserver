@@ -276,6 +276,8 @@ export function onlinestreamProviderLabel(id: string | null | undefined) {
             return "AniZone"
         case "megaplay":
             return "MegaPlay"
+        case "reanime":
+            return "ReAnime"
         case "animeheaven":
             return "AnimeHeaven"
         case "animegg":

@@ -15,6 +15,7 @@ const SOURCES = [
     { id: "auto", label: "Best available" },
     { id: "kickassanime", label: "Kickassanime" },
     { id: "megaplay", label: "MegaPlay" },
+    { id: "reanime", label: "ReAnime" },
     { id: "anizone", label: "AniZone" },
     { id: "animeheaven", label: "AnimeHeaven" },
     { id: "animegg", label: "AnimeGG" },

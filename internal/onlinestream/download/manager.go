@@ -20,6 +20,7 @@ import (
 	"seanime/internal/connectivity"
 	hibikeonlinestream "seanime/internal/extension/hibike/onlinestream"
 	"seanime/internal/onlinestream"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -341,6 +342,17 @@ func (m *Manager) process(ctx context.Context, it *Item, workDir string) (string
 	}
 	in.VideoPath, in.VideoHLS = mainFiles.VideoPath, mainFiles.HLS
 	in.Audio = mainFiles.Audio
+	if mainFiles.EmbeddedSubtitles > 0 {
+		// The file has its own subtitles: nothing is burnt in.
+		n := mainFiles.EmbeddedSubtitles
+		m.update(it, func(it *Item) {
+			it.Hardsubbed = false
+			if it.SubtitleCount < n {
+				it.SubtitleCount = n
+			}
+			it.Warnings = slices.DeleteFunc(it.Warnings, func(w string) bool { return strings.HasPrefix(w, "This source has no separate subtitles") })
+		}, true)
+	}
 
 	if dubSource != nil && !hasLanguage(in.Audio, "eng") {
 		dubTracks, dubWarning := m.downloadDubAudio(ctx, it, req, media, dubSource, workDir, mainFiles.Duration)
@@ -354,6 +366,11 @@ func (m *Manager) process(ctx context.Context, it *Item, workDir string) (string
 	}
 
 	orderAudio(in.Audio)
+	// A finished release file with nothing added to it is copied whole: its subtitles and fonts
+	// would otherwise be left behind.
+	if mainFiles.Complete && len(in.Subtitles) == 0 && len(in.Audio) == len(mainFiles.Audio) {
+		in.KeepAll = true
+	}
 	m.update(it, func(it *Item) {
 		it.Phase = ""
 		it.AudioTracks = make([]string, 0, len(in.Audio))
@@ -409,7 +426,7 @@ const maxMirrorTries = 4
 
 // FallbackProviders are where an episode is downloaded from, in order, when its own provider
 // has no source for it.
-var FallbackProviders = []string{"kickassanime", "megaplay", "anizone", "animeheaven", "animegg", "animepahe"}
+var FallbackProviders = []string{"kickassanime", "megaplay", "reanime", "anizone", "animeheaven", "animegg", "animepahe"}
 
 // ProviderLabel is a provider's display name.
 func ProviderLabel(id string) string {
@@ -420,6 +437,8 @@ func ProviderLabel(id string) string {
 		return "AniZone"
 	case "megaplay":
 		return "MegaPlay"
+	case "reanime":
+		return "ReAnime"
 	case "animepahe":
 		return "AnimePahe"
 	case "animeheaven":
@@ -644,6 +663,10 @@ type streamFiles struct {
 	Audio []*muxAudio
 	// Duration is the length in seconds, used to check a dub lines up before its audio is added.
 	Duration float64
+	// Complete marks a downloaded release file with tracks of its own beyond one video and one
+	// audio (more audio, subtitles, fonts); EmbeddedSubtitles is how many subtitle tracks it has.
+	Complete          bool
+	EmbeddedSubtitles int
 }
 
 // downloadStream downloads a source into dir: the best video variant and, for HLS, every audio
@@ -679,11 +702,26 @@ func (m *Manager) downloadStream(ctx context.Context, it *Item, d *downloader, s
 		}); err != nil {
 			return nil, err
 		}
-		return &streamFiles{
+		files := &streamFiles{
 			VideoPath: out,
 			Audio:     []*muxAudio{{Language: defaultLang}},
 			Duration:  probeDuration(ctx, m.ffprobePath(), out),
-		}, nil
+		}
+		// A release file (ReAnime's dual-audio MKVs) brings its own audio tracks, subtitles and
+		// fonts: every audio track is listed, and the file is kept whole.
+		if tracks := probeTracks(ctx, m.ffprobePath(), out); tracks.complete() {
+			files.Complete = true
+			files.EmbeddedSubtitles = tracks.subtitles
+			files.Audio = files.Audio[:0]
+			for i, a := range tracks.audio {
+				lang := languageCode(a.language)
+				if lang == "und" && i == 0 {
+					lang = defaultLang
+				}
+				files.Audio = append(files.Audio, &muxAudio{Stream: i, Language: lang, Title: a.title, Default: i == 0})
+			}
+		}
+		return files, nil
 	}
 
 	body, err := d.client.GetBytes(ctx, d.provider, source.URL, d.headers, maxPlaylistSize)

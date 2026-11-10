@@ -2,6 +2,7 @@ package onlinestream_download
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"net/url"
@@ -212,4 +213,47 @@ func probeDuration(ctx context.Context, ffprobePath string, path string) float64
 		return 0
 	}
 	return v
+}
+
+// fileTracks is what ffprobe finds in a downloaded file.
+type fileTracks struct {
+	audio       []fileTrack
+	subtitles   int
+	attachments int
+}
+
+type fileTrack struct{ language, title string }
+
+// complete reports a release file: more than one audio track, or subtitles or fonts of its own.
+func (t fileTracks) complete() bool {
+	return len(t.audio) > 1 || t.subtitles > 0 || t.attachments > 0
+}
+
+func probeTracks(ctx context.Context, ffprobePath string, path string) fileTracks {
+	var out fileTracks
+	raw, err := util.NewCmdCtx(ctx, ffprobePath, "-v", "error", "-show_entries",
+		"stream=codec_type:stream_tags=language,title", "-of", "json", path).Output()
+	if err != nil {
+		return out
+	}
+	var res struct {
+		Streams []struct {
+			CodecType string            `json:"codec_type"`
+			Tags      map[string]string `json:"tags"`
+		} `json:"streams"`
+	}
+	if json.Unmarshal(raw, &res) != nil {
+		return out
+	}
+	for _, s := range res.Streams {
+		switch s.CodecType {
+		case "audio":
+			out.audio = append(out.audio, fileTrack{language: s.Tags["language"], title: s.Tags["title"]})
+		case "subtitle":
+			out.subtitles++
+		case "attachment":
+			out.attachments++
+		}
+	}
+	return out
 }

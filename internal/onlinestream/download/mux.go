@@ -18,12 +18,17 @@ type muxInput struct {
 	DefaultSub int
 	Title      string
 	OutputPath string
+	// KeepAll copies the video input whole (every audio, subtitle and font it carries) and adds
+	// nothing: the source was a finished release file.
+	KeepAll bool
 }
 
 // muxAudio is one audio track of the output.
 type muxAudio struct {
 	// Path is the input file the track comes from. Empty means the audio of the video input.
-	Path     string
+	Path string
+	// Stream is the track's number among its input's audio tracks (0 for the first).
+	Stream   int
 	HLS      bool
 	Language string
 	Title    string
@@ -57,6 +62,14 @@ func convertSubtitleToASS(ctx context.Context, ffmpegPath string, inPath string,
 // served as a soft ASS track. Nothing is re-encoded except the subtitles, which are text.
 func mux(ctx context.Context, ffmpegPath string, in *muxInput) error {
 	args := []string{"-hide_banner", "-nostdin", "-y", "-loglevel", "error"}
+	if in.KeepAll {
+		args = append(args, "-i", in.VideoPath, "-map", "0", "-c", "copy")
+		if in.Title != "" {
+			args = append(args, "-metadata", "title="+in.Title)
+		}
+		args = append(args, "-f", "matroska", in.OutputPath)
+		return runMux(ctx, ffmpegPath, args, in.OutputPath)
+	}
 
 	hlsFlags := []string{"-allowed_extensions", "ALL", "-protocol_whitelist", "file,crypto,data"}
 
@@ -71,7 +84,7 @@ func mux(ctx context.Context, ffmpegPath string, in *muxInput) error {
 	audioMaps := make([]string, 0, len(in.Audio))
 	for _, a := range in.Audio {
 		if a.Path == "" || a.Path == in.VideoPath {
-			audioMaps = append(audioMaps, "0:a:0")
+			audioMaps = append(audioMaps, fmt.Sprintf("0:a:%d", a.Stream))
 			continue
 		}
 		idx, ok := inputOf[a.Path]
@@ -140,7 +153,10 @@ func mux(ctx context.Context, ffmpegPath string, in *muxInput) error {
 	}
 
 	args = append(args, "-f", "matroska", in.OutputPath)
+	return runMux(ctx, ffmpegPath, args, in.OutputPath)
+}
 
+func runMux(ctx context.Context, ffmpegPath string, args []string, outputPath string) error {
 	cmd := util.NewCmdCtx(ctx, ffmpegPath, args...)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -155,7 +171,7 @@ func mux(ctx context.Context, ffmpegPath string, in *muxInput) error {
 		return fmt.Errorf("ffmpeg failed: %v: %s", err, msg)
 	}
 
-	st, err := os.Stat(in.OutputPath)
+	st, err := os.Stat(outputPath)
 	if err != nil {
 		return err
 	}

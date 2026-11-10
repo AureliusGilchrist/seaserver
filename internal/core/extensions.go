@@ -160,6 +160,19 @@ func LoadExtensions(extensionRepository *extension_repo.Repository, logger *zero
 		Icon:        "https://megaplay.buzz/favicon.ico",
 	}, onlinestream_providers.NewMegaPlay(logger))
 
+	extensionRepository.ReloadBuiltInExtension(extension.Extension{
+		ID:          onlinestream_providers.ReAnimeProvider,
+		Name:        "ReAnime",
+		Version:     "1.0.0",
+		ManifestURI: "builtin",
+		Language:    extension.LanguageGo,
+		Type:        extension.TypeOnlinestreamProvider,
+		Author:      "Deus Ex Aeternae",
+		Description: "Release files from reanime.to (flixcloud), usually dual-audio MKVs, by AniList ID",
+		Lang:        "en",
+		Icon:        "https://reanime.to/favicon.ico",
+	}, onlinestream_providers.NewReAnime(logger))
+
 	// Providers found through MALSync's site index and checked by hand to be up, English, and
 	// playable in the built-in player (HLS or MP4 — the player has no DASH support).
 	extensionRepository.ReloadBuiltInExtension(extension.Extension{
