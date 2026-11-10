@@ -28,7 +28,11 @@ func resultsPath() string {
 
 // resultStore holds every result of the current run, oldest first.
 type resultStore struct {
-	mu      sync.Mutex
+	mu sync.Mutex
+	// fileMu serialises the appends to the file. It is separate from mu so a write stuck on a
+	// stalled disk holds up only the next write, never the counts and pages the status page reads
+	// from memory.
+	fileMu  sync.Mutex
 	loaded  bool
 	entries []ActivityEntry
 	path    string
@@ -59,16 +63,20 @@ func (s *resultStore) loadLocked() {
 // add records a result and appends it to the file.
 func (s *resultStore) add(e ActivityEntry) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.loadLocked()
 	explainEntry(&e)
 	s.entries = append(s.entries, e)
+	path := s.path
+	s.mu.Unlock()
+
 	b, err := json.Marshal(e)
 	if err != nil {
 		return err
 	}
-	_ = os.MkdirAll(filepath.Dir(s.path), 0o755)
-	f, err := os.OpenFile(s.path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	s.fileMu.Lock()
+	defer s.fileMu.Unlock()
+	_ = os.MkdirAll(filepath.Dir(path), 0o755)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
 	}
@@ -80,9 +88,12 @@ func (s *resultStore) add(e ActivityEntry) error {
 // reset forgets every result, in memory and on disk.
 func (s *resultStore) reset() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.loaded, s.path, s.entries = true, resultsPath(), nil
-	_ = os.Remove(s.path)
+	path := s.path
+	s.mu.Unlock()
+	s.fileMu.Lock()
+	defer s.fileMu.Unlock()
+	_ = os.Remove(path)
 }
 
 // ReasonCount is how many results share a reason.

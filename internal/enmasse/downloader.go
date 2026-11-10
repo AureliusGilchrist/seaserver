@@ -790,6 +790,12 @@ func NewDownloader(opts *NewDownloaderOptions) *Downloader {
 }
 
 func (d *Downloader) GetStatus() *DownloaderStatus {
+	// Both of these can touch the disk the run writes to; taken before d.mu so a stalled disk
+	// (the NAS pool hanging on writes) cannot keep the lock — and with it every status request
+	// and the run itself — waiting behind a file operation.
+	hasSaved := d.hasSavedProgress()
+	results := d.results.counts()
+
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -838,12 +844,12 @@ func (d *Downloader) GetStatus() *DownloaderStatus {
 			SkippedCount:      d.skippedCount,
 			EpisodesQueued:    d.details.EpisodesQueued,
 		},
-		HasSavedProgress: d.hasSavedProgress(),
+		HasSavedProgress: hasSaved,
 		CurrentImage:     currentImage,
 		ProcessedThisRun: d.processedThisRun,
 		Recent:           withReasons(d.recent),
 		Ready:            d.readyPreviewLocked(),
-		Results:          d.results.counts(),
+		Results:          results,
 	}
 	if !d.startedAt.IsZero() {
 		t := d.startedAt
