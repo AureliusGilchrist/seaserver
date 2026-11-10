@@ -113,3 +113,17 @@ func TestBloatedRelease(t *testing.T) {
 		t.Error("bloated release")
 	}
 }
+
+func TestExcludeWords(t *testing.T) {
+	titles := []string{"Trigun", "TRIGUN"}
+	got := excludeWords([]string{
+		"[SubsPlease] Trigun Stampede (01-12) (1080p) [Batch]",
+		"[SubsPlease] Trigun Stampede (01-12) (720p) [Batch]",
+		"TRIGUN STAMPEDE S02E11 I Miss You 1080p CR WEB-DL DUAL AAC2.0 H 264-VARYG (Dual-Audio, Multi-Subs)",
+		"[Judas] Trigun Stargaze (Season 02) [1080p][HEVC x265 10bit][Dual-Audio][Multi-Subs] (Batch)",
+		"[Anime Time] Reincarnated As A Sword - S02E03 [1080p]",
+	}, titles)
+	if len(got) != 2 || got[0] != "stampede" || got[1] != "stargaze" {
+		t.Fatalf("got %v", got)
+	}
+}

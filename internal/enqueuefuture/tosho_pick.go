@@ -313,10 +313,6 @@ func (r *Repository) pickOnProvider(ctx context.Context, media *anilist.BaseAnim
 		pick.Reason = "search failed: " + err.Error()
 		return pick
 	}
-	if data == nil || len(data.Torrents) == 0 {
-		pick.Reason = "nothing for this"
-		return pick
-	}
 
 	episodes := 0
 	if media.Episodes != nil {
@@ -333,34 +329,78 @@ func (r *Repository) pickOnProvider(ctx context.Context, media *anilist.BaseAnim
 		bloated bool
 	}
 	var candidates []candidate
+	var otherTitles []string
+	seen := map[string]bool{}
 	wrongTitle, tooFew, unseeded := 0, 0, 0
-	for _, t := range data.Torrents {
-		if t == nil {
-			continue
+	consider := func(torrents []*hibiketorrent.AnimeTorrent) {
+		for _, t := range torrents {
+			if t == nil {
+				continue
+			}
+			key := t.InfoHash
+			if key == "" {
+				key = t.Name
+			}
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			if t.Seeders < AutoPickMinSeeders {
+				unseeded++
+				continue
+			}
+			score, otherYear := releaseScore(t.Name, titles, media.GetStartYearSafe())
+			if score < toshoMinTitleScore || otherYear {
+				wrongTitle++
+				otherTitles = append(otherTitles, t.Name)
+				continue
+			}
+			files := contentsFiles(t, client)
+			if !isShow && files < 1 {
+				files = 1
+			}
+			// A batch whose name says it stops short of the series ("Episode 1-20" of 101) is part of
+			// it, whatever extras pad its file count.
+			if !episodesFit(files, episodes, isShow) || (isShow && namedPartial(t.Name, episodes)) {
+				tooFew++
+				continue
+			}
+			candidates = append(candidates, candidate{t: t, files: files, dual: englishDualAudio(t.Name), score: score, res: releaseResolution(t.Name),
+				bloated: bloatedRelease(files, episodes, isShow)})
 		}
-		if t.Seeders < AutoPickMinSeeders {
-			unseeded++
-			continue
-		}
-		score, otherYear := releaseScore(t.Name, titles, media.GetStartYearSafe())
-		if score < toshoMinTitleScore || otherYear {
-			wrongTitle++
-			continue
-		}
-		files := contentsFiles(t, client)
-		if !isShow && files < 1 {
-			files = 1
-		}
-		// A batch whose name says it stops short of the series ("Episode 1-20" of 101) is part of
-		// it, whatever extras pad its file count.
-		if !episodesFit(files, episodes, isShow) || (isShow && namedPartial(t.Name, episodes)) {
-			tooFew++
-			continue
-		}
-		candidates = append(candidates, candidate{t: t, files: files, dual: englishDualAudio(t.Name), score: score, res: releaseResolution(t.Name),
-			bloated: bloatedRelease(files, episodes, isShow)})
 	}
+	if data != nil {
+		consider(data.Torrents)
+	}
+
+	// Nothing fits: the drawer's search asks for a "batch" (most complete releases never say so),
+	// and a newer show of the same name can bury the old one ("Trigun" brings back Trigun Stampede
+	// and Trigun Stargaze). Search once more for the bare title, leaving out the words that set
+	// those other titles apart.
+	if len(candidates) == 0 && ctx.Err() == nil {
+		query := strings.TrimSpace(strings.ToLower(media.GetRomajiTitleSafe()))
+		for _, w := range excludeWords(otherTitles, titles) {
+			query += " -" + w
+		}
+		if query != "" && r.autoPickPacer.wait(ctx) == nil {
+			retry, err := repo.SearchAnime(ctx, torrent.AnimeSearchOptions{
+				Provider: params.Provider,
+				Type:     torrent.AnimeSearchTypeSimple,
+				Media:    media,
+				Query:    query,
+			})
+			if err == nil && retry != nil {
+				consider(retry.Torrents)
+				pick.SearchedFor += ", then \"" + query + "\""
+			}
+		}
+	}
+
 	if len(candidates) == 0 {
+		if len(seen) == 0 {
+			pick.Reason = "nothing for this"
+			return pick
+		}
 		pick.Reason = fmt.Sprintf("no release fits (%d with another title, %d with too few episodes, %d unseeded)", wrongTitle, tooFew, unseeded)
 		return pick
 	}
@@ -573,4 +613,46 @@ func bloatedRelease(files, episodes int, isShow bool) bool {
 		limit = episodes + 15
 	}
 	return files > limit
+}
+
+// excludeWords picks the words that set another show of the same name apart: the first word after
+// the anime's own title in the names that were rejected ("stampede" in "Trigun Stampede (01-12)").
+// The most frequent come first, at most three, so a retry can leave them out of the search.
+func excludeWords(otherNames []string, titles []string) []string {
+	counts := map[string]int{}
+	for _, name := range otherNames {
+		cleaned := cleanReleaseTitle(name)
+		for _, t := range titles {
+			n := normalizeForMatch(t)
+			if n == "" || !strings.HasPrefix(cleaned, n+" ") {
+				continue
+			}
+			w := strings.Fields(strings.TrimPrefix(cleaned, n+" "))[0]
+			if len([]rune(w)) >= 3 && !excludeStopWords[w] && strings.IndexFunc(w, unicode.IsDigit) < 0 {
+				counts[w]++
+			}
+			break
+		}
+	}
+	words := make([]string, 0, len(counts))
+	for w := range counts {
+		words = append(words, w)
+	}
+	sort.Slice(words, func(i, j int) bool {
+		if counts[words[i]] != counts[words[j]] {
+			return counts[words[i]] > counts[words[j]]
+		}
+		return words[i] < words[j]
+	})
+	if len(words) > 3 {
+		words = words[:3]
+	}
+	return words
+}
+
+// excludeStopWords are words after a title that describe a release, not another show.
+var excludeStopWords = map[string]bool{
+	"the": true, "and": true, "batch": true, "complete": true, "series": true, "season": true,
+	"dual": true, "audio": true, "movie": true, "movies": true, "tv": true, "bd": true, "dvd": true,
+	"collection": true, "remastered": true, "uncut": true, "english": true, "dub": true, "dubbed": true,
 }

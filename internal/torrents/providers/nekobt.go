@@ -1,6 +1,7 @@
 package torrent_providers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -10,8 +11,6 @@ import (
 	"time"
 
 	hibiketorrent "seanime/internal/extension/hibike/torrent"
-
-	"github.com/PuerkitoBio/goquery"
 )
 
 const (
@@ -20,7 +19,7 @@ const (
 )
 
 // NekoBT implements hibiketorrent.AnimeProvider for nekobt.to
-// Uses HTML scraping since the Torznab API returns empty results.
+// Uses the site's JSON search API (the pages are rendered in the browser).
 type NekoBT struct{}
 
 func NewNekoBT() *NekoBT {
@@ -82,126 +81,112 @@ func (n *NekoBT) GetLatest() ([]*hibiketorrent.AnimeTorrent, error) {
 	return filterVideoTorrents(results), nil
 }
 
-var nekoBTSizeRegex = regexp.MustCompile(`(?i)([\d.]+)\s*(TiB|GiB|MiB|KiB|B)`)
+// nekoBTSearchResponse is the part of /api/v1/torrents/search the provider reads. The site is a
+// client-rendered app now, so its HTML holds no results; the API is what the page itself calls.
+type nekoBTSearchResponse struct {
+	Error bool `json:"error"`
+	Data  struct {
+		Results []struct {
+			ID         string `json:"id"`
+			UploadedAt int64  `json:"uploaded_at"`
+			Title      string `json:"title"`
+			InfoHash   string `json:"infohash"`
+			Magnet     string `json:"magnet"`
+			Filesize   string `json:"filesize"`
+			Seeders    string `json:"seeders"`
+			Leechers   string `json:"leechers"`
+			Completed  string `json:"completed"`
+			AudioLang  string `json:"audio_lang"`
+			Batch      bool   `json:"batch"`
+			Deleted    any    `json:"deleted"`
+			Hidden     bool   `json:"hidden"`
+		} `json:"results"`
+	} `json:"data"`
+}
+
+var nekoBTDualAudioRe = regexp.MustCompile(`(?i)dual[\s._-]*audio|\bdual\b|multi[\s._-]*audio`)
 
 func (n *NekoBT) scrapeSearch(query string) ([]*hibiketorrent.AnimeTorrent, error) {
 	getProviderLimiter(NekoBTProviderID).Acquire()
 
-	searchURL := nekoBTBaseURL + "/search"
-	if query != "" {
-		searchURL += "?q=" + url.QueryEscape(query)
-	}
-
+	searchURL := nekoBTBaseURL + "/api/v1/torrents/search?limit=100&sort_by=seeders&query=" + url.QueryEscape(query)
 	req, err := http.NewRequest("GET", searchURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("nekobt: failed to create request: %w", err)
 	}
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "application/json")
 
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("nekobt: failed to fetch page: %w", err)
+		return nil, fmt.Errorf("nekobt: search failed: %w", err)
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("nekobt: unexpected status code %d", resp.StatusCode)
 	}
 
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("nekobt: failed to parse HTML: %w", err)
+	var body nekoBTSearchResponse
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("nekobt: bad search response: %w", err)
+	}
+	if body.Error {
+		return nil, fmt.Errorf("nekobt: search returned an error")
 	}
 
 	var results []*hibiketorrent.AnimeTorrent
-
-	// NekoBT renders torrents in table rows. Each row has:
-	// - Category, Title, Links (magnet + torrent download), Size, Date, Seeders, Leechers, Downloads
-	doc.Find("table tbody tr, tr").Each(func(i int, s *goquery.Selection) {
-		// Find all <td> cells in this row
-		cells := s.Find("td")
-		if cells.Length() < 5 {
-			return
+	for _, r := range body.Data.Results {
+		if r.Hidden || r.Deleted != nil || r.Title == "" {
+			continue
 		}
-
-		// Extract title from the link text
-		titleEl := s.Find("a[href*='/torrent/'], a[href*='/media/']").First()
-		title := strings.TrimSpace(titleEl.Text())
-		if title == "" {
-			// Fallback: try to get any substantive text from the row
-			title = strings.TrimSpace(cells.Eq(1).Text())
+		name := cleanTitle(r.Title)
+		// NekoBT records the audio languages; say so in the name when a release with Japanese and
+		// English audio does not, so it ranks as dual audio like everywhere else.
+		langs := "," + strings.ToLower(r.AudioLang) + ","
+		if strings.Contains(langs, ",ja") && strings.Contains(langs, ",en") && !nekoBTDualAudioRe.MatchString(name) {
+			name += " [Dual Audio]"
 		}
-		if title == "" || len(title) < 5 {
-			return
-		}
-
-		torrent := &hibiketorrent.AnimeTorrent{
+		t := &hibiketorrent.AnimeTorrent{
 			Provider:      NekoBTProviderID,
-			Name:          cleanTitle(title),
+			Name:          name,
+			Link:          nekoBTBaseURL + "/torrents/" + r.ID,
+			DownloadUrl:   nekoBTBaseURL + "/api/v1/torrents/" + r.ID + "/download?public=true",
+			MagnetLink:    r.Magnet,
+			InfoHash:      strings.ToLower(r.InfoHash),
 			EpisodeNumber: -1,
+			IsBatch:       r.Batch,
 		}
-
-		// Extract link (page link)
-		if href, exists := titleEl.Attr("href"); exists {
-			if strings.HasPrefix(href, "/") {
-				torrent.Link = nekoBTBaseURL + href
-			} else {
-				torrent.Link = href
-			}
+		t.Size, _ = strconv.ParseInt(r.Filesize, 10, 64)
+		if t.Size > 0 {
+			t.FormattedSize = formatNekoBTSize(t.Size)
 		}
-
-		// Extract magnet link
-		s.Find("a[href^='magnet:']").Each(func(_ int, a *goquery.Selection) {
-			if href, exists := a.Attr("href"); exists {
-				torrent.MagnetLink = href
-				// Extract info hash from magnet link
-				torrent.InfoHash = extractInfoHashFromMagnet(href)
-			}
-		})
-
-		// Extract .torrent download URL
-		s.Find("a[href*='.torrent'], a[href*='/download']").Each(func(_ int, a *goquery.Selection) {
-			if href, exists := a.Attr("href"); exists {
-				if strings.HasPrefix(href, "/") {
-					torrent.DownloadUrl = nekoBTBaseURL + href
-				} else {
-					torrent.DownloadUrl = href
-				}
-			}
-		})
-
-		// Parse size, date, seeders, leechers, downloads from text
-		rowText := s.Text()
-
-		// Size
-		if match := nekoBTSizeRegex.FindString(rowText); match != "" {
-			torrent.FormattedSize = match
-			torrent.Size = parseNyaaSize(match)
+		t.Seeders, _ = strconv.Atoi(r.Seeders)
+		t.Leechers, _ = strconv.Atoi(r.Leechers)
+		t.DownloadCount, _ = strconv.Atoi(r.Completed)
+		if r.UploadedAt > 0 {
+			t.Date = time.UnixMilli(r.UploadedAt).UTC().Format(time.RFC3339)
 		}
-
-		// Date - look for date patterns like "2026-04-05 13:23:18"
-		dateRegex := regexp.MustCompile(`(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})`)
-		if dateMatch := dateRegex.FindString(rowText); dateMatch != "" {
-			if t, err := time.Parse("2006-01-02 15:04:05", dateMatch); err == nil {
-				torrent.Date = t.Format(time.RFC3339)
-			}
+		if t.InfoHash == "" {
+			t.InfoHash = extractInfoHashFromMagnet(t.MagnetLink)
 		}
-
-		// Extract seeders/leechers/downloads from the last few cells
-		numCells := cells.Length()
-		if numCells >= 3 {
-			torrent.Seeders, _ = strconv.Atoi(strings.TrimSpace(cells.Eq(numCells - 3).Text()))
-			torrent.Leechers, _ = strconv.Atoi(strings.TrimSpace(cells.Eq(numCells - 2).Text()))
-			torrent.DownloadCount, _ = strconv.Atoi(strings.TrimSpace(cells.Eq(numCells - 1).Text()))
-		}
-
-		if torrent.MagnetLink != "" || torrent.DownloadUrl != "" {
-			results = append(results, torrent)
-		}
-	})
-
+		results = append(results, t)
+	}
 	return results, nil
+}
+
+// nekoBTSizeRegex reads a size like "1.2 GiB" (Shana Project uses it too).
+var nekoBTSizeRegex = regexp.MustCompile(`(?i)([\d.]+)\s*(TiB|GiB|MiB|KiB|B)`)
+
+func formatNekoBTSize(b int64) string {
+	units := []string{"B", "KiB", "MiB", "GiB", "TiB"}
+	f := float64(b)
+	i := 0
+	for f >= 1024 && i < len(units)-1 {
+		f /= 1024
+		i++
+	}
+	return fmt.Sprintf("%.2f %s", f, units[i])
 }
 
 // cleanTitle removes excessive whitespace and newlines from scraped title text.
