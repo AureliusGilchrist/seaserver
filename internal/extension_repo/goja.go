@@ -65,9 +65,15 @@ func ShareBinds(vm *goja.Runtime, logger *zerolog.Logger, ext *extension.Extensi
 	ShareBindsWithCleanup(vm, logger, ext, wsEventManager, nil)
 }
 
-// ShareBindsWithCleanup binds the shared bindings to the VM and registers cleanup functions
-// This is called once per VM. If pool is provided, cleanup functions will be registered.
-func ShareBindsWithCleanup(vm *goja.Runtime, logger *zerolog.Logger, ext *extension.Extension, wsEventManager events.WSEventManagerInterface, pool *goja_runtime.Pool) {
+// ShareBindsWithCleanup binds the shared bindings to the VM and hands every binding's cleanup to
+// addCleanup (nil drops them, for VMs that live as long as the process).
+//
+// It takes a function rather than the pool because the pool's own pre-warm builds runtimes before
+// the pool value exists: passing the (still nil) pool silently dropped the ChromeDP cleanup of
+// every pre-warmed runtime, and each of those left a goroutine holding its whole VM alive after
+// the extension was unloaded or reloaded. Use a cleanupCollector to queue them until the pool is
+// known.
+func ShareBindsWithCleanup(vm *goja.Runtime, logger *zerolog.Logger, ext *extension.Extension, wsEventManager events.WSEventManagerInterface, addCleanup func(func())) {
 	registry := new(gojarequire.Registry)
 	registry.Enable(vm)
 
@@ -83,8 +89,8 @@ func ShareBindsWithCleanup(vm *goja.Runtime, logger *zerolog.Logger, ext *extens
 		{"buffer", func(vm *goja.Runtime) error { gojabuffer.Enable(vm); return nil }},
 		{"ChromeDP", func(vm *goja.Runtime) error {
 			chrome := goja_bindings.BindChromeDP(vm)
-			if pool != nil {
-				pool.AddCleanup(chrome.Close)
+			if addCleanup != nil {
+				addCleanup(chrome.Close)
 			}
 			return nil
 		}},
@@ -304,4 +310,43 @@ func structToMap(obj interface{}) map[string]interface{} {
 	}
 
 	return data
+}
+
+// cleanupCollector queues cleanup functions until the pool they belong to exists, then forwards
+// them (and every later one) to it. Runtimes built during a pool's pre-warm register their
+// cleanups before GetOrCreatePrivatePool has returned the pool.
+type cleanupCollector struct {
+	mu      sync.Mutex
+	pool    *goja_runtime.Pool
+	pending []func()
+}
+
+func (c *cleanupCollector) add(fn func()) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.pool != nil {
+		c.pool.AddCleanup(fn)
+		return
+	}
+	c.pending = append(c.pending, fn)
+}
+
+// attach hands the queued cleanups to pool. A nil pool (creation failed) runs them right away so
+// the runtimes already built do not leak their goroutines.
+func (c *cleanupCollector) attach(pool *goja_runtime.Pool) {
+	c.mu.Lock()
+	pending := c.pending
+	c.pending = nil
+	c.pool = pool
+	c.mu.Unlock()
+	for _, fn := range pending {
+		if pool != nil {
+			pool.AddCleanup(fn)
+		} else {
+			func() {
+				defer func() { _ = recover() }()
+				fn()
+			}()
+		}
+	}
 }

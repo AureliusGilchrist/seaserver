@@ -144,7 +144,10 @@ func NewGojaPlugin(
 
 	// 2. Create a new loader for the plugin
 	// Bind shared APIs to the loader
-	ShareBinds(p.loader, logger, ext, wsEventManager)
+	// The loader's cleanups (its ChromeDP goroutine) go to the plugin pool too, so unloading the
+	// plugin releases the loader VM instead of leaving it referenced by that goroutine forever.
+	cleanups := &cleanupCollector{}
+	ShareBindsWithCleanup(p.loader, logger, ext, wsEventManager, cleanups.add)
 	BindUserConfig(p.loader, ext, logger)
 	// Bind hooks to the loader
 	p.bindHooks()
@@ -165,16 +168,15 @@ func NewGojaPlugin(
 	p.pool, err = runtimeManager.GetOrCreatePrivatePool(ext.ID, func() *goja.Runtime {
 		runtime := goja.New()
 		// Bind shared bindings with cleanup registration
-		ShareBindsWithCleanup(runtime, logger, ext, wsEventManager, p.pool)
+		ShareBindsWithCleanup(runtime, logger, ext, wsEventManager, cleanups.add)
 		// Bind fetch and register cleanup to prevent goroutine leaks
 		fetch := goja_bindings.BindFetch(runtime, ext.Plugin.Permissions.GetNetworkAccessAllowedDomains())
-		if p.pool != nil {
-			p.pool.AddCleanup(fetch.Close)
-		}
+		cleanups.add(fetch.Close)
 		BindUserConfig(runtime, ext, logger)
 		p.BindPluginAPIs(runtime, logger)
 		return runtime
 	})
+	cleanups.attach(p.pool)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -186,12 +188,10 @@ func NewGojaPlugin(
 	uiVM := goja.New()
 	uiVM.SetParserOptions(parser.WithDisableSourceMaps)
 	// Bind shared APIs with cleanup registration
-	ShareBindsWithCleanup(uiVM, logger, ext, wsEventManager, p.pool)
+	ShareBindsWithCleanup(uiVM, logger, ext, wsEventManager, cleanups.add)
 	// Bind fetch and register cleanup to prevent goroutine leaks
 	uiFetch := goja_bindings.BindFetch(uiVM, ext.Plugin.Permissions.GetNetworkAccessAllowedDomains())
-	if p.pool != nil {
-		p.pool.AddCleanup(uiFetch.Close)
-	}
+	cleanups.add(uiFetch.Close)
 	BindUserConfig(uiVM, ext, logger)
 	// Bind the store to the UI VM
 	p.BindPluginAPIs(uiVM, logger)

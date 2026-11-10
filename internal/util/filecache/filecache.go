@@ -1,10 +1,13 @@
 package filecache
 
 import (
+	stdjson "encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"seanime/internal/util"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -33,6 +36,9 @@ type CacheStore struct {
 	filePath string
 	mu       sync.Mutex
 	data     map[string]*cacheItem
+	// size is the total length of every item's encoded value, kept in step with data by
+	// putLocked/deleteLocked/resetLocked so the byte bound can be enforced without a scan.
+	size int64
 
 	// dirty is set by every mutation (under mu) and cleared by the flusher once the file holds
 	// everything currently in memory. Manipulated only under mu except by the flusher, which
@@ -128,10 +134,106 @@ func (c *Cacher) evictIdleStores() {
 	}
 }
 
+// cacheItem is one entry. Value holds the entry's JSON encoding, not a decoded value.
+//
+// It used to be an interface{}, which meant a bucket loaded from its file was held in memory as
+// generic map[string]interface{} trees — several times the size of the JSON they came from, one
+// heap object per field — and every Get re-encoded that tree only to decode it again into the
+// caller's type. With the AniList and metadata buckets at tens of thousands of entries, that was
+// gigabytes of live heap on a server that had been running a few hours, and the main reason the
+// NAS ran out of memory after a few days. Keeping the bytes costs about the file's size, and Get
+// is a single decode. The file format is unchanged: a RawMessage encodes as the JSON it holds.
 type cacheItem struct {
-	Value      interface{} `json:"value"`
-	Expiration *time.Time  `json:"expiration,omitempty"`
-	UpdatedAt  *time.Time  `json:"updated_at,omitempty"`
+	Value      json.RawMessage `json:"value"`
+	Expiration *time.Time      `json:"expiration,omitempty"`
+	UpdatedAt  *time.Time      `json:"updated_at,omitempty"`
+}
+
+// encodeValue turns a caller's value into the bytes a cacheItem holds.
+func encodeValue(value interface{}) (json.RawMessage, error) {
+	if raw, ok := value.(json.RawMessage); ok {
+		return append(json.RawMessage(nil), raw...), nil
+	}
+	data, err := json.Marshal(value)
+	if err != nil {
+		return nil, fmt.Errorf("filecache: failed to encode value: %w", err)
+	}
+	return data, nil
+}
+
+// itemAge is what eviction orders by: when the entry was written (zero for entries from files
+// written before Set recorded it, so those go first).
+func (it *cacheItem) itemAge() time.Time {
+	if it.UpdatedAt != nil {
+		return *it.UpdatedAt
+	}
+	return time.Time{}
+}
+
+// putLocked stores item under key. Called with cs.mu held.
+func (cs *CacheStore) putLocked(key string, item *cacheItem) {
+	if old, ok := cs.data[key]; ok {
+		cs.size -= int64(len(old.Value))
+	}
+	cs.data[key] = item
+	cs.size += int64(len(item.Value))
+}
+
+// deleteLocked removes key. Called with cs.mu held.
+func (cs *CacheStore) deleteLocked(key string) {
+	if old, ok := cs.data[key]; ok {
+		cs.size -= int64(len(old.Value))
+		delete(cs.data, key)
+	}
+}
+
+// resetLocked empties the store. Called with cs.mu held.
+func (cs *CacheStore) resetLocked() {
+	cs.data = make(map[string]*cacheItem)
+	cs.size = 0
+}
+
+// maxStoreBytes bounds the encoded size of any one bucket, whatever its entry count: a bucket is
+// held in memory whole and re-written whole, so its size is a direct cost in both RAM and disk
+// I/O. The metadata and complete-anime buckets carry entries of tens of kilobytes each, so the
+// entry-count bound alone let them reach hundreds of megabytes.
+var maxStoreBytes int64 = 64 << 20
+
+// enforceLimitsLocked evicts the oldest entries while the store is over either bound, down to 90%
+// of it so a store sitting at the bound does not pay for a sort on every insert. keep (the entry
+// just written) is never evicted. Returns whether anything was removed. Called with cs.mu held.
+func (cs *CacheStore) enforceLimitsLocked(maxEntries int, keep string) bool {
+	overEntries := maxEntries > 0 && len(cs.data) > maxEntries
+	if !overEntries && cs.size <= maxStoreBytes {
+		return false
+	}
+	targetEntries := len(cs.data)
+	if overEntries {
+		targetEntries = maxEntries * 9 / 10
+	}
+	targetBytes := maxStoreBytes
+	if cs.size > maxStoreBytes {
+		targetBytes = maxStoreBytes * 9 / 10
+	}
+
+	keys := make([]string, 0, len(cs.data))
+	for k := range cs.data {
+		if k != keep {
+			keys = append(keys, k)
+		}
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return cs.data[keys[i]].itemAge().Before(cs.data[keys[j]].itemAge())
+	})
+	removed := false
+	for _, k := range keys {
+		if len(cs.data) <= targetEntries && cs.size <= targetBytes {
+			break
+		}
+		cs.deleteLocked(k)
+		removed = true
+	}
+	return removed
 }
 
 // NewCacher creates a new instance of Cacher.
@@ -315,21 +417,15 @@ func (cs *CacheStore) flushLockedIfNeeded() error {
 	cs.dirty = false
 	cs.mu.Unlock()
 
-	data, err := json.Marshal(snapshot)
-	if err != nil {
+	// Streamed entry by entry rather than marshalled whole: one Marshal of the bucket built a
+	// buffer the size of the file, and go-json keeps its encode buffers pooled at the largest
+	// size they ever reached, so every large bucket pinned a file-sized buffer.
+	if err := util.WriteFileCrashSafeFunc(cs.filePath, 0644, func(w io.Writer) error {
+		return writeSnapshot(w, snapshot)
+	}); err != nil {
 		// Put the snapshot back on the dirty pile; it is still in memory and still served,
 		// it just has not reached the file yet. The re-poke re-arms the timers so the write is
 		// retried even if nothing else is written in the meantime.
-		cs.mu.Lock()
-		cs.dirty = true
-		cs.mu.Unlock()
-		select {
-		case cs.poke <- struct{}{}:
-		default:
-		}
-		return fmt.Errorf("filecache: failed to encode cache data: %w", err)
-	}
-	if err := util.WriteFileCrashSafe(cs.filePath, data, 0644); err != nil {
 		cs.mu.Lock()
 		cs.dirty = true
 		cs.mu.Unlock()
@@ -342,6 +438,42 @@ func (cs *CacheStore) flushLockedIfNeeded() error {
 	return nil
 }
 
+// writeSnapshot writes the bucket file's JSON object one entry at a time.
+func writeSnapshot(w io.Writer, snapshot map[string]*cacheItem) error {
+	if _, err := io.WriteString(w, "{"); err != nil {
+		return err
+	}
+	first := true
+	for k, item := range snapshot {
+		key, err := json.Marshal(k)
+		if err != nil {
+			return err
+		}
+		val, err := json.Marshal(item)
+		if err != nil {
+			// One bad entry must not cost the whole bucket its file.
+			continue
+		}
+		if !first {
+			if _, err := io.WriteString(w, ","); err != nil {
+				return err
+			}
+		}
+		first = false
+		if _, err := w.Write(key); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(w, ":"); err != nil {
+			return err
+		}
+		if _, err := w.Write(val); err != nil {
+			return err
+		}
+	}
+	_, err := io.WriteString(w, "}")
+	return err
+}
+
 // flushAndStop performs a final flush and waits for the flusher goroutine to exit. Idempotent:
 // Close may run first (whole cacher), then Remove (one bucket), and both ask the flusher to stop.
 func (cs *CacheStore) flushAndStop() error {
@@ -352,12 +484,18 @@ func (cs *CacheStore) flushAndStop() error {
 
 // Set sets the value for the given key in the given bucket.
 func (c *Cacher) Set(bucket Bucket, key string, value interface{}) error {
+	raw, err := encodeValue(value)
+	if err != nil {
+		return err
+	}
 	store, err := c.getStore(bucket.name)
 	if err != nil {
 		return err
 	}
+	now := time.Now()
 	store.mu.Lock()
-	store.data[key] = &cacheItem{Value: value, Expiration: lo.ToPtr(time.Now().Add(bucket.ttl))}
+	store.putLocked(key, &cacheItem{Value: raw, Expiration: lo.ToPtr(now.Add(bucket.ttl)), UpdatedAt: lo.ToPtr(now)})
+	store.enforceLimitsLocked(0, key)
 	store.markDirty()
 	store.mu.Unlock()
 	return nil
@@ -374,15 +512,11 @@ func Range[T any](c *Cacher, bucket Bucket, f func(key string, value T) bool) er
 	expired := false
 	for key, item := range store.data {
 		if item.Expiration != nil && time.Now().After(*item.Expiration) {
-			delete(store.data, key)
+			store.deleteLocked(key)
 			expired = true
 		} else {
-			itemVal, err := json.Marshal(item.Value)
-			if err != nil {
-				return err
-			}
 			var out T
-			err = json.Unmarshal(itemVal, &out)
+			err = json.Unmarshal(item.Value, &out)
 			if err != nil {
 				return err
 			}
@@ -411,15 +545,11 @@ func (c *Cacher) Get(bucket Bucket, key string, out interface{}) (bool, error) {
 		return false, nil
 	}
 	if item.Expiration != nil && time.Now().After(*item.Expiration) {
-		delete(store.data, key)
+		store.deleteLocked(key)
 		store.markDirty()
 		return false, nil
 	}
-	data, err := json.Marshal(item.Value)
-	if err != nil {
-		return false, err
-	}
-	return true, json.Unmarshal(data, out)
+	return true, json.Unmarshal(item.Value, out)
 }
 
 func GetAll[T any](c *Cacher, bucket Bucket) (map[string]T, error) {
@@ -442,7 +572,7 @@ func (c *Cacher) Delete(bucket Bucket, key string) error {
 		return err
 	}
 	store.mu.Lock()
-	delete(store.data, key)
+	store.deleteLocked(key)
 	store.markDirty()
 	store.mu.Unlock()
 	return nil
@@ -458,17 +588,13 @@ func DeleteIf[T any](c *Cacher, bucket Bucket, cond func(key string, value T) bo
 
 	removed := false
 	for key, item := range store.data {
-		itemVal, err := json.Marshal(item.Value)
-		if err != nil {
-			return err
-		}
 		var out T
-		err = json.Unmarshal(itemVal, &out)
+		err = json.Unmarshal(item.Value, &out)
 		if err != nil {
 			return err
 		}
 		if cond(key, out) {
-			delete(store.data, key)
+			store.deleteLocked(key)
 			removed = true
 		}
 	}
@@ -486,7 +612,7 @@ func (c *Cacher) Empty(bucket Bucket) error {
 		return err
 	}
 	store.mu.Lock()
-	store.data = make(map[string]*cacheItem)
+	store.resetLocked()
 	store.markDirty()
 	store.mu.Unlock()
 	return nil
@@ -525,32 +651,19 @@ const maxPermanentEntries = 25000
 
 // SetPerm sets the value for the given key in the permanent bucket (no expiration).
 func (c *Cacher) SetPerm(bucket PermanentBucket, key string, value interface{}) error {
+	raw, err := encodeValue(value)
+	if err != nil {
+		return err
+	}
 	store, err := c.getStore(bucket.name)
 	if err != nil {
 		return err
 	}
 	store.mu.Lock()
-	store.data[key] = &cacheItem{Value: value, UpdatedAt: lo.ToPtr(time.Now())} // No expiration
-	// Evict the oldest entry while over the bound, so a walk through a large franchise cannot
-	// grow the file without limit. One eviction per insertion keeps the bucket at the bound
-	// without a separate sweep.
-	if len(store.data) > maxPermanentEntries {
-		oldestKey := ""
-		var oldestTime time.Time
-		for k, item := range store.data {
-			updatedAt := time.Time{}
-			if item.UpdatedAt != nil {
-				updatedAt = *item.UpdatedAt
-			}
-			if oldestKey == "" || updatedAt.Before(oldestTime) {
-				oldestKey = k
-				oldestTime = updatedAt
-			}
-		}
-		if oldestKey != "" && oldestKey != key {
-			delete(store.data, oldestKey)
-		}
-	}
+	store.putLocked(key, &cacheItem{Value: raw, UpdatedAt: lo.ToPtr(time.Now())}) // No expiration
+	// Evict the oldest entries while over either bound, so a walk through a large franchise
+	// cannot grow the bucket (and the memory holding it) without limit.
+	store.enforceLimitsLocked(maxPermanentEntries, key)
 	store.markDirty()
 	store.mu.Unlock()
 	return nil
@@ -568,11 +681,7 @@ func (c *Cacher) GetPerm(bucket PermanentBucket, key string, out interface{}) (b
 	if !ok {
 		return false, nil
 	}
-	data, err := json.Marshal(item.Value)
-	if err != nil {
-		return false, err
-	}
-	return true, json.Unmarshal(data, out)
+	return true, json.Unmarshal(item.Value, out)
 }
 
 // DeletePerm deletes the value for the given key from the permanent bucket.
@@ -582,7 +691,7 @@ func (c *Cacher) DeletePerm(bucket PermanentBucket, key string) error {
 		return err
 	}
 	store.mu.Lock()
-	delete(store.data, key)
+	store.deleteLocked(key)
 	store.markDirty()
 	store.mu.Unlock()
 	return nil
@@ -608,7 +717,7 @@ func (c *Cacher) DeletePermOldest(bucket PermanentBucket) error {
 			oldestTime = updatedAt
 		}
 	}
-	delete(store.data, oldestKey)
+	store.deleteLocked(oldestKey)
 	store.markDirty()
 	return nil
 }
@@ -620,7 +729,7 @@ func (c *Cacher) EmptyPerm(bucket PermanentBucket) error {
 		return err
 	}
 	store.mu.Lock()
-	store.data = make(map[string]*cacheItem)
+	store.resetLocked()
 	store.markDirty()
 	store.mu.Unlock()
 	return nil
@@ -723,21 +832,34 @@ func (c *Cacher) GetTotalSize() (int64, error) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func (cs *CacheStore) loadFromFile() error {
-	file, err := os.Open(cs.filePath)
+	data, err := os.ReadFile(cs.filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil // File does not exist, so nothing to load
 		}
 		return fmt.Errorf("filecache: failed to open cache file: %w", err)
 	}
-	defer file.Close()
 
-	if err := json.NewDecoder(file).Decode(&cs.data); err != nil {
-		// If decode fails (empty or corrupted file), initialize with empty data
-		cs.data = make(map[string]*cacheItem)
+	// encoding/json, not go-json, for this one decode: measured on a 13 MB bucket, go-json left
+	// ~42 MB live after decoding into RawMessages, the standard library ~15 MB (the bytes alone).
+	loaded := make(map[string]*cacheItem)
+	if err := stdjson.Unmarshal(data, &loaded); err != nil {
+		// If decode fails (empty or corrupted file), start empty
+		cs.resetLocked()
 		return nil
 	}
 
+	cs.resetLocked()
+	for k, item := range loaded {
+		if item != nil {
+			cs.putLocked(k, item)
+		}
+	}
+	// A file written before the byte bound existed can be far over it: trim it on the way in and
+	// let the flusher write the trimmed version back.
+	if cs.enforceLimitsLocked(maxPermanentEntries, "") {
+		cs.markDirty()
+	}
 	return nil
 }
 

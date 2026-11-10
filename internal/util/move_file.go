@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bufio"
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
@@ -353,6 +354,15 @@ func MoveTreeCrashSafe(src, dest string) error {
 // way: they go straight to their destination path, under their own name, and are covered by the
 // journal instead.
 func WriteFileCrashSafe(path string, data []byte, perm os.FileMode) error {
+	return WriteFileCrashSafeFunc(path, perm, func(w io.Writer) error {
+		_, err := w.Write(data)
+		return err
+	})
+}
+
+// WriteFileCrashSafeFunc is WriteFileCrashSafe for content produced by write, streamed straight
+// into the temporary file, so a large file never has to exist as one buffer in memory first.
+func WriteFileCrashSafeFunc(path string, perm os.FileMode, write func(w io.Writer) error) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
@@ -365,7 +375,11 @@ func WriteFileCrashSafe(path string, data []byte, perm os.FileMode) error {
 	if err != nil {
 		return err
 	}
-	_, writeErr := f.Write(data)
+	bw := bufio.NewWriterSize(f, 256<<10)
+	writeErr := write(bw)
+	if writeErr == nil {
+		writeErr = bw.Flush()
+	}
 	if writeErr == nil {
 		writeErr = f.Sync()
 	}
