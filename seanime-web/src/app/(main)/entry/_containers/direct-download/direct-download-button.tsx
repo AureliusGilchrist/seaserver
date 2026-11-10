@@ -19,6 +19,7 @@ const SOURCES = [
     { id: "anizone", label: "AniZone" },
     { id: "animeheaven", label: "AnimeHeaven" },
     { id: "animegg", label: "AnimeGG" },
+    { id: "animeonsen", label: "AnimeOnsen" },
     { id: "animepahe", label: "AnimePahe" },
 ] as const
 

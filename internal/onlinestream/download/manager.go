@@ -426,7 +426,7 @@ const maxMirrorTries = 4
 
 // FallbackProviders are where an episode is downloaded from, in order, when its own provider
 // has no source for it.
-var FallbackProviders = []string{"kickassanime", "megaplay", "reanime", "anizone", "animeheaven", "animegg", "animepahe"}
+var FallbackProviders = []string{"kickassanime", "megaplay", "reanime", "anizone", "animeheaven", "animegg", "animeonsen", "animepahe"}
 
 // ProviderLabel is a provider's display name.
 func ProviderLabel(id string) string {
@@ -439,6 +439,8 @@ func ProviderLabel(id string) string {
 		return "MegaPlay"
 	case "reanime":
 		return "ReAnime"
+	case "animeonsen":
+		return "AnimeOnsen"
 	case "animepahe":
 		return "AnimePahe"
 	case "animeheaven":
@@ -640,7 +642,19 @@ func bestSource(candidates []*onlinestream.VideoSource) *onlinestream.VideoSourc
 	return best
 }
 
+// isDASH reports an MPEG-DASH stream (a .mpd manifest), which ffmpeg downloads.
+func isDASH(source *onlinestream.VideoSource) bool {
+	u, err := url.Parse(source.URL)
+	if err != nil {
+		return strings.Contains(source.URL, ".mpd")
+	}
+	return strings.EqualFold(path.Ext(u.Path), ".mpd")
+}
+
 func isHLS(source *onlinestream.VideoSource) bool {
+	if isDASH(source) {
+		return false
+	}
 	if source.Type == hibikeonlinestream.VideoSourceM3U8 {
 		return true
 	}
@@ -687,6 +701,34 @@ func (m *Manager) downloadStream(ctx context.Context, it *Item, d *downloader, s
 		if p := it.phaseBase + it.phaseWeight*f; p > it.Progress {
 			it.Progress = p
 		}
+	}
+
+	if isDASH(source) {
+		out := filepath.Join(dir, "source.mkv")
+		if err := downloadDASH(ctx, m.opts.FfmpegPath(), source.URL, d.headers, out, func(bytes int64) {
+			m.update(it, func(it *Item) {
+				it.Bytes = it.bytesBase + bytes
+				it.trackRate(time.Now())
+			}, false)
+		}); err != nil {
+			return nil, err
+		}
+		files := &streamFiles{
+			VideoPath: out,
+			Audio:     []*muxAudio{{Language: defaultLang}},
+			Duration:  probeDuration(ctx, m.ffprobePath(), out),
+		}
+		if tracks := probeTracks(ctx, m.ffprobePath(), out); len(tracks.audio) > 1 {
+			files.Audio = files.Audio[:0]
+			for i, a := range tracks.audio {
+				lang := languageCode(a.language)
+				if lang == "und" && i == 0 {
+					lang = defaultLang
+				}
+				files.Audio = append(files.Audio, &muxAudio{Stream: i, Language: lang, Title: a.title, Default: i == 0})
+			}
+		}
+		return files, nil
 	}
 
 	if !isHLS(source) {

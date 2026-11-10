@@ -173,6 +173,19 @@ func LoadExtensions(extensionRepository *extension_repo.Repository, logger *zero
 		Icon:        "https://reanime.to/favicon.ico",
 	}, onlinestream_providers.NewReAnime(logger))
 
+	extensionRepository.ReloadBuiltInExtension(extension.Extension{
+		ID:          onlinestream_providers.AnimeOnsenProvider,
+		Name:        "AnimeOnsen",
+		Version:     "1.0.0",
+		ManifestURI: "builtin",
+		Language:    extension.LanguageGo,
+		Type:        extension.TypeOnlinestreamProvider,
+		Author:      "Deus Ex Aeternae",
+		Description: "Online streaming provider for animeonsen.xyz: Japanese audio, soft subtitles, 720p",
+		Lang:        "en",
+		Icon:        "https://www.animeonsen.xyz/favicon.ico",
+	}, onlinestream_providers.NewAnimeOnsen(logger))
+
 	// Providers found through MALSync's site index and checked by hand to be up, English, and
 	// playable in the built-in player (HLS or MP4 — the player has no DASH support).
 	extensionRepository.ReloadBuiltInExtension(extension.Extension{

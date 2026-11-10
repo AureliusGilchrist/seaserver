@@ -176,51 +176,9 @@ func (p *ReAnime) FindEpisodes(rawID string) ([]*hibikeonlinestream.EpisodeDetai
 	if !ok {
 		return nil, ErrSourceNotFound
 	}
-	last := 1
-	bisect := func(lo, hi int) (int, error) {
-		for hi-lo > 1 {
-			mid := (lo + hi) / 2
-			ok, err := p.hasEpisode(id.anilistID, mid)
-			if err != nil {
-				return 0, err
-			}
-			if ok {
-				lo = mid
-			} else {
-				hi = mid
-			}
-		}
-		return lo, nil
-	}
-	switch {
-	case id.episodes > 1:
-		ok, err := p.hasEpisode(id.anilistID, id.episodes)
-		if err != nil {
-			return nil, err
-		}
-		if ok {
-			last = id.episodes
-		} else if last, err = bisect(1, id.episodes); err != nil {
-			return nil, err
-		}
-	case id.episodes == 0:
-		lo, hi := 1, 2
-		for hi <= reAnimeMaxEpisodes {
-			ok, err := p.hasEpisode(id.anilistID, hi)
-			if err != nil {
-				return nil, err
-			}
-			if !ok {
-				break
-			}
-			lo, hi = hi, hi*2
-		}
-		if hi > reAnimeMaxEpisodes {
-			hi = reAnimeMaxEpisodes + 1
-		}
-		if last, err = bisect(lo, hi); err != nil {
-			return nil, err
-		}
+	last, err := lastEpisodeOf(func(n int) (bool, error) { return p.hasEpisode(id.anilistID, n) }, id.episodes, reAnimeMaxEpisodes)
+	if err != nil {
+		return nil, err
 	}
 	lang := id.lang()
 	out := make([]*hibikeonlinestream.EpisodeDetails, 0, last)

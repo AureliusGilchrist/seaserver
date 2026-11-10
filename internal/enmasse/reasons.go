@@ -55,7 +55,7 @@ var skipLabels = []struct{ prefix, label string }{
 	{"nothing to download", ReasonNothingToDownload},
 }
 
-var knownProviders = []string{"kickassanime", "megaplay", "reanime", "anizone", "animeheaven", "animegg", "animepahe", "torrent"}
+var knownProviders = []string{"kickassanime", "megaplay", "reanime", "anizone", "animeheaven", "animegg", "animeonsen", "animepahe", "torrent"}
 
 var (
 	countRe    = regexp.MustCompile(`has (\d+) episodes, the series has (\d+)`)

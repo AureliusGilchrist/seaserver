@@ -77,3 +77,20 @@ func TestOnlineStream_GetEpisodes(t *testing.T) {
 	}
 
 }
+
+func TestLanguageMatchID(t *testing.T) {
+	for _, c := range []struct {
+		provider, id string
+		dub          bool
+		want         string
+	}{
+		{"megaplay", "387:13", true, "387:13/dub"},
+		{"megaplay", "387:13/dub", false, "387:13"},
+		{"reanime", "387:13/dub", true, "387:13/dub"},
+		{"kickassanime", "some-slug", true, "some-slug"},
+	} {
+		if got := languageMatchID(c.provider, c.id, c.dub); got != c.want {
+			t.Errorf("%s %q dub=%v: got %q", c.provider, c.id, c.dub, got)
+		}
+	}
+}

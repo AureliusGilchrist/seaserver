@@ -71,3 +71,23 @@ func TestMegaPlaySign(t *testing.T) {
 		t.Errorf("a url without ids changed: %q", got)
 	}
 }
+
+func TestLastEpisodeOf(t *testing.T) {
+	for _, c := range []struct{ actual, known, want int }{
+		{13, 13, 13},    // the count is right
+		{15, 12, 15},    // a show still airing has more than the saved count
+		{10, 13, 10},    // the site has fewer
+		{1180, 0, 1180}, // no count
+		{1, 0, 1},
+		{1, 1, 1},
+	} {
+		calls := 0
+		got, err := lastEpisodeOf(func(n int) (bool, error) { calls++; return n <= c.actual, nil }, c.known, 3000)
+		if err != nil || got != c.want {
+			t.Errorf("actual %d known %d: got %d (%v)", c.actual, c.known, got, err)
+		}
+		if calls > 40 {
+			t.Errorf("actual %d known %d: %d probes", c.actual, c.known, calls)
+		}
+	}
+}

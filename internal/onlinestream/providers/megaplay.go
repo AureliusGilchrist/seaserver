@@ -216,40 +216,9 @@ func (p *MegaPlay) FindEpisodes(rawID string) ([]*hibikeonlinestream.EpisodeDeta
 		return nil, ErrSourceNotFound
 	}
 
-	last := 1
-	if id.episodes > 1 {
-		ok, err := p.hasEpisode(id.anilistID, id.episodes, lang)
-		if err != nil {
-			return nil, err
-		}
-		if ok {
-			last = id.episodes
-		} else {
-			last, err = p.lastEpisode(id.anilistID, lang, 1, id.episodes)
-			if err != nil {
-				return nil, err
-			}
-		}
-	} else if id.episodes == 0 {
-		// Unknown count: double until an episode is missing, then halve between.
-		lo, hi := 1, 2
-		for hi <= megaPlayMaxEpisodes {
-			ok, err := p.hasEpisode(id.anilistID, hi, lang)
-			if err != nil {
-				return nil, err
-			}
-			if !ok {
-				break
-			}
-			lo, hi = hi, hi*2
-		}
-		if hi > megaPlayMaxEpisodes {
-			hi = megaPlayMaxEpisodes + 1
-		}
-		last, err = p.lastEpisode(id.anilistID, lang, lo, hi)
-		if err != nil {
-			return nil, err
-		}
+	last, err := lastEpisodeOf(func(n int) (bool, error) { return p.hasEpisode(id.anilistID, n, lang) }, id.episodes, megaPlayMaxEpisodes)
+	if err != nil {
+		return nil, err
 	}
 
 	out := make([]*hibikeonlinestream.EpisodeDetails, 0, last)
@@ -264,21 +233,60 @@ func (p *MegaPlay) FindEpisodes(rawID string) ([]*hibikeonlinestream.EpisodeDeta
 	return out, nil
 }
 
-// lastEpisode is the last episode MegaPlay has, given that lo exists and hi does not.
-func (p *MegaPlay) lastEpisode(anilistID int, lang string, lo, hi int) (int, error) {
-	for hi-lo > 1 {
-		mid := (lo + hi) / 2
-		ok, err := p.hasEpisode(anilistID, mid, lang)
+// lastEpisodeOf finds the last episode a site has, given that episode 1 exists. known is the
+// count AniList gave (0 when unknown). Both ends of it are checked, and one past it, since a show
+// still airing outgrows the count a saved match carries; past it, or with no count at all, the
+// count doubles until an episode is missing and then halves between.
+func lastEpisodeOf(has func(n int) (bool, error), known int, max int) (int, error) {
+	bisect := func(lo, hi int) (int, error) {
+		for hi-lo > 1 {
+			mid := (lo + hi) / 2
+			ok, err := has(mid)
+			if err != nil {
+				return 0, err
+			}
+			if ok {
+				lo = mid
+			} else {
+				hi = mid
+			}
+		}
+		return lo, nil
+	}
+	lo := 1
+	if known > 1 {
+		ok, err := has(known)
 		if err != nil {
 			return 0, err
 		}
-		if ok {
-			lo = mid
-		} else {
-			hi = mid
+		if !ok {
+			return bisect(1, known)
 		}
+		lo = known
 	}
-	return lo, nil
+	if known == 1 {
+		return 1, nil
+	}
+	// Past the known end (or with none): double, then halve.
+	hi := lo + 1
+	if known <= 1 {
+		hi = 2
+	}
+	for hi <= max {
+		ok, err := has(hi)
+		if err != nil {
+			return 0, err
+		}
+		if !ok {
+			break
+		}
+		step := hi - lo
+		lo, hi = hi, hi+step*2
+	}
+	if hi > max+1 {
+		hi = max + 1
+	}
+	return bisect(lo, hi)
 }
 
 type megaPlaySources struct {

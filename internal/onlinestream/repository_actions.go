@@ -333,6 +333,7 @@ func (r *Repository) getProviderEpisodeList(provider string, media *anilist.Base
 		}
 		matchId = bestResult.ID
 	}
+	matchId = languageMatchID(provider, matchId, dubbed)
 
 	// Fetch episodes.
 	ret, err := providerExtension.GetProvider().FindEpisodes(matchId)
@@ -347,6 +348,22 @@ func (r *Repository) getProviderEpisodeList(provider string, media *anilist.Base
 	return ret, nil
 }
 
+// languageMatchID gives a saved match the language asked for, for the providers that keep sub
+// and dub under one ID with "/dub" on the end (MegaPlay, ReAnime). A match is saved once, from
+// whichever search found it, so without this a dub request would get the sub again.
+func languageMatchID(provider string, id string, dubbed bool) string {
+	switch provider {
+	case onlinestream_providers.MegaPlayProvider, onlinestream_providers.ReAnimeProvider:
+	default:
+		return id
+	}
+	base := strings.TrimSuffix(strings.TrimSuffix(id, "/dub"), "/sub")
+	if dubbed {
+		return base + "/dub"
+	}
+	return base
+}
+
 func providerSearchesMediaAliases(provider string) bool {
 	switch provider {
 	case onlinestream_providers.AniZoneProvider,
@@ -354,6 +371,8 @@ func providerSearchesMediaAliases(provider string) bool {
 		onlinestream_providers.AnimeHeavenProvider,
 		onlinestream_providers.AnimePaheProvider,
 		onlinestream_providers.AnimetsuProvider,
+		onlinestream_providers.MegaPlayProvider,
+		onlinestream_providers.ReAnimeProvider,
 		onlinestream_providers.KickAssAnimeProvider:
 		return true
 	default:
