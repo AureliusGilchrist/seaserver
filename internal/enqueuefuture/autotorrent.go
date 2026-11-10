@@ -814,8 +814,26 @@ func (r *Repository) TorrentOne(ctx context.Context, mediaID int) (*AutoPick, er
 		return nil, errors.New("the torrent search returned nothing")
 	}
 	p := picks[0]
+	autoMatch := true
 	if p.Torrent == nil {
-		return p, nil
+		// Nothing on SeaDex: the best guess on AnimeTosho, then every other installed torrent
+		// provider, sent without auto-match.
+		seadexReason := p.Reason
+		if p.Media == nil {
+			return p, nil
+		}
+		guess := r.pickBestGuess(ctx, p.Media, client)
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		if guess.Torrent == nil {
+			p.Reason = "SeaDex: " + seadexReason + "; " + guess.Reason
+			return p, nil
+		}
+		p = guess
+		autoMatch = false
+	} else if p.Source == "" {
+		p.Source = autoPickProvider
 	}
 
 	mark := hooks.MarkDownloading != nil
@@ -825,7 +843,7 @@ func (r *Repository) TorrentOne(ctx context.Context, mediaID int) (*AutoPick, er
 		MediaID:           mediaID,
 		Torrent:           *p.Torrent,
 		Media:             p.Media,
-		AutoMatch:         true,
+		AutoMatch:         autoMatch,
 		MarkedDownloading: mark,
 	})
 	a.saveLocked()
@@ -833,7 +851,8 @@ func (r *Repository) TorrentOne(ctx context.Context, mediaID int) (*AutoPick, er
 	if mark {
 		hooks.MarkDownloading(mediaID)
 	}
-	r.logger.Info().Int("mediaId", mediaID).Str("torrent", p.Torrent.Name).Msg("enqueuefuture: Torrent queued for the anime en masse downloader")
+	r.logger.Info().Int("mediaId", mediaID).Str("torrent", p.Torrent.Name).Str("source", p.Source).Bool("autoMatch", autoMatch).
+		Msg("enqueuefuture: Torrent queued for the anime en masse downloader")
 	a.kickAdder()
 	return p, nil
 }

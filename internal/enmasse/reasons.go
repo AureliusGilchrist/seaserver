@@ -41,6 +41,7 @@ const (
 	ReasonNoTitle           = "No title to search"
 	ReasonNotOnAnyProvider  = "Not on any provider"
 	ReasonTorrent           = "Torrent (SeaDex)"
+	ReasonTorrentTosho      = "Torrent (AnimeTosho guess)"
 	ReasonNoTorrent         = "No torrent"
 )
 

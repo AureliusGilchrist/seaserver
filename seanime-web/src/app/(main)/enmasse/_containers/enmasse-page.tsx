@@ -727,7 +727,9 @@ function sourceCells(e: AnimeEnMasseActivity): Record<string, { text: string, to
         cells[e.provider] = { text: e.episodes ? `${e.episodes} eps` : "Queued", tone: "ok", title: `Queued ${e.episodes ?? ""} episodes from ${providerName(e.provider)}` }
     }
     if (e.result === "torrent") {
-        cells["torrent"] = { text: "Sent", tone: "sent", title: e.detail }
+        // A best guess (not SeaDex) is not matched automatically: it waits in unmatched.
+        const guess = !!e.reason && e.reason !== "Torrent (SeaDex)"
+        cells["torrent"] = { text: guess ? "Guess" : "Sent", tone: "sent", title: `${e.reason ?? "Torrent"}: ${e.detail ?? ""}${guess ? " (not matched automatically)" : ""}` }
     }
     return cells
 }
@@ -1178,7 +1180,7 @@ function Totals({ status }: { status: EnMasseDownloaderStatus | undefined }) {
 }
 
 // Every reason the server can give, so each shows (with 0) before it has happened.
-const QUEUED_FROM = ["Kickassanime", "AniZone", "AnimeHeaven", "AnimeGG", "AnimePahe", "Torrent (SeaDex)"]
+const QUEUED_FROM = ["Kickassanime", "AniZone", "AnimeHeaven", "AnimeGG", "AnimePahe", "Torrent (SeaDex)", "Torrent (AnimeTosho guess)", "Torrent (Nyaa guess)"]
 const SKIP_REASONS = ["In library", "Already downloading", "Already lined up", "Not aired yet", "Adult", "No AniList entry", "Nothing to download"]
 const NOT_FOUND_REASONS = [
     "Video source null", "No episode list", "No episodes", "Episode count mismatch", "Episode list doesn't fit", "Couldn't queue",

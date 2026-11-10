@@ -100,6 +100,9 @@ type OnlineHooks struct {
 	// Enqueue Future auto torrent rules) and sends it to the torrent client, auto-matched. Returns
 	// the torrent's name, or why there was none.
 	TorrentFallback func(ctx context.Context, mediaId int) (name string, reason string, err error)
+	// TorrentSource, when set, says where the last TorrentFallback pick came from ("seadex" or
+	// "animetosho"), for the activity feed.
+	TorrentSource func(mediaId int) string
 	// HasTorrent reports whether an anime has a torrent still downloading.
 	HasTorrent func(mediaId int) bool
 	// TorrentStalled reports whether every unfinished torrent of an anime has been stalled for a
@@ -275,11 +278,14 @@ func (d *Downloader) recordOnlineResult(ctx context.Context, title string, err e
 		entry.Result = "queued"
 		entry.Reasons = lastMisses
 	case errors.Is(err, errTorrented):
-		entry.Reasons = lastMisses
 		entry.Result = "torrent"
 		entry.Detail = strings.TrimPrefix(err.Error(), "torrent: ")
 		entry.Reason = ReasonTorrent
 		entry.Provider = "torrent"
+		var th torrentHandoff
+		if errors.As(err, &th) && th.source != "" && th.source != "seadex" {
+			entry.Reason = torrentGuessReason(th.source)
+		}
 	case errors.Is(err, errOnlineSkipped):
 		entry.Result = "skipped"
 		entry.Detail = err.Error()
@@ -1275,7 +1281,7 @@ func (d *Downloader) readyPreviewLocked() []ReadyPreview {
 // empty.
 var errTorrented = errors.New("sent to the torrent client")
 
-type torrentHandoff struct{ name string }
+type torrentHandoff struct{ name, source string }
 
 func (e torrentHandoff) Error() string        { return "torrent: " + e.name }
 func (e torrentHandoff) Is(target error) bool { return target == errTorrented }
@@ -1313,14 +1319,20 @@ func (d *Downloader) torrentOrNotFound(ctx context.Context, hooks *OnlineHooks, 
 		}
 		misses = append(misses, ProviderReason{Provider: "torrent", Detail: "torrent: " + reason})
 	default:
-		d.logger.Info().Int("mediaId", resolved.ID).Str("torrent", name).Msg("enmasse-anime: No streaming provider has it; sent a torrent to the client")
+		source := "seadex"
+		if hooks.TorrentSource != nil {
+			if s := hooks.TorrentSource(resolved.ID); s != "" {
+				source = s
+			}
+		}
+		d.logger.Info().Int("mediaId", resolved.ID).Str("torrent", name).Str("source", source).Msg("enmasse-anime: No streaming provider has it; sent a torrent to the client")
 		if d.OnAnimeQueued != nil {
 			d.OnAnimeQueued(resolved.ID)
 		}
 		d.mu.Lock()
 		d.lastMisses = labelled(misses)
 		d.mu.Unlock()
-		return torrentHandoff{name}
+		return torrentHandoff{name: name, source: source}
 	}
 	return newNotFound(misses, torrentBacked, stalled)
 }
@@ -1335,4 +1347,15 @@ func labelled(misses []ProviderReason) []ProviderReason {
 		out = append(out, m)
 	}
 	return out
+}
+
+// torrentGuessReason labels a torrent that was a best guess on a provider other than SeaDex.
+func torrentGuessReason(source string) string {
+	switch source {
+	case "animetosho":
+		return ReasonTorrentTosho
+	case "nyaa":
+		return "Torrent (Nyaa guess)"
+	}
+	return "Torrent (" + source + " guess)"
 }

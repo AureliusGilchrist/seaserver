@@ -12,6 +12,7 @@ import (
 	onlinestream_download "seanime/internal/onlinestream/download"
 	"seanime/internal/util/filecache"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -123,7 +124,14 @@ func (h *Handler) wireEnMasseOnline(app *core.App) {
 			if pick.Torrent == nil {
 				return "", pick.Reason, nil
 			}
+			torrentSources.Store(mediaId, pick.Source)
 			return pick.Torrent.Name, "", nil
+		},
+		TorrentSource: func(mediaId int) string {
+			if v, ok := torrentSources.LoadAndDelete(mediaId); ok {
+				return v.(string)
+			}
+			return ""
 		},
 		WaitingEpisodes: m.WaitingEnMasseEpisodes,
 		WaitingSeries:   m.WaitingEnMasseSeries,
@@ -166,3 +174,6 @@ func (h *Handler) resumeEnMasseAfterRestart(app *core.App) {
 		}
 	}()
 }
+
+// torrentSources remembers, per anime, where the en masse torrent fallback's last pick came from.
+var torrentSources sync.Map

@@ -62,6 +62,8 @@ type AutoPick struct {
 	// its files already live in when there are any. Empty ExistingDir means "library root + title".
 	Media       *anilist.BaseAnime `json:"media,omitempty"`
 	ExistingDir string             `json:"existingDir,omitempty"`
+	// Source is where the pick came from: "seadex" (empty in older picks) or "animetosho".
+	Source string `json:"source,omitempty"`
 }
 
 var dualAudioPattern = regexp.MustCompile(`(?i)dual[\s._-]*audio`)
@@ -203,10 +205,11 @@ func (r *Repository) autoPickOne(ctx context.Context, mediaID int, client *http.
 		}
 	}()
 
-	item, err := r.GetItem(mediaID)
-	if err != nil || item == nil {
-		pick.Reason = "Not in the queue any more"
-		return pick
+	item, _ := r.GetItem(mediaID)
+	if item == nil {
+		// Not in the Enqueue Future queue (the anime en masse downloader asks about anything):
+		// looked up on its own below.
+		item = &Item{MediaID: mediaID}
 	}
 	pick.Title = item.Title
 	if reason := settledReason(item.DownloadState, item.Status); reason != "" {

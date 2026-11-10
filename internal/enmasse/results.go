@@ -122,7 +122,11 @@ func (s *resultStore) counts() ResultCounts {
 			from[providerLabel(e.Provider)]++
 		case "torrent":
 			c.Torrent++
-			from["Torrent (SeaDex)"]++
+			if e.Reason != "" {
+				from[e.Reason]++
+			} else {
+				from[ReasonTorrent]++
+			}
 		case "skipped":
 			c.Skipped++
 			skipped[reasonKey(e.Reason, "Skipped")]++
