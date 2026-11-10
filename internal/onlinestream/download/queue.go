@@ -121,14 +121,17 @@ type Item struct {
 	cancel context.CancelFunc
 	// stopping marks a cancel that comes from Stop: the item goes back to the queue and keeps its
 	// downloaded segments, instead of ending as cancelled.
-	stopping    bool
-	phaseBase   float64   // episode progress before the current stream (0, or 0.5 during the dub)
-	phaseWeight float64   // share of the episode progress the current stream covers
-	retryAt     time.Time // an automatic retry waits until then
-	bytesBase   int64     // bytes of the streams already done in this download (the Japanese one, during the dub)
-	rateAt      time.Time
-	rateBytes   int64
-	downloadAt  time.Time
+	stopping bool
+	// dropWhenDone takes the item out of the queue once its run ends (its series was removed
+	// while it was downloading).
+	dropWhenDone bool
+	phaseBase    float64   // episode progress before the current stream (0, or 0.5 during the dub)
+	phaseWeight  float64   // share of the episode progress the current stream covers
+	retryAt      time.Time // an automatic retry waits until then
+	bytesBase    int64     // bytes of the streams already done in this download (the Japanese one, during the dub)
+	rateAt       time.Time
+	rateBytes    int64
+	downloadAt   time.Time
 }
 
 // HistoryEntry is a finished download, kept for the Downloaded list.
@@ -189,6 +192,9 @@ type NewManagerOptions struct {
 	// title and spelling and saving the match). It returns ErrNotOnProvider when the provider
 	// does not have the anime.
 	MapProvider func(ctx context.Context, provider string, mediaId int) error
+	// SeriesFailing is told about an en masse series none of whose episodes download (several
+	// failed, none completed), once; it may take the series out and get it another way.
+	SeriesFailing func(mediaId int)
 	// LibraryFileOwner reports the anime and episode a file is matched to in the library, if any.
 	LibraryFileOwner func(path string) (mediaId int, episode int, found bool)
 }
@@ -214,6 +220,8 @@ type Manager struct {
 	// then turns to the other queue.
 	curQueue string
 	curMedia int
+	// failingReported are the series already handed to SeriesFailing.
+	failingReported map[int]bool
 
 	// processOverride, when set (tests), replaces the download of one episode.
 	// checkSourceOverride replaces checkSeriesSource (tests).
@@ -744,6 +752,21 @@ func (m *Manager) ClearAll() {
 }
 
 // ClearMedia drops the waiting and finished items of one anime.
+// RemoveSeries takes an anime out of the queue altogether: its waiting and finished episodes
+// go now, the one downloading is stopped and goes when it has.
+func (m *Manager) RemoveSeries(mediaId int) {
+	m.mu.Lock()
+	for _, it := range m.items {
+		if it.MediaId == mediaId && it.cancel != nil {
+			it.cancel()
+			it.Status = StatusCancelled
+			it.dropWhenDone = true
+		}
+	}
+	m.mu.Unlock()
+	m.clearWhere(func(it *Item) bool { return it.MediaId == mediaId && it.cancel == nil })
+}
+
 func (m *Manager) ClearMedia(mediaId int) {
 	m.clearWhere(func(it *Item) bool { return it.MediaId == mediaId && it.cancel == nil })
 }
@@ -1150,7 +1173,19 @@ func (m *Manager) run(it *Item) {
 	if it.Status == StatusCompleted || it.Status == StatusFailed {
 		finished = copyItem(it)
 	}
+	if it.dropWhenDone {
+		m.dropLocked(it)
+	}
+	failingSeries := 0
+	if it.Status == StatusFailed && normalizeQueue(it.Queue) == QueueEnMasse && m.opts.SeriesFailing != nil && m.seriesFailingLocked(it.MediaId) {
+		failingSeries = it.MediaId
+	}
 	m.mu.Unlock()
+	if failingSeries > 0 {
+		m.logger.Warn().Int("mediaId", failingSeries).Str("title", it.Title).
+			Msg("onlinestream download: Every episode of this en masse series fails so far; handing it to the torrent fallback")
+		go m.opts.SeriesFailing(failingSeries)
+	}
 	if !keepWork {
 		_ = os.RemoveAll(workDir)
 	}
@@ -1242,4 +1277,45 @@ func (m *Manager) SeriesState(mediaId int) (active int, failed int) {
 		}
 	}
 	return active, failed
+}
+
+// failingSeriesAfter is how many episodes of an en masse series must have failed (and none
+// completed) for the series to go to the torrent fallback instead.
+const failingSeriesAfter = 3
+
+// seriesFailingLocked reports, once per series, an en masse series whose episodes all fail.
+func (m *Manager) seriesFailingLocked(mediaId int) bool {
+	if m.failingReported == nil {
+		m.failingReported = map[int]bool{}
+	}
+	if m.failingReported[mediaId] {
+		return false
+	}
+	failed, completed := 0, 0
+	for _, x := range m.items {
+		if x.MediaId != mediaId {
+			continue
+		}
+		switch x.Status {
+		case StatusFailed:
+			failed++
+		case StatusCompleted:
+			completed++
+		}
+	}
+	if failed >= failingSeriesAfter && completed == 0 {
+		m.failingReported[mediaId] = true
+		return true
+	}
+	return false
+}
+
+func (m *Manager) dropLocked(it *Item) {
+	kept := m.items[:0]
+	for _, x := range m.items {
+		if x != it {
+			kept = append(kept, x)
+		}
+	}
+	m.items = kept
 }

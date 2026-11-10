@@ -744,10 +744,16 @@ function useResultPages(filter: string, search: string, total: number) {
     const [count, setCount] = useState(0)
     const loading = React.useRef(new Set<number>())
     const generation = React.useRef(0)
+    // The filter and search a request is for are read when it is made, never from an older
+    // render: a refresh triggered right after switching tabs once fetched the previous tab's
+    // pages into this one (All showing only the 18 of the tab before).
+    const query = React.useRef({ filter, search })
+    query.current = { filter, search }
 
     const load = React.useCallback(async (page: number, gen: number) => {
         if (loading.current.has(page)) return
         loading.current.add(page)
+        const { filter, search } = query.current
         try {
             const res = await buildSeaQuery<{ total: number, items: AnimeEnMasseActivity[] }>({
                 endpoint: "/api/v1/enmasse/results",
@@ -763,38 +769,36 @@ function useResultPages(filter: string, search: string, total: number) {
         finally {
             loading.current.delete(page)
         }
-    }, [filter, search])
+    }, [])
 
-    // A new filter or search: start over from the first page.
-    useEffect(() => {
-        generation.current++
-        loading.current.clear()
-        setPages(new Map())
-        const t = setTimeout(() => load(0, generation.current), search ? 300 : 0)
-        return () => clearTimeout(t)
-    }, [filter, search, load])
-
-    // A new result: the pages already shown are fetched again, kept on screen until they arrive.
+    // A new filter or search: start over from the first page (the count too).
+    const lastQuery = React.useRef<string | null>(null)
     const pagesRef = React.useRef(pages)
     pagesRef.current = pages
-    const firstTotal = React.useRef(true)
     useEffect(() => {
-        if (firstTotal.current) {
-            firstTotal.current = false
-            return
-        }
+        const key = `${filter}\u0000${search}`
         generation.current++
         loading.current.clear()
         const gen = generation.current
+        if (lastQuery.current !== key) {
+            // Another tab or search: everything goes, so nothing of the old list shows.
+            lastQuery.current = key
+            setPages(new Map())
+            setCount(0)
+            const t = setTimeout(() => load(0, gen), search ? 300 : 0)
+            return () => clearTimeout(t)
+        }
+        // The same list with a new result: the pages already shown are fetched again, kept on
+        // screen until they arrive.
         const shown = [...pagesRef.current.keys()]
         for (const p of shown.length ? shown : [0]) load(p, gen)
-    }, [total])
+    }, [filter, search, total, load])
 
     const ensure = React.useCallback((start: number, end: number) => {
         for (let p = Math.floor(start / RESULTS_PAGE); p <= Math.floor(end / RESULTS_PAGE); p++) {
-            if (!pages.has(p)) load(p, generation.current)
+            if (!pagesRef.current.has(p)) load(p, generation.current)
         }
-    }, [pages, load])
+    }, [load])
 
     const at = (i: number) => pages.get(Math.floor(i / RESULTS_PAGE))?.[i % RESULTS_PAGE]
     return { count, at, ensure, loaded: pages.has(0) }

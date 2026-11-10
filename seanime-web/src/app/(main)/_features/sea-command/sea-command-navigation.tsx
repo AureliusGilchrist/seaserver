@@ -156,23 +156,9 @@ export function SeaCommandNavigation() {
             show: !serverStatus?.isOffline,
         },
         {
-            name: "Auto Downloader",
-            href: "/auto-downloader",
-            flag: "auto-downloader",
-            // Downloads are admin-only (see main-sidebar).
-            show: !serverStatus?.isOffline && (!serverStatus?.profilesEnabled || !serverStatus?.profiles?.length || !!serverStatus?.currentProfile?.isAdmin),
-        },
-        {
             name: "Torrent list",
             href: "/torrent-list",
             flag: "torrent-list",
-            // Downloads are admin-only (see main-sidebar).
-            show: !serverStatus?.isOffline && (!serverStatus?.profilesEnabled || !serverStatus?.profiles?.length || !!serverStatus?.currentProfile?.isAdmin),
-        },
-        {
-            name: "Scan summaries",
-            href: "/scan-summaries",
-            flag: "scan-summaries",
             // Downloads are admin-only (see main-sidebar).
             show: !serverStatus?.isOffline && (!serverStatus?.profilesEnabled || !serverStatus?.profiles?.length || !!serverStatus?.currentProfile?.isAdmin),
         },

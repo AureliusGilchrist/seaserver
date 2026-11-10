@@ -25,6 +25,7 @@ import { ProgressBar } from "@/components/ui/progress-bar"
 import { formatNumber } from "@/lib/helpers/number"
 import { atom } from "jotai"
 import { useAtom } from "jotai/react"
+import { toast } from "sonner"
 import React from "react"
 import {
     LuArrowUpToLine,
@@ -43,6 +44,8 @@ import {
     LuCaptions,
     LuTriangleAlert,
     LuX,
+    LuListChecks,
+    LuMagnet,
 } from "react-icons/lu"
 import { MdClear } from "react-icons/md"
 import { Virtuoso, VirtuosoGrid } from "react-virtuoso"
@@ -160,6 +163,49 @@ export function AnimeDownloadQueue() {
     const [filter, setFilter] = React.useState<QueueFilter>("all")
     const [queueTab, setQueueTab] = React.useState<"personal" | "enmasse">("personal")
     const [expanded, setExpanded] = React.useState<Set<number>>(new Set())
+    // Select mode: tick series, then take them out of the queue (or get them as torrents).
+    const [selecting, setSelecting] = React.useState(false)
+    const [selected, setSelected] = React.useState<Set<number>>(new Set())
+    const toggleSelected = React.useCallback((id: number) => setSelected(prev => {
+        const next = new Set(prev)
+        if (next.has(id)) next.delete(id)
+        else next.add(id)
+        return next
+    }), [])
+    const endSelect = () => {
+        setSelecting(false)
+        setSelected(new Set())
+    }
+    const confirmRemove = useConfirmationDialog({
+        title: "Remove these series from the queue?",
+        description: "Their waiting and finished episodes leave the queue, and an episode downloading now is stopped. Episodes already in your library stay where they are.",
+        actionText: "Remove",
+        actionIntent: "alert",
+        onConfirm: () => {
+            act({ action: "remove-series", mediaIds: [...selected] }, { onSuccess: () => toast.success(`${selected.size} series removed from the queue`) })
+            endSelect()
+        },
+    })
+    const confirmTorrent = useConfirmationDialog({
+        title: "Get these as torrents instead?",
+        description: "They leave the online queue, and a torrent is picked for each (SeaDex first, the auto torrent rules) and sent to your torrent client. It lands in unmatched when it is moved and is matched into your library when it completes. A series no torrent passes the rules for is only removed.",
+        actionText: "Torrent instead",
+        actionIntent: "primary",
+        onConfirm: () => {
+            const ids = [...selected]
+            toast.info(`Looking for torrents for ${ids.length} series…`)
+            act({ action: "torrent-series", mediaIds: ids }, {
+                onSuccess: (res: any) => {
+                    const list = (res ?? []) as { mediaId: number, torrent?: string, reason?: string }[]
+                    const sent = list.filter(r => !!r.torrent).length
+                    const none = list.filter(r => !r.torrent)
+                    if (sent) toast.success(`${sent} sent to the torrent client`)
+                    for (const r of none) toast.warning(`${allSeries.find(s => s.mediaId === r.mediaId)?.title ?? r.mediaId}: no torrent (${r.reason || "none passed the rules"})`)
+                },
+            })
+            endSelect()
+        },
+    })
     // Clear all empties the whole queue, waiting episodes included: asked first.
     const confirmClearAll = useConfirmationDialog({
         title: "Clear the whole queue?",
@@ -221,6 +267,14 @@ export function AnimeDownloadQueue() {
                     >
                         Retry failed ({formatNumber(counts.failed)})
                     </Button>}
+                    {allSeries.length > 0 && <Button
+                        intent={selecting ? "white" : "gray-subtle"}
+                        size="sm"
+                        leftIcon={<LuListChecks />}
+                        onClick={() => selecting ? endSelect() : setSelecting(true)}
+                    >
+                        {selecting ? "Done" : "Select"}
+                    </Button>}
                     {(counts.completed + counts.failed + counts.cancelled) > 0 && <Button
                         intent="gray-subtle"
                         size="sm"
@@ -277,7 +331,23 @@ export function AnimeDownloadQueue() {
             </div>
 
             <ConfirmationDialog {...confirmClearAll} />
+            <ConfirmationDialog {...confirmRemove} />
+            <ConfirmationDialog {...confirmTorrent} />
             <Card className="p-4 space-y-3" data-anime-download-queue-card>
+                {selecting && <div className="flex items-center gap-2 flex-wrap rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2" data-anime-download-select-bar>
+                    <span className="text-sm font-medium">{selected.size} selected</span>
+                    <Button size="xs" intent="gray-link" onClick={() => setSelected(new Set(filtered.map(s => s.mediaId)))}>
+                        Select all {filtered.length}
+                    </Button>
+                    {selected.size > 0 && <Button size="xs" intent="gray-link" onClick={() => setSelected(new Set())}>None</Button>}
+                    <div className="flex-1" />
+                    <Button size="sm" intent="primary-subtle" leftIcon={<LuMagnet />} disabled={!selected.size || isPending} onClick={() => confirmTorrent.open()}>
+                        Torrent instead
+                    </Button>
+                    <Button size="sm" intent="alert-subtle" leftIcon={<LuX />} disabled={!selected.size || isPending} onClick={() => confirmRemove.open()}>
+                        Remove
+                    </Button>
+                </div>}
                 <div className="flex items-center gap-3 flex-wrap">
                     <div className="flex rounded-xl bg-white/[0.04] border border-white/[0.06] p-1" data-anime-download-queue-tabs>
                         {([
@@ -351,6 +421,9 @@ export function AnimeDownloadQueue() {
                             filter={filter}
                             open={expanded.has(s.mediaId)}
                             onToggle={() => toggle(s.mediaId)}
+                            selecting={selecting}
+                            selected={selected.has(s.mediaId)}
+                            onSelect={() => toggleSelected(s.mediaId)}
                         />}
                     />
                 )}
@@ -359,21 +432,34 @@ export function AnimeDownloadQueue() {
     )
 }
 
-const SeriesRow = React.memo(function SeriesRow({ series: s, rev, filter, open, onToggle }: {
+const SeriesRow = React.memo(function SeriesRow({ series: s, rev, filter, open, onToggle, selecting, selected, onSelect }: {
     series: OnlinestreamDownload_SeriesSummary
     rev: number | undefined
     filter: QueueFilter
     open: boolean
     onToggle: () => void
+    selecting?: boolean
+    selected?: boolean
+    onSelect?: () => void
 }) {
     const { mutate: act, isPending } = useOnlinestreamDownloadQueueAction()
     const retryable = s.failed + s.cancelled
 
     return (
         <div className="pt-3 pb-1">
-            <div className="flex items-center gap-3 rounded-lg bg-gray-900/70 border px-3 py-2">
+            <div className={cn("flex items-center gap-3 rounded-lg bg-gray-900/70 border px-3 py-2 transition-colors",
+                selecting && selected && "border-white/40 bg-white/[0.06]")}>
+                {selecting && <button
+                    type="button"
+                    onClick={onSelect}
+                    aria-pressed={selected}
+                    className={cn("size-5 rounded-md border flex items-center justify-center flex-none transition-colors",
+                        selected ? "bg-white border-white text-gray-950" : "border-white/30 hover:border-white/60")}
+                >
+                    {selected && <LuCheck className="text-sm" />}
+                </button>}
                 {!!s.image && <img src={s.image} alt="" loading="lazy" className="w-9 h-12 object-cover rounded flex-none" />}
-                <button type="button" className="flex-1 min-w-0 space-y-1 text-left" onClick={onToggle}>
+                <button type="button" className="flex-1 min-w-0 space-y-1 text-left" onClick={selecting ? onSelect : onToggle}>
                     <div className="flex items-center gap-2">
                         <span className="font-semibold line-clamp-1">{s.title}</span>
                         {s.running && <span className="size-2 rounded-full bg-[--green] animate-pulse flex-none" />}

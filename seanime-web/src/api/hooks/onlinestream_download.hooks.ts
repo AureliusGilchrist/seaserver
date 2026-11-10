@@ -131,6 +131,8 @@ function providerDisplayName(id: string) {
 export type OnlinestreamDownload_Action =
     | "start" | "stop" | "reset-errored" | "clear-finished" | "clear-all" | "clear-media"
     | "cancel" | "retry" | "remove" | "move-to-top" | "retry-media"
+    // mediaIds: take whole series out of the queue / and get each as a torrent instead
+    | "remove-series" | "torrent-series"
 
 /** An episode the library already has, with its file names. */
 export type OnlinestreamDownload_ExistingEpisode = {
@@ -280,7 +282,7 @@ export function useOnlinestreamDownloadSeries() {
 
 export function useOnlinestreamDownloadQueueAction() {
     const qc = useQueryClient()
-    return useServerMutation<boolean, OnlinestreamDownloadQueueAction_Variables & { action: OnlinestreamDownload_Action }>({
+    return useServerMutation<any, OnlinestreamDownloadQueueAction_Variables & { action: OnlinestreamDownload_Action, mediaIds?: number[] }>({
         endpoint: API_ENDPOINTS.ONLINESTREAM_DOWNLOAD.OnlinestreamDownloadQueueAction.endpoint,
         method: API_ENDPOINTS.ONLINESTREAM_DOWNLOAD.OnlinestreamDownloadQueueAction.methods[0],
         mutationKey: [API_ENDPOINTS.ONLINESTREAM_DOWNLOAD.OnlinestreamDownloadQueueAction.key],

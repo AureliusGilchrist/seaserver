@@ -123,8 +123,6 @@ export const LANDING_QUICK_LINKS: LandingQuickLink[] = [
     { id: "torrent-list", name: "Torrent list", description: "What is downloading, and what is seeding.", href: "/torrent-list" },
     { id: "debrid", name: "Debrid", description: "Browse and manage debrid downloads.", href: "/debrid" },
     { id: "enqueue-future", name: "Enqueue Future", description: "What the recommendations queued for you.", href: "/enqueue-future" },
-    { id: "auto-downloader", name: "Auto Downloader", description: "Rules and queues for automatic downloads.", href: "/auto-downloader" },
-    { id: "scan-summaries", name: "Scan Summaries", description: "Review recent library scans.", href: "/scan-summaries" },
     { id: "community", name: "Community", description: "Who else is here, and what they are watching.", href: "/community" },
     { id: "achievements", name: "Achievements", description: "Everything you have unlocked so far.", href: "/achievements" },
     { id: "milestones", name: "Milestones", description: "How far along your levels you are.", href: "/milestones" },

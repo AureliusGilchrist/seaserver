@@ -55,12 +55,11 @@ import { GiTrophyCup, GiPalette } from "react-icons/gi"
 import { FiLogIn, FiSearch } from "react-icons/fi"
 import { HiOutlineServerStack } from "react-icons/hi2"
 import { IoCloudOfflineOutline, IoCloudOutline, IoHomeOutline } from "react-icons/io5"
-import { LuBook, LuBookOpen, LuBell, LuCalendar, LuCirclePlay, LuClipboardCheck, LuCompass, LuDownload, LuFlag, LuFolderSearch, LuGlobe, LuGitFork, LuHardDriveDownload, LuLayers, LuLayoutDashboard, LuMonitorPlay, LuNewspaper, LuRefreshCw, LuRss, LuSettings, LuShieldCheck, LuTv, LuUserRound, LuUsers } from "react-icons/lu"
+import { LuBook, LuBookOpen, LuBell, LuCalendar, LuCirclePlay, LuClipboardCheck, LuCompass, LuDownload, LuFlag, LuFolderSearch, LuGlobe, LuGitFork, LuHardDriveDownload, LuLayers, LuLayoutDashboard, LuMonitorPlay, LuNewspaper, LuRefreshCw, LuSettings, LuShieldCheck, LuTv, LuUserRound, LuUsers } from "react-icons/lu"
 import { SiAnilist } from "react-icons/si"
 import { MdBackspace, MdOutlineConnectWithoutContact } from "react-icons/md"
 import { RiListCheck3 } from "react-icons/ri"
 import { SiQbittorrent, SiTransmission } from "react-icons/si"
-import { TbReportSearch } from "react-icons/tb"
 import { nakamaModalOpenAtom, useNakamaStatus } from "../nakama/nakama-manager"
 import { watchPartyModalOpenAtom, watchPartySessionAtom } from "../watch-party/watch-party.atoms"
 import { PluginSidebarTray, type TrayExtraItem } from "../plugin/tray/plugin-sidebar-tray"
@@ -267,26 +266,13 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
                 href: "/enmasse-manga",
                 isCurrent: pathname === "/enmasse-manga",
             },
-            ...(serverStatus?.settings?.library?.torrentProvider !== TORRENT_PROVIDER.NONE && !!serverStatus?.settings?.library?.libraryPath) ? [{
-                id: "auto-downloader",
-                iconType: LuRss,
-                name: "Auto Downloader",
-                href: "/auto-downloader",
-                isCurrent: pathname === "/auto-downloader",
-            }] : [],
+            // Auto Downloader and Scan summaries are no longer in the sidebar (the pages remain).
             ...(serverStatus?.debridSettings?.enabled && !!serverStatus?.debridSettings?.provider) ? [{
                 id: "debrid",
                 iconType: HiOutlineServerStack,
                 name: "Debrid",
                 href: "/debrid",
                 isCurrent: pathname === "/debrid",
-            }] : [],
-            ...(!!serverStatus?.settings?.library?.libraryPath) ? [{
-                id: "scan-summaries",
-                iconType: TbReportSearch,
-                name: "Scan summaries",
-                href: "/scan-summaries",
-                isCurrent: pathname === "/scan-summaries",
             }] : [],
         ]
 

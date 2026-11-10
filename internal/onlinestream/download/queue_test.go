@@ -1,6 +1,9 @@
 package onlinestream_download
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -169,5 +172,53 @@ func TestQueuesAlternateBySeries(t *testing.T) {
 func TestQueueMigratesToPersonal(t *testing.T) {
 	if normalizeQueue("") != QueuePersonal || normalizeQueue("bogus") != QueuePersonal || normalizeQueue(QueueEnMasse) != QueueEnMasse {
 		t.Fatal("queue names")
+	}
+}
+
+// TestRemoveSeries: a series leaves the queue altogether, the episode downloading included once
+// its run ends; other series stay.
+func TestRemoveSeries(t *testing.T) {
+	logger := zerolog.Nop()
+	m := NewManager(NewManagerOptions{Logger: &logger, WorkDir: t.TempDir(), LibraryPath: func() string { return "x" }, holdQueue: true})
+	started := make(chan struct{})
+	m.processOverride = func(ctx context.Context, it *Item, workDir string) (string, error) {
+		close(started)
+		<-ctx.Done()
+		return "", ctx.Err()
+	}
+	run := &Item{ID: "r", MediaId: 1, EpisodeNumber: 1, Status: StatusQueued}
+	waiting := &Item{ID: "w", MediaId: 1, EpisodeNumber: 2, Status: StatusQueued}
+	other := &Item{ID: "o", MediaId: 2, EpisodeNumber: 1, Status: StatusQueued}
+	m.items = []*Item{run, waiting, other}
+	done := make(chan struct{})
+	go func() { m.run(run); close(done) }()
+	<-started
+	m.RemoveSeries(1)
+	<-done
+	if len(m.items) != 1 || m.items[0] != other {
+		t.Fatalf("%d items left", len(m.items))
+	}
+}
+
+// TestFailingEnMasseSeriesIsReported: an en masse series whose episodes all fail is handed over
+// once, after a few failures; a personal one is not.
+func TestFailingEnMasseSeriesIsReported(t *testing.T) {
+	logger := zerolog.Nop()
+	reported := make(chan int, 4)
+	m := NewManager(NewManagerOptions{Logger: &logger, WorkDir: t.TempDir(), LibraryPath: func() string { return "x" }, holdQueue: true,
+		SeriesFailing: func(id int) { reported <- id }})
+	m.processOverride = func(ctx context.Context, it *Item, workDir string) (string, error) {
+		return "", finalError{errors.New("video source not found")}
+	}
+	for i := 1; i <= 4; i++ {
+		it := &Item{ID: fmt.Sprintf("e%d", i), MediaId: 7, EpisodeNumber: i, Status: StatusQueued, Queue: QueueEnMasse}
+		p := &Item{ID: fmt.Sprintf("p%d", i), MediaId: 8, EpisodeNumber: i, Status: StatusQueued, Queue: QueuePersonal}
+		m.items = append(m.items, it, p)
+		m.run(it)
+		m.run(p)
+	}
+	time.Sleep(50 * time.Millisecond)
+	if len(reported) != 1 || <-reported != 7 {
+		t.Fatalf("reported %d times", len(reported)+1)
 	}
 }

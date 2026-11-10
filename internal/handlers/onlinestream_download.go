@@ -74,8 +74,15 @@ func (h *Handler) wireOnlinestreamDownloader(app *core.App) {
 		Register:         h.registerOnlinestreamDownload,
 		LibraryFileOwner: h.onlinestreamLibraryFileOwner,
 		MapProvider:      h.mapOnlineProvider,
-		EpisodeFiles:     h.onlinestreamEpisodeFiles,
-		ReplaceOld:       h.replaceOldEpisodeFiles,
+		SeriesFailing: func(mediaId int) {
+			res := h.torrentInsteadOfOnline(context.Background(), h.App.OnlinestreamDownloader, []int{mediaId})
+			for _, r := range res {
+				h.App.Logger.Info().Int("mediaId", r.MediaId).Str("torrent", r.Torrent).Str("reason", r.Reason).
+					Msg("onlinestream download: Failing en masse series handed to the torrent fallback")
+			}
+		},
+		EpisodeFiles: h.onlinestreamEpisodeFiles,
+		ReplaceOld:   h.replaceOldEpisodeFiles,
 	})
 }
 
@@ -583,9 +590,10 @@ func (h *Handler) HandleOnlinestreamDownloadSeries(c echo.Context) error {
 //	@returns bool
 func (h *Handler) HandleOnlinestreamDownloadQueueAction(c echo.Context) error {
 	type body struct {
-		Action  string `json:"action"`
-		ID      string `json:"id,omitempty"`
-		MediaId int    `json:"mediaId,omitempty"`
+		Action   string `json:"action"`
+		ID       string `json:"id,omitempty"`
+		MediaId  int    `json:"mediaId,omitempty"`
+		MediaIds []int  `json:"mediaIds,omitempty"`
 	}
 	var b body
 	if err := c.Bind(&b); err != nil {
@@ -619,8 +627,55 @@ func (h *Handler) HandleOnlinestreamDownloadQueueAction(c echo.Context) error {
 		ok = m.Remove(b.ID)
 	case "move-to-top":
 		ok = m.MoveToTop(b.ID)
+	case "remove-series":
+		for _, id := range b.MediaIds {
+			m.RemoveSeries(id)
+		}
+	case "torrent-series":
+		// Out of the queue, and a torrent instead (SeaDex first, the auto torrent rules).
+		return h.RespondWithData(c, h.torrentInsteadOfOnline(c.Request().Context(), m, b.MediaIds))
 	default:
 		return h.RespondWithError(c, errors.New("unknown action"))
 	}
 	return h.RespondWithData(c, ok)
+}
+
+// TorrentInsteadResult is what became of one anime taken out of the online queue for a torrent.
+type TorrentInsteadResult struct {
+	MediaId int    `json:"mediaId"`
+	Torrent string `json:"torrent,omitempty"`
+	// Reason says why there is no torrent, when there is none.
+	Reason string `json:"reason,omitempty"`
+}
+
+// torrentInsteadOfOnline takes anime out of the online download queue and gets each as a torrent
+// instead: picked the way Enqueue Future's auto torrent does (SeaDex first), sent to the client
+// auto-matched, so it lands in unmatched and is matched into the library when it completes.
+func (h *Handler) torrentInsteadOfOnline(ctx context.Context, m *onlinestream_download.Manager, mediaIds []int) []TorrentInsteadResult {
+	out := make([]TorrentInsteadResult, 0, len(mediaIds))
+	for _, id := range mediaIds {
+		if m != nil {
+			m.RemoveSeries(id)
+		}
+		r := TorrentInsteadResult{MediaId: id}
+		if h.App.EnqueueFutureRepository == nil {
+			r.Reason = "the torrent fallback is not available"
+			out = append(out, r)
+			continue
+		}
+		pick, err := h.App.EnqueueFutureRepository.TorrentOne(ctx, id)
+		switch {
+		case err != nil:
+			r.Reason = err.Error()
+		case pick.Torrent == nil:
+			r.Reason = pick.Reason
+			if r.Reason == "" {
+				r.Reason = "no torrent passed the rules"
+			}
+		default:
+			r.Torrent = pick.Torrent.Name
+		}
+		out = append(out, r)
+	}
+	return out
 }

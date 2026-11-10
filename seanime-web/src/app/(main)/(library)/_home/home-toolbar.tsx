@@ -28,7 +28,7 @@ import { IoHome, IoLibraryOutline, IoLibrarySharp } from "react-icons/io5"
 import { LuSearch } from "react-icons/lu"
 import { LuArrowLeftRight, LuFolderSearch, LuFolderSync, LuFolderTree } from "react-icons/lu"
 import { MdOutlineConnectWithoutContact } from "react-icons/md"
-import { TbFileSad, TbReportSearch } from "react-icons/tb"
+import { TbFileSad } from "react-icons/tb"
 import { PluginAnimeLibraryDropdownItems } from "../../_features/plugin/actions/plugin-actions"
 
 export type HomeToolbarProps = {
@@ -244,16 +244,6 @@ export function HomeToolbar(props: HomeToolbarProps) {
                             <TbFileSad />
                             <span>Ignored files</span>
                         </DropdownMenuItem>
-
-                        <SeaLink href="/scan-summaries">
-                            <DropdownMenuItem
-                                data-home-toolbar-scan-summaries-button
-                                // className={cn({ "!text-[--muted]": !hasEntries })}
-                            >
-                                <TbReportSearch />
-                                <span>Scan summaries</span>
-                            </DropdownMenuItem>
-                        </SeaLink>
 
                         {/*{!(isStreamingOnly || isNakamaLibrary) && <PlayRandomEpisodeButton />}*/}
 
