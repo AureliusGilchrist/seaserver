@@ -15,13 +15,15 @@
  * dev runs never change the version).
  *
  * Version scheme  X.Y.Z-N
- *   N         the test iteration of the change being worked on (-1, -2, -3 …, unbounded)
+ *   N         the test iteration of the change being worked on (-1, -2, … -15)
  *   --bump / --bump-test   X.Y.Z-N  → X.Y.Z-(N+1)       every test build of an update
+ *                          X.Y.Z-15 → X.Y.(Z+1)-0       past 15 the test number carries too
  *   --release-patch        X.Y.Z-N  → X.Y.(Z+1)-0       a regular update confirmed working
  *   --release-minor        X.Y.Z-N  → X.(Y+1).0-0       a huge update confirmed working
  *   Carry: any of X, Y, Z that goes past 15 resets to 0 and adds 1 to the number before it
  *          (5.0.15 + patch → 5.1.0-0, 5.15.15 + patch → 6.0.0-0, 5.15.3 + minor → 6.0.0-0).
- *   The -N suffix is never carried.
+ *   The -N suffix carries the same way: past 15 it resets to 0 and adds 1 to Z
+ *          (5.0.6-15 + test → 5.0.7-0, 5.0.15-15 + test → 5.1.0-0).
  */
 
 import { readFileSync, writeFileSync, existsSync } from "fs"
@@ -63,6 +65,10 @@ export function bumpVersion(version, kind) {
     const v = parseVersion(version)
     switch (kind) {
         case "test":
+            // Past 15 the test number carries into the patch, like every other part.
+            if (v.test + 1 > CARRY_LIMIT) {
+                return formatVersion(carry({ ...v, patch: v.patch + 1, test: 0 }))
+            }
             return formatVersion({ ...v, test: v.test + 1 })
         case "patch":
             return formatVersion(carry({ ...v, patch: v.patch + 1, test: 0 }))

@@ -10,12 +10,13 @@ Scheme: `X.Y.Z-N`
 
 | When | Command | Effect |
 |---|---|---|
-| Every code change / test build of an update | `node sync-versions.js --bump-test` | `X.Y.Z-N` → `X.Y.Z-(N+1)` |
+| Every code change / test build of an update | `node sync-versions.js --bump-test` | `X.Y.Z-N` → `X.Y.Z-(N+1)`; past `-15` → `X.Y.(Z+1)-0` |
 | The user confirms a regular update works | `node sync-versions.js --release-patch` | → `X.Y.(Z+1)-0` |
 | The user confirms a huge update works | `node sync-versions.js --release-minor` | → `X.(Y+1).0-0` |
 
-- Carry: any of X, Y, Z that goes past **15** resets to 0 and adds 1 to the number before it
-  (`5.0.15` + patch → `5.1.0-0`; `5.15.15` + patch → `6.0.0-0`). The `-N` test suffix never carries.
+- Carry: any of X, Y, Z and the `-N` test suffix that goes past **15** resets to 0 and adds 1 to the
+  number before it (`5.0.6-15` + test → `5.0.7-0`; `5.0.15` + patch → `5.1.0-0`; `5.15.15` + patch →
+  `6.0.0-0`).
 - Commit the version bump together with the change it belongs to.
 - The build scripts (`build-all.sh`, `build-all-desktop.ps1`) already call `--bump` (same as
   `--bump-test`) on every build.

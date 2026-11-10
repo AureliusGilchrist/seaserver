@@ -4,7 +4,11 @@ import { bumpVersion } from "../sync-versions.js"
 
 const cases = [
     ["5.0.6-1", "test", "5.0.6-2"],
-    ["5.0.6-15", "test", "5.0.6-16"], // the test suffix never carries
+    ["5.0.6-14", "test", "5.0.6-15"],
+    ["5.0.6-15", "test", "5.0.7-0"], // past 15 the test number carries into the patch
+    ["5.0.15-15", "test", "5.1.0-0"], // and on up
+    ["5.15.15-15", "test", "6.0.0-0"],
+    ["6.6.0-25", "test", "6.6.1-0"], // already past 15 (from before the rule)
     ["5.0.6-3", "patch", "5.0.7-0"],
     ["5.0.6-3", "minor", "5.1.0-0"],
     ["5.0.15-2", "patch", "5.1.0-0"],
