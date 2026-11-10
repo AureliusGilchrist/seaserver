@@ -1180,7 +1180,7 @@ function Totals({ status }: { status: EnMasseDownloaderStatus | undefined }) {
 }
 
 // Every reason the server can give, so each shows (with 0) before it has happened.
-const QUEUED_FROM = ["Kickassanime", "AniZone", "AnimeHeaven", "AnimeGG", "AnimePahe", "Torrent (SeaDex)", "Torrent (AnimeTosho guess)", "Torrent (Nyaa guess)", "Torrent (NekoBT guess)",
+const QUEUED_FROM = ["Kickassanime", "AniZone", "AnimeHeaven", "AnimeGG", "AnimePahe", "Torrent (SeaDex)", "Torrent (AnimeTosho guess)", "Torrent (Nyaa guess)", "Torrent (NekoBT guess)", "Torrent (AniRena guess)",
     "Torrent (Tokyo Toshokan guess)", "Torrent (ACG.RIP guess)", "Torrent (Shana Project guess)", "Torrent (SubsPlease guess)"]
 const SKIP_REASONS = ["In library", "Already downloading", "Already lined up", "Not aired yet", "Adult", "No AniList entry", "Nothing to download"]
 const NOT_FOUND_REASONS = [

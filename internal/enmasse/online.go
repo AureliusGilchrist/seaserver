@@ -1360,6 +1360,7 @@ func torrentGuessReason(source string) string {
 		"animetosho":                   "AnimeTosho",
 		"seanime-builtin-nyaa":         "Nyaa",
 		"seanime-builtin-nekobt":       "NekoBT",
+		"seanime-builtin-anirena":      "AniRena",
 		"Tokyo-Toshokan-Provider":      "Tokyo Toshokan",
 		"acg-rip-provider":             "ACG.RIP",
 		"seanime-builtin-shanaproject": "Shana Project",

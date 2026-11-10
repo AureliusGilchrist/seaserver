@@ -175,6 +175,7 @@ var bestGuessOrder = []string{
 	toshoProvider,
 	"seanime-builtin-nyaa",
 	"seanime-builtin-nekobt",
+	"seanime-builtin-anirena",
 	"Tokyo-Toshokan-Provider",
 	"acg-rip-provider",
 	"seanime-builtin-shanaproject",
@@ -248,6 +249,8 @@ func providerDisplayName(id string) string {
 		return "Nyaa"
 	case "seanime-builtin-nekobt":
 		return "NekoBT"
+	case "seanime-builtin-anirena":
+		return "AniRena"
 	case "Tokyo-Toshokan-Provider":
 		return "Tokyo Toshokan"
 	case "acg-rip-provider":

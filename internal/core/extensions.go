@@ -79,6 +79,18 @@ func LoadExtensions(extensionRepository *extension_repo.Repository, logger *zero
 	}, torrent_providers.NewNekoBT())
 
 	extensionRepository.ReloadBuiltInExtension(extension.Extension{
+		ID:          torrent_providers.AniRenaProviderID,
+		Name:        "AniRena",
+		Version:     "1.0.0",
+		ManifestURI: "builtin",
+		Language:    extension.LanguageGo,
+		Type:        extension.TypeAnimeTorrentProvider,
+		Author:      "Deus Ex Aeternae",
+		Description: "Anime torrent provider for anirena.com",
+		Lang:        "multi",
+	}, torrent_providers.NewAniRena())
+
+	extensionRepository.ReloadBuiltInExtension(extension.Extension{
 		ID:          torrent_providers.ShanaProjectProviderID,
 		Name:        "Shana Project",
 		Version:     "1.0.0",
