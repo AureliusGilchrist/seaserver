@@ -57,7 +57,11 @@ func (h *Handler) wireOnlinestreamDownloader(app *core.App) {
 			if media.Format != nil {
 				format = string(*media.Format)
 			}
-			return app.UnmatchedRepository.LibraryDestination(media.ID, title, episode, format, media.GetStartYearSafe(), ".mkv")
+			episodes := 0
+			if media.Episodes != nil {
+				episodes = *media.Episodes
+			}
+			return app.UnmatchedRepository.LibraryDestination(media.ID, title, episode, episodes, format, media.GetStartYearSafe(), ".mkv")
 		},
 		FfmpegPath: func() string {
 			if ms := app.SecondarySettings.Mediastream; ms != nil && ms.FfmpegPath != "" {

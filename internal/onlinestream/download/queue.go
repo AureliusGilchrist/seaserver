@@ -368,6 +368,18 @@ type finalError struct{ error }
 
 func (e finalError) Unwrap() error { return e.error }
 
+// destinationTakenError is a final failure because the episode's file names belong to other
+// library entries. An en masse series that hits it is torrented instead, whatever already
+// downloaded: no further episode could be placed either.
+type destinationTakenError struct{ finalError }
+
+func (e destinationTakenError) Unwrap() error { return e.finalError }
+
+func isDestinationTaken(err error) bool {
+	var d destinationTakenError
+	return errors.As(err, &d)
+}
+
 func isFinal(err error) bool {
 	var f finalError
 	return errors.As(err, &f)
@@ -1177,8 +1189,18 @@ func (m *Manager) run(it *Item) {
 		m.dropLocked(it)
 	}
 	failingSeries := 0
-	if it.Status == StatusFailed && normalizeQueue(it.Queue) == QueueEnMasse && m.opts.SeriesFailing != nil && m.seriesFailingLocked(it.MediaId) {
-		failingSeries = it.MediaId
+	if it.Status == StatusFailed && normalizeQueue(it.Queue) == QueueEnMasse && m.opts.SeriesFailing != nil {
+		if isDestinationTaken(err) {
+			if m.failingReported == nil {
+				m.failingReported = map[int]bool{}
+			}
+			if !m.failingReported[it.MediaId] {
+				m.failingReported[it.MediaId] = true
+				failingSeries = it.MediaId
+			}
+		} else if m.seriesFailingLocked(it.MediaId) {
+			failingSeries = it.MediaId
+		}
 	}
 	m.mu.Unlock()
 	if failingSeries > 0 {

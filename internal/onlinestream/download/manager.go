@@ -74,20 +74,48 @@ func (m *Manager) process(ctx context.Context, it *Item, workDir string) (string
 		}
 	}
 
-	if _, err := os.Stat(dest); err == nil {
-		// A file is already there. It blocks the download only while the library has it: matched
-		// to this episode it is a duplicate, matched to something else it is not ours to replace.
-		// A file nothing points at any more (left behind by unmatching) is replaced.
-		if m.opts.LibraryFileOwner != nil {
-			if ownerMedia, ownerEp, found := m.opts.LibraryFileOwner(dest); found {
-				if ownerMedia == req.MediaId && ownerEp == req.EpisodeNumber && !req.Overwrite {
-					return "", finalError{fmt.Errorf("episode %d is already in your library (%s)", req.EpisodeNumber, filepath.Base(dest))}
-				}
-				if ownerMedia != req.MediaId || ownerEp != req.EpisodeNumber {
-					return "", finalError{fmt.Errorf("%s is in your library matched to another anime or episode; unmatch or move it first", filepath.Base(dest))}
-				}
-			}
+	// A file is already there. It blocks the download only while the library has it: matched to
+	// this episode it is a duplicate. Matched to something else it is not ours to replace, so the
+	// episode goes under its plain name ("Title - Episode 002.mkv") instead; only when that is
+	// taken too does it give up, and an en masse series is then torrented instead. A file nothing
+	// points at any more (left behind by unmatching) is replaced.
+	takenByOther := func(p string) (bool, error) {
+		if _, err := os.Stat(p); err != nil || m.opts.LibraryFileOwner == nil {
+			return false, nil
 		}
+		ownerMedia, ownerEp, found := m.opts.LibraryFileOwner(p)
+		if !found {
+			return false, nil
+		}
+		if ownerMedia == req.MediaId && ownerEp == req.EpisodeNumber {
+			if !req.Overwrite {
+				return false, finalError{fmt.Errorf("episode %d is already in your library (%s)", req.EpisodeNumber, filepath.Base(p))}
+			}
+			return false, nil
+		}
+		return true, nil
+	}
+	taken, err := takenByOther(dest)
+	if err != nil {
+		return "", err
+	}
+	if taken {
+		title := sanitizeFileName(media.GetRomajiTitleSafe())
+		if title == "" {
+			title = "Anime " + strconv.Itoa(req.MediaId)
+		}
+		alt := filepath.Join(folder, fmt.Sprintf("%s - Episode %03d.mkv", title, req.EpisodeNumber))
+		altTaken, altErr := takenByOther(alt)
+		if altErr != nil {
+			return "", altErr
+		}
+		if altTaken || samePath(alt, dest) {
+			return "", destinationTakenError{finalError{fmt.Errorf("%s is in your library matched to another anime or episode; unmatch or move it first", filepath.Base(dest))}}
+		}
+		m.logger.Info().Str("taken", dest).Str("path", alt).Msg("onlinestream download: The usual name belongs to another episode; using the plain episode name")
+		dest = alt
+	}
+	if _, err := os.Stat(dest); err == nil {
 		m.logger.Info().Str("path", dest).Msg("onlinestream download: Replacing a file the library no longer uses")
 	}
 
