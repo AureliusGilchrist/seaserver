@@ -87,3 +87,29 @@ func TestReleaseResolution(t *testing.T) {
 		}
 	}
 }
+
+func TestReleaseScore(t *testing.T) {
+	kino := []string{"Kino no Tabi: The Beautiful World", "Kino's Journey"}
+	if s, other := releaseScore("[kmplx] Kino's Journey: The Beautiful World (2003) | (DVD 576p Hi10p Opus) [Dual-Audio] | Kino no Tabi: The Beautiful World", kino, 2003); other || s < toshoMinTitleScore {
+		t.Errorf("the 2003 series: %.2f, other year %v", s, other)
+	}
+	if _, other := releaseScore("[Drag] Kino no Tabi (2017) (BD 1080p x265 10-bit FLAC) [Dual Audio]", kino, 2003); !other {
+		t.Error("the 2017 remake was not rejected by its year")
+	}
+	if s, _ := releaseScore("[Cleo] Kino no Tabi: The Beautiful World - The Animated Series | Kino's Journey: The Beautiful World - The Animated Series [Dual Audio]", kino, 2003); s >= toshoMinTitleScore {
+		t.Errorf("the remake (no year) scored %.2f", s)
+	}
+	kenshin := []string{"Rurouni Kenshin: Meiji Kenkaku Romantan", "Rurouni Kenshin", "Samurai X"}
+	if s, _ := releaseScore("[hchcsen] Rurouni Kenshin Season 1-3 v2 (DVD 576p x264 Hi10P Opus) [Dual Audio] | Rurouni Kenshin: Meiji Kenkaku Romantan", kenshin, 1996); s < toshoMinTitleScore {
+		t.Errorf("the two-title name scored %.2f", s)
+	}
+	if s, _ := releaseScore("[Mr.Deadpool] Initial D (First Stage) BD 720p x265 Dual Audio", []string{"Initial D First Stage"}, 1998); s < toshoMinTitleScore {
+		t.Errorf("the title in parentheses scored %.2f", s)
+	}
+}
+
+func TestBloatedRelease(t *testing.T) {
+	if !bloatedRelease(566, 13, true) || bloatedRelease(26, 13, true) || bloatedRelease(15, 13, true) {
+		t.Error("bloated release")
+	}
+}

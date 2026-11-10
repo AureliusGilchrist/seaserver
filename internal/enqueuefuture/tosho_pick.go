@@ -30,7 +30,8 @@ const toshoMinTitleScore = 0.78
 
 var (
 	toshoBracketRe    = regexp.MustCompile(`\[[^\]]*\]|\([^)]*\)|\{[^}]*\}`)
-	toshoNoiseRe      = regexp.MustCompile(`(?i)\b(1080p|720p|480p|2160p|4k|bd|bdrip|blu-?ray|web(-?dl|rip)?|hevc|avc|x26[45]|h\.?26[45]|aac(2\.0)?|flac|opus|ac3|e-?ac-?3|ddp?\d?(\.\d)?|10-?bit|8-?bit|hi10p?|dual[\s._-]*audio|multi[\s._-]*subs?|eng(lish)?[\s._-]*(subs?|dub)?|subbed|dubbed|batch|complete|uncensored|remux|repack|v\d|mkv|mp4)\b`)
+	toshoNoiseRe      = regexp.MustCompile(`(?i)\b(1080p|720p|480p|2160p|4k|bd|bdrip|blu-?ray|web(-?dl|rip)?|hevc|avc|x26[45]|h\.?26[45]|aac(2\.0)?|flac|opus|ac3|e-?ac-?3|ddp?\d?(\.\d)?|10-?bit|8-?bit|hi10p?|dual[\s._-]*audio|multi[\s._-]*subs?|eng(lish)?[\s._-]*(subs?|dub)?|subbed|dubbed|batch|complete|uncensored|remux|repack|v\d|mkv|mp4|480i|576i|1080i|ntsc|pal|dvd(rip|9|5)?|mpeg-?2|r[12]j?)\b`)
+	sequelWordRe      = regexp.MustCompile(`\b(the animated series|animated series|remake|reboot|kai|brotherhood|shipp?uu?den|stampede|zoku shou|zoku|crisis|reloaded|next generation)\b`)
 	toshoRangeRe      = regexp.MustCompile(`(?i)\b(s\d{1,2}(e\d{1,4})?|season\s*\d+|e?\d{1,4}\s*[-~]\s*e?\d{1,4}|eps?\s*\d+|episodes?\s*\d+)\b`)
 	toshoSpaceRe      = regexp.MustCompile(`\s+`)
 	toshoSceneGroupRe = regexp.MustCompile(`-[A-Za-z0-9]+(\.(mkv|mp4|avi))?$`)
@@ -75,8 +76,9 @@ func titleScore(cleaned string, titles []string) float64 {
 			continue
 		}
 		score := levenshteinRatio(cleaned, n)
-		// "slam dunk" inside "slam dunk the complete series" is still the right series.
-		if strings.HasPrefix(cleaned, n+" ") || cleaned == n {
+		// "slam dunk" inside "slam dunk the complete series" is still the right series; "kino no tabi
+		// the beautiful world the animated series" (the 2017 remake) is not the 2003 one.
+		if cleaned == n || (strings.HasPrefix(cleaned, n+" ") && !otherEntryRe.MatchString(strings.TrimPrefix(cleaned, n+" "))) {
 			score = maxFloat(score, 0.95)
 		}
 		if score > best {
@@ -164,8 +166,25 @@ func episodesFit(files, episodes int, isShow bool) bool {
 	return files >= episodes-slack
 }
 
-// bestGuessProviders is the order the best guess tries the torrent providers in: AnimeTosho
-// first, then every other installed one (SeaDex is the curated step before it, not a guess).
+// bestGuessOrder is the order the best guess tries the providers it knows, best indexed first.
+// Any other installed provider comes after them. SeaDex is the curated step before the guess;
+// Sukebei is an adult tracker and never searched.
+var bestGuessOrder = []string{
+	toshoProvider,
+	"seanime-builtin-nyaa",
+	"seanime-builtin-nekobt",
+	"Tokyo-Toshokan-Provider",
+	"acg-rip-provider",
+	"seanime-builtin-shanaproject",
+	"SubsPlease-Provider",
+}
+
+func neverGuessOn(id string) bool {
+	l := strings.ToLower(id)
+	return id == "" || id == torrent.ProviderNone || id == autoPickProvider || strings.Contains(l, "sukebei")
+}
+
+// bestGuessProviders is the order the best guess tries the installed torrent providers in.
 func (r *Repository) bestGuessProviders() []string {
 	r.mu.Lock()
 	repo := r.torrentRepository
@@ -173,20 +192,25 @@ func (r *Repository) bestGuessProviders() []string {
 	if repo == nil {
 		return nil
 	}
-	ids := repo.GetAllAnimeProviderExtensionIds()
-	sort.Strings(ids)
+	installed := map[string]bool{}
+	for _, id := range repo.GetAllAnimeProviderExtensionIds() {
+		installed[id] = true
+	}
 	out := []string{}
-	for _, id := range ids {
-		if id == toshoProvider {
-			out = append([]string{id}, out...)
-		}
-	}
-	for _, id := range ids {
-		if id != toshoProvider && id != autoPickProvider && id != "" && id != torrent.ProviderNone {
+	for _, id := range bestGuessOrder {
+		if installed[id] {
 			out = append(out, id)
+			delete(installed, id)
 		}
 	}
-	return out
+	var rest []string
+	for id := range installed {
+		if !neverGuessOn(id) {
+			rest = append(rest, id)
+		}
+	}
+	sort.Strings(rest)
+	return append(out, rest...)
 }
 
 // pickBestGuess tries the best guess on each provider in turn (bestGuessProviders) and returns
@@ -217,8 +241,18 @@ func providerDisplayName(id string) string {
 	switch id {
 	case "animetosho":
 		return "AnimeTosho"
-	case "nyaa":
+	case "seanime-builtin-nyaa", "nyaa":
 		return "Nyaa"
+	case "seanime-builtin-nekobt":
+		return "NekoBT"
+	case "Tokyo-Toshokan-Provider":
+		return "Tokyo Toshokan"
+	case "acg-rip-provider":
+		return "ACG.RIP"
+	case "seanime-builtin-shanaproject":
+		return "Shana Project"
+	case "SubsPlease-Provider":
+		return "SubsPlease"
 	case "seadex":
 		return "SeaDex"
 	}
@@ -291,11 +325,12 @@ func (r *Repository) pickOnProvider(ctx context.Context, media *anilist.BaseAnim
 	titles := mediaTitles(media)
 
 	type candidate struct {
-		t     *hibiketorrent.AnimeTorrent
-		files int
-		dual  bool
-		score float64
-		res   int
+		t       *hibiketorrent.AnimeTorrent
+		files   int
+		dual    bool
+		score   float64
+		res     int
+		bloated bool
 	}
 	var candidates []candidate
 	wrongTitle, tooFew, unseeded := 0, 0, 0
@@ -307,8 +342,8 @@ func (r *Repository) pickOnProvider(ctx context.Context, media *anilist.BaseAnim
 			unseeded++
 			continue
 		}
-		score := titleScore(cleanReleaseTitle(t.Name), titles)
-		if score < toshoMinTitleScore {
+		score, otherYear := releaseScore(t.Name, titles, media.GetStartYearSafe())
+		if score < toshoMinTitleScore || otherYear {
 			wrongTitle++
 			continue
 		}
@@ -322,7 +357,8 @@ func (r *Repository) pickOnProvider(ctx context.Context, media *anilist.BaseAnim
 			tooFew++
 			continue
 		}
-		candidates = append(candidates, candidate{t: t, files: files, dual: englishDualAudio(t.Name), score: score, res: releaseResolution(t.Name)})
+		candidates = append(candidates, candidate{t: t, files: files, dual: englishDualAudio(t.Name), score: score, res: releaseResolution(t.Name),
+			bloated: bloatedRelease(files, episodes, isShow)})
 	}
 	if len(candidates) == 0 {
 		pick.Reason = fmt.Sprintf("no release fits (%d with another title, %d with too few episodes, %d unseeded)", wrongTitle, tooFew, unseeded)
@@ -331,7 +367,7 @@ func (r *Repository) pickOnProvider(ctx context.Context, media *anilist.BaseAnim
 
 	sort.SliceStable(candidates, rankGuesses(len(candidates), func(i int) guessRank {
 		c := candidates[i]
-		return guessRank{dual: c.dual, seeders: c.t.Seeders, score: c.score, res: c.res, files: c.files}
+		return guessRank{dual: c.dual, seeders: c.t.Seeders, score: c.score, res: c.res, files: c.files, bloated: c.bloated}
 	}))
 	best := candidates[0]
 	pick.Torrent = best.t
@@ -344,6 +380,7 @@ func (r *Repository) pickOnProvider(ctx context.Context, media *anilist.BaseAnim
 // guessRank is what the best guess ranks fitting releases by.
 type guessRank struct {
 	dual    bool // Japanese + English audio
+	bloated bool // far more files than episodes (scans, extras, a whole franchise)
 	seeders int
 	score   float64
 	res     int
@@ -360,6 +397,9 @@ func rankGuesses(_ int, at func(i int) guessRank) func(i, j int) bool {
 		a, b := at(i), at(j)
 		if a.dual != b.dual {
 			return a.dual
+		}
+		if a.bloated != b.bloated {
+			return !a.bloated
 		}
 		if aw, bw := a.seeders >= wellSeeded, b.seeders >= wellSeeded; aw != bw {
 			return aw
@@ -442,4 +482,95 @@ func namedPartial(name string, episodes int) bool {
 		}
 	}
 	return maxEnd > 0 && maxEnd < episodes-slack
+}
+
+var (
+	// otherEntryRe marks words after a title that name a different entry of the franchise.
+	otherEntryRe = regexp.MustCompile(`(?i)\b(season|s\d+|\d+(st|nd|rd|th)|ii+|iv|kai|shipp?uu?den|brotherhood|movies?|films?|gekijou?ban|ova|oad|zero|stampede|animated series|remake|reboot|next generation|new|final|sequel|special|specials|[2-9])\b`)
+	yearRe       = regexp.MustCompile(`(?:^|[^0-9])((?:19|20)\d{2})(?:[^0-9]|$)`)
+	squareRe     = regexp.MustCompile(`\[[^\]]*\]|\{[^}]*\}`)
+	parenYearRe  = regexp.MustCompile(`\(\s*(?:19|20)\d{2}\s*\)`)
+)
+
+// releaseScore is how close a release name is to the anime, and whether it names another year
+// (another adaptation: Kino no Tabi (2017) is not the 2003 series).
+//
+// The name is scored twice, without any brackets and keeping what is in parentheses ("Initial D
+// (First Stage)"), and the better counts. When the release names the anime's own year, the short
+// title before a colon counts too ("Kino no Tabi (2003)" for "Kino no Tabi: The Beautiful World").
+func releaseScore(name string, titles []string, year int) (float64, bool) {
+	releaseYear := 0
+	for _, m := range yearRe.FindAllStringSubmatch(squareRe.ReplaceAllString(name, " "), -1) {
+		var y int
+		fmt.Sscan(m[1], &y)
+		releaseYear = y
+		break
+	}
+	if releaseYear == 0 {
+		for _, m := range yearRe.FindAllStringSubmatch(name, -1) {
+			var y int
+			fmt.Sscan(m[1], &y)
+			releaseYear = y
+			break
+		}
+	}
+	if year > 0 && releaseYear > 0 && (releaseYear-year > 1 || year-releaseYear > 1) {
+		return 0, true
+	}
+
+	// Words naming another entry of the franchise anywhere in the name ("- The Animated Series",
+	// "Kai", "Stampede") that none of the anime's own titles has: another series.
+	if m := sequelWordRe.FindString(normalizeForMatch(squareRe.ReplaceAllString(name, " "))); m != "" {
+		inTitles := false
+		for _, t := range titles {
+			if strings.Contains(normalizeForMatch(t), m) {
+				inTitles = true
+				break
+			}
+		}
+		if !inTitles {
+			return 0, false
+		}
+	}
+
+	score := 0.0
+	// A name can give the title more than once ("Rurouni Kenshin Season 1-3 | Rurouni Kenshin:
+	// Meiji Kenkaku Romantan"): each part is scored on its own.
+	for _, part := range strings.Split(name, " | ") {
+		if s := titleScore(cleanReleaseTitle(part), titles); s > score {
+			score = s
+		}
+		// Keeping the parentheses (but not a year in them).
+		kept := parenYearRe.ReplaceAllString(part, " ")
+		kept = strings.NewReplacer("(", " ", ")", " ").Replace(squareRe.ReplaceAllString(kept, " "))
+		if s := titleScore(cleanReleaseTitle(kept), titles); s > score {
+			score = s
+		}
+	}
+	if year > 0 && releaseYear == year {
+		var short []string
+		for _, t := range titles {
+			if i := strings.Index(t, ":"); i > 3 {
+				short = append(short, t[:i])
+			}
+		}
+		if s := titleScore(cleanReleaseTitle(name), short); s > score {
+			score = s
+		}
+	}
+	return score, false
+}
+
+// bloatedRelease reports a release with far more files than the anime has episodes: scans and
+// extras by the hundred, or a whole franchise. It still fits, but ranks below a release that is
+// the series.
+func bloatedRelease(files, episodes int, isShow bool) bool {
+	if !isShow || episodes <= 0 {
+		return false
+	}
+	limit := episodes * 2
+	if episodes+15 > limit {
+		limit = episodes + 15
+	}
+	return files > limit
 }

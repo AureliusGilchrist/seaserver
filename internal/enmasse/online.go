@@ -1351,11 +1351,17 @@ func labelled(misses []ProviderReason) []ProviderReason {
 
 // torrentGuessReason labels a torrent that was a best guess on a provider other than SeaDex.
 func torrentGuessReason(source string) string {
-	switch source {
-	case "animetosho":
-		return ReasonTorrentTosho
-	case "nyaa":
-		return "Torrent (Nyaa guess)"
+	names := map[string]string{
+		"animetosho":                   "AnimeTosho",
+		"seanime-builtin-nyaa":         "Nyaa",
+		"seanime-builtin-nekobt":       "NekoBT",
+		"Tokyo-Toshokan-Provider":      "Tokyo Toshokan",
+		"acg-rip-provider":             "ACG.RIP",
+		"seanime-builtin-shanaproject": "Shana Project",
+		"SubsPlease-Provider":          "SubsPlease",
+	}
+	if n, ok := names[source]; ok {
+		return "Torrent (" + n + " guess)"
 	}
 	return "Torrent (" + source + " guess)"
 }
