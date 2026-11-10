@@ -224,6 +224,8 @@ func providerLabel(id string) string {
 		return "Kickassanime"
 	case "anizone":
 		return "AniZone"
+	case "megaplay":
+		return "MegaPlay"
 	case "animeheaven":
 		return "AnimeHeaven"
 	case "animegg":

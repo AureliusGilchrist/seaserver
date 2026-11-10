@@ -14,6 +14,7 @@ import { LuCloudDownload, LuSparkles } from "react-icons/lu"
 const SOURCES = [
     { id: "auto", label: "Best available" },
     { id: "kickassanime", label: "Kickassanime" },
+    { id: "megaplay", label: "MegaPlay" },
     { id: "anizone", label: "AniZone" },
     { id: "animeheaven", label: "AnimeHeaven" },
     { id: "animegg", label: "AnimeGG" },

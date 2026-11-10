@@ -73,6 +73,7 @@ function providerName(p?: string) {
     if (p === "animeheaven") return "AnimeHeaven"
     if (p === "animepahe") return "AnimePahe"
     if (p === "anizone") return "AniZone"
+    if (p === "megaplay") return "MegaPlay"
     if (p === "animegg") return "AnimeGG"
     if (p === "kickassanime") return "Kickassanime"
     return p || ""
@@ -664,6 +665,7 @@ const resultStyle: Record<AnimeEnMasseActivity["result"], { label: string, class
 /** The columns: every source, in the order they are tried. */
 const SOURCE_COLUMNS = [
     { id: "kickassanime", label: "Kickass" },
+    { id: "megaplay", label: "MegaPlay" },
     { id: "anizone", label: "AniZone" },
     { id: "animeheaven", label: "Heaven" },
     { id: "animegg", label: "AnimeGG" },
@@ -1180,7 +1182,7 @@ function Totals({ status }: { status: EnMasseDownloaderStatus | undefined }) {
 }
 
 // Every reason the server can give, so each shows (with 0) before it has happened.
-const QUEUED_FROM = ["Kickassanime", "AniZone", "AnimeHeaven", "AnimeGG", "AnimePahe", "Torrent (SeaDex)", "Torrent (AnimeTosho guess)", "Torrent (Nyaa guess)", "Torrent (NekoBT guess)", "Torrent (AniRena guess)",
+const QUEUED_FROM = ["Kickassanime", "MegaPlay", "AniZone", "AnimeHeaven", "AnimeGG", "AnimePahe", "Torrent (SeaDex)", "Torrent (AnimeTosho guess)", "Torrent (Nyaa guess)", "Torrent (NekoBT guess)", "Torrent (AniRena guess)",
     "Torrent (Tokyo Toshokan guess)", "Torrent (ACG.RIP guess)", "Torrent (Shana Project guess)", "Torrent (SubsPlease guess)"]
 const SKIP_REASONS = ["In library", "Already downloading", "Already lined up", "Not aired yet", "Adult", "No AniList entry", "Nothing to download"]
 const NOT_FOUND_REASONS = [

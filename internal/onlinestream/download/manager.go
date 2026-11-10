@@ -409,7 +409,7 @@ const maxMirrorTries = 4
 
 // FallbackProviders are where an episode is downloaded from, in order, when its own provider
 // has no source for it.
-var FallbackProviders = []string{"kickassanime", "anizone", "animeheaven", "animegg", "animepahe"}
+var FallbackProviders = []string{"kickassanime", "megaplay", "anizone", "animeheaven", "animegg", "animepahe"}
 
 // ProviderLabel is a provider's display name.
 func ProviderLabel(id string) string {
@@ -418,6 +418,8 @@ func ProviderLabel(id string) string {
 		return "Kickassanime"
 	case "anizone":
 		return "AniZone"
+	case "megaplay":
+		return "MegaPlay"
 	case "animepahe":
 		return "AnimePahe"
 	case "animeheaven":

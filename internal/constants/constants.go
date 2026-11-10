@@ -10,13 +10,13 @@ import (
 // at startup via SetVersionsFromJSON. Defaults below are used as fallback if the
 // manifest is missing or malformed.
 var (
-	Version             = "6.6.2-7"
+	Version             = "6.6.2-8"
 	VersionName         = "Karasu"
 	SeanimeRoomsVersion = "5.0.0-0"
 	// FrontendVersion is the seanime-web version this server build was made to serve.
 	// The web client compares it against the version baked into its own bundle and
 	// shows an out-of-date banner when they differ.
-	FrontendVersion = "6.6.2-7"
+	FrontendVersion = "6.6.2-8"
 )
 
 const (
