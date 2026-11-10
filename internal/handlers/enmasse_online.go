@@ -7,6 +7,7 @@ import (
 	"seanime/internal/connectivity"
 	"seanime/internal/core"
 	"seanime/internal/enmasse"
+	"seanime/internal/enqueuefuture"
 	"seanime/internal/extension"
 	hibikeonlinestream "seanime/internal/extension/hibike/onlinestream"
 	onlinestream_download "seanime/internal/onlinestream/download"
@@ -113,11 +114,11 @@ func (h *Handler) wireEnMasseOnline(app *core.App) {
 			return len(h.libraryEpisodeFiles(mediaId)) > 0
 		},
 		InDownloadQueue: m.HasActive,
-		TorrentFallback: func(ctx context.Context, mediaId int) (string, string, error) {
+		TorrentFallback: func(ctx context.Context, mediaId int, progress func(string)) (string, string, error) {
 			if app.EnqueueFutureRepository == nil {
 				return "", "", errors.New("the torrent fallback is not available")
 			}
-			pick, err := app.EnqueueFutureRepository.TorrentOne(ctx, mediaId)
+			pick, err := app.EnqueueFutureRepository.TorrentOne(enqueuefuture.WithProgress(ctx, progress), mediaId)
 			if err != nil {
 				return "", "", err
 			}

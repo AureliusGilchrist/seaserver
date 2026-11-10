@@ -806,21 +806,33 @@ func (r *Repository) TorrentOne(ctx context.Context, mediaID int) (*AutoPick, er
 	if hooks.ContentsClient != nil {
 		client = hooks.ContentsClient()
 	}
+	reportProgress(ctx, "no streaming provider has it: looking for a torrent on SeaDex")
 	picks := a.pick(ctx, []int{mediaID}, client)
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
-	if len(picks) == 0 || picks[0] == nil {
-		return nil, errors.New("the torrent search returned nothing")
+	var p *AutoPick
+	if len(picks) > 0 && picks[0] != nil {
+		p = picks[0]
+	} else {
+		p = &AutoPick{MediaID: mediaID, Reason: "the SeaDex search returned nothing"}
 	}
-	p := picks[0]
 	autoMatch := true
 	if p.Torrent == nil {
 		// Nothing on SeaDex: the best guess on AnimeTosho, then every other installed torrent
-		// provider, sent without auto-match.
+		// provider, sent without auto-match. Whatever stopped SeaDex (it could not load the
+		// anime, it returned nothing) does not stop them: the anime is loaded again for them.
 		seadexReason := p.Reason
 		if p.Media == nil {
-			return p, nil
+			entry, why := r.lightEntry(ctx, mediaID)
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+			if entry == nil || entry.Media == nil {
+				p.Reason = "SeaDex: " + seadexReason + "; the other torrent providers: " + why
+				return p, nil
+			}
+			p.Media = entry.Media
 		}
 		guess := r.pickBestGuess(ctx, p.Media, client)
 		if ctx.Err() != nil {

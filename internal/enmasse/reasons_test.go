@@ -122,7 +122,7 @@ func TestTorrentFallback(t *testing.T) {
 		Search: func(string, hibikeonlinestream.SearchOptions) ([]*hibikeonlinestream.SearchResult, error) {
 			return nil, nil
 		},
-		TorrentFallback: func(ctx context.Context, mediaId int) (string, string, error) {
+		TorrentFallback: func(ctx context.Context, mediaId int, _ func(string)) (string, string, error) {
 			calls++
 			return torrentName, torrentReason, nil
 		},

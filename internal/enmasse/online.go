@@ -99,7 +99,7 @@ type OnlineHooks struct {
 	// TorrentFallback picks a torrent for a series no streaming provider has (SeaDex first, the
 	// Enqueue Future auto torrent rules) and sends it to the torrent client, auto-matched. Returns
 	// the torrent's name, or why there was none.
-	TorrentFallback func(ctx context.Context, mediaId int) (name string, reason string, err error)
+	TorrentFallback func(ctx context.Context, mediaId int, progress func(step string)) (name string, reason string, err error)
 	// TorrentSource, when set, says where the last TorrentFallback pick came from ("seadex" or
 	// "animetosho"), for the activity feed.
 	TorrentSource func(mediaId int) string
@@ -1304,12 +1304,17 @@ func (d *Downloader) torrentOrNotFound(ctx context.Context, hooks *OnlineHooks, 
 	if err := d.paceRequest(ctx); err != nil {
 		return err
 	}
-	name, reason, err := hooks.TorrentFallback(ctx, resolved.ID)
+	progress := func(step string) {
+		d.updateDetails(func(details *AnimeDownloaderDetails) { details.Step = step })
+	}
+	name, reason, err := hooks.TorrentFallback(ctx, resolved.ID, progress)
 	switch {
 	case ctx.Err() != nil:
 		return ctx.Err()
 	case err != nil:
-		if connectivity.IsNetworkError(err) {
+		// Only a dropped connection sends the series back to be tried again (streaming sites
+		// first); a torrent site that timed out is just that site's miss.
+		if connectivity.IsNetworkError(err) && connectivity.IsOffline() {
 			return err
 		}
 		misses = append(misses, ProviderReason{Provider: "torrent", Detail: "torrent: " + err.Error()})

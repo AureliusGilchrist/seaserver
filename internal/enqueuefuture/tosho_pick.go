@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"unicode"
 
 	"seanime/internal/api/anilist"
@@ -222,6 +224,7 @@ func (r *Repository) pickBestGuess(ctx context.Context, media *anilist.BaseAnime
 		if ctx.Err() != nil {
 			break
 		}
+		reportProgress(ctx, "no streaming provider or SeaDex release: looking for a torrent on "+providerDisplayName(provider))
 		p := r.pickOnProvider(ctx, media, client, provider)
 		if p.Torrent != nil {
 			return p
@@ -295,7 +298,7 @@ func (r *Repository) pickOnProvider(ctx context.Context, media *anilist.BaseAnim
 	if !isShow {
 		params.Batch = false
 	}
-	if err := r.autoPickPacer.wait(ctx); err != nil {
+	if err := r.searchPacer().wait(ctx); err != nil {
 		pick.Reason = "Search was stopped"
 		return pick
 	}
@@ -333,6 +336,16 @@ func (r *Repository) pickOnProvider(ctx context.Context, media *anilist.BaseAnim
 	seen := map[string]bool{}
 	wrongTitle, tooFew, unseeded := 0, 0, 0
 	consider := func(torrents []*hibiketorrent.AnimeTorrent) {
+		// Counting a release's files downloads its .torrent, so only the best-seeded few of a
+		// search are counted: a search can bring back seventy releases of the right title.
+		torrents = slices.Clone(torrents)
+		sort.SliceStable(torrents, func(i, j int) bool {
+			if torrents[i] == nil || torrents[j] == nil {
+				return torrents[j] == nil && torrents[i] != nil
+			}
+			return torrents[i].Seeders > torrents[j].Seeders
+		})
+		counted := 0
 		for _, t := range torrents {
 			if t == nil {
 				continue
@@ -355,6 +368,10 @@ func (r *Repository) pickOnProvider(ctx context.Context, media *anilist.BaseAnim
 				otherTitles = append(otherTitles, t.Name)
 				continue
 			}
+			if counted >= maxCountedPerSearch {
+				continue
+			}
+			counted++
 			files := contentsFiles(t, client)
 			if !isShow && files < 1 {
 				files = 1
@@ -388,7 +405,7 @@ func (r *Repository) pickOnProvider(ctx context.Context, media *anilist.BaseAnim
 		for _, w := range excludeWords(otherTitles, titles) {
 			query += " -" + w
 		}
-		if r.autoPickPacer.wait(ctx) != nil {
+		if r.searchPacer().wait(ctx) != nil {
 			break
 		}
 		retry, err := repo.SearchAnime(ctx, torrent.AnimeSearchOptions{
@@ -711,3 +728,37 @@ func hasWellSeededDual(n int, at func(i int) (dual bool, seeders int)) bool {
 	}
 	return false
 }
+
+// torrentSearchesPerMinute paces the best guess's searches of torrent sites. They are not AniList
+// lookups, so they do not wait on that budget (a few a minute, which made a best guess across
+// seven providers take ten minutes); the built-in providers also keep their own per-site limits.
+const torrentSearchesPerMinute = 30
+
+var (
+	searchPacerOnce    sync.Once
+	torrentSearchPacer *pacer
+)
+
+func (r *Repository) searchPacer() *pacer {
+	searchPacerOnce.Do(func() { torrentSearchPacer = newPacer(torrentSearchesPerMinute, 6) })
+	return torrentSearchPacer
+}
+
+type progressKey struct{}
+
+// WithProgress has a torrent search tell fn which step it is on ("looking for a torrent on Nyaa").
+func WithProgress(ctx context.Context, fn func(step string)) context.Context {
+	if fn == nil {
+		return ctx
+	}
+	return context.WithValue(ctx, progressKey{}, fn)
+}
+
+func reportProgress(ctx context.Context, step string) {
+	if fn, ok := ctx.Value(progressKey{}).(func(string)); ok && fn != nil {
+		fn(step)
+	}
+}
+
+// maxCountedPerSearch is how many releases of one search have their files counted.
+const maxCountedPerSearch = 15
