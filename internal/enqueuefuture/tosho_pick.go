@@ -373,26 +373,33 @@ func (r *Repository) pickOnProvider(ctx context.Context, media *anilist.BaseAnim
 		consider(data.Torrents)
 	}
 
-	// Nothing fits: the drawer's search asks for a "batch" (most complete releases never say so),
-	// and a newer show of the same name can bury the old one ("Trigun" brings back Trigun Stampede
-	// and Trigun Stargaze). Search once more for the bare title, leaving out the words that set
-	// those other titles apart.
-	if len(candidates) == 0 && ctx.Err() == nil {
-		query := strings.TrimSpace(strings.ToLower(media.GetRomajiTitleSafe()))
+	// Until a well-seeded English dual-audio release fits, search again under every form of the
+	// title: the drawer's search asks for a "batch" (most complete releases never say so), a
+	// release may go by the English, romaji or short title, and a newer show of the same name can
+	// bury the old one ("Trigun" brings back Trigun Stampede and Trigun Stargaze), so the words
+	// that set those apart are left out.
+	for _, base := range retryQueries(media) {
+		if ctx.Err() != nil || hasWellSeededDual(len(candidates), func(i int) (bool, int) {
+			return candidates[i].dual, candidates[i].t.Seeders
+		}) {
+			break
+		}
+		query := base
 		for _, w := range excludeWords(otherTitles, titles) {
 			query += " -" + w
 		}
-		if query != "" && r.autoPickPacer.wait(ctx) == nil {
-			retry, err := repo.SearchAnime(ctx, torrent.AnimeSearchOptions{
-				Provider: params.Provider,
-				Type:     torrent.AnimeSearchTypeSimple,
-				Media:    media,
-				Query:    query,
-			})
-			if err == nil && retry != nil {
-				consider(retry.Torrents)
-				pick.SearchedFor += ", then \"" + query + "\""
-			}
+		if r.autoPickPacer.wait(ctx) != nil {
+			break
+		}
+		retry, err := repo.SearchAnime(ctx, torrent.AnimeSearchOptions{
+			Provider: params.Provider,
+			Type:     torrent.AnimeSearchTypeSimple,
+			Media:    media,
+			Query:    query,
+		})
+		if err == nil && retry != nil {
+			consider(retry.Torrents)
+			pick.SearchedFor += ", then \"" + query + "\""
 		}
 	}
 
@@ -619,6 +626,14 @@ func bloatedRelease(files, episodes int, isShow bool) bool {
 // the anime's own title in the names that were rejected ("stampede" in "Trigun Stampede (01-12)").
 // The most frequent come first, at most three, so a retry can leave them out of the search.
 func excludeWords(otherNames []string, titles []string) []string {
+	// A word of the anime's own titles never goes ("meiji" from the 2023 Rurouni Kenshin remake
+	// would also leave out every release of the 1996 series that spells out its full title).
+	own := map[string]bool{}
+	for _, t := range titles {
+		for _, w := range strings.Fields(normalizeForMatch(t)) {
+			own[w] = true
+		}
+	}
 	counts := map[string]int{}
 	for _, name := range otherNames {
 		cleaned := cleanReleaseTitle(name)
@@ -628,7 +643,7 @@ func excludeWords(otherNames []string, titles []string) []string {
 				continue
 			}
 			w := strings.Fields(strings.TrimPrefix(cleaned, n+" "))[0]
-			if len([]rune(w)) >= 3 && !excludeStopWords[w] && strings.IndexFunc(w, unicode.IsDigit) < 0 {
+			if len([]rune(w)) >= 3 && !own[w] && !excludeStopWords[w] && strings.IndexFunc(w, unicode.IsDigit) < 0 {
 				counts[w]++
 			}
 			break
@@ -655,4 +670,44 @@ var excludeStopWords = map[string]bool{
 	"the": true, "and": true, "batch": true, "complete": true, "series": true, "season": true,
 	"dual": true, "audio": true, "movie": true, "movies": true, "tv": true, "bd": true, "dvd": true,
 	"collection": true, "remastered": true, "uncut": true, "english": true, "dub": true, "dubbed": true,
+}
+
+// retryQueries are the title forms a best guess searches again under, most specific first and
+// without repeats: romaji, English, then each one's short form before a colon ("Rurouni Kenshin"
+// for "Rurouni Kenshin: Meiji Kenkaku Romantan"). At most four, to stay polite to the provider.
+func retryQueries(media *anilist.BaseAnime) []string {
+	var out []string
+	seen := map[string]bool{}
+	add := func(s string) {
+		q := strings.Join(strings.Fields(strings.ToLower(s)), " ")
+		key := normalizeForMatch(q)
+		if len([]rune(key)) < 2 || seen[key] || len(out) >= 4 {
+			return
+		}
+		seen[key] = true
+		out = append(out, q)
+	}
+	romaji, english := media.GetRomajiTitleSafe(), ""
+	if media.Title != nil && media.Title.English != nil {
+		english = *media.Title.English
+	}
+	add(romaji)
+	add(english)
+	for _, t := range []string{romaji, english} {
+		if i := strings.Index(t, ":"); i > 3 {
+			add(t[:i])
+		}
+	}
+	return out
+}
+
+// hasWellSeededDual reports whether any fitting release already has English dual audio and enough
+// seeders, the best a further search could find.
+func hasWellSeededDual(n int, at func(i int) (dual bool, seeders int)) bool {
+	for i := 0; i < n; i++ {
+		if dual, seeders := at(i); dual && seeders >= wellSeeded {
+			return true
+		}
+	}
+	return false
 }

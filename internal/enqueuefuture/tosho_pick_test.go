@@ -1,6 +1,11 @@
 package enqueuefuture
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	"seanime/internal/api/anilist"
+)
 
 func TestCleanReleaseTitle(t *testing.T) {
 	for name, want := range map[string]string{
@@ -124,6 +129,23 @@ func TestExcludeWords(t *testing.T) {
 		"[Anime Time] Reincarnated As A Sword - S02E03 [1080p]",
 	}, titles)
 	if len(got) != 2 || got[0] != "stampede" || got[1] != "stargaze" {
+		t.Fatalf("got %v", got)
+	}
+}
+
+func TestRetryQueries(t *testing.T) {
+	romaji, english := "Rurouni Kenshin: Meiji Kenkaku Romantan", "Rurouni Kenshin"
+	m := &anilist.BaseAnime{Title: &anilist.BaseAnime_Title{Romaji: &romaji, English: &english}}
+	got := retryQueries(m)
+	want := []string{"rurouni kenshin: meiji kenkaku romantan", "rurouni kenshin"}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestExcludeWordsKeepsOwnTitle(t *testing.T) {
+	titles := []string{"Rurouni Kenshin: Meiji Kenkaku Romantan", "Rurouni Kenshin"}
+	if got := excludeWords([]string{"[SubsPlease] Rurouni Kenshin - Meiji Kenkaku Romantan (2023) - 01 (1080p)"}, titles); len(got) != 0 {
 		t.Fatalf("got %v", got)
 	}
 }
