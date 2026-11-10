@@ -45,3 +45,45 @@ func TestEpisodesFit(t *testing.T) {
 		}
 	}
 }
+
+func TestEnglishDualAudio(t *testing.T) {
+	for name, want := range map[string]bool{
+		"Slam Dunk [AV1 1080p][Dual Audio Jap-Esp][MultiSubs ENG-SPA-VOSTFR] (Batch)":        false,
+		"Slam Dunk 1080P HEVC 10 BIT Dual Audio BDRIP Bluury":                                true,
+		"[Cleo] Texhnolyze [Dual Audio DVD480p][HEVC-x265]":                                  true,
+		"[a4e] Texhnolyze dual audio[english,japanese]":                                      true,
+		"[Erai-raws] Slam Dunk - 001 ~ 101 [1080p][BATCH][Multiple Subtitle]":                false,
+		"Mobile Suit Z Gundam (BDRip 1492x1080p x265 HEVC FLACx2 2.0x2)(Dual Audio)[sxales]": true,
+	} {
+		if got := englishDualAudio(name); got != want {
+			t.Errorf("%q: got %v, want %v", name, got, want)
+		}
+	}
+}
+
+func TestNamedPartial(t *testing.T) {
+	for name, want := range map[string]bool{
+		"[Obscurerips] Slam Dunk Episode 1-20 (DVDrip) [Dual Audio (Geneon dub)]": true,
+		"[Erai-raws] Slam Dunk - 001 ~ 101 [1080p][BATCH]":                        false,
+		"[eldon] Slam Dunk Seasons 1-4 (CR WEB-DL 1080p x264 AAC)":                false,
+		"[BBT-RMX] Slam Dunk [BDRip 1440x1080 x264 Hi10P FLAC]":                   false,
+		"Corrector Yui (1999) - S02 [Bluray-1080p]":                               false,
+	} {
+		if got := namedPartial(name, 101); got != want {
+			t.Errorf("%q: got %v, want %v", name, got, want)
+		}
+	}
+}
+
+func TestReleaseResolution(t *testing.T) {
+	for name, want := range map[string]int{
+		"[Cleo] Texhnolyze [Dual Audio DVD480p]":      480,
+		"Texhnolyze | Dual Audio | 10bit HEVC | 720p": 720,
+		"[BBT-RMX] Slam Dunk [BDRip 1440x1080 x264]":  1080,
+		"[Pariah] Texhnolyze (R2J DVDRip x264 FLAC)":  0,
+	} {
+		if got := releaseResolution(name); got != want {
+			t.Errorf("%q: got %d, want %d", name, got, want)
+		}
+	}
+}

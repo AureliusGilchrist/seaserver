@@ -295,6 +295,7 @@ func (r *Repository) pickOnProvider(ctx context.Context, media *anilist.BaseAnim
 		files int
 		dual  bool
 		score float64
+		res   int
 	}
 	var candidates []candidate
 	wrongTitle, tooFew, unseeded := 0, 0, 0
@@ -315,35 +316,130 @@ func (r *Repository) pickOnProvider(ctx context.Context, media *anilist.BaseAnim
 		if !isShow && files < 1 {
 			files = 1
 		}
-		if !episodesFit(files, episodes, isShow) {
+		// A batch whose name says it stops short of the series ("Episode 1-20" of 101) is part of
+		// it, whatever extras pad its file count.
+		if !episodesFit(files, episodes, isShow) || (isShow && namedPartial(t.Name, episodes)) {
 			tooFew++
 			continue
 		}
-		candidates = append(candidates, candidate{t: t, files: files, dual: IsDualAudio(t.Name), score: score})
+		candidates = append(candidates, candidate{t: t, files: files, dual: englishDualAudio(t.Name), score: score, res: releaseResolution(t.Name)})
 	}
 	if len(candidates) == 0 {
 		pick.Reason = fmt.Sprintf("no release fits (%d with another title, %d with too few episodes, %d unseeded)", wrongTitle, tooFew, unseeded)
 		return pick
 	}
 
-	sort.SliceStable(candidates, func(i, j int) bool {
-		a, b := candidates[i], candidates[j]
-		if a.dual != b.dual {
-			return a.dual
-		}
-		// The right title matters most among the rest; a close second only when it is clearly closer.
-		if d := a.score - b.score; d > 0.05 || d < -0.05 {
-			return a.score > b.score
-		}
-		if a.files != b.files {
-			return a.files > b.files
-		}
-		return a.t.Seeders > b.t.Seeders
-	})
+	sort.SliceStable(candidates, rankGuesses(len(candidates), func(i int) guessRank {
+		c := candidates[i]
+		return guessRank{dual: c.dual, seeders: c.t.Seeders, score: c.score, res: c.res, files: c.files}
+	}))
 	best := candidates[0]
 	pick.Torrent = best.t
 	pick.Files = best.files
 	pick.DualAudio = best.dual
 	pick.Flag = "Best guess on " + name + ": not matched automatically, check it in unmatched."
 	return pick
+}
+
+// guessRank is what the best guess ranks fitting releases by.
+type guessRank struct {
+	dual    bool // Japanese + English audio
+	seeders int
+	score   float64
+	res     int
+	files   int
+}
+
+// wellSeeded is the seeder count that makes a release dependable; below it a download may crawl.
+const wellSeeded = 5
+
+// rankGuesses orders releases: English dual audio first, then well seeded over barely seeded, the
+// closest title (when more than 0.10 closer), the higher resolution, the more files, the more seeders.
+func rankGuesses(_ int, at func(i int) guessRank) func(i, j int) bool {
+	return func(i, j int) bool {
+		a, b := at(i), at(j)
+		if a.dual != b.dual {
+			return a.dual
+		}
+		if aw, bw := a.seeders >= wellSeeded, b.seeders >= wellSeeded; aw != bw {
+			return aw
+		}
+		// Titles within 0.10 of each other are the same series spelled differently.
+		if d := a.score - b.score; d > 0.10 || d < -0.10 {
+			return a.score > b.score
+		}
+		if a.res != b.res {
+			return a.res > b.res
+		}
+		if a.files != b.files {
+			return a.files > b.files
+		}
+		return a.seeders > b.seeders
+	}
+}
+
+var (
+	// otherDubLanguageRe names a second audio language that is not English ("Jap-Esp", "Ita").
+	otherDubLanguageRe = regexp.MustCompile(`(?i)(dual[\s._-]*audio|audio)[^\]\)]*\b(esp|spa|spanish|espanol|español|castellano|latino|ita|italian|fre|fra|french|ger|deu|german|por|portuguese|rus|russian|chi|chinese|kor|korean|hin|hindi|ara|arabic)\b|\b(jap|jpn|japanese)[\s._+-]*(esp|spa|ita|fre|fra|ger|deu|por|rus|lat)\b`)
+	englishDubRe       = regexp.MustCompile(`(?i)\b(eng|english)[\s._-]*(dub|audio)\b|\b(jap|jpn|japanese)[\s._+-]*(eng|english)\b|\b(eng|english)[\s._+-]*(jap|jpn|japanese)\b`)
+	resolutionRe       = regexp.MustCompile(`(?i)(?:^|[^0-9])(\d{3,4})p\b|\b\d{3,4}x(\d{3,4})\b|\b(4k|uhd)\b`)
+	episodeRangeRe     = regexp.MustCompile(`(?i)(seasons?\s*|\bs)?\b(?:ep(?:isodes?)?\.?\s*|e)?(\d{1,4})\s*[-~]\s*(?:ep?\.?\s*)?(\d{1,4})\b`)
+)
+
+// englishDualAudio reports a release with Japanese and English audio: dual audio whose second
+// language is not something else (Spanish, Italian, ...), or one that names an English dub.
+func englishDualAudio(name string) bool {
+	if englishDubRe.MatchString(name) && !otherDubLanguageRe.MatchString(name) {
+		return true
+	}
+	return IsDualAudio(name) && !otherDubLanguageRe.MatchString(name)
+}
+
+// releaseResolution is the release's vertical resolution as its name gives it (0 when it does not).
+func releaseResolution(name string) int {
+	best := 0
+	for _, m := range resolutionRe.FindAllStringSubmatch(name, -1) {
+		v := 0
+		switch {
+		case m[1] != "":
+			fmt.Sscan(m[1], &v)
+		case m[2] != "":
+			fmt.Sscan(m[2], &v)
+		case m[3] != "":
+			v = 2160
+		}
+		if v > best && v <= 4320 {
+			best = v
+		}
+	}
+	return best
+}
+
+// namedPartial reports a release whose name gives an episode range that stops well short of the
+// series ("Episode 1-20" of 101). A season range ("Seasons 1-4") does not count.
+func namedPartial(name string, episodes int) bool {
+	if episodes <= 1 {
+		return false
+	}
+	slack := episodes / 10
+	if slack < 1 {
+		slack = 1
+	}
+	maxEnd := 0
+	for _, m := range episodeRangeRe.FindAllStringSubmatch(name, -1) {
+		if m[1] != "" {
+			continue // a season range
+		}
+		var from, to int
+		fmt.Sscan(m[2], &from)
+		fmt.Sscan(m[3], &to)
+		// A range of episodes: starts low, ends after it, not a year or a resolution.
+		if from > 1 || to <= from || to > 3000 || (to >= 1900 && to <= 2100) {
+			continue
+		}
+		if to > maxEnd {
+			maxEnd = to
+		}
+	}
+	return maxEnd > 0 && maxEnd < episodes-slack
 }
