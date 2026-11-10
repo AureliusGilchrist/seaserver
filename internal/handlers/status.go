@@ -6,11 +6,13 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"runtime/pprof"
 	"seanime/internal/connectivity"
 	"seanime/internal/constants"
 	"seanime/internal/core"
 	"seanime/internal/database/models"
+	"seanime/internal/memwatch"
 	"seanime/internal/report"
 	"seanime/internal/user"
 	"seanime/internal/util"
@@ -642,9 +644,18 @@ func (h *Handler) HandleGetCPUProfile(c echo.Context) error {
 func (h *Handler) HandleForceGC(c echo.Context) error {
 	h.App.Logger.Info().Msg("handlers: Forcing garbage collection")
 
-	// Force garbage collection
-	runtime.GC()
-	runtime.GC() // Run twice to ensure cleanup
+	// Drop the in-memory caches too (the memory watchdog's release step), then collect and hand
+	// the freed memory back to the OS. A GC alone cannot free what the caches still hold.
+	if w := memwatch.Current(); w != nil {
+		before, after := w.ReleaseNow()
+		h.App.Logger.Info().
+			Uint64("inUseBeforeMB", before.InUse>>20).
+			Uint64("inUseAfterMB", after.InUse>>20).
+			Msg("handlers: Released caches and free memory")
+	} else {
+		runtime.GC()
+		debug.FreeOSMemory()
+	}
 
 	// Get updated memory stats
 	var m runtime.MemStats

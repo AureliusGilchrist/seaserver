@@ -273,6 +273,20 @@ func (c *Cacher) Close() error {
 	return firstErr
 }
 
+// ReleaseMemory writes every loaded bucket to disk and drops it from memory; each is read back from
+// its file the next time it is used. The map is swapped out first, so a caller arriving meanwhile
+// gets a fresh store loaded from the file rather than one that is being shut down.
+func (c *Cacher) ReleaseMemory() int {
+	c.mu.Lock()
+	old := c.stores
+	c.stores = make(map[string]*CacheStore)
+	c.mu.Unlock()
+	for _, store := range old {
+		_ = store.flushAndStop()
+	}
+	return len(old)
+}
+
 func (c *Cacher) Clear() error {
 	// Stop the old stores' flushers so their goroutines do not outlive the map entry.
 	if err := c.Close(); err != nil {

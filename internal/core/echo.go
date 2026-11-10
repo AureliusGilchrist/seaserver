@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"seanime/internal/memwatch"
 	"strings"
 	"time"
 
@@ -38,6 +39,9 @@ func NewEchoApp(app *App, webFS *embed.FS) *echo.Echo {
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			path := c.Request().URL.Path
+			// Playback requests tell the memory watchdog someone is watching, so it never restarts
+			// the server under them.
+			memwatch.NoteRequest(path)
 			if strings.HasPrefix(path, "/themes/") {
 				c.Response().Header().Set("Access-Control-Allow-Origin", "*")
 			}

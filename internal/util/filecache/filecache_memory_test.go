@@ -144,3 +144,23 @@ func TestFlushRoundTripAndTrimOnLoad(t *testing.T) {
 		t.Fatalf("loaded store %d bytes, bound %d", size, maxStoreBytes)
 	}
 }
+
+// ReleaseMemory drops the stores but keeps the data: the next read loads it back from the file.
+func TestReleaseMemoryKeepsData(t *testing.T) {
+	c, err := NewCacher(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	b := NewPermanentBucket("rel")
+	if err := c.SetPerm(b, "k", memTestValue{Name: "kept"}); err != nil {
+		t.Fatal(err)
+	}
+	if n := c.ReleaseMemory(); n != 1 {
+		t.Fatalf("released %d stores, want 1", n)
+	}
+	var out memTestValue
+	if ok, err := c.GetPerm(b, "k", &out); err != nil || !ok || out.Name != "kept" {
+		t.Fatalf("after release: ok=%v err=%v out=%+v", ok, err, out)
+	}
+}

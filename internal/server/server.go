@@ -13,6 +13,7 @@ import (
 	"seanime/internal/cron"
 	"seanime/internal/events"
 	"seanime/internal/handlers"
+	"seanime/internal/memwatch"
 	"seanime/internal/updater"
 	"seanime/internal/util"
 	"seanime/internal/util/crashlog"
@@ -94,6 +95,7 @@ appLoop:
 			// Start goroutine monitoring + periodic cleanup
 			startGoroutineMonitor()
 			startGoroutineCleanup()
+			startMemoryWatchdog(app)
 
 			// Create the echo app instance
 			echoApp := core.NewEchoApp(app, webFS)
@@ -171,6 +173,33 @@ func startGoroutineMonitor() {
 			}
 		}
 	}()
+}
+
+// startMemoryWatchdog starts the memory watchdog (see internal/memwatch): it releases the caches
+// when memory runs high and, if memory still stays near the limit, restarts the server in place
+// while nothing is playing.
+func startMemoryWatchdog(app *core.App) {
+	memwatch.Start(memwatch.Options{
+		Logger: app.Logger,
+		ReleaseCaches: func() {
+			if app.FileCacher != nil {
+				app.FileCacher.ReleaseMemory()
+			}
+		},
+		BeforeRestart: func() {
+			if app.WSEventManager != nil {
+				app.WSEventManager.SendEvent(events.ServerGoingDown, map[string]string{"reason": "freeing memory"})
+			}
+			if app.FileCacher != nil {
+				_ = app.FileCacher.Close()
+			}
+			// Same head start the updater gives the clients before the swap.
+			time.Sleep(5 * time.Second)
+		},
+		Restart: func(string) error {
+			return updater.RestartInPlace()
+		},
+	})
 }
 
 // startGoroutineCleanup runs every 5 minutes to force a GC + release OS memory.

@@ -1,6 +1,6 @@
 {
     "name": "seanime-web",
-    "version": "6.6.2-12",
+    "version": "6.6.2-13",
     "private": true,
     "type": "module",
     "scripts": {
