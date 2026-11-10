@@ -1189,8 +1189,12 @@ func (m *Manager) run(it *Item) {
 		m.dropLocked(it)
 	}
 	failingSeries := 0
-	if it.Status == StatusFailed && normalizeQueue(it.Queue) == QueueEnMasse && m.opts.SeriesFailing != nil {
-		if isDestinationTaken(err) {
+	// No provider has this episode, the series at all, or a file name to put it under: retrying
+	// online cannot help, so an en masse series is torrented instead right away, whatever already
+	// downloaded.
+	onlineHopeless := isDestinationTaken(err) || isNotOnline(err) || isSkipSeries(err)
+	if (it.Status == StatusFailed || (it.Status == StatusCancelled && isSkipSeries(err))) && normalizeQueue(it.Queue) == QueueEnMasse && m.opts.SeriesFailing != nil {
+		if onlineHopeless {
 			if m.failingReported == nil {
 				m.failingReported = map[int]bool{}
 			}

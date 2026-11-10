@@ -143,6 +143,9 @@ func (m *Manager) process(ctx context.Context, it *Item, workDir string) (string
 		// notOnAny stays true while every fallback reports not having the series at all; then
 		// none of its episodes can be downloaded and the series is skipped.
 		notOnAny := true
+		// definite stays true while every provider answers that it has no source for the episode
+		// (as opposed to an outage): then retrying cannot help.
+		definite := isNoSource(firstErr)
 		for _, fb := range FallbackProviders {
 			if fb == req.Provider {
 				continue
@@ -179,6 +182,9 @@ func (m *Manager) process(ctx context.Context, it *Item, workDir string) (string
 				return "", ctx.Err()
 			}
 			if fbErr != nil {
+				if !isNoSource(fbErr) {
+					definite = false
+				}
 				misses = append(misses, fmt.Sprintf("%s: %v", name, fbErr))
 				continue
 			}
@@ -197,6 +203,9 @@ func (m *Manager) process(ctx context.Context, it *Item, workDir string) (string
 			combined := fmt.Errorf("not available on %s (%v); %s", req.Provider, firstErr, strings.Join(misses, "; "))
 			if notOnAny {
 				return "", skipSeriesError{combined}
+			}
+			if definite {
+				return "", notOnlineError{finalError{combined}}
 			}
 			return "", combined
 		}
@@ -442,7 +451,7 @@ func isNoSource(err error) bool {
 		return true
 	}
 	l := strings.ToLower(err.Error())
-	for _, s := range []string{"no source", "source not found", "no episode server", "no episodes", "episode not found", "not found"} {
+	for _, s := range []string{"no source", "source not found", "no episode server", "no episodes", "episode not found", "not found", "matching returned no results"} {
 		if strings.Contains(l, s) {
 			return true
 		}
@@ -492,6 +501,17 @@ func (m *Manager) checkSeriesSource(ctx context.Context, req Request, media *ani
 		misses = append(misses, fmt.Sprintf("%s: %v", name, fbErr))
 	}
 	return fmt.Errorf("%w: episode %d (%s)", ErrNoSource, req.EpisodeNumber, strings.Join(misses, "; "))
+}
+
+// notOnlineError is a final failure: every provider answered that it has no source for the
+// episode, so retrying cannot help. An en masse series that hits it is torrented instead.
+type notOnlineError struct{ finalError }
+
+func (e notOnlineError) Unwrap() error { return e.finalError }
+
+func isNotOnline(err error) bool {
+	var n notOnlineError
+	return errors.As(err, &n)
 }
 
 func isSkipSeries(err error) bool {
