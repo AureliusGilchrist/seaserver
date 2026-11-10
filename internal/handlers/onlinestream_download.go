@@ -31,6 +31,12 @@ func (h *Handler) wireOnlinestreamDownloader(app *core.App) {
 		return
 	}
 	defer h.backfillOnlineDownloadBadges()
+	// Files matched to an anime whose episode details were never filled in read as missing
+	// episodes, so en masse downloads them again; fill them in once, in the background.
+	go func() {
+		defer util.HandlePanicInModuleThen("handlers/repairUnhydratedEpisodes", func() {})
+		h.repairUnhydratedEpisodes(0)
+	}()
 	app.OnlinestreamDownloader = onlinestream_download.NewManager(onlinestream_download.NewManagerOptions{
 		Logger:         app.Logger,
 		WSEventManager: app.WSEventManager,
@@ -164,7 +170,78 @@ func staleDownloadingBadges(states []unmatched.AnimeDownloadState, inLibrary map
 
 // onlinestreamEpisodeFiles lists the library files of an anime episode, whatever their source.
 func (h *Handler) onlinestreamEpisodeFiles(mediaId int, episode int) []string {
+	h.repairUnhydratedEpisodes(mediaId)
 	return h.libraryEpisodeFiles(mediaId)[episode]
+}
+
+// unhydratedEpisode is the episode a library file names when it is matched to an anime but its
+// episode details were never filled in (episode 0, no type), read from its file name
+// ("Golden Kamuy - Episode 010 - Fellow Traveler.mkv" is episode 10). Zero when it has details
+// or names no single episode.
+func unhydratedEpisode(lf *anime.LocalFile) int {
+	if lf == nil || lf.MediaId <= 0 || lf.ParsedData == nil {
+		return 0
+	}
+	if lf.Metadata != nil && (lf.Metadata.Type != "" || lf.Metadata.Episode > 0) {
+		return 0
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(lf.ParsedData.Episode))
+	if err != nil || n <= 0 {
+		return 0
+	}
+	return n
+}
+
+// localFileEpisode is a library file's main episode: its details, or for a file whose details
+// were never filled in, the episode its name says. Zero for a special, an NC or an unknown file.
+func localFileEpisode(lf *anime.LocalFile) int {
+	if n := unhydratedEpisode(lf); n > 0 {
+		return n
+	}
+	if lf.Metadata == nil || lf.Metadata.Type != anime.LocalFileTypeMain {
+		return 0
+	}
+	return lf.Metadata.Episode
+}
+
+// repairUnhydratedEpisodes fills in the episode details of an anime's matched files (every
+// anime's, for mediaId 0) that have none, from their file names, so the library sees them as the episodes they are instead of
+// downloading them again (and finding the file name taken by "another episode").
+func (h *Handler) repairUnhydratedEpisodes(mediaId int) {
+	injectMu.Lock()
+	defer injectMu.Unlock()
+	lfs, lfsId, err := db_bridge.GetLocalFiles(h.App.Database)
+	if err != nil {
+		return
+	}
+	// Two files of one anime naming the same episode (mixed numbering, duplicates) are left alone:
+	// which one is that episode is not for a file name to say.
+	type key struct{ media, ep int }
+	claims := map[key]int{}
+	for _, lf := range lfs {
+		if n := localFileEpisode(lf); n > 0 {
+			claims[key{lf.MediaId, n}]++
+		}
+	}
+	repaired := 0
+	for _, lf := range lfs {
+		if mediaId > 0 && lf.MediaId != mediaId {
+			continue
+		}
+		if n := unhydratedEpisode(lf); n > 0 && claims[key{lf.MediaId, n}] == 1 {
+			lf.Metadata = &anime.LocalFileMetadata{Episode: n, AniDBEpisode: strconv.Itoa(n), Type: anime.LocalFileTypeMain}
+			repaired++
+		}
+	}
+	if repaired == 0 {
+		return
+	}
+	if _, err := db_bridge.SaveLocalFiles(h.App.Database, lfsId, lfs); err != nil {
+		h.App.Logger.Warn().Err(err).Int("mediaId", mediaId).Msg("onlinestream download: Could not fill in the episode details of library files")
+		return
+	}
+	h.App.Logger.Info().Int("mediaId", mediaId).Int("files", repaired).
+		Msg("onlinestream download: Filled in the episode details of library files that had none, from their names")
 }
 
 // libraryEpisodeFiles maps each main episode of an anime to its library files.
@@ -175,10 +252,12 @@ func (h *Handler) libraryEpisodeFiles(mediaId int) map[int][]string {
 		return out
 	}
 	for _, lf := range lfs {
-		if lf.MediaId != mediaId || lf.Metadata == nil || lf.Metadata.Type != anime.LocalFileTypeMain || lf.Metadata.Episode <= 0 {
+		if lf.MediaId != mediaId {
 			continue
 		}
-		out[lf.Metadata.Episode] = append(out[lf.Metadata.Episode], lf.Path)
+		if ep := localFileEpisode(lf); ep > 0 {
+			out[ep] = append(out[ep], lf.Path)
+		}
 	}
 	return out
 }
@@ -274,8 +353,8 @@ func (h *Handler) onlinestreamLibraryFileOwner(path string) (int, int, bool) {
 		if lf.MediaId <= 0 || !strings.EqualFold(lf.GetNormalizedPath(), target) {
 			continue
 		}
-		ep := 0
-		if lf.Metadata != nil {
+		ep := localFileEpisode(lf)
+		if ep == 0 && lf.Metadata != nil {
 			ep = lf.Metadata.Episode
 		}
 		return lf.MediaId, ep, true
