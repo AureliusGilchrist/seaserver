@@ -14,6 +14,15 @@ const (
 )
 
 const (
+	// AutoDownloaderRuleDownloadMethodTorrent downloads the episodes from a torrent.
+	// It is the default, so the rules made before this field existed keep working.
+	AutoDownloaderRuleDownloadMethodTorrent AutoDownloaderRuleDownloadMethod = "torrent"
+	// AutoDownloaderRuleDownloadMethodDirect downloads the episodes from an online streaming
+	// provider instead of a torrent.
+	AutoDownloaderRuleDownloadMethodDirect AutoDownloaderRuleDownloadMethod = "direct"
+)
+
+const (
 	// FormatActionScore: Adds/Subtracts from the total score.
 	AutoDownloaderProfileRuleFormatActionScore AutoDownloaderProfileRuleFormatAction = "score"
 	// AutoDownloaderProfileRuleFormatActionBlock: Immediately rejects the torrent if found (Hard Filter).
@@ -26,12 +35,24 @@ type (
 	AutoDownloaderRuleTitleComparisonType string
 	AutoDownloaderRuleEpisodeType         string
 	AutoDownloaderProfileRuleFormatAction string
+	// AutoDownloaderRuleDownloadMethod is how the rule gets the episodes: from a torrent or
+	// directly from an online streaming provider.
+	AutoDownloaderRuleDownloadMethod string
 
 	AutoDownloaderRule struct {
 		DbID        uint   `json:"dbId"`
 		Enabled     bool   `json:"enabled"`
 		MediaId     int    `json:"mediaId"`
 		Destination string `json:"destination"`
+
+		// DownloadMethod is how the episodes are downloaded. An empty value means a torrent.
+		DownloadMethod AutoDownloaderRuleDownloadMethod `json:"downloadMethod,omitempty"`
+
+		// DirectProvider is the online streaming provider the direct rules download from.
+		// "auto" (or an empty value) uses the best available source.
+		DirectProvider string `json:"directProvider,omitempty"`
+		// DirectDubbed makes the direct rules download the dubbed episodes.
+		DirectDubbed bool `json:"directDubbed,omitempty"`
 
 		// ProfileID links to a specific strategy
 		// This runs IN ADDITION to any profile marked "Global".
@@ -97,3 +118,8 @@ type (
 		Score   int                                   `json:"score"` // Only used if Action == "score"
 	}
 )
+
+// IsDirect tells if the rule downloads from an online streaming provider instead of a torrent.
+func (r *AutoDownloaderRule) IsDirect() bool {
+	return r.DownloadMethod == AutoDownloaderRuleDownloadMethodDirect
+}

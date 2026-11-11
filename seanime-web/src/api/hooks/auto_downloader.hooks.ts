@@ -50,7 +50,7 @@ export function useGetAutoDownloaderRules() {
     })
 }
 
-export function useCreateAutoDownloaderRule() {
+export function useCreateAutoDownloaderRule(successMessage: string = "Rule created") {
     const queryClient = useQueryClient()
 
     return useServerMutation<Anime_AutoDownloaderRule, CreateAutoDownloaderRule_Variables>({
@@ -60,7 +60,7 @@ export function useCreateAutoDownloaderRule() {
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.AUTO_DOWNLOADER.GetAutoDownloaderRules.key] })
             await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.AUTO_DOWNLOADER.GetAutoDownloaderRulesByAnime.key] })
-            toast.success("Rule created")
+            toast.success(successMessage)
         },
     })
 }

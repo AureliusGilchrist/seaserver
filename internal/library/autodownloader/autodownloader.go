@@ -60,6 +60,17 @@ type (
 		mu                      sync.Mutex
 		isOfflineRef            *util.Ref[bool]
 		simulationResults       []*SimulationResult // Stores results when running in simulation mode
+		// directDownloader fetches the new episodes of the rules that download straight from an
+		// online streaming provider instead of a torrent.
+		directDownloader DirectDownloader
+	}
+
+	// DirectDownloader fetches the new episodes of the rules that download straight from an
+	// online streaming provider instead of a torrent.
+	DirectDownloader interface {
+		// FetchNewEpisodes queues the episodes the provider has released that the library does
+		// not have yet, and returns how many were queued.
+		FetchNewEpisodes(ctx context.Context, provider string, mediaId int, dubbed bool) (int, error)
 	}
 
 	// SimulationResult represents a torrent that would be downloaded in simulation mode
@@ -238,6 +249,19 @@ func (ad *AutoDownloader) SetTorrentClientRepository(repo *torrent_client.Reposi
 	ad.torrentClientRepository = repo
 }
 
+// SetDirectDownloader gives the auto downloader the downloader that fetches the episodes of the
+// rules downloading straight from an online streaming provider.
+func (ad *AutoDownloader) SetDirectDownloader(downloader DirectDownloader) {
+	defer util.HandlePanicInModuleThen("autodownloader/SetDirectDownloader", func() {})
+
+	if ad == nil {
+		return
+	}
+	ad.mu.Lock()
+	defer ad.mu.Unlock()
+	ad.directDownloader = downloader
+}
+
 // GetSimulationResults returns the simulation results from the last run
 func (ad *AutoDownloader) GetSimulationResults() []*SimulationResult {
 	ad.mu.Lock()
@@ -337,11 +361,15 @@ func (ad *AutoDownloader) start() {
 		case <-ad.stopCh:
 
 		case isSumulation := <-ad.startCh:
+			// The rules downloading straight from a streaming provider do not need a torrent
+			// provider, and the rule itself is the opt-in: they run either way.
+			ad.checkDirectRules(context.Background())
 			if ad.settings.Enabled {
 				ad.logger.Debug().Msg("autodownloader: Auto Downloader started")
 				ad.checkForNewEpisodes(context.Background(), isSumulation)
 			}
 		case <-ticker.C:
+			ad.checkDirectRules(context.Background())
 			if ad.settings.Enabled {
 				ad.checkForNewEpisodes(context.Background(), false)
 			}
@@ -408,6 +436,77 @@ func (ad *AutoDownloader) checkForNewEpisodes(ctx context.Context, isSimulation 
 	ad.notifyDownloadResults(downloaded)
 }
 
+// checkDirectRules fetches the new episodes of the rules that download straight from an online
+// streaming provider instead of a torrent. It runs on its own: those rules need no torrent
+// provider, and the rule itself is the opt-in.
+func (ad *AutoDownloader) checkDirectRules(ctx context.Context, ruleIDs ...uint) {
+	defer util.HandlePanicInModuleThen("autodownloader/checkDirectRules", func() {})
+
+	if ad == nil {
+		return
+	}
+
+	ad.mu.Lock()
+	downloader := ad.directDownloader
+	ad.mu.Unlock()
+	if downloader == nil {
+		return
+	}
+
+	if ad.isOfflineRef.Get() {
+		ad.logger.Debug().Msg("autodownloader: Skipping the direct download check. AutoDownloader is in offline mode.")
+		return
+	}
+
+	rules, err := db_bridge.GetAutoDownloaderRules(ad.database)
+	if err != nil {
+		ad.logger.Error().Err(err).Msg("autodownloader: Could not fetch the rules of the direct downloads")
+		return
+	}
+
+	for _, rule := range rules {
+		if rule == nil || !rule.Enabled || !rule.IsDirect() || rule.MediaId == 0 {
+			continue
+		}
+		if len(ruleIDs) > 0 && !slices.Contains(ruleIDs, rule.DbID) {
+			continue
+		}
+		// A series that is over has no new episodes to fetch.
+		if ad.isSeriesFinished(rule.MediaId) {
+			continue
+		}
+
+		provider := rule.DirectProvider
+		if provider == "" {
+			provider = "auto"
+		}
+		fetched, err := downloader.FetchNewEpisodes(ctx, provider, rule.MediaId, rule.DirectDubbed)
+		if err != nil {
+			ad.logger.Error().Err(err).Int("mediaId", rule.MediaId).Str("provider", provider).
+				Msg("autodownloader: Could not fetch the new episodes of the series")
+			continue
+		}
+		if fetched > 0 {
+			ad.logger.Info().Int("mediaId", rule.MediaId).Str("provider", provider).Int("episodes", fetched).
+				Msg("autodownloader: Queued the new episodes of the series")
+		}
+	}
+}
+
+// isSeriesFinished tells if the anime is known to be over: a series that is over has no new
+// episodes to fetch.
+func (ad *AutoDownloader) isSeriesFinished(mediaId int) bool {
+	ac, ok := ad.animeCollection.Get()
+	if !ok || ac == nil {
+		return false
+	}
+	media, found := ac.FindAnime(mediaId)
+	if !found || media == nil || media.Status == nil {
+		return false
+	}
+	return *media.Status == anilist.MediaStatusFinished
+}
+
 // runData holds all data needed for checking new episodes
 type runData struct {
 	rules            []*anime.AutoDownloaderRule
@@ -428,6 +527,11 @@ func (ad *AutoDownloader) fetchRunData(ctx context.Context, ruleIDs ...uint) (*r
 	// Filter out disabled rules
 	rules = lo.Filter(rules, func(r *anime.AutoDownloaderRule, _ int) bool {
 		if len(ruleIDs) > 0 && !slices.Contains(ruleIDs, r.DbID) {
+			return false
+		}
+		// The rules downloading straight from a streaming provider are not looked for in the
+		// torrents: they have their own check.
+		if r.IsDirect() {
 			return false
 		}
 		return r.Enabled

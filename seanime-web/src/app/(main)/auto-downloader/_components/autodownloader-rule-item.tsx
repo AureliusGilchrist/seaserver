@@ -6,6 +6,7 @@ import {
 } from "@/api/generated/types"
 import { useMediaPreviewModal } from "@/app/(main)/_features/media/_containers/media-preview-modal"
 import { AutoDownloaderRuleForm } from "@/app/(main)/auto-downloader/_containers/autodownloader-rule-form"
+import { ONLINESTREAM_PROVIDERS } from "@/app/(main)/onlinestream/_components/onlinestream-download"
 import { IconButton } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { Modal } from "@/components/ui/modal"
@@ -15,6 +16,13 @@ import { SeaImage as Image } from "@/components/shared/sea-image"
 import React from "react"
 import { BiChevronRight } from "react-icons/bi"
 import { FaSquareRss } from "react-icons/fa6"
+import { LuCloudDownload } from "react-icons/lu"
+
+/** The name of the provider a direct rule downloads from. */
+function directProviderLabel(provider?: string | null) {
+    if (!provider || provider === "auto") return "Best available"
+    return ONLINESTREAM_PROVIDERS.find(p => p.id === provider)?.label ?? provider
+}
 
 export type AutoDownloaderRuleItemProps = {
     rule: Anime_AutoDownloaderRule
@@ -34,6 +42,9 @@ export function AutoDownloaderRuleItem(props: AutoDownloaderRuleItemProps) {
     } = props
 
     const modal = useBoolean(false)
+
+    // The rule downloads straight from an online streaming provider instead of a torrent.
+    const isDirect = rule.downloadMethod === "direct"
 
     const media = React.useMemo(() => {
         return userMedia?.find(media => media.id === rule.mediaId)
@@ -69,20 +80,33 @@ export function AutoDownloaderRuleItem(props: AutoDownloaderRuleItemProps) {
                             )}
                         ><span className="text-gray-400 italic font-normal pr-1">Rule for</span> "{rule.comparisonTitle}"</p>
                         <div className="text-sm text-gray-400 line-clamp-1 flex space-x-2 items-center divide-x divide-[--border] [&>span]:pl-2">
-                            <FaSquareRss
-                                className={cn(
-                                    "text-xl",
-                                    rule.enabled ? "text-green-500" : "text-gray-500",
-                                    (!media) && "text-red-300",
-                                )}
-                            />
-                            {!!(rule.providers?.length || profiles?.some(p => p.global && !!p.providers?.length)) &&
+                            {isDirect ? (
+                                <LuCloudDownload
+                                    className={cn(
+                                        "text-xl",
+                                        rule.enabled ? "text-green-500" : "text-gray-500",
+                                        (!media) && "text-red-300",
+                                    )}
+                                />
+                            ) : (
+                                <FaSquareRss
+                                    className={cn(
+                                        "text-xl",
+                                        rule.enabled ? "text-green-500" : "text-gray-500",
+                                        (!media) && "text-red-300",
+                                    )}
+                                />
+                            )}
+                            {isDirect && <span className="text-sm tracking-wide font-semibold">
+                                {rule.directDubbed ? "Dubbed" : "Subbed"} / {directProviderLabel(rule.directProvider)}
+                            </span>}
+                            {!isDirect && !!(rule.providers?.length || profiles?.some(p => p.global && !!p.providers?.length)) &&
                                 <span className="text-sm tracking-wide font-semibold">{extensions?.filter(p => [...(rule.providers ?? []),
                                         ...(profiles?.filter(p => p.global)?.flatMap(p => p.providers))].includes(p.id))
                                     ?.map(p => p.name)
                                     ?.join(", ")}</span>}
-                            {!!rule.releaseGroups?.length && <span>{rule.releaseGroups.join(", ")}</span>}
-                            {!!rule.resolutions?.length && <span>{rule.resolutions.join(", ")}</span>}
+                            {!isDirect && !!rule.releaseGroups?.length && <span>{rule.releaseGroups.join(", ")}</span>}
+                            {!isDirect && !!rule.resolutions?.length && <span>{rule.resolutions.join(", ")}</span>}
                             {!!rule.episodeType && <span>{getEpisodeTypeName(rule.episodeType)}</span>}
                             {!!(rule.profileId || profiles?.some(p => p.global)) &&
                                 <Tooltip

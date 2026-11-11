@@ -1,6 +1,7 @@
 import {
     AL_BaseAnime,
     Anime_AutoDownloaderRule,
+    Anime_AutoDownloaderRuleDownloadMethod,
     Anime_AutoDownloaderRuleEpisodeType,
     Anime_AutoDownloaderRuleTitleComparisonType,
     Anime_LibraryCollection,
@@ -25,6 +26,7 @@ import {
     ResolutionsField,
     TextArrayField,
 } from "@/app/(main)/auto-downloader/_containers/autodownloader-shared-fields"
+import { ONLINESTREAM_PROVIDERS } from "@/app/(main)/onlinestream/_components/onlinestream-download"
 import { Button } from "@/components/ui/button"
 import { Combobox } from "@/components/ui/combobox"
 import { cn } from "@/components/ui/core/styling"
@@ -64,7 +66,13 @@ const schema = defineSchema(({ z, presets }) => z.object({
     comparisonTitle: z.string().min(1),
     titleComparisonType: z.string(),
     episodeType: z.string(),
-    destination: z.string().min(1),
+    // How the episodes are downloaded: from a torrent, or straight from an online streaming
+    // provider. The direct rules have no folder of their own and no torrent constraints.
+    downloadMethod: z.string().optional().default("torrent"),
+    directProvider: z.string().optional().default("auto"),
+    directDubbed: z.boolean().optional().default(false),
+    // The folder is only needed by the torrent rules: it is checked when the rule is saved.
+    destination: z.string(),
     minSeeders: z.number().min(0).optional().default(0),
     minSize: z.string().optional().default(""),
     maxSize: z.string().optional().default(""),
@@ -119,13 +127,31 @@ export function AutoDownloaderRuleForm(props: AutoDownloaderRuleFormProps) {
     const isPending = creatingRule || updatingRule || deletingRule
 
     function handleSave(data: InferType<typeof schema>) {
-        if (data.episodeType === "selected" && data.episodeNumbers.length === 0) {
-            return toast.error("You must specify at least one episode number")
+        // The direct rules download from an online streaming provider: they have no folder of
+        // their own and no torrent constraints.
+        const isDirect = data.downloadMethod === "direct"
+
+        if (!isDirect) {
+            if (!data.destination) {
+                return toast.error("You must specify a destination")
+            }
+            if (data.episodeType === "selected" && data.episodeNumbers.length === 0) {
+                return toast.error("You must specify at least one episode number")
+            }
         }
+
+        const payload = {
+            ...data,
+            downloadMethod: isDirect ? "direct" as const : "torrent" as const,
+            directProvider: isDirect ? (data.directProvider || "auto") : undefined,
+            directDubbed: isDirect ? !!data.directDubbed : undefined,
+            destination: isDirect ? "" : data.destination,
+        }
+
         if (type === "create") {
             createRule({
                 rule: {
-                    ...data,
+                    ...payload,
                     dbId: 0,
                     profileId: !!data.profileId?.[0] ? Number(data.profileId[0]) : undefined,
                     titleComparisonType: data.titleComparisonType as Anime_AutoDownloaderRuleTitleComparisonType,
@@ -138,7 +164,7 @@ export function AutoDownloaderRuleForm(props: AutoDownloaderRuleFormProps) {
         if (type === "edit" && rule?.dbId) {
             updateRule({
                 rule: {
-                    ...data,
+                    ...payload,
                     profileId: !!data.profileId?.[0] ? Number(data.profileId[0]) : undefined,
                     dbId: rule.dbId || 0,
                     titleComparisonType: data.titleComparisonType as Anime_AutoDownloaderRuleTitleComparisonType,
@@ -168,6 +194,9 @@ export function AutoDownloaderRuleForm(props: AutoDownloaderRuleFormProps) {
                     titleComparisonType: rule?.titleComparisonType ?? "likely",
                     episodeType: rule?.episodeType ?? "recent",
                     episodeNumbers: rule?.episodeNumbers ?? [],
+                    downloadMethod: rule?.downloadMethod ?? "torrent",
+                    directProvider: rule?.directProvider ?? "auto",
+                    directDubbed: rule?.directDubbed ?? false,
                     destination: rule?.destination ?? "",
                     additionalTerms: rule?.additionalTerms ?? [],
                     excludeTerms: rule?.excludeTerms ?? [],
@@ -316,6 +345,9 @@ export function RuleFormFields(props: RuleFormFieldsProps) {
     const form_episodeType = useWatch({ name: "episodeType" }) as Anime_AutoDownloaderRuleEpisodeType
     const destination = useWatch({ name: "destination" }) as string
     const titleComparisonType = useWatch({ name: "titleComparisonType" }) as string
+    const downloadMethod = useWatch({ name: "downloadMethod" }) as Anime_AutoDownloaderRuleDownloadMethod
+    // The direct rules download from an online streaming provider instead of a torrent.
+    const isDirect = downloadMethod === "direct"
 
     const selectedMedia = allMedia.find(media => media.id === Number(form_mediaId))
 
@@ -390,14 +422,54 @@ export function RuleFormFields(props: RuleFormFieldsProps) {
 
                 {selectedMedia?.status === "FINISHED" && <div className="py-2 text-[--orange] text-center">No longer airing</div>}
 
-                <Field.DirectorySelector
+                <div className="border rounded-[--radius] p-4 relative !mt-8 space-y-3">
+                    <div className="absolute -top-2.5 tracking-wide font-semibold uppercase text-sm left-4 bg-gray-950 px-2">Source</div>
+                    <Field.RadioCards
+                        label="Download method"
+                        name="downloadMethod"
+                        fieldClass="w-full"
+                        itemContainerClass="!w-full"
+                        options={[
+                            {
+                                label: <div className="w-full">
+                                    <p>Torrent</p>
+                                    <p className="font-normal text-sm text-[--muted]">Look for the episodes in the torrents</p>
+                                </div>,
+                                value: "torrent",
+                            },
+                            {
+                                label: <div className="w-full">
+                                    <p>Direct</p>
+                                    <p className="font-normal text-sm text-[--muted]">Download the episodes from an online streaming provider</p>
+                                </div>,
+                                value: "direct",
+                            },
+                        ]}
+                    />
+                    {isDirect && <>
+                        <Field.Select
+                            name="directProvider"
+                            options={ONLINESTREAM_PROVIDERS.map(provider => ({
+                                label: provider.label,
+                                value: provider.id,
+                            }))}
+                            label="Provider"
+                        />
+                        <Field.Switch
+                            name="directDubbed"
+                            label="Dubbed episodes"
+                        />
+                    </>}
+                </div>
+
+                {!isDirect && <Field.DirectorySelector
                     name="destination"
                     label="Destination"
                     help="Folder in your local library where the files will be saved"
                     leftIcon={<FcFolder />}
                     shouldExist={false}
                     libraryPathSelectionProps={libraryPathSelectionProps}
-                />
+                />}
 
                 <div className="border rounded-[--radius] p-4 relative !mt-8 space-y-3">
                     <div className="absolute -top-2.5 tracking-wide font-semibold uppercase text-sm left-4 bg-gray-950 px-2">Title</div>
@@ -405,7 +477,7 @@ export function RuleFormFields(props: RuleFormFieldsProps) {
                         name="comparisonTitle"
                         label="Comparison title"
                     />
-                    <Field.RadioCards
+                    {!isDirect && <Field.RadioCards
                         label="Type of search"
                         name="titleComparisonType"
                         itemContainerClass="w-full"
@@ -427,9 +499,9 @@ export function RuleFormFields(props: RuleFormFieldsProps) {
                                 value: "contains",
                             },
                         ]}
-                    />
+                    />}
 
-                    {titleComparisonType === "likely" && <div className="text-sm text-[--muted]">
+                    {!isDirect && titleComparisonType === "likely" && <div className="text-sm text-[--muted]">
                         <p className="!text-[--foreground]">Will also use these titles:</p>
                         {selectedMedia?.title?.english && <p className="font-medium">{selectedMedia?.title?.english}</p>}
                         {selectedMedia?.title?.romaji && <p className="font-medium">{selectedMedia?.title?.romaji}</p>}
@@ -437,7 +509,7 @@ export function RuleFormFields(props: RuleFormFieldsProps) {
                             <div className="font-medium">{selectedMedia?.synonyms?.map(n => <p key={n}>{n}</p>)}</div>}
                     </div>}
                 </div>
-                <div
+                {!isDirect && <div
                     className={cn(
                         "border  rounded-[--radius] p-4 relative !mt-8 space-y-3",
                         (selectedMedia?.format === "MOVIE" || (!!selectedMedia.episodes && selectedMedia.episodes === 1)) && "opacity-50 pointer-events-none",
@@ -481,15 +553,15 @@ export function RuleFormFields(props: RuleFormFieldsProps) {
                         className="w-32"
                         hideControls
                     />}
-                </div>
+                </div>}
 
-                <ProfileSelectField name="profileId" />
+                {!isDirect && <ProfileSelectField name="profileId" />}
 
-                <ReleaseGroupsField name="releaseGroups" control={form.control} />
+                {!isDirect && <ReleaseGroupsField name="releaseGroups" control={form.control} />}
 
-                <ResolutionsField name="resolutions" control={form.control} />
+                {!isDirect && <ResolutionsField name="resolutions" control={form.control} />}
 
-                <div className="border rounded-[--radius] p-4 relative !mt-8 space-y-3">
+                {!isDirect && <div className="border rounded-[--radius] p-4 relative !mt-8 space-y-3">
                     <div className="absolute -top-2.5 tracking-wide font-semibold uppercase text-sm left-4 bg-gray-950 px-2">Constraints</div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <Field.Number
@@ -511,17 +583,17 @@ export function RuleFormFields(props: RuleFormFieldsProps) {
                             fieldClass="w-full"
                         />
                     </div>
-                </div>
+                </div>}
 
-                <ProvidersField name="providers" control={form.control} />
+                {!isDirect && <ProvidersField name="providers" control={form.control} />}
 
-                <AdditionalTermsField name="additionalTerms" control={form.control} defaultOpen={!!rule?.additionalTerms?.length} />
+                {!isDirect && <AdditionalTermsField name="additionalTerms" control={form.control} defaultOpen={!!rule?.additionalTerms?.length} />}
 
-                <ExcludeTermsField name="excludeTerms" control={form.control} />
+                {!isDirect && <ExcludeTermsField name="excludeTerms" control={form.control} />}
 
             </div>
             <div className="flex items-center gap-2">
-                {type === "edit" && !!rule?.dbId && <div>
+                {type === "edit" && !!rule?.dbId && !isDirect && <div>
                     <Button
                         intent="gray-basic"
                         onClick={() => runSimulation({ ruleIds: [rule?.dbId] })}

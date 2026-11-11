@@ -185,6 +185,9 @@ type NewManagerOptions struct {
 	Register    RegisterFunc
 	// EpisodeFiles lists the library files of an anime episode (any source, any name).
 	EpisodeFiles func(mediaId int, episode int) []string
+	// LibraryEpisodes lists the episodes the library has for an anime, by episode number.
+	// The auto downloader uses it to tell which episodes of a series are new.
+	LibraryEpisodes func(mediaId int) map[int]bool
 	// ReplaceOld removes an episode's other library files after an overwrite saved its new one
 	// at keepPath: their library entries and the files themselves.
 	ReplaceOld func(mediaId int, episode int, keepPath string) error
@@ -223,6 +226,12 @@ type Manager struct {
 	// failingReported are the series already handed to SeriesFailing.
 	failingReported map[int]bool
 
+	// fetchMu guards lastFetch.
+	fetchMu sync.Mutex
+	// lastFetch is when each series was last looked for new episodes, so the auto downloader
+	// does not ask the providers for the same series over and over.
+	lastFetch map[int]time.Time
+
 	// processOverride, when set (tests), replaces the download of one episode.
 	// checkSourceOverride replaces checkSeriesSource (tests).
 	checkSourceOverride func(ctx context.Context, req Request) error
@@ -240,10 +249,11 @@ type persistedState struct {
 
 func NewManager(opts NewManagerOptions) *Manager {
 	m := &Manager{
-		opts:   opts,
-		logger: opts.Logger,
-		client: NewRateLimitedClient(),
-		wake:   make(chan struct{}, 1),
+		opts:      opts,
+		logger:    opts.Logger,
+		client:    NewRateLimitedClient(),
+		wake:      make(chan struct{}, 1),
+		lastFetch: map[int]time.Time{},
 	}
 	m.load()
 	m.cleanOrphanWorkDirs()

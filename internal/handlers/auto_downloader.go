@@ -121,15 +121,19 @@ func (h *Handler) HandleCreateAutoDownloaderRule(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
-	if b.Rule.Destination == "" {
-		return h.RespondWithError(c, errors.New("destination is required"))
-	}
 	if b.Rule.MediaId == 0 {
 		return h.RespondWithError(c, errors.New("media id is required"))
 	}
 
-	if !filepath.IsAbs(b.Rule.Destination) {
-		return h.RespondWithError(c, errors.New("destination must be an absolute path"))
+	// The rules downloading straight from a streaming provider have no folder of their own: the
+	// episodes are filed in the library like any other download.
+	if !b.Rule.IsDirect() {
+		if b.Rule.Destination == "" {
+			return h.RespondWithError(c, errors.New("destination is required"))
+		}
+		if !filepath.IsAbs(b.Rule.Destination) {
+			return h.RespondWithError(c, errors.New("destination must be an absolute path"))
+		}
 	}
 
 	b.Rule.DbID = 0

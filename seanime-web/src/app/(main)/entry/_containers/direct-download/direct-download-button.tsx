@@ -4,24 +4,12 @@ import { Anime_Entry } from "@/api/generated/types"
 import { useGetOnlineStreamEpisodeList } from "@/api/hooks/onlinestream.hooks"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { AnimeMetaActionButton } from "@/app/(main)/entry/_components/meta-section"
-import { OnlinestreamDownloadButton } from "@/app/(main)/onlinestream/_components/onlinestream-download"
+import { ONLINESTREAM_PROVIDERS, OnlinestreamDownloadButton } from "@/app/(main)/onlinestream/_components/onlinestream-download"
+import { useDirectAutoFetch } from "@/app/(main)/onlinestream/_hooks/use-direct-auto-fetch"
 import { cn } from "@/components/ui/core/styling"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import React from "react"
 import { LuCloudDownload, LuSparkles } from "react-icons/lu"
-
-/** Sources offered, in the order "Best available" tries them. */
-const SOURCES = [
-    { id: "auto", label: "Best available" },
-    { id: "kickassanime", label: "Kickassanime" },
-    { id: "megaplay", label: "MegaPlay" },
-    { id: "reanime", label: "ReAnime" },
-    { id: "anizone", label: "AniZone" },
-    { id: "animeheaven", label: "AnimeHeaven" },
-    { id: "animegg", label: "AnimeGG" },
-    { id: "animeonsen", label: "AnimeOnsen" },
-    { id: "animepahe", label: "AnimePahe" },
-] as const
 
 /**
  * Direct Download: the series from an online source instead of a torrent, next to the torrent
@@ -39,13 +27,23 @@ export function DirectDownloadButton({ entry }: { entry: Anime_Entry }) {
     const listed = source !== "auto"
     const { data: episodeList, isLoading, isError } = useGetOnlineStreamEpisodeList(listed ? mediaId : null, listed ? source : null, false)
 
+    // A series that is still airing can have its new episodes fetched as they come out.
+    const isOngoing = entry.media?.status === "RELEASING"
+
+    const { start: startAutoFetch } = useDirectAutoFetch({
+        mediaId,
+        provider: source,
+        title: entry.media?.title?.romaji || entry.media?.title?.english || entry.media?.title?.native || "",
+        isOngoing,
+    })
+
     if (!isAdmin || !enabled || !mediaId) return null
 
     const picker = (
         <div className="space-y-2">
             <p className="text-sm font-medium">Source</p>
             <div className="flex flex-wrap gap-1.5">
-                {SOURCES.map(s => (
+                {ONLINESTREAM_PROVIDERS.map(s => (
                     <button
                         key={s.id}
                         type="button"
@@ -61,10 +59,10 @@ export function DirectDownloadButton({ entry }: { entry: Anime_Entry }) {
                 ))}
             </div>
             {listed && isLoading && <p className="text-xs text-[--muted] flex items-center gap-2">
-                <LoadingSpinner className="size-3" containerClass="w-auto h-auto" /> Loading {SOURCES.find(s => s.id === source)?.label}'s episodes…
+                <LoadingSpinner className="size-3" containerClass="w-auto h-auto" /> Loading {ONLINESTREAM_PROVIDERS.find(s => s.id === source)?.label}'s episodes…
             </p>}
             {listed && !isLoading && (isError || !episodeList?.episodes?.length) && <p className="text-xs text-[--orange]">
-                {SOURCES.find(s => s.id === source)?.label} didn't list episodes for this anime. Try another source, or Best available.
+                {ONLINESTREAM_PROVIDERS.find(s => s.id === source)?.label} didn't list episodes for this anime. Try another source, or Best available.
             </p>}
         </div>
     )
@@ -81,6 +79,8 @@ export function DirectDownloadButton({ entry }: { entry: Anime_Entry }) {
             videoSource={undefined}
             title="Direct Download"
             header={picker}
+            isOngoing={isOngoing}
+            onAutoFetch={startAutoFetch}
             trigger={<div className="contents" data-direct-download-button-container>
                 <AnimeMetaActionButton
                     intent="gray-subtle"

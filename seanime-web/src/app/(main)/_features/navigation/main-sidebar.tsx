@@ -55,7 +55,7 @@ import { GiTrophyCup, GiPalette } from "react-icons/gi"
 import { FiLogIn, FiSearch } from "react-icons/fi"
 import { HiOutlineServerStack } from "react-icons/hi2"
 import { IoCloudOfflineOutline, IoCloudOutline, IoHomeOutline } from "react-icons/io5"
-import { LuBook, LuBookOpen, LuBell, LuCalendar, LuCirclePlay, LuClipboardCheck, LuCompass, LuDownload, LuFlag, LuFolderSearch, LuGlobe, LuGitFork, LuHardDriveDownload, LuLayers, LuLayoutDashboard, LuMonitorPlay, LuNewspaper, LuRefreshCw, LuSettings, LuShieldCheck, LuTv, LuUserRound, LuUsers } from "react-icons/lu"
+import { LuBook, LuBookOpen, LuBell, LuCalendar, LuCirclePlay, LuClipboardCheck, LuCompass, LuDownload, LuFlag, LuFolderSearch, LuGlobe, LuGitFork, LuHardDriveDownload, LuLayers, LuLayoutDashboard, LuMonitorPlay, LuNewspaper, LuRefreshCw, LuRss, LuSettings, LuShieldCheck, LuTv, LuUserRound, LuUsers } from "react-icons/lu"
 import { SiAnilist } from "react-icons/si"
 import { MdBackspace, MdOutlineConnectWithoutContact } from "react-icons/md"
 import { RiListCheck3 } from "react-icons/ri"
@@ -266,7 +266,14 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
                 href: "/enmasse-manga",
                 isCurrent: pathname === "/enmasse-manga",
             },
-            // Auto Downloader and Scan summaries are no longer in the sidebar (the pages remain).
+            // Scan summaries are no longer in the sidebar (the page remains).
+            {
+                id: "auto-downloader",
+                iconType: LuRss,
+                name: "Auto Downloader",
+                href: "/auto-downloader",
+                isCurrent: pathname === "/auto-downloader",
+            },
             ...(serverStatus?.debridSettings?.enabled && !!serverStatus?.debridSettings?.provider) ? [{
                 id: "debrid",
                 iconType: HiOutlineServerStack,

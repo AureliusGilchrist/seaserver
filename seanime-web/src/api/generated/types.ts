@@ -1893,6 +1893,9 @@ export type Anime_AutoDownloaderRule = {
     enabled: boolean
     mediaId: number
     destination: string
+    downloadMethod?: Anime_AutoDownloaderRuleDownloadMethod
+    directProvider?: string
+    directDubbed?: boolean
     profileId?: number
     releaseGroups?: Array<string>
     resolutions?: Array<string>
@@ -1908,6 +1911,13 @@ export type Anime_AutoDownloaderRule = {
     customEpisodeNumberAbsoluteOffset?: number
     providers?: Array<string>
 }
+
+/**
+ * - Filepath: internal/library/anime/autodownloader_types.go
+ * - Filename: autodownloader_types.go
+ * - Package: anime
+ */
+export type Anime_AutoDownloaderRuleDownloadMethod = "torrent" | "direct"
 
 /**
  * - Filepath: internal/library/anime/autodownloader_types.go

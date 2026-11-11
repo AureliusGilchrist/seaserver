@@ -231,6 +231,22 @@ func (r *Repository) GetMediaEpisodes(provider string, media *anilist.BaseAnime,
 	return episodes, nil
 }
 
+// GetMediaEpisodesFresh lists the provider's episodes, ignoring the cached episode list.
+// The auto downloader uses it to see the episodes released since the last check: the cached
+// list lives for a day, so a plain listing would never show a new episode.
+func (r *Repository) GetMediaEpisodesFresh(provider string, media *anilist.BaseAnime, dubbed bool) ([]*Episode, error) {
+	if provider == "" {
+		return []*Episode{}, nil
+	}
+	// The cached episode list is keyed by the media, the provider and the dub.
+	key := fmt.Sprintf("%d$%s$%v", media.ID, provider, dubbed)
+	if err := r.fileCacher.Delete(r.getFcEpisodeListBucket(provider, media.ID), key); err != nil {
+		r.logger.Warn().Err(err).Int("mediaId", media.ID).Str("provider", provider).
+			Msg("onlinestream: Could not drop the cached episode list")
+	}
+	return r.GetMediaEpisodes(provider, media, dubbed)
+}
+
 func (r *Repository) GetEpisodeSources(ctx context.Context, provider string, mId int, number int, dubbed bool, year int, refresh bool) (*EpisodeSource, error) {
 
 	// +---------------------+

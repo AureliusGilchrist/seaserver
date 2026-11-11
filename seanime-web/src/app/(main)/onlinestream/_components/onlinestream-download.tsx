@@ -12,6 +12,7 @@ import {
 import { vc_subtitleManager } from "@/app/(main)/_features/video-core/video-core"
 import { __anime_streamDownloadsModalIsOpenAtom } from "@/app/(main)/onlinestream/_containers/anime-downloads/anime-downloads-modal"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/components/ui/core/styling"
 import { Modal } from "@/components/ui/modal"
 import { ProgressBar } from "@/components/ui/progress-bar"
@@ -261,7 +262,24 @@ type OnlinestreamDownloadButtonProps = DownloadParams & {
     header?: React.ReactNode
     /** Set while the episode list is loading. */
     episodesLoading?: boolean
+    /** The series is still airing: the new episodes can be fetched automatically. */
+    isOngoing?: boolean
+    /** Called when the user wants the new episodes of the series fetched automatically. */
+    onAutoFetch?: () => void
 }
+
+/** The providers the direct downloader can use, in the order "Best available" tries them. */
+export const ONLINESTREAM_PROVIDERS = [
+    { id: "auto", label: "Best available" },
+    { id: "kickassanime", label: "Kickassanime" },
+    { id: "megaplay", label: "MegaPlay" },
+    { id: "reanime", label: "ReAnime" },
+    { id: "anizone", label: "AniZone" },
+    { id: "animeheaven", label: "AnimeHeaven" },
+    { id: "animegg", label: "AnimeGG" },
+    { id: "animeonsen", label: "AnimeOnsen" },
+    { id: "animepahe", label: "AnimePahe" },
+] as const
 
 /** Display names of the providers the downloader uses. "auto" is the best available one. */
 export function onlinestreamProviderLabel(id: string | null | undefined) {
@@ -295,6 +313,8 @@ export function OnlinestreamDownloadButton(props: OnlinestreamDownloadButtonProp
     const openQueue = useSetAtom(__anime_streamDownloadsModalIsOpenAtom)
     const [open, setOpen] = React.useState(false)
     const [selected, setSelected] = React.useState<Set<number>>(new Set())
+    // Whether the new episodes of the series should be fetched automatically.
+    const [autoFetch, setAutoFetch] = React.useState(false)
 
     // The queue summary has this series' counts; its episodes are fetched only while the window is open.
     const seriesLine = queue?.series?.find(s => s.mediaId === mediaId)
@@ -316,6 +336,15 @@ export function OnlinestreamDownloadButton(props: OnlinestreamDownloadButtonProp
         else next.add(n)
         return next
     })
+
+    // Starts a download, and asks for the new episodes to be fetched automatically when the user
+    // asked for it.
+    const begin = (fn: () => void) => {
+        fn()
+        if (autoFetch && props.onAutoFetch) {
+            props.onAutoFetch()
+        }
+    }
 
     if (!provider) return null
 
@@ -379,6 +408,20 @@ export function OnlinestreamDownloadButton(props: OnlinestreamDownloadButtonProp
                         </div>}
                     </div>
 
+                    {/* Automatically fetch the new episodes of a series that is still airing */}
+                    {props.isOngoing && <div className="rounded-lg border border-[--brand]/40 bg-[--brand]/5 p-4">
+                        <Checkbox
+                            label="Do you want this to automatically fetch the new episodes when they are released?"
+                            value={autoFetch}
+                            onValueChange={(v) => setAutoFetch(v === true)}
+                            fieldClass="items-start"
+                        />
+                        <p className="text-sm text-[--muted] mt-1">
+                            The series is still airing. The new episodes are fetched from {onlinestreamProviderLabel(provider)} as
+                            they come out, and filed in your library like any other download.
+                        </p>
+                    </div>}
+
                     {/* Full series */}
                     <div className="rounded-lg border border-[--brand]/40 bg-[--brand]/5 p-4 space-y-3">
                         <div className="flex items-start gap-3">
@@ -399,7 +442,7 @@ export function OnlinestreamDownloadButton(props: OnlinestreamDownloadButtonProp
                             leftIcon={<LuDownload />}
                             loading={isPending}
                             disabled={!sortedEpisodes.length && provider !== "auto"}
-                            onClick={() => downloadSeries(sortedEpisodes.map(e => e.number).filter(n => !busyEpisodes.has(n)), videoSource)}
+                            onClick={() => begin(() => downloadSeries(sortedEpisodes.map(e => e.number).filter(n => !busyEpisodes.has(n)), videoSource))}
                         >
                             Download full series
                         </Button>
@@ -412,7 +455,7 @@ export function OnlinestreamDownloadButton(props: OnlinestreamDownloadButtonProp
                         leftIcon={<LuDownload />}
                         loading={isPending}
                         disabled={busyEpisodes.has(currentEpisodeNumber)}
-                        onClick={() => download([currentEpisodeNumber], videoSource)}
+                        onClick={() => begin(() => download([currentEpisodeNumber], videoSource))}
                     >
                         {busyEpisodes.has(currentEpisodeNumber) ? `Episode ${currentEpisodeNumber} is in the queue` : `Download episode ${currentEpisodeNumber}`}
                     </Button>}
@@ -455,7 +498,7 @@ export function OnlinestreamDownloadButton(props: OnlinestreamDownloadButtonProp
                             loading={isPending}
                             disabled={selected.size === 0}
                             onClick={() => {
-                                download([...selected].sort((a, b) => a - b).filter(n => !busyEpisodes.has(n)))
+                                begin(() => download([...selected].sort((a, b) => a - b).filter(n => !busyEpisodes.has(n))))
                                 setSelected(new Set())
                             }}
                         >

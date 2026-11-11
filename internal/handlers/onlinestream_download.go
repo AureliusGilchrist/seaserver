@@ -92,8 +92,22 @@ func (h *Handler) wireOnlinestreamDownloader(app *core.App) {
 			}
 		},
 		EpisodeFiles: h.onlinestreamEpisodeFiles,
-		ReplaceOld:   h.replaceOldEpisodeFiles,
+		LibraryEpisodes: func(mediaId int) map[int]bool {
+			h.repairUnhydratedEpisodes(mediaId)
+			out := make(map[int]bool)
+			for ep := range h.libraryEpisodeFiles(mediaId) {
+				out[ep] = true
+			}
+			return out
+		},
+		ReplaceOld: h.replaceOldEpisodeFiles,
 	})
+
+	// The auto downloader fetches the new episodes of the rules that download straight from a
+	// streaming provider.
+	if app.AutoDownloader != nil {
+		app.AutoDownloader.SetDirectDownloader(app.OnlinestreamDownloader)
+	}
 }
 
 // backfillOnlineDownloadBadges fixes the badges of series that are in the library but still read

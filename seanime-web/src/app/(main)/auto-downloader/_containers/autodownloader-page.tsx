@@ -94,6 +94,9 @@ export function AutoDownloaderPage() {
         })
     }
 
+    // The direct rules always run, so the check is worth doing even when the torrent side is off.
+    const hasDirectRules = data?.some(rule => rule.downloadMethod === "direct" && rule.enabled) ?? false
+
     function sortRules(a: Anime_AutoDownloaderRule, b: Anime_AutoDownloaderRule) {
         const mediaA = userMedia?.find(m => m.id === a.mediaId)
         const mediaB = userMedia?.find(m => m.id === b.mediaId)
@@ -144,6 +147,11 @@ export function AutoDownloaderPage() {
                                         <li>Rules allow you to programmatically download new episodes based on the
                                                                                      parameters you set.
                                         </li>
+                                        <li>A <span className="text-[--foreground]">Direct</span> rule downloads the episodes
+                                                                                    from an online streaming provider instead of a torrent. Those rules
+                                                                                    always run: they need no torrent provider, and the rule itself
+                                                                                    is the opt-in.
+                                        </li>
                                     </ul>
 
                                     <div className="w-full flex items-center gap-2">
@@ -173,7 +181,7 @@ export function AutoDownloaderPage() {
                                                 runAutoDownloader()
                                             }}
                                             loading={isRunning}
-                                            disabled={!serverStatus?.settings?.autoDownloader?.enabled}
+                                            disabled={!serverStatus?.settings?.autoDownloader?.enabled && !hasDirectRules}
                                         >
                                             Check RSS feed
                                         </Button>

@@ -32,6 +32,7 @@ import { useServerHMACAuth } from "@/app/(main)/_hooks/use-server-status"
 import { OnlinestreamManualMappingModal } from "@/app/(main)/onlinestream/_containers/onlinestream-manual-matching"
 import { useNakamaOnlineStreamWatchParty } from "@/app/(main)/onlinestream/_lib/handle-onlinestream"
 import { OnlinestreamDownloadButton, useOnlinestreamEpisodeDownloader } from "@/app/(main)/onlinestream/_components/onlinestream-download"
+import { useDirectAutoFetch } from "@/app/(main)/onlinestream/_hooks/use-direct-auto-fetch"
 import { useHandleOnlinestreamProviderExtensions } from "@/app/(main)/onlinestream/_lib/handle-onlinestream-providers"
 import {
     __onlinestream_audioTrackPreferenceByMediaAtom,
@@ -755,6 +756,16 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
     }
     const { download: downloadEpisodes, prompt: downloadPrompt } = useOnlinestreamEpisodeDownloader(downloadParams)
 
+    // A series that is still airing can have its new episodes fetched as they come out.
+    const isOngoing = media?.status === "RELEASING"
+    const { start: startAutoFetch } = useDirectAutoFetch({
+        mediaId,
+        provider: provider ?? "auto",
+        dubbed,
+        title: media?.title?.romaji || media?.title?.english || media?.title?.native || "",
+        isOngoing,
+    })
+
     const tryAllProvidersButton = autoProviderCycler.showButton ? <Button
         size="sm"
         rounded
@@ -880,6 +891,8 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
                         currentEpisodeNumber={currentEpisodeNumber}
                         episodes={episodes}
                         videoSource={videoSource}
+                        isOngoing={isOngoing}
+                        onAutoFetch={startAutoFetch}
                     />}
                     <Button
                         className=""
