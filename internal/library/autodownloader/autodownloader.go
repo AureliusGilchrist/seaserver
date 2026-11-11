@@ -63,6 +63,9 @@ type (
 		// directDownloader fetches the new episodes of the rules that download straight from an
 		// online streaming provider instead of a torrent.
 		directDownloader DirectDownloader
+		// listStatusUpdater takes a series out of the user's "currently watching" list once it is
+		// over and entirely in the library.
+		listStatusUpdater ListStatusUpdater
 	}
 
 	// DirectDownloader fetches the new episodes of the rules that download straight from an
@@ -71,6 +74,13 @@ type (
 		// FetchNewEpisodes queues the episodes the provider has released that the library does
 		// not have yet, and returns how many were queued.
 		FetchNewEpisodes(ctx context.Context, provider string, mediaId int, dubbed bool) (int, error)
+	}
+
+	// ListStatusUpdater writes the user's AniList list.
+	ListStatusUpdater interface {
+		// CompleteWatching marks the media as completed on the user's list, which takes it out of
+		// the "currently watching" list. It reports whether anything was changed.
+		CompleteWatching(ctx context.Context, mediaID int) (bool, error)
 	}
 
 	// SimulationResult represents a torrent that would be downloaded in simulation mode
@@ -262,6 +272,19 @@ func (ad *AutoDownloader) SetDirectDownloader(downloader DirectDownloader) {
 	ad.directDownloader = downloader
 }
 
+// SetListStatusUpdater gives the auto downloader the means to take a series out of the user's
+// "currently watching" list once it is over and entirely in the library.
+func (ad *AutoDownloader) SetListStatusUpdater(updater ListStatusUpdater) {
+	defer util.HandlePanicInModuleThen("autodownloader/SetListStatusUpdater", func() {})
+
+	if ad == nil {
+		return
+	}
+	ad.mu.Lock()
+	defer ad.mu.Unlock()
+	ad.listStatusUpdater = updater
+}
+
 // GetSimulationResults returns the simulation results from the last run
 func (ad *AutoDownloader) GetSimulationResults() []*SimulationResult {
 	ad.mu.Lock()
@@ -368,11 +391,16 @@ func (ad *AutoDownloader) start() {
 				ad.logger.Debug().Msg("autodownloader: Auto Downloader started")
 				ad.checkForNewEpisodes(context.Background(), isSumulation)
 			}
+			// A series that is over and entirely downloaded has nothing left to follow, so it
+			// leaves the watching list. This is checked whatever the torrent side is set to: it is
+			// about the rules, and each rule is an opt-in of its own.
+			ad.checkSeriesCompletion(context.Background())
 		case <-ticker.C:
 			ad.checkDirectRules(context.Background())
 			if ad.settings.Enabled {
 				ad.checkForNewEpisodes(context.Background(), false)
 			}
+			ad.checkSeriesCompletion(context.Background())
 		}
 		ticker.Stop()
 	}
@@ -464,6 +492,11 @@ func (ad *AutoDownloader) checkDirectRules(ctx context.Context, ruleIDs ...uint)
 		return
 	}
 
+	// What the library holds, by series, for the completeness check below. Read once for the whole
+	// pass rather than once per rule.
+	library := ad.libraryEpisodes()
+	ac, _ := ad.animeCollection.Get()
+
 	for _, rule := range rules {
 		if rule == nil || !rule.Enabled || !rule.IsDirect() || rule.MediaId == 0 {
 			continue
@@ -471,8 +504,11 @@ func (ad *AutoDownloader) checkDirectRules(ctx context.Context, ruleIDs ...uint)
 		if len(ruleIDs) > 0 && !slices.Contains(ruleIDs, rule.DbID) {
 			continue
 		}
-		// A series that is over has no new episodes to fetch.
-		if ad.isSeriesFinished(rule.MediaId) {
+		// A series that is over has nothing left to air. It is only left alone once the library
+		// holds every one of its episodes: until then the rule is what is fetching the rest of it,
+		// and a series that finished airing with episodes still missing is exactly the case this
+		// has to keep working on.
+		if ac != nil && ad.isSeriesComplete(ac, rule.MediaId, library[rule.MediaId]) {
 			continue
 		}
 
@@ -491,20 +527,6 @@ func (ad *AutoDownloader) checkDirectRules(ctx context.Context, ruleIDs ...uint)
 				Msg("autodownloader: Queued the new episodes of the series")
 		}
 	}
-}
-
-// isSeriesFinished tells if the anime is known to be over: a series that is over has no new
-// episodes to fetch.
-func (ad *AutoDownloader) isSeriesFinished(mediaId int) bool {
-	ac, ok := ad.animeCollection.Get()
-	if !ok || ac == nil {
-		return false
-	}
-	media, found := ac.FindAnime(mediaId)
-	if !found || media == nil || media.Status == nil {
-		return false
-	}
-	return *media.Status == anilist.MediaStatusFinished
 }
 
 // runData holds all data needed for checking new episodes

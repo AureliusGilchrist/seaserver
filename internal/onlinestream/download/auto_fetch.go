@@ -31,8 +31,8 @@ func (m *Manager) canFetch(mediaId int) bool {
 // online streaming provider instead of a torrent.
 // It returns how many episodes were queued.
 //
-// Only the episodes released after the ones the library already has are fetched: a rule made for
-// a series that is still airing follows it, it does not download its whole catalogue again.
+// A rule covers a whole series, so the whole series is fetched: the episodes the library is
+// missing are queued, whether the series is still airing or already over.
 func (m *Manager) FetchNewEpisodes(ctx context.Context, provider string, mediaId int, dubbed bool) (int, error) {
 	// The providers are asked for a fresh list of episodes every time, which is a lot of requests
 	// for a series checked over and over: a series is looked for once every fetchCooldown.
@@ -99,21 +99,21 @@ func (m *Manager) FetchNewEpisodes(ctx context.Context, provider string, mediaId
 	return 0, lastErr
 }
 
-// queueNewEpisodes queues the episodes the provider lists that are new for the library: released
-// after the ones it already has, not in it yet, and not in the queue already.
+// queueNewEpisodes queues the episodes the provider lists that the library does not have yet and
+// that are not in the queue already.
 // It returns how many were queued.
+//
+// Every released episode is a candidate, not only the ones after the ones the library already has:
+// a rule covers a whole series, so the series is downloaded whole. A series that is still airing
+// simply has no provider episode for what has not aired yet, and those come later.
 func (m *Manager) queueNewEpisodes(ctx context.Context, mediaId int, provider string, episodes []*onlinestream.Episode, dubbed bool) int {
 	inLibrary := m.libraryEpisodes(mediaId, episodes)
 
 	m.mu.Lock()
 	queued := make(map[int]bool)
-	highest := 0
 	for _, it := range m.items {
 		if it.MediaId != mediaId {
 			continue
-		}
-		if it.EpisodeNumber > highest {
-			highest = it.EpisodeNumber
 		}
 		// A waiting episode is being downloaded already.
 		if !it.finished() {
@@ -122,21 +122,10 @@ func (m *Manager) queueNewEpisodes(ctx context.Context, mediaId int, provider st
 	}
 	m.mu.Unlock()
 
-	for ep := range inLibrary {
-		if ep > highest {
-			highest = ep
-		}
-	}
-	if highest == 0 {
-		// The library has nothing of this series yet: there is no telling which episodes are the
-		// new ones, so nothing is fetched until the series is in the library.
-		return 0
-	}
-
 	reqs := make([]Request, 0, len(episodes))
 	titles := make(map[int]string, len(episodes))
 	for _, ep := range episodes {
-		if ep == nil || ep.Number <= highest || queued[ep.Number] || inLibrary[ep.Number] {
+		if ep == nil || ep.Number <= 0 || queued[ep.Number] || inLibrary[ep.Number] {
 			continue
 		}
 		reqs = append(reqs, Request{

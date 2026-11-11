@@ -63,7 +63,9 @@ func (ac *AnimeCollection) GetAllAnime() []*BaseAnime {
 }
 
 func (ac *AnimeCollection) FindAnime(mediaId int) (*BaseAnime, bool) {
-	if ac == nil {
+	// A collection that carries no list collection at all is an empty one, not a broken one: the
+	// simulated platform hands one out, and every other lookup on this type already says so.
+	if ac == nil || ac.MediaListCollection == nil {
 		return nil, false
 	}
 

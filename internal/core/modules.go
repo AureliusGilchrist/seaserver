@@ -446,6 +446,12 @@ func (a *App) initModulesOnce() {
 		IsOfflineRef:            a.IsOfflineRef(),
 	})
 
+	// A series that is over and entirely in the library leaves the "currently watching" list, which
+	// is an AniList list write: the client manager owns those.
+	if a.AnilistClientManager != nil {
+		a.AutoDownloader.SetListStatusUpdater(a.AnilistClientManager)
+	}
+
 	// This is run in a goroutine
 	a.AutoDownloader.Start()
 
