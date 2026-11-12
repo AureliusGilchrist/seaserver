@@ -40,7 +40,12 @@ export function useRequestMediastreamMediaContainer(variables: Partial<RequestMe
         queryKey: [API_ENDPOINTS.MEDIASTREAM.RequestMediastreamMediaContainer.key, variables?.clientId, variables?.path, variables?.streamType],
         data: variables as RequestMediastreamMediaContainer_Variables,
         enabled: !!variables.path && !!variables.streamType && enabled,
-        staleTime: 0,
+        // The answer is the stream being played: it is asked for again only when the file or stream
+        // type changes, or by an explicit refetch (replaying the same file). With staleTime 0 it was
+        // also re-requested whenever `enabled` flipped back on — a background refresh of the
+        // mediastream settings or the watch history (the server's connection coming back online)
+        // turns it off for a moment — and the new stream URL restarted a paused player, playing.
+        staleTime: Infinity,
         gcTime: 0,
         refetchOnMount: "always",
         // The server answers in well under a second; a request that hasn't come back in a minute
