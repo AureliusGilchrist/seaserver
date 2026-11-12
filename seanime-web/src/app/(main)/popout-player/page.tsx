@@ -26,7 +26,12 @@ import {
     setPendingPopoutResume,
     startPopoutHandoffGiver,
 } from "@/app/(main)/_features/video-core/video-core-popout-resume"
-import { getPopoutCurrentPath, setPopoutCurrentPath, setPopoutHandingBack } from "@/app/(main)/_features/video-core/video-core-single-playback"
+import {
+    getPopoutCurrentPath,
+    onMainPathChange,
+    setPopoutCurrentPath,
+    setPopoutHandingBack,
+} from "@/app/(main)/_features/video-core/video-core-single-playback"
 import { clientIdAtom, websocketConnectedAtom } from "@/app/websocket-provider"
 import { AppLayoutStack } from "@/components/ui/app-layout"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
@@ -345,6 +350,30 @@ function PopoutPlaybackHandoff() {
     }, [currentPopoutPath])
     const [handoffError, setHandoffError] = React.useState<string | null>(null)
     const { mutate: playLocalFile } = useDirectstreamPlayLocalFile()
+
+    // The main window's player moved to another episode: this window plays it too. The player has
+    // no playback info while a stream loads, so the file this window is really on is the last one it
+    // had, which is what a failed request puts back (the main window then follows it).
+    const followRef = React.useRef({ clientId, playLocalFile, actualPath: currentPopoutPath })
+    followRef.current = { clientId, playLocalFile, actualPath: currentPopoutPath ?? followRef.current.actualPath }
+    React.useEffect(() => {
+        return onMainPathChange(path => {
+            const { clientId: id, playLocalFile: play, actualPath } = followRef.current
+            if (!id) return
+            log.info("The main window is on another episode, following", path)
+            play({ path, clientId: id }, {
+                onError: (error: any) => {
+                    // Same empty-200 success the first request is treated to (see below).
+                    if (error?.message === "No response from the server" && !error?.response) return
+                    log.error("Could not follow the main window to another episode", error)
+                    console.warn("[POPOUT FOLLOW] stream request failed", path, error?.response?.status, error?.message)
+                    // Only while this window still counts itself as being on that file: a later
+                    // change of episode that went through is not undone by this one's failure.
+                    if (getPopoutCurrentPath() === path) setPopoutCurrentPath(actualPath)
+                },
+            })
+        })
+    }, [])
 
     React.useEffect(() => {
         document.body.setAttribute("data-player-page", "true")

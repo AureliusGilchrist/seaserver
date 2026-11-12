@@ -8,7 +8,13 @@ import {
     setPopoutReturnTime,
     wasReturnedOverChannel,
 } from "@/app/(main)/_features/video-core/video-core-popout-resume"
-import { onPopoutPathChange, releasePopoutPriority } from "@/app/(main)/_features/video-core/video-core-single-playback"
+import {
+    announceMainPath,
+    isPopoutPlayerWindow,
+    noteFollowedPopoutPath,
+    onPopoutPathChange,
+    releasePopoutPriority,
+} from "@/app/(main)/_features/video-core/video-core-single-playback"
 import { MKVParser_SubtitleEvent, NativePlayer_PlaybackInfo, NativePlayer_ServerEvent } from "@/api/generated/types"
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { vc_miniPlayer, vc_requestTranscodeForAudio, vc_videoElement, vc_directPlayAudioUrl, vc_directPlayAudioLoading } from "@/app/(main)/_features/video-core/video-core-atoms"
@@ -110,6 +116,8 @@ export function NativePlayer() {
         const stopFollowing = onPopoutPathChange(path => {
             if (path === mediastreamFilePathRef.current) return
             console.warn("[POPOUT FOLLOW] the player follows the pip to", path, "(was", mediastreamFilePathRef.current, ")")
+            // Not announced back to the pip as a change of this window's own.
+            noteFollowedPopoutPath(path)
             setMediastreamFilePathRef.current(path)
         })
 
@@ -127,6 +135,27 @@ export function NativePlayer() {
     }, [clientId])
     // AniSkip
     const { data: aniSkipData } = useSkipData(state?.playbackInfo?.media?.idMal, state?.playbackInfo?.episode?.progressNumber ?? -1)
+
+    // The other direction: this window's episode changed — picked in the local player, started on
+    // an entry page, or the drawer's stream moved on — so the pip plays it too. Only the main
+    // window announces; changes the pip caused are filtered out inside announceMainPath.
+    const drawerFilePath = state.playbackInfo?.localFile?.path
+    const announcedMediastreamPath = React.useRef(mediastreamFilePath)
+    React.useEffect(() => {
+        if (announcedMediastreamPath.current === mediastreamFilePath) return
+        announcedMediastreamPath.current = mediastreamFilePath
+        if (!window.electron || isPopoutPlayerWindow()) return
+        announceMainPath(mediastreamFilePath)
+    }, [mediastreamFilePath])
+    // The drawer has no file while it loads the next episode, so that gap counts as a change too:
+    // opening the same episode again afterwards is announced.
+    const announcedDrawerPath = React.useRef(drawerFilePath)
+    React.useEffect(() => {
+        if (announcedDrawerPath.current === drawerFilePath) return
+        announcedDrawerPath.current = drawerFilePath
+        if (!window.electron || isPopoutPlayerWindow()) return
+        announceMainPath(drawerFilePath)
+    }, [drawerFilePath])
 
     React.useEffect(() => {
         qc.invalidateQueries({ queryKey: [API_ENDPOINTS.CONTINUITY.GetContinuityWatchHistoryItem.key] })
