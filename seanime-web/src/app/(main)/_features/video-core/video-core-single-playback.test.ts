@@ -125,8 +125,64 @@ describe("one player at a time, the popout wins", () => {
         await wait(30)
         popoutChannel.postMessage({ type: "popout-open", path: "/a/ep2.mkv" })
         await wait(30)
-        // The episode the pip opened on is not a change; only the move to ep2 is.
-        expect(seen).toEqual(["/a/ep2.mkv"])
+        // Every distinct file is announced once, the one the pip opened on included: the follower
+        // only acts when the player is on another file, so the first is a no-op when it matches.
+        expect(seen).toEqual(["/a/ep1.mkv", "/a/ep2.mkv"])
+
+        popoutChannel.postMessage({ type: "popout-closed" })
+        popoutChannel.close()
+        stopListening()
+        stopGuard()
+    })
+
+    it("still follows a change that comes after the pip went quiet for a while", async () => {
+        const seen: string[] = []
+        const stopGuard = mod.startMainWindowPlaybackGuard()
+        const stopListening = mod.onPopoutPathChange(path => seen.push(path))
+        const popoutChannel = new BroadcastChannel("vc-single-playback")
+
+        popoutChannel.postMessage({ type: "popout-open", path: "/b/ep1.mkv" })
+        await wait(30)
+        // A busy pip stops reporting past STALE_MS, so the main window forgets it was there; the
+        // report that follows (already on the next episode) must still move the player.
+        await wait(4700)
+        popoutChannel.postMessage({ type: "popout-open", path: "/b/ep2.mkv" })
+        await wait(30)
+        expect(seen[seen.length - 1]).toBe("/b/ep2.mkv")
+
+        popoutChannel.postMessage({ type: "popout-closed" })
+        popoutChannel.close()
+        stopListening()
+        stopGuard()
+    })
+
+    it("brings the player to the episode the pip closed on", async () => {
+        const seen: string[] = []
+        const stopGuard = mod.startMainWindowPlaybackGuard()
+        const stopListening = mod.onPopoutPathChange(path => seen.push(path))
+        const popoutChannel = new BroadcastChannel("vc-single-playback")
+
+        popoutChannel.postMessage({ type: "popout-open", path: "/c/ep3.mkv" })
+        await wait(30)
+        // The pip moved on through ep4 to ep5 without the main window hearing of it.
+        popoutChannel.postMessage({ type: "popout-closed", path: "/c/ep5.mkv", time: 342 })
+        await wait(30)
+        expect(seen).toEqual(["/c/ep3.mkv", "/c/ep5.mkv"])
+
+        popoutChannel.close()
+        stopListening()
+        stopGuard()
+    })
+
+    it("hands the pip's current episode to a listener that subscribes late", async () => {
+        const stopGuard = mod.startMainWindowPlaybackGuard()
+        const popoutChannel = new BroadcastChannel("vc-single-playback")
+
+        popoutChannel.postMessage({ type: "popout-open", path: "/d/ep7.mkv" })
+        await wait(30)
+        const seen: string[] = []
+        const stopListening = mod.onPopoutPathChange(path => seen.push(path))
+        expect(seen).toEqual(["/d/ep7.mkv"])
 
         popoutChannel.postMessage({ type: "popout-closed" })
         popoutChannel.close()

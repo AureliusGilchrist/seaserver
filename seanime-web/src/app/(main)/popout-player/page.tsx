@@ -26,7 +26,7 @@ import {
     setPendingPopoutResume,
     startPopoutHandoffGiver,
 } from "@/app/(main)/_features/video-core/video-core-popout-resume"
-import { setPopoutCurrentPath, setPopoutHandingBack } from "@/app/(main)/_features/video-core/video-core-single-playback"
+import { getPopoutCurrentPath, setPopoutCurrentPath, setPopoutHandingBack } from "@/app/(main)/_features/video-core/video-core-single-playback"
 import { clientIdAtom, websocketConnectedAtom } from "@/app/websocket-provider"
 import { AppLayoutStack } from "@/components/ui/app-layout"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
@@ -199,7 +199,7 @@ function PopoutReturnButton() {
     const searchParams = useSearchParams()
 
     const returnToMain = () => {
-        let path: string | null | undefined = nativePlayerState.playbackInfo?.localFile?.path
+        let path: string | null | undefined = nativePlayerState.playbackInfo?.localFile?.path ?? getPopoutCurrentPath()
         if (!path) {
             const encoded = searchParams.get("path")
             try {

@@ -62,12 +62,19 @@ export function setPopoutHandingBack(value: boolean) {
 let popoutCurrentPath: string | undefined
 let announcePopoutPresence: (() => void) | null = null
 
-/** Popout window: the file now playing here; announced to the main window right away. */
+/**
+ * Popout window: the file now playing here; announced to the main window right away. The player has
+ * no playback info for a moment between episodes; that gap is not a file, so the last one stays.
+ */
 export function setPopoutCurrentPath(path: string | null | undefined) {
-    const next = path || undefined
-    if (next === popoutCurrentPath) return
-    popoutCurrentPath = next
+    if (!path || path === popoutCurrentPath) return
+    popoutCurrentPath = path
     announcePopoutPresence?.()
+}
+
+/** Popout window: the file this window is on, or last was on. */
+export function getPopoutCurrentPath() {
+    return popoutCurrentPath
 }
 
 /** Popout window: report this window's playing state to the main window. Returns a stop function. */
@@ -151,23 +158,28 @@ let popoutOpenUntil = 0
 let popoutPresentNow = false
 const popoutPresentListeners = new Set<(present: boolean) => void>()
 
-// The file the popout is on, as last reported; listeners hear about each change.
+// The file the popout is on, as last reported. Listeners hear about every distinct path, the first
+// one included: when the main player is already on it, following is a no-op; when it is not (a
+// change that was missed, a reload while the pip was open) this is what puts it back in step.
 let popoutPathNow: string | undefined
 const popoutPathListeners = new Set<(path: string) => void>()
 
-/** Main window: subscribe to the popout changing episode. Returns an unsubscribe function. */
+/** Main window: subscribe to the popout's episode. The current one is delivered on subscribe. */
 export function onPopoutPathChange(listener: (path: string) => void): () => void {
     popoutPathListeners.add(listener)
+    if (popoutPathNow) {
+        try {
+            listener(popoutPathNow)
+        }
+        catch {
+        }
+    }
     return () => popoutPathListeners.delete(listener)
 }
 
 function setPopoutPath(path: string | undefined) {
     if (!path || path === popoutPathNow) return
-    const first = popoutPathNow === undefined
     popoutPathNow = path
-    // The first path is the episode this pip opened on, which this window is already on (it is
-    // what was popped out). Only later changes are the pip moving to another episode.
-    if (first) return
     popoutPathListeners.forEach(l => {
         try {
             l(path)
@@ -255,6 +267,9 @@ export function startMainWindowPlaybackGuard(onBlocked?: () => void): () => void
             return
         }
         if (msg?.type === "popout-closed") {
+            // Wherever the pip ended up is the episode the main player belongs on, whatever
+            // changes of episode it missed on the way.
+            setPopoutPath(msg.path)
             popoutOpenUntil = 0
             setPopoutPresent(false)
             popoutPathNow = undefined

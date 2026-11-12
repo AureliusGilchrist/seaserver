@@ -677,23 +677,6 @@ export class VideoCorePipManager extends EventTarget {
         }
     }
 
-    private handlePipVideoTimeUpdate = () => {
-        if (this.isSyncingFromMain || !this.video || !this.pipProxy) return
-        const timeDiff = Math.abs(this.video.currentTime - this.pipProxy.currentTime)
-        if (timeDiff > 0.5) {
-            this.isSyncingFromPip = true
-            this.video.currentTime = this.pipProxy.currentTime
-            this.isSyncingFromPip = false
-        }
-    }
-
-    private handlePipVideoEnded = () => {
-        if (this.isSyncingFromMain || !this.video) return
-        this.isSyncingFromPip = true
-        this.video.currentTime = this.video.duration
-        this.isSyncingFromPip = false
-    }
-
     private async enterPipWithSubtitles(docPip: DocumentPictureInPicture | null = null) {
         if (!this.video || (!docPip && !this.subtitleManager && !this.mediaCaptionsManager)) return
 
@@ -747,8 +730,6 @@ export class VideoCorePipManager extends EventTarget {
         }
         pipVideo.addEventListener("play", forwardPlay, { signal: this.canvasController.signal })
         pipVideo.addEventListener("pause", forwardPause, { signal: this.canvasController.signal })
-        pipVideo.addEventListener("timeupdate", this.handlePipVideoTimeUpdate, { signal: this.canvasController.signal })
-        pipVideo.addEventListener("ended", this.handlePipVideoEnded, { signal: this.canvasController.signal })
         const animationFrameRef = { current: 0 }
         const lastRenderTimeRef = { current: performance.now() }
 
@@ -772,14 +753,10 @@ export class VideoCorePipManager extends EventTarget {
                 reject(new Error("Timeout waiting for PiP video metadata"))
             }, 5000)
 
-        pipVideo.addEventListener("loadedmetadata", () => {
-            clearTimeout(timeout)
-            // Sync the PiP video's currentTime to the main video's current position
-            if (this.video && this.video.currentTime > 0) {
-                pipVideo.currentTime = this.video.currentTime
-            }
-            resolve()
-        }, { once: true })
+            pipVideo.addEventListener("loadedmetadata", () => {
+                clearTimeout(timeout)
+                resolve()
+            }, { once: true })
 
             pipVideo.addEventListener("error", () => {
                 clearTimeout(timeout)

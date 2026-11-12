@@ -48,7 +48,7 @@ export function NativePlayer() {
     const setRequestTranscodeForAudio = useSetAtom(vc_requestTranscodeForAudio)
     const setDirectPlayAudioUrl = useSetAtom(vc_directPlayAudioUrl)
     const setDirectPlayAudioLoading = useSetAtom(vc_directPlayAudioLoading)
-    const { setFilePath: setMediastreamFilePath } = useMediastreamCurrentFile()
+    const { filePath: mediastreamFilePath, setFilePath: setMediastreamFilePath } = useMediastreamCurrentFile()
     const { mutate: playLocalFile } = useDirectstreamPlayLocalFile()
 
     // Fork (Electron): the popout window hands playback back here with its position.
@@ -86,6 +86,8 @@ export function NativePlayer() {
     resumeFromPopoutRef.current = resumeFromPopout
     const setMediastreamFilePathRef = React.useRef(setMediastreamFilePath)
     setMediastreamFilePathRef.current = setMediastreamFilePath
+    const mediastreamFilePathRef = React.useRef(mediastreamFilePath)
+    mediastreamFilePathRef.current = mediastreamFilePath
 
     React.useEffect(() => {
         if (typeof window === "undefined" || !window.electron?.on || !clientId) return
@@ -101,9 +103,15 @@ export function NativePlayer() {
             return true
         })
 
-        // The popout changed episode: this window's player moves to it too (selection only — the
-        // position stays, and is taken from the popout when playback returns).
-        const stopFollowing = onPopoutPathChange(path => setMediastreamFilePathRef.current(path))
+        // The popout is on this file: this window's player moves to it too (selection only — the
+        // position stays, and is taken from the popout when playback returns). Called for the file
+        // the pip opened on as well, and again if a change was missed, so it only acts when the
+        // player is actually on another file.
+        const stopFollowing = onPopoutPathChange(path => {
+            if (path === mediastreamFilePathRef.current) return
+            console.warn("[POPOUT FOLLOW] the player follows the pip to", path, "(was", mediastreamFilePathRef.current, ")")
+            setMediastreamFilePathRef.current(path)
+        })
 
         const off = window.electron.on("player:return-from-popout", (payload: { path: string, time: number, paused: boolean, from?: string }) => {
             if (!payload?.path) return
