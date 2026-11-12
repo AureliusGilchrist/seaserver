@@ -453,12 +453,8 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                         subtitleLog.info("Reusing existing libass renderer")
                         await sharedRenderer.ready
                         if (this.isDestroyed) return
-                        // Re-attach the canvas wrapper next to the current video element —
-                        // the previous episode's wrapper location unmounted with its video.
-                        const canvasParent = (sharedRenderer as any)._canvasParent as HTMLDivElement | undefined
-                        if (canvasParent && this.videoElement.nextElementSibling !== canvasParent) {
-                            this.videoElement.insertAdjacentElement("afterend", canvasParent)
-                        }
+                        // Put the overlay back next to the video element it renders for.
+                        this._reattachLibassOverlay(sharedRenderer)
                         await sharedRenderer.setVideo(this.videoElement)
                         if (this.isDestroyed) return
                         // Reusing the renderer must release the prior episode's track before
@@ -857,6 +853,35 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // Selects a track by its number.
+    /**
+     * Puts the shared renderer's overlay back beside the video it is rendering for.
+     *
+     * JASSUB inserts its canvas right after the video element, so the overlay lives inside the
+     * player's inner container. That container is only mounted while the player is not showing a
+     * loading state, and every episode change passes through one (the stream is being set up
+     * again) — so the overlay is unmounted along with the episode it belonged to. The renderer
+     * itself is deliberately reused across episodes, which means nothing puts the overlay back:
+     * libass keeps drawing, into a canvas that is no longer in the document, and the new episode
+     * plays with no subtitles at all. A fresh renderer hides this, because creating one inserts
+     * its own canvas — which is why it used to come back on some episodes and not others.
+     *
+     * During Picture-in-Picture, the overlay is intentionally moved into the PiP window's document
+     * so it can render subtitles there. Don't pull it back while the PiP is active — it belongs
+     * there. Only reattach detached overlays or ones left in a mismatched container.
+     */
+    private _reattachLibassOverlay(renderer: JASSUB) {
+        const video = this.videoElement
+        if (!video || !video.parentElement) return
+        const overlay = ((renderer as any)._canvasParent ?? (renderer as any)._canvas) as HTMLElement | undefined
+        if (!overlay || typeof overlay.nodeType !== "number") return
+        if (overlay.parentElement === video.parentElement) return
+        // An overlay in a different document (PiP window) or intentionally moved elsewhere:
+        // leave it where it is. The PiP window owns it and will return it when the window closes.
+        if (overlay.isConnected && overlay.ownerDocument !== video.ownerDocument) return
+        // An overlay that's detached or in the wrong container gets moved back.
+        video.insertAdjacentElement("afterend", overlay)
+    }
+
     /**
      * Caps the ASS overlay's render resolution to the source video height.
      *

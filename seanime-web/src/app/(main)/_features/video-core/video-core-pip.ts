@@ -479,14 +479,33 @@ export class VideoCorePipManager extends EventTarget {
     }
 
     // The video's subtitle layers: JASSUB's canvas, the PGS canvas and the media-captions overlay.
-    // All three are siblings the renderers add next to the <video>.
+    // All three are siblings the renderers add next to the <video> — but only for as long as the
+    // container holding them is mounted, and every episode change takes it down for a moment while
+    // the next stream is set up. The overlays the subtitle manager owns are therefore read from the
+    // manager itself, so one that is currently detached is still moved into the PiP window rather
+    // than left behind with the episode it belonged to (which is how a new episode could end up
+    // playing in the PiP window with no subtitles in it).
     private subtitleLayersOf(video: HTMLVideoElement): HTMLElement[] {
         const parent = video.parentElement
         if (!parent) return []
-        return Array.from(parent.children).filter((el): el is HTMLElement =>
-            el !== video && el instanceof HTMLElement &&
-            el.matches("canvas.JASSUB, canvas.vc-pgs-canvas, #video-core-captions-wrapper"),
-        )
+        const layers = new Set<HTMLElement>()
+        const libass = this.subtitleManager?.libassRenderer
+        const owned: unknown[] = [
+            (libass as any)?._canvasParent ?? (libass as any)?._canvas,
+            (this.subtitleManager?.pgsRenderer as any)?._canvas,
+        ]
+        for (const element of owned) {
+            // Not `instanceof`: these elements are created in this window but may already live in
+            // the PiP window's document, whose realm has its own HTMLElement.
+            if (element && typeof (element as Node).nodeType === "number") layers.add(element as HTMLElement)
+        }
+        for (const el of Array.from(parent.children)) {
+            if (el !== video && el instanceof HTMLElement &&
+                el.matches("canvas.JASSUB, canvas.vc-pgs-canvas, #video-core-captions-wrapper")) {
+                layers.add(el)
+            }
+        }
+        return [...layers]
     }
 
     private resizeSubtitleLayers() {
@@ -658,6 +677,23 @@ export class VideoCorePipManager extends EventTarget {
         }
     }
 
+    private handlePipVideoTimeUpdate = () => {
+        if (this.isSyncingFromMain || !this.video || !this.pipProxy) return
+        const timeDiff = Math.abs(this.video.currentTime - this.pipProxy.currentTime)
+        if (timeDiff > 0.5) {
+            this.isSyncingFromPip = true
+            this.video.currentTime = this.pipProxy.currentTime
+            this.isSyncingFromPip = false
+        }
+    }
+
+    private handlePipVideoEnded = () => {
+        if (this.isSyncingFromMain || !this.video) return
+        this.isSyncingFromPip = true
+        this.video.currentTime = this.video.duration
+        this.isSyncingFromPip = false
+    }
+
     private async enterPipWithSubtitles(docPip: DocumentPictureInPicture | null = null) {
         if (!this.video || (!docPip && !this.subtitleManager && !this.mediaCaptionsManager)) return
 
@@ -711,6 +747,8 @@ export class VideoCorePipManager extends EventTarget {
         }
         pipVideo.addEventListener("play", forwardPlay, { signal: this.canvasController.signal })
         pipVideo.addEventListener("pause", forwardPause, { signal: this.canvasController.signal })
+        pipVideo.addEventListener("timeupdate", this.handlePipVideoTimeUpdate, { signal: this.canvasController.signal })
+        pipVideo.addEventListener("ended", this.handlePipVideoEnded, { signal: this.canvasController.signal })
         const animationFrameRef = { current: 0 }
         const lastRenderTimeRef = { current: performance.now() }
 
@@ -734,10 +772,14 @@ export class VideoCorePipManager extends EventTarget {
                 reject(new Error("Timeout waiting for PiP video metadata"))
             }, 5000)
 
-            pipVideo.addEventListener("loadedmetadata", () => {
-                clearTimeout(timeout)
-                resolve()
-            }, { once: true })
+        pipVideo.addEventListener("loadedmetadata", () => {
+            clearTimeout(timeout)
+            // Sync the PiP video's currentTime to the main video's current position
+            if (this.video && this.video.currentTime > 0) {
+                pipVideo.currentTime = this.video.currentTime
+            }
+            resolve()
+        }, { once: true })
 
             pipVideo.addEventListener("error", () => {
                 clearTimeout(timeout)
