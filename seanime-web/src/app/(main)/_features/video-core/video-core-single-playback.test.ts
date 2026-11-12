@@ -177,6 +177,22 @@ describe("one player at a time, the popout wins", () => {
         stopGuard()
     })
 
+    it("reports the episode and second the pip closed on", async () => {
+        const closed: [string, number][] = []
+        const stopGuard = mod.startMainWindowPlaybackGuard()
+        const stopClosed = mod.onPopoutClosed((path, time) => closed.push([path, time]))
+        const popoutChannel = new BroadcastChannel("vc-single-playback")
+
+        popoutChannel.postMessage({ type: "popout-open", path: "/c/ep3.mkv" })
+        popoutChannel.postMessage({ type: "popout-closed", path: "/c/ep6.mkv", time: 180 })
+        await wait(30)
+        expect(closed).toEqual([["/c/ep6.mkv", 180]])
+
+        popoutChannel.close()
+        stopClosed()
+        stopGuard()
+    })
+
     it("hands the pip's current episode to a listener that subscribes late", async () => {
         const stopGuard = mod.startMainWindowPlaybackGuard()
         const popoutChannel = new BroadcastChannel("vc-single-playback")

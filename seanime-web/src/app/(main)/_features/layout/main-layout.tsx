@@ -15,6 +15,7 @@ import { ManualProgressTracking } from "@/app/(main)/_features/progress-tracking
 import { PlaybackManagerProgressTracking } from "@/app/(main)/_features/progress-tracking/playback-manager-progress-tracking"
 import { SeaCommand } from "@/app/(main)/_features/sea-command/sea-command"
 import { VideoCoreProvider } from "@/app/(main)/_features/video-core/video-core"
+import { PopoutEpisodeSync } from "@/app/(main)/_features/native-player/popout-episode-sync"
 import { useAnimeCollectionLoader } from "@/app/(main)/_hooks/anilist-collection-loader"
 import { useAnimeLibraryCollectionLoader } from "@/app/(main)/_hooks/anime-library-collection-loader"
 import { useMissingEpisodesLoader } from "@/app/(main)/_hooks/missing-episodes-loader"
@@ -124,6 +125,8 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
             {(__isElectronDesktop__) && <VideoCoreProvider key="native-player" id="native-player">
                 <NativePlayer />
             </VideoCoreProvider>}
+            {/* Outside the player: the native player is unmounted while the local player is active. */}
+            {(__isElectronDesktop__) && <PopoutEpisodeSync />}
             <NakamaManager />
             <WatchPartyManager />
             <NakamaWatchPartyChatProvider />

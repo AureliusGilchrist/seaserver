@@ -1,31 +1,15 @@
 import { formatCount } from "@/lib/helpers/number"
 import { attachHiddenAudioSync } from "@/app/(main)/_features/video-core/hidden-audio-sync"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
-import { useDirectstreamPlayLocalFile } from "@/api/hooks/directstream.hooks"
-import {
-    listenForPopoutReturns,
-    setPendingPopoutResume,
-    setPopoutReturnTime,
-    wasReturnedOverChannel,
-} from "@/app/(main)/_features/video-core/video-core-popout-resume"
-import {
-    announceMainPath,
-    isPopoutPlayerWindow,
-    noteFollowedPopoutPath,
-    onPopoutPathChange,
-    releasePopoutPriority,
-} from "@/app/(main)/_features/video-core/video-core-single-playback"
+import { registerNativeDrawerTerminate } from "./popout-episode-sync"
 import { MKVParser_SubtitleEvent, NativePlayer_PlaybackInfo, NativePlayer_ServerEvent } from "@/api/generated/types"
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { vc_miniPlayer, vc_requestTranscodeForAudio, vc_videoElement, vc_directPlayAudioUrl, vc_directPlayAudioLoading } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_subtitleManager, VideoCore } from "@/app/(main)/_features/video-core/video-core"
 import { VideoCoreLifecycleState } from "@/app/(main)/_features/video-core/video-core.atoms"
-import { __mediastream_replayRequestAtom, useMediastreamCurrentFile } from "@/app/(main)/mediastream/_lib/mediastream.atoms"
-import { __anime_entryPageViewAtom } from "@/app/(main)/entry/_lib/entry-page-view.atoms"
 import { useAchievementActivityHeartbeat } from "@/api/hooks/achievement.hooks"
 import { clientIdAtom } from "@/app/websocket-provider"
 import { logger } from "@/lib/helpers/debug"
-import { useRouter } from "@/lib/navigation"
 import { WSEvents } from "@/lib/server/ws-events"
 import { useQueryClient } from "@tanstack/react-query"
 import { useAtom, useAtomValue } from "jotai"
@@ -45,7 +29,6 @@ export function NativePlayer() {
     const qc = useQueryClient()
     const clientId = useAtomValue(clientIdAtom)
     const { sendMessage } = useWebsocketSender()
-    const router = useRouter()
 
     const videoElement = useAtomValue(vc_videoElement)
     const [state, setState] = useAtom(nativePlayer_stateAtom)
@@ -54,108 +37,9 @@ export function NativePlayer() {
     const setRequestTranscodeForAudio = useSetAtom(vc_requestTranscodeForAudio)
     const setDirectPlayAudioUrl = useSetAtom(vc_directPlayAudioUrl)
     const setDirectPlayAudioLoading = useSetAtom(vc_directPlayAudioLoading)
-    const { filePath: mediastreamFilePath, setFilePath: setMediastreamFilePath } = useMediastreamCurrentFile()
-    const { mutate: playLocalFile } = useDirectstreamPlayLocalFile()
 
-    // Fork (Electron): the popout window hands playback back here with its position.
-    // Popped out from the local player: back to that page (even if the main window has moved on
-    // since), playing there. Otherwise it was this drawer's stream, and the drawer resumes it.
-    const setMediastreamReplay = useSetAtom(__mediastream_replayRequestAtom)
-    const setEntryPageView = useSetAtom(__anime_entryPageViewAtom)
-    // The latest state and terminate handler, for the return listener below (registered once).
-    const drawerActiveRef = React.useRef(false)
-    drawerActiveRef.current = !!state.active
-    const terminateRef = React.useRef<(() => void) | null>(null)
-    const resumeFromPopout = (payload: { path: string, time: number, paused: boolean, from?: string }, handoffId?: string) => {
-        // The user asked for playback back here: the popout no longer has priority over it.
-        releasePopoutPriority()
-        setPopoutReturnTime(payload.path, payload.time)
-        console.warn("[POPOUT RETURN] resuming at", payload.time, payload.path)
-        setPendingPopoutResume(payload.time, payload.paused, handoffId)
-        if (payload.from) {
-            log.info("Returning popout playback to the local player", payload.from)
-            // This drawer must not be left covering the page we go back to. The popout has its
-            // own client id now, so its stream no longer opens here — but if one got in by any
-            // route, it is closed rather than shown over the Local Player tab.
-            if (drawerActiveRef.current) terminateRef.current?.()
-            setMediastreamFilePath(payload.path)
-            setMediastreamReplay({ path: payload.path, nonce: Date.now() })
-            if (payload.from.startsWith("/entry")) setEntryPageView("localplayer")
-            React.startTransition(() => {
-                router.push(payload.from!)
-            })
-            return
-        }
-        playLocalFile({ path: payload.path, clientId: clientId! })
-    }
-    const resumeFromPopoutRef = React.useRef(resumeFromPopout)
-    resumeFromPopoutRef.current = resumeFromPopout
-    const setMediastreamFilePathRef = React.useRef(setMediastreamFilePath)
-    setMediastreamFilePathRef.current = setMediastreamFilePath
-    const mediastreamFilePathRef = React.useRef(mediastreamFilePath)
-    mediastreamFilePathRef.current = mediastreamFilePath
-
-    React.useEffect(() => {
-        if (typeof window === "undefined" || !window.electron?.on || !clientId) return
-        // The popout window renders this component too; only the main window takes playback back.
-        if (window.location.pathname.startsWith("/popout-player")) return
-
-        // Live return: the popout keeps playing while this window starts the stream (see
-        // video-core-popout-resume). Not while this window is hidden or minimized, where the
-        // stream would load in the background: the popout then falls back to the one-shot return.
-        const stopListening = listenForPopoutReturns((request, id) => {
-            if (document.visibilityState !== "visible") return false
-            resumeFromPopoutRef.current(request, id)
-            return true
-        })
-
-        // The popout is on this file: this window's player moves to it too (selection only — the
-        // position stays, and is taken from the popout when playback returns). Called for the file
-        // the pip opened on as well, and again if a change was missed, so it only acts when the
-        // player is actually on another file.
-        const stopFollowing = onPopoutPathChange(path => {
-            if (path === mediastreamFilePathRef.current) return
-            console.warn("[POPOUT FOLLOW] the player follows the pip to", path, "(was", mediastreamFilePathRef.current, ")")
-            // Not announced back to the pip as a change of this window's own.
-            noteFollowedPopoutPath(path)
-            setMediastreamFilePathRef.current(path)
-        })
-
-        const off = window.electron.on("player:return-from-popout", (payload: { path: string, time: number, paused: boolean, from?: string }) => {
-            if (!payload?.path) return
-            // Already taken back over the channel: the shell's message only raised this window.
-            if (wasReturnedOverChannel(payload.path)) return
-            resumeFromPopoutRef.current(payload)
-        })
-        return () => {
-            stopListening()
-            stopFollowing()
-            off?.()
-        }
-    }, [clientId])
     // AniSkip
     const { data: aniSkipData } = useSkipData(state?.playbackInfo?.media?.idMal, state?.playbackInfo?.episode?.progressNumber ?? -1)
-
-    // The other direction: this window's episode changed — picked in the local player, started on
-    // an entry page, or the drawer's stream moved on — so the pip plays it too. Only the main
-    // window announces; changes the pip caused are filtered out inside announceMainPath.
-    const drawerFilePath = state.playbackInfo?.localFile?.path
-    const announcedMediastreamPath = React.useRef(mediastreamFilePath)
-    React.useEffect(() => {
-        if (announcedMediastreamPath.current === mediastreamFilePath) return
-        announcedMediastreamPath.current = mediastreamFilePath
-        if (!window.electron || isPopoutPlayerWindow()) return
-        announceMainPath(mediastreamFilePath)
-    }, [mediastreamFilePath])
-    // The drawer has no file while it loads the next episode, so that gap counts as a change too:
-    // opening the same episode again afterwards is announced.
-    const announcedDrawerPath = React.useRef(drawerFilePath)
-    React.useEffect(() => {
-        if (announcedDrawerPath.current === drawerFilePath) return
-        announcedDrawerPath.current = drawerFilePath
-        if (!window.electron || isPopoutPlayerWindow()) return
-        announceMainPath(drawerFilePath)
-    }, [drawerFilePath])
 
     React.useEffect(() => {
         qc.invalidateQueries({ queryKey: [API_ENDPOINTS.CONTINUITY.GetContinuityWatchHistoryItem.key] })
@@ -345,7 +229,15 @@ export function NativePlayer() {
     // Handlers
     //
 
+    // The popout sync (mounted outside this player) closes the drawer when playback returns to the
+    // local player page.
+    const terminateRef = React.useRef(handleTerminateStream)
     terminateRef.current = handleTerminateStream
+    React.useEffect(() => {
+        const terminate = () => terminateRef.current()
+        registerNativeDrawerTerminate(terminate)
+        return () => registerNativeDrawerTerminate(null)
+    }, [])
 
     function handleTerminateStream() {
         const playbackId = state.playbackInfo?.id || ""

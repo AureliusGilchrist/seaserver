@@ -255,6 +255,14 @@ function setPopoutPath(path: string | undefined) {
     })
 }
 
+const popoutClosedListeners = new Set<(path: string, time: number) => void>()
+
+/** Main window: the pip went away (closed or returned), with the file and second it was on. */
+export function onPopoutClosed(listener: (path: string, time: number) => void): () => void {
+    popoutClosedListeners.add(listener)
+    return () => popoutClosedListeners.delete(listener)
+}
+
 /** Main window: whether the popout window exists right now (playing or paused). */
 export function isPopoutPresent() {
     return popoutPresentNow
@@ -382,6 +390,17 @@ export function startMainWindowPlaybackGuard(onBlocked?: () => void): () => void
             if (msg.time && msg.time > 0 && msg.path) {
                 console.warn("[POPOUT RETURN] pip closed at", msg.time, msg.path)
                 setPopoutReturnTime(msg.path, msg.time)
+            }
+            if (msg.path) {
+                const path = msg.path
+                const time = msg.time && msg.time > 0 ? msg.time : 0
+                popoutClosedListeners.forEach(l => {
+                    try {
+                        l(path, time)
+                    }
+                    catch {
+                    }
+                })
             }
             return
         }
