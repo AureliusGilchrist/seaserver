@@ -100,7 +100,9 @@ def main():
     # so the old template names in themes not yet rewritten don't count.
     elsewhere = {}
     peers = sys.argv[sys.argv.index("--peers") + 1] if "--peers" in sys.argv else None
-    if peers:
+    if "--no-cross" in sys.argv:
+        pass  # only the theme's own list is checked; cross-theme repeats are fixed in a later pass
+    elif peers:
         for other in Path(peers).glob("*.txt"):
             if other.stem == theme_id or other.stem.startswith("_"):
                 continue

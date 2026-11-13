@@ -329,8 +329,8 @@ export function EpisodeCard(props: EpisodeCardProps) {
                             image={image}
                             size={16}
                             className={cn(
-                                "absolute right-2 z-[6] bg-black/45 backdrop-blur-sm border border-white/10",
-                                isSingleContainer ? "top-10" : "bottom-2",
+                                // Under the top-right badges, clear of the title and progress text at the bottom.
+                                "absolute right-2 top-10 z-[6] bg-black/45 backdrop-blur-sm border border-white/10",
                                 // Shown on hover, always once favourited, and always on touch screens.
                                 "opacity-0 lg:group-hover/episode-card:opacity-100 max-lg:opacity-100 [&[data-favorite]]:opacity-100",
                             )}
