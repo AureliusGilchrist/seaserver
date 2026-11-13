@@ -16,7 +16,7 @@ import { Button, IconButton } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { Tooltip } from "@/components/ui/tooltip"
 import { useRouter } from "@/lib/navigation"
-import { __isDesktop__, __isElectronDesktop__ } from "@/types/constants"
+import { __isDesktop__, __isElectronDesktop__, __isMobileShell__ } from "@/types/constants"
 import { useAtomValue, useSetAtom } from "jotai"
 import React from "react"
 import { LuArrowLeft, LuHand, LuLanguages, LuLogOut, LuPower, LuUsers } from "react-icons/lu"
@@ -57,20 +57,21 @@ export function WatchPartyRoom({ session }: { session: WatchParty_Session }) {
         <div
             data-watch-party-room
             className={cn(
-                "fixed inset-0 z-[45] bg-[#0b0b12] text-white flex flex-col lg:flex-row overflow-hidden",
-                __isElectronDesktop__ && "top-10",
-                __isDesktop__ && "top-8",
+                "fixed inset-0 z-[45] bg-[#09090f] text-white flex flex-col lg:flex-row overflow-hidden",
+                // Sit beside the app's sidebar rail (w-20), not under it and its fade.
+                !__isMobileShell__ && "lg:left-20",
+                __isElectronDesktop__ ? "top-10" : __isDesktop__ && "top-8",
             )}
         >
             <AmbientBackdrop image={mi?.mediaImage} />
 
             {/* Stage column */}
-            <div className="relative flex flex-col min-w-0 lg:flex-1 lg:h-full">
-                <header className="flex items-center gap-3 px-3 lg:px-5 h-16 shrink-0">
+            <div className="relative flex flex-col min-w-0 lg:flex-1 lg:h-full lg:pl-6 lg:pr-3 lg:pb-4 lg:gap-3">
+                <header className="flex items-center gap-3 px-3 lg:px-0 h-14 lg:h-12 lg:mt-1 shrink-0">
                     <Tooltip trigger={<IconButton
                         intent="gray-basic"
                         size="sm"
-                        className="rounded-full bg-white/5 hover:bg-white/10"
+                        className="rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10"
                         icon={<LuArrowLeft />}
                         onClick={() => router.push("/")}
                     />}>
@@ -81,24 +82,30 @@ export function WatchPartyRoom({ session }: { session: WatchParty_Session }) {
                         <img
                             src={mi.mediaImage}
                             alt=""
-                            className="hidden sm:block h-10 w-7 rounded-md object-cover border border-white/10 shadow-lg"
+                            className="hidden sm:block h-11 w-8 rounded-lg object-cover ring-1 ring-white/15 shadow-lg shadow-black/50"
                         />
                     )}
 
-                    <div className="flex flex-col min-w-0 flex-1">
+                    <div className="flex flex-col min-w-0 flex-1 gap-0.5">
                         <div className="flex items-center gap-2 min-w-0">
-                            <p className="font-bold text-base lg:text-lg truncate leading-tight">{session.name}</p>
+                            <p className="font-bold text-base lg:text-[1.05rem] tracking-tight truncate leading-tight">{session.name}</p>
                             {mi && <LiveBadge className="hidden sm:inline-flex" />}
                         </div>
-                        <p className="text-xs text-gray-400 truncate">
+                        <p className="text-xs text-gray-400 truncate leading-tight">
                             {mi
-                                ? <>{mi.mediaTitle}{mi.episodeNumber > 0 && ` · Episode ${mi.episodeNumber}`}</>
+                                ? <>
+                                    <span className="text-gray-200">{mi.mediaTitle}</span>
+                                    {mi.episodeNumber > 0 && <span className="text-brand-200"> · Episode {mi.episodeNumber}</span>}
+                                </>
                                 : "Nothing playing yet"}
                         </p>
                     </div>
 
-                    <div className="hidden md:flex items-center mr-1">
-                        <WatchPartyAvatarStack participants={people} max={5} />
+                    <div className="hidden md:flex items-center gap-2 mr-1 rounded-full bg-white/[0.04] border border-white/[0.08] pl-1 pr-3 py-1">
+                        <WatchPartyAvatarStack participants={people} max={5} size="xs" />
+                        <span className="text-xs font-medium text-gray-300 tabular-nums">
+                            {people.length} watching
+                        </span>
                     </div>
 
                     {hasRemote && (
@@ -137,8 +144,13 @@ export function WatchPartyRoom({ session }: { session: WatchParty_Session }) {
                     </Tooltip>
                 </header>
 
-                <div className="relative px-0 sm:px-3 lg:px-5 lg:flex-1 lg:min-h-0">
-                    <div ref={stageRef} className="relative bg-black aspect-video w-full lg:aspect-auto lg:h-full sm:rounded-2xl overflow-hidden sm:border sm:border-white/10 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]">
+                <div className="relative px-0 sm:px-3 lg:px-0 lg:flex-1 lg:min-h-0">
+                    {/* Soft brand glow around the screen */}
+                    <div
+                        aria-hidden
+                        className="hidden sm:block pointer-events-none absolute inset-x-6 -bottom-2 top-6 rounded-[2rem] bg-brand-500/10 blur-3xl"
+                    />
+                    <div ref={stageRef} className="relative bg-black aspect-video w-full lg:aspect-auto lg:h-full sm:rounded-2xl overflow-hidden sm:ring-1 sm:ring-white/[0.09] shadow-[0_30px_80px_-24px_rgba(0,0,0,0.9)]">
                         <WatchPartyPlayer
                             session={session}
                             hasRemote={hasRemote}
@@ -150,11 +162,11 @@ export function WatchPartyRoom({ session }: { session: WatchParty_Session }) {
                 </div>
 
                 {/* Remote status bar */}
-                <div className="hidden lg:flex items-center px-5 h-16 shrink-0">
+                <div className="hidden lg:flex items-center shrink-0">
                     <div className={cn(
-                        "flex items-center gap-3 rounded-full pl-1.5 pr-1.5 py-1.5 border text-sm w-full",
+                        "flex items-center gap-3 rounded-full pl-1.5 pr-1.5 py-1.5 border text-sm w-full min-h-11",
                         hasRemote
-                            ? "bg-brand-500/10 border-brand-400/30"
+                            ? "bg-gradient-to-r from-brand-500/15 via-brand-500/[0.06] to-transparent border-brand-400/25"
                             : "bg-white/[0.04] border-white/10",
                     )}>
                         {holder && <WatchPartyAvatar name={holder.username} avatar={holder.avatar} size="sm" hasRemote />}
@@ -187,9 +199,11 @@ export function WatchPartyRoom({ session }: { session: WatchParty_Session }) {
 
             {/* Sidebar: people + chat */}
             <aside className={cn(
-                "relative flex flex-col min-h-0 flex-1 lg:flex-none lg:w-[380px] lg:h-full",
+                "relative flex flex-col min-h-0 flex-1 lg:flex-none lg:w-[360px] xl:w-[380px]",
+                // A floating panel on wide screens, flush underneath the stage below that.
+                "lg:my-3 lg:mr-3 lg:rounded-2xl lg:overflow-hidden lg:shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)]",
                 // No backdrop-filter: the pulsing status dots would make it re-blur every frame.
-                "bg-[#0e0e16]/[0.92] border-t lg:border-t-0 lg:border-l border-white/[0.06]",
+                "bg-[#0e0e16]/[0.92] border-t lg:border border-white/[0.07]",
             )}>
                 <People session={session} me={me} hasRemote={hasRemote} />
                 {!hasRemote && (

@@ -184,22 +184,28 @@ function Stage({ session, hasRemote, playRequest, onOpenPicker }: Props) {
                     {mi?.mediaImage && (
                         <img src={mi.mediaImage} alt="" className="absolute inset-0 size-full object-cover blur-2xl scale-110 opacity-25" />
                     )}
-                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.04),transparent_60%)]" />
-                    <div className="absolute inset-0 opacity-[0.15] [background-image:linear-gradient(rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.06)_1px,transparent_1px)] [background-size:48px_48px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)]" />
+                    {/* Spotlight from above, a faint floor glow, and a vignette */}
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_55%_at_50%_42%,rgb(var(--color-brand-500)/0.14),transparent_70%)]" />
+                    <div className="absolute inset-x-0 bottom-0 h-1/2 bg-[radial-gradient(ellipse_50%_60%_at_50%_100%,rgba(255,255,255,0.035),transparent_70%)]" />
+                    <div className="absolute inset-0 opacity-[0.12] [background-image:radial-gradient(rgba(255,255,255,0.5)_1px,transparent_1px)] [background-size:28px_28px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_65%)]" />
+                    <div className="absolute inset-0 shadow-[inset_0_0_160px_40px_rgba(0,0,0,0.85)]" />
 
-                    <div className="relative h-full flex flex-col items-center justify-center gap-5 text-center px-6">
+                    <div className="relative h-full flex flex-col items-center justify-center gap-6 text-center px-6">
                         <div className="relative">
-                            <div className="absolute inset-0 rounded-full bg-brand-500/40 blur-2xl animate-pulse" />
-                            <div className="absolute -inset-3 rounded-full border border-brand-400/20 animate-[ping_3s_ease-out_infinite]" />
-                            <div className="relative size-20 rounded-full bg-gradient-to-br from-brand-400/30 to-brand-700/30 border border-white/15 backdrop-blur flex items-center justify-center shadow-2xl">
-                                <MdOutlineSettingsRemote className="size-9 text-brand-100" />
+                            <div className="absolute -inset-4 rounded-full bg-brand-500/30 blur-3xl animate-pulse" />
+                            <div className="absolute -inset-4 rounded-full border border-brand-400/15 animate-[ping_3s_ease-out_infinite]" />
+                            <div className="absolute -inset-2 rounded-full border border-white/[0.06]" />
+                            <div className="relative size-20 rounded-full bg-gradient-to-b from-brand-400/40 to-brand-700/30 ring-1 ring-white/20 flex items-center justify-center shadow-[0_10px_40px_-6px] shadow-brand-500/60">
+                                <MdOutlineSettingsRemote className="size-9 text-white drop-shadow" />
                             </div>
                         </div>
 
                         {hasRemote
                             ? <>
-                                <div className="flex flex-col gap-1.5">
-                                    <p className="text-2xl sm:text-3xl font-black tracking-tight">You have the remote</p>
+                                <div className="flex flex-col gap-2">
+                                    <p className="text-3xl sm:text-4xl font-black tracking-tight bg-gradient-to-b from-white to-white/70 bg-clip-text text-transparent">
+                                        You have the remote
+                                    </p>
                                     <p className="text-sm sm:text-base text-gray-300/80 max-w-md">Pick an episode and it starts on everyone's screen at once.</p>
                                 </div>
                                 <Button

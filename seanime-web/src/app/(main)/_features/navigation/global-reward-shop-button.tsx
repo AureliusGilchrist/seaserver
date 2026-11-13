@@ -9,6 +9,7 @@ import { GiTrophyCup } from "react-icons/gi"
 import { useAtomValue } from "jotai"
 import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { __seaMediaPlayer_isFullscreenAtom } from "@/app/(main)/_features/sea-media-player/sea-media-player.atoms"
+import { watchPartyRoomPageOpenAtom } from "@/app/(main)/_features/watch-party/watch-party.atoms"
 
 export function GlobalRewardShopButton() {
     const [open, setOpen] = React.useState(false)
@@ -17,6 +18,8 @@ export function GlobalRewardShopButton() {
     const { activeXPBarSkin } = useRewards()
     const isFullscreen = useAtomValue(vc_isFullscreen)
     const isSeaPlayerFullscreen = useAtomValue(__seaMediaPlayer_isFullscreenAtom)
+    // The watch party room is full-bleed; the pill would sit on its remote status bar.
+    const inWatchPartyRoom = useAtomValue(watchPartyRoomPageOpenAtom)
 
     // Extract a solid color from the XP bar fill CSS for use as the badge background
     const badgeBg = React.useMemo(() => {
@@ -42,7 +45,7 @@ export function GlobalRewardShopButton() {
 
     // Hide the floating reward-shop / level pill entirely while any player is fullscreen — it would
     // otherwise overlap the video. (After every hook: returning before useMemo broke hook order.)
-    if (isFullscreen || isSeaPlayerFullscreen) return null
+    if (isFullscreen || isSeaPlayerFullscreen || inWatchPartyRoom) return null
 
     const bottomPosition = "bottom-5"
 
