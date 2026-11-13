@@ -91,6 +91,20 @@ def main():
     for name, c in Counter(name.lower() for _, name in rows).items():
         if c > 1:
             problems.append(f"name used {c} times: {name}")
+    # No name may be shared with another theme: each theme's names are its own.
+    elsewhere = {}
+    for other in THEMES.glob("*/theme.json"):
+        if other.parent.name == theme_id:
+            continue
+        try:
+            other_names = json.loads(load(other)[0]).get("achievementNames") or {}
+        except ValueError:
+            continue
+        for v in other_names.values():
+            elsewhere.setdefault(v.lower(), other.parent.name)
+    for k, name in rows:
+        if name.lower() in elsewhere:
+            problems.append(f"{k}: '{name}' is already used by {elsewhere[name.lower()]}")
     if problems:
         print(f"{theme_id}: refused")
         for p in problems:
