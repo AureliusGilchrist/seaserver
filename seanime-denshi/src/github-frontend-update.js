@@ -9,16 +9,21 @@ const { getLiveWebDir } = require("./live-update")
 //
 // .github/workflows/frontend-live.yml builds only the Denshi frontend on every push that touches
 // seanime-web and force-pushes it as the single commit of the orphan branch "frontend-live":
-// frontend-live.zip (the build, minus the theme wallpapers) and frontend-live.json (its
-// manifest). Denshi watches that branch's head once a minute. The check is a conditional request
-// (If-None-Match), and GitHub doesn't count a 304 against the unauthenticated rate limit, so
-// polling this often costs nothing. When the head moves, the manifest and zip are fetched from
-// raw.githubusercontent.com pinned to that commit (a branch URL there is CDN-cached for minutes;
-// a commit URL is never stale), installed, and the windows reload as soon as nothing is playing.
+// frontend-live.zip (the build, minus the theme wallpapers), the same build file by file under
+// files/, and frontend-live.json (its manifest, with every file's hash). Denshi watches that
+// branch's head every ten seconds through git's own ref listing (a 74-byte answer, always fresh
+// and outside the REST API's 60-an-hour limit, which the old once-a-minute API check used up).
+// When the head moves, the manifest is fetched from raw.githubusercontent.com pinned to that
+// commit (a branch URL there is CDN-cached for minutes; a commit URL is never stale), only the
+// files whose hash differs from the installed frontend are downloaded (the zip when the manifest
+// has no file list or most of the build changed), and the windows reload once nothing is playing.
 const GITHUB_REPO = "AureliusGilchrist/seaserver"
 const LIVE_BRANCH = "frontend-live"
 const MANIFEST_FILE = "frontend-live.json"
-const POLL_INTERVAL_MS = 60_000
+const POLL_INTERVAL_MS = 10_000
+const DELTA_CONCURRENCY = 8
+// Past this share of the build's bytes, one zip download beats many file downloads.
+const DELTA_MAX_SHARE = 0.5
 const RATE_LIMITED_INTERVAL_MS = 5 * 60_000
 const PLAYING_RECHECK_MS = 15_000
 const API_TIMEOUT_MS = 30_000
@@ -101,9 +106,44 @@ function createGitHubFrontendUpdater({ app, log, isDevelopment, emitProgress, re
         ]).finally(() => clearTimeout(timer))
     }
 
-    // The branch head. Conditional, so an unchanged head is a free 304. Falls back to the
-    // branch's raw manifest (CDN-cached up to five minutes) when the API is unavailable.
+    // The branch head over git's smart HTTP protocol (v2 ls-refs, filtered to the one branch).
+    // Not part of the REST API, so not rate limited, and never cached.
+    async function fetchHeadGit() {
+        const pkt = (line) => (line.length + 4).toString(16).padStart(4, "0") + line
+        const body = pkt("command=ls-refs\n") + "0001" + pkt(`ref-prefix refs/heads/${LIVE_BRANCH}\n`) + "0000"
+        const res = await withTimeout(API_TIMEOUT_MS, net.fetch(`https://github.com/${GITHUB_REPO}.git/git-upload-pack`, {
+            method: "POST",
+            headers: {
+                ...HEADERS,
+                "Git-Protocol": "version=2",
+                "Content-Type": "application/x-git-upload-pack-request",
+                Accept: "application/x-git-upload-pack-result",
+            },
+            body,
+            cache: "no-store",
+        }), "Checking for a new frontend")
+        if (!res.ok) throw new Error(`git ls-refs returned HTTP ${res.status}`)
+        const text = await res.text()
+        const m = text.match(/([0-9a-f]{40}) refs\/heads\/(\S+)/)
+        if (m && m[2] === LIVE_BRANCH) return m[1]
+        if (/^0000\s*$/.test(text)) throw new Error("No frontend-live build has been published yet")
+        throw new Error("Unexpected answer from git ls-refs")
+    }
+
+    // The branch head: git first, then the REST API (conditional, so an unchanged head is a 304),
+    // and last the branch's raw manifest (CDN-cached up to five minutes).
     async function fetchHead() {
+        try {
+            headSha = await fetchHeadGit()
+            return { sha: headSha, rateLimited: false }
+        } catch (err) {
+            if (/No frontend-live build/.test(err.message)) return { sha: null, rateLimited: false, error: err }
+            log.warn(`[FrontendLive] git ref check failed, trying the API: ${err.message}`)
+        }
+        return fetchHeadApi()
+    }
+
+    async function fetchHeadApi() {
         const headers = { ...HEADERS, Accept: "application/vnd.github+json" }
         if (headEtag && headSha) headers["If-None-Match"] = headEtag
         let res
@@ -223,6 +263,83 @@ function createGitHubFrontendUpdater({ app, log, isDevelopment, emitProgress, re
         throw new Error("Could not unpack the bundle (unzip and tar both failed)")
     }
 
+    function sha256Of(buf) {
+        return require("crypto").createHash("sha256").update(buf).digest("hex")
+    }
+
+    // Builds the new frontend in `dest` from the manifest's file list: files the installed
+    // frontend (live, else bundled) already has with the same hash are copied, the rest are
+    // downloaded at the branch commit. Returns false when one zip download is the better deal.
+    async function installDelta(ref, manifest, dest) {
+        const entries = Object.entries(manifest.files)
+        const sources = [getLiveWebDir(app), getBundledWebDir()].filter(d => d && fs.existsSync(path.join(d, "index.html")))
+        const localCopy = (rel, want) => {
+            for (const dir of sources) {
+                const file = path.join(dir, ...rel.split("/"))
+                try {
+                    const st = fs.statSync(file)
+                    if (st.isFile() && st.size === want.size && sha256Of(fs.readFileSync(file)) === want.sha256) return file
+                } catch { /* not there */ }
+            }
+            return null
+        }
+
+        const toFetch = []
+        let totalBytes = 0, fetchBytes = 0
+        for (const [rel, want] of entries) {
+            if (rel.split("/").includes("..") || path.isAbsolute(rel)) throw new Error(`Bad path in the manifest: ${rel}`)
+            totalBytes += want.size
+            const target = path.join(dest, ...rel.split("/"))
+            const local = localCopy(rel, want)
+            if (local) {
+                fs.mkdirSync(path.dirname(target), { recursive: true })
+                fs.copyFileSync(local, target)
+            } else {
+                toFetch.push([rel, want, target])
+                fetchBytes += want.size
+            }
+        }
+        const kb = Math.round(fetchBytes / 1024)
+        if (totalBytes > 0 && fetchBytes / totalBytes > DELTA_MAX_SHARE) {
+            log.info(`[FrontendLive] ${toFetch.length} of ${entries.length} files changed (${kb} KB); using the zip`)
+            return false
+        }
+
+        emitStep(25, `Downloading ${toFetch.length} changed file${toFetch.length === 1 ? "" : "s"} (${kb} KB) of ${label(manifest)}`)
+        const dir = manifest.filesDir || "files"
+        let next = 0
+        const worker = async () => {
+            while (next < toFetch.length) {
+                const [rel, want, target] = toFetch[next++]
+                const url = rawUrl(ref, `${dir}/${rel.split("/").map(encodeURIComponent).join("/")}`)
+                const res = await withTimeout(DOWNLOAD_TIMEOUT_MS, net.fetch(url, { headers: HEADERS, cache: "no-store" }), `Downloading ${rel}`)
+                if (!res.ok) throw new Error(`Download of ${rel} failed (HTTP ${res.status})`)
+                const buf = Buffer.from(await res.arrayBuffer())
+                if (sha256Of(buf) !== want.sha256) throw new Error(`${rel} does not match its manifest`)
+                fs.mkdirSync(path.dirname(target), { recursive: true })
+                fs.writeFileSync(target, buf)
+            }
+        }
+        await Promise.all(Array.from({ length: Math.min(DELTA_CONCURRENCY, toFetch.length) }, worker))
+        log.info(`[FrontendLive] Fetched ${toFetch.length} of ${entries.length} files (${kb} KB); copied the rest`)
+        return true
+    }
+
+    async function installZip(ref, manifest, staging, zipPath) {
+        emitStep(15, `Downloading ${label(manifest)}`)
+        const res = await withTimeout(DOWNLOAD_TIMEOUT_MS, net.fetch(rawUrl(ref, manifest.asset), { headers: HEADERS, cache: "no-store" }), "Downloading the frontend bundle")
+        if (!res.ok) throw new Error(`Download failed (HTTP ${res.status})`)
+        const buf = Buffer.from(await res.arrayBuffer())
+        if (buf.length < 1024) throw new Error("The downloaded file is too small to be a frontend bundle")
+        // The branch moved between reading the manifest and the zip (only possible on the
+        // branch-URL fallback); the next check picks up the newer one.
+        if (manifest.sha256 && sha256Of(buf) !== manifest.sha256) throw new Error("The bundle does not match its manifest; will retry")
+        fs.writeFileSync(zipPath, buf)
+
+        emitStep(55, "Unpacking the frontend bundle")
+        await extractZip(zipPath, staging)
+    }
+
     function resolveWebRoot(dir) {
         if (fs.existsSync(path.join(dir, "index.html"))) return dir
         let entries
@@ -315,24 +432,24 @@ function createGitHubFrontendUpdater({ app, log, isDevelopment, emitProgress, re
             emitStep(5, "Looking up the latest frontend build")
             const { ref, manifest } = await fetchLatest()
 
-            fs.rmSync(staging, { recursive: true, force: true })
-            fs.mkdirSync(staging, { recursive: true })
-
-            emitStep(15, `Downloading ${label(manifest)}`)
-            const res = await withTimeout(DOWNLOAD_TIMEOUT_MS, net.fetch(rawUrl(ref, manifest.asset), { headers: HEADERS, cache: "no-store" }), "Downloading the frontend bundle")
-            if (!res.ok) throw new Error(`Download failed (HTTP ${res.status})`)
-            const buf = Buffer.from(await res.arrayBuffer())
-            if (buf.length < 1024) throw new Error("The downloaded file is too small to be a frontend bundle")
-            if (manifest.sha256) {
-                const digest = require("crypto").createHash("sha256").update(buf).digest("hex")
-                // The branch moved between reading the manifest and the zip (only possible on
-                // the branch-URL fallback); the next check picks up the newer one.
-                if (digest !== manifest.sha256) throw new Error("The bundle does not match its manifest; will retry")
+            const freshStaging = () => {
+                fs.rmSync(staging, { recursive: true, force: true })
+                fs.mkdirSync(staging, { recursive: true })
             }
-            fs.writeFileSync(zipPath, buf)
+            freshStaging()
 
-            emitStep(55, "Unpacking the frontend bundle")
-            await extractZip(zipPath, staging)
+            // Only the changed files when the manifest lists them and that is the smaller
+            // download; the zip otherwise, and whenever the file-by-file install fails.
+            let installed = false
+            if (manifest.files && typeof manifest.files === "object" && /^[0-9a-f]{40}$/.test(ref)) {
+                try {
+                    installed = await installDelta(ref, manifest, staging)
+                } catch (err) {
+                    log.warn(`[FrontendLive] File-by-file install failed, using the zip: ${err?.message ?? err}`)
+                }
+                if (!installed) freshStaging()
+            }
+            if (!installed) await installZip(ref, manifest, staging, zipPath)
             const webRoot = resolveWebRoot(staging)
             if (!webRoot) throw new Error("The bundle did not contain an index.html")
 

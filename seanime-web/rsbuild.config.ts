@@ -17,7 +17,15 @@ const distPath = isMobileShell ? "out-mobile" : isElectronDesktop ? "out-denshi"
 // App version (single source of truth: package.json, kept in sync by sync-versions.js).
 // Exposed to the client so the react-query persister buster is tied to the build,
 // busting stale persisted cache automatically on every update.
-const appVersion = JSON.parse(fs.readFileSync(path.resolve(__dirname, "package.json"), "utf8")).version
+// Rspack's persistent cache, for the frontend-live CI lane (it restores the cache between runs):
+// a warm build there takes a fraction of a cold one. Off by default so local builds behave as
+// they always have.
+const useBuildCache = !!process.env.FRONTEND_BUILD_CACHE
+
+// FRONTEND_APP_VERSION overrides it for cached CI builds: package.json is one of the build cache's
+// keys, so the frontend-live lane pins its version field and passes the real one here instead.
+const appVersion = process.env.FRONTEND_APP_VERSION
+    || JSON.parse(fs.readFileSync(path.resolve(__dirname, "package.json"), "utf8")).version
 
 export default defineConfig({
     plugins: [
@@ -66,6 +74,10 @@ export default defineConfig({
         pluginBabel({
             include: /\.(?:jsx|tsx)$/,
             babelLoaderOptions(opts) {
+                // With performance.buildCache on, plugin-babel puts babel-loader's cache inside
+                // Rspack's cache folder, which Rspack wipes on a cold start while babel-loader is
+                // writing to it (ENOENT). Rspack's persistent cache already stores loader output.
+                if (useBuildCache) opts.cacheDirectory = false
                 opts.plugins ??= []
                 opts.plugins.push(["babel-plugin-react-compiler", { target: "18" }])
             },
@@ -115,6 +127,7 @@ export default defineConfig({
         title: "Seanime",
     },
     performance: {
+        buildCache: useBuildCache ? { cacheDirectory: process.env.FRONTEND_BUILD_CACHE } : false,
         chunkSplit: {
             forceSplitting: {
                 "hls": /hls\.js/,
