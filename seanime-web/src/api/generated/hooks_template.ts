@@ -5512,7 +5512,7 @@
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // export function useWatchPartyStatus() {
-//     return useServerQuery<WatchParty_Session>({
+//     return useServerQuery<Array<WatchParty_Session>>({
 //         endpoint: API_ENDPOINTS.WATCHPARTY.WatchPartyStatus.endpoint,
 //         method: API_ENDPOINTS.WATCHPARTY.WatchPartyStatus.methods[0],
 //         queryKey: [API_ENDPOINTS.WATCHPARTY.WatchPartyStatus.key],
@@ -5558,6 +5558,50 @@
 //         endpoint: API_ENDPOINTS.WATCHPARTY.WatchPartyStop.endpoint,
 //         method: API_ENDPOINTS.WATCHPARTY.WatchPartyStop.methods[0],
 //         mutationKey: [API_ENDPOINTS.WATCHPARTY.WatchPartyStop.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useWatchPartyPassRemote() {
+//     return useServerMutation<WatchParty_Session, WatchPartyPassRemote_Variables>({
+//         endpoint: API_ENDPOINTS.WATCHPARTY.WatchPartyPassRemote.endpoint,
+//         method: API_ENDPOINTS.WATCHPARTY.WatchPartyPassRemote.methods[0],
+//         mutationKey: [API_ENDPOINTS.WATCHPARTY.WatchPartyPassRemote.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useWatchPartyRequestRemote() {
+//     return useServerMutation<boolean, WatchPartyRequestRemote_Variables>({
+//         endpoint: API_ENDPOINTS.WATCHPARTY.WatchPartyRequestRemote.endpoint,
+//         method: API_ENDPOINTS.WATCHPARTY.WatchPartyRequestRemote.methods[0],
+//         mutationKey: [API_ENDPOINTS.WATCHPARTY.WatchPartyRequestRemote.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useWatchPartySendChat() {
+//     return useServerMutation<WatchParty_ChatMessage, WatchPartySendChat_Variables>({
+//         endpoint: API_ENDPOINTS.WATCHPARTY.WatchPartySendChat.endpoint,
+//         method: API_ENDPOINTS.WATCHPARTY.WatchPartySendChat.methods[0],
+//         mutationKey: [API_ENDPOINTS.WATCHPARTY.WatchPartySendChat.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useWatchPartyChatHistory() {
+//     return useServerMutation<Array<WatchParty_ChatMessage>, WatchPartyChatHistory_Variables>({
+//         endpoint: API_ENDPOINTS.WATCHPARTY.WatchPartyChatHistory.endpoint,
+//         method: API_ENDPOINTS.WATCHPARTY.WatchPartyChatHistory.methods[0],
+//         mutationKey: [API_ENDPOINTS.WATCHPARTY.WatchPartyChatHistory.key],
 //         onSuccess: async () => {
 // 
 //         },

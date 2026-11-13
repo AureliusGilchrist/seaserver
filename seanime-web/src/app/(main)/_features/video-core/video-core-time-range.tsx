@@ -1,4 +1,5 @@
 import { useNakamaWatchParty } from "@/app/(main)/_features/nakama/nakama-manager"
+import { useIsWatchTogetherFollower } from "@/app/(main)/_features/watch-party/watch-party.atoms"
 import { vc_previewManager } from "@/app/(main)/_features/video-core/video-core"
 import { VIDEOCORE_DEBUG_ELEMENTS, VideoCoreChapterCue } from "@/app/(main)/_features/video-core/video-core"
 import { vc_isMobile } from "@/app/(main)/_features/video-core/video-core-atoms"
@@ -52,7 +53,10 @@ export function VideoCoreTimeRange(props: VideoCoreTimeRangeProps) {
         chapterCues,
     } = props
 
-    const { isPeer: isWatchPartyPeer } = useNakamaWatchParty()
+    const { isPeer: isNakamaWatchPartyPeer } = useNakamaWatchParty()
+    // Same-server watch party followers don't drive playback either: the remote holder does.
+    const isWatchTogetherFollower = useIsWatchTogetherFollower()
+    const isWatchPartyPeer = isNakamaWatchPartyPeer || isWatchTogetherFollower
 
     const videoElement = useAtomValue(vc_videoElement)
     const isMobile = useAtomValue(vc_isMobile)

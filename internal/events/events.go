@@ -134,6 +134,9 @@ const (
 	// Same-server watch party ("Watch Together"): participants follow one device's
 	// playback. The payload is a watchparty.StatePayload.
 	WatchPartyState = "watch-party-state"
+	// WatchPartyChat carries one chat line of a same-server watch party room to the
+	// devices seated in it. The payload is a watchparty.ChatPayload.
+	WatchPartyChat = "watch-party-chat"
 
 	// Nakama Watch Party events
 	NakamaWatchPartyState                                 = "nakama-watch-party-state"

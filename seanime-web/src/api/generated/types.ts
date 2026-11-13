@@ -8453,9 +8453,28 @@ export type Video = {
  * - Filename: watch_party.go
  * - Package: watchparty
  */
+export type WatchParty_ChatMessage = {
+    id: string
+    sessionId: string
+    /**
+     * "user" | "system"
+     */
+    kind: string
+    profileId?: number
+    username?: string
+    text: string
+    timestamp?: string
+}
+
+/**
+ * - Filepath: internal/watchparty/watch_party.go
+ * - Filename: watch_party.go
+ * - Package: watchparty
+ */
 export type WatchParty_MediaInfo = {
     mediaId: number
     mediaTitle?: string
+    mediaImage?: string
     episodeNumber: number
     episodeTitle?: string
     aniDbEpisode?: string
@@ -8477,11 +8496,15 @@ export type WatchParty_Participant = {
     clientId: string
     profileId: number
     username: string
+    /**
+     * holds the remote
+     */
     isSource: boolean
     joinedAt?: string
     lastSeen?: string
     epoch: number
     playbackStatus?: WatchParty_PlaybackStatusInfo
+    chatTimes?: Array<string>
 }
 
 /**
@@ -8508,9 +8531,10 @@ export type WatchParty_PlaybackStatusInfo = {
  */
 export type WatchParty_Session = {
     id: string
+    name: string
     participants?: Array<WatchParty_Participant>
     /**
-     * nil while the source plays nothing
+     * nil while the remote holder plays nothing
      */
     mediaInfo?: WatchParty_MediaInfo
     settings: WatchParty_Settings

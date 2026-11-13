@@ -1,4 +1,5 @@
 import { Anime_Entry, Anime_Episode } from "@/api/generated/types"
+import { useIsWatchTogetherFollower } from "@/app/(main)/_features/watch-party/watch-party.atoms"
 import { useGetAnimeEpisodeCollection } from "@/api/hooks/anime.hooks"
 import { useGetAnimeEntry } from "@/api/hooks/anime_entries.hooks"
 import { EpisodeGridItem } from "@/app/(main)/_features/anime/_components/episode-grid-item"
@@ -151,7 +152,10 @@ export function useVideoCorePlaylist() {
     const playbackType = playlistState?.type
     const animeEntry = playlistState?.animeEntry
 
-    const { isPeer: isWatchPartyPeer } = useNakamaWatchParty()
+    const { isPeer: isNakamaWatchPartyPeer } = useNakamaWatchParty()
+    // Same-server watch party followers don't drive playback either: the remote holder does.
+    const isWatchTogetherFollower = useIsWatchTogetherFollower()
+    const isWatchPartyPeer = isNakamaWatchPartyPeer || isWatchTogetherFollower
 
     const setTorrentSearch = useSetAtom(__torrentSearch_selectionAtom)
     const setTorrentSearchEpisode = useSetAtom(__torrentSearch_selectionEpisodeAtom)

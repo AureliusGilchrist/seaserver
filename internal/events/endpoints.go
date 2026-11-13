@@ -502,9 +502,13 @@ const (
 	UpsertClientPrefEndpoint                           = "CLIENT-PREFS-upsert-client-pref"
 	UpsertTrackPreferenceEndpoint                      = "TRACK-PREFERENCES-upsert-track-preference"
 	VoteCommentEndpoint                                = "COMMENT-vote-comment"
+	WatchPartyChatHistoryEndpoint                      = "WATCHPARTY-watch-party-chat-history"
 	WatchPartyCreateEndpoint                           = "WATCHPARTY-watch-party-create"
 	WatchPartyJoinEndpoint                             = "WATCHPARTY-watch-party-join"
 	WatchPartyLeaveEndpoint                            = "WATCHPARTY-watch-party-leave"
+	WatchPartyPassRemoteEndpoint                       = "WATCHPARTY-watch-party-pass-remote"
+	WatchPartyRequestRemoteEndpoint                    = "WATCHPARTY-watch-party-request-remote"
+	WatchPartySendChatEndpoint                         = "WATCHPARTY-watch-party-send-chat"
 	WatchPartyStatusEndpoint                           = "WATCHPARTY-watch-party-status"
 	WatchPartyStopEndpoint                             = "WATCHPARTY-watch-party-stop"
 )

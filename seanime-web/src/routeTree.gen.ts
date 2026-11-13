@@ -49,6 +49,9 @@ const ScanLogViewerIndexLazyRouteImport = createFileRoute('/scan-log-viewer/')()
 const IssueReportIndexLazyRouteImport = createFileRoute('/issue-report/')()
 const DocsIndexLazyRouteImport = createFileRoute('/docs/')()
 const MainWebviewIndexLazyRouteImport = createFileRoute('/_main/webview/')()
+const MainWatchPartyIndexLazyRouteImport = createFileRoute(
+  '/_main/watch-party/',
+)()
 const MainUnmatchedIndexLazyRouteImport = createFileRoute('/_main/unmatched/')()
 const MainTorrentListIndexLazyRouteImport = createFileRoute(
   '/_main/torrent-list/',
@@ -136,6 +139,13 @@ const MainWebviewIndexLazyRoute = MainWebviewIndexLazyRouteImport.update({
   getParentRoute: () => MainRoute,
 } as any).lazy(() =>
   import('./routes/_main/webview/index.lazy').then((d) => d.Route),
+)
+const MainWatchPartyIndexLazyRoute = MainWatchPartyIndexLazyRouteImport.update({
+  id: '/watch-party/',
+  path: '/watch-party/',
+  getParentRoute: () => MainRoute,
+} as any).lazy(() =>
+  import('./routes/_main/watch-party/index.lazy').then((d) => d.Route),
 )
 const MainUnmatchedIndexLazyRoute = MainUnmatchedIndexLazyRouteImport.update({
   id: '/unmatched/',
@@ -510,6 +520,7 @@ export interface FileRoutesByFullPath {
   '/to-watch/': typeof MainToWatchIndexLazyRoute
   '/torrent-list/': typeof MainTorrentListIndexLazyRoute
   '/unmatched/': typeof MainUnmatchedIndexLazyRoute
+  '/watch-party/': typeof MainWatchPartyIndexLazyRoute
   '/webview/': typeof MainWebviewIndexLazyRoute
   '/admin/announcements/': typeof MainAdminAnnouncementsIndexRoute
   '/auth/callback/': typeof MainAuthCallbackIndexRoute
@@ -565,6 +576,7 @@ export interface FileRoutesByTo {
   '/to-watch': typeof MainToWatchIndexLazyRoute
   '/torrent-list': typeof MainTorrentListIndexLazyRoute
   '/unmatched': typeof MainUnmatchedIndexLazyRoute
+  '/watch-party': typeof MainWatchPartyIndexLazyRoute
   '/webview': typeof MainWebviewIndexLazyRoute
   '/admin/announcements': typeof MainAdminAnnouncementsIndexRoute
   '/auth/callback': typeof MainAuthCallbackIndexRoute
@@ -622,6 +634,7 @@ export interface FileRoutesById {
   '/_main/to-watch/': typeof MainToWatchIndexLazyRoute
   '/_main/torrent-list/': typeof MainTorrentListIndexLazyRoute
   '/_main/unmatched/': typeof MainUnmatchedIndexLazyRoute
+  '/_main/watch-party/': typeof MainWatchPartyIndexLazyRoute
   '/_main/webview/': typeof MainWebviewIndexLazyRoute
   '/_main/admin/announcements/': typeof MainAdminAnnouncementsIndexRoute
   '/_main/auth/callback/': typeof MainAuthCallbackIndexRoute
@@ -679,6 +692,7 @@ export interface FileRouteTypes {
     | '/to-watch/'
     | '/torrent-list/'
     | '/unmatched/'
+    | '/watch-party/'
     | '/webview/'
     | '/admin/announcements/'
     | '/auth/callback/'
@@ -734,6 +748,7 @@ export interface FileRouteTypes {
     | '/to-watch'
     | '/torrent-list'
     | '/unmatched'
+    | '/watch-party'
     | '/webview'
     | '/admin/announcements'
     | '/auth/callback'
@@ -790,6 +805,7 @@ export interface FileRouteTypes {
     | '/_main/to-watch/'
     | '/_main/torrent-list/'
     | '/_main/unmatched/'
+    | '/_main/watch-party/'
     | '/_main/webview/'
     | '/_main/admin/announcements/'
     | '/_main/auth/callback/'
@@ -878,6 +894,13 @@ declare module '@tanstack/react-router' {
       path: '/webview'
       fullPath: '/webview/'
       preLoaderRoute: typeof MainWebviewIndexLazyRouteImport
+      parentRoute: typeof MainRoute
+    }
+    '/_main/watch-party/': {
+      id: '/_main/watch-party/'
+      path: '/watch-party'
+      fullPath: '/watch-party/'
+      preLoaderRoute: typeof MainWatchPartyIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/unmatched/': {
@@ -1233,6 +1256,7 @@ interface MainRouteChildren {
   MainToWatchIndexLazyRoute: typeof MainToWatchIndexLazyRoute
   MainTorrentListIndexLazyRoute: typeof MainTorrentListIndexLazyRoute
   MainUnmatchedIndexLazyRoute: typeof MainUnmatchedIndexLazyRoute
+  MainWatchPartyIndexLazyRoute: typeof MainWatchPartyIndexLazyRoute
   MainWebviewIndexLazyRoute: typeof MainWebviewIndexLazyRoute
   MainAdminAnnouncementsIndexRoute: typeof MainAdminAnnouncementsIndexRoute
   MainAuthCallbackIndexRoute: typeof MainAuthCallbackIndexRoute
@@ -1282,6 +1306,7 @@ const MainRouteChildren: MainRouteChildren = {
   MainToWatchIndexLazyRoute: MainToWatchIndexLazyRoute,
   MainTorrentListIndexLazyRoute: MainTorrentListIndexLazyRoute,
   MainUnmatchedIndexLazyRoute: MainUnmatchedIndexLazyRoute,
+  MainWatchPartyIndexLazyRoute: MainWatchPartyIndexLazyRoute,
   MainWebviewIndexLazyRoute: MainWebviewIndexLazyRoute,
   MainAdminAnnouncementsIndexRoute: MainAdminAnnouncementsIndexRoute,
   MainAuthCallbackIndexRoute: MainAuthCallbackIndexRoute,

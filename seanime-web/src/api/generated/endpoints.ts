@@ -4670,9 +4670,8 @@ export const API_ENDPOINTS = {
     WATCHPARTY: {
         /**
          *  @description
-         *  Route returns the active same-server watch party session.
-         *  Returns the current watch party session, or null if none is active.
-         *  Any device connected to this server can read this to discover and join a session.
+         *  Route returns every open same-server watch party room.
+         *  Any device connected to this server can read this to discover and join a room.
          */
         WatchPartyStatus: {
             key: "WATCHPARTY-watch-party-status",
@@ -4681,9 +4680,9 @@ export const API_ENDPOINTS = {
         },
         /**
          *  @description
-         *  Route creates a same-server watch party.
-         *  Starts a new watch party session with this device as the source.
-         *  Other devices connected to this server (under their own profiles) can then join it.
+         *  Route creates a same-server watch party room.
+         *  Opens a new room with this device holding the remote.
+         *  The profile's seat in any other room is given up first.
          */
         WatchPartyCreate: {
             key: "WATCHPARTY-watch-party-create",
@@ -4692,9 +4691,9 @@ export const API_ENDPOINTS = {
         },
         /**
          *  @description
-         *  Route joins the active same-server watch party.
-         *  Adds this device to the active watch party session.
-         *  If the source is playing something, the client starts the same episode and follows it.
+         *  Route joins a same-server watch party room.
+         *  Seats this device in the room. A profile has one seat across all rooms: joining from
+         *  another device moves the seat, and joining another room leaves the previous one.
          */
         WatchPartyJoin: {
             key: "WATCHPARTY-watch-party-join",
@@ -4704,8 +4703,7 @@ export const API_ENDPOINTS = {
         /**
          *  @description
          *  Route leaves the watch party.
-         *  Removes this device from the active watch party session.
-         *  If the source leaves, the first remaining participant becomes the source.
+         *  Gives up this device's seat. If it held the remote, the remote passes on.
          */
         WatchPartyLeave: {
             key: "WATCHPARTY-watch-party-leave",
@@ -4714,13 +4712,44 @@ export const API_ENDPOINTS = {
         },
         /**
          *  @description
-         *  Route stops the watch party for everyone.
-         *  Ends the active watch party session. Only the source can stop it.
+         *  Route closes the watch party room for everyone.
+         *  Only the remote holder can close the room.
          */
         WatchPartyStop: {
             key: "WATCHPARTY-watch-party-stop",
             methods: ["POST"],
             endpoint: "/api/v1/watchparty/stop",
+        },
+        /**
+         *  @description
+         *  Route hands the remote to another participant.
+         *  Only the current remote holder can pass it. Whoever holds the remote controls what
+         *  the whole room watches.
+         */
+        WatchPartyPassRemote: {
+            key: "WATCHPARTY-watch-party-pass-remote",
+            methods: ["POST"],
+            endpoint: "/api/v1/watchparty/remote/pass",
+        },
+        /**
+         *  @description
+         *  Route asks the remote holder for the remote.
+         *  Posts the request into the room's chat.
+         */
+        WatchPartyRequestRemote: {
+            key: "WATCHPARTY-watch-party-request-remote",
+            methods: ["POST"],
+            endpoint: "/api/v1/watchparty/remote/request",
+        },
+        WatchPartySendChat: {
+            key: "WATCHPARTY-watch-party-send-chat",
+            methods: ["POST"],
+            endpoint: "/api/v1/watchparty/chat/send",
+        },
+        WatchPartyChatHistory: {
+            key: "WATCHPARTY-watch-party-chat-history",
+            methods: ["POST"],
+            endpoint: "/api/v1/watchparty/chat/history",
         },
     },
 } satisfies ApiEndpoints

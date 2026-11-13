@@ -3725,10 +3725,11 @@ export type ForceUnmatchedMatchQueueItem_Variables = {
  * - Filename: watchparty.go
  * - Endpoint: /api/v1/watchparty/create
  * @description
- * Route creates a same-server watch party.
+ * Route creates a same-server watch party room.
  */
 export type WatchPartyCreate_Variables = {
     clientId: string
+    name: string
     settings?: WatchParty_Settings
 }
 
@@ -3737,10 +3738,11 @@ export type WatchPartyCreate_Variables = {
  * - Filename: watchparty.go
  * - Endpoint: /api/v1/watchparty/join
  * @description
- * Route joins the active same-server watch party.
+ * Route joins a same-server watch party room.
  */
 export type WatchPartyJoin_Variables = {
     clientId: string
+    sessionId: string
 }
 
 /**
@@ -3759,9 +3761,55 @@ export type WatchPartyLeave_Variables = {
  * - Filename: watchparty.go
  * - Endpoint: /api/v1/watchparty/stop
  * @description
- * Route stops the watch party for everyone.
+ * Route closes the watch party room for everyone.
  */
 export type WatchPartyStop_Variables = {
+    clientId: string
+}
+
+/**
+ * - Filepath: internal/handlers/watchparty.go
+ * - Filename: watchparty.go
+ * - Endpoint: /api/v1/watchparty/remote/pass
+ * @description
+ * Route hands the remote to another participant.
+ */
+export type WatchPartyPassRemote_Variables = {
+    clientId: string
+    toClientId: string
+}
+
+/**
+ * - Filepath: internal/handlers/watchparty.go
+ * - Filename: watchparty.go
+ * - Endpoint: /api/v1/watchparty/remote/request
+ * @description
+ * Route asks the remote holder for the remote.
+ */
+export type WatchPartyRequestRemote_Variables = {
+    clientId: string
+}
+
+/**
+ * - Filepath: internal/handlers/watchparty.go
+ * - Filename: watchparty.go
+ * - Endpoint: /api/v1/watchparty/chat/send
+ * @description
+ * Route sends a chat message to this device's watch party room.
+ */
+export type WatchPartySendChat_Variables = {
+    clientId: string
+    text: string
+}
+
+/**
+ * - Filepath: internal/handlers/watchparty.go
+ * - Filename: watchparty.go
+ * - Endpoint: /api/v1/watchparty/chat/history
+ * @description
+ * Route returns the chat history of this device's watch party room.
+ */
+export type WatchPartyChatHistory_Variables = {
     clientId: string
 }
 

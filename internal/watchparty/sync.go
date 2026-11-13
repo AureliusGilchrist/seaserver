@@ -45,6 +45,26 @@ func (m *Manager) getPeerSync(clientId string) *peerSync {
 	return ps
 }
 
+// resetPeerSyncsLocked cancels the catch-ups of one room's participants and clears their
+// bookkeeping. Callers hold m.mu (read or write).
+func (m *Manager) resetPeerSyncsLocked(s *Session) {
+	for _, p := range s.Participants {
+		m.dropPeerSync(p.ClientId)
+	}
+}
+
+// dropPeerSync cancels a device's catch-up and forgets its bookkeeping.
+func (m *Manager) dropPeerSync(clientId string) {
+	m.syncMu.Lock()
+	defer m.syncMu.Unlock()
+	if ps, ok := m.peerSyncs[clientId]; ok {
+		if ps.catchUpCancel != nil {
+			ps.catchUpCancel()
+		}
+		delete(m.peerSyncs, clientId)
+	}
+}
+
 // resetPeerSyncs cancels every running catch-up and clears the bookkeeping.
 func (m *Manager) resetPeerSyncs() {
 	m.syncMu.Lock()
@@ -77,22 +97,19 @@ func (m *Manager) handleVideoEvent(event videocore.VideoEvent) {
 
 	// Snapshot the session state we need without holding the lock while we act on it.
 	m.mu.RLock()
-	session := m.session
 	var (
 		isParticipant bool
 		isSource      bool
 		threshold     float64
 		others        []peerRef
 	)
-	if session != nil {
-		if p := session.participant(clientId); p != nil {
-			isParticipant = true
-			isSource = p.IsSource
-			threshold = session.Settings.SyncThreshold
-			for _, pp := range session.Participants {
-				if pp != p {
-					others = append(others, peerRef{clientId: pp.ClientId, epoch: pp.Epoch})
-				}
+	if session, p := m.findByClientLocked(clientId); session != nil {
+		isParticipant = true
+		isSource = p.IsSource
+		threshold = session.Settings.SyncThreshold
+		for _, pp := range session.Participants {
+			if pp != p {
+				others = append(others, peerRef{clientId: pp.ClientId, epoch: pp.Epoch})
 			}
 		}
 	}
@@ -106,14 +123,12 @@ func (m *Manager) handleVideoEvent(event videocore.VideoEvent) {
 	case *videocore.VideoStatusEvent:
 		// Track the participant's playback for the UI.
 		m.mu.Lock()
-		if s := m.session; s != nil {
-			if p := s.participant(clientId); p != nil {
-				p.LastSeen = time.Now()
-				p.PlaybackStatus = &PlaybackStatusInfo{
-					Paused:      e.Paused,
-					CurrentTime: e.CurrentTime,
-					Duration:    e.Duration,
-				}
+		if s, p := m.findByClientLocked(clientId); s != nil {
+			p.LastSeen = time.Now()
+			p.PlaybackStatus = &PlaybackStatusInfo{
+				Paused:      e.Paused,
+				CurrentTime: e.CurrentTime,
+				Duration:    e.Duration,
 			}
 		}
 		m.mu.Unlock()
@@ -145,11 +160,13 @@ func (m *Manager) handleVideoEvent(event videocore.VideoEvent) {
 		} else {
 			// A participant finished loading the session's current media.
 			m.mu.Lock()
-			if s := m.session; s != nil {
-				if p := s.participant(clientId); p != nil {
-					p.Epoch = s.Epoch
-					m.logger.Trace().Str("clientId", clientId).Int("epoch", p.Epoch).Msg("watchparty: Participant loaded the session media")
+			if s, p := m.findByClientLocked(clientId); s != nil {
+				p.Epoch = s.Epoch
+				p.PlaybackId = ""
+				if e.State.PlaybackInfo != nil {
+					p.PlaybackId = e.State.PlaybackInfo.Id
 				}
+				m.logger.Trace().Str("clientId", clientId).Int("epoch", p.Epoch).Msg("watchparty: Participant loaded the session media")
 			}
 			m.mu.Unlock()
 		}
@@ -173,25 +190,22 @@ func (m *Manager) onSourceLoaded(e *videocore.VideoLoadedEvent) {
 		return
 	}
 
-	m.resetPeerSyncs()
-
 	m.mu.Lock()
-	session := m.session
-	if session == nil {
+	session, src := m.findByClientLocked(e.GetClientId())
+	if session == nil || !src.IsSource {
 		m.mu.Unlock()
 		return
 	}
+	m.resetPeerSyncsLocked(session)
 	changed := !mediaInfoEqual(session.MediaInfo, mi)
 	session.MediaInfo = mi
 	if changed {
 		session.Epoch++
 	}
-	if p := session.participant(e.GetClientId()); p != nil {
-		// The source is definitionally in sync with its own media.
-		p.Epoch = session.Epoch
-		if e.State.PlaybackInfo != nil {
-			p.PlaybackId = e.State.PlaybackInfo.Id
-		}
+	// The source is definitionally in sync with its own media.
+	src.Epoch = session.Epoch
+	if e.State.PlaybackInfo != nil {
+		src.PlaybackId = e.State.PlaybackInfo.Id
 	}
 	epoch := session.Epoch
 	m.mu.Unlock()
@@ -261,12 +275,9 @@ func (m *Manager) onSourceTerminated(e *videocore.VideoTerminatedEvent, others [
 	}
 
 	m.mu.RLock()
-	session := m.session
 	matches := false
-	if session != nil {
-		if p := session.participant(e.GetClientId()); p != nil {
-			matches = p.PlaybackId != "" && p.PlaybackId == e.Id
-		}
+	if session, p := m.findByClientLocked(e.GetClientId()); session != nil {
+		matches = p.IsSource && p.PlaybackId != "" && p.PlaybackId == e.Id
 	}
 	m.mu.RUnlock()
 	if !matches {
@@ -275,17 +286,14 @@ func (m *Manager) onSourceTerminated(e *videocore.VideoTerminatedEvent, others [
 
 	for _, p := range others {
 		m.videoCore.Pause(p.clientId)
-		m.videoCore.ShowMessage("Watch together: the source's playback ended", 3000, p.clientId)
+		m.videoCore.ShowMessage("Watch party: the remote holder stopped playback", 3000, p.clientId)
 	}
 
-	m.resetPeerSyncs()
-
 	m.mu.Lock()
-	if s := m.session; s != nil {
+	if s, p := m.findByClientLocked(e.GetClientId()); s != nil {
+		m.resetPeerSyncsLocked(s)
 		s.MediaInfo = nil
-		if p := s.participant(e.GetClientId()); p != nil {
-			p.PlaybackId = ""
-		}
+		p.PlaybackId = ""
 	}
 	m.mu.Unlock()
 	m.broadcastState()
@@ -428,6 +436,7 @@ func mediaInfoFromPlaybackInfo(info *videocore.VideoPlaybackInfo) *MediaInfo {
 	mi := &MediaInfo{
 		MediaId:       info.Media.ID,
 		MediaTitle:    info.Media.GetPreferredTitle(),
+		MediaImage:    mediaImage(info),
 		EpisodeNumber: info.Episode.EpisodeNumber,
 		EpisodeTitle:  info.Episode.EpisodeTitle,
 		AniDBEpisode:  info.Episode.AniDBEpisode,
@@ -452,4 +461,16 @@ func mediaInfoFromPlaybackInfo(info *videocore.VideoPlaybackInfo) *MediaInfo {
 		mi.StreamType = "unknown"
 	}
 	return mi
+}
+
+func mediaImage(info *videocore.VideoPlaybackInfo) string {
+	if info.Media == nil || info.Media.CoverImage == nil {
+		return ""
+	}
+	if c := info.Media.CoverImage; c.ExtraLarge != nil && *c.ExtraLarge != "" {
+		return *c.ExtraLarge
+	} else if c.Large != nil {
+		return *c.Large
+	}
+	return ""
 }

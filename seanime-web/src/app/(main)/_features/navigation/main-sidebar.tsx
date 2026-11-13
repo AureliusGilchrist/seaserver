@@ -61,7 +61,7 @@ import { MdBackspace, MdOutlineConnectWithoutContact } from "react-icons/md"
 import { RiListCheck3 } from "react-icons/ri"
 import { SiQbittorrent, SiTransmission } from "react-icons/si"
 import { nakamaModalOpenAtom, useNakamaStatus } from "../nakama/nakama-manager"
-import { watchPartyModalOpenAtom, watchPartySessionAtom } from "../watch-party/watch-party.atoms"
+import { watchPartySessionAtom, watchPartySessionsAtom, watchPartyUnreadCountAtom } from "../watch-party/watch-party.atoms"
 import { PluginSidebarTray, type TrayExtraItem } from "../plugin/tray/plugin-sidebar-tray"
 
 export function MainSidebar() {
@@ -635,8 +635,9 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
     const nakamaStatus = useNakamaStatus()
 
     // Watch together
-    const [watchPartyModalOpen, setWatchPartyModalOpen] = useAtom(watchPartyModalOpenAtom)
     const watchPartySession = useAtomValue(watchPartySessionAtom)
+    const watchPartyRoomCount = useAtomValue(watchPartySessionsAtom)?.length ?? 0
+    const watchPartyUnread = useAtomValue(watchPartyUnreadCountAtom)
 
     // Sign out
     const confirmSignOut = useConfirmationDialog({
@@ -702,15 +703,17 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
                         iconType: LuUsers,
                         iconClass: "lg:size-6",
                         name: "Watch together",
-                        isCurrent: watchPartyModalOpen,
-                        onClick: () => {
-                            ctx.setOpen(false)
-                            setWatchPartyModalOpen(true)
-                        },
-                        addon: !!watchPartySession?.participants?.length && <Badge
-                            className="absolute right-0 top-0" size="sm"
-                            intent="info"
-                        >{formatCount(watchPartySession?.participants?.length)}</Badge>,
+                        href: "/watch-party",
+                        isCurrent: pathname === "/watch-party",
+                        addon: <>
+                            {(watchPartyUnread > 0 || !!watchPartySession?.participants?.length || watchPartyRoomCount > 0) && <Badge
+                                className="absolute right-0 top-0" size="sm"
+                                intent={watchPartyUnread > 0 ? "alert-solid" : "info"}
+                            >{formatCount(watchPartyUnread > 0 ? watchPartyUnread : (watchPartySession?.participants?.length ?? watchPartyRoomCount))}</Badge>}
+                            {!!watchPartySession && <div
+                                className="absolute right-2 bottom-2 animate-pulse size-2 bg-green-500 rounded-full"
+                            ></div>}
+                        </>,
                     },
                     {
                         id: "theme-manager",
