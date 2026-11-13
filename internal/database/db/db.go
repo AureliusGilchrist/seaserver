@@ -227,6 +227,7 @@ func migrateTables(db *gorm.DB) error {
 		&models.LevelProgress{},
 		&models.AdminAnnouncement{},
 		&models.TrackPreference{},
+		&models.WatchPartyHistory{},
 		&models.GlobalMilestone{},
 		&models.MediaCacheEntry{},
 		&models.ClientPref{},

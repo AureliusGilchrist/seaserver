@@ -8467,6 +8467,36 @@ export type WatchParty_ChatMessage = {
 }
 
 /**
+ * - Filepath: internal/watchparty/history.go
+ * - Filename: history.go
+ * - Package: watchparty
+ */
+export type WatchParty_HistoryCompanion = {
+    profileId: number
+    username: string
+    avatar?: string
+}
+
+/**
+ * - Filepath: internal/watchparty/history.go
+ * - Filename: history.go
+ * - Package: watchparty
+ */
+export type WatchParty_HistoryItem = {
+    id: number
+    sessionId: string
+    roomName: string
+    mediaId: number
+    mediaTitle: string
+    mediaImage?: string
+    episodeNumber: number
+    watchedSeconds: number
+    wasHost: boolean
+    companions?: Array<WatchParty_HistoryCompanion>
+    watchedAt?: string
+}
+
+/**
  * - Filepath: internal/watchparty/watch_party.go
  * - Filename: watch_party.go
  * - Package: watchparty

@@ -1436,6 +1436,23 @@ type GlobalMilestone struct {
 
 // TrackPreference stores per-media audio/subtitle track overrides for the profile.
 // MediaID is the AniList media ID as a string key.
+// WatchPartyHistory is one episode this profile watched in a same-server watch party, and
+// who watched it with them. Stored in the profile's own database.
+type WatchPartyHistory struct {
+	BaseModel
+	SessionID      string    `gorm:"column:session_id;index" json:"sessionId"`
+	RoomName       string    `gorm:"column:room_name" json:"roomName"`
+	MediaID        int       `gorm:"column:media_id;index" json:"mediaId"`
+	MediaTitle     string    `gorm:"column:media_title" json:"mediaTitle"`
+	MediaImage     string    `gorm:"column:media_image" json:"mediaImage"`
+	EpisodeNumber  int       `gorm:"column:episode_number" json:"episodeNumber"`
+	WatchedSeconds float64   `gorm:"column:watched_seconds" json:"watchedSeconds"`
+	WasHost        bool      `gorm:"column:was_host" json:"wasHost"`
+	// Companions is a JSON array of {profileId, username, avatar}.
+	Companions string    `gorm:"column:companions;type:text" json:"companions"`
+	WatchedAt  time.Time `gorm:"column:watched_at;index" json:"watchedAt"`
+}
+
 type TrackPreference struct {
 	BaseModel
 	MediaID          string `gorm:"column:media_id;uniqueIndex" json:"mediaId"`

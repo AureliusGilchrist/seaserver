@@ -25,7 +25,8 @@ import { useRouter, useSearchParams } from "@/lib/navigation"
 import { useAtomValue } from "jotai"
 import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { ActivityTabContent } from "@/app/(main)/_features/profile/activity-tab-content"
-import { LuMessagesSquare } from "react-icons/lu"
+import { LuMessagesSquare, LuPopcorn } from "react-icons/lu"
+import { WatchPartyHistory } from "@/app/(main)/profile/_components/watch-party-history"
 import { ProfileWallpaper } from "@/app/(main)/profile/_components/profile-wallpaper"
 import { ActivityBuffBadge, MyProfilePage, StreakCard, StatsActivityHeatmap, DayOfWeekChart, getLevelColor } from "@/app/(main)/profile/me/page"
 import { getProfileOwnerMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
@@ -267,6 +268,9 @@ function UserProfilePage() {
                         <TabsTrigger value="activity" className={profileTabsTriggerClass}>
                             <LuActivity className="mr-1.5" /> Activity
                         </TabsTrigger>
+                        <TabsTrigger value="watchparties" className={profileTabsTriggerClass}>
+                            <LuPopcorn className="mr-1.5" /> Watch parties
+                        </TabsTrigger>
                         <TabsTrigger value="towatch" className={profileTabsTriggerClass}>
                             <LuListVideo className="mr-1.5" /> Todo List
                         </TabsTrigger>
@@ -296,6 +300,9 @@ function UserProfilePage() {
                             } : undefined}
                         />
                         <ProfileCommentsTab userId={id} limit={3} onShowAll={() => router.push(`/profile/user?id=${id}&tab=comments`)} />
+                    </TabsContent>
+                    <TabsContent value="watchparties" className="space-y-6 mt-6">
+                        <WatchPartyHistory profileId={id} ownerName={profile?.name} />
                     </TabsContent>
                     <TabsContent value="towatch" className="space-y-6 mt-6">
                         {/* What this person means to watch next — the list is theirs, so it is shown

@@ -281,6 +281,31 @@ func (a *App) initModulesOnce() {
 			}
 			return p.AniListAvatar
 		},
+		RecordHistoryFunc: func(e watchparty.HistoryEntry) {
+			if a.ProfileDatabaseManager == nil {
+				return
+			}
+			pdb, err := a.ProfileDatabaseManager.GetDatabase(e.ProfileID)
+			if err != nil {
+				a.Logger.Warn().Err(err).Uint("profileId", e.ProfileID).Msg("watchparty: No database for history entry")
+				return
+			}
+			companions, _ := json.Marshal(e.Companions)
+			if err := pdb.InsertWatchPartyHistory(&models.WatchPartyHistory{
+				SessionID:      e.SessionID,
+				RoomName:       e.RoomName,
+				MediaID:        e.Media.MediaId,
+				MediaTitle:     e.Media.MediaTitle,
+				MediaImage:     e.Media.MediaImage,
+				EpisodeNumber:  e.Media.EpisodeNumber,
+				WatchedSeconds: e.WatchedSeconds,
+				WasHost:        e.WasHost,
+				Companions:     string(companions),
+				WatchedAt:      e.WatchedAt,
+			}); err != nil {
+				a.Logger.Warn().Err(err).Uint("profileId", e.ProfileID).Msg("watchparty: Could not save history entry")
+			}
+		},
 	})
 	a.AddCleanupFunction(a.WatchPartyManager.Shutdown)
 

@@ -123,6 +123,7 @@ type (
 		Epoch int `json:"epoch"`
 
 		messages []*ChatMessage
+		tally    *tally
 	}
 )
 
@@ -183,6 +184,9 @@ type (
 		GetProfileNameFunc func(profileID uint) string
 		// GetProfileAvatarFunc resolves a profile id to its picture. Optional.
 		GetProfileAvatarFunc func(profileID uint) string
+		// RecordHistoryFunc stores a finished watch party episode for one profile. Optional;
+		// without it no history is kept.
+		RecordHistoryFunc func(entry HistoryEntry)
 	}
 
 	Manager struct {
@@ -191,6 +195,7 @@ type (
 		videoCore      *videocore.VideoCore
 		getProfileName func(profileID uint) string
 		getAvatar      func(profileID uint) string
+		recordHistory  func(entry HistoryEntry)
 
 		// mu guards the sessions and everything reachable from them.
 		mu       sync.RWMutex
@@ -228,6 +233,7 @@ func New(opts NewManagerOptions) *Manager {
 		videoCore:      opts.VideoCore,
 		getProfileName: opts.GetProfileNameFunc,
 		getAvatar:      opts.GetProfileAvatarFunc,
+		recordHistory:  opts.RecordHistoryFunc,
 		sessions:       make(map[string]*Session),
 		peerSyncs:      make(map[string]*peerSync),
 	}
@@ -242,6 +248,9 @@ func New(opts NewManagerOptions) *Manager {
 func (m *Manager) Shutdown() {
 	m.mu.Lock()
 	had := len(m.sessions) > 0
+	for _, s := range m.sessions {
+		m.saveHistory(m.finishTallyLocked(s))
+	}
 	m.sessions = make(map[string]*Session)
 	m.order = nil
 	m.mu.Unlock()
@@ -642,6 +651,7 @@ func (m *Manager) removeParticipantLocked(s *Session, p *Participant) []*ChatMes
 }
 
 func (m *Manager) closeSessionLocked(s *Session) {
+	m.saveHistory(m.finishTallyLocked(s))
 	m.resetPeerSyncsLocked(s)
 	delete(m.sessions, s.ID)
 	for i, id := range m.order {
@@ -676,6 +686,7 @@ func (s *Session) appendMessage(msg *ChatMessage) {
 func (s *Session) snapshot() *Session {
 	snap := *s
 	snap.messages = nil
+	snap.tally = nil
 	snap.Participants = make([]*Participant, len(s.Participants))
 	for i, p := range s.Participants {
 		pc := *p

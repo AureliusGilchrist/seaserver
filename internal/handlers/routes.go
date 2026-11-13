@@ -997,6 +997,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1WatchParty.POST("/remote/request", h.HandleWatchPartyRequestRemote)
 	v1WatchParty.POST("/chat/send", h.HandleWatchPartySendChat)
 	v1WatchParty.POST("/chat/history", h.HandleWatchPartyChatHistory)
+	v1WatchParty.POST("/history", h.HandleWatchPartyHistory)
 
 	//
 	// Profile activity (presence)

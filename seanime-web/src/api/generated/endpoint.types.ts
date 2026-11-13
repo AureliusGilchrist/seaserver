@@ -3736,6 +3736,18 @@ export type WatchPartyCreate_Variables = {
 /**
  * - Filepath: internal/handlers/watchparty.go
  * - Filename: watchparty.go
+ * - Endpoint: /api/v1/watchparty/history
+ * @description
+ * Route returns the episodes a profile watched in watch parties, and with whom.
+ */
+export type WatchPartyHistory_Variables = {
+    profileId: number
+    limit: number
+}
+
+/**
+ * - Filepath: internal/handlers/watchparty.go
+ * - Filename: watchparty.go
  * - Endpoint: /api/v1/watchparty/join
  * @description
  * Route joins a same-server watch party room.

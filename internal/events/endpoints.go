@@ -504,6 +504,7 @@ const (
 	VoteCommentEndpoint                                = "COMMENT-vote-comment"
 	WatchPartyChatHistoryEndpoint                      = "WATCHPARTY-watch-party-chat-history"
 	WatchPartyCreateEndpoint                           = "WATCHPARTY-watch-party-create"
+	WatchPartyHistoryEndpoint                          = "WATCHPARTY-watch-party-history"
 	WatchPartyJoinEndpoint                             = "WATCHPARTY-watch-party-join"
 	WatchPartyLeaveEndpoint                            = "WATCHPARTY-watch-party-leave"
 	WatchPartyPassRemoteEndpoint                       = "WATCHPARTY-watch-party-pass-remote"

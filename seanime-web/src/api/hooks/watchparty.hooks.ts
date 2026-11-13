@@ -2,6 +2,7 @@ import { useServerMutation, useServerQuery } from "../client/requests"
 import {
     WatchPartyChatHistory_Variables,
     WatchPartyCreate_Variables,
+    WatchPartyHistory_Variables,
     WatchPartyJoin_Variables,
     WatchPartyLeave_Variables,
     WatchPartyPassRemote_Variables,
@@ -10,7 +11,7 @@ import {
     WatchPartyStop_Variables,
 } from "../generated/endpoint.types"
 import { API_ENDPOINTS } from "../generated/endpoints"
-import { WatchParty_ChatMessage, WatchParty_Session } from "../generated/types"
+import { WatchParty_ChatMessage, WatchParty_HistoryItem, WatchParty_Session } from "../generated/types"
 
 /** Every open watch party room on this server, oldest first. */
 export function useWatchPartyStatus(enabled: boolean = true) {
@@ -83,5 +84,16 @@ export function useWatchPartyChatHistory() {
         endpoint: API_ENDPOINTS.WATCHPARTY.WatchPartyChatHistory.endpoint,
         method: API_ENDPOINTS.WATCHPARTY.WatchPartyChatHistory.methods[0],
         mutationKey: [API_ENDPOINTS.WATCHPARTY.WatchPartyChatHistory.key],
+    })
+}
+
+/** The episodes a profile watched in watch parties, newest first. profileId 0 = me. */
+export function useWatchPartyHistory(profileId: number, enabled: boolean = true) {
+    return useServerQuery<Array<WatchParty_HistoryItem>, WatchPartyHistory_Variables>({
+        endpoint: API_ENDPOINTS.WATCHPARTY.WatchPartyHistory.endpoint,
+        method: API_ENDPOINTS.WATCHPARTY.WatchPartyHistory.methods[0],
+        queryKey: [API_ENDPOINTS.WATCHPARTY.WatchPartyHistory.key, profileId],
+        data: { profileId, limit: 200 },
+        enabled,
     })
 }

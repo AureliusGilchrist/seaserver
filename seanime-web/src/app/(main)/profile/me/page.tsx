@@ -65,7 +65,8 @@ import { RewardShop } from "@/app/(main)/profile/me/_components/reward-shop"
 import { useRewards } from "@/lib/rewards/reward-provider"
 import { XPBarFill } from "@/lib/rewards/xp-bar-fill"
 import { __isDesktop__ } from "@/types/constants"
-import { LuGift, LuImage } from "react-icons/lu"
+import { LuGift, LuImage, LuPopcorn } from "react-icons/lu"
+import { WatchPartyHistory } from "@/app/(main)/profile/_components/watch-party-history"
 import * as React from "react"
 import { profileAccentStyle } from "@/lib/rewards/profile-accent"
 import {
@@ -367,6 +368,9 @@ export function MyProfilePage() {
                         <TabsTrigger value="achievements" className={profileTabsTriggerClass}>
                             <LuTrophy className="mr-1.5" /> Achievements
                         </TabsTrigger>
+                        <TabsTrigger value="watchparties" className={profileTabsTriggerClass}>
+                            <LuPopcorn className="mr-1.5" /> Watch parties
+                        </TabsTrigger>
                         <TabsTrigger value="favorites" className={profileTabsTriggerClass}>
                             <LuHeart className="mr-1.5" /> Favorites
                         </TabsTrigger>
@@ -401,6 +405,9 @@ export function MyProfilePage() {
                     </TabsContent>
                     <TabsContent value="achievements" className="space-y-6 mt-6">
                         <AchievementsTabContent editable isAdmin={profile?.isAdmin ?? false} />
+                    </TabsContent>
+                    <TabsContent value="watchparties" className="space-y-6 mt-6">
+                        <WatchPartyHistory profileId={0} />
                     </TabsContent>
                     <TabsContent value="favorites" className="space-y-6 mt-6">
                         <FavoritesTabContent />

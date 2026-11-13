@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"errors"
 	"seanime/internal/watchparty"
 
@@ -231,4 +232,59 @@ func (h *Handler) HandleWatchPartyChatHistory(c echo.Context) error {
 	}
 
 	return h.RespondWithData(c, h.App.WatchPartyManager.ChatHistory(b.ClientId))
+}
+
+// HandleWatchPartyHistory
+//
+//	@summary returns the episodes a profile watched in watch parties, and with whom.
+//	@desc profileId 0 means the calling profile. Newest first.
+//	@route /api/v1/watchparty/history [POST]
+//	@returns []watchparty.HistoryItem
+func (h *Handler) HandleWatchPartyHistory(c echo.Context) error {
+	type body struct {
+		ProfileId uint `json:"profileId"`
+		Limit     int  `json:"limit"`
+	}
+
+	var b body
+	if err := c.Bind(&b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	profileID := b.ProfileId
+	if profileID == 0 {
+		profileID = h.GetProfileID(c)
+	}
+	if profileID == 0 || h.App.ProfileDatabaseManager == nil {
+		return h.RespondWithData(c, []watchparty.HistoryItem{})
+	}
+
+	pdb, err := h.App.ProfileDatabaseManager.GetDatabase(profileID)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	rows, err := pdb.GetWatchPartyHistory(b.Limit)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	out := make([]watchparty.HistoryItem, 0, len(rows))
+	for _, r := range rows {
+		item := watchparty.HistoryItem{
+			ID:             r.ID,
+			SessionID:      r.SessionID,
+			RoomName:       r.RoomName,
+			MediaID:        r.MediaID,
+			MediaTitle:     r.MediaTitle,
+			MediaImage:     r.MediaImage,
+			EpisodeNumber:  r.EpisodeNumber,
+			WatchedSeconds: r.WatchedSeconds,
+			WasHost:        r.WasHost,
+			Companions:     []watchparty.HistoryCompanion{},
+			WatchedAt:      r.WatchedAt,
+		}
+		_ = json.Unmarshal([]byte(r.Companions), &item.Companions)
+		out = append(out, item)
+	}
+	return h.RespondWithData(c, out)
 }

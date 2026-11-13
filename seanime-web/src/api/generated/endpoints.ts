@@ -4751,6 +4751,15 @@ export const API_ENDPOINTS = {
             methods: ["POST"],
             endpoint: "/api/v1/watchparty/chat/history",
         },
+        /**
+         * @description
+         * Route returns the episodes a profile watched in watch parties, and with whom.
+         */
+        WatchPartyHistory: {
+            key: "WATCHPARTY-watch-party-history",
+            methods: ["POST"],
+            endpoint: "/api/v1/watchparty/history",
+        },
     },
 } satisfies ApiEndpoints
 

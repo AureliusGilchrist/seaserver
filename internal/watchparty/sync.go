@@ -123,6 +123,7 @@ func (m *Manager) handleVideoEvent(event videocore.VideoEvent) {
 	case *videocore.VideoStatusEvent:
 		// Track the participant's playback for the UI.
 		m.mu.Lock()
+		var finished []HistoryEntry
 		if s, p := m.findByClientLocked(clientId); s != nil {
 			p.LastSeen = time.Now()
 			p.PlaybackStatus = &PlaybackStatusInfo{
@@ -130,8 +131,12 @@ func (m *Manager) handleVideoEvent(event videocore.VideoEvent) {
 				CurrentTime: e.CurrentTime,
 				Duration:    e.Duration,
 			}
+			if p.IsSource {
+				finished = m.tickHistoryLocked(s, e.Paused, e.Duration)
+			}
 		}
 		m.mu.Unlock()
+		m.saveHistory(finished)
 
 		if isSource && len(others) > 0 {
 			for _, p := range others {
@@ -292,6 +297,7 @@ func (m *Manager) onSourceTerminated(e *videocore.VideoTerminatedEvent, others [
 	m.mu.Lock()
 	if s, p := m.findByClientLocked(e.GetClientId()); s != nil {
 		m.resetPeerSyncsLocked(s)
+		m.saveHistory(m.finishTallyLocked(s))
 		s.MediaInfo = nil
 		p.PlaybackId = ""
 	}
