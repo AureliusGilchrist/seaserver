@@ -8,6 +8,7 @@ import {
     watchPartySessionAtom,
     watchPartySessionsAtom,
     watchPartyUnreadCountAtom,
+    toSessionList,
 } from "@/app/(main)/_features/watch-party/watch-party.atoms"
 import { useNakamaOnlineStreamWatchParty } from "@/app/(main)/onlinestream/_lib/handle-onlinestream"
 import { clientIdAtom } from "@/app/websocket-provider"
@@ -40,7 +41,7 @@ export function WatchPartyManager() {
     const { data: initialStatus } = useWatchPartyStatus(!!clientId)
     React.useEffect(() => {
         if (initialStatus !== undefined) {
-            setSessions(initialStatus ?? [])
+            setSessions(toSessionList(initialStatus))
         }
     }, [initialStatus])
 
@@ -48,8 +49,7 @@ export function WatchPartyManager() {
     useWebsocketMessageListener<{ sessions: WatchParty_Session[] | null }>({
         type: WSEvents.WATCH_PARTY_STATE,
         onMessage: (payload) => {
-            log.info("Watch party rooms", payload?.sessions?.map(s => ({ id: s.id, participants: s.participants?.length, epoch: s.epoch })))
-            setSessions(payload?.sessions ?? [])
+            setSessions(toSessionList(payload?.sessions))
         },
     })
 
@@ -62,7 +62,7 @@ export function WatchPartyManager() {
         if (!mySessionId || !clientId) return
         fetchHistory({ clientId }, {
             onSuccess: (history) => {
-                setMessages(prev => mergeMessages(history ?? [], prev))
+                setMessages(prev => mergeMessages(Array.isArray(history) ? history : [], prev))
             },
         })
     }, [mySessionId, clientId])
