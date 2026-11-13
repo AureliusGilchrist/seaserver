@@ -26,3 +26,20 @@ func TestShouldNotSkipWebStaticForWebRoutes(t *testing.T) {
 		}
 	}
 }
+
+func TestSharedThemeIDFromPath(t *testing.T) {
+	cases := map[string]string{
+		"/shared-themes/bleach/theme.json":           "bleach",
+		"/shared-themes/Ranking of Kings/theme.json": "Ranking of Kings",
+	}
+	for path, want := range cases {
+		if got, ok := sharedThemeIDFromPath(path); !ok || got != want {
+			t.Errorf("%s: got %q %v, want %q", path, got, ok, want)
+		}
+	}
+	for _, path := range []string{"/shared-themes/bleach/bg.png", "/shared-themes/bleach", "/marketplace/themes/bleach/theme.json", "/shared-themes/../x/theme.json"} {
+		if _, ok := sharedThemeIDFromPath(path); ok {
+			t.Errorf("%s: matched, want no match", path)
+		}
+	}
+}

@@ -98,6 +98,10 @@ func NewEchoApp(app *App, webFS *embed.FS) *echo.Echo {
 	// Serve shared downloaded themes (profile-shared, not bundled)
 	sharedThemesDir := filepath.Join(app.Config.Data.AppDataDir, "themes")
 	app.Logger.Info().Msgf("app: Shared themes path: %s", sharedThemesDir)
+	// Installed themes are copies; bring one up to date with the marketplace before serving it.
+	e.Pre(refreshSharedThemeMiddleware(app.Config.Marketplace.Dir, sharedThemesDir, func(id string, err error) {
+		app.Logger.Warn().Err(err).Str("theme", id).Msg("app: Could not refresh installed theme from the marketplace")
+	}))
 	e.Static("/shared-themes", sharedThemesDir)
 
 	// Serve downloaded cursor packs

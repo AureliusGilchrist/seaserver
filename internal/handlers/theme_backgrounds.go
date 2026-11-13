@@ -16,6 +16,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"seanime/internal/database/db"
 	"seanime/internal/database/models"
+	"seanime/internal/sharedthemes"
 )
 
 // HandleListThemeBackgrounds returns all downloaded background images from datadir/theme-backgrounds/.
@@ -210,6 +211,10 @@ func (h *Handler) HandleListSharedThemes(c echo.Context) error {
 		themeJsonPath := filepath.Join(dir, entry.Name(), "theme.json")
 		if _, statErr := os.Stat(themeJsonPath); statErr != nil {
 			continue // Skip directories without theme.json
+		}
+		// Bring the installed copy up to date with the marketplace so the list shows current names.
+		if _, refreshErr := sharedthemes.Refresh(h.App.Config.Marketplace.Dir, dir, entry.Name()); refreshErr != nil {
+			h.App.Logger.Warn().Err(refreshErr).Str("theme", entry.Name()).Msg("themes: Could not refresh installed theme from the marketplace")
 		}
 
 		// Try to read theme.json to get display name and what the theme says about itself
