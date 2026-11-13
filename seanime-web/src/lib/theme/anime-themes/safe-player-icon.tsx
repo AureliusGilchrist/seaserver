@@ -19,6 +19,13 @@ class IconErrorBoundary extends React.Component<{ fallback: React.ReactNode, chi
 /** True when the rendered svg has something visible in it. */
 function drawsSomething(svg: SVGSVGElement): boolean {
     if (!svg.querySelector("path, rect, circle, ellipse, line, polyline, polygon, g, use, text")) return false
+    // getBBox is in the svg's own units, so it reports a full shape even when the svg itself is laid
+    // out at 0×0 (e.g. its size class was never generated). Check the on-screen box too — but only
+    // when the svg is rendered at all; inside a display:none control bar it has no boxes.
+    if (svg.getClientRects().length > 0) {
+        const rect = svg.getBoundingClientRect()
+        if (rect.width < 1 || rect.height < 1) return false
+    }
     try {
         const box = svg.getBBox()
         return box.width > 0 && box.height > 0

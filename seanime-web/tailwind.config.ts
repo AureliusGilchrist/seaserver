@@ -17,6 +17,9 @@ const config: Config = {
         "./src/app/**/*.{ts,tsx,mdx}",
         "./src/pages/**/*.{ts,tsx,mdx}",
         "./src/components/**/*.{ts,tsx,mdx}",
+        // Theme icons, sidebar overrides and other theme-drawn UI live here; without it their
+        // classes (e.g. the player icons' size-[1em]) are never generated.
+        "./src/lib/**/*.{ts,tsx}",
     ],
     safelist: [
         "bg-amber-900", "bg-amber-800", "bg-amber-700", "bg-amber-600", "bg-amber-500", "bg-amber-400", "bg-amber-400", "bg-amber-300",
