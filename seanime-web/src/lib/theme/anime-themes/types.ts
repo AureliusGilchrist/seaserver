@@ -4,6 +4,7 @@ export type AnimeThemeId =
     | "seanime"
     | "naruto"
     | "bleach"
+    | "bleach-tybw"
     | "one-piece"
     // ── Shonen / Action ──
     | "dragon-ball-z"

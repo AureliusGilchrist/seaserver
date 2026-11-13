@@ -18,6 +18,10 @@ export interface MarketplaceThemeMeta {
     achievementNames: Record<string, string>
     sidebarOverrides: Record<string, { icon?: string; label?: string }>
     playerIconOverrides: Record<string, string>
+    /** Named player icon set (see player-icon-styles.tsx); per-key playerIconOverrides win over it. */
+    playerIconSet?: string
+    /** Sidebar id → icon slug. An icon set inside sidebarOverrides wins over this. */
+    sidebarIcons: Record<string, string>
     previewColors?: { bg: string; primary: string; secondary: string; accent: string }
     backgroundImageUrl?: string
     /** Portrait wallpaper for phones. */
@@ -83,6 +87,8 @@ export async function fetchMarketplaceThemeMeta(themeId: string, opts?: { market
                 achievementNames?: Record<string, string>
                 sidebarOverrides?: Record<string, { icon?: string; label?: string }>
                 playerIconOverrides?: Record<string, string>
+                playerIconSet?: string
+                sidebarIcons?: Record<string, string>
                 previewColors?: { bg: string; primary: string; secondary: string; accent: string }
                 backgroundImageUrl?: string
                 cssVars?: Record<string, string>
@@ -106,6 +112,8 @@ export async function fetchMarketplaceThemeMeta(themeId: string, opts?: { market
                 achievementNames: raw.achievementNames ?? {},
                 sidebarOverrides: raw.sidebarOverrides ?? {},
                 playerIconOverrides: raw.playerIconOverrides ?? {},
+                playerIconSet: raw.playerIconSet,
+                sidebarIcons: raw.sidebarIcons ?? {},
                 previewColors: raw.previewColors,
                 backgroundImageUrl: raw.backgroundImageUrl,
                 cssVars: raw.cssVars,

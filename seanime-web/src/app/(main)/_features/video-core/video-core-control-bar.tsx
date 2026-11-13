@@ -29,6 +29,14 @@ import { LuChevronLeft, LuChevronRight, LuVolume, LuVolume1, LuVolume2, LuVolume
 import { RiPauseLargeLine, RiPlayLargeLine } from "react-icons/ri"
 import { RxEnterFullScreen, RxExitFullScreen } from "react-icons/rx"
 import { TbPictureInPicture, TbPictureInPictureOff } from "react-icons/tb"
+import { useAnimeThemeOrNull } from "@/lib/theme/anime-themes/anime-theme-provider"
+import type { PlayerIconOverrides } from "@/lib/theme/anime-themes/types"
+
+/** The active anime theme's player icons (empty when the theme has none). Each button falls back to its stock icon. */
+function useThemePlayerIcons(): PlayerIconOverrides {
+    const theme = useAnimeThemeOrNull()
+    return theme?.config.playerIconOverrides ?? {}
+}
 
 const VIDEOCORE_CONTROL_BAR_MAIN_SECTION_HEIGHT = 48
 const VIDEOCORE_CONTROL_BAR_MAIN_SECTION_HEIGHT_MINI = 28
@@ -451,12 +459,13 @@ export function VideoCoreControlButtonIcon(props: VideoCoreControlButtonProps) {
 export function VideoCorePlayButton() {
     const paused = useAtomValue(vc_paused)
     const action = useSetAtom(vc_dispatchAction)
+    const themeIcons = useThemePlayerIcons()
 
     return (
         <VideoCoreControlButtonIcon
             icons={[
-                ["playing", RiPauseLargeLine],
-                ["paused", RiPlayLargeLine],
+                ["playing", themeIcons.pause ?? RiPauseLargeLine],
+                ["paused", themeIcons.play ?? RiPlayLargeLine],
             ]}
             state={paused ? "paused" : "playing"}
             onClick={() => {
@@ -473,6 +482,7 @@ export function VideoCoreVolumeButton() {
     const setMuted = useSetAtom(vc_storedMutedAtom)
     const isMiniPlayer = useAtomValue(vc_miniPlayer)
     const isMobile = useAtomValue(vc_isMobile)
+    const themeIcons = useThemePlayerIcons()
 
     const [isSliding, setIsSliding] = React.useState(false)
 
@@ -538,10 +548,10 @@ export function VideoCoreVolumeButton() {
         >
             <VideoCoreControlButtonIcon
                 icons={[
-                    ["low", LuVolume],
-                    ["mid", LuVolume1],
-                    ["high", LuVolume2],
-                    ["muted", LuVolumeOff],
+                    ["low", themeIcons.volumeLow ?? LuVolume],
+                    ["mid", themeIcons.volumeMid ?? LuVolume1],
+                    ["high", themeIcons.volumeHigh ?? LuVolume2],
+                    ["muted", themeIcons.volumeMuted ?? LuVolumeOff],
                 ]}
                 state={
                     muted ? "muted" :
@@ -610,12 +620,13 @@ export function VideoCoreVolumeButton() {
 
 export function VideoCoreNextButton({ onClick }: { onClick: () => void }) {
     const isMiniPlayer = useAtomValue(vc_miniPlayer)
+    const themeIcons = useThemePlayerIcons()
     if (isMiniPlayer) return null
 
     return (
         <VideoCoreControlButtonIcon
             icons={[
-                ["default", LuChevronRight],
+                ["default", themeIcons.skipForward ?? LuChevronRight],
             ]}
             state="default"
             onClick={onClick}
@@ -626,12 +637,13 @@ export function VideoCoreNextButton({ onClick }: { onClick: () => void }) {
 
 export function VideoCorePreviousButton({ onClick }: { onClick: () => void }) {
     const isMiniPlayer = useAtomValue(vc_miniPlayer)
+    const themeIcons = useThemePlayerIcons()
     if (isMiniPlayer) return null
 
     return (
         <VideoCoreControlButtonIcon
             icons={[
-                ["default", LuChevronLeft],
+                ["default", themeIcons.skipBack ?? LuChevronLeft],
             ]}
             state="default"
             onClick={onClick}
@@ -672,12 +684,13 @@ export function VideoCoreTimestamp() {
 export function VideoCorePipButton() {
     const pipManager = useAtomValue(vc_pipManager)
     const isPip = useAtomValue(vc_pip)
+    const themeIcons = useThemePlayerIcons()
 
     return (
         <VideoCoreControlButtonIcon
             icons={[
-                ["default", TbPictureInPicture],
-                ["pip", TbPictureInPictureOff],
+                ["default", themeIcons.pip ?? TbPictureInPicture],
+                ["pip", themeIcons.pipOff ?? TbPictureInPictureOff],
             ]}
             state={isPip ? "pip" : "default"}
             onClick={() => {
@@ -691,12 +704,13 @@ export function VideoCoreFullscreenButton() {
     const fullscreenManager = useAtomValue(vc_fullscreenManager)
     const isFullscreen = useAtomValue(vc_isFullscreen)
     const [isMiniPlayer, setMiniPlayer] = useAtom(vc_miniPlayer)
+    const themeIcons = useThemePlayerIcons()
 
     return (
         <VideoCoreControlButtonIcon
             icons={[
-                ["default", RxEnterFullScreen],
-                ["fullscreen", RxExitFullScreen],
+                ["default", themeIcons.fullscreenEnter ?? RxEnterFullScreen],
+                ["fullscreen", themeIcons.fullscreenExit ?? RxExitFullScreen],
             ]}
             state={isFullscreen ? "fullscreen" : "default"}
             onClick={() => {

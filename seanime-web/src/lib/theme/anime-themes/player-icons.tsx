@@ -1731,3 +1731,117 @@ export const cowboyBebopPlayerIcons: PlayerIconOverrides = {
     pip: CBPip,
     pipOff: CBPipOff,
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Bleach: Thousand-Year Blood War — dual Zangetsu / Quincy reishi / Heilig Pfeil
+// ─────────────────────────────────────────────────────────────────
+
+const TYBWPlay: React.FC<{ className?: string }> = ({ className }) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={cn("size-[1em]", className)}>
+        {/* Cleaver blade of the true Zangetsu: a play triangle with a notched spine */}
+        <path d="M5 2.5 L21.5 12 L5 21.5 L7.5 15 L5.5 12 L7.5 9 Z" />
+        <path d="M7.5 12h6" fill="none" stroke="black" strokeOpacity="0.35" strokeWidth="1" />
+    </svg>
+)
+
+const TYBWPause: React.FC<{ className?: string }> = ({ className }) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={cn("size-[1em]", className)}>
+        {/* Dual Zangetsu: the great cleaver and the short tantō */}
+        <path d="M4 2h5.5l-.8 17.5L6.8 22H4z" />
+        <path d="M15 6h4v13l-2 3-2-3z" />
+        <rect x="14" y="4.6" width="6" height="1.4" />
+    </svg>
+)
+
+const TYBWSpeaker = <path d="M3 9v6h4l5 5V4L7 9H3z" />
+
+const TYBWVolumeHigh: React.FC<{ className?: string }> = ({ className }) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={cn("size-[1em]", className)}>
+        {TYBWSpeaker}
+        {/* Reishi arrows fanning out */}
+        <path d="M14.5 12h5M18 10.5l1.8 1.5-1.8 1.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M14.5 8.5l5-3M14.5 15.5l5 3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+)
+
+const TYBWVolumeMid: React.FC<{ className?: string }> = ({ className }) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={cn("size-[1em]", className)}>
+        {TYBWSpeaker}
+        <path d="M14.5 12h5M18 10.5l1.8 1.5-1.8 1.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+)
+
+const TYBWVolumeLow: React.FC<{ className?: string }> = ({ className }) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={cn("size-[1em]", className)}>
+        {TYBWSpeaker}
+    </svg>
+)
+
+const TYBWVolumeMuted: React.FC<{ className?: string }> = ({ className }) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={cn("size-[1em]", className)}>
+        {TYBWSpeaker}
+        {/* Crossed blades */}
+        <path d="M15 8.5l6.5 7M21.5 8.5l-6.5 7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="square" />
+    </svg>
+)
+
+const TYBWFullscreenEnter: React.FC<{ className?: string }> = ({ className }) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={cn("size-[1em]", className)}>
+        {/* Wandenreich-style spiked corners */}
+        <path d="M2 2h7l-2 2H4v3L2 9zM22 2v7l-2-2V4h-3l-2-2zM2 22v-7l2 2v3h3l2 2zM22 22h-7l2-2h3v-3l2-2z" />
+    </svg>
+)
+
+const TYBWFullscreenExit: React.FC<{ className?: string }> = ({ className }) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={cn("size-[1em]", className)}>
+        <path d="M9 2v7H2l2-2h3V4zM15 2l2 2v3h3l2 2h-7zM2 15h7v7l-2-2v-3H4zM15 15h7l-2 2h-3v3l-2 2z" />
+    </svg>
+)
+
+const TYBWSkipForward: React.FC<{ className?: string }> = ({ className }) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={cn("size-[1em]", className)}>
+        {/* Heilig Pfeil — a spirit arrow loosed forward */}
+        <path d="M2 11h12V7.5L21 12l-7 4.5V13H2z" />
+        <path d="M3 8l2.5 3M3 16l2.5-3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+)
+
+const TYBWSkipBack: React.FC<{ className?: string }> = ({ className }) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={cn("size-[1em]", className)}>
+        <g transform="translate(24 0) scale(-1 1)">
+            <path d="M2 11h12V7.5L21 12l-7 4.5V13H2z" />
+            <path d="M3 8l2.5 3M3 16l2.5-3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </g>
+    </svg>
+)
+
+const TYBWPip: React.FC<{ className?: string }> = ({ className }) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={cn("size-[1em]", className)}>
+        {/* A Garganta torn open in the frame */}
+        <rect x="2.5" y="4.5" width="19" height="15" fill="none" stroke="currentColor" strokeWidth="1.9" />
+        <path d="M12 11.5l3 -1 2 1.5 2 -1v6.5h-7z" />
+    </svg>
+)
+
+const TYBWPipOff: React.FC<{ className?: string }> = ({ className }) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={cn("size-[1em]", className)}>
+        <rect x="2.5" y="4.5" width="19" height="15" fill="none" stroke="currentColor" strokeWidth="1.9" />
+        <path d="M12 11.5l3 -1 2 1.5 2 -1v6.5h-7z" />
+        <line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" strokeWidth="2" strokeLinecap="square" />
+    </svg>
+)
+
+export const bleachTybwPlayerIcons: PlayerIconOverrides = {
+    play: TYBWPlay,
+    pause: TYBWPause,
+    volumeHigh: TYBWVolumeHigh,
+    volumeMid: TYBWVolumeMid,
+    volumeLow: TYBWVolumeLow,
+    volumeMuted: TYBWVolumeMuted,
+    fullscreenEnter: TYBWFullscreenEnter,
+    fullscreenExit: TYBWFullscreenExit,
+    skipForward: TYBWSkipForward,
+    skipBack: TYBWSkipBack,
+    pip: TYBWPip,
+    pipOff: TYBWPipOff,
+}

@@ -8,6 +8,7 @@ export const WALLHAVEN_CURATED_QUERY: Record<AnimeThemeId, string> = {
     "seanime": "anime aesthetic",
     "naruto": "naruto",
     "bleach": "bleach anime",
+    "bleach-tybw": "bleach thousand year blood war",
     "one-piece": "one piece",
     "dragon-ball-z": "dragon ball z",
     "attack-on-titan": "attack on titan",

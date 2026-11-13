@@ -16,6 +16,7 @@ import { ThemeAnimatedOverlay } from "@/lib/theme/anime-themes/animated-elements
 import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { buildThemeCursorCSS } from "@/lib/theme/anime-themes/cursor-svgs"
 import { resolveIcon } from "@/lib/theme/anime-themes/icon-registry"
+import { resolvePlayerIconSet } from "@/lib/theme/anime-themes/player-icon-styles"
 import { recordActivatedTheme } from "@/lib/theme/anime-themes/theme-prerequisites"
 import { fetchMarketplaceThemeMeta, getCachedMarketplaceThemeMeta } from "@/lib/theme/marketplace-theme-loader"
 import { applyRootCssVars } from "@/lib/helpers/css"
@@ -262,11 +263,15 @@ const AnimeThemeContext = React.createContext<AnimeThemeContextValue | null>(nul
 /** Build a full AnimeThemeConfig from marketplace meta so the provider uses it like any bundled theme. */
 function buildConfigFromMeta(meta: import("@/lib/theme/marketplace-theme-loader").MarketplaceThemeMeta): AnimeThemeConfig {
     const sidebarOverrides: Record<string, SidebarItemOverride> = {}
+    for (const [id, slug] of Object.entries(meta.sidebarIcons ?? {})) {
+        const icon = resolveIcon(slug)
+        if (icon) sidebarOverrides[id] = { icon }
+    }
     for (const [id, ov] of Object.entries(meta.sidebarOverrides ?? {})) {
-        sidebarOverrides[id] = { icon: resolveIcon(ov.icon), label: ov.label }
+        sidebarOverrides[id] = { icon: resolveIcon(ov.icon) ?? sidebarOverrides[id]?.icon, label: ov.label }
     }
 
-    const playerIconOverrides: PlayerIconOverrides = {}
+    const playerIconOverrides: PlayerIconOverrides = { ...resolvePlayerIconSet(meta.playerIconSet) }
     for (const [key, slug] of Object.entries(meta.playerIconOverrides ?? {})) {
         const icon = resolveIcon(slug)
         if (icon) (playerIconOverrides as Record<string, import("@/lib/theme/anime-themes/types").ThemeIconComponent>)[key] = icon

@@ -45,6 +45,7 @@ import { WSEvents } from "@/lib/server/ws-events"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import { useAnimeThemeOrNull, useThemeMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { ANIME_THEMES } from "@/lib/theme/anime-themes"
+import { applySidebarOverride } from "@/lib/theme/anime-themes/sidebar-overrides"
 import { __isDesktop__, __isTauriDesktop__ } from "@/types/constants"
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import { SeaLink as Link } from "@/components/shared/sea-link"
@@ -455,11 +456,8 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
     const pluginWebviewItems = usePluginSidebarItems()
 
     // Apply anime theme overrides (icon + label) to any item that has an override
-    const applyAnimeOverride = React.useCallback((item: any) => {
-        const ov = animeConfig.sidebarOverrides[item.id]
-        if (!ov) return item
-        return { ...item, iconType: ov.icon ?? item.iconType, name: ov.label ?? item.name }
-    }, [animeConfig.sidebarOverrides])
+    const applyAnimeOverride = React.useCallback((item: any) => applySidebarOverride(item, animeConfig.sidebarOverrides),
+        [animeConfig.sidebarOverrides])
 
     // Everything that is not hidden by hand.
     //
@@ -618,11 +616,8 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
     // Anime theme overrides (safe: null if provider not yet mounted — prevents crash hiding avatar)
     const animeTheme = useAnimeThemeOrNull()
     const animeConfig = animeTheme?.config ?? ANIME_THEMES["seanime"]
-    const applyFooterOverride = React.useCallback((item: VerticalMenuItem & { id: string }): VerticalMenuItem & { id: string } => {
-        const ov = animeConfig.sidebarOverrides[item.id]
-        if (!ov) return item
-        return { ...item, iconType: ov.icon ?? item.iconType, name: ov.label ?? item.name }
-    }, [animeConfig.sidebarOverrides])
+    const applyFooterOverride = React.useCallback((item: VerticalMenuItem & { id: string }): VerticalMenuItem & { id: string } =>
+        applySidebarOverride(item, animeConfig.sidebarOverrides), [animeConfig.sidebarOverrides])
 
     // Extensions
     const { data: updateData } = useGetExtensionUpdateData()
