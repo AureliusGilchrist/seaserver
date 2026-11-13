@@ -32,6 +32,48 @@ type peerSync struct {
 	// ownership is tracked with a generation token the goroutine matches against.
 	catchUpToken  int
 	catchUpCancel context.CancelFunc
+
+	// The seek still on its way to the participant, if any (see seekLandTimeout).
+	seek pendingSeek
+	// The participant's position at the previous check, to tell playing from stalled.
+	lastPeerTime float64
+}
+
+// pendingSeek is a seek sent to a participant that hasn't landed yet.
+type pendingSeek struct {
+	active bool
+	target float64
+	at     time.Time
+	// measure: the source was playing when it was sent, so how long it took to land is how
+	// far ahead of the source the next seek should aim.
+	measure bool
+}
+
+// seekLanding reports whether a pending seek has landed, given the participant's current
+// position and the position it reported last time. It returns the time the seek took to
+// land (seconds), when that is meaningful.
+func seekLanding(seek pendingSeek, now time.Time, cur, prev float64, paused, srcPaused bool) (landed bool, took float64, ok bool) {
+	if !seek.active {
+		return true, 0, false
+	}
+	if paused {
+		// With the source paused too, being at the target is all there is to it. With the
+		// source playing, the participant is being resumed and still has to buffer.
+		if srcPaused && math.Abs(cur-seek.target) <= seekLandTolerance {
+			return true, 0, false
+		}
+		return false, 0, false
+	}
+	// Playing from the target (or past it): landed once the position moves.
+	if cur >= seek.target-seekLandTolerance && cur > prev+0.05 {
+		if !seek.measure {
+			return true, 0, false
+		}
+		// It started playing at the target and has played (cur - target) since.
+		took = now.Sub(seek.at).Seconds() - math.Max(0, cur-seek.target)
+		return true, math.Max(0, math.Min(took, maxSeekLead)), true
+	}
+	return false, 0, false
 }
 
 func (m *Manager) getPeerSync(clientId string) *peerSync {
@@ -263,11 +305,8 @@ func (m *Manager) onSourceSeeked(e *videocore.VideoSeekedEvent, others []peerRef
 	for _, p := range others {
 		// A scrub is explicit intent — bypass the cooldown.
 		st := m.getPeerSync(p.clientId)
-		m.syncMu.Lock()
-		st.lastSeekTime = time.Now()
-		m.syncMu.Unlock()
 		m.cancelCatchUp(st)
-		m.videoCore.SeekTo(e.CurrentTime, p.clientId)
+		m.seekPeer(p.clientId, e.CurrentTime, st)
 	}
 }
 
@@ -319,6 +358,17 @@ func (m *Manager) syncPeer(threshold float64, src *videocore.VideoStatusEvent, p
 		return // the participant has nothing loaded (or is still loading)
 	}
 
+	if !m.seekSettled(p.clientId, st, peerStatus, src.Paused) {
+		// A seek is still landing (buffering over a slow link): sending another would cancel
+		// it. Only keep play/pause in line meanwhile.
+		if src.Paused && !peerStatus.Paused {
+			m.videoCore.Pause(p.clientId)
+		} else if !src.Paused && peerStatus.Paused {
+			m.videoCore.Resume(p.clientId)
+		}
+		return
+	}
+
 	if threshold < minSyncThreshold {
 		threshold = minSyncThreshold
 	} else if threshold > maxSyncThreshold {
@@ -348,8 +398,8 @@ func (m *Manager) syncPeer(threshold float64, src *videocore.VideoStatusEvent, p
 	case !src.Paused && peerStatus.Paused:
 		// Source playing, participant stuck paused: realign and resume.
 		drift := src.CurrentTime - peerStatus.CurrentTime
-		if drift < -resumePositionDriftThreshold || drift > resumeAheadTolerance {
-			m.seekPeer(p.clientId, src.CurrentTime, st)
+		if (drift < -resumePositionDriftThreshold || drift > resumeAheadTolerance) && m.canSeek(st) {
+			m.seekPeerAhead(p.clientId, src.CurrentTime, st)
 		}
 		m.videoCore.Resume(p.clientId)
 
@@ -364,9 +414,50 @@ func (m *Manager) syncPeer(threshold float64, src *videocore.VideoStatusEvent, p
 			effective = threshold * moderateSyncMultiplier
 		}
 		if drift > effective && m.canSeek(st) {
-			m.seekPeer(p.clientId, src.CurrentTime, st)
+			m.seekPeerAhead(p.clientId, src.CurrentTime, st)
 		}
 	}
+}
+
+// seekSettled reports whether the participant has no seek still landing. It records how
+// long a landed seek took, and gives up on one that never landed.
+func (m *Manager) seekSettled(clientId string, st *peerSync, status *videocore.PlaybackStatus, srcPaused bool) bool {
+	now := time.Now()
+	m.syncMu.Lock()
+	defer m.syncMu.Unlock()
+	prev := st.lastPeerTime
+	st.lastPeerTime = status.CurrentTime
+	if !st.seek.active {
+		return true
+	}
+	landed, took, ok := seekLanding(st.seek, now, status.CurrentTime, prev, status.Paused, srcPaused)
+	if landed {
+		if ok {
+			if old, had := m.peerLeads[clientId]; had {
+				m.peerLeads[clientId] = old*(1-seekLeadSmoothing) + took*seekLeadSmoothing
+			} else {
+				m.peerLeads[clientId] = took
+			}
+			m.logger.Trace().Str("clientId", clientId).Float64("took", took).Float64("lead", m.peerLeads[clientId]).Msg("watchparty: Seek landed")
+		}
+		st.seek = pendingSeek{}
+		return true
+	}
+	if now.Sub(st.seek.at) >= seekLandTimeout {
+		m.logger.Debug().Str("clientId", clientId).Float64("target", st.seek.target).Msg("watchparty: Seek didn't land in time, retrying")
+		st.seek = pendingSeek{}
+		return true
+	}
+	return false
+}
+
+// seekPeerAhead seeks a participant to where the playing source will be by the time the
+// seek has landed on that participant's connection.
+func (m *Manager) seekPeerAhead(clientId string, srcTime float64, st *peerSync) {
+	m.syncMu.Lock()
+	lead := m.peerLeads[clientId]
+	m.syncMu.Unlock()
+	m.sendSeek(clientId, srcTime+lead, st, true)
 }
 
 func (m *Manager) canSeek(st *peerSync) bool {
@@ -375,9 +466,16 @@ func (m *Manager) canSeek(st *peerSync) bool {
 	return time.Since(st.lastSeekTime) >= seekCooldown
 }
 
+// seekPeer seeks a participant to an exact position (the source is paused or scrubbed).
 func (m *Manager) seekPeer(clientId string, position float64, st *peerSync) {
+	m.sendSeek(clientId, position, st, false)
+}
+
+func (m *Manager) sendSeek(clientId string, position float64, st *peerSync, measure bool) {
+	now := time.Now()
 	m.syncMu.Lock()
-	st.lastSeekTime = time.Now()
+	st.lastSeekTime = now
+	st.seek = pendingSeek{active: true, target: position, at: now, measure: measure}
 	m.syncMu.Unlock()
 	m.videoCore.SeekTo(position, clientId)
 }

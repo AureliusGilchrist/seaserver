@@ -54,6 +54,13 @@ function socketClientId(cookieId: string): string {
     return cookieId
 }
 
+/** The client id cookie as it is right now (not as it was when a closure captured it). */
+function readClientIdCookie(): string | null {
+    if (typeof document === "undefined") return null
+    const m = document.cookie.match(/(?:^|;\s*)Seanime-Client-Id=([^;]+)/)
+    return m ? decodeURIComponent(m[1]) : null
+}
+
 const isMainTabAtom = atom(false)
 
 export function useIsMainTab() {
@@ -296,6 +303,7 @@ function WebsocketManagement() {
     const immediateRetryUsedRef = React.useRef(false)
     const lastPongRef = React.useRef<number>(Date.now())
     const socketRef = React.useRef<WebSocket | null>(null)
+    const clientIdRef = React.useRef<string | null>(null)
     const wasDisconnected = React.useRef<boolean>(false)
     const initialConnection = React.useRef<boolean>(true)
 
@@ -368,7 +376,11 @@ function WebsocketManagement() {
                 : /^http:/i.test(serverBase) ? "ws"
                     : (document.location.protocol == "https:" ? "wss" : "ws")
             const wsUrl = `${wsScheme}://${getServerBaseUrl(true)}/events`
-            const clientId = cookies["Seanime-Client-Id"] || uuidv4()
+            // The id must survive reconnects. `cookies` here is the first render's value, so when
+            // the page loaded without the cookie every reconnect made up a new id: the server saw
+            // a new device each time (a watch party seat "moved", and the room player restarted).
+            const clientId = clientIdRef.current || readClientIdCookie() || cookies["Seanime-Client-Id"] || uuidv4()
+            clientIdRef.current = clientId
 
             try {
                 const tokenParam = serverAuthTokenRef.current ? `&token=${encodeURIComponent(serverAuthTokenRef.current)}` : ""
@@ -384,8 +396,9 @@ function WebsocketManagement() {
                     setConnectionErrorCount(0)
                     immediateRetryUsedRef.current = false
 
+                    setClientId(socketClientId(clientId))
                     // Set cookie if it doesn't exist
-                    if (!cookies["Seanime-Client-Id"]) {
+                    if (readClientIdCookie() !== clientId) {
                         setCookie("Seanime-Client-Id", clientId, {
                             path: "/",
                             sameSite: "lax",

@@ -206,6 +206,9 @@ type (
 		// are unique across rooms because a device holds at most one seat.
 		syncMu    sync.Mutex
 		peerSyncs map[string]*peerSync
+		// peerLeads is how long a seek takes to land for each device (seconds), kept across
+		// episodes so a slow participant's first seek of the next episode already aims ahead.
+		peerLeads map[string]float64
 
 		sub *videocore.Subscriber
 	}
@@ -236,6 +239,7 @@ func New(opts NewManagerOptions) *Manager {
 		recordHistory:  opts.RecordHistoryFunc,
 		sessions:       make(map[string]*Session),
 		peerSyncs:      make(map[string]*peerSync),
+		peerLeads:      make(map[string]float64),
 	}
 	if m.videoCore != nil {
 		m.sub = m.videoCore.Subscribe(watchpartySubscriberId)

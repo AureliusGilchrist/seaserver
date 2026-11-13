@@ -14,12 +14,21 @@ const (
 
 	seekCooldown = 1 * time.Second // Minimum time between seeks to a participant
 
+	// A seek has to land (the participant plays from the new position) before another one is
+	// sent. Over a slow link a seek takes seconds to buffer; seeking again every second to the
+	// source's latest position cancelled each one before it finished, so a remote participant
+	// could spend minutes "loading" while someone on the LAN played at once.
+	seekLandTimeout   = 20 * time.Second // give up waiting for a seek to land after this
+	seekLandTolerance = 0.75             // seconds around the target that count as landed
+	maxSeekLead       = 15.0             // cap on how far ahead of the source a seek aims
+	seekLeadSmoothing = 0.5              // weight of the newest landing time in the estimate
+
 	// Position and state detection
-	resumePositionDriftThreshold = 1.0                     // Seconds of drift before syncing on resume
-	resumeAheadTolerance         = 2.0                     // Seconds ahead tolerance to prevent jitter on resume
-	pausePositionSyncThreshold   = 0.7                     // Seconds of drift threshold for pause sync
-	catchUpBehindThreshold       = 2.0                     // Seconds behind before letting a participant catch up to the pause position
-	catchUpTolerance             = 0.5                     // Seconds within the target to stop catch-up
-	maxCatchUpDuration           = 4 * time.Second         // Maximum duration for catch-up operations
-	catchUpTickInterval          = 200 * time.Millisecond  // Interval for catch-up progress checks
+	resumePositionDriftThreshold = 1.0                    // Seconds of drift before syncing on resume
+	resumeAheadTolerance         = 2.0                    // Seconds ahead tolerance to prevent jitter on resume
+	pausePositionSyncThreshold   = 0.7                    // Seconds of drift threshold for pause sync
+	catchUpBehindThreshold       = 2.0                    // Seconds behind before letting a participant catch up to the pause position
+	catchUpTolerance             = 0.5                    // Seconds within the target to stop catch-up
+	maxCatchUpDuration           = 4 * time.Second        // Maximum duration for catch-up operations
+	catchUpTickInterval          = 200 * time.Millisecond // Interval for catch-up progress checks
 )
