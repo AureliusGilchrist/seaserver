@@ -1,3 +1,4 @@
+import type { WallpaperAnalysis } from "@/lib/theme/wallpaper-accent"
 import { colord, extend } from "colord"
 import mixPlugin from "colord/plugins/mix"
 import { atom } from "jotai"
@@ -63,6 +64,13 @@ export const animeThemePrimaryColorAtom = atom<string | null>(null)
  * nothing readable can be taken from it, in which case the theme's own colors stand.
  */
 export const wallpaperAccentColorAtom = atom<string | null>(null)
+
+/**
+ * How bright the active wallpaper is and the colour grade its glass takes when it is too bright for
+ * white text — published by `AnimeThemeProvider` alongside the accent (see `analyzeWallpaper`).
+ * Null when there is no wallpaper.
+ */
+export const wallpaperToneAtom = atom<WallpaperAnalysis | null>(null)
 
 /** How much of the anime theme's background bleeds into the settings background color. */
 export const THEME_TINT_RATIO = 0.35

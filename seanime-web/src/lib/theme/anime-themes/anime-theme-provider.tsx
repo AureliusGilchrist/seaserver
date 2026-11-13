@@ -5,7 +5,7 @@ import { buildSeaQuery } from "@/api/client/requests"
 import { resolveServerAsset } from "@/lib/server/assets"
 import { resolveLandingImage, useWallpaperOverride } from "@/lib/theme/landing-look"
 import React from "react"
-import { atom, useAtomValue, useSetAtom } from "jotai"
+import { atom, useAtom, useAtomValue, useSetAtom } from "jotai"
 
 // Signals that a page wants to show wallpaper at near-full opacity (e.g. theme manager)
 export const wallpaperPreviewModeAtom = atom(false)
@@ -20,8 +20,8 @@ import { resolvePlayerIconSet } from "@/lib/theme/anime-themes/player-icon-style
 import { recordActivatedTheme } from "@/lib/theme/anime-themes/theme-prerequisites"
 import { fetchMarketplaceThemeMeta, getCachedMarketplaceThemeMeta } from "@/lib/theme/marketplace-theme-loader"
 import { applyRootCssVars } from "@/lib/helpers/css"
-import { animeThemeBaseColorAtom, animeThemeBrandOverrideAtom, animeThemePrimaryColorAtom, SETTINGS_OWNED_COLOR_VARS, wallpaperAccentColorAtom } from "@/lib/theme/color-mixing"
-import { extractWallpaperAccent } from "@/lib/theme/wallpaper-accent"
+import { animeThemeBaseColorAtom, animeThemeBrandOverrideAtom, animeThemePrimaryColorAtom, SETTINGS_OWNED_COLOR_VARS, wallpaperAccentColorAtom, wallpaperToneAtom } from "@/lib/theme/color-mixing"
+import { analyzeWallpaper, isLightWallpaper } from "@/lib/theme/wallpaper-accent"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import { seaStorage } from "@/lib/sea-storage/sea-storage"
 import { getAssetUrl } from "@/lib/server/assets"
@@ -338,6 +338,7 @@ export function AnimeThemeProvider({ children, ambient = true }: {
     const setAnimeThemePrimaryColor = useSetAtom(animeThemePrimaryColorAtom)
     const setWallpaperAccent = useSetAtom(wallpaperAccentColorAtom)
     const wallpaperAccent = useAtomValue(wallpaperAccentColorAtom)
+    const [wallpaperTone, setWallpaperTone] = useAtom(wallpaperToneAtom)
 
     // ── Theme persistence ──
     // Allow any string theme ID (including marketplace themes not bundled in-app)
@@ -762,15 +763,17 @@ export function AnimeThemeProvider({ children, ambient = true }: {
 
         if (!url) {
             setWallpaperAccent(null)
+            setWallpaperTone(null)
             return
         }
 
         // Keep the last wallpaper-derived accent while the new image is sampled. Clearing it here
         // exposes the theme's accent (often red) on every navigation and when image sampling fails.
         let cancelled = false
-        extractWallpaperAccent(resolveServerAsset(url)).then(accent => {
-            if (cancelled || !accent) return
-            setWallpaperAccent(accent)
+        analyzeWallpaper(resolveServerAsset(url)).then(analysis => {
+            if (cancelled || !analysis) return
+            setWallpaperTone(analysis)
+            if (analysis.accent) setWallpaperAccent(analysis.accent)
         })
 
         return () => { cancelled = true }
@@ -782,7 +785,46 @@ export function AnimeThemeProvider({ children, ambient = true }: {
         wallpaperOverrideImage,
         themeSettings.libraryScreenCustomBackgroundImage,
         setWallpaperAccent,
+        setWallpaperTone,
     ])
+
+    // ── Light wallpapers: colour-graded glass ──
+    //
+    // The UI's text is white and its glass is a light smoke, which disappears over a bright picture.
+    // When most of the wallpaper — as shown, after the dim the user set — is light, every glass
+    // surface turns into a deep glass graded from the wallpaper's own hues (see globals.css,
+    // `data-sea-wallpaper-tone`), so the text stays readable and the glass still matches the picture.
+    const wallpaperOverrideOpacity = wallpaperOverride?.opacity
+    React.useEffect(() => {
+        const root = document.documentElement
+        const clear = () => {
+            delete root.dataset.seaWallpaperTone
+            for (const k of ["deep", "mid", "glow", "edge"]) root.style.removeProperty(`--sea-grade-${k}`)
+            root.style.removeProperty("--sea-grade-alpha")
+        }
+        if (!wallpaperTone) {
+            clear()
+            return
+        }
+        // The same dim the wallpaper is drawn with: the Opacity slider for a custom or override
+        // wallpaper (CustomBackgroundImage), the theme's Dim slider for a theme wallpaper.
+        const opacity = wallpaperOverrideOpacity ?? (themeSettings.libraryScreenCustomBackgroundImage ? themeSettings.libraryScreenCustomBackgroundOpacity : null)
+        const opacityDim = opacity != null ? (100 - opacity) / 100 * 0.85 : 0
+        const dim = opacity != null
+            ? (__isMobileShell__ ? 1 - (1 - opacityDim) * (1 - backgroundDim) : opacityDim)
+            : backgroundDim
+        if (!isLightWallpaper(wallpaperTone, dim)) {
+            clear()
+            return
+        }
+        const shown = wallpaperTone.luminance * (1 - dim)
+        // The brighter the picture, the more of the grade the glass carries.
+        const alpha = Math.min(0.88, Math.max(0.66, 0.6 + shown * 0.4))
+        root.dataset.seaWallpaperTone = "light"
+        for (const [k, v] of Object.entries(wallpaperTone.grade)) root.style.setProperty(`--sea-grade-${k}`, v)
+        root.style.setProperty("--sea-grade-alpha", alpha.toFixed(3))
+        return clear
+    }, [wallpaperTone, wallpaperOverrideOpacity, themeSettings.libraryScreenCustomBackgroundImage, themeSettings.libraryScreenCustomBackgroundOpacity, backgroundDim])
 
     // ── Background image: hide default body:before AND body:after when a custom bg is active ──
     React.useEffect(() => {

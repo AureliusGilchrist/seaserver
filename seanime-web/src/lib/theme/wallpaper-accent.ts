@@ -69,11 +69,48 @@ function loadImage(url: string): Promise<HTMLImageElement> {
     })
 }
 
+/** `#rrggbb` → `"r g b"`, the form the CSS variables take so they can be given an alpha. */
+function hexToTriplet(hex: string): string {
+    const h6 = hex.replace("#", "")
+    return `${parseInt(h6.slice(0, 2), 16) || 0} ${parseInt(h6.slice(2, 4), 16) || 0} ${parseInt(h6.slice(4, 6), 16) || 0}`
+}
+
+/** sRGB channel (0..255) to linear light, for relative luminance. */
+function toLinear(c: number): number {
+    const v = c / 255
+    return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)
+}
+
 /**
- * The general highlight of an image, as a hex color — or null when nothing usable can be read from
- * it (it failed to load, or it is all shadow and paper).
+ * The deep, colour-graded glass used over a light wallpaper: three dark tones taken from the
+ * wallpaper's own hues, as `"r g b"` triplets. The UI's text is white, so over a bright picture the
+ * glass has to turn dark — and rather than a flat smoked gray it keeps the wallpaper's colours,
+ * graded from its highlight hue into its second hue.
  */
-export async function extractWallpaperAccent(url: string): Promise<string | null> {
+export type WallpaperGrade = {
+    /** The highlight hue, very dark — the body of the glass. */
+    deep: string
+    /** The second hue of the picture, darker still — where the gradient ends. */
+    mid: string
+    /** The highlight hue, lifted — the lit corner of the gradient. */
+    glow: string
+    /** A light tint of the highlight hue — borders and the top sheen. */
+    edge: string
+}
+
+export type WallpaperAnalysis = {
+    /** The general highlight, as a hex color — or null when the picture is all shadow and paper. */
+    accent: string | null
+    /** The median pixel's relative luminance, 0..1 — half the picture is brighter than this. */
+    luminance: number
+    grade: WallpaperGrade
+}
+
+/**
+ * Reads an image once: its general highlight (the app's primary color), how bright it is, and the
+ * colour grade the glass takes when it is too bright for white text. Null when it cannot be read.
+ */
+export async function analyzeWallpaper(url: string): Promise<WallpaperAnalysis | null> {
     if (typeof document === "undefined" || !url) return null
 
     try {
@@ -95,10 +132,12 @@ export async function extractWallpaperAccent(url: string): Promise<string | null
 
         // Hue buckets, each holding the weighted average of the pixels that fell into it.
         const buckets = new Map<number, { weight: number, r: number, g: number, b: number }>()
+        const luminances: number[] = []
 
         for (let i = 0; i < data.length; i += 4) {
             if (data[i + 3]! < 128) continue
             const r = data[i]!, g = data[i + 1]!, b = data[i + 2]!
+            luminances.push(0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b))
             const [hue, sat, light] = rgbToHsl(r, g, b)
             // Shadows and paper: not a highlight, and averaging them in is what turns every
             // wallpaper's color into gray.
@@ -116,23 +155,71 @@ export async function extractWallpaperAccent(url: string): Promise<string | null
             bucket.b += b * weight
             buckets.set(key, bucket)
         }
+        if (!luminances.length) return null
 
-        let best: { weight: number, r: number, g: number, b: number } | null = null
-        for (const bucket of buckets.values()) {
-            if (!best || bucket.weight > best.weight) best = bucket
+        // Light or dark is decided by the majority of the picture: the median pixel. More than half
+        // of it is lighter than the median, so comparing the median to a threshold asks exactly
+        // "is most of this wallpaper light?". Dimming scales every pixel alike, so the dimmed
+        // median is just this one scaled — see `isLightWallpaper`.
+        luminances.sort((a, b) => a - b)
+        const luminance = luminances[Math.floor(luminances.length / 2)]!
+
+        const ranked = [...buckets.entries()].sort((a, b) => b[1].weight - a[1].weight)
+        const best = ranked[0]?.[1]
+
+        let accent: string | null = null
+        // A colourless picture (paper, snow, grayscale art) grades into a cool slate.
+        let gradeHue = 222, gradeSat = 0.2, secondHue = 250
+        if (best && best.weight > 0) {
+            const [hue, sat, light] = rgbToHsl(best.r / best.weight, best.g / best.weight, best.b / best.weight)
+            // Keep the hue the wallpaper gave; make sure the color can carry text and borders.
+            accent = hslToHex(hue, Math.max(sat, 0.45), Math.min(Math.max(light, 0.48), 0.65))
+            gradeHue = hue
+            gradeSat = Math.min(0.62, Math.max(0.32, sat))
+            // The second hue is the next bucket that is actually a different colour (30°+ away);
+            // a one-colour picture grades toward its neighbour on the wheel instead.
+            const second = ranked.slice(1).find(([key]) => {
+                const d = Math.abs(key * 15 - hue) % 360
+                return Math.min(d, 360 - d) >= 30
+            })?.[1]
+            secondHue = second
+                ? rgbToHsl(second.r / second.weight, second.g / second.weight, second.b / second.weight)[0]
+                : (hue + 32) % 360
         }
-        if (!best || best.weight <= 0) return null
 
-        const r = best.r / best.weight
-        const g = best.g / best.weight
-        const b = best.b / best.weight
-        const [hue, sat, light] = rgbToHsl(r, g, b)
+        const grade: WallpaperGrade = {
+            deep: hexToTriplet(hslToHex(gradeHue, gradeSat, 0.115)),
+            mid: hexToTriplet(hslToHex(secondHue, Math.min(0.55, gradeSat + 0.05), 0.085)),
+            glow: hexToTriplet(hslToHex(gradeHue, Math.min(0.7, gradeSat + 0.12), 0.2)),
+            edge: hexToTriplet(hslToHex(gradeHue, Math.min(0.75, gradeSat + 0.15), 0.72)),
+        }
 
-        // Keep the hue the wallpaper gave; make sure the color can carry text and borders.
-        return hslToHex(hue, Math.max(sat, 0.45), Math.min(Math.max(light, 0.48), 0.65))
+        return { accent, luminance, grade }
     } catch {
         return null
     }
+}
+
+/**
+ * Relative luminance above which a pixel counts as light: CIE L* ≈ 55, the point where white text
+ * over a lightly smoked glass stops being comfortably readable.
+ */
+export const LIGHT_PIXEL_LUMINANCE = 0.23
+
+/**
+ * Whether most of the wallpaper, as it is shown (after the app's dim), is light. `dim` is the share
+ * of black laid over the picture, 0..1.
+ */
+export function isLightWallpaper(analysis: Pick<WallpaperAnalysis, "luminance">, dim: number): boolean {
+    return analysis.luminance * (1 - Math.min(Math.max(dim, 0), 1)) > LIGHT_PIXEL_LUMINANCE
+}
+
+/**
+ * The general highlight of an image, as a hex color — or null when nothing usable can be read from
+ * it (it failed to load, or it is all shadow and paper).
+ */
+export async function extractWallpaperAccent(url: string): Promise<string | null> {
+    return (await analyzeWallpaper(url))?.accent ?? null
 }
 
 /** A two-stop gradient of a color with itself darkened — what the exp bar uses for a theme color. */
