@@ -20,6 +20,7 @@ import React from "react"
 import { FaCirclePlay } from "react-icons/fa6"
 import { LuDock, LuEye, LuHeart } from "react-icons/lu"
 import { useEpisodeFavorite } from "@/api/hooks/favorites.hooks"
+import { EpisodeFavoriteButton } from "@/app/(main)/_features/anime/_components/episode-favorite-button"
 import { PluginEpisodeCardContextMenuItems } from "../../plugin/actions/plugin-actions"
 
 type EpisodeCardProps = {
@@ -320,6 +321,20 @@ export function EpisodeCard(props: EpisodeCardProps) {
                                 className="absolute top-2 right-2 z-[4]"
                             />
                         )}
+
+                        <EpisodeFavoriteButton
+                            mediaId={anime?.id ?? episode?.baseAnime?.id}
+                            episodeNumber={episodeNumber}
+                            title={episode?.episodeTitle || episode?.displayTitle || (typeof title === "string" ? title : undefined)}
+                            image={image}
+                            size={16}
+                            className={cn(
+                                "absolute right-2 z-[6] bg-black/45 backdrop-blur-sm border border-white/10",
+                                isSingleContainer ? "top-10" : "bottom-2",
+                                // Shown on hover, always once favourited, and always on touch screens.
+                                "opacity-0 lg:group-hover/episode-card:opacity-100 max-lg:opacity-100 [&[data-favorite]]:opacity-100",
+                            )}
+                        />
 
                         {isSingleContainer && (
                             <div className="absolute bottom-0 left-0 w-full h-fit z-[3] p-3">

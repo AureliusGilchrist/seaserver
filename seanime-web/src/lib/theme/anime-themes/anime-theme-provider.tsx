@@ -804,6 +804,7 @@ export function AnimeThemeProvider({ children, ambient = true }: {
             delete root.dataset.seaWallpaperTone
             for (const k of ["deep", "mid", "glow", "edge"]) root.style.removeProperty(`--sea-grade-${k}`)
             root.style.removeProperty("--sea-grade-alpha")
+            root.style.removeProperty("--sea-glass-dim")
         }
         if (!wallpaperTone) {
             clear()
@@ -817,10 +818,15 @@ export function AnimeThemeProvider({ children, ambient = true }: {
             ? (__isMobileShell__ ? 1 - (1 - opacityDim) * (1 - backgroundDim) : opacityDim)
             : backgroundDim
         const strength = wallpaperGlassStrength(wallpaperTone, dim)
-        const alpha = 0.34 + strength * 0.52
+        // Readability over a bright picture comes mostly from the backdrop filter darkening what is
+        // behind the glass, not from the fill — so the fill stays translucent and the blur of the
+        // wallpaper shows through it, while the text still sits on a dark enough ground.
+        const alpha = 0.24 + strength * 0.36
+        const backdropDim = 1 - strength * 0.42
         root.dataset.seaWallpaperTone = strength >= 0.6 ? "light" : "dark"
         for (const [k, v] of Object.entries(wallpaperTone.grade)) root.style.setProperty(`--sea-grade-${k}`, v)
         root.style.setProperty("--sea-grade-alpha", alpha.toFixed(3))
+        root.style.setProperty("--sea-glass-dim", backdropDim.toFixed(3))
         return clear
     }, [wallpaperTone, wallpaperOverrideOpacity, themeSettings.libraryScreenCustomBackgroundImage, themeSettings.libraryScreenCustomBackgroundOpacity, backgroundDim])
 

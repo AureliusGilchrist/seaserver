@@ -54,7 +54,11 @@ def find_block(text: str):
 
 
 def main():
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    argv = sys.argv[1:]
+    if "--peers" in argv:
+        i = argv.index("--peers")
+        argv = argv[:i] + argv[i + 2:]
+    args = [a for a in argv if not a.startswith("--")]
     check_only = "--check" in sys.argv
     if len(args) != 2:
         print(__doc__)
@@ -92,16 +96,27 @@ def main():
         if c > 1:
             problems.append(f"name used {c} times: {name}")
     # No name may be shared with another theme: each theme's names are its own.
+    # --peers <dir> compares only against the hand-written lists (<theme-id>.txt) in that folder,
+    # so the old template names in themes not yet rewritten don't count.
     elsewhere = {}
-    for other in THEMES.glob("*/theme.json"):
-        if other.parent.name == theme_id:
-            continue
-        try:
-            other_names = json.loads(load(other)[0]).get("achievementNames") or {}
-        except ValueError:
-            continue
-        for v in other_names.values():
-            elsewhere.setdefault(v.lower(), other.parent.name)
+    peers = sys.argv[sys.argv.index("--peers") + 1] if "--peers" in sys.argv else None
+    if peers:
+        for other in Path(peers).glob("*.txt"):
+            if other.stem == theme_id or other.stem.startswith("_"):
+                continue
+            for line in other.read_text(encoding="utf-8-sig").splitlines():
+                if "|" in line:
+                    elsewhere.setdefault(line.split("|", 1)[1].strip().lower(), other.stem)
+    else:
+        for other in THEMES.glob("*/theme.json"):
+            if other.parent.name == theme_id:
+                continue
+            try:
+                other_names = json.loads(load(other)[0]).get("achievementNames") or {}
+            except ValueError:
+                continue
+            for v in other_names.values():
+                elsewhere.setdefault(v.lower(), other.parent.name)
     for k, name in rows:
         if name.lower() in elsewhere:
             problems.append(f"{k}: '{name}' is already used by {elsewhere[name.lower()]}")

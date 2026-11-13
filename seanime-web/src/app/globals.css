@@ -2679,11 +2679,14 @@ html.sea-no-root-scrollbar::-webkit-scrollbar {
    The tone attribute is "light" or "dark" for styles that only the light case needs.
    --sea-grade-{deep,mid,glow,edge} are "r g b" triplets. */
 html[data-sea-wallpaper-tone] {
-    --sea-light-glass: linear-gradient(145deg,
-        rgb(var(--sea-grade-glow) / calc(var(--sea-grade-alpha) - 0.08)) 0%,
-        rgb(var(--sea-grade-deep) / var(--sea-grade-alpha)) 45%,
-        rgb(var(--sea-grade-mid) / calc(var(--sea-grade-alpha) + 0.05)) 100%);
-    --sea-light-glass-solid: rgb(var(--sea-grade-deep) / var(--sea-grade-alpha));
+    /* How far the glass blurs what is behind it. The tint is translucent, so this is what you see. */
+    --sea-glass-blur: 28px;
+    --sea-glass-filter: blur(var(--sea-glass-blur)) saturate(1.5) brightness(var(--sea-glass-dim, 1));
+    --sea-light-glass: linear-gradient(150deg,
+        rgb(var(--sea-grade-glow) / calc(var(--sea-grade-alpha) - 0.04)) 0%,
+        rgb(var(--sea-grade-deep) / var(--sea-grade-alpha)) 38%,
+        rgb(var(--sea-grade-mid) / calc(var(--sea-grade-alpha) + 0.06)) 100%);
+    --sea-light-glass-solid: rgb(var(--sea-grade-deep) / calc(var(--sea-grade-alpha) + 0.12));
     --sea-light-glass-border: rgb(var(--sea-grade-edge) / 0.26);
     --sea-light-glass-sheen: inset 0 1px 0 rgb(var(--sea-grade-edge) / 0.2);
 
@@ -2709,6 +2712,7 @@ html[data-sea-wallpaper-tone] :is(
         [class*="bg-[--paper]"], [class*="bg-[--background]"], :not([class*="bg-"])
     ),
     .glass-panel, .frosted-surface, .UI-Card__root,
+    .UI-Modal__content, .UI-Popover__root, .UI-DropdownMenu__root, .UI-HoverCard__root, .UI-Select__content,
     html[data-sea-sidebar] .UI-AppSidebar__sidebar,
     html[data-sea-navbar="navbar-glass"] [data-top-navbar],
     html[data-sea-navbar="navbar-pill"] [data-top-navbar],
@@ -2716,6 +2720,22 @@ html[data-sea-wallpaper-tone] :is(
 ):not([class*="backdrop-blur-none"]):not([class*="bg-[url"]):not([style*="url("]):not([data-vc-element="container"] *):not([data-custom-background-image] *):not([data-custom-background-image-blur]) {
     background-image: var(--sea-light-glass) !important;
     border-color: var(--sea-light-glass-border) !important;
+}
+
+/* The same blur on every surface that blurs at all (cards in long lists are left unblurred, for
+   scrolling). The backdrop is darkened as much as the picture needs, so the fill above can stay
+   thin and the wallpaper reads through as frosted glass instead of a painted panel. */
+html[data-sea-wallpaper-tone] :is(
+    [class*="backdrop-blur"], [style*="backdrop-filter: blur"],
+    .glass-panel, .frosted-surface,
+    .UI-Modal__content, .UI-Popover__root, .UI-DropdownMenu__root, .UI-HoverCard__root, .UI-Select__content,
+    html[data-sea-sidebar] .UI-AppSidebar__sidebar,
+    html[data-sea-navbar="navbar-glass"] [data-top-navbar],
+    html[data-sea-navbar="navbar-pill"] [data-top-navbar],
+    html[data-sea-toast="toast-glass"] [data-sonner-toast]
+):not([class*="backdrop-blur-none"]):not([data-vc-element="container"] *):not([data-custom-background-image] *):not([data-custom-background-image-blur]) {
+    -webkit-backdrop-filter: var(--sea-glass-filter) !important;
+    backdrop-filter: var(--sea-glass-filter) !important;
 }
 
 /* The larger panes also get the lit top edge and a shadow in the wallpaper's colour. */

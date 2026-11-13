@@ -81,6 +81,72 @@ function toLinear(c: number): number {
     return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)
 }
 
+/** sRGB linear channel (0..1) back to an 8-bit sRGB value. */
+function fromLinear(v: number): number {
+    const c = v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055
+    return Math.round(Math.min(1, Math.max(0, c)) * 255)
+}
+
+/** sRGB (0..255) to OKLCH: lightness 0..1, chroma, hue in degrees. */
+function rgbToOklch(r: number, g: number, b: number): [number, number, number] {
+    const lr = toLinear(r), lg = toLinear(g), lb = toLinear(b)
+    const l = Math.cbrt(0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb)
+    const m = Math.cbrt(0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb)
+    const s = Math.cbrt(0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb)
+    const L = 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s
+    const A = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s
+    const B = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s
+    const hue = (Math.atan2(B, A) * 180 / Math.PI + 360) % 360
+    return [L, Math.hypot(A, B), hue]
+}
+
+/**
+ * OKLCH to an `"r g b"` triplet. Chroma is reduced until the colour fits in sRGB, so a vivid hue
+ * at a dark lightness stays that hue instead of clipping into a different one.
+ */
+function oklchToTriplet(L: number, C: number, hue: number): string {
+    const hr = hue * Math.PI / 180
+    for (let c = C; ; c *= 0.92) {
+        const A = c * Math.cos(hr), B = c * Math.sin(hr)
+        const l = Math.pow(L + 0.3963377774 * A + 0.2158037573 * B, 3)
+        const m = Math.pow(L - 0.1055613458 * A - 0.0638541728 * B, 3)
+        const s = Math.pow(L - 0.0894841775 * A - 1.291485548 * B, 3)
+        const rl = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s
+        const gl = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s
+        const bl = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s
+        const inGamut = [rl, gl, bl].every(v => v >= -0.0005 && v <= 1.0005)
+        if (inGamut || c < 0.002) return `${fromLinear(rl)} ${fromLinear(gl)} ${fromLinear(bl)}`
+    }
+}
+
+/**
+ * The glass tones for a wallpaper whose highlight has OKLCH hue `hue` and chroma `chroma`.
+ *
+ * Worked in OKLCH so every hue gets the same perceived darkness: in HSL a dark yellow is olive and a
+ * dark orange is brown, which is what made the old grade look muddy. The body is a tinted charcoal
+ * (low chroma), so it reads as "glass with the picture's colour in it" rather than a painted panel;
+ * the colour lives in the lit corner and the edges. Dark yellow-greens are the one range that looks
+ * dirty at any chroma, so they lean toward warm amber and stay closer to neutral.
+ */
+export function gradeFromHue(hue: number, chroma: number): WallpaperGrade {
+    let h = hue
+    let c = Math.min(Math.max(chroma, 0.03), 0.2)
+    if (h > 85 && h < 135) {
+        h = 85 - (h - 85) * 0.3
+        c *= 0.55
+    }
+    // Oranges and yellows turn brown when darkened, whatever the space, so their body stays close to
+    // a warm charcoal and their colour shows in the lit corner and the edges instead.
+    const warm = h > 35 && h < 110
+    const body = warm ? 0.018 : 0.034
+    return {
+        deep: oklchToTriplet(0.2, Math.min(body, c * 0.3), h),
+        mid: oklchToTriplet(0.165, Math.min(body * 0.85, c * 0.26), (h + 18) % 360),
+        glow: oklchToTriplet(0.32, Math.min(warm ? 0.06 : 0.08, c * 0.55), h),
+        edge: oklchToTriplet(0.86, Math.min(0.07, c * 0.45), h),
+    }
+}
+
 /**
  * The deep, colour-graded glass used over a light wallpaper: three dark tones taken from the
  * wallpaper's own hues, as `"r g b"` triplets. The UI's text is white, so over a bright picture the
@@ -170,29 +236,14 @@ export async function analyzeWallpaper(url: string): Promise<WallpaperAnalysis |
 
         let accent: string | null = null
         // A colourless picture (paper, snow, grayscale art) grades into a cool slate.
-        let gradeHue = 222, gradeSat = 0.2, secondHue = 250
+        let grade = gradeFromHue(255, 0.04)
         if (best && best.weight > 0) {
-            const [hue, sat, light] = rgbToHsl(best.r / best.weight, best.g / best.weight, best.b / best.weight)
+            const br = best.r / best.weight, bg = best.g / best.weight, bb = best.b / best.weight
+            const [hue, sat, light] = rgbToHsl(br, bg, bb)
             // Keep the hue the wallpaper gave; make sure the color can carry text and borders.
             accent = hslToHex(hue, Math.max(sat, 0.45), Math.min(Math.max(light, 0.48), 0.65))
-            gradeHue = hue
-            gradeSat = Math.min(0.62, Math.max(0.32, sat))
-            // The second hue is the next bucket that is actually a different colour (30°+ away);
-            // a one-colour picture grades toward its neighbour on the wheel instead.
-            const second = ranked.slice(1).find(([key]) => {
-                const d = Math.abs(key * 15 - hue) % 360
-                return Math.min(d, 360 - d) >= 30
-            })?.[1]
-            secondHue = second
-                ? rgbToHsl(second.r / second.weight, second.g / second.weight, second.b / second.weight)[0]
-                : (hue + 32) % 360
-        }
-
-        const grade: WallpaperGrade = {
-            deep: hexToTriplet(hslToHex(gradeHue, gradeSat, 0.115)),
-            mid: hexToTriplet(hslToHex(secondHue, Math.min(0.55, gradeSat + 0.05), 0.085)),
-            glow: hexToTriplet(hslToHex(gradeHue, Math.min(0.7, gradeSat + 0.12), 0.2)),
-            edge: hexToTriplet(hslToHex(gradeHue, Math.min(0.75, gradeSat + 0.15), 0.72)),
+            const [, chroma, okHue] = rgbToOklch(br, bg, bb)
+            grade = gradeFromHue(okHue, chroma)
         }
 
         return { accent, luminance, quantiles, grade }
@@ -233,7 +284,7 @@ export const UNREADABLE_WALLPAPER: WallpaperAnalysis = {
     accent: null,
     luminance: 1,
     quantiles: Array(20).fill(1),
-    grade: { deep: "17 22 34", mid: "13 14 30", glow: "38 48 70", edge: "196 206 230" },
+    grade: gradeFromHue(255, 0.04),
 }
 
 /**

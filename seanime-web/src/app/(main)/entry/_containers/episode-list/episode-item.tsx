@@ -4,6 +4,7 @@ import { getServerBaseUrl } from "@/api/client/server-url"
 import { AL_BaseAnime, Anime_Episode, Anime_LocalFileType } from "@/api/generated/types"
 import { useUpdateLocalFileData } from "@/api/hooks/localfiles.hooks"
 import { useExternalPlayerLink } from "@/app/(main)/_atoms/playback.atoms"
+import { EpisodeFavoriteButton } from "@/app/(main)/_features/anime/_components/episode-favorite-button"
 import { EpisodeGridItem } from "@/app/(main)/_features/anime/_components/episode-grid-item"
 import { EpisodeRatingStars } from "@/app/(main)/_features/anime/_components/episode-rating-stars"
 import { PluginEpisodeGridItemMenuItems } from "@/app/(main)/_features/plugin/actions/plugin-actions"
@@ -93,6 +94,12 @@ export const EpisodeItem = memo(({ episode, media, isWatched, watchedProgress, o
                 progressNumber={episode.progressNumber}
                 description={episode.episodeMetadata?.summary || episode.episodeMetadata?.overview}
                 action={<>
+                    <EpisodeFavoriteButton
+                        mediaId={media?.id ?? episode.baseAnime?.id}
+                        episodeNumber={episode.episodeNumber}
+                        title={episode.episodeTitle || episode.displayTitle}
+                        image={episode.episodeMetadata?.image || media?.coverImage?.large}
+                    />
                     {!episode._isNakamaEpisode && <IconButton
                         icon={episode.localFile?.locked ? <VscVerified /> : <BiLockOpenAlt />}
                         intent={episode.localFile?.locked ? "success-basic" : "warning-basic"}

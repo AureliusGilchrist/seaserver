@@ -1,3 +1,4 @@
+import { EpisodeFavoriteButton } from "@/app/(main)/_features/anime/_components/episode-favorite-button"
 import { vc_hoveringControlBar } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_paused } from "@/app/(main)/_features/video-core/video-core-atoms"
@@ -99,13 +100,21 @@ export function VideoCoreTopPlaybackInfo(props: { state: VideoCoreLifecycleState
                     >
                         {state.playbackInfo?.episode?.baseAnime?.title?.userPreferred}
                     </p>}
-                <div className="flex flex-row gap-2" data-vc-element="top-playback-info-episode">
+                <div className="flex flex-row items-center gap-2" data-vc-element="top-playback-info-episode">
                     <p className="text-white font-bold text-base">
                         {state.playbackInfo?.episode?.displayTitle}
                     </p>
                     {episodeTitle && <p className="text-white/50 text-base !font-normal max-w-[400px] line-clamp-1">
                         {episodeTitle}
                     </p>}
+                    <EpisodeFavoriteButton
+                        mediaId={state.playbackInfo?.episode?.baseAnime?.id}
+                        episodeNumber={state.playbackInfo?.episode?.episodeNumber}
+                        title={_episodeTitle || displayTitle}
+                        image={state.playbackInfo?.episode?.episodeMetadata?.image || state.playbackInfo?.episode?.baseAnime?.coverImage?.large}
+                        size={17}
+                        className="-my-1"
+                    />
                 </div>
             </div>
         </>
