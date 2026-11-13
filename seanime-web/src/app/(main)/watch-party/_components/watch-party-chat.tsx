@@ -1,12 +1,13 @@
 import { WatchParty_ChatMessage, WatchParty_Participant, WatchParty_Session } from "@/api/generated/types"
 import { useWatchPartyPassRemote, useWatchPartySendChat } from "@/api/hooks/watchparty.hooks"
 import { watchPartyChatMessagesAtom } from "@/app/(main)/_features/watch-party/watch-party.atoms"
-import { colorFor, WatchPartyAvatar } from "@/app/(main)/watch-party/_components/watch-party-ui"
+import { WatchPartyEmojiPanel } from "@/app/(main)/watch-party/_components/watch-party-emoji-panel"
+import { colorFor, isEmojiOnly, WatchPartyAvatar } from "@/app/(main)/watch-party/_components/watch-party-ui"
 import { clientIdAtom } from "@/app/websocket-provider"
 import { cn } from "@/components/ui/core/styling"
 import { useAtomValue } from "jotai"
 import React from "react"
-import { LuArrowDown, LuLogIn, LuLogOut, LuMessagesSquare, LuSendHorizontal } from "react-icons/lu"
+import { LuArrowDown, LuLogIn, LuLogOut, LuMessagesSquare, LuSendHorizontal, LuSmilePlus } from "react-icons/lu"
 import { MdOutlineSettingsRemote } from "react-icons/md"
 
 const MAX_LEN = 500
@@ -17,6 +18,7 @@ export function WatchPartyChat(props: { session: WatchParty_Session, me: WatchPa
     const clientId = useAtomValue(clientIdAtom)
     const messages = useAtomValue(watchPartyChatMessagesAtom)
     const [text, setText] = React.useState("")
+    const [moreOpen, setMoreOpen] = React.useState(false)
 
     const { mutate: send, isPending } = useWatchPartySendChat()
     const { mutate: passRemote } = useWatchPartyPassRemote()
@@ -106,7 +108,20 @@ export function WatchPartyChat(props: { session: WatchParty_Session, me: WatchPa
                 </button>
             )}
 
-            <div className="shrink-0 px-3 pt-2 pb-3 border-t border-white/[0.06] flex flex-col gap-2">
+            <div className="relative shrink-0 px-3 pt-2 pb-3 border-t border-white/[0.06] flex flex-col gap-2">
+                {moreOpen && (
+                    <div className="absolute bottom-full left-2 right-2 mb-2 z-10">
+                        <WatchPartyEmojiPanel
+                            open={moreOpen}
+                            disabled={!me || isPending}
+                            onClose={() => setMoreOpen(false)}
+                            onSend={emoji => {
+                                sendText(emoji.join(""))
+                                setMoreOpen(false)
+                            }}
+                        />
+                    </div>
+                )}
                 <div className="flex items-center gap-1">
                     {REACTIONS.map(r => (
                         <button
@@ -119,6 +134,18 @@ export function WatchPartyChat(props: { session: WatchParty_Session, me: WatchPa
                             {r}
                         </button>
                     ))}
+                    <button
+                        type="button"
+                        disabled={!me}
+                        onClick={() => setMoreOpen(o => !o)}
+                        title="More emoji"
+                        className={cn(
+                            "ml-auto h-8 rounded-full px-2.5 inline-flex items-center gap-1.5 text-xs font-semibold transition-colors disabled:opacity-40",
+                            moreOpen ? "bg-brand-500 text-white" : "bg-white/5 text-gray-300 hover:bg-white/10",
+                        )}
+                    >
+                        <LuSmilePlus className="size-4" /> More
+                    </button>
                 </div>
                 <form
                     className="flex items-end gap-2 rounded-2xl bg-white/[0.05] border border-white/10 focus-within:border-brand-400/60 focus-within:bg-white/[0.07] transition-colors pl-4 pr-1.5 py-1.5"
@@ -191,8 +218,7 @@ function ChatLine(props: {
         )
     }
 
-    const isEmojiOnly = /^\p{Extended_Pictographic}(️|‍\p{Extended_Pictographic})*$/u.test(m.text.trim())
-        || /^(\p{Extended_Pictographic}️?){1,3}$/u.test(m.text.trim())
+    const emojiOnly = isEmojiOnly(m.text)
 
     return (
         <div className={cn("flex gap-2 items-end", isMine && "flex-row-reverse", first ? "mt-3" : "mt-0.5")}>
@@ -205,7 +231,7 @@ function ChatLine(props: {
                         {m.username}
                     </span>
                 )}
-                {isEmojiOnly
+                {emojiOnly
                     ? <span className="text-4xl leading-none py-0.5 animate-in zoom-in-50 duration-300">{m.text}</span>
                     : <div
                         title={formatClock(m.timestamp)}

@@ -33,6 +33,23 @@ function gradientFor(name: string | undefined) {
     return `linear-gradient(135deg, ${a}, ${b})`
 }
 
+export const MAX_REACTION_EMOJI = 10
+
+/** True for a message that is only emoji (a reaction): one up to MAX_REACTION_EMOJI. */
+export function isEmojiOnly(text: string) {
+    const t = text.trim()
+    if (!t || t.length > 120) return false
+    return /^(?:\p{Extended_Pictographic}(?:️|‍\p{Extended_Pictographic}|\p{Emoji_Modifier})*\s*){1,10}$/u.test(t)
+}
+
+/** The separate emoji of a reaction, keeping skin tones and joined sequences whole. */
+export function splitEmoji(text: string): string[] {
+    const t = text.replace(/\s+/g, "")
+    const Seg = (Intl as any).Segmenter
+    if (Seg) return Array.from(new Seg(undefined, { granularity: "grapheme" }).segment(t), (x: any) => x.segment as string)
+    return Array.from(t)
+}
+
 /** Profile pictures uploaded to the server come as server paths. */
 export function resolveAvatarUrl(avatar: string | undefined) {
     if (!avatar) return undefined

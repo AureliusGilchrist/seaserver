@@ -7,6 +7,7 @@ import {
 } from "@/api/hooks/watchparty.hooks"
 import { watchPartyRoomPageOpenAtom, watchPartyUnreadCountAtom } from "@/app/(main)/_features/watch-party/watch-party.atoms"
 import { WatchPartyChat } from "@/app/(main)/watch-party/_components/watch-party-chat"
+import { WatchPartyDanmaku } from "@/app/(main)/watch-party/_components/watch-party-danmaku"
 import { WatchPartyPicker } from "@/app/(main)/watch-party/_components/watch-party-picker"
 import { RoomPlayRequest, WatchPartyPlayer } from "@/app/(main)/watch-party/_components/watch-party-player"
 import { AmbientBackdrop, LiveBadge, WatchPartyAvatar, WatchPartyAvatarStack } from "@/app/(main)/watch-party/_components/watch-party-ui"
@@ -18,7 +19,7 @@ import { useRouter } from "@/lib/navigation"
 import { __isDesktop__, __isElectronDesktop__ } from "@/types/constants"
 import { useAtomValue, useSetAtom } from "jotai"
 import React from "react"
-import { LuArrowLeft, LuHand, LuLogOut, LuPower, LuUsers } from "react-icons/lu"
+import { LuArrowLeft, LuHand, LuLanguages, LuLogOut, LuPower, LuUsers } from "react-icons/lu"
 import { MdOutlineSettingsRemote } from "react-icons/md"
 
 export { colorFor } from "@/app/(main)/watch-party/_components/watch-party-ui"
@@ -44,6 +45,7 @@ export function WatchPartyRoom({ session }: { session: WatchParty_Session }) {
     const { mutate: stop, isPending: isStopping } = useWatchPartyStop()
     const { mutate: requestRemote, isPending: isRequesting } = useWatchPartyRequestRemote()
 
+    const stageRef = React.useRef<HTMLDivElement>(null)
     const [pickerOpen, setPickerOpen] = React.useState(false)
     const [playRequest, setPlayRequest] = React.useState<RoomPlayRequest | null>(null)
 
@@ -136,13 +138,14 @@ export function WatchPartyRoom({ session }: { session: WatchParty_Session }) {
                 </header>
 
                 <div className="relative px-0 sm:px-3 lg:px-5 lg:flex-1 lg:min-h-0">
-                    <div className="relative bg-black aspect-video w-full lg:aspect-auto lg:h-full sm:rounded-2xl overflow-hidden sm:border sm:border-white/10 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]">
+                    <div ref={stageRef} className="relative bg-black aspect-video w-full lg:aspect-auto lg:h-full sm:rounded-2xl overflow-hidden sm:border sm:border-white/10 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]">
                         <WatchPartyPlayer
                             session={session}
                             hasRemote={hasRemote}
                             playRequest={playRequest}
                             onOpenPicker={() => setPickerOpen(true)}
                         />
+                        <WatchPartyDanmaku stageRef={stageRef} />
                     </div>
                 </div>
 
@@ -158,6 +161,14 @@ export function WatchPartyRoom({ session }: { session: WatchParty_Session }) {
                         {hasRemote
                             ? <span className="text-brand-100"><span className="font-semibold">You have the remote.</span> Play, pause and seek, and everyone follows.</span>
                             : <span className="text-gray-300"><span className="font-semibold text-white">{holder?.username}</span> has the remote. Your player follows theirs.</span>}
+                        <Tooltip trigger={<span className={cn(
+                            "hidden xl:inline-flex items-center gap-1.5 rounded-full bg-white/5 border border-white/10 px-2.5 py-1 text-xs text-gray-300 shrink-0",
+                            hasRemote && "ml-auto mr-1",
+                        )}>
+                            <LuLanguages className="size-3.5 text-brand-300" /> Your own audio & subs
+                        </span>}>
+                            Audio and subtitle tracks are yours alone. Pick dub or sub in the player menu; nobody else's changes.
+                        </Tooltip>
                         {!hasRemote && (
                             <Button
                                 size="sm"
