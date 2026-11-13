@@ -19,6 +19,8 @@ func TestProgressStatus(t *testing.T) {
 		{"paused stays on the last episode", entry(MediaListStatusPaused), true, ptrStatus(MediaListStatusPaused), true},
 		{"completed is not wound back", entry(MediaListStatusCompleted), false, ptrStatus(MediaListStatusCompleted), false},
 		{"dropped behaves as before", entry(MediaListStatusDropped), false, ptrStatus(MediaListStatusCurrent), true},
+		{"rewatching stays rewatching", entry(MediaListStatusRepeating), false, ptrStatus(MediaListStatusRepeating), true},
+		{"rewatch finishes as completed", entry(MediaListStatusRepeating), true, ptrStatus(MediaListStatusCompleted), true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -30,6 +32,21 @@ func TestProgressStatus(t *testing.T) {
 				t.Fatalf("status = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestFinishedRewatch(t *testing.T) {
+	two := 2
+	rewatching := MediaListStatusRepeating
+	watching := MediaListStatusCurrent
+	if r, ok := FinishedRewatch(&AnimeListEntry{Status: &rewatching, Repeat: &two}, true); !ok || r != 3 {
+		t.Fatalf("finished rewatch = %d, %v; want 3, true", r, ok)
+	}
+	if _, ok := FinishedRewatch(&AnimeListEntry{Status: &rewatching, Repeat: &two}, false); ok {
+		t.Fatal("mid-rewatch episode counted a rewatch")
+	}
+	if _, ok := FinishedRewatch(&AnimeListEntry{Status: &watching}, true); ok {
+		t.Fatal("first watch counted a rewatch")
 	}
 }
 

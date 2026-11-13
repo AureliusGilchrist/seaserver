@@ -108,6 +108,11 @@ export const clientSettingsSchema = z.object({
     /** Card widths in px, one for anime cards and one for manga cards. */
     animeCardWidth: z.number().optional(),
     mangaCardWidth: z.number().optional(),
+    /** Every translucent surface: colour tint 0–100 (%), fill opacity 0–100 (%), blur in px.
+     * Unset = the theme's own glass. See glass-variables.ts. */
+    glassTint: z.number().optional(),
+    glassOpacity: z.number().optional(),
+    glassBlur: z.number().optional(),
     /** Franchise section on details pages: relation kinds and media kinds shown, and how many
      * before "Show more". See franchise-settings.ts. */
     franchiseRelations: z.array(z.string()).optional(),

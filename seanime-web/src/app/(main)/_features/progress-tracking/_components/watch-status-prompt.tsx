@@ -1,6 +1,5 @@
 "use client"
 
-import { useServerMutation } from "@/api/client/requests"
 import { useEditAnilistListEntry } from "@/api/hooks/anilist.hooks"
 import { useGetAnimeEntry } from "@/api/hooks/anime_entries.hooks"
 import { Button } from "@/components/ui/button"
@@ -25,11 +24,6 @@ export function WatchStatusPrompt({ mediaId, className }: { mediaId: number | nu
     const { data: entry } = useGetAnimeEntry(mediaId || null)
     const [answered, setAnswered] = useAtom(answeredAtom)
     const { mutate: editEntry, isPending } = useEditAnilistListEntry(mediaId, "anime")
-    const { mutate: setRewatches } = useServerMutation<boolean, { mediaId: number, repeat: number }>({
-        endpoint: "/api/v1/anilist/list-entry/rewatch",
-        method: "POST",
-        mutationKey: ["ANILIST-set-rewatches"],
-    })
 
     const status = entry?.listData?.status
     if (!mediaId || !status || !STATUS_LABEL[status] || answered.has(mediaId)) return null
@@ -41,10 +35,11 @@ export function WatchStatusPrompt({ mediaId, className }: { mediaId: number | nu
         setAnswered(prev => new Set(prev).add(mediaId!))
     }
 
+    // A completed series started again is a rewatch: it goes to Rewatching, and the rewatch is
+    // counted by the server when its last episode is watched (anilist.FinishedRewatch).
     function accept() {
         answer()
-        editEntry({ mediaId: mediaId!, status: "CURRENT", type: "anime", ...(isRewatch ? { progress: 0 } : {}) })
-        if (isRewatch) setRewatches({ mediaId: mediaId!, repeat: (entry?.listData?.repeat ?? 0) + 1 })
+        editEntry({ mediaId: mediaId!, status: isRewatch ? "REPEATING" : "CURRENT", type: "anime", ...(isRewatch ? { progress: 0 } : {}) })
     }
 
     return (
@@ -56,7 +51,7 @@ export function WatchStatusPrompt({ mediaId, className }: { mediaId: number | nu
         >
             <p className="line-clamp-2 text-sm font-semibold text-white">{title} is {STATUS_LABEL[status]}</p>
             <p className="mt-1 text-xs text-white/65">
-                {isRewatch ? "Set it to Watching and add 1 to your rewatches?" : "Set it to Watching?"}
+                {isRewatch ? "Set it to Rewatching?" : "Set it to Watching?"}
             </p>
             <div className="mt-3 flex justify-end gap-2">
                 <Button size="sm" intent="gray-subtle" onClick={answer}>No</Button>

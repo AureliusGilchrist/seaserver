@@ -1085,6 +1085,13 @@ func (pm *PlaybackManager) updateProgress() (err error) {
 			err = nil
 			queued = true
 		}
+		if err == nil && !queued {
+			if repeat, ok := anilist.FinishedRewatch(entry, isCompleted); ok {
+				if _, rerr := resolvedClient.UpdateMediaListEntryRepeat(context.Background(), &mediaId, &repeat); rerr != nil {
+					pm.Logger.Warn().Err(rerr).Int("mediaId", mediaId).Msg("playback manager: Failed to count finished rewatch")
+				}
+			}
+		}
 	} else {
 		// No linked AniList account anywhere — fall back to the platform layer, which
 		// handles the simulated (offline) account.

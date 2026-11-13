@@ -2768,6 +2768,99 @@ html[data-sea-wallpaper-tone] :is(h1, h2, h3) {
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 2px 14px rgb(var(--sea-grade-deep) / 0.6);
 }
 
+/* ══ Personal glass overrides ═════════════════════════════════════════════
+   Personal -> Display -> Glass (glass-variables.ts). Each attribute is present only when its value
+   is chosen, so an unset one leaves the theme's glass alone. They follow the wallpaper rules above
+   with the same :not() chain so they win on order as well as specificity.
+   --sea-user-glass-tint and --sea-user-glass-opacity are 0–1, --sea-user-glass-blur a length. */
+
+/* Opacity: over a wallpaper it is the grade's own alpha; otherwise a neutral fill at that alpha. */
+html[data-sea-glass-opacity] {
+    --sea-grade-alpha: var(--sea-user-glass-opacity) !important;
+    --sea-card-bg: rgb(12 12 17 / var(--sea-user-glass-opacity)) !important;
+    --sea-sidebar-bg: rgb(12 12 17 / var(--sea-user-glass-opacity)) !important;
+}
+html[data-sea-glass-opacity] :is(
+    :is([class*="backdrop-blur"], [style*="backdrop-filter: blur"]):is(
+        [class*="bg-black"], [class*="bg-gray-9"], [class*="bg-gray-8"], [class*="bg-white/"],
+        [class*="bg-zinc-9"], [class*="bg-neutral-9"], [class*="bg-slate-9"],
+        [class*="bg-[--paper]"], [class*="bg-[--background]"], :not([class*="bg-"])
+    ),
+    .glass-panel, .frosted-surface, .UI-Card__root,
+    .UI-Modal__content, .UI-Popover__root, .UI-DropdownMenu__root, .UI-HoverCard__root, .UI-Select__content,
+    html[data-sea-sidebar] .UI-AppSidebar__sidebar,
+    html[data-sea-navbar="navbar-glass"] [data-top-navbar],
+    html[data-sea-navbar="navbar-pill"] [data-top-navbar],
+    html[data-sea-toast="toast-glass"] [data-sonner-toast]
+):not([class*="backdrop-blur-none"]):not([class*="bg-[url"]):not([style*="url("]):not([data-vc-element="container"] *):not([data-custom-background-image] *):not([data-custom-background-image-blur]) {
+    background-color: rgb(12 12 17 / var(--sea-user-glass-opacity)) !important;
+}
+/* Over a wallpaper the grade laid on top already carries the chosen alpha. */
+html[data-sea-glass-opacity][data-sea-wallpaper-tone] :is(
+    :is([class*="backdrop-blur"], [style*="backdrop-filter: blur"]):is(
+        [class*="bg-black"], [class*="bg-gray-9"], [class*="bg-gray-8"], [class*="bg-white/"],
+        [class*="bg-zinc-9"], [class*="bg-neutral-9"], [class*="bg-slate-9"],
+        [class*="bg-[--paper]"], [class*="bg-[--background]"], :not([class*="bg-"])
+    ),
+    .glass-panel, .frosted-surface, .UI-Card__root,
+    .UI-Modal__content, .UI-Popover__root, .UI-DropdownMenu__root, .UI-HoverCard__root, .UI-Select__content,
+    html[data-sea-sidebar] .UI-AppSidebar__sidebar,
+    html[data-sea-navbar="navbar-glass"] [data-top-navbar],
+    html[data-sea-navbar="navbar-pill"] [data-top-navbar],
+    html[data-sea-toast="toast-glass"] [data-sonner-toast]
+):not([class*="backdrop-blur-none"]):not([class*="bg-[url"]):not([style*="url("]):not([data-vc-element="container"] *):not([data-custom-background-image] *):not([data-custom-background-image-blur]) {
+    background-color: transparent !important;
+}
+
+/* Tint: how much colour the glass carries — the wallpaper's grade when one is shown, the theme's
+   brand colour otherwise. 0 is neutral smoke; over a wallpaper, 100% is the full grade. */
+html[data-sea-glass-tint] {
+    --sea-user-tint-fill: rgb(var(--color-brand-400) / calc(var(--sea-user-glass-tint) * 0.3)),
+        rgb(var(--color-brand-800) / calc(var(--sea-user-glass-tint) * 0.45));
+}
+html[data-sea-glass-tint][data-sea-wallpaper-tone] {
+    --sea-light-glass: linear-gradient(150deg,
+        rgb(var(--sea-grade-glow) / calc((var(--sea-grade-alpha) - 0.04) * var(--sea-user-glass-tint))) 0%,
+        rgb(var(--sea-grade-deep) / calc(var(--sea-grade-alpha) * var(--sea-user-glass-tint))) 38%,
+        rgb(var(--sea-grade-mid) / calc((var(--sea-grade-alpha) + 0.06) * var(--sea-user-glass-tint))) 100%),
+        linear-gradient(rgb(12 12 17 / calc(var(--sea-grade-alpha) * (1 - var(--sea-user-glass-tint)))),
+        rgb(12 12 17 / calc(var(--sea-grade-alpha) * (1 - var(--sea-user-glass-tint)))));
+}
+html[data-sea-glass-tint]:not([data-sea-wallpaper-tone]) :is(
+    :is([class*="backdrop-blur"], [style*="backdrop-filter: blur"]):is(
+        [class*="bg-black"], [class*="bg-gray-9"], [class*="bg-gray-8"], [class*="bg-white/"],
+        [class*="bg-zinc-9"], [class*="bg-neutral-9"], [class*="bg-slate-9"],
+        [class*="bg-[--paper]"], [class*="bg-[--background]"], :not([class*="bg-"])
+    ),
+    .glass-panel, .frosted-surface, .UI-Card__root,
+    .UI-Modal__content, .UI-Popover__root, .UI-DropdownMenu__root, .UI-HoverCard__root, .UI-Select__content,
+    html[data-sea-sidebar] .UI-AppSidebar__sidebar,
+    html[data-sea-navbar="navbar-glass"] [data-top-navbar],
+    html[data-sea-navbar="navbar-pill"] [data-top-navbar],
+    html[data-sea-toast="toast-glass"] [data-sonner-toast]
+):not([class*="backdrop-blur-none"]):not([class*="bg-[url"]):not([style*="url("]):not([data-vc-element="container"] *):not([data-custom-background-image] *):not([data-custom-background-image-blur]) {
+    background-image: linear-gradient(150deg, var(--sea-user-tint-fill)) !important;
+}
+
+/* Blur: one strength for everything drawn over a blur, cards and the sidebar included. */
+html[data-sea-glass-blur] {
+    --sea-glass-blur: var(--sea-user-glass-blur) !important;
+    --sea-card-blur: var(--sea-user-glass-blur) !important;
+    --sea-sidebar-blur: var(--sea-user-glass-blur) !important;
+}
+html[data-sea-glass-blur] :is(
+    [class*="backdrop-blur"], [style*="backdrop-filter: blur"],
+    .glass-panel, .frosted-surface,
+    .UI-Modal__content, .UI-Popover__root, .UI-DropdownMenu__root, .UI-HoverCard__root, .UI-Select__content,
+    html[data-sea-sidebar] .UI-AppSidebar__sidebar,
+    html[data-sea-navbar="navbar-glass"] [data-top-navbar],
+    html[data-sea-navbar="navbar-pill"] [data-top-navbar],
+    html[data-sea-toast="toast-glass"] [data-sonner-toast]
+):not([class*="backdrop-blur-none"]):not([data-vc-element="container"] *):not([data-custom-background-image] *):not([data-custom-background-image-blur]) {
+    -webkit-backdrop-filter: blur(var(--sea-user-glass-blur)) saturate(1.5) brightness(var(--sea-glass-dim, 1)) !important;
+    backdrop-filter: blur(var(--sea-user-glass-blur)) saturate(1.5) brightness(var(--sea-glass-dim, 1)) !important;
+}
+
 /* A theme's player icon must never collapse to nothing: themed svgs size themselves with a class,
    so keep a 1em floor in case that class is missing. */
 [data-theme-player-icon] > svg {

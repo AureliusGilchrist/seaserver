@@ -4,6 +4,7 @@ import { AnilistOverwriteCard } from "@/app/(main)/settings/_containers/anilist-
 import { PlaybackSettings } from "@/app/(main)/settings/_components/playback-settings"
 import { StillWatchingTiming } from "@/app/(main)/settings/_components/still-watching-timing"
 import { CardSizeSettings } from "@/app/(main)/settings/_components/card-size-settings"
+import { GlassSettings } from "@/app/(main)/settings/_components/glass-settings"
 import { InterfaceSizeSettings } from "@/app/(main)/settings/_components/interface-size-settings"
 import { FranchiseSettings } from "@/app/(main)/settings/_components/franchise-settings"
 import { WelcomeScreenSettings } from "@/app/(main)/settings/_components/welcome-screen-settings"
@@ -750,6 +751,9 @@ export function ClientSettings(props: ClientSettingsProps) {
                         </SettingRow>
                         <SettingRow settingKey={["animeCardWidth", "mangaCardWidth"]}>
                             <CardSizeSettings />
+                        </SettingRow>
+                        <SettingRow>
+                            <GlassSettings />
                         </SettingRow>
                         <SettingRow settingKey={["franchiseRelations", "franchiseMediaKinds", "franchiseInitialCount"]}>
                             <FranchiseSettings />

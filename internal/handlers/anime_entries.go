@@ -951,6 +951,13 @@ func (h *Handler) HandleUpdateAnimeEntryProgress(c echo.Context) error {
 			// cache comes back stale and makes the next episode look like a skipped one.
 			h.App.AnilistClientManager.RecordProgressWrite(profileID, b.MediaId, b.EpisodeNumber, isCompleted)
 		}
+		if err == nil {
+			if repeat, ok := anilist.FinishedRewatch(entry, isCompleted); ok {
+				if _, rerr := profileClient.UpdateMediaListEntryRepeat(c.Request().Context(), &b.MediaId, &repeat); rerr != nil {
+					h.App.Logger.Warn().Err(rerr).Int("mediaId", b.MediaId).Msg("handler: Failed to count finished rewatch")
+				}
+			}
+		}
 	} else {
 		// Admin: use platform layer (includes hooks, custom source handling, etc.)
 		err := h.App.AnilistPlatformRef.Get().UpdateEntryProgress(

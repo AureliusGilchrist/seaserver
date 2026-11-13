@@ -27,8 +27,24 @@ func ProgressStatus(entry *AnimeListEntry, isCompleted bool) (status *MediaListS
 		return entry.Status, *entry.Status != MediaListStatusCompleted
 	}
 	s := MediaListStatusCurrent
+	// A rewatch stays a rewatch until its last episode.
+	if entry != nil && entry.Status != nil && *entry.Status == MediaListStatusRepeating {
+		s = MediaListStatusRepeating
+	}
 	if isCompleted {
 		s = MediaListStatusCompleted
 	}
 	return &s, true
+}
+
+// FinishedRewatch reports whether a progress update that completes the series ends a rewatch, and
+// the rewatch count to write if so. A rewatch is counted when it is finished, not when it starts.
+func FinishedRewatch(entry *AnimeListEntry, isCompleted bool) (repeat int, ok bool) {
+	if !isCompleted || entry == nil || entry.Status == nil || *entry.Status != MediaListStatusRepeating {
+		return 0, false
+	}
+	if r := entry.GetRepeat(); r != nil {
+		repeat = *r
+	}
+	return repeat + 1, true
 }

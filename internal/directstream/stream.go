@@ -350,6 +350,13 @@ func (m *Manager) handlePlayerEvent(event videocore.VideoEvent) {
 						updateErr = nil
 						queued = true
 					}
+					if updateErr == nil && !queued {
+						if repeat, ok := anilist.FinishedRewatch(entry, isCompleted); ok {
+							if _, rerr := client.UpdateMediaListEntryRepeat(anilist.WithUserInitiated(context.Background()), &mediaId, &repeat); rerr != nil {
+								m.Logger.Warn().Err(rerr).Int("mediaId", mediaId).Msg("directstream: Failed to count finished rewatch")
+							}
+						}
+					}
 				} else {
 					// No linked AniList account anywhere — fall back to the platform layer,
 					// which handles the simulated (offline) account.
