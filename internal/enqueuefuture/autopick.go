@@ -250,7 +250,7 @@ func (r *Repository) autoPickOne(ctx context.Context, mediaID int, client *http.
 	kind := "movie"
 	switch {
 	case isShow:
-		kind = "TV batch"
+		kind = "batch"
 	case isSpecial:
 		kind = "special / OVA"
 	}
@@ -394,9 +394,18 @@ func contentsFiles(t *hibiketorrent.AnimeTorrent, client *http.Client) int {
 	return c.Files
 }
 
-// isTVShow reports whether an anime is a series rather than a one-off.
+// isTVShow reports whether an anime is a series rather than a one-off: then only a batch that
+// covers it is torrented, never a single episode. A TV, TV short or web series is one unless it
+// has a single episode; any other format (an OVA, special or movie series) is one when it has
+// more than one episode. A one-episode movie, OVA or special may be a single file.
 func isTVShow(media *anilist.BaseAnime) bool {
-	if media == nil || media.Format == nil {
+	if media == nil {
+		return false
+	}
+	if media.Episodes != nil && *media.Episodes > 1 {
+		return true
+	}
+	if media.Format == nil {
 		return false
 	}
 	switch *media.Format {

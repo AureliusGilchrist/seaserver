@@ -275,7 +275,7 @@ func (r *Repository) pickOnProvider(ctx context.Context, media *anilist.BaseAnim
 	name := providerDisplayName(provider)
 	pick := &AutoPick{MediaID: media.ID, Title: media.GetTitleSafe(), Media: media, Source: provider}
 	isShow := isTVShow(media)
-	kind := "TV batch"
+	kind := "batch"
 	if !isShow {
 		kind = "movie or special"
 	}

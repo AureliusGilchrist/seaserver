@@ -27,8 +27,8 @@ func TestIsDualAudio(t *testing.T) {
 }
 
 func TestIsTVShow(t *testing.T) {
-	tv, movie, ona := anilist.MediaFormatTv, anilist.MediaFormatMovie, anilist.MediaFormatOna
-	one, twelve := 1, 12
+	tv, movie, ona, ova, special := anilist.MediaFormatTv, anilist.MediaFormatMovie, anilist.MediaFormatOna, anilist.MediaFormatOva, anilist.MediaFormatSpecial
+	one, six, twelve := 1, 6, 12
 	cases := []struct {
 		media *anilist.BaseAnime
 		want  bool
@@ -37,6 +37,11 @@ func TestIsTVShow(t *testing.T) {
 		{&anilist.BaseAnime{Format: &tv}, true},
 		{&anilist.BaseAnime{Format: &ona, Episodes: &one}, false},
 		{&anilist.BaseAnime{Format: &movie, Episodes: &one}, false},
+		// A series of OVAs or specials is torrented as a batch, never an episode at a time.
+		{&anilist.BaseAnime{Format: &ova, Episodes: &six}, true},
+		{&anilist.BaseAnime{Format: &special, Episodes: &six}, true},
+		{&anilist.BaseAnime{Format: &ova, Episodes: &one}, false},
+		{&anilist.BaseAnime{Format: &ova}, false},
 		{nil, false},
 	}
 	for i, c := range cases {
