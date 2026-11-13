@@ -118,6 +118,15 @@ appLoop:
 			// when it next signs in.
 			updater.StartGitAutoUpdate(app.Logger, app.WSEventManager, app.Config.Data.AppDataDir)
 
+			// The anime theme marketplace is its own git checkout served off disk; keep it pulled
+			// so pushed themes reach the server without anyone logging in. Checks the configured
+			// marketplace dir and the seanime-themes folder inside the server's checkout.
+			if wd, err := os.Getwd(); err == nil {
+				updater.StartThemesAutoUpdate(app.Logger, app.Config.Marketplace.Dir, filepath.Join(wd, "seanime-themes"))
+			} else {
+				updater.StartThemesAutoUpdate(app.Logger, app.Config.Marketplace.Dir)
+			}
+
 			// Clients already connected hear that the server is ready; ones that connect in the
 			// next couple of minutes are told by the websocket manager as they join.
 			app.WSEventManager.SendEvent(events.SuccessToast, "Server successfully prepared!")
