@@ -552,6 +552,10 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.GET("/studio/favorites", h.HandleGetStudioFavorites)
 	v1.POST("/studio/favorites/toggle", h.HandleToggleStudioFavorite)
 
+	// Episode Favorites (per-profile)
+	v1.GET("/episode/favorites", h.HandleGetEpisodeFavorites)
+	v1.POST("/episode/favorites/toggle", h.HandleToggleEpisodeFavorite)
+
 	//
 	// MAL
 	//

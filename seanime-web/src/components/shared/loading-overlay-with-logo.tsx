@@ -5,8 +5,11 @@ import { LoadingOverlay } from "@/components/ui/loading-spinner"
 import { __isDesktop__ } from "@/types/constants"
 import { SeaImage as Image } from "@/components/shared/sea-image"
 import React from "react"
+import { useThemeSplash } from "@/lib/theme/anime-themes/theme-flavor"
 
 export function LoadingOverlayWithLogo({ refetch, title }: { refetch?: () => void, title?: string }) {
+    // With no title, the active theme's splash message shows under the logo (if it has any).
+    const splash = useThemeSplash()
     return <LoadingOverlay showSpinner={false}>
         <Image
             src="/eternity-emblem.png"
@@ -19,6 +22,7 @@ export function LoadingOverlayWithLogo({ refetch, title }: { refetch?: () => voi
         <SeanimeGradientBackground />
         {/*<div className="absolute inset-0 -z-10 h-full w-full items-center px-5 py-24 [background:radial-gradient(125%_125%_at_50%_10%,#000_40%,#63e_100%)] opacity-10"></div>*/}
         <TextGenerateEffect className="text-lg mt-2 text-[--muted] animate-pulse z-[1]" words={title ?? "S e a n i m e"} />
+        {!title && splash && <p className="mt-2 max-w-md px-6 text-center text-sm italic text-[--muted] opacity-70 z-[1]">{splash}</p>}
 
         {(__isDesktop__ && !!refetch) && (
             <Button

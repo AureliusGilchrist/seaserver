@@ -1523,6 +1523,28 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/studio/favorites/toggle",
         },
     },
+    EPISODE_FAVORITE: {
+        /**
+         *  @description
+         *  Route get the profile's favourite episodes.
+         *  Returns favourite episodes in the order the user arranged them, each with the title and image saved when it was favourited.
+         */
+        GetEpisodeFavorites: {
+            key: "EPISODE-FAVORITE-get-episode-favorites",
+            methods: ["GET"],
+            endpoint: "/api/v1/episode/favorites",
+        },
+        /**
+         *  @description
+         *  Route toggle an episode as favourite (add/remove).
+         *  Adds the episode to favourites if not present, removes it if already favourited.
+         */
+        ToggleEpisodeFavorite: {
+            key: "EPISODE-FAVORITE-toggle-episode-favorite",
+            methods: ["POST"],
+            endpoint: "/api/v1/episode/favorites/toggle",
+        },
+    },
     EXPLORER: {
         /**
          *  @description

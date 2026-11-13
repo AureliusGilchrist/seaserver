@@ -22,6 +22,8 @@ export interface MarketplaceThemeMeta {
     playerIconSet?: string
     /** Sidebar id → icon slug. An icon set inside sidebarOverrides wins over this. */
     sidebarIcons: Record<string, string>
+    splashMessages?: string[]
+    easterEggs?: Record<string, string>
     previewColors?: { bg: string; primary: string; secondary: string; accent: string }
     backgroundImageUrl?: string
     /** Portrait wallpaper for phones. */
@@ -89,6 +91,8 @@ export async function fetchMarketplaceThemeMeta(themeId: string, opts?: { market
                 playerIconOverrides?: Record<string, string>
                 playerIconSet?: string
                 sidebarIcons?: Record<string, string>
+                splashMessages?: string[]
+                easterEggs?: Record<string, string>
                 previewColors?: { bg: string; primary: string; secondary: string; accent: string }
                 backgroundImageUrl?: string
                 cssVars?: Record<string, string>
@@ -114,6 +118,8 @@ export async function fetchMarketplaceThemeMeta(themeId: string, opts?: { market
                 playerIconOverrides: raw.playerIconOverrides ?? {},
                 playerIconSet: raw.playerIconSet,
                 sidebarIcons: raw.sidebarIcons ?? {},
+                splashMessages: Array.isArray(raw.splashMessages) ? raw.splashMessages.filter(m => typeof m === "string" && m.trim()) : undefined,
+                easterEggs: raw.easterEggs && typeof raw.easterEggs === "object" ? raw.easterEggs : undefined,
                 previewColors: raw.previewColors,
                 backgroundImageUrl: raw.backgroundImageUrl,
                 cssVars: raw.cssVars,
@@ -158,7 +164,7 @@ export async function fetchSharedThemesList(): Promise<SharedThemeInfo[]> {
     const promise = (async () => {
         try {
             const url = `${getServerBaseUrl()}/api/v1/shared-themes`
-            const res = await fetch(url, { cache: "force-cache" })
+            const res = await fetch(url, { cache: "no-cache" })
             if (!res.ok) { sharedThemesCache = []; return [] }
             const json = await res.json() as any
             const unwrapped = json?.data ?? json

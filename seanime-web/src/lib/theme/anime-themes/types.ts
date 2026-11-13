@@ -504,6 +504,10 @@ export type AnimeThemeConfig = {
     milestoneNames?: Record<number, string>
     /** Milestone-category definition key (e.g. "hours_watched_100", "episodes_watched_first") → themed display name */
     milestoneCategoryNames?: Record<string, string>
+    /** Short lines shown on loading screens and the welcome screen (see theme-flavor.tsx). */
+    splashMessages?: string[]
+    /** Quiet nods to the series, one per spot: notFound, emptySearch, idle, logo (see theme-flavor.tsx). */
+    easterEggs?: Record<string, string>
 }
 
 export type HiddenThemeCondition = {

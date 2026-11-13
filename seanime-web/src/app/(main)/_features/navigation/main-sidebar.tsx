@@ -46,6 +46,7 @@ import { useThemeSettings } from "@/lib/theme/hooks"
 import { useAnimeThemeOrNull, useThemeMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { ANIME_THEMES } from "@/lib/theme/anime-themes"
 import { applySidebarOverride } from "@/lib/theme/anime-themes/sidebar-overrides"
+import { useThemeFlavor } from "@/lib/theme/anime-themes/theme-flavor"
 import { __isDesktop__, __isTauriDesktop__ } from "@/types/constants"
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import { SeaLink as Link } from "@/components/shared/sea-link"
@@ -455,6 +456,8 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
     // Plugins
     const pluginWebviewItems = usePluginSidebarItems()
 
+    const themeFlavor = useThemeFlavor()
+
     // Apply anime theme overrides (icon + label) to any item that has an override
     const applyAnimeOverride = React.useCallback((item: any) => applySidebarOverride(item, animeConfig.sidebarOverrides),
         [animeConfig.sidebarOverrides])
@@ -543,6 +546,7 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
                     alt="Deus ex Aeternae"
                     className="size-10 transition-all duration-300"
                     data-easter-egg="logo"
+                    title={themeFlavor.egg("logo")}
                 />
             </div>
             <VerticalMenu

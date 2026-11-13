@@ -4,6 +4,7 @@ import { useAnilistAdvancedSearch } from "@/app/(main)/search/_lib/handle-advanc
 import { cn } from "@/components/ui/core/styling"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import React from "react"
+import { ThemeEgg } from "@/lib/theme/anime-themes/theme-flavor"
 import { AiOutlinePlusCircle } from "react-icons/ai"
 
 export function AdvancedSearchList() {
@@ -26,6 +27,7 @@ export function AdvancedSearchList() {
             ))}
         </MediaCardLazyGrid>}
         {isLoading && <LoadingSpinner />}
+        {!isLoading && (items?.length ?? 0) === 0 && <ThemeEgg spot="emptySearch" className="py-8 text-center" />}
         {((data?.pages.filter(Boolean).flatMap(n => n.Page?.media).filter(Boolean) || []).length > 0 && hasNextPage) &&
             <div
                 data-advanced-search-list-load-more-container

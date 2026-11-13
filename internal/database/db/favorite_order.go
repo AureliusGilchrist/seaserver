@@ -28,6 +28,9 @@ func (db *Database) ReorderFavorites(kind string, ids []int) error {
 		model, column = &models.StaffFavorite{}, "staff_id"
 	case "studio":
 		model, column = &models.StudioFavorite{}, "studio_id"
+	case "episode":
+		// Episodes have a two-part key, so they are ordered by their row ID.
+		model, column = &models.EpisodeFavorite{}, "id"
 	default:
 		return fmt.Errorf("unknown favourite type %q", kind)
 	}

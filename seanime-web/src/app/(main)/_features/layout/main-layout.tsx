@@ -69,6 +69,8 @@ import { RewardParticlesLayer } from "@/lib/rewards/reward-particles"
 import { WorkspaceBar, WORKSPACE_BAR_HEIGHT } from "../navigation/workspace-bar"
 import { useGetProfiles } from "@/api/hooks/profiles.hooks"
 import { ClientPrefsHydrator } from "@/lib/sea-storage/client-prefs-hydrator"
+import { ThemeIdleWhisper } from "@/lib/theme/anime-themes/theme-flavor"
+import { WelcomeScreen } from "@/lib/theme/anime-themes/welcome-screen"
 import { useOfflineProgressSync } from "@/lib/offline-progress/use-offline-progress-sync"
 
 /** Your own profile wallpaper as the app-wide background, when the theme doesn't supply one. */
@@ -138,6 +140,8 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
             <ConnectivityListener />
             <StaleFrontendBanner />
             <Announcements />
+            <ThemeIdleWhisper />
+            <WelcomeScreen />
             <AdminAnnouncementsBanner />
             <LibraryExplorerDrawer />
             <PluginWebviewSlot slot="fixed" />

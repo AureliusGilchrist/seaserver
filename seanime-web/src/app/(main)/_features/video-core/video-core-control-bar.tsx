@@ -31,12 +31,15 @@ import { RxEnterFullScreen, RxExitFullScreen } from "react-icons/rx"
 import { TbPictureInPicture, TbPictureInPictureOff } from "react-icons/tb"
 import { useAnimeThemeOrNull } from "@/lib/theme/anime-themes/anime-theme-provider"
 import type { PlayerIconOverrides } from "@/lib/theme/anime-themes/types"
+import { safePlayerIcon } from "@/lib/theme/anime-themes/safe-player-icon"
 
 /** The active anime theme's player icons (empty when the theme has none). Each button falls back to its stock icon. */
 function useThemePlayerIcons(): PlayerIconOverrides {
     const theme = useAnimeThemeOrNull()
-    return theme?.config.playerIconOverrides ?? {}
+    return theme?.config.playerIconOverrides ?? NO_THEME_ICONS
 }
+
+const NO_THEME_ICONS: PlayerIconOverrides = {}
 
 const VIDEOCORE_CONTROL_BAR_MAIN_SECTION_HEIGHT = 48
 const VIDEOCORE_CONTROL_BAR_MAIN_SECTION_HEIGHT_MINI = 28
@@ -464,8 +467,8 @@ export function VideoCorePlayButton() {
     return (
         <VideoCoreControlButtonIcon
             icons={[
-                ["playing", themeIcons.pause ?? RiPauseLargeLine],
-                ["paused", themeIcons.play ?? RiPlayLargeLine],
+                ["playing", safePlayerIcon(themeIcons, "pause", RiPauseLargeLine)],
+                ["paused", safePlayerIcon(themeIcons, "play", RiPlayLargeLine)],
             ]}
             state={paused ? "paused" : "playing"}
             onClick={() => {
@@ -548,10 +551,10 @@ export function VideoCoreVolumeButton() {
         >
             <VideoCoreControlButtonIcon
                 icons={[
-                    ["low", themeIcons.volumeLow ?? LuVolume],
-                    ["mid", themeIcons.volumeMid ?? LuVolume1],
-                    ["high", themeIcons.volumeHigh ?? LuVolume2],
-                    ["muted", themeIcons.volumeMuted ?? LuVolumeOff],
+                    ["low", safePlayerIcon(themeIcons, "volumeLow", LuVolume)],
+                    ["mid", safePlayerIcon(themeIcons, "volumeMid", LuVolume1)],
+                    ["high", safePlayerIcon(themeIcons, "volumeHigh", LuVolume2)],
+                    ["muted", safePlayerIcon(themeIcons, "volumeMuted", LuVolumeOff)],
                 ]}
                 state={
                     muted ? "muted" :
@@ -626,7 +629,7 @@ export function VideoCoreNextButton({ onClick }: { onClick: () => void }) {
     return (
         <VideoCoreControlButtonIcon
             icons={[
-                ["default", themeIcons.skipForward ?? LuChevronRight],
+                ["default", safePlayerIcon(themeIcons, "skipForward", LuChevronRight)],
             ]}
             state="default"
             onClick={onClick}
@@ -643,7 +646,7 @@ export function VideoCorePreviousButton({ onClick }: { onClick: () => void }) {
     return (
         <VideoCoreControlButtonIcon
             icons={[
-                ["default", themeIcons.skipBack ?? LuChevronLeft],
+                ["default", safePlayerIcon(themeIcons, "skipBack", LuChevronLeft)],
             ]}
             state="default"
             onClick={onClick}
@@ -689,8 +692,8 @@ export function VideoCorePipButton() {
     return (
         <VideoCoreControlButtonIcon
             icons={[
-                ["default", themeIcons.pip ?? TbPictureInPicture],
-                ["pip", themeIcons.pipOff ?? TbPictureInPictureOff],
+                ["default", safePlayerIcon(themeIcons, "pip", TbPictureInPicture)],
+                ["pip", safePlayerIcon(themeIcons, "pipOff", TbPictureInPictureOff)],
             ]}
             state={isPip ? "pip" : "default"}
             onClick={() => {
@@ -709,8 +712,8 @@ export function VideoCoreFullscreenButton() {
     return (
         <VideoCoreControlButtonIcon
             icons={[
-                ["default", themeIcons.fullscreenEnter ?? RxEnterFullScreen],
-                ["fullscreen", themeIcons.fullscreenExit ?? RxExitFullScreen],
+                ["default", safePlayerIcon(themeIcons, "fullscreenEnter", RxEnterFullScreen)],
+                ["fullscreen", safePlayerIcon(themeIcons, "fullscreenExit", RxExitFullScreen)],
             ]}
             state={isFullscreen ? "fullscreen" : "default"}
             onClick={() => {

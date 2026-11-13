@@ -18,7 +18,8 @@ import { getSpoilerFreeAnimeImage, useEpisodeSpoilerState } from "@/lib/theme/an
 import { useThemeSettings } from "@/lib/theme/theme-hooks"
 import React from "react"
 import { FaCirclePlay } from "react-icons/fa6"
-import { LuDock, LuEye } from "react-icons/lu"
+import { LuDock, LuEye, LuHeart } from "react-icons/lu"
+import { useEpisodeFavorite } from "@/api/hooks/favorites.hooks"
 import { PluginEpisodeCardContextMenuItems } from "../../plugin/actions/plugin-actions"
 
 type EpisodeCardProps = {
@@ -208,6 +209,13 @@ export function EpisodeCard(props: EpisodeCardProps) {
 
                     {additionalContextMenuItems}
 
+                    <EpisodeFavoriteMenuItem
+                        mediaId={anime?.id ?? episode?.baseAnime?.id}
+                        episodeNumber={episodeNumber}
+                        title={episode?.episodeTitle || episode?.displayTitle || (typeof title === "string" ? title : undefined)}
+                        image={image}
+                    />
+
                     <PluginEpisodeCardContextMenuItems episode={props.episode} />
 
                 </ContextMenuGroup>
@@ -393,5 +401,22 @@ export function EpisodeCard(props: EpisodeCardProps) {
                 </div>
             </ContextMenuTrigger>
         </SeaContextMenu>
+    )
+}
+
+/** "Favourite episode" toggle in an episode card's right-click menu. */
+function EpisodeFavoriteMenuItem({ mediaId, episodeNumber, title, image }: {
+    mediaId?: number
+    episodeNumber?: number
+    title?: string
+    image?: string
+}) {
+    const { isFavorite, toggle, isPending } = useEpisodeFavorite(mediaId, episodeNumber)
+    if (!mediaId || episodeNumber === undefined) return null
+    return (
+        <ContextMenuItem disabled={isPending} onClick={() => toggle({ title, image })}>
+            <LuHeart className={cn(isFavorite && "fill-current text-[--red]")} />
+            {isFavorite ? "Remove from favourite episodes" : "Favourite episode"}
+        </ContextMenuItem>
     )
 }

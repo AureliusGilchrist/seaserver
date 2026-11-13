@@ -1,4 +1,5 @@
 import type { PlayerIconOverrides } from "@/lib/theme/anime-themes/types"
+import { safePlayerIcon } from "@/lib/theme/anime-themes/safe-player-icon"
 import { defaultLayoutIcons } from "@vidstack/react/player/layouts/default"
 import type { DefaultLayoutIcons } from "@vidstack/react/player/layouts/default"
 import { LuCast, LuVolume1, LuVolume2, LuVolumeX } from "react-icons/lu"
@@ -65,24 +66,24 @@ export function mergePlayerIcons(overrides: PlayerIconOverrides | undefined): De
         ...vidstackLayoutIcons,
         PlayButton: {
             ...vidstackLayoutIcons.PlayButton,
-            Play: overrides.play ?? vidstackLayoutIcons.PlayButton.Play,
-            Pause: overrides.pause ?? vidstackLayoutIcons.PlayButton.Pause,
+            Play: safePlayerIcon(overrides, "play", vidstackLayoutIcons.PlayButton.Play as any),
+            Pause: safePlayerIcon(overrides, "pause", vidstackLayoutIcons.PlayButton.Pause as any),
         },
         MuteButton: {
             ...vidstackLayoutIcons.MuteButton,
-            Mute: overrides.volumeMuted ?? vidstackLayoutIcons.MuteButton.Mute,
-            VolumeLow: overrides.volumeLow ?? vidstackLayoutIcons.MuteButton.VolumeLow,
-            VolumeHigh: overrides.volumeHigh ?? vidstackLayoutIcons.MuteButton.VolumeHigh,
+            Mute: safePlayerIcon(overrides, "volumeMuted", vidstackLayoutIcons.MuteButton.Mute as any),
+            VolumeLow: safePlayerIcon(overrides, "volumeLow", vidstackLayoutIcons.MuteButton.VolumeLow as any),
+            VolumeHigh: safePlayerIcon(overrides, "volumeHigh", vidstackLayoutIcons.MuteButton.VolumeHigh as any),
         },
         PIPButton: {
             ...vidstackLayoutIcons.PIPButton,
-            Enter: overrides.pip ?? vidstackLayoutIcons.PIPButton.Enter,
-            Exit: overrides.pipOff ?? vidstackLayoutIcons.PIPButton.Exit,
+            Enter: safePlayerIcon(overrides, "pip", vidstackLayoutIcons.PIPButton.Enter as any),
+            Exit: safePlayerIcon(overrides, "pipOff", vidstackLayoutIcons.PIPButton.Exit as any),
         },
         FullscreenButton: {
             ...vidstackLayoutIcons.FullscreenButton,
-            Enter: overrides.fullscreenEnter ?? vidstackLayoutIcons.FullscreenButton.Enter,
-            Exit: overrides.fullscreenExit ?? vidstackLayoutIcons.FullscreenButton.Exit,
+            Enter: safePlayerIcon(overrides, "fullscreenEnter", vidstackLayoutIcons.FullscreenButton.Enter as any),
+            Exit: safePlayerIcon(overrides, "fullscreenExit", vidstackLayoutIcons.FullscreenButton.Exit as any),
         },
     }
     return merged as unknown as DefaultLayoutIcons

@@ -6,6 +6,7 @@ import { StillWatchingTiming } from "@/app/(main)/settings/_components/still-wat
 import { CardSizeSettings } from "@/app/(main)/settings/_components/card-size-settings"
 import { InterfaceSizeSettings } from "@/app/(main)/settings/_components/interface-size-settings"
 import { FranchiseSettings } from "@/app/(main)/settings/_components/franchise-settings"
+import { WelcomeScreenSettings } from "@/app/(main)/settings/_components/welcome-screen-settings"
 import { FrontendUpdateCard } from "@/app/(main)/settings/_containers/frontend-update-card"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
@@ -405,6 +406,7 @@ export function ClientSettings(props: ClientSettingsProps) {
         <div className="space-y-5" data-personal-settings>
             <PersonalHero overridesCount={overridesCount} />
             <PersonalNav />
+            <WelcomeScreenSettings />
 
             {/* Full-width section, then a two-column masonry flow (no row gaps on desktop), then the
                 full-width App section. */}

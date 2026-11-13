@@ -28,6 +28,9 @@ import {
     useToggleStaffFavorite,
     useToggleStudioFavorite,
     useReorderFavorites,
+    useGetEpisodeFavorites,
+    useReorderEpisodeFavorites,
+    type EpisodeFavorite,
 } from "@/api/hooks/favorites.hooks"
 import { useGetProfileStats } from "@/api/hooks/profile-stats.hooks"
 import {
@@ -830,17 +833,19 @@ function FavoritesTabContent() {
     const { data: characterIds, isLoading: characterLoading } = useGetCharacterFavorites()
     const { data: staffIds, isLoading: staffLoading } = useGetStaffFavorites()
     const { data: studioIds, isLoading: studioLoading } = useGetStudioFavorites()
+    const { data: episodeFavorites, isLoading: episodeLoading } = useGetEpisodeFavorites()
 
-    const sections = [
+    const sections: { label: string, ids: number[] | undefined, type: FavoriteType }[] = [
         { label: "Anime", ids: animeIds, type: "anime" as const },
         { label: "Manga", ids: mangaIds, type: "manga" as const },
         { label: "Characters", ids: characterIds, type: "character" as const },
         { label: "Staff", ids: staffIds, type: "staff" as const },
         { label: "Studios", ids: studioIds, type: "studio" as const },
+        { label: "Episodes", ids: episodeFavorites?.map(f => f.id), type: "episode" as const },
     ]
 
     const totalCount = sections.reduce((acc, s) => acc + (s.ids?.length ?? 0), 0)
-    const favoritesLoading = animeLoading || mangaLoading || characterLoading || staffLoading || studioLoading
+    const favoritesLoading = animeLoading || mangaLoading || characterLoading || staffLoading || studioLoading || episodeLoading
 
     return (
         <div className="space-y-7">
@@ -855,7 +860,7 @@ function FavoritesTabContent() {
                         <div className="min-w-0">
                             <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand-200">Your collection</p>
                             <h2 className="mt-1 text-2xl font-extrabold tracking-tight text-white sm:text-3xl">Favorites</h2>
-                            <p className="mt-1 text-sm text-white/60">The anime, manga, characters, creators, and studios you love.</p>
+                            <p className="mt-1 text-sm text-white/60">The anime, episodes, manga, characters, creators, and studios you love.</p>
                         </div>
                     </div>
                     <div className="min-w-28 rounded-2xl border border-white/10 bg-black/25 px-5 py-3 text-center backdrop-blur-md">
@@ -865,7 +870,7 @@ function FavoritesTabContent() {
                         <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/45">Saved</p>
                     </div>
                 </div>
-                <div className="relative mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                <div className="relative mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
                     {sections.map(section => (
                         <div key={section.type} className="flex items-center justify-between gap-2 rounded-xl border border-white/[0.08] bg-black/20 px-3 py-2.5 backdrop-blur-md">
                             <span className="truncate text-xs font-medium text-white/65">{section.label}</span>
@@ -889,23 +894,25 @@ function FavoritesTabContent() {
                     </div>
                     <h3 className="relative mt-4 text-lg font-bold text-white">Your collection starts with a favorite</h3>
                     <p className="relative mx-auto mt-2 max-w-lg text-sm leading-relaxed text-[--muted]">
-                        Tap the heart on an anime, manga, character, staff member, or studio page to save it here.
+                        Tap the heart on an anime, manga, character, staff member, or studio page to save it here. Right-click an episode to favourite it.
                     </p>
                 </div>
             ) : (
                 <div className="space-y-8">
-                    {sections.map(section => (
-                        <FavoriteSection key={section.type} label={section.label} ids={section.ids ?? []} type={section.type} />
-                    ))}
+                    {sections.map(section => section.type === "episode"
+                        ? <EpisodeFavoriteSection key="episode" favorites={episodeFavorites ?? []} />
+                        : <FavoriteSection key={section.type} label={section.label} ids={section.ids ?? []} type={section.type} />,
+                    )}
                 </div>
             )}
         </div>
     )
 }
 
-type FavoriteType = "anime" | "manga" | "character" | "staff" | "studio"
+type FavoriteType = "anime" | "manga" | "character" | "staff" | "studio" | "episode"
+type EntityFavoriteType = Exclude<FavoriteType, "episode">
 
-function FavoriteSection({ label, ids, type }: { label: string; ids: number[]; type: FavoriteType }) {
+function FavoriteSection({ label, ids, type }: { label: string; ids: number[]; type: EntityFavoriteType }) {
     const icon = type === "anime" ? <LuTv className="size-5" />
         : type === "manga" ? <LuBookOpen className="size-5" />
             : type === "character" ? <LuHeart className="size-5" />
@@ -939,6 +946,43 @@ function FavoriteSection({ label, ids, type }: { label: string; ids: number[]; t
     return <RankedFavoriteSection label={label} ids={ids} type={type} icon={icon} accent={accent} />
 }
 
+/** Favourite episodes, ranked like the other sections. They are keyed by their row id. */
+function EpisodeFavoriteSection({ favorites }: { favorites: EpisodeFavorite[] }) {
+    const { reorder, isPending } = useReorderEpisodeFavorites()
+    const icon = <LuPopcorn className="size-5" />
+    const accent = "border-violet-300/20 bg-violet-400/10 text-violet-200"
+    if (favorites.length === 0) {
+        return (
+            <section className="rounded-2xl border border-dashed border-white/10 bg-black/15 p-4 backdrop-blur-md sm:p-5">
+                <div className="flex items-center gap-3">
+                    <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl border", accent)}>{icon}</div>
+                    <div className="min-w-0">
+                        <h3 className="font-semibold text-white/75">Episodes</h3>
+                        <p className="mt-0.5 text-xs text-[--muted]">No episodes favorited yet. Right-click an episode to add one.</p>
+                    </div>
+                    <span className="ml-auto rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-xs font-semibold tabular-nums text-white/40">0</span>
+                </div>
+            </section>
+        )
+    }
+    const byId = new Map(favorites.map(f => [f.id, f]))
+    return (
+        <RankedFavoriteList
+            label="Episodes"
+            type="episode"
+            ids={favorites.map(f => f.id)}
+            icon={icon}
+            accent={accent}
+            reorder={reorder}
+            isPending={isPending}
+            renderCard={id => {
+                const fav = byId.get(id)
+                return fav ? <FavoriteEpisodeCard fav={fav} /> : null
+            }}
+        />
+    )
+}
+
 /**
  * A favourites section in the order the user put it in, numbered first to last. Arrange mode lets
  * two cards swap places (pick one, then the other) or step one place at a time.
@@ -946,11 +990,35 @@ function FavoriteSection({ label, ids, type }: { label: string; ids: number[]; t
 function RankedFavoriteSection({ label, ids, type, icon, accent }: {
     label: string
     ids: number[]
-    type: FavoriteType
+    type: EntityFavoriteType
     icon: React.ReactNode
     accent: string
 }) {
     const { reorder, isPending } = useReorderFavorites(type)
+    return (
+        <RankedFavoriteList
+            label={label}
+            ids={ids}
+            type={type}
+            icon={icon}
+            accent={accent}
+            reorder={reorder}
+            isPending={isPending}
+            renderCard={id => <FavoriteCard id={id} type={type} />}
+        />
+    )
+}
+
+function RankedFavoriteList({ label, ids, type, icon, accent, reorder, isPending, renderCard }: {
+    label: string
+    ids: number[]
+    type: FavoriteType
+    icon: React.ReactNode
+    accent: string
+    reorder: (ids: number[]) => void
+    isPending: boolean
+    renderCard: (id: number) => React.ReactNode
+}) {
     const [arranging, setArranging] = React.useState(false)
     const [picked, setPicked] = React.useState<number | null>(null)
 
@@ -1015,7 +1083,7 @@ function RankedFavoriteSection({ label, ids, type, icon, accent }: {
                         onEarlier={() => swap(index, index - 1)}
                         onLater={() => swap(index, index + 1)}
                     >
-                        <FavoriteCard id={id} type={type} />
+                        {renderCard(id)}
                     </RankedFavorite>
                 ))}
             </div>
@@ -1126,7 +1194,7 @@ function stripHtml(html: string | null | undefined): string {
     return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim()
 }
 
-function FavoriteCard({ id, type }: { id: number; type: FavoriteType }) {
+function FavoriteCard({ id, type }: { id: number; type: EntityFavoriteType }) {
     if (type === "anime") return <FavoriteAnimeCard id={id} />
     if (type === "manga") return <FavoriteMangaCard id={id} />
     if (type === "character") return <FavoriteCharacterCard id={id} />
@@ -1193,6 +1261,23 @@ function FavoriteCardShell({
                 )}
             </div>
         </a>
+    )
+}
+
+function FavoriteEpisodeCard({ fav }: { fav: EpisodeFavorite }) {
+    const { data, isLoading } = useAnilistMediaById(fav.mediaId, "anime")
+    const d = data as any
+    const animeTitle = d?.title?.english || d?.title?.romaji || d?.title?.userPreferred || d?.title?.native
+    const episodeLabel = fav.episodeNumber > 0 ? `Episode ${fav.episodeNumber}` : "Special"
+    return (
+        <FavoriteCardShell
+            href={`/entry?id=${fav.mediaId}`}
+            image={fav.image || d?.bannerImage || d?.coverImage?.extraLarge || d?.coverImage?.large}
+            title={fav.title && fav.title !== episodeLabel ? fav.title : episodeLabel}
+            subtitle={[animeTitle, episodeLabel].filter(Boolean).join(" \u00b7 ") || undefined}
+            isLoading={isLoading && !fav.image}
+            kind="Episode"
+        />
     )
 }
 

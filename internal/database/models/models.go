@@ -1253,6 +1253,19 @@ type StudioFavorite struct {
 	Rank     int       `gorm:"column:sort_rank;default:0" json:"rank"`
 }
 
+// EpisodeFavorite stores a favourite episode per profile (stored in per-profile DB). Title and
+// Image are a snapshot taken when it was favourited, so the profile can show the episode without
+// fetching episode metadata for every entry.
+type EpisodeFavorite struct {
+	BaseModel
+	MediaID       int       `gorm:"column:media_id;uniqueIndex:idx_episode_favorite" json:"mediaId"`
+	EpisodeNumber int       `gorm:"column:episode_number;uniqueIndex:idx_episode_favorite" json:"episodeNumber"`
+	Title         string    `gorm:"column:title" json:"title"`
+	Image         string    `gorm:"column:image" json:"image"`
+	AddedAt       time.Time `gorm:"column:added_at" json:"addedAt"`
+	Rank          int       `gorm:"column:sort_rank;default:0" json:"rank"`
+}
+
 // Notification stores a notification per profile (stored in per-profile DB).
 type Notification struct {
 	BaseModel

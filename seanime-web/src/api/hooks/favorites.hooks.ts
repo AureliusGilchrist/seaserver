@@ -140,3 +140,77 @@ export function useReorderFavorites(kind: FavoriteKind) {
         isPending: mutation.isPending,
     }
 }
+
+// ─────────────────────── Favourite episodes ───────────────────────
+
+/** A favourite episode, with the title and image saved when it was favourited. */
+export type EpisodeFavorite = {
+    id: number
+    mediaId: number
+    episodeNumber: number
+    title: string
+    image: string
+    addedAt?: string
+    rank: number
+}
+
+export function useGetEpisodeFavorites(enabled = true) {
+    return useServerQuery<EpisodeFavorite[]>({
+        endpoint: API_ENDPOINTS.EPISODE_FAVORITE.GetEpisodeFavorites.endpoint,
+        method: API_ENDPOINTS.EPISODE_FAVORITE.GetEpisodeFavorites.methods[0],
+        queryKey: [API_ENDPOINTS.EPISODE_FAVORITE.GetEpisodeFavorites.key],
+        enabled,
+    })
+}
+
+export function useToggleEpisodeFavorite() {
+    const qc = useQueryClient()
+    return useServerMutation<boolean, { mediaId: number, episodeNumber: number, title?: string, image?: string }>({
+        endpoint: API_ENDPOINTS.EPISODE_FAVORITE.ToggleEpisodeFavorite.endpoint,
+        method: API_ENDPOINTS.EPISODE_FAVORITE.ToggleEpisodeFavorite.methods[0],
+        mutationKey: [API_ENDPOINTS.EPISODE_FAVORITE.ToggleEpisodeFavorite.key],
+        onSuccess: async () => {
+            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.EPISODE_FAVORITE.GetEpisodeFavorites.key] })
+        },
+    })
+}
+
+/** Whether one episode is a favourite, and a toggle for it. */
+export function useEpisodeFavorite(mediaId: number | undefined, episodeNumber: number | undefined) {
+    const { data } = useGetEpisodeFavorites(!!mediaId)
+    const { mutate, isPending } = useToggleEpisodeFavorite()
+    const isFavorite = !!data?.some(f => f.mediaId === mediaId && f.episodeNumber === episodeNumber)
+    return {
+        isFavorite,
+        isPending,
+        toggle: (meta?: { title?: string, image?: string }) => {
+            if (!mediaId || episodeNumber === undefined) return
+            mutate({ mediaId, episodeNumber, title: meta?.title, image: meta?.image })
+        },
+    }
+}
+
+/** Saves the order of favourite episodes; ids are the favourites' row ids, first is number one. */
+export function useReorderEpisodeFavorites() {
+    const qc = useQueryClient()
+    const queryKey = [API_ENDPOINTS.EPISODE_FAVORITE.GetEpisodeFavorites.key]
+    const mutation = useServerMutation<boolean, { type: "episode", ids: number[] }>({
+        endpoint: "/api/v1/favorites/reorder",
+        method: "POST",
+        mutationKey: ["FAVORITES-reorder", "episode"],
+        onError: async () => {
+            await qc.invalidateQueries({ queryKey })
+        },
+    })
+    return {
+        reorder: (ids: number[]) => {
+            qc.setQueryData<EpisodeFavorite[]>(queryKey, prev => {
+                if (!prev) return prev
+                const byId = new Map(prev.map(f => [f.id, f]))
+                return ids.map(id => byId.get(id)).filter((f): f is EpisodeFavorite => !!f)
+            })
+            mutation.mutate({ type: "episode", ids })
+        },
+        isPending: mutation.isPending,
+    }
+}

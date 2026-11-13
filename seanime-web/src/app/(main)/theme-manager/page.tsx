@@ -86,7 +86,8 @@ export default function ThemeManagerPage() {
     React.useEffect(() => {
         const controller = new AbortController()
         setIsLoadingMarketplace(true)
-        fetch(`${getServerBaseUrl()}/marketplace/index.json`, { signal: controller.signal })
+        // no-cache: the index is a static file, and a browser-cached copy hid newly added themes.
+        fetch(`${getServerBaseUrl()}/marketplace/index.json`, { signal: controller.signal, cache: "no-cache" })
             .then(r => {
                 if (!r.ok) throw new Error(`Marketplace index request failed (${r.status})`)
                 return r.json() as Promise<{ themes?: MarketplaceThemeIndexEntry[] }>
@@ -152,11 +153,14 @@ export default function ThemeManagerPage() {
         [sharedThemes],
     )
     const searchTerm = React.useDeferredValue(marketplaceSearchQuery.trim().toLowerCase())
+    // Every word has to appear somewhere (id, name, description, author), so "bleach tybw" finds
+    // "bleach-tybw" and "blood war bleach" finds it too.
+    const searchWords = React.useMemo(() => searchTerm.split(/[\s\-_:]+/).filter(Boolean), [searchTerm])
     const browseableMarketplaceThemes = React.useMemo(
         () => marketplaceThemes.filter(theme =>
-            !installedThemeIds.has(theme.id) && (!searchTerm || theme.searchText.includes(searchTerm)),
+            !installedThemeIds.has(theme.id) && searchWords.every(word => theme.searchText.includes(word)),
         ),
-        [installedThemeIds, marketplaceThemes, searchTerm],
+        [installedThemeIds, marketplaceThemes, searchWords],
     )
     const availableMarketplaceThemeCount = React.useMemo(
         () => marketplaceThemes.reduce((count, theme) => count + Number(!installedThemeIds.has(theme.id)), 0),

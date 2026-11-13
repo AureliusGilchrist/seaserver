@@ -293,6 +293,8 @@ function buildConfigFromMeta(meta: import("@/lib/theme/marketplace-theme-loader"
         milestoneNames: meta.milestoneNames,
         milestoneCategoryNames: meta.milestoneCategoryNames,
         playerIconOverrides,
+        splashMessages: meta.splashMessages,
+        easterEggs: meta.easterEggs,
     }
 }
 
