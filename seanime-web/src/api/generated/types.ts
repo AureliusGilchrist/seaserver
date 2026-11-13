@@ -8497,6 +8497,10 @@ export type WatchParty_Participant = {
     profileId: number
     username: string
     /**
+     * profile picture URL or server path
+     */
+    avatar?: string
+    /**
      * holds the remote
      */
     isSource: boolean

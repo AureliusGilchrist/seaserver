@@ -268,6 +268,19 @@ func (a *App) initModulesOnce() {
 			}
 			return p.Name
 		},
+		GetProfileAvatarFunc: func(profileID uint) string {
+			if a.ProfileManager == nil {
+				return ""
+			}
+			p, err := a.ProfileManager.GetProfile(profileID)
+			if err != nil {
+				return ""
+			}
+			if p.AvatarPath != "" {
+				return p.AvatarPath
+			}
+			return p.AniListAvatar
+		},
 	})
 	a.AddCleanupFunction(a.WatchPartyManager.Shutdown)
 

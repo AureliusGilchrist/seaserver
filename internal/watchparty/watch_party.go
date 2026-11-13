@@ -74,7 +74,8 @@ type (
 		ClientId  string    `json:"clientId"`
 		ProfileID uint      `json:"profileId"`
 		Username  string    `json:"username"`
-		IsSource  bool      `json:"isSource"` // holds the remote
+		Avatar    string    `json:"avatar,omitempty"` // profile picture URL or server path
+		IsSource  bool      `json:"isSource"`         // holds the remote
 		JoinedAt  time.Time `json:"joinedAt"`
 		LastSeen  time.Time `json:"lastSeen"`
 		// Epoch is the session media generation this participant has loaded. It is 0 until
@@ -180,6 +181,8 @@ type (
 		VideoCore      *videocore.VideoCore
 		// GetProfileNameFunc resolves a profile id to a display name. Optional.
 		GetProfileNameFunc func(profileID uint) string
+		// GetProfileAvatarFunc resolves a profile id to its picture. Optional.
+		GetProfileAvatarFunc func(profileID uint) string
 	}
 
 	Manager struct {
@@ -187,6 +190,7 @@ type (
 		wsEventManager events.WSEventManagerInterface
 		videoCore      *videocore.VideoCore
 		getProfileName func(profileID uint) string
+		getAvatar      func(profileID uint) string
 
 		// mu guards the sessions and everything reachable from them.
 		mu       sync.RWMutex
@@ -223,6 +227,7 @@ func New(opts NewManagerOptions) *Manager {
 		wsEventManager: opts.WsEventManager,
 		videoCore:      opts.VideoCore,
 		getProfileName: opts.GetProfileNameFunc,
+		getAvatar:      opts.GetProfileAvatarFunc,
 		sessions:       make(map[string]*Session),
 		peerSyncs:      make(map[string]*peerSync),
 	}
@@ -297,6 +302,7 @@ func (m *Manager) Create(profileID uint, clientId string, name string, settings 
 			ClientId:  clientId,
 			ProfileID: profileID,
 			Username:  username,
+			Avatar:    m.profileAvatar(profileID),
 			IsSource:  true,
 			JoinedAt:  time.Now(),
 			LastSeen:  time.Now(),
@@ -349,6 +355,7 @@ func (m *Manager) Join(profileID uint, clientId string, sessionId string) (*Sess
 			m.logger.Info().Str("sessionId", session.ID).Str("from", oldClient).Str("to", clientId).Msg("watchparty: Seat moved to another device")
 		}
 		p.Username = username
+		p.Avatar = m.profileAvatar(profileID)
 		p.LastSeen = time.Now()
 		snap := session.snapshot()
 		m.mu.Unlock()
@@ -369,6 +376,7 @@ func (m *Manager) Join(profileID uint, clientId string, sessionId string) (*Sess
 		ClientId:  clientId,
 		ProfileID: profileID,
 		Username:  username,
+		Avatar:    m.profileAvatar(profileID),
 		JoinedAt:  time.Now(),
 		LastSeen:  time.Now(),
 	})
@@ -698,6 +706,13 @@ func (m *Manager) profileName(profileID uint) string {
 		}
 	}
 	return fmt.Sprintf("Profile %d", profileID)
+}
+
+func (m *Manager) profileAvatar(profileID uint) string {
+	if m.getAvatar == nil || profileID == 0 {
+		return ""
+	}
+	return m.getAvatar(profileID)
 }
 
 // broadcastState sends every open room to every connected client.

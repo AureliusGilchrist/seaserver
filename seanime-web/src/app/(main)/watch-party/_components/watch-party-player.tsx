@@ -179,31 +179,61 @@ function Stage({ session, hasRemote, playRequest, onOpenPicker }: Props) {
             </SeaMediaPlayerProvider>
 
             {!showPlayer && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center px-6">
-                    <MdOutlineSettingsRemote className="size-14 text-[--brand] opacity-80" />
-                    {!transcodeEnabled && (
-                        <p className="text-sm text-amber-300 max-w-md">
-                            The room player uses the server's local player. Turn on media streaming in the server
-                            settings if files won't start.
-                        </p>
+                <div className="absolute inset-0 overflow-hidden">
+                    {/* Cover art wash */}
+                    {mi?.mediaImage && (
+                        <img src={mi.mediaImage} alt="" className="absolute inset-0 size-full object-cover blur-2xl scale-110 opacity-25" />
                     )}
-                    {hasRemote
-                        ? <>
-                            <p className="text-lg font-semibold">You have the remote</p>
-                            <p className="text-sm text-[--muted] max-w-md">Pick an episode and it starts for everyone in the room.</p>
-                            <Button intent="primary" onClick={onOpenPicker}>Pick something to watch</Button>
-                        </>
-                        : mi && mi.streamType !== "localfile"
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.04),transparent_60%)]" />
+                    <div className="absolute inset-0 opacity-[0.15] [background-image:linear-gradient(rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.06)_1px,transparent_1px)] [background-size:48px_48px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)]" />
+
+                    <div className="relative h-full flex flex-col items-center justify-center gap-5 text-center px-6">
+                        <div className="relative">
+                            <div className="absolute inset-0 rounded-full bg-brand-500/40 blur-2xl animate-pulse" />
+                            <div className="absolute -inset-3 rounded-full border border-brand-400/20 animate-[ping_3s_ease-out_infinite]" />
+                            <div className="relative size-20 rounded-full bg-gradient-to-br from-brand-400/30 to-brand-700/30 border border-white/15 backdrop-blur flex items-center justify-center shadow-2xl">
+                                <MdOutlineSettingsRemote className="size-9 text-brand-100" />
+                            </div>
+                        </div>
+
+                        {hasRemote
                             ? <>
-                                <p className="text-lg font-semibold">{mi.mediaTitle}{mi.episodeNumber > 0 && ` · Episode ${mi.episodeNumber}`}</p>
-                                <p className="text-sm text-[--muted] max-w-md">The remote holder is playing this outside the room player.</p>
+                                <div className="flex flex-col gap-1.5">
+                                    <p className="text-2xl sm:text-3xl font-black tracking-tight">You have the remote</p>
+                                    <p className="text-sm sm:text-base text-gray-300/80 max-w-md">Pick an episode and it starts on everyone's screen at once.</p>
+                                </div>
+                                <Button
+                                    intent="primary"
+                                    size="lg"
+                                    className="rounded-full px-7 font-semibold shadow-xl shadow-brand-500/40"
+                                    leftIcon={<MdOutlineSettingsRemote className="size-5" />}
+                                    onClick={onOpenPicker}
+                                >
+                                    Pick something to watch
+                                </Button>
                             </>
-                            : <>
-                                <p className="text-lg font-semibold">Waiting for the remote</p>
-                                <p className="text-sm text-[--muted] max-w-md">
-                                    {session.participants?.find(p => p.isSource)?.username ?? "The host"} is picking something to watch.
-                                </p>
-                            </>}
+                            : mi && mi.streamType !== "localfile"
+                                ? <div className="flex flex-col gap-1.5">
+                                    <p className="text-2xl font-black tracking-tight">{mi.mediaTitle}</p>
+                                    {mi.episodeNumber > 0 && <p className="text-brand-200 font-medium">Episode {mi.episodeNumber}</p>}
+                                    <p className="text-sm text-gray-300/80 max-w-md">The remote holder is playing this outside the room player.</p>
+                                </div>
+                                : <div className="flex flex-col gap-1.5">
+                                    <p className="text-2xl sm:text-3xl font-black tracking-tight">Waiting for the remote</p>
+                                    <p className="text-sm sm:text-base text-gray-300/80 max-w-md">
+                                        <span className="text-white font-semibold">{session.participants?.find(p => p.isSource)?.username ?? "The host"}</span>
+                                        {" "}is picking something to watch
+                                        <span className="inline-flex w-5 justify-start"><span className="animate-pulse">…</span></span>
+                                    </p>
+                                </div>}
+
+                        {!transcodeEnabled && (
+                            <p className="text-xs text-amber-200/90 max-w-md rounded-xl bg-amber-500/10 border border-amber-400/20 px-4 py-2">
+                                The room player uses the server's local player. Turn on media streaming in the server
+                                settings if files won't start.
+                            </p>
+                        )}
+                    </div>
                 </div>
             )}
         </div>
