@@ -21,7 +21,7 @@ import { recordActivatedTheme } from "@/lib/theme/anime-themes/theme-prerequisit
 import { fetchMarketplaceThemeMeta, getCachedMarketplaceThemeMeta } from "@/lib/theme/marketplace-theme-loader"
 import { applyRootCssVars } from "@/lib/helpers/css"
 import { animeThemeBaseColorAtom, animeThemeBrandOverrideAtom, animeThemePrimaryColorAtom, SETTINGS_OWNED_COLOR_VARS, wallpaperAccentColorAtom, wallpaperToneAtom } from "@/lib/theme/color-mixing"
-import { analyzeWallpaper, isLightWallpaper } from "@/lib/theme/wallpaper-accent"
+import { analyzeWallpaper, UNREADABLE_WALLPAPER, wallpaperGlassStrength } from "@/lib/theme/wallpaper-accent"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import { seaStorage } from "@/lib/sea-storage/sea-storage"
 import { getAssetUrl } from "@/lib/server/assets"
@@ -771,8 +771,10 @@ export function AnimeThemeProvider({ children, ambient = true }: {
         // exposes the theme's accent (often red) on every navigation and when image sampling fails.
         let cancelled = false
         analyzeWallpaper(resolveServerAsset(url)).then(analysis => {
-            if (cancelled || !analysis) return
-            setWallpaperTone(analysis)
+            if (cancelled) return
+            // A picture that can't be read still gets readable glass, in a neutral grade.
+            setWallpaperTone(analysis ?? UNREADABLE_WALLPAPER)
+            if (!analysis) return
             if (analysis.accent) setWallpaperAccent(analysis.accent)
         })
 
@@ -788,12 +790,13 @@ export function AnimeThemeProvider({ children, ambient = true }: {
         setWallpaperTone,
     ])
 
-    // ── Light wallpapers: colour-graded glass ──
+    // ── Colour-graded glass over every wallpaper ──
     //
-    // The UI's text is white and its glass is a light smoke, which disappears over a bright picture.
-    // When most of the wallpaper — as shown, after the dim the user set — is light, every glass
-    // surface turns into a deep glass graded from the wallpaper's own hues (see globals.css,
-    // `data-sea-wallpaper-tone`), so the text stays readable and the glass still matches the picture.
+    // The UI's text is white and its glass is a light smoke, which disappears over bright pictures.
+    // Over any wallpaper, every glass surface becomes a deep glass graded from the wallpaper's own
+    // hues (see globals.css, `data-sea-wallpaper-tone`). How deep follows how much of the picture —
+    // as shown, after the dim the user set — is bright enough to break white text: a faint tint over
+    // a dark wallpaper, nearly opaque over a light or half-light one.
     const wallpaperOverrideOpacity = wallpaperOverride?.opacity
     React.useEffect(() => {
         const root = document.documentElement
@@ -813,14 +816,9 @@ export function AnimeThemeProvider({ children, ambient = true }: {
         const dim = opacity != null
             ? (__isMobileShell__ ? 1 - (1 - opacityDim) * (1 - backgroundDim) : opacityDim)
             : backgroundDim
-        if (!isLightWallpaper(wallpaperTone, dim)) {
-            clear()
-            return
-        }
-        const shown = wallpaperTone.luminance * (1 - dim)
-        // The brighter the picture, the more of the grade the glass carries.
-        const alpha = Math.min(0.88, Math.max(0.66, 0.6 + shown * 0.4))
-        root.dataset.seaWallpaperTone = "light"
+        const strength = wallpaperGlassStrength(wallpaperTone, dim)
+        const alpha = 0.34 + strength * 0.52
+        root.dataset.seaWallpaperTone = strength >= 0.6 ? "light" : "dark"
         for (const [k, v] of Object.entries(wallpaperTone.grade)) root.style.setProperty(`--sea-grade-${k}`, v)
         root.style.setProperty("--sea-grade-alpha", alpha.toFixed(3))
         return clear

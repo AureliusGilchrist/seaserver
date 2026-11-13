@@ -103,6 +103,8 @@ export type WallpaperAnalysis = {
     accent: string | null
     /** The median pixel's relative luminance, 0..1 — half the picture is brighter than this. */
     luminance: number
+    /** 20 evenly spaced quantiles of the pixels' relative luminance, darkest first. */
+    quantiles: number[]
     grade: WallpaperGrade
 }
 
@@ -157,11 +159,10 @@ export async function analyzeWallpaper(url: string): Promise<WallpaperAnalysis |
         }
         if (!luminances.length) return null
 
-        // Light or dark is decided by the majority of the picture: the median pixel. More than half
-        // of it is lighter than the median, so comparing the median to a threshold asks exactly
-        // "is most of this wallpaper light?". Dimming scales every pixel alike, so the dimmed
-        // median is just this one scaled — see `isLightWallpaper`.
+        // The brightness spread of the picture, kept as 20 quantiles: enough to tell how much of it a
+        // dim leaves too bright for white text (see `wallpaperGlassStrength`) without keeping pixels.
         luminances.sort((a, b) => a - b)
+        const quantiles = Array.from({ length: 20 }, (_, i) => luminances[Math.floor((i + 0.5) / 20 * luminances.length)]!)
         const luminance = luminances[Math.floor(luminances.length / 2)]!
 
         const ranked = [...buckets.entries()].sort((a, b) => b[1].weight - a[1].weight)
@@ -194,7 +195,7 @@ export async function analyzeWallpaper(url: string): Promise<WallpaperAnalysis |
             edge: hexToTriplet(hslToHex(gradeHue, Math.min(0.75, gradeSat + 0.15), 0.72)),
         }
 
-        return { accent, luminance, grade }
+        return { accent, luminance, quantiles, grade }
     } catch {
         return null
     }
@@ -207,11 +208,32 @@ export async function analyzeWallpaper(url: string): Promise<WallpaperAnalysis |
 export const LIGHT_PIXEL_LUMINANCE = 0.23
 
 /**
- * Whether most of the wallpaper, as it is shown (after the app's dim), is light. `dim` is the share
- * of black laid over the picture, 0..1.
+ * How strongly the glass has to be graded over this wallpaper, as it is shown (after the app's dim,
+ * `dim` being the share of black laid over it, 0..1): 0 for a picture dark all over, 1 when most of
+ * it is light — or when enough of it is (a third), because text crosses the bright patches of a
+ * mixed picture however dark the rest is. Every wallpaper gets the graded glass; this sets how deep.
  */
-export function isLightWallpaper(analysis: Pick<WallpaperAnalysis, "luminance">, dim: number): boolean {
-    return analysis.luminance * (1 - Math.min(Math.max(dim, 0), 1)) > LIGHT_PIXEL_LUMINANCE
+export function wallpaperGlassStrength(analysis: Pick<WallpaperAnalysis, "luminance" | "quantiles">, dim: number): number {
+    const keep = 1 - Math.min(Math.max(dim, 0), 1)
+    const brightShare = analysis.quantiles.filter(q => q * keep > LIGHT_PIXEL_LUMINANCE).length / analysis.quantiles.length
+    const medianShown = analysis.luminance * keep
+    return Math.min(1, Math.max(brightShare / 0.34, medianShown / LIGHT_PIXEL_LUMINANCE))
+}
+
+/** Whether the wallpaper, as shown, counts as light: its glass needs (nearly) the full grade. */
+export function isLightWallpaper(analysis: Pick<WallpaperAnalysis, "luminance" | "quantiles">, dim: number): boolean {
+    return wallpaperGlassStrength(analysis, dim) >= 0.6
+}
+
+/**
+ * What the glass falls back to when the wallpaper cannot be read (it failed to load or to be
+ * sampled): a neutral slate at full strength, since an unread picture may well be a bright one.
+ */
+export const UNREADABLE_WALLPAPER: WallpaperAnalysis = {
+    accent: null,
+    luminance: 1,
+    quantiles: Array(20).fill(1),
+    grade: { deep: "17 22 34", mid: "13 14 30", glow: "38 48 70", edge: "196 206 230" },
 }
 
 /**

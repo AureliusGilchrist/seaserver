@@ -2670,13 +2670,15 @@ html.sea-no-root-scrollbar::-webkit-scrollbar {
     width: 0;
 }
 
-/* ══ Light wallpapers: colour-graded glass ══════════════════════════════════
-   Set by AnimeThemeProvider when most of the wallpaper, as shown (after its dim), is light. The UI's
-   glass is a light smoke under white text, which vanishes over a bright picture, so every glass
-   surface turns the other way: a deep glass graded from the wallpaper's own hues — its highlight hue
-   lit in one corner, sinking through a near-black of the same hue into the picture's second hue.
-   --sea-grade-{deep,mid,glow,edge} are "r g b" triplets, --sea-grade-alpha rises with brightness. */
-html[data-sea-wallpaper-tone="light"] {
+/* ══ Colour-graded glass over every wallpaper ══════════════════════════════
+   Set by AnimeThemeProvider whenever a wallpaper is shown. The UI's glass is a light smoke under
+   white text, which vanishes over bright pictures, so every glass surface becomes a deep glass graded
+   from the wallpaper's own hues — its highlight hue lit in one corner, sinking through a near-black
+   of that hue into the picture's second hue. --sea-grade-alpha sets how deep: a faint tint over a
+   dark wallpaper, nearly opaque when much of it (after its dim) is bright enough to break white text.
+   The tone attribute is "light" or "dark" for styles that only the light case needs.
+   --sea-grade-{deep,mid,glow,edge} are "r g b" triplets. */
+html[data-sea-wallpaper-tone] {
     --sea-light-glass: linear-gradient(145deg,
         rgb(var(--sea-grade-glow) / calc(var(--sea-grade-alpha) - 0.08)) 0%,
         rgb(var(--sea-grade-deep) / var(--sea-grade-alpha)) 45%,
@@ -2700,7 +2702,7 @@ html[data-sea-wallpaper-tone="light"] {
    paper) fill or none, the glass utility classes, cards, the sidebar, the top bar and toasts. The
    grade is laid as a background-image over the element's own colour, so hover and active fills
    underneath still show through. The player and the wallpaper's own layers are left alone. */
-html[data-sea-wallpaper-tone="light"] :is(
+html[data-sea-wallpaper-tone] :is(
     :is([class*="backdrop-blur"], [style*="backdrop-filter: blur"]):is(
         [class*="bg-black"], [class*="bg-gray-9"], [class*="bg-gray-8"], [class*="bg-white/"],
         [class*="bg-zinc-9"], [class*="bg-neutral-9"], [class*="bg-slate-9"],
@@ -2717,24 +2719,24 @@ html[data-sea-wallpaper-tone="light"] :is(
 }
 
 /* The larger panes also get the lit top edge and a shadow in the wallpaper's colour. */
-html[data-sea-wallpaper-tone="light"] :is(
+html[data-sea-wallpaper-tone] :is(
     .glass-panel, .frosted-surface, .UI-Card__root,
     .UI-Modal__content, .UI-Popover__root, .UI-DropdownMenu__root, .UI-HoverCard__root, .UI-Select__content
 ) {
     box-shadow: var(--sea-light-glass-sheen), 0 18px 44px -14px rgb(var(--sea-grade-mid) / 0.65), 0 4px 14px -6px rgba(0, 0, 0, 0.35) !important;
 }
 /* The glass panel's own white sheen layers would wash the grade back out. */
-html[data-sea-wallpaper-tone="light"] .glass-panel:before {
+html[data-sea-wallpaper-tone] .glass-panel:before {
     background: linear-gradient(120deg, rgb(var(--sea-grade-edge) / 0.12), transparent 55%);
 }
-html[data-sea-wallpaper-tone="light"] .glass-panel:after { opacity: 0.12; }
-html[data-sea-wallpaper-tone="light"] .glass-border { box-shadow: var(--sea-light-glass-sheen), var(--glass-shadow); }
+html[data-sea-wallpaper-tone] .glass-panel:after { opacity: 0.12; }
+html[data-sea-wallpaper-tone] .glass-border { box-shadow: var(--sea-light-glass-sheen), var(--glass-shadow); }
 
 /* Badges drawn as plain translucent fills (no blur, for scroll performance) take the solid grade. */
-html[data-sea-wallpaper-tone="light"][data-sea-badge="badge-glass"] .UI-Badge__root {
+html[data-sea-wallpaper-tone][data-sea-badge="badge-glass"] .UI-Badge__root {
     background: rgb(var(--sea-grade-deep) / 0.78) !important;
 }
-html[data-sea-wallpaper-tone="light"] [data-sea-home-item] h2:not(.text-center) > span {
+html[data-sea-wallpaper-tone] [data-sea-home-item] h2:not(.text-center) > span {
     background: rgb(var(--sea-grade-deep) / 0.72);
     box-shadow: inset 0 0 0 1px var(--sea-light-glass-border);
     color: rgba(255, 255, 255, 0.85);
@@ -2742,6 +2744,6 @@ html[data-sea-wallpaper-tone="light"] [data-sea-home-item] h2:not(.text-center) 
 
 /* Headings that sit straight on the wallpaper, outside any glass, get a soft shadow in its deep
    tone so they hold up over a bright picture too. */
-html[data-sea-wallpaper-tone="light"] :is(h1, h2, h3) {
+html[data-sea-wallpaper-tone] :is(h1, h2, h3) {
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 2px 14px rgb(var(--sea-grade-deep) / 0.6);
 }
