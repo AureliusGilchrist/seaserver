@@ -75,8 +75,7 @@ jobs:
           set -euo pipefail
           export FRONTEND_APP_VERSION=$(node -p "require('./package.json').version")
           export FRONTEND_BUILD_CACHE="$GITHUB_WORKSPACE/.rspack-cache"
-          node -e 'const f="package.json",fs=require("fs"),p=JSON.parse(fs.readFileSync(f));p.version="0.0.0-live";fs.writeFileSync(f,JSON.stringify(p,null,4)+"
-")'
+          node -e 'const f="package.json",fs=require("fs"),p=JSON.parse(fs.readFileSync(f));p.version="0.0.0-live";fs.writeFileSync(f,JSON.stringify(p,null,4))'
           npx env-cmd -f .env.denshi rsbuild build
           test -f out-denshi/index.html
           grep -q "$FRONTEND_APP_VERSION" out-denshi/static/js/index.*.js
