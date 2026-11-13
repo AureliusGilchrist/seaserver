@@ -302,6 +302,13 @@ const RING_GRADIENTS: Record<string, { stops: string[]; dur: string }> = {
     },
 }
 
+/** The colours of a CSS gradient, in order ("#abc", "rgb(…)", "hsl(…)"); null when it isn't one. */
+function gradientColorStops(css: string): string[] | null {
+    if (!/gradient\(/.test(css)) return null
+    const colors = css.match(/#[0-9a-fA-F]{3,8}(?![0-9a-fA-F])|rgba?\([^)]*\)|hsla?\([^)]*\)/g)
+    return colors && colors.length ? colors : null
+}
+
 export function LevelRingAvatar({ profile, size = 80, xpBarFillOverride }: { profile: { currentLevel: number; totalXP?: number; avatarPath?: string; anilistAvatar?: string; name: string }; size?: number; xpBarFillOverride?: string }) {
     const tierInfo = getLevelTier(profile.currentLevel)
     const avatarSrc = profile.avatarPath || profile.anilistAvatar
@@ -323,6 +330,24 @@ export function LevelRingAvatar({ profile, size = 80, xpBarFillOverride }: { pro
             ? (xpBarFillOverride.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)/g)?.[0] ?? null)
             : xpBarFillOverride)
         : null
+
+    // A gradient XP bar skin: its colours run along the filled part of the ring, start to end,
+    // the same way the bar spreads them across its fill. (SVG strokes can't take a CSS gradient,
+    // so the arc is a conic gradient masked down to the ring.)
+    const overrideStops = xpBarFillOverride ? gradientColorStops(xpBarFillOverride) : null
+    const ringGradient = overrideStops && overrideStops.length > 1 && progress > 0
+        ? (() => {
+            const end = progress * 360
+            const last = overrideStops.length - 1
+            const stops = overrideStops.map((c, i) => `${c} ${((i / last) * end).toFixed(2)}deg`).join(", ")
+            return `conic-gradient(from 0deg, ${stops}, transparent ${end.toFixed(2)}deg)`
+        })()
+        : null
+    const ringWidth = tierInfo.animated ? 4 : 3
+    // Same band as the SVG track: centred 3px in from the edge, ringWidth wide.
+    const ringInner = 3 + ringWidth / 2
+    const ringOuter = 3 - ringWidth / 2
+    const ringMask = `radial-gradient(farthest-side, transparent calc(100% - ${ringInner + 0.5}px), #000 calc(100% - ${ringInner}px), #000 calc(100% - ${ringOuter}px), transparent calc(100% - ${ringOuter - 0.5}px))`
 
     const glowColor = overrideGlowColor ?? gradDef?.stops?.[0] ?? null
     const glowStyle = glowColor ? { boxShadow: `0 0 16px 4px ${glowColor}60` } : {}
@@ -351,7 +376,7 @@ export function LevelRingAvatar({ profile, size = 80, xpBarFillOverride }: { pro
                 {/* Track */}
                 <circle cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={3} className="stroke-gray-700/50" />
                 {/* Progress ring */}
-                <circle
+                {!ringGradient && <circle
                     cx={size / 2}
                     cy={size / 2}
                     r={radius}
@@ -368,8 +393,15 @@ export function LevelRingAvatar({ profile, size = 80, xpBarFillOverride }: { pro
                     strokeDasharray={circumference}
                     strokeDashoffset={strokeDashoffset}
                     transform={`rotate(-90 ${size / 2} ${size / 2})`}
-                />
+                />}
             </svg>
+            {ringGradient && (
+                <div
+                    aria-hidden
+                    className="absolute inset-0 rounded-full"
+                    style={{ background: ringGradient, WebkitMaskImage: ringMask, maskImage: ringMask }}
+                />
+            )}
             {avatarSrc ? (
                 <img
                     src={avatarSrc}
