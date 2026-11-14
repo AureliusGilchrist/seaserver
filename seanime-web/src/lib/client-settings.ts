@@ -113,6 +113,17 @@ export const clientSettingsSchema = z.object({
     glassTint: z.number().optional(),
     glassOpacity: z.number().optional(),
     glassBlur: z.number().optional(),
+    /** The one tint gradient every glass surface carries. "recommended" (or unset) follows the
+     * wallpaper's colours, or the theme's when none is shown; "custom" uses glassGradient. */
+    glassTintMode: z.enum(["recommended", "custom"]).optional(),
+    /** Custom tint: start and end colours (#rrggbb) and where the gradient starts and ends, as
+     * points on the surface (0–100, from the top-left corner). */
+    glassGradient: z.object({
+        from: z.string(),
+        to: z.string(),
+        start: z.object({ x: z.number(), y: z.number() }),
+        end: z.object({ x: z.number(), y: z.number() }),
+    }).optional(),
     /** Light or dark app, or switching between them by the clock ("schedule"). Unset = dark.
      * See appearance-mode.ts. */
     appearanceMode: z.enum(["dark", "light", "schedule"]).optional(),

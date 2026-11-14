@@ -4,10 +4,10 @@ import { CommentSection } from "@/app/(main)/_features/comment/comment-section"
 import { MediaDetailsInfoSection, MediaDetailsStaffSection } from "@/app/(main)/_features/media/_components/media-details-sections"
 import { MediaEntryCharactersSection } from "@/app/(main)/_features/media/_components/media-entry-characters-section"
 import { MediaEntryDetailsTabs } from "@/app/(main)/_features/media/_components/media-entry-details-tabs"
-import { AnimeThemesAutoplay, AnimeThemesTab } from "@/app/(main)/entry/_components/anime-themes-tab"
+import { AnimeThemesAutoplay } from "@/app/(main)/entry/_components/anime-themes-tab"
 import { RelationsRecommendationsSection } from "@/app/(main)/entry/_components/relations-recommendations-section"
 import React from "react"
-import { LuInfo, LuLayers, LuMessageSquare, LuMusic, LuUsers } from "react-icons/lu"
+import { LuInfo, LuLayers, LuMessageSquare, LuUsers } from "react-icons/lu"
 
 /** Everything under the episode list, the same in every view of the anime page. */
 export function AnimeEntryDetailsTabs({ entry, details }: { entry: Anime_Entry, details: AL_AnimeDetailsById_Media | undefined }) {
@@ -40,12 +40,6 @@ export function AnimeEntryDetailsTabs({ entry, details }: { entry: Anime_Entry, 
                     label: "Related",
                     icon: <LuLayers />,
                     content: <RelationsRecommendationsSection entry={entry} details={details} />,
-                },
-                {
-                    value: "themes",
-                    label: "Anime Themes",
-                    icon: <LuMusic />,
-                    content: <AnimeThemesTab entry={entry} />,
                 },
                 {
                     value: "discussion",

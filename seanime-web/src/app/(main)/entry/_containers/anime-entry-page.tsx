@@ -9,6 +9,7 @@ import { useSeaCommandInject } from "@/app/(main)/_features/sea-command/use-inje
 import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { AnimeEntryDetailsTabs } from "@/app/(main)/entry/_components/anime-entry-details-tabs"
+import { AnimeThemesTab } from "@/app/(main)/entry/_components/anime-themes-tab"
 import { MetaSection } from "@/app/(main)/entry/_components/meta-section"
 import { SyntheticAnimeEntryPage } from "@/app/(main)/entry/_containers/synthetic-anime-entry-page"
 import { DebridStreamPage } from "@/app/(main)/entry/_containers/debrid-stream/debrid-stream-page"
@@ -32,7 +33,7 @@ import React from "react"
 import { FiGlobe } from "react-icons/fi"
 import { HiOutlineServerStack } from "react-icons/hi2"
 import { IoLibraryOutline } from "react-icons/io5"
-import { LuMonitorPlay } from "react-icons/lu"
+import { LuMonitorPlay, LuMusic } from "react-icons/lu"
 import { PiMonitorPlayDuotone } from "react-icons/pi"
 import { useUnmount } from "react-use"
 
@@ -48,6 +49,7 @@ export function useAnimeEntryPageView() {
     const isDebridStreamingView = currentView === "debridstream"
     const isOnlineStreamingView = currentView === "onlinestream"
     const isLocalPlayerView = currentView === "localplayer"
+    const isThemesView = currentView === "themes"
 
     function toggleTorrentStreamingView() {
         setView(p => p === "torrentstream" ? "library" : "torrentstream")
@@ -69,6 +71,7 @@ export function useAnimeEntryPageView() {
         isDebridStreamingView,
         isOnlineStreamingView,
         isLocalPlayerView,
+        isThemesView,
         toggleTorrentStreamingView,
         toggleDebridStreamingView,
         toggleOnlineStreamingView,
@@ -154,6 +157,8 @@ export function AnimeEntryPage() {
                 setView("onlinestream")
             } else if (tab === "localplayer") {
                 setView("localplayer")
+            } else if (tab === "themes") {
+                setView("themes")
             }
         }
 
@@ -271,6 +276,11 @@ export function AnimeEntryPage() {
                         id: "localplayer",
                         description: "Local Player",
                         show: currentView !== "localplayer",
+                    },
+                    {
+                        id: "themes",
+                        description: "Anime Themes",
+                        show: currentView !== "themes",
                     },
                     {
                         id: "torrentstream",
@@ -452,6 +462,23 @@ export function AnimeEntryPage() {
                             </div>
                         </PageWrapper>}
 
+                        {currentView === "themes" && <PageWrapper
+                            data-anime-entry-page-themes-view
+                            key="anime-themes"
+                            className="relative 2xl:order-first pb-10 lg:pt-0"
+                            {...{
+                                initial: { opacity: 0, y: 60 },
+                                animate: { opacity: 1, y: 0 },
+                                exit: { opacity: 0, scale: 0.99 },
+                                transition: {
+                                    duration: 0.35,
+                                },
+                            }}
+                        >
+                            <div className="h-4 lg:h-0" />
+                            <AnimeThemesTab entry={animeEntry} />
+                        </PageWrapper>}
+
                     </AnimatePresence>
 
                     {/* Overview, cast, related titles and discussion: the same under every view, so it
@@ -493,6 +520,7 @@ export function EntrySectionTabs(props: EntrySectionTabs) {
         toggleDebridStreamingView,
         isOnlineStreamingView,
         isLocalPlayerView,
+        isThemesView,
     } = useAnimeEntryPageView()
 
     if (
@@ -520,6 +548,7 @@ export function EntrySectionTabs(props: EntrySectionTabs) {
             onClick: () => setView("onlinestream"),
         }] : []),
         { name: "Local Player", iconType: LuMonitorPlay, isCurrent: isLocalPlayerView, onClick: () => setView("localplayer") },
+        { name: "Anime Themes", iconType: LuMusic, isCurrent: isThemesView, onClick: () => setView("themes") },
     ]
 
     return (

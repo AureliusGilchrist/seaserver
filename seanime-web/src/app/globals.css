@@ -2682,10 +2682,12 @@ html[data-sea-wallpaper-tone] {
     /* How far the glass blurs what is behind it. The tint is translucent, so this is what you see. */
     --sea-glass-blur: 28px;
     --sea-glass-filter: blur(var(--sea-glass-blur)) saturate(1.5) brightness(var(--sea-glass-dim, 1));
-    --sea-light-glass: linear-gradient(150deg,
-        rgb(var(--sea-grade-glow) / calc(var(--sea-grade-alpha) - 0.04)) 0%,
-        rgb(var(--sea-grade-deep) / var(--sea-grade-alpha)) 38%,
-        rgb(var(--sea-grade-mid) / calc(var(--sea-grade-alpha) + 0.06)) 100%);
+    /* Recommended tint over a wallpaper: its highlight hue into its second hue, over a deep base
+       of the picture's own near-black (see "One tint for every glass surface" below). */
+    --sea-tint-from: var(--sea-grade-glow);
+    --sea-tint-to: var(--sea-grade-mid);
+    --sea-tint-depth: calc(var(--sea-grade-alpha) + 0.04);
+    --sea-tint-under: rgb(var(--sea-grade-deep) / calc(var(--sea-grade-alpha) * (1 - var(--sea-tint-strength) * 0.55)));
     --sea-light-glass-solid: rgb(var(--sea-grade-deep) / calc(var(--sea-grade-alpha) + 0.12));
     --sea-light-glass-border: rgb(var(--sea-grade-edge) / 0.26);
     --sea-light-glass-sheen: inset 0 1px 0 rgb(var(--sea-grade-edge) / 0.2);
@@ -2778,6 +2780,30 @@ html[data-sea-wallpaper-tone] :is(h1, h2, h3) {
 html {
     --sea-glass-base: 12 12 17;
 }
+
+/* ══ One tint for every glass surface ═════════════════════════════════════
+   Personal -> Display -> Glass -> Tint colours. Every glassy window — blurred or not, over a wallpaper
+   or not — carries this same gradient, so they all match. Recommended takes its colours from the
+   wallpaper (above) or the theme's brand colour; Custom sets --sea-tint-from/--sea-tint-to inline on
+   :root (glass-variables.ts), along with the angle and where the two colours sit. */
+html {
+    --sea-tint-from: var(--color-brand-400);
+    --sea-tint-to: var(--color-brand-800);
+    --sea-tint-angle: 142deg;
+    --sea-tint-from-pos: 9.4%;
+    --sea-tint-to-pos: 90.6%;
+    --sea-tint-strength: var(--sea-user-glass-tint, 0.6);
+    --sea-tint-depth: 0.4;
+    --sea-tint-under: transparent;
+    --sea-tint-alpha: calc(var(--sea-tint-strength) * var(--sea-tint-depth));
+    --sea-light-glass: linear-gradient(var(--sea-tint-angle),
+        rgb(var(--sea-tint-from) / var(--sea-tint-alpha)) var(--sea-tint-from-pos),
+        rgb(var(--sea-tint-to) / var(--sea-tint-alpha)) var(--sea-tint-to-pos)),
+        linear-gradient(var(--sea-tint-under), var(--sea-tint-under));
+}
+html[data-sea-light] {
+    --sea-tint-depth: 0.3;
+}
 html[data-sea-glass-opacity] {
     --sea-grade-alpha: var(--sea-user-glass-opacity) !important;
     --sea-card-bg: rgb(var(--sea-glass-base) / var(--sea-user-glass-opacity)) !important;
@@ -2815,21 +2841,9 @@ html[data-sea-glass-opacity][data-sea-wallpaper-tone] :is(
     background-color: transparent !important;
 }
 
-/* Tint: how much colour the glass carries — the wallpaper's grade when one is shown, the theme's
-   brand colour otherwise. 0 is neutral smoke; over a wallpaper, 100% is the full grade. */
-html[data-sea-glass-tint] {
-    --sea-user-tint-fill: rgb(var(--color-brand-400) / calc(var(--sea-user-glass-tint) * 0.3)),
-        rgb(var(--color-brand-800) / calc(var(--sea-user-glass-tint) * 0.45));
-}
-html[data-sea-glass-tint][data-sea-wallpaper-tone] {
-    --sea-light-glass: linear-gradient(150deg,
-        rgb(var(--sea-grade-glow) / calc((var(--sea-grade-alpha) - 0.04) * var(--sea-user-glass-tint))) 0%,
-        rgb(var(--sea-grade-deep) / calc(var(--sea-grade-alpha) * var(--sea-user-glass-tint))) 38%,
-        rgb(var(--sea-grade-mid) / calc((var(--sea-grade-alpha) + 0.06) * var(--sea-user-glass-tint))) 100%),
-        linear-gradient(rgb(var(--sea-glass-base) / calc(var(--sea-grade-alpha) * (1 - var(--sea-user-glass-tint)))),
-        rgb(var(--sea-glass-base) / calc(var(--sea-grade-alpha) * (1 - var(--sea-user-glass-tint)))));
-}
-html[data-sea-glass-tint]:not([data-sea-wallpaper-tone]) :is(
+/* Tint: the shared gradient on blurred glass when no wallpaper is shown (with one, the wallpaper
+   rule above lays the same gradient). Tint strength (0 = neutral smoke) scales it. */
+html:not([data-sea-wallpaper-tone]) :is(
     :is([class*="backdrop-blur"], [style*="backdrop-filter: blur"]):is(
         [class*="bg-black"], [class*="bg-gray-9"], [class*="bg-gray-8"], [class*="bg-white/"],
         [class*="bg-zinc-9"], [class*="bg-neutral-9"], [class*="bg-slate-9"],
@@ -2842,7 +2856,7 @@ html[data-sea-glass-tint]:not([data-sea-wallpaper-tone]) :is(
     html[data-sea-navbar="navbar-pill"] [data-top-navbar],
     html[data-sea-toast="toast-glass"] [data-sonner-toast]
 ):not([class*="backdrop-blur-none"]):not([class*="bg-[url"]):not([style*="url("]):not([data-vc-element="container"] *):not([data-custom-background-image] *):not([data-custom-background-image-blur]) {
-    background-image: linear-gradient(150deg, var(--sea-user-tint-fill)) !important;
+    background-image: var(--sea-light-glass) !important;
 }
 
 /* Blur: one strength for everything drawn over a blur, cards and the sidebar included. */
@@ -2898,7 +2912,7 @@ html[data-sea-glass-opacity][data-sea-wallpaper-tone] :is(
 ):not([class*="backdrop-blur"]):not([class*="bg-gradient"]):not([class*="bg-transparent"]):not([class*="__overlay"]):not([class*="bg-[url"]):not([style*="url("]):not([data-vc-element="container"] *):not([data-welcome-screen] *):not([data-custom-background-image] *):not([data-custom-background-image-blur]) {
     background-color: rgb(var(--sea-grade-deep, var(--sea-glass-base)) / var(--sea-user-glass-opacity)) !important;
 }
-html[data-sea-glass-tint] :is(
+html :is(
     [class^="bg-black/"], [class*=" bg-black/"],
     [class^="bg-gray-950/"], [class*=" bg-gray-950/"], [class^="bg-gray-900/"], [class*=" bg-gray-900/"],
     [class^="bg-gray-800/"], [class*=" bg-gray-800/"],
@@ -2911,24 +2925,7 @@ html[data-sea-glass-tint] :is(
     .UI-DropdownMenu__subContent, .UI-ContextMenu__root, .UI-ContextMenu__subContent, .UI-Command__root,
     .UI-Drawer__content, .UI-NavigationMenu__viewport, .UI-ChartTooltip__frame, .UI-Tooltip__root
 ):not([class*="backdrop-blur"]):not([class*="bg-gradient"]):not([class*="bg-transparent"]):not([class*="__overlay"]):not([class*="bg-[url"]):not([style*="url("]):not([data-vc-element="container"] *):not([data-welcome-screen] *):not([data-custom-background-image] *):not([data-custom-background-image-blur]) {
-    background-image: linear-gradient(150deg, var(--sea-user-tint-fill)) !important;
-}
-html[data-sea-glass-tint][data-sea-wallpaper-tone] :is(
-    [class^="bg-black/"], [class*=" bg-black/"],
-    [class^="bg-gray-950/"], [class*=" bg-gray-950/"], [class^="bg-gray-900/"], [class*=" bg-gray-900/"],
-    [class^="bg-gray-800/"], [class*=" bg-gray-800/"],
-    [class^="bg-zinc-9"][class*="/"], [class*=" bg-zinc-9"][class*="/"],
-    [class^="bg-neutral-9"][class*="/"], [class*=" bg-neutral-9"][class*="/"],
-    [class^="bg-slate-9"][class*="/"], [class*=" bg-slate-9"][class*="/"],
-    [class^="bg-brand-950/"], [class*=" bg-brand-950/"],
-    [class^="bg-[--background]/"], [class*=" bg-[--background]/"],
-    [class^="bg-[--paper]"], [class*=" bg-[--paper]"],
-    .UI-DropdownMenu__subContent, .UI-ContextMenu__root, .UI-ContextMenu__subContent, .UI-Command__root,
-    .UI-Drawer__content, .UI-NavigationMenu__viewport, .UI-ChartTooltip__frame, .UI-Tooltip__root
-):not([class*="backdrop-blur"]):not([class*="bg-gradient"]):not([class*="bg-transparent"]):not([class*="__overlay"]):not([class*="bg-[url"]):not([style*="url("]):not([data-vc-element="container"] *):not([data-welcome-screen] *):not([data-custom-background-image] *):not([data-custom-background-image-blur]) {
-    background-image: linear-gradient(150deg,
-        rgb(var(--sea-grade-glow) / calc(0.35 * var(--sea-user-glass-tint))),
-        rgb(var(--sea-grade-mid) / calc(0.45 * var(--sea-user-glass-tint)))) !important;
+    background-image: var(--sea-light-glass) !important;
 }
 html[data-sea-glass-blur] :is(
     [class^="bg-black/"], [class*=" bg-black/"],

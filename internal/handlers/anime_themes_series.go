@@ -52,51 +52,67 @@ var animeThemesSeriesCache = result.NewBoundedCache[int, *animeThemesSeriesCache
 
 // atAPIAnime is the part of an animethemes.moe anime this reads.
 type atAPIAnime struct {
-	Slug      string `json:"slug"`
-	Name      string `json:"name"`
-	Year      int    `json:"year"`
-	Season    string `json:"season"`
-	Resources []struct {
-		Site       string `json:"site"`
-		ExternalID int    `json:"external_id"`
-	} `json:"resources"`
-	Images []struct {
-		Facet string `json:"facet"`
-		Link  string `json:"link"`
-	} `json:"images"`
-	Series []struct {
-		Slug string `json:"slug"`
-		Name string `json:"name"`
-	} `json:"series"`
-	AnimeThemes []struct {
-		Type     string `json:"type"`
-		Sequence int    `json:"sequence"`
-		Slug     string `json:"slug"`
-		Song     *struct {
-			Title   string `json:"title"`
-			Artists []struct {
-				Name string `json:"name"`
-				Slug string `json:"slug"`
-			} `json:"artists"`
-		} `json:"song"`
-		AnimeThemeEntries []struct {
-			Version  int    `json:"version"`
-			Episodes string `json:"episodes"`
-			NSFW     bool   `json:"nsfw"`
-			Spoiler  bool   `json:"spoiler"`
-			Videos   []struct {
-				Link       string `json:"link"`
-				Resolution int    `json:"resolution"`
-				NC         bool   `json:"nc"`
-				Subbed     bool   `json:"subbed"`
-				Tags       string `json:"tags"`
-				Basename   string `json:"basename"`
-				Audio      *struct {
-					Link string `json:"link"`
-				} `json:"audio"`
-			} `json:"videos"`
-		} `json:"animethemeentries"`
-	} `json:"animethemes"`
+	Slug        string          `json:"slug"`
+	Name        string          `json:"name"`
+	Year        int             `json:"year"`
+	Season      string          `json:"season"`
+	Resources   []atAPIResource `json:"resources"`
+	Images      []atAPIImage    `json:"images"`
+	Series      []atAPISeries   `json:"series"`
+	AnimeThemes []atAPITheme    `json:"animethemes"`
+}
+
+type atAPIResource struct {
+	Site       string `json:"site"`
+	ExternalID int    `json:"external_id"`
+}
+
+type atAPIImage struct {
+	Facet string `json:"facet"`
+	Link  string `json:"link"`
+}
+
+type atAPISeries struct {
+	Slug string `json:"slug"`
+	Name string `json:"name"`
+}
+
+type atAPITheme struct {
+	Type              string       `json:"type"`
+	Sequence          int          `json:"sequence"`
+	Slug              string       `json:"slug"`
+	Song              *atAPISong   `json:"song"`
+	AnimeThemeEntries []atAPIEntry `json:"animethemeentries"`
+}
+
+type atAPISong struct {
+	Title   string        `json:"title"`
+	Artists []atAPIArtist `json:"artists"`
+}
+
+type atAPIArtist struct {
+	Name string `json:"name"`
+	Slug string `json:"slug"`
+}
+
+type atAPIEntry struct {
+	Version  int          `json:"version"`
+	Episodes string       `json:"episodes"`
+	NSFW     bool         `json:"nsfw"`
+	Spoiler  bool         `json:"spoiler"`
+	Videos   []atAPIVideo `json:"videos"`
+}
+
+type atAPIVideo struct {
+	Link       string `json:"link"`
+	Resolution int    `json:"resolution"`
+	NC         bool   `json:"nc"`
+	Subbed     bool   `json:"subbed"`
+	Tags       string `json:"tags"`
+	Basename   string `json:"basename"`
+	Audio      *struct {
+		Link string `json:"link"`
+	} `json:"audio"`
 }
 
 func animeThemesGet(ctx context.Context, path string, out any) error {
@@ -198,11 +214,26 @@ func (h *Handler) HandleGetAnimeThemesSeries(c echo.Context) error {
 	}
 
 	resp, err := fetchAnimeThemesSeries(c.Request().Context(), anilistID, malID)
+	cacheFor := time.Duration(0)
 	if err != nil {
-		h.App.Logger.Warn().Err(err).Int("mediaId", anilistID).Msg("animethemes: Failed to fetch the series themes")
-		return h.RespondWithError(c, err)
+		// The API is down now and then for hours; the website's pages still have everything.
+		h.App.Logger.Warn().Err(err).Int("mediaId", anilistID).Msg("animethemes: API failed, reading the website instead")
+		titles := c.QueryParams()["t"]
+		siteResp, siteErr := fetchAnimeThemesSeriesFromSite(c.Request().Context(), anilistID, titles)
+		if siteErr != nil || siteResp == nil {
+			if siteErr == nil {
+				siteErr = err
+			}
+			h.App.Logger.Warn().Err(siteErr).Int("mediaId", anilistID).Msg("animethemes: Failed to fetch the series themes")
+			return h.RespondWithError(c, fmt.Errorf("AnimeThemes is unavailable right now, try again later"))
+		}
+		resp = siteResp
+		// Found nothing by title guessing: ask again soon, the API may be back.
+		if len(resp.Anime) == 0 {
+			cacheFor = 6*time.Hour - 10*time.Minute
+		}
 	}
-	animeThemesSeriesCache.Set(anilistID, &animeThemesSeriesCacheItem{at: time.Now(), resp: resp})
+	animeThemesSeriesCache.Set(anilistID, &animeThemesSeriesCacheItem{at: time.Now().Add(-cacheFor), resp: resp})
 	return h.RespondWithData(c, resp)
 }
 

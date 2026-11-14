@@ -12,7 +12,7 @@ import { LuListMusic, LuMusic, LuPause, LuPlay } from "react-icons/lu"
  * (animethemes.moe), in airing order. "Play all" plays them first to last in the player bar.
  */
 export function AnimeThemesTab({ entry }: { entry: Anime_Entry }) {
-    const { data, isLoading, isError } = useGetAnimeThemesSeries(entry.mediaId, entry.media?.idMal)
+    const { data, isLoading, isError } = useGetAnimeThemesSeries(entry.mediaId, entry.media?.idMal, themeTitles(entry))
     const player = useThemePlayer()
     const all = React.useMemo(() => tracksFromSeries(data?.anime), [data])
     const [scope, setScope] = React.useState<"series" | "season">("series")
@@ -131,7 +131,7 @@ function AnimeThemesGroup({ anime, queue }: { anime: AnimeThemesSeriesAnime, que
  */
 export function AnimeThemesAutoplay({ entry }: { entry: Anime_Entry }) {
     const { autoPlayThemesOnDetails } = useClientSettings()
-    const { data } = useGetAnimeThemesSeries(autoPlayThemesOnDetails ? entry.mediaId : null, entry.media?.idMal)
+    const { data } = useGetAnimeThemesSeries(autoPlayThemesOnDetails ? entry.mediaId : null, entry.media?.idMal, themeTitles(entry))
     const player = useThemePlayer()
     const startedFor = React.useRef<number | null>(null)
     React.useEffect(() => {
@@ -145,3 +145,8 @@ export function AnimeThemesAutoplay({ entry }: { entry: Anime_Entry }) {
 }
 
 export { LuMusic as AnimeThemesTabIcon }
+
+function themeTitles(entry: Anime_Entry) {
+    const m = entry.media
+    return [m?.title?.romaji, m?.title?.english, ...(m?.synonyms ?? []).slice(0, 2)]
+}

@@ -64,9 +64,14 @@ export type AnimeThemesSeriesResponse = {
 }
 
 /** The openings and endings of an anime and the rest of its series, in airing order (animethemes.moe). */
-export function useGetAnimeThemesSeries(mediaId: number | null | undefined, malId: number | null | undefined) {
+export function useGetAnimeThemesSeries(mediaId: number | null | undefined, malId: number | null | undefined, titles?: (string | null | undefined)[]) {
+    // The titles find the anime on the animethemes.moe website when its API is down.
+    const q = new URLSearchParams()
+    if (malId) q.set("malId", String(malId))
+    for (const t of Array.from(new Set((titles ?? []).filter((t): t is string => !!t))).slice(0, 5)) q.append("t", t)
+    const qs = q.toString()
     return useServerQuery<AnimeThemesSeriesResponse>({
-        endpoint: `/api/v1/anime-themes/series/${mediaId ?? 0}${malId ? `?malId=${malId}` : ""}`,
+        endpoint: `/api/v1/anime-themes/series/${mediaId ?? 0}${qs ? `?${qs}` : ""}`,
         method: "GET",
         queryKey: ["ANIME-THEMES-series", String(mediaId), String(malId ?? "")],
         enabled: !!mediaId && mediaId > 0,
