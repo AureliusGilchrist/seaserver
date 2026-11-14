@@ -3,6 +3,11 @@
 #
 #   ./run-seanime.sh [server flags...]     (use this instead of ./seanime_exe)
 #
+# Every start — the first one and every restart after a crash — runs ./build-all.sh first, so the
+# server always runs what is in the checkout. (build-all.sh skips the frontend when it is unchanged,
+# so this is mostly the Go build.) If the build fails, the failure is logged and the previous
+# ./seanime_exe is started instead; with no binary at all it retries the build after a delay.
+#
 # When the server dies on its own (a Go panic, a fatal error, killed by the OOM killer), a crash
 # report is written and the server is started again. A clean exit (status 0: Ctrl+C, SIGTERM, a
 # shutdown from the app) stops the restarter too. Self-updates on Linux replace the process in place
@@ -14,10 +19,14 @@
 #     crashes.log                                  one line per crash: time, exit status, version, uptime, report file
 #     crash-YYYYMMDD-HHMMSS.log                    full report: status, the panic / stderr output,
 #                                                  and the tail of the server's own log file
+#     last-build.log                               output of the most recent build
+#     build-failed-YYYYMMDD-HHMMSS.log             output of a build that failed (also listed in crashes.log)
 #
 # The newest 100 reports are kept. Other settings (environment variables):
 #   SEANIME_EXE           server binary            (default: ./seanime_exe next to this script)
 #   SEANIME_LOG_DIR       server's log folder      (default: $HOME/.config/Seanime/logs)
+#   SEANIME_BUILD_SCRIPT  build run before each start (default: ./build-all.sh next to this script)
+#   SEANIME_SKIP_BUILD=1  start without building
 #   SEANIME_RESTART_DELAY seconds before restart   (default: 5; 60 after 5 crashes within 10 minutes)
 
 set -u
@@ -27,6 +36,8 @@ EXE="${SEANIME_EXE:-$SCRIPT_DIR/seanime_exe}"
 CRASH_DIR="${SEANIME_CRASH_DIR:-$HOME/.config/Seanime/crashes}"
 LOG_DIR="${SEANIME_LOG_DIR:-$HOME/.config/Seanime/logs}"
 DELAY="${SEANIME_RESTART_DELAY:-5}"
+BUILD_SCRIPT="${SEANIME_BUILD_SCRIPT:-$SCRIPT_DIR/build-all.sh}"
+SKIP_BUILD="${SEANIME_SKIP_BUILD:-0}"
 KEEP_REPORTS=100
 STDERR_TAIL_LINES=3000
 LOG_TAIL_LINES=300
@@ -64,7 +75,63 @@ trap on_signal INT TERM HUP
 
 crash_times=()
 
+# Runs the build, showing its output and keeping it in last-build.log. Returns the build's status.
+build() {
+	local log="$CRASH_DIR/last-build.log"
+	note "building with $BUILD_SCRIPT"
+	local started=$(date +%s)
+	bash "$BUILD_SCRIPT" > >(tee "$log") 2>&1 &
+	child=$!
+	local code
+	while :; do
+		wait "$child"; code=$?
+		kill -0 "$child" 2>/dev/null || break
+	done
+	child=0
+	sleep 0.2
+	(( stopping )) && return "$code"
+	if (( code == 0 )); then
+		note "build finished in $(( $(date +%s) - started ))s"
+		return 0
+	fi
+	local stamp=$(date '+%Y%m%d-%H%M%S')
+	cp "$log" "$CRASH_DIR/build-failed-$stamp.log"
+	printf '%s	build failed (exit %s)	version=%s	-	%s	%s
+' 		"$(date '+%Y-%m-%d %H:%M:%S')" "$code" "$(version)" "build-failed-$stamp.log" 		"$(grep -v '^[[:space:]]*$' "$log" | tail -n1 | cut -c1-200)" >> "$CRASH_DIR/crashes.log"
+	ls -t "$CRASH_DIR"/build-failed-*.log 2>/dev/null | tail -n +$((KEEP_REPORTS + 1)) | while IFS= read -r old; do rm -f -- "$old"; done
+	note "build FAILED (exit $code) — log: $CRASH_DIR/build-failed-$stamp.log"
+	return "$code"
+}
+
+# Sleeps, but wakes up for a stop request. Exits the script if one came in.
+pause() {
+	sleep "$1" &
+	wait $! 2>/dev/null
+	if (( stopping )); then
+		note "stop requested — not restarting"
+		exit 0
+	fi
+}
+
 while :; do
+	if [[ "$SKIP_BUILD" != "1" ]]; then
+		build
+		build_code=$?
+		if (( stopping )); then
+			note "stop requested during the build — not starting"
+			exit 0
+		fi
+		if (( build_code != 0 )); then
+			if [[ -x "$EXE" ]]; then
+				note "starting the previous build of $EXE instead"
+			else
+				note "no server binary to fall back on — retrying the build in 60s"
+				pause 60
+				continue
+			fi
+		fi
+	fi
+
 	if [[ ! -x "$EXE" ]]; then
 		note "server binary not found or not executable: $EXE"
 		exit 1
@@ -143,10 +210,5 @@ while :; do
 	else
 		note "restarting in ${wait_for}s"
 	fi
-	sleep "$wait_for" &
-	wait $! 2>/dev/null
-	if (( stopping )); then
-		note "stop requested — not restarting"
-		exit 0
-	fi
+	pause "$wait_for"
 done
