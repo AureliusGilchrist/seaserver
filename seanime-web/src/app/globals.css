@@ -2711,9 +2711,10 @@ html[data-sea-wallpaper-tone] :is(
     :is([class*="backdrop-blur"], [style*="backdrop-filter: blur"]):is(
         [class*="bg-black"], [class*="bg-gray-9"], [class*="bg-gray-8"], [class*="bg-white/"],
         [class*="bg-zinc-9"], [class*="bg-neutral-9"], [class*="bg-slate-9"],
-        [class*="bg-[--paper]"], [class*="bg-[--background]"], :not([class*="bg-"])
+        [class*="bg-[--paper]"], [class*="bg-[--background]"], :not([class*="bg-"]),
+        [class*="from-black/"]:not([class*="to-transparent"]), [class*="from-white/["]:not([class*="to-transparent"]), [class*="via-black/"]:not([class*="to-transparent"])
     ),
-    .glass-panel, .frosted-surface, .UI-Card__root,
+    .glass-panel, .frosted-surface, .UI-Card__root, [data-sea-glass],
     .UI-Modal__content, .UI-Popover__root, .UI-DropdownMenu__root, .UI-HoverCard__root, .UI-Select__content,
     html[data-sea-sidebar] .UI-AppSidebar__sidebar,
     html[data-sea-navbar="navbar-glass"] [data-top-navbar],
@@ -2742,7 +2743,7 @@ html[data-sea-wallpaper-tone] :is(
 
 /* The larger panes also get the lit top edge and a shadow in the wallpaper's colour. */
 html[data-sea-wallpaper-tone] :is(
-    .glass-panel, .frosted-surface, .UI-Card__root,
+    .glass-panel, .frosted-surface, .UI-Card__root, [data-sea-glass],
     .UI-Modal__content, .UI-Popover__root, .UI-DropdownMenu__root, .UI-HoverCard__root, .UI-Select__content
 ) {
     box-shadow: var(--sea-light-glass-sheen), 0 18px 44px -14px rgb(var(--sea-grade-mid) / 0.65), 0 4px 14px -6px rgba(0, 0, 0, 0.35) !important;
@@ -2813,9 +2814,10 @@ html[data-sea-glass-opacity] :is(
     :is([class*="backdrop-blur"], [style*="backdrop-filter: blur"]):is(
         [class*="bg-black"], [class*="bg-gray-9"], [class*="bg-gray-8"], [class*="bg-white/"],
         [class*="bg-zinc-9"], [class*="bg-neutral-9"], [class*="bg-slate-9"],
-        [class*="bg-[--paper]"], [class*="bg-[--background]"], :not([class*="bg-"])
+        [class*="bg-[--paper]"], [class*="bg-[--background]"], :not([class*="bg-"]),
+        [class*="from-black/"]:not([class*="to-transparent"]), [class*="from-white/["]:not([class*="to-transparent"]), [class*="via-black/"]:not([class*="to-transparent"])
     ),
-    .glass-panel, .frosted-surface, .UI-Card__root,
+    .glass-panel, .frosted-surface, .UI-Card__root, [data-sea-glass],
     .UI-Modal__content, .UI-Popover__root, .UI-DropdownMenu__root, .UI-HoverCard__root, .UI-Select__content,
     html[data-sea-sidebar] .UI-AppSidebar__sidebar,
     html[data-sea-navbar="navbar-glass"] [data-top-navbar],
@@ -2829,9 +2831,10 @@ html[data-sea-glass-opacity][data-sea-wallpaper-tone] :is(
     :is([class*="backdrop-blur"], [style*="backdrop-filter: blur"]):is(
         [class*="bg-black"], [class*="bg-gray-9"], [class*="bg-gray-8"], [class*="bg-white/"],
         [class*="bg-zinc-9"], [class*="bg-neutral-9"], [class*="bg-slate-9"],
-        [class*="bg-[--paper]"], [class*="bg-[--background]"], :not([class*="bg-"])
+        [class*="bg-[--paper]"], [class*="bg-[--background]"], :not([class*="bg-"]),
+        [class*="from-black/"]:not([class*="to-transparent"]), [class*="from-white/["]:not([class*="to-transparent"]), [class*="via-black/"]:not([class*="to-transparent"])
     ),
-    .glass-panel, .frosted-surface, .UI-Card__root,
+    .glass-panel, .frosted-surface, .UI-Card__root, [data-sea-glass],
     .UI-Modal__content, .UI-Popover__root, .UI-DropdownMenu__root, .UI-HoverCard__root, .UI-Select__content,
     html[data-sea-sidebar] .UI-AppSidebar__sidebar,
     html[data-sea-navbar="navbar-glass"] [data-top-navbar],
@@ -2847,9 +2850,10 @@ html:not([data-sea-wallpaper-tone]) :is(
     :is([class*="backdrop-blur"], [style*="backdrop-filter: blur"]):is(
         [class*="bg-black"], [class*="bg-gray-9"], [class*="bg-gray-8"], [class*="bg-white/"],
         [class*="bg-zinc-9"], [class*="bg-neutral-9"], [class*="bg-slate-9"],
-        [class*="bg-[--paper]"], [class*="bg-[--background]"], :not([class*="bg-"])
+        [class*="bg-[--paper]"], [class*="bg-[--background]"], :not([class*="bg-"]),
+        [class*="from-black/"]:not([class*="to-transparent"]), [class*="from-white/["]:not([class*="to-transparent"]), [class*="via-black/"]:not([class*="to-transparent"])
     ),
-    .glass-panel, .frosted-surface, .UI-Card__root,
+    .glass-panel, .frosted-surface, .UI-Card__root, [data-sea-glass],
     .UI-Modal__content, .UI-Popover__root, .UI-DropdownMenu__root, .UI-HoverCard__root, .UI-Select__content,
     html[data-sea-sidebar] .UI-AppSidebar__sidebar,
     html[data-sea-navbar="navbar-glass"] [data-top-navbar],
@@ -2857,6 +2861,18 @@ html:not([data-sea-wallpaper-tone]) :is(
     html[data-sea-toast="toast-glass"] [data-sonner-toast]
 ):not([class*="backdrop-blur-none"]):not([class*="bg-[url"]):not([style*="url("]):not([data-vc-element="container"] *):not([data-custom-background-image] *):not([data-custom-background-image-blur]) {
     background-image: var(--sea-light-glass) !important;
+}
+
+/* Dark-glass panels drawn with a soft gradient (from-black/40 via-black/25 …, the landing widgets
+   and the like) take the shared tint like any other glass; their gradient was also their fill, so
+   they keep a neutral one under it. Gradients that fade out (to-transparent: scrims) are not glass. */
+html :is(
+    :is([class*="backdrop-blur"], [style*="backdrop-filter: blur"]):is(
+        [class*="from-black/"], [class*="from-white/["], [class*="via-black/"]
+    ):not([class*="to-transparent"]),
+    [data-sea-glass]
+):not([class*="backdrop-blur-none"]):not([data-vc-element="container"] *):not([data-custom-background-image] *) {
+    background-color: rgb(var(--sea-glass-base) / 0.32);
 }
 
 /* Blur: one strength for everything drawn over a blur, cards and the sidebar included. */

@@ -48,8 +48,9 @@ function PersonalSection({ def, children, wide }: { def: SectionDef, children: R
         <section
             id={`personal-${def.id}`}
             data-personal-section={def.id}
+            data-sea-glass
             className={cn(
-                "scroll-mt-28 rounded-2xl border border-white/[0.07] bg-gradient-to-b from-white/[0.035] to-white/[0.01]",
+                "scroll-mt-28 rounded-2xl border border-white/[0.07] bg-black/20",
                 "shadow-xl shadow-black/20 backdrop-blur-md overflow-hidden",
             )}
         >
