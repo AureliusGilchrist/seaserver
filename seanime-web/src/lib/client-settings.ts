@@ -116,6 +116,9 @@ export const clientSettingsSchema = z.object({
     /** The one tint gradient every glass surface carries. "recommended" (or unset) follows the
      * wallpaper's colours, or the theme's when none is shown; "custom" uses glassGradient. */
     /** Volume of the openings player (Anime Themes, autoplay on anime pages, favourite openings), 0–100. Unset = 70. */
+    /** Accent colour for this profile (#rrggbb), over the theme's, the Theme Manager's and the
+     * wallpaper's. Unset = whatever they give (Default). See custom-theme-provider.tsx. */
+    accentColorOverride: z.string().optional(),
     themePlayerVolume: z.number().optional(),
     glassTintMode: z.enum(["recommended", "custom"]).optional(),
     /** Custom tint: start and end colours (#rrggbb) and where the gradient starts and ends, as

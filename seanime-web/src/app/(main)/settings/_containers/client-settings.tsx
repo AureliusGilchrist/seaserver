@@ -4,6 +4,7 @@ import { AnilistOverwriteCard } from "@/app/(main)/settings/_containers/anilist-
 import { PlaybackSettings } from "@/app/(main)/settings/_components/playback-settings"
 import { StillWatchingTiming } from "@/app/(main)/settings/_components/still-watching-timing"
 import { CardSizeSettings } from "@/app/(main)/settings/_components/card-size-settings"
+import { AccentColorSettings } from "@/app/(main)/settings/_components/accent-color-settings"
 import { GlassSettings } from "@/app/(main)/settings/_components/glass-settings"
 import { OpeningsAutoplaySettings } from "@/app/(main)/settings/_components/openings-autoplay-settings"
 import { AppearanceSettings, HdrSettings, WallpaperScheduleSettings } from "@/app/(main)/settings/_components/appearance-settings"
@@ -760,6 +761,9 @@ export function ClientSettings(props: ClientSettingsProps) {
                         </SettingRow>
                         <SettingRow settingKey={["wallpaperScheduleEnabled", "wallpaperSchedule"]}>
                             <WallpaperScheduleSettings />
+                        </SettingRow>
+                        <SettingRow settingKey="accentColorOverride">
+                            <AccentColorSettings />
                         </SettingRow>
                         <SettingRow>
                             <GlassSettings />

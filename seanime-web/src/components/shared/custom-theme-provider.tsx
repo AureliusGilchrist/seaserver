@@ -1,5 +1,6 @@
 import { animeThemeBaseColorAtom, animeThemeBrandOverrideAtom, mixWithThemeTint, wallpaperAccentColorAtom } from "@/lib/theme/color-mixing"
 import { THEME_DEFAULT_VALUES, useThemeSettings } from "@/lib/theme/hooks"
+import { useClientSettings } from "@/lib/client-settings"
 import { colord, extend, RgbColor } from "colord"
 import mixPlugin from "colord/plugins/mix"
 import { useAtomValue } from "jotai/react"
@@ -43,6 +44,10 @@ export function CustomThemeProvider(props: CustomColorProviderProps) {
     const animeThemeBaseColor = useAtomValue(animeThemeBaseColorAtom)
     const animeThemeBrandOverride = useAtomValue(animeThemeBrandOverrideAtom)
     const wallpaperAccent = useAtomValue(wallpaperAccentColorAtom)
+    // Personal -> Accent colour: this profile's own pick wins over every other source.
+    const { accentColorOverride } = useClientSettings()
+    const personalAccent = accentColorOverride && colord(accentColorOverride).isValid() ? accentColorOverride : null
+    const appliedPersonalAccent = React.useRef(false)
     const backgroundColor = mixWithThemeTint(ts.backgroundColor, animeThemeBaseColor)
 
     function setBgColor(r: any, variable: string, defaultColor: string | null, customColor: string | RgbColor) {
@@ -127,7 +132,20 @@ export function CustomThemeProvider(props: CustomColorProviderProps) {
                 r.style.setProperty(k, v)
             }
         }
-    }, [ts.enableColorSettings, ts.accentColor, animeThemeBrandOverride, wallpaperAccent])
+
+        if (personalAccent) {
+            for (const [k, v] of Object.entries(deriveBrandShadeVars(personalAccent))) {
+                r.style.setProperty(k, v)
+            }
+            appliedPersonalAccent.current = true
+        } else if (appliedPersonalAccent.current) {
+            appliedPersonalAccent.current = false
+            // Back to Default after an override, with nothing above to repaint: drop what it wrote.
+            if (!ts.enableColorSettings && !wallpaperAccent) {
+                for (const k of Object.keys(deriveBrandShadeVars("#000000"))) r.style.removeProperty(k)
+            }
+        }
+    }, [ts.enableColorSettings, ts.accentColor, animeThemeBrandOverride, wallpaperAccent, personalAccent])
 
     return null
 }

@@ -2,6 +2,7 @@
 import { AL_BaseAnime, AL_BaseManga, AL_MediaListStatus, Anime_EntryListData, Manga_EntryListData } from "@/api/generated/types"
 import { useDeleteAnilistListEntry, useEditAnilistListEntry } from "@/api/hooks/anilist.hooks"
 import { useUpdateAnimeEntryRepeat } from "@/api/hooks/anime_entries.hooks"
+import { AnilistScoreField } from "@/app/(main)/_features/media/_components/anilist-score-field"
 import { PluginWebviewSlot } from "@/app/(main)/_features/plugin/webview/plugin-webviews"
 import { useCurrentUser } from "@/app/(main)/_hooks/use-server-status"
 import { SeaImage } from "@/components/shared/sea-image"
@@ -17,7 +18,7 @@ import { normalizeDate } from "@/lib/helpers/date"
 import { getImageUrl } from "@/lib/server/assets"
 import { useWindowSize } from "@uidotdev/usehooks"
 import React, { Fragment } from "react"
-import { BiListPlus, BiPlus, BiStar, BiTrash } from "react-icons/bi"
+import { BiListPlus, BiPlus, BiTrash } from "react-icons/bi"
 import { TbEdit } from "react-icons/tb"
 import { useToggle } from "react-use"
 import { z } from "zod"
@@ -287,18 +288,6 @@ function Content(props: AnilistMediaEntryModalProps & {
                     />
                     {media?.status !== "NOT_YET_RELEASED" && <>
                         <Field.Number
-                            label="Score"
-                            name="score"
-                            min={0}
-                            max={10}
-                            formatOptions={{
-                                maximumFractionDigits: 1,
-                                minimumFractionDigits: 0,
-                                useGrouping: false,
-                            }}
-                            rightIcon={<BiStar />}
-                        />
-                        <Field.Number
                             label="Progress"
                             name="progress"
                             min={0}
@@ -316,6 +305,7 @@ function Content(props: AnilistMediaEntryModalProps & {
                         />
                     </>}
                 </div>
+                {media?.status !== "NOT_YET_RELEASED" && <AnilistScoreField />}
                 {media?.status !== "NOT_YET_RELEASED" && <div className="flex flex-col sm:flex-row gap-4">
                     <Field.DatePicker
                         label="Start date"
