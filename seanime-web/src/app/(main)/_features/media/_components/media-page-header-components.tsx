@@ -96,7 +96,7 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
                 <div
                     data-media-page-header-banner-top-gradient
                     className={cn(
-                        "w-full absolute z-[2] top-0 h-[8rem] opacity-40 bg-gradient-to-b from-[--background] to-transparent via",
+                        "w-full absolute z-[2] top-0 h-[8rem] opacity-40 bg-gradient-to-b from-black to-transparent",
                     )}
                 />
 
@@ -104,7 +104,7 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
                 <div
                     data-media-page-header-banner-bottom-gradient
                     className={cn(
-                        "w-full z-[2] absolute scroll-locked-offset bottom-[-5rem] h-[5em] bg-gradient-to-b from-[--background] via-transparent via-100% to-transparent",
+                        "w-full z-[2] absolute scroll-locked-offset bottom-[-5rem] h-[5em] bg-gradient-to-b from-black via-transparent via-100% to-transparent",
                         !ts.disableSidebarTransparency && TRANSPARENT_SIDEBAR_BANNER_IMG_STYLE,
                         shouldHideBanner && "hidden",
                     )}
@@ -161,7 +161,7 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
                 <div
                     data-media-page-header-banner-bottom-gradient
                     className={cn(
-                        "w-full z-[3] absolute bottom-0 h-[70%] bg-gradient-to-t from-[--background] from-0% via-[--background]/80 via-30% to-transparent to-100%",
+                        "w-full z-[3] absolute bottom-0 h-[70%] bg-gradient-to-t from-black from-0% via-black/80 via-30% to-transparent to-100%",
                         shouldHideBanner && "hidden",
                     )}
                 />
