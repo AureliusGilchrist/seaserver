@@ -487,12 +487,13 @@ func (ts *Stream) run(start int32, ahead bool) error {
 
 	hwAccel := ts.settings.activeHwAccel()
 
-	// A copy decodes nothing, and must not depend on a decoder being there.
-	if ts.handle.getFlags()&Transmux == 0 {
-		args = append(args, hwAccel.DecodeFlags...)
-		if ts.handle.getFlags()&VideoF != 0 && ts.file.Info != nil && ts.file.Info.Video != nil {
-			args = append(args, cuvidDecoderFlags(hwAccel, ts.file.Info.Video.Codec, getFFmpegDecoderNames(ts.settings.FfmpegPath))...)
-		}
+	// Only a video encode decodes on the GPU. A copy decodes nothing, and an audio encode must not
+	// depend on the GPU either: with CUDA missing, "-init_hw_device cuda" made every audio ffmpeg exit
+	// at once, segment 0 never came, and the player loaded forever (the hardware fallback only
+	// watches video encoders).
+	args = append(args, hwDecodeFlags(ts.handle.getFlags(), hwAccel)...)
+	if isEncode && ts.file.Info != nil && ts.file.Info.Video != nil {
+		args = append(args, cuvidDecoderFlags(hwAccel, ts.file.Info.Video.Codec, getFFmpegDecoderNames(ts.settings.FfmpegPath))...)
 	}
 
 	if startRef != 0 {
@@ -709,6 +710,15 @@ func (ts *Stream) run(start int32, ahead bool) error {
 	}()
 
 	return nil
+}
+
+// hwDecodeFlags returns the hardware decode flags for an encoder with these flags: only a video
+// encode gets them.
+func hwDecodeFlags(flags Flags, hw HwAccelSettings) []string {
+	if flags&VideoF == 0 || flags&Transmux != 0 {
+		return nil
+	}
+	return hw.DecodeFlags
 }
 
 // markHeadDeleted frees the slot of a head whose ffmpeg never started.
