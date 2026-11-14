@@ -332,8 +332,16 @@ function MediastreamDirectPlayEffects({
             if (!videoElement.isConnected) return
             if (directPlayOnly) {
                 hasSwitchedRef.current = true
-                log.warning(`Direct play failed (${reason}); direct play only is on, not switching`)
-                toast.error("This file couldn't be played directly. Transcoding is off in Direct play only mode.")
+                log.warning(`Direct play failed (${reason}); direct play only is on, offering a one-off transcode`)
+                // Direct play only stays the rule; this one episode can still be transcoded by hand.
+                toast.error("This file couldn't be played directly on this device.", {
+                    description: "Direct play only is on. You can transcode just this episode.",
+                    duration: 20_000,
+                    action: {
+                        label: "Transcode this episode",
+                        onClick: () => handleChangeStreamType("transcode"),
+                    },
+                })
                 return
             }
             hasSwitchedRef.current = true
@@ -342,7 +350,29 @@ function MediastreamDirectPlayEffects({
             toast.info("This device can't play the file directly — switching to transcode")
             handleChangeStreamType("transcode")
         }
-        const onError = () => switchToTranscode(`video error ${videoElement.error?.code ?? "unknown"}`)
+        // A decode error part-way in is often one bad packet that Chromium's decoder chokes on (the
+        // file plays fine past it). Reload just after that point, up to twice, before giving up.
+        let decodeRetries = 0
+        const onError = () => {
+            const code = videoElement.error?.code
+            const at = videoElement.currentTime
+            if (code === MediaError.MEDIA_ERR_DECODE && decodeRetries < 2 && videoElement.currentSrc) {
+                decodeRetries++
+                const resumeAt = at + 1.5 * decodeRetries
+                log.warning(`Decode error at ${at.toFixed(2)}s, reloading past it (try ${decodeRetries})`)
+                const src = videoElement.currentSrc
+                const onMeta = () => {
+                    videoElement.removeEventListener("loadedmetadata", onMeta)
+                    videoElement.currentTime = resumeAt
+                    videoElement.play().catch(() => {})
+                }
+                videoElement.addEventListener("loadedmetadata", onMeta)
+                videoElement.src = src
+                videoElement.load()
+                return
+            }
+            switchToTranscode(`video error ${code ?? "unknown"}`)
+        }
         const metadataWatchdog = setTimeout(() => {
             if (!directPlayOnly && videoElement.readyState < 1) switchToTranscode("no metadata after 12s")
         }, 12_000)
