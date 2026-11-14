@@ -247,6 +247,6 @@ write_stats "$TOTAL_RUNS" "$SUCCESSES" "$DURATION"
 
 box_title "Build complete"
 printf "${GREEN}${BOLD}All steps finished successfully.${RESET} Duration: ${BOLD}%ss${RESET}\n" "$DURATION"
-printf "Run ${BOLD}./seanime_exe${RESET} to start the server.\n"
+printf "Run ${BOLD}./run-seanime.sh${RESET} to start the server (restarts it after a crash; reports in ~/.config/Seanime/crashes).\n"
 print_stats
 divider
