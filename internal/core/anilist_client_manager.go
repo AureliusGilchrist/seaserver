@@ -674,6 +674,14 @@ func (m *AnilistClientManager) GetUsername(profileID uint) string {
 
 	viewer, err := client.GetViewer(context.Background())
 	if err != nil || viewer == nil || viewer.Viewer == nil {
+		// The Viewer request fails on a rate limit or a network blip. The name stored on the
+		// profile at login is good enough to fetch the lists by; it is not cached, so the next
+		// call asks AniList again and picks up a rename.
+		if stored := m.storedUsername(profileID); stored != "" {
+			m.logger.Warn().Err(err).Uint("profileID", profileID).Str("username", stored).
+				Msg("anilist_client_manager: Viewer request failed, using the username stored on the profile")
+			return stored
+		}
 		m.logger.Error().Err(err).Uint("profileID", profileID).Msg("anilist_client_manager: Failed to get viewer for profile")
 		return ""
 	}
@@ -684,6 +692,18 @@ func (m *AnilistClientManager) GetUsername(profileID uint) string {
 
 	m.logger.Debug().Uint("profileID", profileID).Str("username", viewer.Viewer.Name).Msg("anilist_client_manager: Cached username for profile")
 	return viewer.Viewer.Name
+}
+
+// storedUsername is the AniList username saved on the profile when it last linked AniList.
+func (m *AnilistClientManager) storedUsername(profileID uint) string {
+	if m.app == nil || m.app.ProfileManager == nil {
+		return ""
+	}
+	profile, err := m.app.ProfileManager.GetProfile(profileID)
+	if err != nil || profile == nil {
+		return ""
+	}
+	return profile.AniListUsername
 }
 
 // IsAuthenticated checks if the given profile has an authenticated AniList client.
@@ -874,7 +894,7 @@ func (m *AnilistClientManager) fetchAnimeCollection(profileID uint) (*anilist.An
 				m.logger.Warn().Uint("profileID", profileID).Msg("anilist_client_manager: No username, serving anime collection from disk cache")
 				return diskCol, nil
 			}
-			return nil, errors.New("anilist: no username for profile")
+			return nil, errors.New("anilist: could not get the AniList username for this profile (AniList unreachable or rate-limited, or the login expired); try again or re-link AniList")
 		}
 		col, err := client.AnimeCollection(context.Background(), &username)
 		if err != nil {
@@ -1379,7 +1399,11 @@ func (m *AnilistClientManager) fetchMangaCollection(profileID uint) (*anilist.Ma
 		}
 		username := m.GetUsername(profileID)
 		if username == "" {
-			return nil, errors.New("anilist: no username for profile")
+			if diskCol := m.loadMangaCollectionFromDisk(profileID); diskCol != nil {
+				m.logger.Warn().Uint("profileID", profileID).Msg("anilist_client_manager: No username, serving manga collection from disk cache")
+				return diskCol, nil
+			}
+			return nil, errors.New("anilist: could not get the AniList username for this profile (AniList unreachable or rate-limited, or the login expired); try again or re-link AniList")
 		}
 		col, err := client.MangaCollection(context.Background(), &username)
 		if err != nil {
