@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkseanime_web=self.webpackChunkseanime_web||[]).push([["5152"],{76947(e,s,n){n.r(s),n.d(s,{component:()=>a});let a=n(16646).A}}]);
