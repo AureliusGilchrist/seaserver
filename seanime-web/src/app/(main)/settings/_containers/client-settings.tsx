@@ -5,6 +5,7 @@ import { PlaybackSettings } from "@/app/(main)/settings/_components/playback-set
 import { StillWatchingTiming } from "@/app/(main)/settings/_components/still-watching-timing"
 import { CardSizeSettings } from "@/app/(main)/settings/_components/card-size-settings"
 import { GlassSettings } from "@/app/(main)/settings/_components/glass-settings"
+import { OpeningsAutoplaySettings } from "@/app/(main)/settings/_components/openings-autoplay-settings"
 import { AppearanceSettings, HdrSettings, WallpaperScheduleSettings } from "@/app/(main)/settings/_components/appearance-settings"
 import { InterfaceSizeSettings } from "@/app/(main)/settings/_components/interface-size-settings"
 import { FranchiseSettings } from "@/app/(main)/settings/_components/franchise-settings"
@@ -763,14 +764,8 @@ export function ClientSettings(props: ClientSettingsProps) {
                         <SettingRow>
                             <GlassSettings />
                         </SettingRow>
-                        <SettingRow settingKey="autoPlayThemesOnDetails">
-                            <Switch
-                                side="right"
-                                value={!!clientSettings.autoPlayThemesOnDetails}
-                                onValueChange={v => handleSet("autoPlayThemesOnDetails", v)}
-                                label="Automatically play openings on anime pages"
-                                help="Opening an anime page plays every opening and ending of the series in order, from the first. Pause or stop it from the player at the bottom."
-                            />
+                        <SettingRow settingKey={["autoPlayThemesOnDetails", "themePlayerVolume"]}>
+                            <OpeningsAutoplaySettings />
                         </SettingRow>
                         <SettingRow settingKey={["franchiseRelations", "franchiseMediaKinds", "franchiseInitialCount"]}>
                             <FranchiseSettings />

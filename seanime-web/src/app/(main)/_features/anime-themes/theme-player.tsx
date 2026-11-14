@@ -2,6 +2,7 @@
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { AnimeTheme, AnimeThemesSeriesAnime, themeMedia, ThemeFavorite, useGetThemeFavorites, useToggleThemeFavorite } from "@/api/hooks/anime_themes.hooks"
 import { cn } from "@/components/ui/core/styling"
+import { useClientSettings } from "@/lib/client-settings"
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai"
 import React from "react"
 import { LuHeart, LuListMusic, LuMusic, LuPause, LuPlay, LuSkipBack, LuSkipForward, LuVideo, LuVideoOff, LuX } from "react-icons/lu"
@@ -28,6 +29,13 @@ const queueAtom = atom<ThemeTrack[]>([])
 const indexAtom = atom(0)
 const playingAtom = atom(false)
 const showVideoAtom = atom(false)
+
+export const THEME_PLAYER_VOLUME_DEFAULT = 70
+
+/** Personal -> "Openings volume", as the 0–1 a media element takes. */
+export function themePlayerVolume(v: number | undefined) {
+    return Math.min(100, Math.max(0, v ?? THEME_PLAYER_VOLUME_DEFAULT)) / 100
+}
 
 export function proxied(url: string) {
     return `${getServerBaseUrl()}/api/v1/proxy?url=${encodeURIComponent(url)}`
@@ -142,6 +150,10 @@ export function ThemePlayerBar() {
     const [showList, setShowList] = React.useState(false)
     const mediaRef = React.useRef<HTMLMediaElement | null>(null)
     const current = queue[index] ?? null
+    const volume = themePlayerVolume(useClientSettings().themePlayerVolume)
+    React.useEffect(() => {
+        if (mediaRef.current) mediaRef.current.volume = volume
+    }, [volume])
 
     // Audio when there is an audio rip and the video is hidden; the video otherwise.
     const useVideo = !!current && (showVideo || !current.audio)
@@ -175,7 +187,10 @@ export function ThemePlayerBar() {
     }
 
     const mediaProps = {
-        ref: (el: HTMLMediaElement | null) => { mediaRef.current = el },
+        ref: (el: HTMLMediaElement | null) => {
+            mediaRef.current = el
+            if (el) el.volume = volume
+        },
         src,
         autoPlay: playing,
         onEnded: next,

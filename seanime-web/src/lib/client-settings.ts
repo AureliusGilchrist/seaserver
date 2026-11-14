@@ -115,6 +115,8 @@ export const clientSettingsSchema = z.object({
     glassBlur: z.number().optional(),
     /** The one tint gradient every glass surface carries. "recommended" (or unset) follows the
      * wallpaper's colours, or the theme's when none is shown; "custom" uses glassGradient. */
+    /** Volume of the openings player (Anime Themes, autoplay on anime pages, favourite openings), 0–100. Unset = 70. */
+    themePlayerVolume: z.number().optional(),
     glassTintMode: z.enum(["recommended", "custom"]).optional(),
     /** Custom tint: start and end colours (#rrggbb) and where the gradient starts and ends, as
      * points on the surface (0–100, from the top-left corner). */
