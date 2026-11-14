@@ -5,6 +5,7 @@ import { PlaybackSettings } from "@/app/(main)/settings/_components/playback-set
 import { StillWatchingTiming } from "@/app/(main)/settings/_components/still-watching-timing"
 import { CardSizeSettings } from "@/app/(main)/settings/_components/card-size-settings"
 import { GlassSettings } from "@/app/(main)/settings/_components/glass-settings"
+import { AppearanceSettings, HdrSettings, WallpaperScheduleSettings } from "@/app/(main)/settings/_components/appearance-settings"
 import { InterfaceSizeSettings } from "@/app/(main)/settings/_components/interface-size-settings"
 import { FranchiseSettings } from "@/app/(main)/settings/_components/franchise-settings"
 import { WelcomeScreenSettings } from "@/app/(main)/settings/_components/welcome-screen-settings"
@@ -36,7 +37,7 @@ const SECTIONS: SectionDef[] = [
     { id: "news", title: "News", description: "Headlines on the home page, the News page and in your notifications.", icon: LuNewspaper, accent: "from-sky-500/25 to-cyan-500/10 text-sky-300" },
     { id: "display", title: "Display", description: "What cards and pages show you.", icon: LuEye, accent: "from-fuchsia-500/25 to-pink-500/10 text-fuchsia-300" },
     { id: "lists", title: "AniList & manga", description: "Automatic list upkeep for your account.", icon: LuListChecks, accent: "from-emerald-500/25 to-teal-500/10 text-emerald-300" },
-    { id: "player", title: "Desktop player", description: "Auto-skip for local files in MPV or IINA, plus player defaults.", icon: LuMonitorPlay, accent: "from-amber-500/25 to-orange-500/10 text-amber-300" },
+    { id: "player", title: "Players", description: "HDR for the local and online player; auto-skip for local files in MPV or IINA.", icon: LuMonitorPlay, accent: "from-amber-500/25 to-orange-500/10 text-amber-300" },
     { id: "discord", title: "Discord", description: "Show what you're watching or reading.", icon: LuMessageCircle, accent: "from-blue-500/25 to-indigo-500/10 text-blue-300" },
     { id: "app", title: "App", description: "Updates for this device, and resetting to server defaults.", icon: LuSettings2, accent: "from-gray-400/25 to-gray-500/10 text-gray-300" },
 ]
@@ -752,8 +753,23 @@ export function ClientSettings(props: ClientSettingsProps) {
                         <SettingRow settingKey={["animeCardWidth", "mangaCardWidth"]}>
                             <CardSizeSettings />
                         </SettingRow>
+                        <SettingRow settingKey={["appearanceMode", "lightModeStartHour", "darkModeStartHour"]}>
+                            <AppearanceSettings />
+                        </SettingRow>
+                        <SettingRow settingKey={["wallpaperScheduleEnabled", "wallpaperSchedule"]}>
+                            <WallpaperScheduleSettings />
+                        </SettingRow>
                         <SettingRow>
                             <GlassSettings />
+                        </SettingRow>
+                        <SettingRow settingKey="autoPlayThemesOnDetails">
+                            <Switch
+                                side="right"
+                                value={!!clientSettings.autoPlayThemesOnDetails}
+                                onValueChange={v => handleSet("autoPlayThemesOnDetails", v)}
+                                label="Automatically play openings on anime pages"
+                                help="Opening an anime page plays every opening and ending of the series in order, from the first. Pause or stop it from the player at the bottom."
+                            />
                         </SettingRow>
                         <SettingRow settingKey={["franchiseRelations", "franchiseMediaKinds", "franchiseInitialCount"]}>
                             <FranchiseSettings />
@@ -951,6 +967,9 @@ export function ClientSettings(props: ClientSettingsProps) {
                     </PersonalSection>
 
                     <PersonalSection def={section("player")}>
+                        <SettingRow settingKey="hdrMode">
+                            <HdrSettings />
+                        </SettingRow>
                         <SettingRow settingKey="mpvAutoSkipOpening">
                             <Switch
                                 side="right"

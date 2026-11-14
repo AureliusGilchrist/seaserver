@@ -1266,6 +1266,23 @@ type EpisodeFavorite struct {
 	Rank          int       `gorm:"column:sort_rank;default:0" json:"rank"`
 }
 
+// ThemeFavorite stores a favourite opening or ending (from animethemes.moe) per profile. The song,
+// the anime and the links are a snapshot taken when it was favourited, so the profile can list and
+// play it without asking animethemes.moe again.
+type ThemeFavorite struct {
+	BaseModel
+	MediaID   int       `gorm:"column:media_id;uniqueIndex:idx_theme_favorite" json:"mediaId"`
+	ThemeSlug string    `gorm:"column:theme_slug;uniqueIndex:idx_theme_favorite" json:"themeSlug"`
+	AnimeName string    `gorm:"column:anime_name" json:"animeName"`
+	SongTitle string    `gorm:"column:song_title" json:"songTitle"`
+	Artists   string    `gorm:"column:artists" json:"artists"`
+	VideoURL  string    `gorm:"column:video_url" json:"videoUrl"`
+	AudioURL  string    `gorm:"column:audio_url" json:"audioUrl"`
+	Image     string    `gorm:"column:image" json:"image"`
+	AddedAt   time.Time `gorm:"column:added_at" json:"addedAt"`
+	Rank      int       `gorm:"column:sort_rank;default:0" json:"rank"`
+}
+
 // Notification stores a notification per profile (stored in per-profile DB).
 type Notification struct {
 	BaseModel

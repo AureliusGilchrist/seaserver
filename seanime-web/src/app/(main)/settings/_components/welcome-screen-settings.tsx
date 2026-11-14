@@ -1,4 +1,8 @@
+import { useServerMutation } from "@/api/client/requests"
+import { useGetThemeFavorites } from "@/api/hooks/anime_themes.hooks"
 import { Switch } from "@/components/ui/switch"
+import { welcomeAudioSrc } from "@/lib/theme/anime-themes/welcome-screen"
+import { toast } from "sonner"
 import { cn } from "@/components/ui/core/styling"
 import { fetchSharedThemesList, type SharedThemeInfo } from "@/lib/theme/marketplace-theme-loader"
 import { useWelcomeLook, useWelcomeScreenSettings, WelcomeCard } from "@/lib/theme/anime-themes/welcome-screen"
@@ -76,8 +80,10 @@ export function WelcomeScreenSettings() {
                         />
                     </label>
 
+                    <WelcomeSongPicker />
+
                     <label className="block space-y-1.5">
-                        <span className="text-sm font-medium text-white/85">Shows for {settings.duration} s</span>
+                        <span className="text-sm font-medium text-white/85">Shows for {settings.duration} s{settings.untilSongEnds && settings.audioKind !== "none" ? " (or until the song ends)" : ""}</span>
                         <input
                             type="range"
                             min={1}
@@ -98,5 +104,153 @@ export function WelcomeScreenSettings() {
                 </div>
             </div>
         </section>
+    )
+}
+
+/** The welcome song: none, a favourite opening (chosen or random), or an uploaded file. */
+function WelcomeSongPicker() {
+    const { settings, setSettings } = useWelcomeScreenSettings()
+    const { data: favorites } = useGetThemeFavorites()
+    const playable = (favorites ?? []).filter(f => f.audioUrl || f.videoUrl)
+    const fileRef = React.useRef<HTMLInputElement>(null)
+    const previewRef = React.useRef<HTMLAudioElement>(null)
+    const [previewing, setPreviewing] = React.useState(false)
+
+    const { mutate: upload, isPending: uploading } = useServerMutation<{ url: string, name: string }, FormData>({
+        endpoint: "/api/v1/welcome-audio/upload",
+        method: "POST",
+        onSuccess: res => {
+            if (!res?.url) return
+            setSettings({ audioKind: "upload", audioUrl: res.url, audioLabel: res.name })
+            toast.success("Song uploaded")
+        },
+    })
+
+    const kinds = [
+        { value: "none" as const, label: "No song" },
+        { value: "favorite" as const, label: "A favourite opening" },
+        { value: "randomFavorite" as const, label: "Random favourite" },
+        { value: "upload" as const, label: "My own file" },
+    ]
+
+    const previewSrc = settings.audioKind === "favorite" || settings.audioKind === "upload" ? welcomeAudioSrc(settings.audioUrl) : ""
+    const noFavorites = "No favourite openings yet. Heart one in the Anime Themes tab of an anime page."
+
+    return (
+        <div className="space-y-2" data-welcome-song>
+            <span className="text-sm font-medium text-white/85">Song</span>
+            <div className="grid grid-cols-2 gap-1.5">
+                {kinds.map(k => (
+                    <button
+                        key={k.value}
+                        type="button"
+                        disabled={!settings.enabled}
+                        onClick={() => setSettings({ audioKind: k.value })}
+                        className={cn(
+                            "rounded-lg border px-2.5 py-1.5 text-xs transition disabled:opacity-50",
+                            settings.audioKind === k.value ? "border-brand-300/50 bg-brand-500/15 text-white" : "border-white/10 text-[--muted] hover:text-white",
+                        )}
+                    >
+                        {k.label}
+                    </button>
+                ))}
+            </div>
+
+            {settings.audioKind === "favorite" && (
+                playable.length ? (
+                    <select
+                        className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-brand-300/50"
+                        value={settings.audioUrl}
+                        onChange={e => {
+                            const f = playable.find(f => (f.audioUrl || f.videoUrl) === e.target.value)
+                            setSettings({ audioUrl: e.target.value, audioLabel: f ? `${f.themeSlug} · ${f.songTitle}` : "" })
+                        }}
+                    >
+                        <option value="">Choose an opening…</option>
+                        {playable.map(f => (
+                            <option key={f.id} value={f.audioUrl || f.videoUrl}>{f.animeName} — {f.themeSlug} · {f.songTitle}</option>
+                        ))}
+                    </select>
+                ) : <p className="text-xs text-[--muted]">{noFavorites}</p>
+            )}
+            {settings.audioKind === "randomFavorite" && (
+                <p className="text-xs text-[--muted]">{playable.length ? `One of your ${playable.length} favourite openings, different each time.` : noFavorites}</p>
+            )}
+            {settings.audioKind === "upload" && (
+                <div className="flex flex-wrap items-center gap-2">
+                    <input
+                        ref={fileRef}
+                        type="file"
+                        accept="audio/*,.mp3,.ogg,.opus,.wav,.flac,.m4a,.webm"
+                        className="hidden"
+                        onChange={e => {
+                            const file = e.target.files?.[0]
+                            e.target.value = ""
+                            if (!file) return
+                            const form = new FormData()
+                            form.append("audio", file)
+                            upload(form)
+                        }}
+                    />
+                    <button
+                        type="button"
+                        disabled={uploading}
+                        onClick={() => fileRef.current?.click()}
+                        className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white hover:bg-white/5 disabled:opacity-50"
+                    >
+                        {uploading ? "Uploading…" : settings.audioUrl ? "Upload another" : "Upload a song"}
+                    </button>
+                    <span className="min-w-0 truncate text-xs text-[--muted]">{settings.audioUrl ? settings.audioLabel || "Uploaded song" : "mp3, ogg, wav, flac, m4a — up to 30 MB"}</span>
+                </div>
+            )}
+
+            {settings.audioKind !== "none" && (
+                <div className="space-y-2">
+                    <label className="flex items-center gap-3 text-xs text-[--muted]">
+                        Volume
+                        <input
+                            type="range"
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            value={settings.audioVolume}
+                            onChange={e => {
+                                const v = Number(e.target.value)
+                                setSettings({ audioVolume: v })
+                                if (previewRef.current) previewRef.current.volume = v
+                            }}
+                            className="flex-1 accent-[rgb(var(--color-brand-500))]"
+                        />
+                        {previewSrc && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const el = previewRef.current
+                                    if (!el) return
+                                    if (previewing) {
+                                        el.pause()
+                                        setPreviewing(false)
+                                    } else {
+                                        el.volume = settings.audioVolume
+                                        el.play().then(() => setPreviewing(true)).catch(() => setPreviewing(false))
+                                    }
+                                }}
+                                className="rounded-md border border-white/10 px-2 py-1 text-white"
+                            >
+                                {previewing ? "Stop" : "Preview"}
+                            </button>
+                        )}
+                    </label>
+                    {previewSrc && <audio ref={previewRef} src={previewSrc} onEnded={() => setPreviewing(false)} onPause={() => setPreviewing(false)} />}
+                    <Switch
+                        side="right"
+                        value={settings.untilSongEnds}
+                        onValueChange={v => setSettings({ untilSongEnds: v })}
+                        label="Stay until the song ends"
+                        help="Click anywhere to skip it."
+                    />
+                </div>
+            )}
+        </div>
     )
 }

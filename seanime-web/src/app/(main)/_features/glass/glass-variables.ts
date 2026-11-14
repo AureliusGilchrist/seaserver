@@ -1,5 +1,6 @@
 "use client"
 import { useClientSettings } from "@/lib/client-settings"
+import { DEFAULT_DARK_START_HOUR, DEFAULT_LIGHT_START_HOUR, inHourWindow, useLocalHour } from "@/lib/theme/time-schedule"
 import React from "react"
 
 /**
@@ -42,4 +43,30 @@ export function useGlassVariables() {
         apply("seaGlassOpacity", "--sea-user-glass-opacity", typeof glassOpacity === "number" ? String(clampGlassPercent(glassOpacity) / 100) : null)
         apply("seaGlassBlur", "--sea-user-glass-blur", typeof glassBlur === "number" ? `${clampGlassBlur(glassBlur)}px` : null)
     }, [glassTint, glassOpacity, glassBlur])
+}
+
+/**
+ * Personal -> Display -> Appearance: dark (the default), light, or switching between the two by the
+ * clock. Light mode is html[data-sea-light]; the palette swap is in globals.css ("Light mode").
+ */
+export function useIsLightMode(): boolean {
+    const { appearanceMode, lightModeStartHour, darkModeStartHour } = useClientSettings()
+    const hour = useLocalHour()
+    if (appearanceMode === "light") return true
+    if (appearanceMode !== "schedule") return false
+    return inHourWindow(hour, lightModeStartHour ?? DEFAULT_LIGHT_START_HOUR, darkModeStartHour ?? DEFAULT_DARK_START_HOUR)
+}
+
+export function useAppearanceMode() {
+    const light = useIsLightMode()
+    React.useEffect(() => {
+        const root = document.documentElement
+        if (light) {
+            root.dataset.seaLight = ""
+            root.style.colorScheme = "light"
+        } else {
+            delete root.dataset.seaLight
+            root.style.colorScheme = ""
+        }
+    }, [light])
 }

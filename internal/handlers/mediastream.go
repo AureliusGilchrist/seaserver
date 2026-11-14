@@ -200,3 +200,31 @@ func (h *Handler) HandleMediastreamFile(c echo.Context) error {
 	libraryPaths := h.App.Settings.GetLibrary().GetLibraryPaths()
 	return h.App.MediastreamRepository.ServeEchoFile(c, fp, clientId, libraryPaths)
 }
+
+// HandleMediastreamQuickEditSubtitle
+//
+//	@summary changes the wording of one subtitle line of the file being played.
+//	@desc The extracted track is changed at once; the subtitle track inside the video file is rewritten in the background (MKV only).
+//	@route /api/v1/mediastream/subs-edit [POST]
+//	@returns bool
+func (h *Handler) HandleMediastreamQuickEditSubtitle(c echo.Context) error {
+	type body struct {
+		ClientId   string  `json:"clientId"`
+		TrackIndex int     `json:"trackIndex"`
+		Start      float64 `json:"start"`
+		End        float64 `json:"end"`
+		OldText    string  `json:"oldText"`
+		NewText    string  `json:"newText"`
+	}
+	b := new(body)
+	if err := c.Bind(b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+	if b.ClientId == "" || len(b.NewText) > 4000 {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "invalid caption edit"))
+	}
+	if err := h.App.MediastreamRepository.QuickEditSubtitle(b.ClientId, b.TrackIndex, b.Start, b.End, b.OldText, b.NewText); err != nil {
+		return h.RespondWithError(c, err)
+	}
+	return h.RespondWithData(c, true)
+}

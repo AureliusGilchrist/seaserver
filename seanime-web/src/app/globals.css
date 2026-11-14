@@ -2775,10 +2775,13 @@ html[data-sea-wallpaper-tone] :is(h1, h2, h3) {
    --sea-user-glass-tint and --sea-user-glass-opacity are 0–1, --sea-user-glass-blur a length. */
 
 /* Opacity: over a wallpaper it is the grade's own alpha; otherwise a neutral fill at that alpha. */
+html {
+    --sea-glass-base: 12 12 17;
+}
 html[data-sea-glass-opacity] {
     --sea-grade-alpha: var(--sea-user-glass-opacity) !important;
-    --sea-card-bg: rgb(12 12 17 / var(--sea-user-glass-opacity)) !important;
-    --sea-sidebar-bg: rgb(12 12 17 / var(--sea-user-glass-opacity)) !important;
+    --sea-card-bg: rgb(var(--sea-glass-base) / var(--sea-user-glass-opacity)) !important;
+    --sea-sidebar-bg: rgb(var(--sea-glass-base) / var(--sea-user-glass-opacity)) !important;
 }
 html[data-sea-glass-opacity] :is(
     :is([class*="backdrop-blur"], [style*="backdrop-filter: blur"]):is(
@@ -2793,7 +2796,7 @@ html[data-sea-glass-opacity] :is(
     html[data-sea-navbar="navbar-pill"] [data-top-navbar],
     html[data-sea-toast="toast-glass"] [data-sonner-toast]
 ):not([class*="backdrop-blur-none"]):not([class*="bg-[url"]):not([style*="url("]):not([data-vc-element="container"] *):not([data-custom-background-image] *):not([data-custom-background-image-blur]) {
-    background-color: rgb(12 12 17 / var(--sea-user-glass-opacity)) !important;
+    background-color: rgb(var(--sea-glass-base) / var(--sea-user-glass-opacity)) !important;
 }
 /* Over a wallpaper the grade laid on top already carries the chosen alpha. */
 html[data-sea-glass-opacity][data-sea-wallpaper-tone] :is(
@@ -2823,8 +2826,8 @@ html[data-sea-glass-tint][data-sea-wallpaper-tone] {
         rgb(var(--sea-grade-glow) / calc((var(--sea-grade-alpha) - 0.04) * var(--sea-user-glass-tint))) 0%,
         rgb(var(--sea-grade-deep) / calc(var(--sea-grade-alpha) * var(--sea-user-glass-tint))) 38%,
         rgb(var(--sea-grade-mid) / calc((var(--sea-grade-alpha) + 0.06) * var(--sea-user-glass-tint))) 100%),
-        linear-gradient(rgb(12 12 17 / calc(var(--sea-grade-alpha) * (1 - var(--sea-user-glass-tint)))),
-        rgb(12 12 17 / calc(var(--sea-grade-alpha) * (1 - var(--sea-user-glass-tint)))));
+        linear-gradient(rgb(var(--sea-glass-base) / calc(var(--sea-grade-alpha) * (1 - var(--sea-user-glass-tint)))),
+        rgb(var(--sea-glass-base) / calc(var(--sea-grade-alpha) * (1 - var(--sea-user-glass-tint)))));
 }
 html[data-sea-glass-tint]:not([data-sea-wallpaper-tone]) :is(
     :is([class*="backdrop-blur"], [style*="backdrop-filter: blur"]):is(
@@ -2861,9 +2864,166 @@ html[data-sea-glass-blur] :is(
     backdrop-filter: blur(var(--sea-user-glass-blur)) saturate(1.5) brightness(var(--sea-glass-dim, 1)) !important;
 }
 
+
+/* Every other translucent surface: the dark fills with an alpha (bg-black/60, bg-gray-950/80 and the
+   like) that are not drawn over a blur, and the menus, drawers and tooltips not listed above. Same
+   three settings. Gradients, invisible fills and the dimming overlays behind modals are left alone. */
+html[data-sea-glass-opacity] :is(
+    [class^="bg-black/"], [class*=" bg-black/"],
+    [class^="bg-gray-950/"], [class*=" bg-gray-950/"], [class^="bg-gray-900/"], [class*=" bg-gray-900/"],
+    [class^="bg-gray-800/"], [class*=" bg-gray-800/"],
+    [class^="bg-zinc-9"][class*="/"], [class*=" bg-zinc-9"][class*="/"],
+    [class^="bg-neutral-9"][class*="/"], [class*=" bg-neutral-9"][class*="/"],
+    [class^="bg-slate-9"][class*="/"], [class*=" bg-slate-9"][class*="/"],
+    [class^="bg-brand-950/"], [class*=" bg-brand-950/"],
+    [class^="bg-[--background]/"], [class*=" bg-[--background]/"],
+    [class^="bg-[--paper]"], [class*=" bg-[--paper]"],
+    .UI-DropdownMenu__subContent, .UI-ContextMenu__root, .UI-ContextMenu__subContent, .UI-Command__root,
+    .UI-Drawer__content, .UI-NavigationMenu__viewport, .UI-ChartTooltip__frame, .UI-Tooltip__root
+):not([class*="backdrop-blur"]):not([class*="bg-gradient"]):not([class*="bg-transparent"]):not([class*="__overlay"]):not([class*="bg-[url"]):not([style*="url("]):not([data-vc-element="container"] *):not([data-welcome-screen] *):not([data-custom-background-image] *):not([data-custom-background-image-blur]) {
+    background-color: rgb(var(--sea-glass-base) / var(--sea-user-glass-opacity)) !important;
+}
+html[data-sea-glass-opacity][data-sea-wallpaper-tone] :is(
+    [class^="bg-black/"], [class*=" bg-black/"],
+    [class^="bg-gray-950/"], [class*=" bg-gray-950/"], [class^="bg-gray-900/"], [class*=" bg-gray-900/"],
+    [class^="bg-gray-800/"], [class*=" bg-gray-800/"],
+    [class^="bg-zinc-9"][class*="/"], [class*=" bg-zinc-9"][class*="/"],
+    [class^="bg-neutral-9"][class*="/"], [class*=" bg-neutral-9"][class*="/"],
+    [class^="bg-slate-9"][class*="/"], [class*=" bg-slate-9"][class*="/"],
+    [class^="bg-brand-950/"], [class*=" bg-brand-950/"],
+    [class^="bg-[--background]/"], [class*=" bg-[--background]/"],
+    [class^="bg-[--paper]"], [class*=" bg-[--paper]"],
+    .UI-DropdownMenu__subContent, .UI-ContextMenu__root, .UI-ContextMenu__subContent, .UI-Command__root,
+    .UI-Drawer__content, .UI-NavigationMenu__viewport, .UI-ChartTooltip__frame, .UI-Tooltip__root
+):not([class*="backdrop-blur"]):not([class*="bg-gradient"]):not([class*="bg-transparent"]):not([class*="__overlay"]):not([class*="bg-[url"]):not([style*="url("]):not([data-vc-element="container"] *):not([data-welcome-screen] *):not([data-custom-background-image] *):not([data-custom-background-image-blur]) {
+    background-color: rgb(var(--sea-grade-deep, var(--sea-glass-base)) / var(--sea-user-glass-opacity)) !important;
+}
+html[data-sea-glass-tint] :is(
+    [class^="bg-black/"], [class*=" bg-black/"],
+    [class^="bg-gray-950/"], [class*=" bg-gray-950/"], [class^="bg-gray-900/"], [class*=" bg-gray-900/"],
+    [class^="bg-gray-800/"], [class*=" bg-gray-800/"],
+    [class^="bg-zinc-9"][class*="/"], [class*=" bg-zinc-9"][class*="/"],
+    [class^="bg-neutral-9"][class*="/"], [class*=" bg-neutral-9"][class*="/"],
+    [class^="bg-slate-9"][class*="/"], [class*=" bg-slate-9"][class*="/"],
+    [class^="bg-brand-950/"], [class*=" bg-brand-950/"],
+    [class^="bg-[--background]/"], [class*=" bg-[--background]/"],
+    [class^="bg-[--paper]"], [class*=" bg-[--paper]"],
+    .UI-DropdownMenu__subContent, .UI-ContextMenu__root, .UI-ContextMenu__subContent, .UI-Command__root,
+    .UI-Drawer__content, .UI-NavigationMenu__viewport, .UI-ChartTooltip__frame, .UI-Tooltip__root
+):not([class*="backdrop-blur"]):not([class*="bg-gradient"]):not([class*="bg-transparent"]):not([class*="__overlay"]):not([class*="bg-[url"]):not([style*="url("]):not([data-vc-element="container"] *):not([data-welcome-screen] *):not([data-custom-background-image] *):not([data-custom-background-image-blur]) {
+    background-image: linear-gradient(150deg, var(--sea-user-tint-fill)) !important;
+}
+html[data-sea-glass-tint][data-sea-wallpaper-tone] :is(
+    [class^="bg-black/"], [class*=" bg-black/"],
+    [class^="bg-gray-950/"], [class*=" bg-gray-950/"], [class^="bg-gray-900/"], [class*=" bg-gray-900/"],
+    [class^="bg-gray-800/"], [class*=" bg-gray-800/"],
+    [class^="bg-zinc-9"][class*="/"], [class*=" bg-zinc-9"][class*="/"],
+    [class^="bg-neutral-9"][class*="/"], [class*=" bg-neutral-9"][class*="/"],
+    [class^="bg-slate-9"][class*="/"], [class*=" bg-slate-9"][class*="/"],
+    [class^="bg-brand-950/"], [class*=" bg-brand-950/"],
+    [class^="bg-[--background]/"], [class*=" bg-[--background]/"],
+    [class^="bg-[--paper]"], [class*=" bg-[--paper]"],
+    .UI-DropdownMenu__subContent, .UI-ContextMenu__root, .UI-ContextMenu__subContent, .UI-Command__root,
+    .UI-Drawer__content, .UI-NavigationMenu__viewport, .UI-ChartTooltip__frame, .UI-Tooltip__root
+):not([class*="backdrop-blur"]):not([class*="bg-gradient"]):not([class*="bg-transparent"]):not([class*="__overlay"]):not([class*="bg-[url"]):not([style*="url("]):not([data-vc-element="container"] *):not([data-welcome-screen] *):not([data-custom-background-image] *):not([data-custom-background-image-blur]) {
+    background-image: linear-gradient(150deg,
+        rgb(var(--sea-grade-glow) / calc(0.35 * var(--sea-user-glass-tint))),
+        rgb(var(--sea-grade-mid) / calc(0.45 * var(--sea-user-glass-tint)))) !important;
+}
+html[data-sea-glass-blur] :is(
+    [class^="bg-black/"], [class*=" bg-black/"],
+    [class^="bg-gray-950/"], [class*=" bg-gray-950/"], [class^="bg-gray-900/"], [class*=" bg-gray-900/"],
+    [class^="bg-gray-800/"], [class*=" bg-gray-800/"],
+    [class^="bg-zinc-9"][class*="/"], [class*=" bg-zinc-9"][class*="/"],
+    [class^="bg-neutral-9"][class*="/"], [class*=" bg-neutral-9"][class*="/"],
+    [class^="bg-slate-9"][class*="/"], [class*=" bg-slate-9"][class*="/"],
+    [class^="bg-brand-950/"], [class*=" bg-brand-950/"],
+    [class^="bg-[--background]/"], [class*=" bg-[--background]/"],
+    [class^="bg-[--paper]"], [class*=" bg-[--paper]"],
+    .UI-DropdownMenu__subContent, .UI-ContextMenu__root, .UI-ContextMenu__subContent, .UI-Command__root,
+    .UI-Drawer__content, .UI-NavigationMenu__viewport, .UI-ChartTooltip__frame, .UI-Tooltip__root
+):not([class*="backdrop-blur"]):not([class*="bg-gradient"]):not([class*="bg-transparent"]):not([class*="__overlay"]):not([class*="bg-[url"]):not([style*="url("]):not([data-vc-element="container"] *):not([data-welcome-screen] *):not([data-custom-background-image] *):not([data-custom-background-image-blur]) {
+    -webkit-backdrop-filter: blur(var(--sea-user-glass-blur)) saturate(1.4) !important;
+    backdrop-filter: blur(var(--sea-user-glass-blur)) saturate(1.4) !important;
+}
+
+/* ══ Light mode ═══════════════════════════════════════════════════════════
+   Personal -> Display -> Appearance (useAppearanceMode). The grey ramp turns over and white/black
+   swap (tailwind.config.ts makes both follow --color-white/--color-black), so every class that was
+   light-on-dark becomes dark-on-light. !important because themes write these variables inline.
+   The players and the welcome screen stay dark. */
+html[data-sea-light] {
+    --color-white: 20 22 30 !important;
+    --color-black: 255 255 255 !important;
+    --color-gray-50: 18 18 22 !important;
+    --color-gray-100: 28 28 33 !important;
+    --color-gray-200: 44 44 50 !important;
+    --color-gray-300: 62 62 70 !important;
+    --color-gray-400: 98 98 108 !important;
+    --color-gray-500: 128 128 138 !important;
+    --color-gray-600: 168 168 178 !important;
+    --color-gray-700: 198 198 206 !important;
+    --color-gray-800: 222 222 229 !important;
+    --color-gray-900: 236 236 241 !important;
+    --color-gray-950: 245 245 249 !important;
+    --foreground: rgb(20 22 30) !important;
+    --background: #eceff5 !important;
+    --border: rgba(0, 0, 0, 0.12) !important;
+    --muted: rgba(0, 0, 0, 0.58) !important;
+    --muted-highlight: rgba(0, 0, 0, 0.8) !important;
+    --paper: rgba(255, 255, 255, 0.66) !important;
+    --paper-highlighter: rgba(255, 255, 255, 0.8) !important;
+    --subtle: rgba(0, 0, 0, 0.05) !important;
+    --subtle-highlight: rgba(0, 0, 0, 0.09) !important;
+    --media-card-popup-background: rgba(255, 255, 255, 0.82) !important;
+    --hover-from-background-color: rgba(0, 0, 0, 0.04) !important;
+    --glass-bg: rgba(255, 255, 255, 0.55) !important;
+    --glass-border: rgba(0, 0, 0, 0.1) !important;
+    --glass-highlight: rgba(255, 255, 255, 0.7) !important;
+    --glass-shadow: 0 16px 42px rgba(30, 40, 70, 0.14), 0 4px 12px rgba(30, 40, 70, 0.08) !important;
+    --sea-glass-base: 247 248 252;
+    --sea-card-bg: rgb(250 250 253 / 0.72) !important;
+    --sea-sidebar-bg: rgb(250 250 253 / 0.72) !important;
+    background-color: var(--background);
+}
+html[data-sea-light] :is(h1, h2, h3) {
+    text-shadow: none !important;
+}
+html[data-sea-light] :is([data-vc-element="container"], [data-welcome-screen], [data-video-core-element]) {
+    --color-white: 255 255 255;
+    --color-black: 0 0 0;
+    --color-gray-50: 230 230 230;
+    --color-gray-100: 225 225 225;
+    --color-gray-200: 209 209 209;
+    --color-gray-300: 202 202 202;
+    --color-gray-400: 143 143 143;
+    --color-gray-500: 90 90 90;
+    --color-gray-600: 72 72 72;
+    --color-gray-700: 54 54 54;
+    --color-gray-800: 28 28 28;
+    --color-gray-900: 16 16 16;
+    --color-gray-950: 11 11 11;
+    --foreground: rgb(225 225 225);
+    --border: rgba(255, 255, 255, 0.12);
+    --muted: rgba(255, 255, 255, 0.6);
+    --paper: rgba(14, 18, 26, 0.62);
+    --subtle: rgba(255, 255, 255, 0.08);
+    --sea-glass-base: 12 12 17;
+    color: rgb(225 225 225);
+}
+
 /* A theme's player icon must never collapse to nothing: themed svgs size themselves with a class,
    so keep a 1em floor in case that class is missing. */
 [data-theme-player-icon] > svg {
     min-width: 1em;
     min-height: 1em;
+}
+
+/* Personal -> Player -> HDR (local and online player). "sdr" tone-maps HDR video to SDR; "hdr" and
+   "boost" let it use the display's full brightness range. */
+video[data-hdr-mode="sdr"] {
+    dynamic-range-limit: standard;
+}
+video[data-hdr-mode="hdr"], video[data-hdr-mode="boost"] {
+    dynamic-range-limit: no-limit;
 }

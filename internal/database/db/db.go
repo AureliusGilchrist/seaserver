@@ -216,6 +216,7 @@ func migrateTables(db *gorm.DB) error {
 		&models.StaffFavorite{},
 		&models.StudioFavorite{},
 		&models.EpisodeFavorite{},
+		&models.ThemeFavorite{},
 		&models.Notification{},
 		&models.AnilistNotificationReceipt{},
 		&models.Achievement{},

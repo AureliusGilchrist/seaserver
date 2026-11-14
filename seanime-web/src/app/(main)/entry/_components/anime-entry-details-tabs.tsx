@@ -4,14 +4,16 @@ import { CommentSection } from "@/app/(main)/_features/comment/comment-section"
 import { MediaDetailsInfoSection, MediaDetailsStaffSection } from "@/app/(main)/_features/media/_components/media-details-sections"
 import { MediaEntryCharactersSection } from "@/app/(main)/_features/media/_components/media-entry-characters-section"
 import { MediaEntryDetailsTabs } from "@/app/(main)/_features/media/_components/media-entry-details-tabs"
-import { AnimeThemesSection } from "@/app/(main)/entry/_components/anime-themes-section"
+import { AnimeThemesAutoplay, AnimeThemesTab } from "@/app/(main)/entry/_components/anime-themes-tab"
 import { RelationsRecommendationsSection } from "@/app/(main)/entry/_components/relations-recommendations-section"
 import React from "react"
-import { LuInfo, LuLayers, LuMessageSquare, LuUsers } from "react-icons/lu"
+import { LuInfo, LuLayers, LuMessageSquare, LuMusic, LuUsers } from "react-icons/lu"
 
 /** Everything under the episode list, the same in every view of the anime page. */
 export function AnimeEntryDetailsTabs({ entry, details }: { entry: Anime_Entry, details: AL_AnimeDetailsById_Media | undefined }) {
     return (
+        <>
+        <AnimeThemesAutoplay entry={entry} />
         <MediaEntryDetailsTabs
             tabs={[
                 {
@@ -22,9 +24,7 @@ export function AnimeEntryDetailsTabs({ entry, details }: { entry: Anime_Entry, 
                         mediaId={entry.mediaId}
                         type="anime"
                         nativeTitle={entry.media?.title?.native}
-                    >
-                        <AnimeThemesSection malId={entry.media?.idMal} />
-                    </MediaDetailsInfoSection>,
+                    />,
                 },
                 {
                     value: "cast",
@@ -42,6 +42,12 @@ export function AnimeEntryDetailsTabs({ entry, details }: { entry: Anime_Entry, 
                     content: <RelationsRecommendationsSection entry={entry} details={details} />,
                 },
                 {
+                    value: "themes",
+                    label: "Anime Themes",
+                    icon: <LuMusic />,
+                    content: <AnimeThemesTab entry={entry} />,
+                },
+                {
                     value: "discussion",
                     label: "Discussion",
                     icon: <LuMessageSquare />,
@@ -49,5 +55,6 @@ export function AnimeEntryDetailsTabs({ entry, details }: { entry: Anime_Entry, 
                 },
             ]}
         />
+        </>
     )
 }

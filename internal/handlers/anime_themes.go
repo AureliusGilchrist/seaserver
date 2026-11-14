@@ -46,6 +46,8 @@ type AnimeThemeVideo struct {
 	Subbed     bool   `json:"subbed"`
 	Tags       string `json:"tags"`
 	Basename   string `json:"basename"`
+	// Audio is the audio-only rip of the video (a.animethemes.moe), when the API sent it.
+	Audio string `json:"audio,omitempty"`
 }
 
 type AnimeThemesResponse struct {

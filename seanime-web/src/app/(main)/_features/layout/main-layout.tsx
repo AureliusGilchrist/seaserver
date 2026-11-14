@@ -71,6 +71,7 @@ import { useGetProfiles } from "@/api/hooks/profiles.hooks"
 import { ClientPrefsHydrator } from "@/lib/sea-storage/client-prefs-hydrator"
 import { ThemeIdleWhisper } from "@/lib/theme/anime-themes/theme-flavor"
 import { WelcomeScreen } from "@/lib/theme/anime-themes/welcome-screen"
+import { ThemePlayerBar } from "@/app/(main)/_features/anime-themes/theme-player"
 import { useOfflineProgressSync } from "@/lib/offline-progress/use-offline-progress-sync"
 
 /** Your own profile wallpaper as the app-wide background, when the theme doesn't supply one. */
@@ -142,6 +143,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
             <Announcements />
             <ThemeIdleWhisper />
             <WelcomeScreen />
+            <ThemePlayerBar />
             <AdminAnnouncementsBanner />
             <LibraryExplorerDrawer />
             <PluginWebviewSlot slot="fixed" />

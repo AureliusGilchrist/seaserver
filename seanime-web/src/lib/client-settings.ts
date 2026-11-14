@@ -113,6 +113,25 @@ export const clientSettingsSchema = z.object({
     glassTint: z.number().optional(),
     glassOpacity: z.number().optional(),
     glassBlur: z.number().optional(),
+    /** Light or dark app, or switching between them by the clock ("schedule"). Unset = dark.
+     * See appearance-mode.ts. */
+    appearanceMode: z.enum(["dark", "light", "schedule"]).optional(),
+    /** "schedule": the hour (0–23) light mode starts, and the hour dark mode comes back. */
+    lightModeStartHour: z.number().optional(),
+    darkModeStartHour: z.number().optional(),
+    /** Wallpapers by time of day: each one is shown from its hour until the next one's. Only
+     * while wallpaperScheduleEnabled is on. See wallpaper-schedule.ts. */
+    wallpaperScheduleEnabled: z.boolean().optional(),
+    wallpaperSchedule: z.array(z.object({
+        fromHour: z.number(),
+        url: z.string(),
+        label: z.string().optional(),
+    })).optional(),
+    /** Anime pages: play every opening and ending of the series, first to last, as the page opens. */
+    autoPlayThemesOnDetails: z.boolean().optional(),
+    /** Local and online player: "auto" leaves it to the display, "hdr" lets HDR video use the
+     * full range, "sdr" tone-maps everything to SDR, "boost" gives SDR video an HDR-like look. */
+    hdrMode: z.enum(["auto", "hdr", "sdr", "boost"]).optional(),
     /** Franchise section on details pages: relation kinds and media kinds shown, and how many
      * before "Show more". See franchise-settings.ts. */
     franchiseRelations: z.array(z.string()).optional(),

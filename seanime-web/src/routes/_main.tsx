@@ -5,7 +5,7 @@ import { AnilistAvailabilityBanner } from "@/app/(main)/_features/anilist/anilis
 import { OfflineBanner } from "@/app/(main)/_features/connectivity/offline-banner"
 import { MainLayout } from "@/app/(main)/_features/layout/main-layout"
 import { useCardSizeVariables } from "@/app/(main)/_features/media/card-size"
-import { useGlassVariables } from "@/app/(main)/_features/glass/glass-variables"
+import { useAppearanceMode, useGlassVariables } from "@/app/(main)/_features/glass/glass-variables"
 import { OfflineLayout } from "@/app/(main)/_features/layout/offline-layout"
 import { TopNavbar } from "@/app/(main)/_features/layout/top-navbar"
 import { TourOverlay } from "@/app/(main)/_features/tour/tour-overlay"
@@ -42,6 +42,8 @@ function Layout() {
     useCardSizeVariables()
     // Glass tint, opacity and blur from Personal -> Display, as CSS variables every glass surface reads.
     useGlassVariables()
+    // Light or dark, fixed or by the clock (Personal -> Display -> Appearance).
+    useAppearanceMode()
 
     React.useEffect(() => {
         setHost(window?.location?.host || "")

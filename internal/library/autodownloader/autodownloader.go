@@ -525,6 +525,9 @@ func (ad *AutoDownloader) checkDirectRules(ctx context.Context, ruleIDs ...uint)
 		if fetched > 0 {
 			ad.logger.Info().Int("mediaId", rule.MediaId).Str("provider", provider).Int("episodes", fetched).
 				Msg("autodownloader: Queued the new episodes of the series")
+		} else {
+			ad.logger.Debug().Int("mediaId", rule.MediaId).Str("provider", provider).
+				Msg("autodownloader: No new episodes for the series")
 		}
 	}
 }

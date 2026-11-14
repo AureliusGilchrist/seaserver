@@ -820,9 +820,6 @@ func (pm *PlaybackManager) autoSyncCurrentProgress(_ps *PlaybackState) {
 		// If the current progress is lower than the episode progress number
 		epProgressNum = pm.currentLocalFileWrapperEntry.MustGet().GetProgressNumber(pm.currentLocalFile.MustGet())
 		currentProgress = pm.currentMediaListEntry.MustGet().GetProgressSafe()
-		if currentProgress >= epProgressNum {
-			return
-		}
 		mediaId = pm.currentMediaListEntry.MustGet().GetMedia().GetID()
 
 	case StreamPlayback:
@@ -833,9 +830,6 @@ func (pm *PlaybackManager) autoSyncCurrentProgress(_ps *PlaybackState) {
 		epProgressNum = pm.currentStreamEpisode.MustGet().GetProgressNumber()
 		if pm.currentMediaListEntry.IsPresent() {
 			currentProgress = pm.currentMediaListEntry.MustGet().GetProgressSafe()
-			if currentProgress >= epProgressNum {
-				return
-			}
 		}
 		mediaId = pm.currentStreamMedia.MustGet().ID
 	}
@@ -850,7 +844,9 @@ func (pm *PlaybackManager) autoSyncCurrentProgress(_ps *PlaybackState) {
 	// than the snapshot taken when tracking started (and that snapshot is the admin's list).
 	if ovrProfileID > 0 && pm.getProfileAnimeCollectionFunc != nil {
 		if col := pm.getProfileAnimeCollectionFunc(ovrProfileID); col != nil {
-			if entry, ok := col.GetListEntryFromAnimeId(mediaId); ok && entry.GetProgressSafe() > effectiveProgress {
+			// It replaces the snapshot either way: lower too, when a rewatch started after playback
+			// did and set the progress back to 0.
+			if entry, ok := col.GetListEntryFromAnimeId(mediaId); ok {
 				effectiveProgress = entry.GetProgressSafe()
 			}
 		}
@@ -860,7 +856,9 @@ func (pm *PlaybackManager) autoSyncCurrentProgress(_ps *PlaybackState) {
 	}
 	pm.sessionLastSyncedEpisodeMu.Lock()
 	if pm.sessionLastSyncedEpisode != nil {
-		if last, ok := pm.sessionLastSyncedEpisode[mediaId]; ok && last > effectiveProgress {
+		// Only an episode before this one counts: one at or past it is from an earlier watch of
+		// the series this run (a rewatch starts over from episode 1), not a sync AniList lags on.
+		if last, ok := pm.sessionLastSyncedEpisode[mediaId]; ok && last > effectiveProgress && last < epProgressNum {
 			effectiveProgress = last
 		}
 	}

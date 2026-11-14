@@ -1126,6 +1126,20 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         this.videoElement.textTracks.dispatchEvent(new Event("change"))
     }
 
+    /** The address a file track is loaded from, or null for a track that is not a file. */
+    getFileTrackSrc(trackNumber: number | null): string | null {
+        if (trackNumber == null) return null
+        return this.fileTracks[trackNumber]?.info?.src ?? null
+    }
+
+    /** Drops a file track's loaded copy and loads it again (after its file was edited). */
+    async reloadFileTrack(trackNumber: number) {
+        const track = this.fileTracks[trackNumber]
+        if (!track) return
+        track.content = null
+        if (this.currentTrackNumber === trackNumber) await this.selectTrack(trackNumber)
+    }
+
     getTracks() {
         return this._getTracks()
     }

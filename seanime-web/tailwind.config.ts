@@ -255,6 +255,10 @@ const config: Config = {
                 "md": "0 1px 3px 0 rgba(0, 0, 0, 0.1),0 1px 2px 0 rgba(0, 0, 0, 0.06)",
             },
             colors: {
+                // White and black follow light mode (globals.css, "Light mode"): in it white text
+                // and black glass swap, so the whole app turns over without touching each class.
+                white: "rgb(var(--color-white, 255 255 255) / <alpha-value>)",
+                black: "rgb(var(--color-black, 0 0 0) / <alpha-value>)",
                 brand: {
                     50: "rgb(var(--color-brand-50) / <alpha-value>)",
                     100: "rgb(var(--color-brand-100) / <alpha-value>)",

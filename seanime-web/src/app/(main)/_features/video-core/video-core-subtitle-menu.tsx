@@ -11,6 +11,7 @@ import { VideoCoreControlButtonIcon } from "@/app/(main)/_features/video-core/vi
 import { MediaCaptionsTrack } from "@/app/(main)/_features/video-core/video-core-media-captions"
 import { VideoCoreMenu, VideoCoreMenuBody, VideoCoreMenuTitle, VideoCoreSettingSelect } from "@/app/(main)/_features/video-core/video-core-menu"
 import { NormalizedTrackInfo } from "@/app/(main)/_features/video-core/video-core-subtitles"
+import { VideoCoreCaptionEditButton } from "@/app/(main)/_features/video-core/video-core-caption-edit"
 import { vc_dispatchAction } from "@/app/(main)/_features/video-core/video-core.utils"
 import { saveLocalTrackOverride } from "@/app/(main)/_features/video-core/video-core-track-preferences"
 import { IconButton } from "@/components/ui/button"
@@ -210,6 +211,7 @@ export function VideoCoreSubtitleMenu({ inline, mediaId }: { inline?: boolean, m
                     }}
                     value={selectedTrack ?? -1}
                 />
+                {!!subtitleManager && <VideoCoreCaptionEditButton selectedTrack={selectedTrack} />}
             </VideoCoreMenuBody>
         </VideoCoreMenu>
     )

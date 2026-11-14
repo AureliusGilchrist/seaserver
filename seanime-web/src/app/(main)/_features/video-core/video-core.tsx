@@ -158,6 +158,7 @@ import {
     vc_logGeneralInfo,
 } from "@/app/(main)/_features/video-core/video-core.utils"
 import { usePersonalSettings } from "@/app/(main)/_hooks/use-personal-settings"
+import { useClientSettings } from "@/lib/client-settings"
 import { useRouter as useTanstackRouter } from "@tanstack/react-router"
 import { useServerHMACAuth, useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { useMediastreamCurrentFile } from "@/app/(main)/mediastream/_lib/mediastream.atoms"
@@ -399,6 +400,8 @@ const PlayerContent = React.memo<PlayerContentProps>(({
     const buffering = useAtomValue(vc_buffering)
     const settings = useAtomValue(vc_settings)
     const beautifyImage = useAtomValue(vc_beautifyImageAtom)
+    // Personal -> Player -> HDR. Same in the local and the online player (both are this one).
+    const { hdrMode = "auto" } = useClientSettings()
     const isPip = useAtomValue(vc_pip)
     const skipOpeningTime = useAtomValue(vc_skipOpeningTime)
     const skipEndingTime = useAtomValue(vc_skipEndingTime)
@@ -564,6 +567,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                             <video
                                 data-vc-element="video"
                                 data-video-core-element
+                                data-hdr-mode={hdrMode}
                                 crossOrigin="anonymous"
                                 preload="auto"
                                 src={streamUrl && !streamUrl.includes(".m3u8") ? streamUrl : undefined}
@@ -595,7 +599,10 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                                     objectPosition: "center",
                                     filter: (settings.videoEnhancement.enabled && beautifyImage)
                                         ? `contrast(${settings.videoEnhancement.contrast}) saturate(${settings.videoEnhancement.saturation}) brightness(${settings.videoEnhancement.brightness})`
-                                        : "none",
+                                        : hdrMode === "boost"
+                                            // SDR pushed toward an HDR look: deeper blacks, brighter highlights, richer colour.
+                                            ? "contrast(1.12) saturate(1.22) brightness(1.06)"
+                                            : "none",
                                     // Nearest-neighbour scaling forces the video through the compositor instead
                                     // of a hardware overlay; only used with GPU-optimized playback off.
                                     ...(settings.gpuOptimizedPlayback === false ? { imageRendering: "crisp-edges" as const } : {}),

@@ -50,6 +50,7 @@ var uncompressiblePrefixes = []string{
 	"/offline-assets",
 	"/manga-downloads",
 	"/theme-bg",
+	"/welcome-audio",
 	"/shared-themes",
 	"/cursor-packs",
 }
@@ -318,6 +319,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.GET("/status/manga-home-items", h.HandleGetMangaHomeItems)
 	v1.POST("/status/manga-home-items", h.HandleUpdateMangaHomeItems, h.RequireProfileAdmin)
 
+	v1.GET("/anime-themes/series/:id", h.HandleGetAnimeThemesSeries)
 	v1.GET("/anime-themes/:id", h.HandleGetAnimeThemes)
 	v1.GET("/kitsu/anime/:id", h.HandleGetKitsuAnimeInfo)
 	v1.GET("/kitsu/manga/:id", h.HandleGetKitsuMangaInfo)
@@ -326,6 +328,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.POST("/theme-backgrounds/download", h.HandleDownloadThemeBackground)
 	v1.DELETE("/theme-backgrounds/:filename", h.HandleDeleteThemeBackground)
 	v1.GET("/theme-backgrounds/wallhaven/search", h.HandleSearchWallhaven)
+	v1.GET("/theme-backgrounds/alphacoders/search", h.HandleSearchAlphaCoders)
 
 	// Shared themes (downloaded from marketplace, visible to all profiles)
 	v1.GET("/shared-themes", h.HandleListSharedThemes)
@@ -555,6 +558,10 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	// Episode Favorites (per-profile)
 	v1.GET("/episode/favorites", h.HandleGetEpisodeFavorites)
 	v1.POST("/episode/favorites/toggle", h.HandleToggleEpisodeFavorite)
+
+	// Theme (opening / ending) Favorites (per-profile)
+	v1.GET("/theme/favorites", h.HandleGetThemeFavorites)
+	v1.POST("/theme/favorites/toggle", h.HandleToggleThemeFavorite)
 
 	//
 	// MAL
@@ -850,6 +857,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.POST("/mediastream/shutdown-transcode", h.HandleMediastreamShutdownTranscodeStream)
 	v1.GET("/mediastream/transcode/:clientId/*", h.HandleMediastreamTranscode)
 	v1.GET("/mediastream/subs/:clientId/*", h.HandleMediastreamGetSubtitles)
+	v1.POST("/mediastream/subs-edit", h.HandleMediastreamQuickEditSubtitle)
 	v1.GET("/mediastream/att/:clientId/*", h.HandleMediastreamGetAttachments)
 	v1.GET("/mediastream/direct/:clientId", h.HandleMediastreamDirectPlay)
 	v1.HEAD("/mediastream/direct/:clientId", h.HandleMediastreamDirectPlay)
@@ -1147,6 +1155,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.PATCH("/profile/display-cosmetics", h.HandleSetDisplayCosmetics)
 	v1.PATCH("/profile/wallpaper", h.HandleSetProfileWallpaper)
 	v1.POST("/profile/wallpaper/upload", h.HandleUploadProfileWallpaper)
+	v1.POST("/welcome-audio/upload", h.HandleUploadWelcomeAudio)
 	v1.POST("/profile/landing-image/upload", h.HandleUploadLandingImage)
 	v1.GET("/profile/level", h.HandleGetLevel)
 	// What the last update was, kept until the client has seen it. Shown after sign-in, never at

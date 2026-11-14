@@ -86,12 +86,15 @@ export function useDeleteThemeBackground() {
     })
 }
 
-export function useSearchWallhaven(q: string, page: number, enabled: boolean) {
-    const ep = `/api/v1/theme-backgrounds/wallhaven/search?q=${encodeURIComponent(q)}&page=${page}`
+export type WallpaperSource = "wallhaven" | "alphacoders"
+
+/** Searches Wallhaven, or Alpha Coders (the server answers in Wallhaven's shape for both). */
+export function useSearchWallhaven(q: string, page: number, enabled: boolean, source: WallpaperSource = "wallhaven") {
+    const ep = `/api/v1/theme-backgrounds/${source}/search?q=${encodeURIComponent(q)}&page=${page}`
     return useServerQuery<WallhavenSearchResponse>({
         endpoint: ep,
         method: "GET",
-        queryKey: ["wallhaven-search", q, page],
+        queryKey: [`${source}-search`, q, page],
         enabled: enabled && !!q,
         staleTime: 10 * 60 * 1000,
         retry: false,

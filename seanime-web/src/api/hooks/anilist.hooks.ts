@@ -1,4 +1,5 @@
 import { buildSeaQuery, useServerMutation, useServerQuery } from "@/api/client/requests"
+import { resetRunProgress } from "@/lib/progress-queue/progress-queue"
 import { serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { useInfiniteQuery } from "@tanstack/react-query"
 import { AnilistSaveState, anilistSaveStateAtom } from "@/app/(main)/_atoms/anilist-sync.atoms"
@@ -138,6 +139,9 @@ export function useEditAnilistListEntry(id: Nullish<string | number>, type: "ani
                 ? [API_ENDPOINTS.ANIME_ENTRIES.GetAnimeEntry.key, String(variables.mediaId)]
                 : [API_ENDPOINTS.MANGA.GetMangaEntry.key, String(variables.mediaId)]
             await queryClient.cancelQueries({ queryKey: key })
+            // Progress set by hand (a rewatch starting over at 0 included) replaces whatever this
+            // run remembered sending: kept, it would make the rewatch's episodes look already sent.
+            if (type === "anime" && variables.progress != null && variables.mediaId) resetRunProgress(variables.mediaId)
             const previous = queryClient.getQueryData(key)
             queryClient.setQueryData(key, (old: any) => {
                 if (!old) return old

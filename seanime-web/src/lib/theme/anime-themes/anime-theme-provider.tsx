@@ -1,4 +1,6 @@
 "use client"
+import { useClientSettings } from "@/lib/client-settings"
+import { pickScheduledWallpaper, useLocalHour } from "@/lib/theme/time-schedule"
 import { isMobile } from "@/lib/utils/browser-detection"
 import { __isMobileShell__ } from "@/types/constants"
 import { buildSeaQuery } from "@/api/client/requests"
@@ -653,7 +655,7 @@ export function AnimeThemeProvider({ children, ambient = true }: {
     const bgStorageKey = `${isPhone ? "sea-anime-bgurl-mobile" : "sea-anime-bgurl"}-${profileKey}-${themeId}`
     const themeDefaultBackground = (isPhone ? config.mobileBackgroundImageUrl : undefined) ?? config.backgroundImageUrl ?? null
 
-    const [activeBackgroundUrl, setActiveBackgroundUrlRaw] = React.useState<string | null>(() => {
+    const [storedBackgroundUrl, setActiveBackgroundUrlRaw] = React.useState<string | null>(() => {
         if (typeof window === "undefined") return themeDefaultBackground
         if (themeId === "seanime") return null
         try {
@@ -676,6 +678,15 @@ export function AnimeThemeProvider({ children, ambient = true }: {
             setActiveBackgroundUrlRaw(themeDefaultBackground)
         }
     }, [themeId, profileKey, bgStorageKey, themeDefaultBackground])
+
+    // Personal -> Display -> Wallpaper schedule: while on, the wallpaper for the time of day wins
+    // over the one picked for the theme (which stays saved for when the schedule is turned off).
+    const { wallpaperScheduleEnabled, wallpaperSchedule } = useClientSettings()
+    const localHour = useLocalHour()
+    const scheduledEntry = wallpaperScheduleEnabled ? pickScheduledWallpaper(wallpaperSchedule, localHour) : null
+    const scheduledUrl = scheduledEntry ? resolveScheduledWallpaperUrl(scheduledEntry.url) : null
+    const activeBackgroundUrl = scheduledUrl ?? storedBackgroundUrl
+    const hasThemeWallpaper = !!activeBackgroundUrl && (config.id !== "seanime" || !!scheduledUrl)
 
     const setActiveBackgroundUrl = React.useCallback((url: string | null) => {
 
@@ -755,7 +766,7 @@ export function AnimeThemeProvider({ children, ambient = true }: {
             ? resolveLandingImage(wallpaperOverrideImage)
             : !isProfilePage && themeSettings.libraryScreenCustomBackgroundImage
             ? getAssetUrl(themeSettings.libraryScreenCustomBackgroundImage)
-            : config.id !== "seanime" && activeBackgroundUrl
+            : hasThemeWallpaper
                 ? activeBackgroundUrl
                 : !isProfilePage
                     ? profileWallpaperUrl
@@ -833,7 +844,7 @@ export function AnimeThemeProvider({ children, ambient = true }: {
     // ── Background image: hide default body:before AND body:after when a custom bg is active ──
     React.useEffect(() => {
         const root = document.documentElement
-        if (wallpaperOverrideImage || (config.id !== "seanime" && activeBackgroundUrl)) {
+        if (wallpaperOverrideImage || hasThemeWallpaper) {
             root.style.setProperty("--body-bg-opacity", "0")
             root.style.setProperty("--body-after-opacity", "0")
         } else {
@@ -844,7 +855,7 @@ export function AnimeThemeProvider({ children, ambient = true }: {
             root.style.removeProperty("--body-bg-opacity")
             root.style.removeProperty("--body-after-opacity")
         }
-    }, [config.id, activeBackgroundUrl, wallpaperOverrideImage])
+    }, [config.id, activeBackgroundUrl, hasThemeWallpaper, wallpaperOverrideImage])
 
     // ── Google Font injection ──
     React.useEffect(() => {
@@ -1039,7 +1050,7 @@ export function AnimeThemeProvider({ children, ambient = true }: {
     return (
         <AnimeThemeContext.Provider value={value}>
             {children}
-            {!hideBackdrop && !wallpaperOverride && config.id !== "seanime" && activeBackgroundUrl && <ThemeBackgroundImage url={activeBackgroundUrl} dim={backgroundDim} dimMode={__isMobileShell__ ? "darken" : "fade"} blur={backgroundBlur} exposure={backgroundExposure} saturation={backgroundSaturation} contrast={backgroundContrast} scanlinesStrength={scanlinesStrength} scanlinesSize={scanlinesSize} noiseStrength={noiseStrength} noiseSpeed={noiseSpeed} vignetteStrength={vignetteStrength} vignetteSize={vignetteSize} glowStrength={glowStrength} glowSpeed={glowSpeed} glowScale={glowScale} hologramStrength={hologramStrength} />}
+            {!hideBackdrop && !wallpaperOverride && hasThemeWallpaper && activeBackgroundUrl && <ThemeBackgroundImage url={activeBackgroundUrl} dim={backgroundDim} dimMode={__isMobileShell__ ? "darken" : "fade"} blur={backgroundBlur} exposure={backgroundExposure} saturation={backgroundSaturation} contrast={backgroundContrast} scanlinesStrength={scanlinesStrength} scanlinesSize={scanlinesSize} noiseStrength={noiseStrength} noiseSpeed={noiseSpeed} vignetteStrength={vignetteStrength} vignetteSize={vignetteSize} glowStrength={glowStrength} glowSpeed={glowSpeed} glowScale={glowScale} hologramStrength={hologramStrength} />}
             {!hideBackdrop && config.id !== "seanime" && <ThemeAnimatedOverlay themeId={themeId} intensity={animatedIntensity} particleSettings={particleSettings} particleColor={config.particleColor} />}
         </AnimeThemeContext.Provider>
     )
@@ -1165,4 +1176,9 @@ export function ThemeBackgroundImage({ url, dim, dimMode = "fade", blur, exposur
             )}
         </div>
     )
+}
+
+/** A scheduled wallpaper's url: saved server paths ("/theme-bg/…", uploads) are on the server. */
+function resolveScheduledWallpaperUrl(url: string): string {
+    return url.startsWith("/") ? `${getServerBaseUrl()}${url}` : url
 }

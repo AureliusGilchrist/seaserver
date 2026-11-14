@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"fmt"
+	"html"
+	"regexp"
 	"io"
 	"net/http"
 	"net/url"
@@ -67,9 +69,10 @@ func (h *Handler) HandleDownloadThemeBackground(c echo.Context) error {
 	if b.URL == "" {
 		return h.RespondWithError(c, fmt.Errorf("url is required"))
 	}
-	// Only allow Wallhaven full-resolution CDN paths.
-	if !strings.HasPrefix(b.URL, "https://w.wallhaven.cc/") {
-		return h.RespondWithError(c, fmt.Errorf("only Wallhaven full-res URLs (https://w.wallhaven.cc/...) are accepted"))
+	// Only the full-resolution image hosts of Wallhaven and Alpha Coders.
+	isAlphaCoders := alphaCodersImageRe.MatchString(b.URL)
+	if !strings.HasPrefix(b.URL, "https://w.wallhaven.cc/") && !isAlphaCoders {
+		return h.RespondWithError(c, fmt.Errorf("only Wallhaven (https://w.wallhaven.cc/...) or Alpha Coders (https://images.alphacoders.com/...) image URLs are accepted"))
 	}
 
 	// Sanitise optional themeId so it is safe for filenames.
@@ -97,6 +100,11 @@ func (h *Handler) HandleDownloadThemeBackground(c echo.Context) error {
 	// URL form: https://w.wallhaven.cc/full/ab/wallhaven-abc123.jpg
 	base := strings.TrimSuffix(filepath.Base(b.URL), filepath.Ext(b.URL)) // "wallhaven-abc123"
 	wallhavenID := strings.TrimPrefix(base, "wallhaven-")                 // "abc123"
+	if isAlphaCoders {
+		// "https://images6.alphacoders.com/133/1337729.png" → "ac1337729": the same "wh-<theme>-<id>"
+		// name as a Wallhaven file, so it is filed under the theme the same way.
+		base, wallhavenID = "ac-"+base, "ac"+base
+	}
 	var filename string
 	if wallhavenID != "" && wallhavenID != base {
 		if themeID != "" {
@@ -695,4 +703,127 @@ func (h *Handler) HandleSearchWallhaven(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 	return h.RespondWithData(c, result)
+}
+
+// alphaCodersImageRe matches Alpha Coders' full-size image URLs ("https://images6.alphacoders.com/133/1337729.png").
+var alphaCodersImageRe = regexp.MustCompile(`^https://images[0-9]*\.alphacoders\.com/[0-9]+/[0-9]+\.(?:jpe?g|png|webp)$`)
+
+// alphaCodersItemRe reads one wallpaper of an Alpha Coders listing from its schema.org block.
+var alphaCodersItemRe = regexp.MustCompile(`(?s)itemprop="contentUrl" content="([^"]+)".*?itemprop="thumbnailUrl" content="([^"]+)".*?itemprop="width" content="([0-9]+)".*?itemprop="height" content="([0-9]+)"`)
+
+// HandleSearchAlphaCoders
+//
+//	@summary searches Alpha Coders (wall.alphacoders.com) for wallpapers.
+//	@desc Alpha Coders' API needs a key, so its public listing is read instead. The answer has the
+//	@desc shape of a Wallhaven search, so the picker shows both the same way.
+//	@route /api/v1/theme-backgrounds/alphacoders/search [GET]
+func (h *Handler) HandleSearchAlphaCoders(c echo.Context) error {
+	q := strings.TrimSpace(c.QueryParam("q"))
+	page, _ := strconv.Atoi(c.QueryParam("page"))
+	if page < 1 {
+		page = 1
+	}
+	if q == "" {
+		q = "anime"
+	}
+
+	client := &http.Client{Timeout: 20 * time.Second}
+	get := func(u string) (string, string, error) {
+		req, err := http.NewRequest(http.MethodGet, u, nil)
+		if err != nil {
+			return "", "", err
+		}
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36")
+		req.Header.Set("Accept", "text/html")
+		resp, err := client.Do(req)
+		if err != nil {
+			return "", "", err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return "", "", fmt.Errorf("alpha coders returned HTTP %d", resp.StatusCode)
+		}
+		body, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
+		return string(body), resp.Request.URL.String(), err
+	}
+
+	body, finalURL, err := get(fmt.Sprintf("https://wall.alphacoders.com/search.php?search=%s&page=%d", url.QueryEscape(q), page))
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	// A search that names a known tag redirects to the tag's page, which drops the page number:
+	// that page takes it as ?page=.
+	if page > 1 && !strings.Contains(finalURL, "search.php") {
+		sep := "?"
+		if strings.Contains(finalURL, "?") {
+			sep = "&"
+		}
+		body, _, err = get(fmt.Sprintf("%s%spage=%d", finalURL, sep, page))
+		if err != nil {
+			return h.RespondWithError(c, err)
+		}
+	}
+
+	type thumbs struct {
+		Large    string `json:"large"`
+		Original string `json:"original"`
+		Small    string `json:"small"`
+	}
+	type wallpaper struct {
+		ID         string `json:"id"`
+		URL        string `json:"url"`
+		Path       string `json:"path"`
+		ShortURL   string `json:"short_url"`
+		Resolution string `json:"resolution"`
+		DimensionX int    `json:"dimension_x"`
+		DimensionY int    `json:"dimension_y"`
+		FileType   string `json:"file_type"`
+		Thumbs     thumbs `json:"thumbs"`
+	}
+	out := make([]wallpaper, 0, 30)
+	seen := map[string]bool{}
+	for _, m := range alphaCodersItemRe.FindAllStringSubmatch(body, -1) {
+		full := html.UnescapeString(m[1])
+		if !alphaCodersImageRe.MatchString(full) || seen[full] {
+			continue
+		}
+		seen[full] = true
+		thumb := html.UnescapeString(m[2])
+		w, _ := strconv.Atoi(m[3])
+		hgt, _ := strconv.Atoi(m[4])
+		id := strings.TrimSuffix(filepath.Base(full), filepath.Ext(full))
+		ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(full)), ".")
+		if ext == "jpg" {
+			ext = "jpeg"
+		}
+		out = append(out, wallpaper{
+			ID:         "ac" + id,
+			URL:        "https://wall.alphacoders.com/big.php?i=" + id,
+			Path:       full,
+			ShortURL:   "https://wall.alphacoders.com/big.php?i=" + id,
+			Resolution: fmt.Sprintf("%dx%d", w, hgt),
+			DimensionX: w,
+			DimensionY: hgt,
+			FileType:   "image/" + ext,
+			Thumbs: thumbs{
+				Large:    strings.Replace(thumb, "thumb-350-", "thumb-440-", 1),
+				Original: strings.Replace(thumb, "thumb-350-", "thumb-440-", 1),
+				Small:    thumb,
+			},
+		})
+	}
+
+	lastPage := page
+	if len(out) >= 20 {
+		lastPage = page + 1
+	}
+	return h.RespondWithData(c, map[string]any{
+		"data": out,
+		"meta": map[string]any{
+			"current_page": page,
+			"last_page":    lastPage,
+			"per_page":     len(out),
+			"total":        len(out),
+		},
+	})
 }

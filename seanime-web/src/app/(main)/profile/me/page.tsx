@@ -1,5 +1,7 @@
 "use client"
 
+import { type ThemeFavorite, useGetThemeFavorites, useReorderThemeFavorites } from "@/api/hooks/anime_themes.hooks"
+import { ThemeFavoriteButton, trackFromFavorite, type ThemeTrack, useThemePlayer } from "@/app/(main)/_features/anime-themes/theme-player"
 import { useFlushBanner } from "@/app/(main)/profile/_components/use-flush-banner"
 import { lookupAvatarFrame, lookupBannerOverlay, lookupProfileLayout } from "@/lib/rewards/profile-style-definitions"
 import { EasterEggSecrets } from "@/app/(main)/profile/_components/easter-egg-secrets"
@@ -68,7 +70,7 @@ import { RewardShop } from "@/app/(main)/profile/me/_components/reward-shop"
 import { useRewards } from "@/lib/rewards/reward-provider"
 import { XPBarFill } from "@/lib/rewards/xp-bar-fill"
 import { __isDesktop__ } from "@/types/constants"
-import { LuGift, LuImage, LuPopcorn } from "react-icons/lu"
+import { LuGift, LuImage, LuMusic, LuPause, LuPlay as LuPlayIcon, LuPopcorn } from "react-icons/lu"
 import { WatchPartyHistory } from "@/app/(main)/profile/_components/watch-party-history"
 import * as React from "react"
 import { profileAccentStyle } from "@/lib/rewards/profile-accent"
@@ -834,6 +836,7 @@ function FavoritesTabContent() {
     const { data: staffIds, isLoading: staffLoading } = useGetStaffFavorites()
     const { data: studioIds, isLoading: studioLoading } = useGetStudioFavorites()
     const { data: episodeFavorites, isLoading: episodeLoading } = useGetEpisodeFavorites()
+    const { data: themeFavorites, isLoading: themeLoading } = useGetThemeFavorites()
 
     const sections: { label: string, ids: number[] | undefined, type: FavoriteType }[] = [
         { label: "Anime", ids: animeIds, type: "anime" as const },
@@ -842,10 +845,11 @@ function FavoritesTabContent() {
         { label: "Staff", ids: staffIds, type: "staff" as const },
         { label: "Studios", ids: studioIds, type: "studio" as const },
         { label: "Episodes", ids: episodeFavorites?.map(f => f.id), type: "episode" as const },
+        { label: "Openings", ids: themeFavorites?.map(f => f.id), type: "theme" as const },
     ]
 
     const totalCount = sections.reduce((acc, s) => acc + (s.ids?.length ?? 0), 0)
-    const favoritesLoading = animeLoading || mangaLoading || characterLoading || staffLoading || studioLoading || episodeLoading
+    const favoritesLoading = animeLoading || mangaLoading || characterLoading || staffLoading || studioLoading || episodeLoading || themeLoading
 
     return (
         <div className="space-y-7">
@@ -870,7 +874,7 @@ function FavoritesTabContent() {
                         <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/45">Saved</p>
                     </div>
                 </div>
-                <div className="relative mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+                <div className="relative mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
                     {sections.map(section => (
                         <div key={section.type} className="flex items-center justify-between gap-2 rounded-xl border border-white/[0.08] bg-black/20 px-3 py-2.5 backdrop-blur-md">
                             <span className="truncate text-xs font-medium text-white/65">{section.label}</span>
@@ -901,6 +905,8 @@ function FavoritesTabContent() {
                 <div className="space-y-8">
                     {sections.map(section => section.type === "episode"
                         ? <EpisodeFavoriteSection key="episode" favorites={episodeFavorites ?? []} />
+                        : section.type === "theme"
+                        ? <ThemeFavoriteSection key="theme" favorites={themeFavorites ?? []} />
                         : <FavoriteSection key={section.type} label={section.label} ids={section.ids ?? []} type={section.type} />,
                     )}
                 </div>
@@ -909,8 +915,8 @@ function FavoritesTabContent() {
     )
 }
 
-type FavoriteType = "anime" | "manga" | "character" | "staff" | "studio" | "episode"
-type EntityFavoriteType = Exclude<FavoriteType, "episode">
+type FavoriteType = "anime" | "manga" | "character" | "staff" | "studio" | "episode" | "theme"
+type EntityFavoriteType = Exclude<FavoriteType, "episode" | "theme">
 
 function FavoriteSection({ label, ids, type }: { label: string; ids: number[]; type: EntityFavoriteType }) {
     const icon = type === "anime" ? <LuTv className="size-5" />
@@ -980,6 +986,87 @@ function EpisodeFavoriteSection({ favorites }: { favorites: EpisodeFavorite[] })
                 return fav ? <FavoriteEpisodeCard fav={fav} /> : null
             }}
         />
+    )
+}
+
+/** Favourite openings and endings (from an anime page's Anime Themes tab), ranked and playable. */
+function ThemeFavoriteSection({ favorites }: { favorites: ThemeFavorite[] }) {
+    const { reorder, isPending } = useReorderThemeFavorites()
+    const player = useThemePlayer()
+    const icon = <LuMusic className="size-5" />
+    const accent = "border-pink-300/20 bg-pink-400/10 text-pink-200"
+    if (favorites.length === 0) {
+        return (
+            <section className="rounded-2xl border border-dashed border-white/10 bg-black/15 p-4 backdrop-blur-md sm:p-5">
+                <div className="flex items-center gap-3">
+                    <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl border", accent)}>{icon}</div>
+                    <div className="min-w-0">
+                        <h3 className="font-semibold text-white/75">Openings</h3>
+                        <p className="mt-0.5 text-xs text-[--muted]">No openings favorited yet. Heart one in an anime's Anime Themes tab.</p>
+                    </div>
+                    <span className="ml-auto rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-xs font-semibold tabular-nums text-white/40">0</span>
+                </div>
+            </section>
+        )
+    }
+    const tracks = favorites.map(trackFromFavorite)
+    const playable = tracks.filter((t): t is ThemeTrack => !!t)
+    const byId = new Map(favorites.map((f, i) => [f.id, { fav: f, track: tracks[i] }]))
+    return (
+        <div className="space-y-3">
+            <button
+                type="button"
+                onClick={() => player.play(playable)}
+                disabled={!playable.length}
+                className="inline-flex items-center gap-2 rounded-full bg-brand-500 px-4 py-1.5 text-sm font-semibold text-white hover:bg-brand-400 disabled:opacity-40"
+            >
+                <LuPlayIcon className="size-4" /> Play my openings
+            </button>
+            <RankedFavoriteList
+                label="Openings"
+                type="theme"
+                ids={favorites.map(f => f.id)}
+                icon={icon}
+                accent={accent}
+                reorder={reorder}
+                isPending={isPending}
+                renderCard={id => {
+                    const it = byId.get(id)
+                    if (!it) return null
+                    const { fav, track } = it
+                    const isCurrent = !!track && player.current?.key === track.key
+                    return (
+                        <div className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-white/10 bg-black/30">
+                            <div className="relative aspect-[3/4] w-full overflow-hidden bg-black/40">
+                                {fav.image && <img src={fav.image} alt="" className="size-full object-cover" loading="lazy" />}
+                                <button
+                                    type="button"
+                                    disabled={!track}
+                                    aria-label={isCurrent && player.playing ? "Pause" : "Play"}
+                                    onClick={() => {
+                                        if (!track) return
+                                        if (isCurrent) return player.toggle()
+                                        player.play(playable, Math.max(0, playable.findIndex(t => t.key === track.key)))
+                                    }}
+                                    className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/40 group-hover:opacity-100 disabled:hidden"
+                                >
+                                    <span className="flex size-12 items-center justify-center rounded-full bg-white/90 text-black">
+                                        {isCurrent && player.playing ? <LuPause className="size-5" /> : <LuPlayIcon className="size-5" />}
+                                    </span>
+                                </button>
+                                {track && <ThemeFavoriteButton track={track} className="absolute right-1.5 top-1.5 bg-black/50" />}
+                            </div>
+                            <div className="min-w-0 p-2.5">
+                                <p className="truncate text-sm font-semibold text-white">
+                                    <span className="mr-1 text-xs font-bold text-brand-200">{fav.themeSlug}</span>{fav.songTitle}
+                                </p>
+                                <p className="truncate text-xs text-[--muted]">{[fav.artists, fav.animeName].filter(Boolean).join(" · ")}</p>
+                            </div>
+                        </div>
+                    )
+                }}
+            />
+        </div>
     )
 }
 

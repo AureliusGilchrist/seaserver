@@ -9,6 +9,7 @@ import {
     useListThemeBackgrounds,
     useSearchWallhaven,
     type WallhavenWallpaper,
+    type WallpaperSource,
     type ThemeBgFile,
 } from "@/api/hooks/theme_backgrounds.hooks"
 import { cn } from "@/components/ui/core/styling"
@@ -39,6 +40,7 @@ export function WallhavenPickerModal({ open, onClose }: Props) {
     const [wallpapers, setWallpapers] = React.useState<WallhavenWallpaper[]>([])
     const [downloadingId, setDownloadingId] = React.useState<string | null>(null)
     const [activeTab, setActiveTab] = React.useState<"browse" | "saved">("browse")
+    const [source, setSource] = React.useState<WallpaperSource>("wallhaven")
 
     const downloadMutation = useDownloadThemeBackground()
     const deleteMutation = useDeleteThemeBackground()
@@ -62,7 +64,14 @@ export function WallhavenPickerModal({ open, onClose }: Props) {
         setTimeout(() => inputRef.current?.focus(), 50)
     }, [open, themeId])
 
-    const { data: searchResults, isFetching } = useSearchWallhaven(committedQuery, page, searchEnabled && open)
+    const { data: searchResults, isFetching } = useSearchWallhaven(committedQuery, page, searchEnabled && open, source)
+
+    // A new source starts over at its first page.
+    React.useEffect(() => {
+        setPage(1)
+        setWallpapers([])
+        prevResultsRef.current = undefined
+    }, [source])
 
     const prevResultsRef = React.useRef<typeof searchResults>(undefined)
     React.useEffect(() => {
@@ -145,7 +154,7 @@ export function WallhavenPickerModal({ open, onClose }: Props) {
                         <h2 className="text-xl font-bold tracking-tight" style={{ fontFamily: config.fontFamily }}>
                             Wallpaper Browser
                         </h2>
-                        <p className="text-xs text-[--muted] mt-0.5">High-quality SFW anime wallpapers from Wallhaven</p>
+                        <p className="text-xs text-[--muted] mt-0.5">High-quality anime wallpapers from {source === "wallhaven" ? "Wallhaven (SFW)" : "Alpha Coders"}</p>
                     </div>
 
                     <div className="flex items-center gap-3">
@@ -198,6 +207,21 @@ export function WallhavenPickerModal({ open, onClose }: Props) {
                     <>
                         {/* Search bar */}
                         <div className="flex gap-2 px-4 py-3 bg-[--paper] shrink-0">
+                            <div className="flex shrink-0 rounded-lg border border-white/10 p-0.5">
+                                {([["wallhaven", "Wallhaven"], ["alphacoders", "Alpha Coders"]] as const).map(([id, label]) => (
+                                    <button
+                                        key={id}
+                                        type="button"
+                                        onClick={() => setSource(id)}
+                                        className={cn(
+                                            "h-8 rounded-md px-3 text-xs font-semibold transition",
+                                            source === id ? "bg-[--color-brand-600] text-white" : "text-[--muted] hover:text-white",
+                                        )}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
                             <div className="flex-1 relative">
                                 <input
                                     ref={inputRef}
@@ -206,7 +230,7 @@ export function WallhavenPickerModal({ open, onClose }: Props) {
                                     onChange={e => setQuery(e.target.value)}
                                     onKeyDown={e => e.key === "Enter" && handleSearch()}
                                     className="w-full h-9 pl-4 pr-4 rounded-lg bg-[--background] border border-white/10 focus:border-[--color-brand-500] outline-none text-sm text-[--foreground] placeholder:text-[--muted] transition-colors"
-                                    placeholder="Search Wallhaven…"
+                                    placeholder={source === "wallhaven" ? "Search Wallhaven…" : "Search Alpha Coders…"}
                                 />
                             </div>
                             <button

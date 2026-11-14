@@ -51,7 +51,16 @@ func (m *Manager) FetchNewEpisodes(ctx context.Context, provider string, mediaId
 		providers = FallbackProviders
 	}
 
+	// What has aired so far, by AniList's count (-1 when it does not say). In auto mode a provider
+	// that is behind it does not end the search: the next provider may already have the episodes
+	// that one is missing (a dub one site has not caught up on, a release one mirror is late with).
+	aired := media.GetCurrentEpisodeCount()
+	auto := len(providers) > 1
+
 	var lastErr error
+	listed := false
+	queued := 0
+	best := 0
 	for _, p := range providers {
 		if p == "" {
 			continue
@@ -61,7 +70,7 @@ func (m *Manager) FetchNewEpisodes(ctx context.Context, provider string, mediaId
 		if m.opts.MapProvider != nil {
 			if mapErr := m.opts.MapProvider(ctx, p, mediaId); mapErr != nil {
 				if ctx.Err() != nil {
-					return 0, ctx.Err()
+					return queued, ctx.Err()
 				}
 				if errors.Is(mapErr, ErrNotOnProvider) {
 					// The provider does not have the series: the next one gets its turn.
@@ -80,7 +89,7 @@ func (m *Manager) FetchNewEpisodes(ctx context.Context, provider string, mediaId
 		episodes, err := m.opts.Repository.GetMediaEpisodesFresh(p, media, dubbed)
 		if err != nil {
 			if ctx.Err() != nil {
-				return 0, ctx.Err()
+				return queued, ctx.Err()
 			}
 			lastErr = err
 			continue
@@ -90,9 +99,27 @@ func (m *Manager) FetchNewEpisodes(ctx context.Context, provider string, mediaId
 			continue
 		}
 
-		return m.queueNewEpisodes(ctx, mediaId, p, episodes, dubbed), nil
+		listed = true
+		// Each call skips what an earlier provider already queued, so every missing episode goes
+		// to the first provider (in fallback order) that has it.
+		queued += m.queueNewEpisodes(ctx, mediaId, p, episodes, dubbed)
+		for _, ep := range episodes {
+			if ep != nil && ep.Number > best {
+				best = ep.Number
+			}
+		}
+		// Done once this provider reaches what has aired. Without a count to compare with, the
+		// first provider that lists the series decides, as before.
+		if !auto || aired <= 0 || best >= aired {
+			break
+		}
+		m.logger.Debug().Int("mediaId", mediaId).Str("provider", p).Int("lastListed", best).Int("aired", aired).
+			Msg("onlinestream download: Provider is behind what has aired, asking the next one")
 	}
 
+	if listed {
+		return queued, nil
+	}
 	if lastErr == nil {
 		lastErr = errors.New("no provider has this series")
 	}
