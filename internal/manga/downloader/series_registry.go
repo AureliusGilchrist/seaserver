@@ -3,6 +3,7 @@ package chapter_downloader
 import (
 	"container/list"
 	stdjson "encoding/json"
+	"errors"
 	"fmt"
 	"golang.org/x/sync/singleflight"
 	"io"
@@ -281,7 +282,63 @@ func cachedSeriesRegistrySummary(seriesDir string, modTime, size int64) *SeriesR
 	return entry.registry
 }
 
-func decodeSeriesRegistrySummary(registryPath string, logger *zerolog.Logger) (*SeriesRegistrySummary, error) {
+// decodeSeriesRegistrySummary never panics: encoding/json has been seen to run off the end of its
+// buffer while skipping the per-page data of a large registry ("index out of range [n] with length
+// n" in decodeState.skip). Inside the singleflight that panic is re-raised and takes the whole
+// server down, so it is caught here. The streaming decode is retried once as a whole-file decode;
+// if that fails too, an error is returned rather than an empty summary, so the series is skipped for
+// this scan instead of being cached as having no chapters.
+func decodeSeriesRegistrySummary(registryPath string, logger *zerolog.Logger) (registry *SeriesRegistrySummary, err error) {
+	registry, err = decodeSeriesRegistrySummaryOnce(registryPath, logger, false)
+	if err == nil {
+		return registry, nil
+	}
+	if !errors.Is(err, errSeriesRegistryDecodePanic) {
+		return nil, err
+	}
+	if logger != nil {
+		logger.Warn().Err(err).Str("path", registryPath).Msg("series registry: Streaming decode panicked, retrying with a whole-file decode")
+	}
+	return decodeSeriesRegistrySummaryOnce(registryPath, logger, true)
+}
+
+var errSeriesRegistryDecodePanic = errors.New("series registry decode panicked")
+
+func decodeSeriesRegistrySummaryOnce(registryPath string, logger *zerolog.Logger, wholeFile bool) (registry *SeriesRegistrySummary, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			registry = nil
+			err = fmt.Errorf("%w: %v", errSeriesRegistryDecodePanic, r)
+		}
+	}()
+	if wholeFile {
+		return unmarshalSeriesRegistrySummary(registryPath, logger)
+	}
+	return streamSeriesRegistrySummary(registryPath, logger)
+}
+
+func unmarshalSeriesRegistrySummary(registryPath string, logger *zerolog.Logger) (*SeriesRegistrySummary, error) {
+	data, err := os.ReadFile(registryPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return &SeriesRegistrySummary{Chapters: make(map[string]*ChapterEntrySummary)}, nil
+		}
+		return nil, fmt.Errorf("failed to read series registry: %w", err)
+	}
+	var registry SeriesRegistrySummary
+	if err := stdjson.Unmarshal(data, &registry); err != nil {
+		if logger != nil {
+			logger.Warn().Err(err).Str("path", registryPath).Msg("series registry: Failed to parse registry, creating new one")
+		}
+		return &SeriesRegistrySummary{Chapters: make(map[string]*ChapterEntrySummary)}, nil
+	}
+	if registry.Chapters == nil {
+		registry.Chapters = make(map[string]*ChapterEntrySummary)
+	}
+	return &registry, nil
+}
+
+func streamSeriesRegistrySummary(registryPath string, logger *zerolog.Logger) (*SeriesRegistrySummary, error) {
 	file, err := os.Open(registryPath)
 	if err != nil {
 		if os.IsNotExist(err) {
