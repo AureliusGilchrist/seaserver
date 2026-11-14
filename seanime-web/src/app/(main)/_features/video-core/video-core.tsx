@@ -182,6 +182,7 @@ import { __isDesktop__, __isElectronDesktop__ } from "@/types/constants"
 import { useQueryClient } from "@tanstack/react-query"
 import { ErrorData } from "hls.js"
 import { atom } from "jotai"
+import { usePauseOpenings } from "@/app/(main)/_features/anime-themes/theme-player"
 import { ScopeProvider } from "jotai-scope"
 import { useAtom, useAtomValue, useSetAtom } from "jotai/react"
 import React, { useMemo, useRef, useState } from "react"
@@ -2341,6 +2342,7 @@ export function VideoCore(props: VideoCoreProps) {
         }
     }, [])
 
+    const pauseOpenings = usePauseOpenings()
     const handleContainerPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
         // While forced hidden (via right-click), pointer movement doesn't bring the controls
         // back — only leaving the player or right-clicking again does.
@@ -2371,6 +2373,8 @@ export function VideoCore(props: VideoCoreProps) {
     }
 
     const handleContainerMouseEnter = () => {
+        // An opening playing in the openings bar stops once the mouse comes over the video.
+        pauseOpenings()
         // don't
         // isHoveringContainer.current = true
         // if (videoRef.current && state.active) {

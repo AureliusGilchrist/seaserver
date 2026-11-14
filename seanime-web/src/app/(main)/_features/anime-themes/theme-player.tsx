@@ -32,6 +32,18 @@ const showVideoAtom = atom(false)
 
 export const THEME_PLAYER_VOLUME_DEFAULT = 70
 
+/**
+ * Pauses the opening playing in the bar, if any. The local and online player call it when the
+ * mouse comes over the video, so an opening never talks over an episode.
+ */
+export function usePauseOpenings() {
+    const [playing, setPlaying] = useAtom(playingAtom)
+    const hasQueue = useAtomValue(queueAtom).length > 0
+    return React.useCallback(() => {
+        if (playing && hasQueue) setPlaying(false)
+    }, [playing, hasQueue])
+}
+
 /** Personal -> "Openings volume", as the 0–1 a media element takes. */
 export function themePlayerVolume(v: number | undefined) {
     return Math.min(100, Math.max(0, v ?? THEME_PLAYER_VOLUME_DEFAULT)) / 100
