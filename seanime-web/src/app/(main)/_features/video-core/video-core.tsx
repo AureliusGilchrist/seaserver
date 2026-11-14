@@ -195,6 +195,7 @@ import { TbPictureInPicture } from "react-icons/tb"
 import { RemoveScrollBar } from "react-remove-scroll-bar"
 import { useUnmount, useUpdateEffect, useWindowSize } from "react-use"
 import { toast } from "sonner"
+import { recoverFromDecodeError } from "@/app/(main)/_features/video-core/video-core-decode-recovery"
 
 const log = logger("VIDEO CORE")
 
@@ -1977,6 +1978,10 @@ export function VideoCore(props: VideoCoreProps) {
 
     const handleError = (e: React.SyntheticEvent<HTMLVideoElement>) => {
         log.error("Video error", e)
+        // One bad packet part-way in: reload just past it instead of failing (every player, popout too).
+        if (recoverFromDecodeError(e.currentTarget, (at, attempt) => {
+            log.warning(`Decode error at ${at.toFixed(2)}s, reloading past it (try ${attempt})`)
+        })) return
         const srcUrl = state.playbackInfo?.streamUrl ?? ""
         const looksLikeHls = /\.m3u8(\?|$)|\/hls\//i.test(srcUrl)
         if (isFirstError.current && props.id !== "native-player" && looksLikeHls) {

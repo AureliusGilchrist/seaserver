@@ -1,6 +1,7 @@
 "use client"
 import { isDirectPlayOnly } from "@/app/(main)/mediastream/_lib/direct-play-only"
 import { VideoCorePlayEpisodeRequest } from "@/app/(main)/_features/video-core/video-core-playlist"
+import { recoverFromDecodeError } from "@/app/(main)/_features/video-core/video-core-decode-recovery"
 import { attachHiddenAudioSync } from "@/app/(main)/_features/video-core/hidden-audio-sync"
 import React from "react"
 import { Anime_Episode, Mediastream_StreamType } from "@/api/generated/types"
@@ -350,28 +351,12 @@ function MediastreamDirectPlayEffects({
             toast.info("This device can't play the file directly — switching to transcode")
             handleChangeStreamType("transcode")
         }
-        // A decode error part-way in is often one bad packet that Chromium's decoder chokes on (the
-        // file plays fine past it). Reload just after that point, up to twice, before giving up.
-        let decodeRetries = 0
+        // A decode error part-way in is often one bad packet (the file plays fine past it): the
+        // shared recovery reloads just after that point, up to twice, before this gives up. It is
+        // the same decision VideoCore's own error handler gets for this error.
         const onError = () => {
-            const code = videoElement.error?.code
-            const at = videoElement.currentTime
-            if (code === MediaError.MEDIA_ERR_DECODE && decodeRetries < 2 && videoElement.currentSrc) {
-                decodeRetries++
-                const resumeAt = at + 1.5 * decodeRetries
-                log.warning(`Decode error at ${at.toFixed(2)}s, reloading past it (try ${decodeRetries})`)
-                const src = videoElement.currentSrc
-                const onMeta = () => {
-                    videoElement.removeEventListener("loadedmetadata", onMeta)
-                    videoElement.currentTime = resumeAt
-                    videoElement.play().catch(() => {})
-                }
-                videoElement.addEventListener("loadedmetadata", onMeta)
-                videoElement.src = src
-                videoElement.load()
-                return
-            }
-            switchToTranscode(`video error ${code ?? "unknown"}`)
+            if (recoverFromDecodeError(videoElement)) return
+            switchToTranscode(`video error ${videoElement.error?.code ?? "unknown"}`)
         }
         const metadataWatchdog = setTimeout(() => {
             if (!directPlayOnly && videoElement.readyState < 1) switchToTranscode("no metadata after 12s")
