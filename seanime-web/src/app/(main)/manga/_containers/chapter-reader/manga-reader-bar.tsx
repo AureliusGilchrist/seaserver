@@ -227,7 +227,7 @@ export function MangaReaderBar(props: MangaReaderBarProps) {
             <div
                 data-manga-reader-bar
                 className={cn(
-                    "fixed bottom-0 w-full h-12 gap-4 flex items-center px-4 z-[10] bg-[var(--background)] transition-transform",
+                    "fixed bottom-0 w-full h-12 gap-4 flex items-center px-4 z-[10] bg-[var(--background)] max-lg:bg-black transition-transform",
                     hiddenBar && "translate-y-60",
                 )} id="manga-reader-bar"
             >

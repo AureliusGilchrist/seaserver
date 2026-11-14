@@ -316,6 +316,8 @@ export function ChapterReaderDrawer(props: ChapterDrawerProps) {
             contentClass={cn(
                 "p-0 pt-0 !m-0 !rounded-none",
                 "w-full inset-x-0 bottom-0 border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+                // Phones: black around the pages, not the theme gray.
+                "max-lg:!bg-black max-lg:!border-black",
             )}
             hideCloseButton
             borderToBorder
