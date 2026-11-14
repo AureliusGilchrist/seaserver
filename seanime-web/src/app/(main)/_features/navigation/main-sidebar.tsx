@@ -45,7 +45,9 @@ import { WSEvents } from "@/lib/server/ws-events"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import { useAnimeThemeOrNull, useThemeMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { ANIME_THEMES } from "@/lib/theme/anime-themes"
-import { applySidebarOverride } from "@/lib/theme/anime-themes/sidebar-overrides"
+import { applySidebarOverride, dedupeSidebarIcons } from "@/lib/theme/anime-themes/sidebar-overrides"
+import { SIDEBAR_NAVBAR_ICONS } from "@/app/(main)/_features/layout/top-navbar"
+import { atom } from "jotai"
 import { useThemeFlavor } from "@/lib/theme/anime-themes/theme-flavor"
 import { __isDesktop__, __isTauriDesktop__ } from "@/types/constants"
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
@@ -65,6 +67,9 @@ import { SiQbittorrent, SiTransmission } from "react-icons/si"
 import { nakamaModalOpenAtom, useNakamaStatus } from "../nakama/nakama-manager"
 import { watchPartySessionAtom, watchPartySessionsAtom, watchPartyUnreadCountAtom } from "../watch-party/watch-party.atoms"
 import { PluginSidebarTray, type TrayExtraItem } from "../plugin/tray/plugin-sidebar-tray"
+
+/** Icons the sidebar above the footer has drawn, in order; the footer dedupes against them. */
+const sidebarClaimedIconsAtom = atom<readonly unknown[]>([])
 
 export function MainSidebar() {
 
@@ -426,7 +431,8 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
                 className="absolute right-0 top-0" size="sm"
                 intent="alert-solid"
             >{enqueueFutureCount + autoDownloaderQueueCount}</Badge> : undefined,
-            subContent: <SidebarSubMenu items={downloadToolItems} collapsed={isCollapsed} />,
+            // Turned into the submenu once the sidebar's icons are claimed (see below).
+            subItems: downloadToolItems,
         },
         ] : []),
 
@@ -533,6 +539,28 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
         })),
     ]
 
+    // No icon twice on the sidebar, whatever the theme: walk the entries in the order they are
+    // drawn, and any repeat takes a fallback. Online / Offline is the state, so it never gives way.
+    const used = new Set<unknown>([IoCloudOutline, IoCloudOfflineOutline])
+    const mainMenuItems = visibleItems.map(applyAnimeOverride).map(raw => {
+        const [item] = dedupeSidebarIcons([raw], used)
+        if (!item.subItems) return item
+        const { subItems, ...rest } = item
+        return { ...rest, subContent: <SidebarSubMenu items={dedupeSidebarIcons(subItems, used)} collapsed={isCollapsed} /> }
+    })
+    // The downloads buttons SidebarNavbar draws under the main menu.
+    if ((ts.hideTopNavbar || process.env.NEXT_PUBLIC_PLATFORM === "desktop") && !serverStatus?.isOffline) {
+        SIDEBAR_NAVBAR_ICONS.forEach(icon => used.add(icon))
+    }
+    const shownTrayItems = dedupeSidebarIcons(trayItems, used)
+    const shownMiddleItems = dedupeSidebarIcons(middleItems.map(applyAnimeOverride), used)
+    // The footer is its own component; it carries on from here.
+    const claimedIcons = [...used]
+    const setClaimedIcons = useSetAtom(sidebarClaimedIconsAtom)
+    React.useEffect(() => {
+        setClaimedIcons(prev => (prev.length === claimedIcons.length && prev.every((icon, i) => icon === claimedIcons[i])) ? prev : claimedIcons)
+    })
+
     return (
         <div className="flex flex-1 flex-col">
             <div
@@ -556,7 +584,7 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
                 itemContentClass="gap-3"
                 itemChevronClass={isCollapsed ? "hidden" : undefined}
                 itemIconClass="transition-transform duration-300"
-                items={visibleItems.map(applyAnimeOverride)}
+                items={mainMenuItems}
                 subContentClass={cn((ts.hideTopNavbar || __isDesktop__) && "border-transparent !border-b-0", "overflow-visible")}
                 onLinkItemClick={() => ctx.setOpen(false)}
                 isSidebar
@@ -568,7 +596,7 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
                 handleUnexpandedSidebar={() => { }}
             />
 
-            <PluginSidebarTray place="sidebar" extraItems={trayItems} onNavigate={() => ctx.setOpen(false)} />
+            <PluginSidebarTray place="sidebar" extraItems={shownTrayItems} onNavigate={() => ctx.setOpen(false)} />
 
             {/* Middle third */}
             <div className="flex flex-1 items-center py-4" data-sidebar-middle>
@@ -578,7 +606,7 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
                     itemClass="relative transition-all duration-300 ease-out"
                     itemContentClass="gap-3"
                     itemIconClass="transition-transform duration-300"
-                    items={middleItems.map(applyAnimeOverride)}
+                    items={shownMiddleItems}
                     onLinkItemClick={() => ctx.setOpen(false)}
                     isSidebar
                 />
@@ -622,6 +650,7 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
     const animeConfig = animeTheme?.config ?? ANIME_THEMES["seanime"]
     const applyFooterOverride = React.useCallback((item: VerticalMenuItem & { id: string }): VerticalMenuItem & { id: string } =>
         applySidebarOverride(item, animeConfig.sidebarOverrides), [animeConfig.sidebarOverrides])
+    const claimedIcons = useAtomValue(sidebarClaimedIconsAtom)
 
     // Extensions
     const { data: updateData } = useGetExtensionUpdateData()
@@ -669,7 +698,7 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
                 onMouseLeave={() => { }}
                 onLinkItemClick={() => ctx.setOpen(false)}
                 isSidebar
-                items={[
+                items={dedupeSidebarIcons<VerticalMenuItem & { id?: string }>([
                     // {
                     //     iconType: RiSlashCommands2,
                     //     name: "Command palette",
@@ -770,7 +799,7 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
                             onClick: user?.isSimulated ? () => setLoginModal(true) : confirmSignOut.open,
                         },
                     ] : []),
-                ]}
+                ], new Set(claimedIcons))}
             />
             <ConfirmationDialog {...confirmSignOut} />
             <ConfirmationDialog {...confirmProfileLogout} />

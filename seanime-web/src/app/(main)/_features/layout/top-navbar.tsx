@@ -20,6 +20,9 @@ import { LuChevronLeft, LuChevronRight, LuFolderDown, LuMonitorDown } from "reac
 import { PluginSidebarTray } from "../plugin/tray/plugin-sidebar-tray"
 import { Tooltip } from "@/components/ui/tooltip"
 
+/** The icons SidebarNavbar draws, so the sidebar's dedupe can keep other entries off them. */
+export const SIDEBAR_NAVBAR_ICONS: readonly React.ElementType[] = [LuMonitorDown, LuFolderDown]
+
 function NavHistoryButtons({ vertical = false }: { vertical?: boolean }) {
     const [canGoBack, setCanGoBack] = React.useState(false)
     const [canGoForward, setCanGoForward] = React.useState(false)
