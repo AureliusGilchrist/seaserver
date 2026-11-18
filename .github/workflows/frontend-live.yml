@@ -1,0 +1,175 @@
+name: Frontend Live
+
+# The fast lane for frontend changes. auto-release.yml builds the Go server and the Windows
+# installer too, which takes ~8 minutes before its frontend exists. This builds only the
+# Denshi frontend and force-pushes it as the single commit of the orphan branch
+# "frontend-live". Denshi watches that branch every few seconds and hot-swaps it in (see
+# seanime-denshi/src/github-frontend-update.js). No GitHub release is involved.
+#
+# Kept fast on purpose: node_modules and Rspack's persistent cache are restored from the last
+# run, so a typical commit builds in ~20 s, and clients download only the files that changed.
+#
+# The theme wallpapers (out-denshi/themes, ~350 MB) are left out: they rarely change, and
+# Denshi keeps the copy it already has.
+
+on:
+  # Sent by the private source repository's notify-distribution.yml on every push to its main.
+  repository_dispatch:
+    types: [source-push]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Source commit to build (empty = the latest main)
+        required: false
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_REPO: AureliusGilchrist/seaserver-src
+
+# Only the newest commit matters; a build still running for an older one is dropped.
+concurrency:
+  group: frontend-live
+  cancel-in-progress: true
+
+jobs:
+  # Skips the build when the pushed commits touch nothing it uses (what `paths:` did on push).
+  # File names stay out of the log on purpose.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      relevant: ${{ steps.check.outputs.relevant }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ secrets.SOURCE_TOKEN }}
+          BEFORE: ${{ github.event.client_payload.before }}
+          AFTER: ${{ github.event.client_payload.sha }}
+          PATTERN: '^(seanime-web/|versions\.json$)'
+        run: |
+          set -uo pipefail
+          relevant=true
+          if [ "$GITHUB_EVENT_NAME" = "repository_dispatch" ] && [ -n "$BEFORE" ] && [ -n "$AFTER" ] && [ -n "${BEFORE//0/}" ]; then
+            if files=$(gh api "repos/$SOURCE_REPO/compare/$BEFORE...$AFTER" --jq '.files[].filename' 2>/dev/null); then
+              count=$(printf '%s\n' "$files" | grep -c . || true)
+              if [ "$count" -lt 300 ] && ! printf '%s\n' "$files" | grep -q -E "$PATTERN"; then
+                relevant=false
+              fi
+            fi
+          fi
+          echo "relevant=$relevant" >> "$GITHUB_OUTPUT"
+          echo "Build needed: $relevant"
+
+  publish:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      # The source lives in a private repository; SOURCE_TOKEN can read it. This repository only
+      # carries what installed apps download: releases, the frontend-live branch and a few docs.
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ github.event.client_payload.sha || inputs.sha || 'main' }}
+          token: ${{ secrets.SOURCE_TOKEN }}
+          persist-credentials: false
+
+      - name: Note the source commit
+        shell: bash
+        run: echo "SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # node_modules itself, not just npm's download cache: with a hit, npm ci (~15 s) is skipped.
+      # patch-package runs on install, so the patches are part of the key.
+      - name: Restore frontend dependencies
+        id: node-modules
+        uses: actions/cache@v4
+        with:
+          path: seanime-web/node_modules
+          key: web-node-modules-${{ runner.os }}-node22-${{ hashFiles('seanime-web/package-lock.json', 'seanime-web/patches/**') }}
+
+      - name: Install frontend dependencies
+        if: steps.node-modules.outputs.cache-hit != 'true'
+        working-directory: seanime-web
+        run: npm ci --no-audit --no-fund
+
+      # Rspack's persistent cache from the previous run: only the modules a commit touched are
+      # rebuilt (~20 s instead of ~80 s). A new key per commit, restored from the newest one.
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: .rspack-cache
+          key: rspack-live-${{ hashFiles('seanime-web/package-lock.json') }}-${{ env.SOURCE_SHA }}
+          restore-keys: |
+            rspack-live-${{ hashFiles('seanime-web/package-lock.json') }}-
+
+      # Type checking stays in auto-release.yml; this lane only bundles.
+      # package.json is one of the build cache's keys and its version changes on every commit,
+      # so the version is pinned here and handed to rsbuild.config.ts through FRONTEND_APP_VERSION.
+      - name: Build Denshi frontend
+        working-directory: seanime-web
+        run: |
+          set -euo pipefail
+          export FRONTEND_APP_VERSION=$(node -p "require('./package.json').version")
+          export FRONTEND_BUILD_CACHE="$GITHUB_WORKSPACE/.rspack-cache"
+          node -e 'const f="package.json",fs=require("fs"),p=JSON.parse(fs.readFileSync(f));p.version="0.0.0-live";fs.writeFileSync(f,JSON.stringify(p,null,4))'
+          npx env-cmd -f .env.denshi rsbuild build
+          test -f out-denshi/index.html
+          grep -q "$FRONTEND_APP_VERSION" out-denshi/static/js/index.*.js
+
+      # The branch carries the build twice: as frontend-live.zip (what Denshi builds before 6.6.4-14
+      # download) and file by file under files/, listed with their hashes in the manifest, so a
+      # newer Denshi fetches only the files that changed (usually index.html and a few chunks).
+      - name: Package bundle and manifest
+        run: |
+          set -euo pipefail
+          mkdir -p live/files
+          (cd seanime-web/out-denshi && zip -q -r -X ../../live/frontend-live.zip . -x 'themes/*')
+          (cd seanime-web/out-denshi && tar --exclude='./themes' -cf - .) | (cd live/files && tar -xf -)
+          version=$(node -p "require('./versions.json').version")
+          commit_time=$(git log -1 --format=%cI)
+          node -e '
+            const fs = require("fs"), path = require("path"), crypto = require("crypto")
+            const sha = (b) => crypto.createHash("sha256").update(b).digest("hex")
+            const files = {}
+            const walk = (dir, rel) => {
+              for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+                const p = path.join(dir, e.name), r = rel ? rel + "/" + e.name : e.name
+                if (e.isDirectory()) walk(p, r)
+                else { const b = fs.readFileSync(p); files[r] = { sha256: sha(b), size: b.length } }
+              }
+            }
+            walk("live/files", "")
+            const zip = fs.readFileSync("live/frontend-live.zip")
+            fs.writeFileSync("live/frontend-live.json", JSON.stringify({
+              version: process.argv[1],
+              commit: process.env.SOURCE_SHA,
+              commitTime: process.argv[2],
+              builtAt: new Date().toISOString(),
+              sha256: sha(zip),
+              size: zip.length,
+              asset: "frontend-live.zip",
+              filesDir: "files",
+              files,
+            }, null, 1))
+            console.log(`${Object.keys(files).length} files`)
+          ' "$version" "$commit_time"
+
+      # One commit, force-pushed: the branch never grows, and its head names exactly one
+      # bundle, so a client fetching files at that commit can't mix two builds.
+      - name: Push to the frontend-live branch
+        working-directory: live
+        run: |
+          set -euo pipefail
+          git init -q -b frontend-live
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend-live.zip frontend-live.json files
+          git commit -q -m "Frontend live build of $SOURCE_SHA"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" frontend-live:frontend-live
