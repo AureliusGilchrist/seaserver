@@ -1,0 +1,264 @@
+name: Auto Release
+
+on:
+  # Sent by the private source repository's notify-distribution.yml on every push to its main.
+  repository_dispatch:
+    types: [source-push]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Source commit to build (empty = the latest main)
+        required: false
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_REPO: AureliusGilchrist/seaserver-src
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      # The source lives in a private repository; SOURCE_TOKEN can read it. This repository only
+      # carries what installed apps download: releases, the frontend-live branch and a few docs.
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ github.event.client_payload.sha || inputs.sha || 'main' }}
+          token: ${{ secrets.SOURCE_TOKEN }}
+          persist-credentials: false
+
+      - name: Note the source commit
+        shell: bash
+        run: echo "SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            seanime-web/package-lock.json
+            seanime-denshi/package-lock.json
+
+      - name: Install frontend and Denshi dependencies
+        shell: pwsh
+        run: |
+          Push-Location seanime-web
+          npm ci
+          if ($LASTEXITCODE -ne 0) { throw "npm ci failed in seanime-web" }
+          Pop-Location
+
+          Push-Location seanime-denshi
+          npm ci
+          if ($LASTEXITCODE -ne 0) { throw "npm ci failed in seanime-denshi" }
+          Pop-Location
+
+      - name: Set Denshi release version
+        id: version
+        shell: pwsh
+        run: |
+          $versions = Get-Content versions.json -Raw | ConvertFrom-Json
+          # One shared version for every component (see sync-versions.js).
+          # Run numbers restarted when releases moved to this repository; +1000 keeps them above
+          # every build published before the move.
+          $buildNumber = [int]$env:GITHUB_RUN_NUMBER + 1000
+          $releaseVersion = "$($versions.version).auto.$buildNumber.$env:GITHUB_RUN_ATTEMPT"
+          $versions.version = $releaseVersion
+          $versions | ConvertTo-Json -Depth 100 | Set-Content versions.json -Encoding utf8
+          node sync-versions.js
+          if ($LASTEXITCODE -ne 0) { throw "Version sync failed" }
+          "release_version=$releaseVersion" >> $env:GITHUB_OUTPUT
+
+      - name: Build Denshi frontend
+        working-directory: seanime-web
+        shell: pwsh
+        run: |
+          npm run build:denshi
+          if ($LASTEXITCODE -ne 0) { throw "Denshi frontend build failed" }
+          if (-not (Test-Path out-denshi)) { throw "Denshi frontend output is missing" }
+
+      - name: Prepare Denshi frontend
+        shell: pwsh
+        run: |
+          $destination = "seanime-denshi\web-denshi"
+          if (Test-Path $destination) {
+            Remove-Item -LiteralPath $destination -Recurse -Force
+          }
+          New-Item -ItemType Directory -Force -Path $destination | Out-Null
+          Get-ChildItem -LiteralPath "seanime-web\out-denshi" -Force |
+            Copy-Item -Destination $destination -Recurse -Force
+
+      - name: Package Denshi frontend bundle
+        id: bundle
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.release_version }}
+        run: |
+          # Published alongside the installer so a Denshi client can update its frontend
+          # straight from the release without git, Node or a GitHub account.
+          $zipPath = "denshi-frontend-$env:RELEASE_VERSION.zip"
+          Compress-Archive -Path "seanime-web\out-denshi\*" -DestinationPath $zipPath -Force
+          if (-not (Test-Path -LiteralPath $zipPath)) { throw "Frontend bundle was not created" }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $zipPath))
+          try {
+            $hasIndex = $zip.Entries | Where-Object { $_.FullName -eq "index.html" }
+            if (-not $hasIndex) { throw "Frontend bundle is missing a root index.html" }
+          } finally {
+            $zip.Dispose()
+          }
+          "frontend_zip=$zipPath" >> $env:GITHUB_OUTPUT
+
+      - name: Prepare server embed placeholder
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "web" | Out-Null
+          Set-Content -LiteralPath "web\.placeholder" -Value "Denshi sidecar build placeholder."
+
+      - name: Build Windows server sidecar
+        shell: pwsh
+        run: |
+          go build -trimpath '-ldflags=-s -w' -tags=nosystray -o seanime.exe .
+          if ($LASTEXITCODE -ne 0) { throw "Windows server sidecar build failed" }
+          $binaries = "seanime-denshi\binaries"
+          New-Item -ItemType Directory -Force -Path $binaries | Out-Null
+          Copy-Item -LiteralPath seanime.exe -Destination "$binaries\seanime-server-windows.exe" -Force
+
+      # electron-builder downloads Electron, NSIS and its signing tools from GitHub on every run;
+      # cached, a GitHub hiccup (a 502 on nsis-resources) no longer fails the release.
+      - name: Cache electron-builder downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\AppData\Local\electron-builder\Cache
+            ~\AppData\Local\electron\Cache
+          key: electron-builder-${{ runner.os }}-${{ hashFiles('seanime-denshi/package-lock.json') }}
+          restore-keys: |
+            electron-builder-${{ runner.os }}-
+
+      - name: Build Windows Denshi installer
+        working-directory: seanime-denshi
+        shell: pwsh
+        run: |
+          # Retried: what fails here is usually a download from GitHub (a 502), not the build.
+          $ok = $false
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            npm run build:win
+            if ($LASTEXITCODE -eq 0) { $ok = $true; break }
+            if ($attempt -lt 3) {
+              Write-Host "Packaging failed (attempt $attempt of 3); retrying in $(30 * $attempt) seconds"
+              Start-Sleep -Seconds (30 * $attempt)
+            }
+          }
+          if (-not $ok) { throw "Windows Denshi packaging failed" }
+
+      - name: Verify Denshi package and expose installer
+        id: package
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.release_version }}
+        run: |
+          $built = "seanime-denshi\binaries\seanime-server-windows.exe"
+          $packaged = "seanime-denshi\dist\win-unpacked\resources\binaries\seanime-server-windows.exe"
+          if (-not (Test-Path $packaged)) { throw "Packaged Denshi sidecar is missing" }
+          $builtHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $built).Hash
+          $packagedHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $packaged).Hash
+          if ($builtHash -ne $packagedHash) { throw "Denshi package contains a stale sidecar binary" }
+
+          $asset = "seanime-denshi\dist\seanime-denshi-{0}_Windows_x64.exe" -f $env:RELEASE_VERSION
+          if (-not (Test-Path $asset)) { throw "Windows Denshi installer is missing: $asset" }
+          "asset=$asset" >> $env:GITHUB_OUTPUT
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ steps.version.outputs.release_version }}
+          ASSET: ${{ steps.package.outputs.asset }}
+          FRONTEND_ZIP: ${{ steps.bundle.outputs.frontend_zip }}
+        shell: pwsh
+        run: |
+          $tag = "v$env:RELEASE_VERSION"
+          $repository = $env:GITHUB_REPOSITORY
+          $assetPaths = @([System.IO.Path]::GetFullPath($env:ASSET))
+          if ($env:FRONTEND_ZIP) {
+            $assetPaths += [System.IO.Path]::GetFullPath($env:FRONTEND_ZIP)
+          }
+          foreach ($p in $assetPaths) {
+            if (-not (Test-Path -LiteralPath $p -PathType Leaf)) {
+              throw "Release asset is missing: $p"
+            }
+          }
+          $notes = "Automated Windows Denshi build from commit $env:SOURCE_SHA."
+          $maxAttempts = 4
+          $published = $false
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            gh release view $tag --repo $repository *> $null
+            $viewExitCode = $LASTEXITCODE
+            if ($viewExitCode -eq 0) {
+              $publishArgs = @("release", "upload", $tag) + $assetPaths + @("--clobber", "--repo", $repository)
+            } else {
+              $publishArgs = @(
+                "release", "create", $tag
+              ) + $assetPaths + @(
+                "--repo", $repository,
+                "--title", "Seanime Denshi $env:RELEASE_VERSION",
+                "--notes", $notes,
+                "--prerelease"
+              )
+            }
+
+            $publishOutput = & gh @publishArgs 2>&1
+            $publishExitCode = $LASTEXITCODE
+            $outputText = ($publishOutput | ForEach-Object { "$_" }) -join "`n"
+            if ($outputText) { Write-Host $outputText }
+            if ($publishExitCode -eq 0) {
+              $published = $true
+              break
+            }
+
+            $retryable = $outputText -match '(?i)HTTP 5\d{2}|already exists'
+            if (-not $retryable -or $attempt -eq $maxAttempts) {
+              throw "GitHub CLI failed to publish $tag to $repository (exit code $publishExitCode). $outputText"
+            }
+
+            $delaySeconds = [int][Math]::Pow(2, $attempt + 1)
+            Write-Warning "Transient GitHub release failure; retrying in $delaySeconds seconds (attempt $attempt of $maxAttempts)."
+            Start-Sleep -Seconds $delaySeconds
+          }
+          if (-not $published) { throw "Failed to publish $tag after $maxAttempts attempts." }
+
+  # The two files the server reads from this repository's main: the changelog it shows after an
+  # update, and the API docs. Copied from the source commit just built.
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out this repository
+        uses: actions/checkout@v4
+
+      - name: Copy the changelog and API docs from the source
+        env:
+          GH_TOKEN: ${{ secrets.SOURCE_TOKEN }}
+          REF: ${{ github.event.client_payload.sha || inputs.sha || 'main' }}
+        run: |
+          set -euo pipefail
+          mkdir -p codegen/generated
+          for f in CHANGELOG.md codegen/generated/handlers.json; do
+            gh api -H "Accept: application/vnd.github.raw" "repos/$SOURCE_REPO/contents/$f?ref=$REF" > "$f.new"
+            test -s "$f.new"
+            mv "$f.new" "$f"
+          done
+          git add CHANGELOG.md codegen/generated/handlers.json
+          if git diff --cached --quiet; then echo "Docs unchanged"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "Changelog and API docs"
+          git pull -q --rebase && git push
