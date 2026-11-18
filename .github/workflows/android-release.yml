@@ -1,0 +1,190 @@
+name: Denshi Mobile Android
+
+on:
+  # Sent by the private source repository's notify-distribution.yml on every push to its main.
+  repository_dispatch:
+    types: [source-push]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Source commit to build (empty = the latest main)
+        required: false
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_REPO: AureliusGilchrist/seaserver-src
+
+concurrency:
+  group: denshi-mobile-android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Skips the build when the pushed commits touch nothing it uses (what `paths:` did on push).
+  # File names stay out of the log on purpose.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      relevant: ${{ steps.check.outputs.relevant }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ secrets.SOURCE_TOKEN }}
+          BEFORE: ${{ github.event.client_payload.before }}
+          AFTER: ${{ github.event.client_payload.sha }}
+          PATTERN: '^(seanime-denshi-mobile-android/|seanime-web/src/|seanime-web/package(-lock)?\.json$|seanime-web/\.env\.mobile$|seanime-web/rsbuild\.config\.|versions\.json$|sync-versions\.js$)'
+        run: |
+          set -uo pipefail
+          relevant=true
+          if [ "$GITHUB_EVENT_NAME" = "repository_dispatch" ] && [ -n "$BEFORE" ] && [ -n "$AFTER" ] && [ -n "${BEFORE//0/}" ]; then
+            if files=$(gh api "repos/$SOURCE_REPO/compare/$BEFORE...$AFTER" --jq '.files[].filename' 2>/dev/null); then
+              count=$(printf '%s\n' "$files" | grep -c . || true)
+              if [ "$count" -lt 300 ] && ! printf '%s\n' "$files" | grep -q -E "$PATTERN"; then
+                relevant=false
+              fi
+            fi
+          fi
+          echo "relevant=$relevant" >> "$GITHUB_OUTPUT"
+          echo "Build needed: $relevant"
+
+  build:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      # The source lives in a private repository; SOURCE_TOKEN can read it. This repository only
+      # carries what installed apps download: releases, the frontend-live branch and a few docs.
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ github.event.client_payload.sha || inputs.sha || 'main' }}
+          token: ${{ secrets.SOURCE_TOKEN }}
+          persist-credentials: false
+
+      - name: Note the source commit
+        shell: bash
+        run: echo "SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      # Run numbers restarted when releases moved to this repository; +1000 keeps the APK's
+      # versionCode and its release name above every build published before the move.
+      - name: Set the build number
+        run: echo "DENSHI_BUILD_NUMBER=$((GITHUB_RUN_NUMBER + 1000))" >> "$GITHUB_ENV"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            seanime-web/package-lock.json
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Restore frontend dependencies
+        id: web-deps
+        uses: actions/cache@v4
+        with:
+          path: seanime-web/node_modules
+          key: web-node-modules-${{ runner.os }}-${{ hashFiles('seanime-web/package-lock.json') }}
+
+      - name: Install frontend dependencies
+        if: steps.web-deps.outputs.cache-hit != 'true'
+        working-directory: seanime-web
+        run: |
+          npm ci
+          if [ $? -ne 0 ]; then echo "::error::npm ci failed in seanime-web"; exit 1; fi
+
+      - name: Build mobile frontend
+        working-directory: seanime-web
+        run: |
+          npm run build:mobile
+          if [ $? -ne 0 ]; then echo "::error::mobile frontend build failed"; exit 1; fi
+          if [ ! -f out-mobile/index.html ]; then echo "::error::out-mobile output is missing"; exit 1; fi
+
+      - name: Assemble web assets into the Android project
+        working-directory: seanime-denshi-mobile-android
+        run: |
+          npm ci
+          if [ $? -ne 0 ]; then echo "::error::npm ci failed in seanime-denshi-mobile-android"; exit 1; fi
+          node scripts/build-www.mjs
+          npx cap sync android
+
+      - name: Restore signing keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        working-directory: seanime-denshi-mobile-android/android
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > denshi-mobile.keystore
+            cat > keystore.properties <<EOF
+          storeFile=denshi-mobile.keystore
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+            echo "Release signing configured from secrets"
+          else
+            echo "::warning::ANDROID_KEYSTORE_B64 is not set — the release APK will be debug-signed"
+          fi
+
+      - name: Build release APK
+        working-directory: seanime-denshi-mobile-android/android
+        run: |
+          ./gradlew assembleRelease --no-daemon --stacktrace
+          if [ $? -ne 0 ]; then echo "::error::APK build failed"; exit 1; fi
+          if [ ! -f app/build/outputs/apk/release/app-release.apk ]; then echo "::error::APK output is missing"; exit 1; fi
+
+      - name: Name the APK after the release version
+        id: apk
+        env:
+          RUN_NUMBER: ${{ env.DENSHI_BUILD_NUMBER }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          VERSION=$(node -p "require('./seanime-denshi-mobile-android/package.json').version")
+          RELEASE_VERSION="$VERSION.auto.$RUN_NUMBER.$RUN_ATTEMPT"
+          ASSET="seanime-denshi-mobile-android-$RELEASE_VERSION.apk"
+          cp seanime-denshi-mobile-android/android/app/build/outputs/apk/release/app-release.apk "$ASSET"
+          echo "release_version=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
+          echo "asset=$ASSET" >> "$GITHUB_OUTPUT"
+
+      - name: Verify APK signature
+        run: |
+          BUILD_TOOLS_DIR="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+          "$BUILD_TOOLS_DIR/apksigner" verify --print-certs "${{ steps.apk.outputs.asset }}" | sed 's/^/  /'
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.apk.outputs.asset }}
+          path: ${{ steps.apk.outputs.asset }}
+          if-no-files-found: error
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ steps.apk.outputs.release_version }}
+          ASSET: ${{ steps.apk.outputs.asset }}
+        run: |
+          TAG="v${RELEASE_VERSION}-android"
+          NOTES="Automated Denshi Mobile Android build from commit $SOURCE_SHA."
+          # The existence probe must be the if-condition itself: GitHub runs steps with
+          # bash -e, and a standalone `gh release view` exiting 1 (release not found — the
+          # normal first-run case) would abort the script before the create ever runs.
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$ASSET" --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" "$ASSET" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Seanime Denshi Mobile $RELEASE_VERSION" \
+              --notes "$NOTES"
+          fi
