@@ -46,7 +46,7 @@ jobs:
           GH_TOKEN: ${{ secrets.SOURCE_TOKEN }}
           BEFORE: ${{ github.event.client_payload.before }}
           AFTER: ${{ github.event.client_payload.sha }}
-          PATTERN: '^(seanime-web/|versions\.json$)'
+          PATTERN: '^(seanime-web/|seanime-denshi-mobile-android/src/|seanime-denshi-mobile-android/scripts/|versions\.json$)'
         run: |
           set -uo pipefail
           relevant=true
@@ -104,7 +104,9 @@ jobs:
       - name: Restore build cache
         uses: actions/cache@v4
         with:
-          path: .rspack-cache
+          path: |
+            .rspack-cache
+            .rspack-cache-mobile
           key: rspack-live-${{ hashFiles('seanime-web/package-lock.json') }}-${{ env.SOURCE_SHA }}
           restore-keys: |
             rspack-live-${{ hashFiles('seanime-web/package-lock.json') }}-
@@ -160,6 +162,40 @@ jobs:
             }, null, 1))
             console.log(`${Object.keys(files).length} files`)
           ' "$version" "$commit_time"
+
+      # The token-gated copy for the private edition (slim Denshi and slim Android, which ask for a
+      # GitHub token on first launch): the same desktop build, plus the mobile frontend bundle,
+      # pushed to the private source repository's frontend-private branch. Only a token that can
+      # read seaserver-src can download it. Needs SOURCE_TOKEN to have Contents: Read and write on
+      # seaserver-src; until it does, this step fails on its own and the public lane is unaffected.
+      - name: Build mobile frontend
+        working-directory: seanime-web
+        continue-on-error: true
+        id: mobile
+        run: |
+          set -euo pipefail
+          export FRONTEND_APP_VERSION=$(git -C .. show HEAD:seanime-web/package.json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).version))')
+          export FRONTEND_BUILD_CACHE="$GITHUB_WORKSPACE/.rspack-cache-mobile"
+          npx env-cmd -f .env.mobile rsbuild build
+          test -f out-mobile/index.html
+          node ../seanime-denshi-mobile-android/scripts/publish-frontend.mjs --source out-mobile --out "$GITHUB_WORKSPACE/private/mobile"
+          test -f "$GITHUB_WORKSPACE/private/mobile/manifest.json"
+
+      - name: Push to seaserver-src's frontend-private branch
+        continue-on-error: true
+        env:
+          SOURCE_TOKEN: ${{ secrets.SOURCE_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p private
+          cp -r live/frontend-live.zip live/frontend-live.json live/files private/
+          cd private
+          git init -q -b frontend-private
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Private frontend build of $SOURCE_SHA"
+          git push -f "https://x-access-token:${SOURCE_TOKEN}@github.com/$SOURCE_REPO.git" frontend-private:frontend-private             || { echo "::warning::Could not push frontend-private: give SOURCE_TOKEN Contents: Read and write on $SOURCE_REPO"; exit 1; }
 
       # One commit, force-pushed: the branch never grows, and its head names exactly one
       # bundle, so a client fetching files at that commit can't mix two builds.
