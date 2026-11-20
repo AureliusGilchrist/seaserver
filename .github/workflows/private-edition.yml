@@ -1,0 +1,231 @@
+name: Private Edition
+
+# The private edition's installers: a slim Windows Denshi and a slim Android APK with no app
+# inside, only a first-launch token prompt. With a token that can read the private source
+# repository, they download the app from its frontend-private branch (filled by frontend-live.yml
+# on every push) and keep updating from there.
+#
+# Published as releases of AureliusGilchrist/seaserver-installer, a public repository that holds
+# nothing but these installers. SOURCE_TOKEN needs Contents: Read and write on that repository
+# (as well as on seaserver-src) for the upload.
+#
+# Rebuilt only when the app shells change: everything else reaches installed apps through the
+# frontend-private branch without a new installer.
+
+on:
+  repository_dispatch:
+    types: [source-push]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Source commit to build (empty = the latest main)
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_REPO: AureliusGilchrist/seaserver-src
+  INSTALLER_REPO: AureliusGilchrist/seaserver-installer
+
+concurrency:
+  group: private-edition
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      relevant: ${{ steps.check.outputs.relevant }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ secrets.SOURCE_TOKEN }}
+          BEFORE: ${{ github.event.client_payload.before }}
+          AFTER: ${{ github.event.client_payload.sha }}
+          PATTERN: '^(seanime-denshi/(src|assets)/|seanime-denshi/package(-lock)?\.json$|seanime-denshi-mobile-android/(src|private-www|scripts|android)/|seanime-denshi-mobile-android/package(-lock)?\.json$|distribution/workflows/private-edition\.yml$)'
+        run: |
+          set -uo pipefail
+          relevant=true
+          if [ "$GITHUB_EVENT_NAME" = "repository_dispatch" ] && [ -n "$BEFORE" ] && [ -n "$AFTER" ] && [ -n "${BEFORE//0/}" ]; then
+            if files=$(gh api "repos/$SOURCE_REPO/compare/$BEFORE...$AFTER" --jq '.files[].filename' 2>/dev/null); then
+              count=$(printf '%s\n' "$files" | grep -c . || true)
+              if [ "$count" -lt 300 ] && ! printf '%s\n' "$files" | grep -q -E "$PATTERN"; then
+                relevant=false
+              fi
+            fi
+          fi
+          echo "relevant=$relevant" >> "$GITHUB_OUTPUT"
+          echo "Build needed: $relevant"
+
+  windows:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ github.event.client_payload.sha || inputs.sha || 'main' }}
+          token: ${{ secrets.SOURCE_TOKEN }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: seanime-denshi/package-lock.json
+
+      - name: Cache electron-builder downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\AppData\Local\electron-builder\Cache
+            ~\AppData\Local\electron\Cache
+          key: electron-builder-${{ runner.os }}-${{ hashFiles('seanime-denshi/package-lock.json') }}
+          restore-keys: |
+            electron-builder-${{ runner.os }}-
+
+      - name: Version
+        id: version
+        shell: pwsh
+        run: |
+          $v = (Get-Content versions.json -Raw | ConvertFrom-Json).version
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      # The slim edition: no frontend and no server binary inside. denshiEdition switches on the
+      # token setup (src/private-access.js); a separate app id lets it sit next to the public app.
+      - name: Build the private Windows installer
+        working-directory: seanime-denshi
+        shell: pwsh
+        run: |
+          npm ci
+          if ($LASTEXITCODE -ne 0) { throw "npm ci failed" }
+          node -e "const f='package.json',fs=require('fs'),p=JSON.parse(fs.readFileSync(f));p.denshiEdition='private';fs.writeFileSync(f,JSON.stringify(p,null,2))"
+          Remove-Item -Recurse -Force web-denshi -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path binaries | Out-Null
+          Set-Content binaries\README.txt "The private edition connects to a server; it ships no server binary."
+          $ok = $false
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            npx electron-builder build --win --x64 `
+              "-c.appId=app.seanime.denshi.private" `
+              "-c.productName=Deus Ex Aeternae Private" `
+              "-c.nsis.shortcutName=Deus Ex Aeternae Private" `
+              "-c.win.artifactName=deus-ex-aeternae-private-setup-`${version}.`${ext}" `
+              "-c.nsis.artifactName=deus-ex-aeternae-private-setup-`${version}.`${ext}"
+            if ($LASTEXITCODE -eq 0) { $ok = $true; break }
+            Start-Sleep -Seconds (30 * $attempt)
+          }
+          if (-not $ok) { throw "Packaging failed" }
+          $exe = Get-ChildItem dist -Filter "deus-ex-aeternae-private-setup-*.exe" | Select-Object -First 1
+          if (-not $exe) { throw "Installer missing" }
+          Copy-Item $exe.FullName "..\private-setup.exe"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: private-setup.exe
+          if-no-files-found: error
+
+  android:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ github.event.client_payload.sha || inputs.sha || 'main' }}
+          token: ${{ secrets.SOURCE_TOKEN }}
+          persist-credentials: false
+
+      - name: Set the build number
+        run: echo "DENSHI_BUILD_NUMBER=$((GITHUB_RUN_NUMBER + 1000))" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      # The token page and the shell only; the app is downloaded after a token is entered.
+      - name: Assemble the private www
+        working-directory: seanime-denshi-mobile-android
+        run: |
+          npm ci
+          node scripts/build-www.mjs --private
+          sed -i 's|<string name="app_name">[^<]*</string>|<string name="app_name">Deus Ex Aeternae Private</string>|' android/app/src/main/res/values/strings.xml
+          npx cap sync android
+
+      - name: Restore signing keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        working-directory: seanime-denshi-mobile-android/android
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > denshi-mobile.keystore
+            cat > keystore.properties <<EOF
+          storeFile=denshi-mobile.keystore
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+          else
+            echo "::warning::ANDROID_KEYSTORE_B64 is not set — the APK will be debug-signed"
+          fi
+
+      - name: Build the private APK
+        working-directory: seanime-denshi-mobile-android/android
+        env:
+          DENSHI_EDITION: private
+        run: |
+          ./gradlew assembleRelease --no-daemon
+          cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/private.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: private.apk
+          if-no-files-found: error
+
+  release:
+    needs: [windows, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+
+      - name: Publish to the installer repository
+        env:
+          GH_TOKEN: ${{ secrets.SOURCE_TOKEN }}
+          VERSION: ${{ needs.windows.outputs.version }}
+        run: |
+          set -euo pipefail
+          build=$((GITHUB_RUN_NUMBER + 1000))
+          tag="v${VERSION}.auto.${build}.${GITHUB_RUN_ATTEMPT}-android"
+          exe="Deus-Ex-Aeternae-Private-Setup-${VERSION}.exe"
+          apk="deus-ex-aeternae-private-${VERSION}.auto.${build}.${GITHUB_RUN_ATTEMPT}.apk"
+          mv windows/private-setup.exe "$exe"
+          mv android/private.apk "$apk"
+          cat > notes.md <<EOF
+          ### Install
+
+          - **Windows:** run \`$exe\`.
+          - **Android:** open \`$apk\` on the phone (allow installs from your browser if asked).
+
+          On first launch, paste the access token you were given. The app then downloads itself and
+          keeps itself up to date — this installer only changes when the app's shell does.
+          EOF
+          gh release create "$tag" "$exe" "$apk" --repo "$INSTALLER_REPO" \
+            --title "Private edition $VERSION" --notes-file notes.md --latest
