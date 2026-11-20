@@ -107,6 +107,7 @@ jobs:
           path: |
             .rspack-cache
             .rspack-cache-mobile
+            .rspack-cache-web
           key: rspack-live-${{ hashFiles('seanime-web/package-lock.json') }}-${{ env.SOURCE_SHA }}
           restore-keys: |
             rspack-live-${{ hashFiles('seanime-web/package-lock.json') }}-
@@ -196,6 +197,44 @@ jobs:
           git add -A
           git commit -q -m "Private frontend build of $SOURCE_SHA"
           git push -f "https://x-access-token:${SOURCE_TOKEN}@github.com/$SOURCE_REPO.git" frontend-private:frontend-private             || { echo "::warning::Could not push frontend-private: give SOURCE_TOKEN Contents: Read and write on $SOURCE_REPO"; exit 1; }
+
+      # The server's own web interface (seanime-web/out, what build-all.sh embeds in the binary),
+      # so the NAS's self-update downloads it instead of bundling it there: a bundle that takes
+      # ~20 s here takes up to half an hour on the NAS while it is also serving. build-all.sh
+      # uses it only when web-src-hash matches its own checkout's (same formula as its
+      # web_src_hash), and builds locally otherwise. The theme wallpapers (~350 MB) are left out;
+      # the NAS copies them from its checkout. Pushed to seaserver-src only, like frontend-private.
+      - name: Build server web interface
+        working-directory: seanime-web
+        continue-on-error: true
+        id: serverweb
+        run: |
+          set -euo pipefail
+          hash=$(git -C .. ls-files -s -- seanime-web | grep -v -E '[[:space:]]seanime-web/package\.json$' | sha256sum | cut -d' ' -f1)
+          export FRONTEND_APP_VERSION=$(git -C .. show HEAD:seanime-web/package.json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).version))')
+          export FRONTEND_BUILD_CACHE="$GITHUB_WORKSPACE/.rspack-cache-web"
+          npx rsbuild build
+          test -f out/index.html
+          grep -q "$FRONTEND_APP_VERSION" out/static/js/index.*.js
+          mkdir -p "$GITHUB_WORKSPACE/serverweb"
+          tar --exclude='./themes' -czf "$GITHUB_WORKSPACE/serverweb/server-web.tar.gz" -C out .
+          printf '{"commit":"%s","webSrcHash":"%s","version":"%s"}\n' "$SOURCE_SHA" "$hash" "$FRONTEND_APP_VERSION" > "$GITHUB_WORKSPACE/serverweb/server-web.json"
+          ls -la "$GITHUB_WORKSPACE/serverweb"
+
+      - name: Push to seaserver-src's server-web branch
+        if: steps.serverweb.outcome == 'success'
+        continue-on-error: true
+        working-directory: serverweb
+        env:
+          SOURCE_TOKEN: ${{ secrets.SOURCE_TOKEN }}
+        run: |
+          set -euo pipefail
+          git init -q -b server-web
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Server web build of $SOURCE_SHA"
+          git push -f "https://x-access-token:${SOURCE_TOKEN}@github.com/$SOURCE_REPO.git" server-web:server-web
 
       # One commit, force-pushed: the branch never grows, and its head names exactly one
       # bundle, so a client fetching files at that commit can't mix two builds.
