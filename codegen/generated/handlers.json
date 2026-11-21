@@ -24631,7 +24631,7 @@
       "",
       "\t@summary returns the cached backend update status.",
       "\t@desc Whether the fork has commits this server lacks, which ones and which files they change,",
-      "\t@desc when it last checked and when it checks next (every 5 minutes), and any check error.",
+      "\t@desc when it last checked and when it checks next (every minute), and any check error.",
       "\t@desc Never fetches on request — the server's own check loop keeps it current.",
       "\t@route /api/v1/update/backend/status [GET]",
       "\t@returns updater.UpdateStatus",
@@ -24643,7 +24643,7 @@
       "summary": "returns the cached backend update status.",
       "descriptions": [
         "Whether the fork has commits this server lacks, which ones and which files they change,",
-        "when it last checked and when it checks next (every 5 minutes), and any check error.",
+        "when it last checked and when it checks next (every minute), and any check error.",
         "Never fetches on request — the server's own check loop keeps it current."
       ],
       "endpoint": "/api/v1/update/backend/status",
