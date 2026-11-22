@@ -6,8 +6,8 @@ name: Private Edition
 # on every push) and keep updating from there.
 #
 # Published as releases of AureliusGilchrist/seaserver-installer, a public repository that holds
-# nothing but these installers. SOURCE_TOKEN needs Contents: Read and write on that repository
-# (as well as on seaserver-src) for the upload.
+# nothing but these installers. The upload uses INSTALLER_TOKEN (the owner's gh token, which can
+# write releases there); SOURCE_TOKEN, read-only on seaserver-src, is the fallback when it is unset.
 #
 # Rebuilt only when the app shells change: everything else reaches installed apps through the
 # frontend-private branch without a new installer.
@@ -208,7 +208,7 @@ jobs:
 
       - name: Publish to the installer repository
         env:
-          GH_TOKEN: ${{ secrets.SOURCE_TOKEN }}
+          GH_TOKEN: ${{ secrets.INSTALLER_TOKEN || secrets.SOURCE_TOKEN }}
           VERSION: ${{ needs.windows.outputs.version }}
         run: |
           set -euo pipefail
